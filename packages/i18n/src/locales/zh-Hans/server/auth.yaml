@@ -36,7 +36,6 @@ signIn:
       description: 我们将为 {email} 创建一个新账户...
   email:
     label: 邮箱
-    placeholder: you{'@'}example.com
   password:
     label: 密码
     placeholder: 您的密码
@@ -61,7 +60,6 @@ signIn:
     redirecting: 重定向到{provider}……
   error:
     fallback: 登录失败
-    providerTimeout: Provider sign-in timed out. Please try again.
     unknown: 发生了未知错误
     socialOnlyNoPassword: 此邮箱通过 Google 或 GitHub 注册。请使用下方按钮登录；登录后可在账户设置中添加密码。
     passwordMismatch: 密码与确认密码不一致。
@@ -88,7 +86,6 @@ forgotPassword:
   description: 输入与账户关联的邮箱，我们会向您发送重置链接。
   email:
     label: 邮箱
-    placeholder: you{'@'}example.com
   action:
     send: 发送重置链接
     backToSignIn: 返回登录

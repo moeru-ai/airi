@@ -125,7 +125,6 @@ promo-banner:
       fallbackLabel: 月石礼包
       title: 7日签到
       eventName: 登录后可以申请星尘、头像框和登录礼物。
-      date: 03/28 - 04/10
       reward: 最多120个星尘
       cta: 登录
     build:
@@ -133,7 +132,6 @@ promo-banner:
       fallbackLabel: 建造奖励
       title: 补给箱奖励
       eventName: 完成建造任务即可获得奖励券和双倍材料。
-      date: 03/30 - 04/12
       reward: 5 张补给券 + 升级材料
       cta: 查看任务
     spring:
@@ -141,7 +139,6 @@ promo-banner:
       fallbackLabel: 春日抽奖
       title: 扭蛋嘉年华
       eventName: 参与春日抽奖，解锁气泡、挂饰和主题家具。
-      date: 04/01 - 04/18
       reward: 首抽半价 + 稀有挂饰
       cta: 立即抽取
     coupon:
@@ -149,7 +146,6 @@ promo-banner:
       fallbackLabel: 优惠券
       title: 充值优惠券
       eventName: 完成聊天互动即可领取扩展包和语音包优惠券。
-      date: 04/02 - 04/20
       reward: 满 30 减 6 / 满 68 减 15
       cta: 领取优惠券
     home:
@@ -157,7 +153,6 @@ promo-banner:
       fallbackLabel: 房间主题
       title: 春日主题更新
       eventName: 解锁窗户、书桌和夜灯主题，焕新你的房间。
-      date: 04/05 - 04/22
       reward: 登录即赠主题抽奖券
       cta: 查看主题
 waiting: 等待中

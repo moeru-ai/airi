@@ -126,8 +126,6 @@ model-select:
       title: 模型
       files: '{count} 个文件'
       types:
-        cubism: 'Cubism {version} ({format})'
-        cubism-compatible: 'Cubism 3+ ({format})'
         unknown: 未知
     resources:
       title: 资源
@@ -187,7 +185,6 @@ live2d:
           title: 通用
           description: 使用模型动作、空闲眼部动作和鼠标跟踪。
         magic:
-          title: MAGIC
           description: 使用内置 MAGIC 数据集生成动作。
       magic:
         profile:
@@ -236,10 +233,7 @@ live2d:
     render-scale:
       title: 渲染缩放
     fps:
-      title: FPS
       description: 限制渲染帧率
-      options:
-        unlimited: '∞'
     shadow: 投影
     reset-parameters: 重置为默认参数
   clear-model-cache: 清除模型缓存
@@ -346,7 +340,6 @@ pages:
           warning: 此操作无法撤销。已经激活的订阅将被取消，现存的 Flux 余额均会被清除。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
-            placeholder: ''
             mismatch: 邮箱不匹配。
           confirm: 发送确认邮件
           cancel: 取消
@@ -683,7 +676,6 @@ pages:
             top_p_enabled: 自定义 Top P
             sampling_override_description: 默认关闭。仅在模型支持此参数时启用。部分模型只允许同时使用一个采样参数。
             temperature_description: 控制模型输出的随机性。较低的温度（例如 0.2）会使输出更精确和确定；较高的温度（例如 1.0）会增加创造力和多样性。
-            top_p_label: Top P
             top_p_description: 控制模型输出的多样性（核采样）。较低的值（例如 0.2）会将输出限制在概率较高的词汇；较高的值（例如 1.0）则会包含更广泛的可能性。
             subtitle: 选择一个默认模型
             title: 模型
@@ -904,7 +896,6 @@ pages:
         args:
           label: 命令参数
           description: 每行一个，按顺序传入。
-          placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
           label: 工作目录
           description: 可选，作为启动进程时使用的当前工作目录。
@@ -1133,7 +1124,6 @@ pages:
     description: LLM，语音合成，语音识别服务来源等
     provider:
       sherpaw-transcription:
-        title: Sherpaw
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:
           label: 模型语言
@@ -1166,13 +1156,10 @@ pages:
         description: bailian.console.aliyun.com
         title: 阿里百炼
       amazon-bedrock:
-        title: Amazon Bedrock
-        description: aws.amazon.com/bedrock
         config:
           api-key:
             label: Bedrock API 密钥
             description: Amazon Bedrock API 密钥（在 AWS 控制台 → Bedrock → API Keys 中生成）
-            placeholder: bedrock-...
           region:
             label: AWS 区域
             description: Bedrock 激活的 AWS 区域（例如：us-east-1，us-west-2）
@@ -1217,26 +1204,6 @@ pages:
             volume:
               description: 调节语音的响度
               label: 响度
-      voicevox:
-        description: voicevox.hiroshiba.jp
-        title: VOICEVOX
-        fields:
-          field:
-            intonation:
-              description: Adjust how much the intonation of the reading varies
-              label: Intonation
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
-      aivis-speech:
-        description: aivis-project.com
-        title: AivisSpeech
-        fields:
-          field:
-            intonation:
-              description: Adjust how strongly the speaking style is expressed
-              label: Emotion expression strength
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1270,11 +1237,9 @@ pages:
             server_url:
               label: 服务器地址
               description: ComfyUI 正在运行的地址
-              placeholder: http://localhost:8188
           cors:
             title: 检测到 CORS 阻止
             description: ComfyUI 默认会阻止来自其他应用程序的请求。若要允许 AIRI 连接，必须使用 --enable-cors-header "*" 参数启动 ComfyUI。
-            command: python main.py --enable-cors-header "*"
           workflows:
             title: 工作流模板
             upload: 上传工作流
@@ -1298,33 +1263,27 @@ pages:
             save: 保存工作流
       replicate:
         settings:
-          title: Replicate.ai
           heading: Replicate.ai 配置
           description: 配置云端图像生成设置。
           api_key:
             label: API 密钥
             description: 您的 Replicate API 令牌（以 r8_ 开头）
-            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: 默认模型
             description: 角色卡未指定模型时使用的备用所有者/模型字符串
-            placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: 宽高比
             description: 默认图像宽高比（例如 16:9、1:1、9:16）
-            placeholder: '16:9'
           inference_steps:
             label: 推理步数
             description: 扩散过程的步数（越低越快，越高质量越好）
       nanobanana:
         settings:
-          title: Nano Banana
           heading: Nano Banana（Google AI Studio）
           description: 配置 Google Gemini 的原生图像生成能力。
           api_key:
             label: API 密钥
             description: 您的 Google AI Studio API 密钥
-            placeholder: AIpk...
           preferred_model:
             label: 首选模型
             description: 要使用的特定 Gemini 图像预览模型
@@ -1409,9 +1368,6 @@ pages:
       fireworks:
         description: Fireworks.ai
         title: Fireworks.ai
-      google-gemini-audio-speech:
-        description: aistudio.google.com
-        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1434,12 +1390,6 @@ pages:
       minimax-global:
         description: minimax.io
         title: MiniMax Global
-      minimax-speech:
-        description: minimax.io
-        title: MiniMax Speech
-      mimo:
-        description: api.xiaomimimo.com
-        title: Xiaomi MiMo
       mistral:
         description: mistral.ai
         title: Mistral
@@ -1470,9 +1420,6 @@ pages:
       n1n:
         description: n1n.ai - 高性能的 AI API 提供商
         title: n1n
-      openpaths:
-        description: openpaths.io
-        title: OpenPaths
       openrouter:
         description: OpenRouter.ai
         title: OpenRouter
@@ -1513,18 +1460,7 @@ pages:
         title: 火山引擎
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
-        models:
-          ark-code-latest:
-            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
-          legacy:
-            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: 火山引擎 Coding Plan
-      byteplus:
-        description: byteplus.com
-        title: BytePlus
-      byteplus-coding-plan:
-        description: BytePlus Coding Plan
-        title: BytePlus Coding Plan
       xai:
         description: X.AI
         title: xAI
@@ -1548,7 +1484,6 @@ pages:
         title: Web 语音API
       prompt-api:
         description: 借助 Prompt API，您可以向 Chrome 中的基础模型发送自然语言请求。
-        title: Prompt API
       official:
         title: AIRI官方提供商
         description: 登录后即可使用的服务来源
@@ -1857,8 +1792,6 @@ spine:
   scale-and-position:
     title: 缩放与位置
     scale: 缩放
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: 从模型提取颜色
     button-extract:
@@ -1883,59 +1816,12 @@ spine:
   fps:
     options:
       unlimited: 不限
-mmd:
-  title: MMD Settings
-  scale-and-position:
-    title: Scale And Position
-    scale: Scale
-    x: X
-    'y': 'Y'
-    rotation: Rotation
-  theme-color-from-model:
-    title: Extract colors from model
-    button-extract:
-      title: Extract
-  physics:
-    title: Physics & Rig
-    enabled: Enable physics (hair, skirt, accessories)
-    ik: Enable IK (inverse kinematics)
-    grant: Enable append-bone propagation
-    gravity: Gravity strength
-  gaze:
-    title: Gaze
-    tracking: Looking at
-    options:
-      cursor: Mouse
-      camera: Camera
-      none: Disabled
-  animation:
-    title: Animation
-    idle-motion: Idle Motion
-    import-motion: Import Motion (.vmd)
-    play-once: Preview Animation
-    remove: Remove motion
-    description: >-
-      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
-  morphs:
-    title: Morphs
-    auto: (auto)
-    revert: Revert to auto
-    no-morphs: This model exposes no morphs.
-    description: >-
-      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
-  materials:
-    title: Materials
-    no-materials: This model exposes no materials.
-    description: >-
-      Adjust the opacity of individual model parts (face, hair, clothing, accessories). Set a part to 0 to hide it.
 tachie:
   title: Tachie 设置
   archive-description: Tachie 模型使用包含情绪命名图片的 .tachie.zip 压缩包。
   scale-and-position:
     title: 缩放与位置
     scale: 缩放
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: 从模型提取颜色
     button-extract:

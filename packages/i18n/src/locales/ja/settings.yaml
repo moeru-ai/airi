@@ -44,7 +44,6 @@ dialogs:
     loginPrompt: 最高の体験を得るためにログインして AIRI 公式プロバイダーを使用してください。
     loginAction: ログイン
     setupWithoutSigningIn: 独自のプロバイダーを設定
-    flux: Flux
     buyFlux: Flux を購入
     select-model: モデルを選択
     no-models: 利用可能なモデルがありません
@@ -117,38 +116,6 @@ model-select:
     import: インポート
     remove: 削除
     confirm: 確定
-  live2d-report:
-    title: Before import
-    description: Review the model data and any issues found in the archive.
-    description-short: Review the model data and issues.
-    close: Close
-    model:
-      title: Model
-      files: '{count} files'
-      types:
-        cubism: 'Cubism {version} ({format})'
-        cubism-compatible: 'Cubism 3+ ({format})'
-        unknown: Unknown
-    resources:
-      title: Resources
-      motions: Motions
-      expressions: Expressions
-      parameters: Parameters
-      textures: Textures
-      referenced-and-found: '{referenced} referenced · {found} found'
-      referenced: '{count} referenced'
-      found: '{count} found'
-    issues:
-      title: Issues
-      errors: '{count} errors'
-      warnings: '{count} warnings'
-      none: No issues found.
-      how-to-fix: How to fix
-      resolve-before-import: Resolve the errors before import.
-    actions:
-      cancel: Cancel
-      confirm: Confirm Import
-      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: ファイルから読み込む
@@ -179,33 +146,6 @@ live2d:
       title: 抽出
   animation:
     title: アニメーション
-    motion-driver:
-      title: Motion driver
-      description: Select how AIRI creates idle body and eye motion.
-      options:
-        universal:
-          title: Universal
-          description: Use model motions, idle eye movement, and mouse tracking.
-        magic:
-          title: MAGIC
-          description: Generate motion from the bundled MAGIC dataset.
-      magic:
-        profile:
-          title: MAGIC profile
-          description: Select the bundled motion dataset that fits the MAGIC driver.
-          options:
-            idle-calm:
-              title: Idle / calm
-              description: Use the bundled idle and calm motion recording.
-            speaking-excited:
-              title: Speaking / excited
-              description: Use the bundled speaking and excited motion recording.
-        skip-mouth-open:
-          title: Skip generated mouth opening
-          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
-        force-view-target:
-          title: Force forward view target
-          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: マウス追従を有効化
       description: マウスカーソルの動きを目で追いかけます。カーソルが止まるとアイドリング時の目の動きに戻ります。
@@ -236,10 +176,7 @@ live2d:
     render-scale:
       title: レンダリングスケール
     fps:
-      title: FPS
       description: レンダリングフレームレートの制限
-      options:
-        unlimited: '∞'
     shadow: 影
     reset-parameters: パラメータをデフォルトに戻す
   clear-model-cache: モデルキャッシュを消去
@@ -346,7 +283,6 @@ pages:
           warning: この操作は取り消せません。有効なサブスクリプションは解約され、Flux 残高は消去されます。
           confirmEmail:
             label: 確認のためメールアドレスを入力してください
-            placeholder: ''
             mismatch: メールアドレスが一致しません。
           confirm: 確認メールを送信
           cancel: キャンセル
@@ -363,7 +299,6 @@ pages:
     save: 変更を保存
     save_and_activate: 保存して有効化
     card_not_found: カードが見つかりません
-    back: Back
     character: キャラクター
     close: 閉じる
     chat:
@@ -383,13 +318,6 @@ pages:
     drop_here: アップロードするにはここにドラッグ
     create_card: 新しいカードを作成
     edit_card: カードを編集
-    saved: Card saved
-    unsaved:
-      badge: Unsaved
-      title: Discard changes?
-      message: Your changes are not saved. If you leave this page, you will lose them.
-      keep_editing: Keep editing
-      discard: Discard changes
     creation:
       identity: 識別子
       name: 名前
@@ -408,14 +336,8 @@ pages:
         posthistoryinstructions: 人間の真似をすることを忘れないでください。
       modules_info: >-
         このキャラクターカード用のモジュールを設定してください。設定されていない場合は、デフォルトのモジュール設定が使用されます。
-      sections:
-        chat: Chat
-        vision: Vision
-        speech: Speech
-        body: Body
       use_default: デフォルトを使用
       use_default_not_configured: デフォルトを使用 (未設定)
-      inherit_global_settings: Inherit global settings
       fields_info:
         subtitle: >-
           ここに作成するキャラクターの詳細、履歴とコンテキスト、 およびあなたにどう返答してほしいか記述できます。
@@ -435,7 +357,6 @@ pages:
         consciousness_model: このキャラクターの意識モデル（AIモデル）を選択します。
         speech_model: このキャラクターの音声合成・読み上げモデルを選択します。
       errors:
-        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: 名前は有効であるか、空でない必要があります。
         version: 'エラー: 無効なバージョン番号です！'
         description: 'エラー: このカードの説明を入力してください。'
@@ -445,7 +366,6 @@ pages:
         posthistoryinstructions: 'エラー: 履歴の後のプロンプトは必須です。'
         invalid_artistry_json: 'アートプロバイダー（Artistry provider）のオプションに無効な JSON が含まれています。'
       none: なし
-      none_disabled: None (Disabled)
     modules: モジュール
     name_asc: 名前(A-Z)
     name_desc: 名前(Z-A)
@@ -636,11 +556,9 @@ pages:
       model:
         label: アートモデル (オプションで上書き)
         description: プロバイダーが要求する場合のモデル識別子
-        placeholder: e.g. black-forest-labs/flux-schnell
       prompt-prefix:
         label: デフォルトのアートプロンプト接頭辞
         description: 画像生成器に送信される各プロンプトの先頭に追加されます。
-        placeholder: e.g. Masterpiece, high quality, 1girl, anime,
       options:
         label: アートプロバイダーオプション (JSON)
       widget-instructions:
@@ -678,13 +596,6 @@ pages:
             search_results: 結果{total}個中{count}個のモデルが見つかりました
             show_less: 表示を減らす
             show_more: もっと表示
-            temperature_label: Temperature
-            temperature_enabled: Custom temperature
-            top_p_enabled: Custom Top P
-            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
-            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
-            top_p_label: Top P
-            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: プロバイダーからデフォルトモデルを選択
             title: モデル
           model-options:
@@ -904,7 +815,6 @@ pages:
         args:
           label: 引数
           description: 順序通りに 1 行に 1 つずつ入力します。
-          placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
           label: 作業ディレクトリ
           description: プロセスの作業ディレクトリとして使用されるオプションのフォルダ。
@@ -942,7 +852,6 @@ pages:
         json-applied: JSON をフォームに適用しました。「保存して再起動」をクリックしてディスクに保存してください。
         restarted: すべて再起動しました! {started} が開始しました。 {failed} が失敗しました。 {skipped} がスキップされました。
   flux:
-    title: Flux
     buy: 購入
     currency: 通貨
     description: 現在の Flux 残高
@@ -992,12 +901,6 @@ pages:
           common:
             fields:
               field:
-                web-search:
-                  label: Web search
-                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
-                api-protocol:
-                  label: API protocol
-                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API キー
                   description: このプロバイダーのリクエスト認証に使用するキー
@@ -1084,10 +987,6 @@ pages:
           title: 音声設定
     labels:
       recommended: おすすめ
-    sync:
-      synced: Synced
-      pending: Waiting to upload
-      not-uploaded: Not uploaded. Complete this provider on this device.
     filters:
       pricing: 料金体系
       deployment: 展開形態
@@ -1139,7 +1038,6 @@ pages:
           locale:
             label: 言語地域 (Locale)
             description: en-US や zh-CN など、正確な Apple Speech のロケールを使用します。
-            placeholder: en-US
       app-local-audio-transcription:
         title: アプリ (ローカル)
         description: https://github.com/moeru-ai/xsai-transformers
@@ -1156,13 +1054,11 @@ pages:
         description: bailian.console.aliyun.com
         title: Alibaba Cloud Model Studio
       amazon-bedrock:
-        title: Amazon Bedrock
         description: aws.amazon.com/bedrok
         config:
           api-key:
             label: Bedrock API キー
             description: Amazon Bedrock API キー (AWS コンソール → Bedrock → API Keys で作成)
-            placeholder: bedrock-...
           region:
             label: AWS リージョン
             description: 'Bedrock が有効な AWS リージョン (例: us-east-1, us-west-2)'
@@ -1207,29 +1103,6 @@ pages:
             volume:
               description: 音声の音量を調整
               label: 音量
-      voicevox:
-        description: voicevox.hiroshiba.jp
-        title: VOICEVOX
-        fields:
-          field:
-            intonation:
-              description: Adjust how much the intonation of the reading varies
-              label: Intonation
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
-      aivis-speech:
-        description: aivis-project.com
-        title: AivisSpeech
-        fields:
-          field:
-            intonation:
-              description: Adjust how strongly the speaking style is expressed
-              label: Emotion expression strength
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
-      deepgram-tts:
-        description: deepgram.com
-        title: Deepgram
       speech-noop:
         title: なし
         description: 音声を再生しません。
@@ -1260,11 +1133,9 @@ pages:
             server_url:
               label: サーバー URL
               description: 稼働中の ComfyUI のアドレス
-              placeholder: http://localhost:8188
           cors:
             title: CORS により要求がブロックされました
             description: ComfyUI はデフォルトで他のアプリからのリクエストをブロックします。AIRI が接続できるようにするには、`--enable-cors-header "*"` フラグを付けて ComfyUI を起動する必要があります。
-            command: python main.py --enable-cors-header "*"
           workflows:
             title: ワークフローテンプレート
             upload: ワークフローをアップロード
@@ -1288,7 +1159,6 @@ pages:
             save: ワークフローを保存
       replicate:
         settings:
-          title: Replicate.ai
           heading: Replicate.ai 設定
           description: 画像生成器の設定を行います。
           api_key:
@@ -1298,23 +1168,19 @@ pages:
           default_model:
             label: デフォルトモデル
             description: キャラクターカードで指定がない場合に使用されるフォールバックの owner/model 文字列。
-            placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: アスペクト比
             description: 'デフォルトの画像比率 (例: 16:9 1:1 9:16)'
-            placeholder: '16:9'
           inference_steps:
             label: 推論ステップ数
             description: ノイズ除去プロセスのステップ数 (低いと高速、高いと高品質)
       nanobanana:
         settings:
-          title: Nano Banana
           heading: Nano Banana (Google AIスタジオ)
           description: Google Gemini のネイティブ画像生成機能を設定します。
           api_key:
             label: API キー
             description: Google AI Studio の API キー
-            placeholder: AIpk...
           preferred_model:
             label: 優先モデル
             description: 使用する特定の Gemini 画像生成プレビューモデル
@@ -1322,8 +1188,6 @@ pages:
             label: デフォルト解像度
             description: 生成される画像の希望解像度
           model_options:
-            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
-            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
             nano_banana: ナノバナナ(Gemini 2.5フラッシュ画像)
       deepseek:
         description: deepseek.com
@@ -1399,9 +1263,6 @@ pages:
       fireworks:
         description: fireworks.ai
         title: Fireworks.ai
-      google-gemini-audio-speech:
-        description: aistudio.google.com
-        title: Google Gemini
       microsoft-speech:
         description: speech.microsoft.com
         fields:
@@ -1418,18 +1279,8 @@ pages:
       azure-ai-foundry:
         description: Azure AI Foundry
         title: Azure AI Foundry
-      minimax:
-        description: minimaxi.com
-        title: MiniMax
-      minimax-global:
-        description: minimax.io
-        title: MiniMax Global
       minimax-speech:
-        description: minimax.io
         title: MiniMax 音声
-      mimo:
-        description: api.xiaomimimo.com
-        title: Xiaomi MiMo
       mistral:
         description: mistral.ai
         title: Mistral
@@ -1448,25 +1299,12 @@ pages:
       openai:
         description: openai.com
         title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: OpenAI互換
         title: OpenAI互換
-      nvidia:
-        description: build.nvidia.com
-        title: NVIDIA NIM
       n1n:
         description: n1n.ai - 高性能 AI API を提供。
-        title: n1n
-      openpaths:
-        description: openpaths.io
-        title: OpenPaths
       openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
         description: openrouter.ai
         title: OpenRouter
       perplexity:
@@ -1481,9 +1319,6 @@ pages:
       google-generative-ai:
         description: gemini.google.com
         title: Google Gemini
-      groq:
-        description: groq.com
-        title: Groq
       featherless:
         description: featherless.ai
         title: Featherless AI
@@ -1509,18 +1344,12 @@ pages:
           legacy:
             description: 従来の Coding Plan モデルは非推奨となる予定です。現在サポートされているモデルに切り替えてください。
         title: Volcengineコーディングプラン
-      byteplus:
-        description: byteplus.com
-        title: BytePlus
       byteplus-coding-plan:
         description: BytePlusコーディングプラン
         title: BytePlusコーディングプラン
       xai:
         description: x.ai
         title: xAI
-      zai:
-        description: z.ai
-        title: Z.ai
       302-ai:
         description: 302.AI
         title: 302.AI
@@ -1535,10 +1364,8 @@ pages:
         title: Aliyun NLS
       browser-web-speech-api:
         description: ブラウザ組み込み STT (Chrome/Edge/Safari が必要)
-        title: Web Speech API
       prompt-api:
         description: Prompt API を使用すると、自然言語リクエストを Chrome の基盤モデルに送信できます。
-        title: Prompt API
       official:
         title: 公式プロバイダー
         description: AIRI 公式の AI プロバイダー。
@@ -1552,7 +1379,6 @@ pages:
         playground:
           title: 文字起こし実験場
       aihubmix:
-        title: AIHubMix
         description: https://aihubmix.com (10% オフ)
     title: プロバイダー
   connection:
@@ -1561,7 +1387,6 @@ pages:
     websocket-url:
       description: 'WebSocket サーバーの完全なアドレス (例: ws://localhost:6121/ws)'
       label: WebSocket サーバーアドレス
-      placeholder: ws://localhost:6121/ws
     server-hostname:
       label: Expose On Network
       description: Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
@@ -1627,32 +1452,6 @@ pages:
               markdown-stress:
                 title: Markdown テスト
                 description: 大規模な会話データで Markdown パースをテストします
-              plugin-host:
-                actions:
-                  enable-and-load: Enable and Load
-                  disable-and-unload: Disable and Unload
-                  import-folder: Import Folder
-                  confirm-import: Import Extension
-                  cancel-import: Cancel
-                errors:
-                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
-                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
-                  prepare-import: Failed to inspect the Extension folder.
-                  commit-import: 'Failed to import Extension {extensionId}.'
-                  cancel-import: Failed to cancel the Extension import.
-                import:
-                  title: Review Extension Import
-                  description: The Extension stays disabled and unloaded after import.
-                  source: Source folder
-                  runtimes: Runtimes
-                  entrypoints: Entrypoints
-                  package-size: Package
-                  package-size-value: '{fileCount} files · {totalBytes}'
-                  permissions: Permissions
-                  kits: Kits
-                  no-permissions: No permissions declared.
-                  no-kits: No Kits declared.
-                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys ツール
                 description: ショートカットをテスト
@@ -1847,8 +1646,6 @@ spine:
   scale-and-position:
     title: 拡大縮小と位置
     scale: スケール
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: モデルからテーマカラーを抽出
     button-extract:
@@ -1878,8 +1675,6 @@ mmd:
   scale-and-position:
     title: 拡大縮小と位置
     scale: スケール
-    x: X
-    'y': 'Y'
     rotation: 回転
   theme-color-from-model:
     title: モデルからテーマカラーを抽出
@@ -1924,8 +1719,6 @@ tachie:
   scale-and-position:
     title: 拡大縮小と位置
     scale: スケール
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: モデルからテーマカラーを抽出
     button-extract:

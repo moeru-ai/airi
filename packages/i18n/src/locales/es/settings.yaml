@@ -26,7 +26,6 @@ dialogs:
     validationFailed: La validación de la configuración falló
     validationError: 'Error de validación: {error}'
     testGeneration: API Ping
-    testGenerationRunning: Ping...
     testGenerationFailed: Prueba de ping fallida
     retryPingCheck: Reintentar
     skipForNow: Omitir por ahora
@@ -117,38 +116,6 @@ model-select:
     import: Importar
     remove: Eliminar
     confirm: Confirmar
-  live2d-report:
-    title: Before import
-    description: Review the model data and any issues found in the archive.
-    description-short: Review the model data and issues.
-    close: Close
-    model:
-      title: Model
-      files: '{count} files'
-      types:
-        cubism: 'Cubism {version} ({format})'
-        cubism-compatible: 'Cubism 3+ ({format})'
-        unknown: Unknown
-    resources:
-      title: Resources
-      motions: Motions
-      expressions: Expressions
-      parameters: Parameters
-      textures: Textures
-      referenced-and-found: '{referenced} referenced · {found} found'
-      referenced: '{count} referenced'
-      found: '{count} found'
-    issues:
-      title: Issues
-      errors: '{count} errors'
-      warnings: '{count} warnings'
-      none: No issues found.
-      how-to-fix: How to fix
-      resolve-before-import: Resolve the errors before import.
-    actions:
-      cancel: Cancel
-      confirm: Confirm Import
-      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Cargar desde Archivo
@@ -166,8 +133,6 @@ live2d:
   scale-and-position:
     title: Escala y Posición
     scale: Escala
-    x: X
-    'y': 'Y'
   switch-to-vrm:
     title: '¿Cambiar a Avatar 3D?'
     change-to-vrm: Haz clic aquí para cambiar a la configuración de avatar 3D (VRM)
@@ -179,33 +144,6 @@ live2d:
       title: Extraer
   animation:
     title: Animación
-    motion-driver:
-      title: Motion driver
-      description: Select how AIRI creates idle body and eye motion.
-      options:
-        universal:
-          title: Universal
-          description: Use model motions, idle eye movement, and mouse tracking.
-        magic:
-          title: MAGIC
-          description: Generate motion from the bundled MAGIC dataset.
-      magic:
-        profile:
-          title: MAGIC profile
-          description: Select the bundled motion dataset that fits the MAGIC driver.
-          options:
-            idle-calm:
-              title: Idle / calm
-              description: Use the bundled idle and calm motion recording.
-            speaking-excited:
-              title: Speaking / excited
-              description: Use the bundled speaking and excited motion recording.
-        skip-mouth-open:
-          title: Skip generated mouth opening
-          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
-        force-view-target:
-          title: Force forward view target
-          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Habilitar Seguimiento del Ratón
       description: Fíjate en el cursor mientras se mueve. El movimiento ocular espontáneo se reanuda cuando el cursor se detiene.
@@ -236,10 +174,7 @@ live2d:
     render-scale:
       title: Escala de renderizado
     fps:
-      title: FPS
       description: Limitar velocidad de fotogramas
-      options:
-        unlimited: '∞'
     shadow: Sombra proyectada.
     reset-parameters: Restablecer valores predeterminados
   clear-model-cache: Borrar la caché del modelo.
@@ -346,7 +281,6 @@ pages:
           warning: Esto no se puede deshacer. Se cancelará la suscripción activa, se limpiará el saldo de Flux.
           confirmEmail:
             label: Escriba su correo electrónico para confirmar
-            placeholder: ''
             mismatch: El correo electrónico no coincide.
           confirm: Enviar correo de confirmación
           cancel: Cancelar
@@ -363,7 +297,6 @@ pages:
     save: Guardar cambios
     save_and_activate: Guardar y activar
     card_not_found: Tarjeta no encontrada
-    back: Back
     character: Personaje
     close: Cerrar
     chat:
@@ -383,13 +316,6 @@ pages:
     drop_here: Suelta para subir
     create_card: Crear una nueva Tarjeta
     edit_card: Modificar tarjeta
-    saved: Card saved
-    unsaved:
-      badge: Unsaved
-      title: Discard changes?
-      message: Your changes are not saved. If you leave this page, you will lose them.
-      keep_editing: Keep editing
-      discard: Discard changes
     creation:
       identity: Identidad
       name: Nombre
@@ -408,14 +334,8 @@ pages:
         posthistoryinstructions: Recuerda imitar a un humano.
       modules_info: >-
         Configura los módulos para esta tarjeta de Personaje. Si no se establece, se utilizará la configuración predeterminada.
-      sections:
-        chat: Chat
-        vision: Vision
-        speech: Speech
-        body: Body
       use_default: Usar predeterminado
       use_default_not_configured: Usar predeterminado (no configurado)
-      inherit_global_settings: Inherit global settings
       fields_info:
         subtitle: >-
           Puedes poner aquí algunos detalles sobre el personaje que estás creando, explicar su historia y contexto, y cómo deben responderse tus interacciones.
@@ -435,7 +355,6 @@ pages:
         consciousness_model: Seleccione el modelo de conciencia (modelo IA) para este personaje.
         speech_model: Seleccione el modelo de síntesis de voz y la voz para este personaje.
       errors:
-        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: El nombre debe ser válido o no estar vacío.
         version: '¡Error: Número de versión inválido!'
         description: 'Error: Debes proporcionar una descripción para esta tarjeta.'
@@ -445,7 +364,6 @@ pages:
         posthistoryinstructions: 'Error: Se requiere un prompt post-historial.'
         invalid_artistry_json: 'Error: Las opciones del proveedor Artistry contienen un JSON no válido.'
       none: Nada
-      none_disabled: None (Disabled)
     modules: Módulos
     name_asc: Nombre (A-Z)
     name_desc: Nombre (Z-A)
@@ -534,10 +452,8 @@ pages:
     sections:
       section:
         live2d:
-          title: Live2D
           description: Configurar modelos Live2D y configuraciones
         vrm:
-          title: VRM
           description: Configurar modelos VRM 3D y configuraciones
         scene: Escena
   modules:
@@ -589,7 +505,6 @@ pages:
               description: Se calienta antes de detectar ritmos para una mejor precisión.
               label: Calentamiento
     artistry:
-      title: Artistry
       description: Generación de imágenes, fondo de escena y dibujo.
       page:
         title: Configuración del proveedor de Artistry
@@ -636,11 +551,9 @@ pages:
       model:
         label: Modelo de Artistry (Anulación opcional)
         description: Identificador del modelo si el proveedor lo requiere
-        placeholder: e.g. black-forest-labs/flux-schnell
       prompt-prefix:
         label: Prefijo predeterminado del prompt artístico
         description: Se añade al principio de cada prompt enviado al generador de imágenes.
-        placeholder: e.g. Masterpiece, high quality, 1girl, anime,
       options:
         label: Opciones de Proveedor de Artistry (JSON)
       widget-instructions:
@@ -649,8 +562,6 @@ pages:
     categories:
       essential: Esencial
       messaging: Mensajería
-      gaming: Gaming
-      artistry: Artistry
     consciousness:
       description: Personalidad, modelo deseado, etc.
       sections:
@@ -678,24 +589,12 @@ pages:
             search_results: Encontrados {count} de {total} modelos
             show_less: Mostrar menos
             show_more: Mostrar más
-            temperature_label: Temperature
-            temperature_enabled: Custom temperature
-            top_p_enabled: Custom Top P
-            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
-            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
-            top_p_label: Top P
-            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: Seleccionar un modelo por defecto del proveedor
             title: Modelo
-          model-options:
-            title: Model options
-            thinking:
-              label: Thinking
       title: Consciencia
     description: Pensamiento, visión, síntesis de voz, juegos, etc.
     gaming-factorio:
       description: '¡Jugando Factorio!'
-      title: Factorio
       enable: Habilitar integración con Factorio
       enable-description: Permitir que AIRI interactúe con el juego Factorio
       server-address: Dirección del servidor
@@ -709,7 +608,6 @@ pages:
       configured: '¡Factorio está configurado correctamente!'
     gaming-minecraft:
       description: '¡Jugando Minecraft!'
-      title: Minecraft
       enable: Habilitar integración con Minecraft
       enable-description: >-
         Incluir el conocimiento propio de Minecraft en los turnos de chat del escenario y mantener activada la visibilidad pasiva durante la ejecución.
@@ -723,7 +621,6 @@ pages:
         description: >-
           Puedes encontrar las instrucciones para configurar el bot en el siguiente archivo
       runtime:
-        title:
         connection: Conexión
         latest-context: Último contexto del bot
         waiting: Esperando una nueva actualización de contexto originada por el bot.
@@ -745,19 +642,6 @@ pages:
         section:
           provider-selection:
             description: Selecciona el proveedor de reconocimiento de voz adecuado
-          playground:
-            current: Current transcript
-            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
-            empty: Start monitoring and speak into the selected microphone.
-            error-title: Transcription error
-            listening: Listening for speech…
-            no-transcription: No speech was recognized in this audio.
-            segment: 'Speech segment {number}'
-            start: Start monitoring
-            stop: Stop monitoring
-            title: Hearing playground
-            transcribing: Transcribing…
-            transcription-failed: Transcription failed.
           confidence-threshold:
             title: Umbral de confianza
             description: >-
@@ -775,7 +659,6 @@ pages:
       title: Memoria a Corto Plazo
     messaging-discord:
       description: Chat y chat de voz por Discord
-      title: Discord
       enable: Habilitar integración con Discord
       enable-description: Permitir que AIRI interactúe a través de Discord
       token: Token del bot
@@ -833,7 +716,6 @@ pages:
       title: Visión
     x:
       description: Navegación y uso de X / Twitter
-      title: X / Twitter
       enable: Habilitar integración con X / Twitter
       enable-description: Permitir que AIRI interactúe con X / Twitter
       api-key: Clave API
@@ -985,23 +867,12 @@ pages:
               Todavía puede guardar la configuración actual si quiere continuar.
             action: Guardar de todas formas
         config:
-          loading: Loading provider settings...
-          load-error: Failed to load provider settings.
-          save-error: Failed to save provider settings.
-          retry: Retry
           common:
             fields:
               field:
-                web-search:
-                  label: Web search
-                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
-                api-protocol:
-                  label: API protocol
-                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: Clave API
                   description: Clave API usada para autorizar peticiones a este proveedor
-                  placeholder: sk-...
                 base-url:
                   label: URL Base
                   description: >-
@@ -1084,10 +955,6 @@ pages:
           title: Configuraciones de Voz
     labels:
       recommended: Recomendado
-    sync:
-      synced: Synced
-      pending: Waiting to upload
-      not-uploaded: Not uploaded. Complete this provider on this device.
     filters:
       pricing: Precios
       deployment: Despliegue
@@ -1095,25 +962,20 @@ pages:
       free: Gratis
       paid: Pagado
       internal: Interno
-      local: Local
       cloud: Nube
     categories:
       chat:
-        title: Chat
         description: Proveedores de modelos de generación de texto. ej. OpenRouter, OpenAI, Ollama.
       vision:
         title: Visión
         description: Proveedores de modelos de visión para la comprensión de imágenes.
       speech:
         title: Habla
-        description: Speech (text-to-speech) model providers. e.g. ElevenLabs, Azure Speech.
       transcription:
         title: Transcripción
         description: >-
           Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry
-        description: Image generation and design model providers. e.g. ComfyUI, Replicate.
         items:
           comfyui:
             description: Corredor local de generación de imágenes.
@@ -1132,43 +994,18 @@ pages:
         Proveedores de modelos de transcripción (voz a texto). ej. Whisper.cpp, OpenAI, Azure Speech
     description: LLMs, proveedores de voz, etc.
     provider:
-      apple-speech-transcription:
-        title: Apple Speech
-        description: On-device speech recognition on macOS 26 or later. No API key is required.
-        fields:
-          locale:
-            label: Locale
-            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
-            placeholder: en-US
-      app-local-audio-transcription:
-        title: App (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
-      app-local-audio-speech:
-        title: App (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: Navegador (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: Navegador (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
-      alibaba-cloud-model-studio:
-        description: bailian.console.aliyun.com
-        title: Alibaba Cloud Model Studio
       amazon-bedrock:
-        title: Amazon Bedrock
-        description: aws.amazon.com/bedrock
         config:
           api-key:
             label: Clave API Bedrock
             description: Clave API Bedrock de Amazon (generar en la consola AWS → Bedrock → Claves API)
-            placeholder: bedrock-...
           region:
             label: Región de AWS
-            description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
-        description: anthropic.com
-        title: Anthropic | Claude
         helpinfo:
           title: Antes de comenzar
           description:
@@ -1182,7 +1019,6 @@ pages:
               Si necesitas usar este proveedor, necesitarás un backend proxy dedicado como una Función Serverless ejecutándose en
             part6: o algunos servicios de bypass de CORS para evitar las restricciones de CORS.
       cloudflare-workers-ai:
-        description: cloudflare.com
         fields:
           field:
             account-id:
@@ -1191,7 +1027,6 @@ pages:
               placeholder: Tu ID de Cuenta de Cloudflare
             api-key:
               placeholder: Ingresa la Clave API de Cloudflare
-        title: Cloudflare Workers AI
       common:
         status:
           validating: Validando
@@ -1207,29 +1042,6 @@ pages:
             volume:
               description: Ajustar el volumen del habla
               label: Volumen
-      voicevox:
-        description: voicevox.hiroshiba.jp
-        title: VOICEVOX
-        fields:
-          field:
-            intonation:
-              description: Adjust how much the intonation of the reading varies
-              label: Intonation
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
-      aivis-speech:
-        description: aivis-project.com
-        title: AivisSpeech
-        fields:
-          field:
-            intonation:
-              description: Adjust how strongly the speaking style is expressed
-              label: Emotion expression strength
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
-      deepgram-tts:
-        description: deepgram.com
-        title: Deepgram
       speech-noop:
         title: Ninguno
         description: Sin salida de voz.
@@ -1237,22 +1049,17 @@ pages:
         settings:
           title: ConfyUI (local)
           heading: API nativa de ComfyUI
-          description: Connect to your local ComfyUI and bring your own workflows.
           info:
             what_you_need:
               label: Lo que necesitas
-              value: ComfyUI running locally or on your network.
             how_to_export:
               label: Cómo exportar
-              value: Enable Dev Mode → "Save (API Format)".
             scope_boundary:
               label: Límite de alcance
-              value: Model downloads & node installs are your job.
           connection:
             title: Conexión
             connected: Conectado
             failed: Conexión fallida
-            error_prefix: Error
             test: Probar
             testing: Probando...
             unknown_error: Error de conexión desconocido
@@ -1260,22 +1067,17 @@ pages:
             server_url:
               label: URL de servidor
               description: La dirección donde se ejecuta ComfyUI
-              placeholder: http://localhost:8188
           cors:
             title: Bloque de CORS detectado
-            description: ComfyUI blocks requests from other applications by default. To allow AIRI to connect, you must start ComfyUI with the `--enable-cors-header "*"` flag.
-            command: python main.py --enable-cors-header "*"
           workflows:
             title: Plantillas de flujo de trabajo
             upload: Subir flujo de trabajo
             cancel_upload: Cancelar
-            empty: No workflows uploaded yet. Click "Upload Workflow" to import a workflow_api.json from ComfyUI.
             exposed_parameters: Parámetros expuestos
             summary: '{nodes} nodos · {fields} campos expuestos'
             remove: Eliminar
             config_snippet: Snippet de configuración de Artistry
             copy_json: Copiar JSON
-            paste_hint: Paste this into your AIRI Card artistry config to override these nodes.
           upload:
             prompt: Soltar o seleccionar un archivo workflow_api.json
             invalid_json: JSON inválido
@@ -1288,7 +1090,6 @@ pages:
             save: Guardar flujo de trabajo
       replicate:
         settings:
-          title: Replicate.ai
           heading: Configuración de Replicate.ai
           description: Configure la configuración de generación de imágenes en la nube.
           api_key:
@@ -1297,43 +1098,26 @@ pages:
             placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Modelo por defecto
-            description: Fallback owner/model string to use if the character card doesn't specify one
-            placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Relación de aspecto
             description: Relación de aspecto por defecto de la imagen (por ejemplo, 16:9, 1:1, 9:16)
-            placeholder: '16:9'
           inference_steps:
             label: Pasos de inferencia
-            description: Number of steps for the diffusion process (lower is faster, higher is better quality)
       nanobanana:
         settings:
-          title: Nano Banana
-          heading: Nano Banana (Google AI Studio)
           description: Configurar las capacidades de generación de imágenes nativas de Google Gemini.
           api_key:
             label: Clave API
             description: Tu clave API de Google AI Studio
-            placeholder: AIpk...
           preferred_model:
             label: Modelo preferido
-            description: The specific Gemini image preview model to use
           default_resolution:
             label: Resolución por defecto
-            description: The target resolution for generated images
           model_options:
             nano_banana_2: Nano Banana 2 (Imagen Flash Gemini 3.1)
             nano_banana_pro: Nano Banana Pro (Imagen Flash Gemini 3)
             nano_banana: Nano Banana (Imagen Flash Gemini 2.5)
-      deepseek:
-        description: deepseek.com
-        fields:
-          field:
-            thinking-mode:
-              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
-        title: DeepSeek
       elevenlabs:
-        description: elevenlabs.io
         fields:
           field:
             simularity-boost:
@@ -1370,7 +1154,6 @@ pages:
           title: Playground de Voz
           validation:
             error-missing-api-key: Por favor ingresa una clave API para probar la voz.
-        title: ElevenLabs
       kokoro-local:
         description: Texto local de voz usando Kokoro-82M.
         fields:
@@ -1396,143 +1179,29 @@ pages:
           default-text: '¡Hola! Esta es una prueba del sistema de texto a voz de Kokoro.'
           title: Campo de voz
         title: TTS de Kokoro (local)
-      fireworks:
-        description: fireworks.ai
-        title: Fireworks.ai
-      google-gemini-audio-speech:
-        description: aistudio.google.com
-        title: Google Gemini
       microsoft-speech:
-        description: speech.microsoft.com
         fields:
           field:
             region:
               description: Región del Servicio de Voz
               label: Región
-        title: Microsoft / Azure Speech
       index-tts-vllm:
-        description: https://index-tts.github.io/
-        title: Bilibili / IndexTTS
         callout_indextts2_unavailable_title: Soporte Limitado
         callout_indextts2_unavailable: El soporte para IndexTTS2 no está disponible en este momento. Por favor, utilice IndexTTS.
-      azure-ai-foundry:
-        description: Azure AI Foundry
-        title: Azure AI Foundry
-      minimax:
-        description: minimaxi.com
-        title: MiniMax
-      minimax-global:
-        description: minimax.io
-        title: MiniMax Global
-      minimax-speech:
-        description: minimax.io
-        title: MiniMax Speech
-      mimo:
-        description: api.xiaomimimo.com
-        title: Xiaomi MiMo
-      mistral:
-        description: mistral.ai
-        title: Mistral
-      moonshot:
-        description: moonshot.ai
-        title: Moonshot AI
-      modelscope:
-        description: modelscope.cn
-        title: ModelScope
-      novita:
-        description: novita.ai
-        title: Novita
-      ollama:
-        description: ollama.ai
-        title: Ollama
-      openai:
-        description: openai.com
-        title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
-      openai-compatible:
-        description: OpenAI Compatible
-        title: OpenAI Compatible
-      nvidia:
-        description: build.nvidia.com
-        title: NVIDIA NIM
       n1n:
         description: n1n.ai - Proveedor de API de IA de alto rendimiento.
-        title: n1n
-      openpaths:
-        description: openpaths.io
-        title: OpenPaths
-      openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
-        title: OpenRouter
-      perplexity:
-        description: perplexity.ai
-        title: Perplexity
-      player2:
-        description: player2.game
-        title: Player2
-      together:
-        description: together.ai
-        title: Together.ai
-      google-generative-ai:
-        description: gemini.google.com
-        title: Google Gemini
-      groq:
-        description: groq.com
-        title: Groq
-      featherless:
-        description: featherless.ai
-        title: Featherless AI
-      lm-studio:
-        description: lmstudio.ai
-        title: LM Studio
-      vllm:
-        description: vllm.ai
-        title: vLLM
       volcengine:
-        description: volcengine.com
         fields:
           field:
             appId:
               description: ID de App del proyecto que puedes obtener en la Consola
               label: ID de App
-        title: Volcano Engine
       volcengine-coding-plan:
         description: Plan de Codificación Volcengine
-        models:
-          ark-code-latest:
-            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
-          legacy:
-            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: Plan de Codificación Volcengine
-      byteplus:
-        description: byteplus.com
-        title: BytePlus
       byteplus-coding-plan:
         description: Plan de codificación BytePlus
         title: Plan de codificación BytePlus
-      xai:
-        description: x.ai
-        title: xAI
-      zai:
-        description: z.ai
-        title: Z.ai
-      302-ai:
-        description: 302.AI
-        title: 302.AI
-      comet-api:
-        description: CometAPI.com
-        title: Comet API
-      cerebras:
-        description: cerebras.ai
-        title: Cerebras
-      aliyun-nls:
-        description: Aliyun NLS
-        title: Aliyun NLS
       browser-web-speech-api:
         description: Navegador nativo STT (requiere Chrome/Edge/Safari)
         title: API de Voz Web
@@ -1545,14 +1214,12 @@ pages:
         speech-title: Proveedor oficial de voz
         speech-description: Proveedor oficial de texto a voz de AIRI.
         speech-streaming-title: Proveedor oficial de voz en streaming
-        speech-streaming-description: Official low-latency text-to-speech provider by AIRI (bidirectional WebSocket).
         transcription-title: Proveedor Oficial de Transcripción
         transcription-description: Proveedor oficial de voz a texto por AIRI.
       transcriptions:
         playground:
           title: Playground de Transcripción
       aihubmix:
-        title: AIHubMix
         description: https://aihubmix.com (10% de descuento)
     title: Proveedores
   connection:
@@ -1561,7 +1228,6 @@ pages:
     websocket-url:
       description: Dirección completa del servidor WebSocket (por ejemplo, ws://localhost:6121/ws)
       label: Dirección del servidor WebSocket
-      placeholder: ws://localhost:6121/ws
     server-hostname:
       label: Exponer en red
       description: Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
@@ -1576,7 +1242,6 @@ pages:
         Scan this QR code from Stage Pocket to try all reachable local network addresses and save the first working one.
       refresh: Actualizar
       image-alt: Código QR de conexión de canal del servidor AIRI
-      candidates: Candidate addresses
       token-hint: >-
         The QR code includes the auth token so Stage Pocket can authenticate after connecting. Do not share it publicly.
       errors:
@@ -1602,7 +1267,6 @@ pages:
       title: Desarrolladores
     general:
       description: Tema oscuro, idiomas, etc.
-      title: General
     permissions:
       description: Consulta el estado actual de los permisos.
       title: Gestión de permisos
@@ -1624,50 +1288,16 @@ pages:
               performance-visualizer:
                 title: Visualizador de rendimiento
                 description: Cambiar FPS/tareas largas/superposición de memoria
-              markdown-stress:
-                title: Markdown Stress
-                description: Stress markdown parsing and rendering with heavy chat payloads
-              plugin-host:
-                actions:
-                  enable-and-load: Enable and Load
-                  disable-and-unload: Disable and Unload
-                  import-folder: Import Folder
-                  confirm-import: Import Extension
-                  cancel-import: Cancel
-                errors:
-                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
-                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
-                  prepare-import: Failed to inspect the Extension folder.
-                  commit-import: 'Failed to import Extension {extensionId}.'
-                  cancel-import: Failed to cancel the Extension import.
-                import:
-                  title: Review Extension Import
-                  description: The Extension stays disabled and unloaded after import.
-                  source: Source folder
-                  runtimes: Runtimes
-                  entrypoints: Entrypoints
-                  package-size: Package
-                  package-size-value: '{fileCount} files · {totalBytes}'
-                  permissions: Permissions
-                  kits: Kits
-                  no-permissions: No permissions declared.
-                  no-kits: No Kits declared.
-                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
-                title: useMagicKeys Tool
                 description: Probar accesos directos
               audio-record:
                 title: Grabación de Audio
                 description: Probar compuestos relacionados con audio
               background-gradient-blending:
                 title: Mezcla de color del tema de fondo
-                description: Test blending & theme
               background-removal:
                 title: Eliminación de fondo (WebGPU requerido)
                 description: Utilidad para eliminar el fondo
-              chat:
-                title: Chat
-                description: Chat
               gesture-circle:
                 title: Círculo de gestos (Sólo escritorio)
                 description: Prueba el reconocimiento de gestos
@@ -1675,7 +1305,6 @@ pages:
                 title: Imagen
                 description: Imagen
               polaroid:
-                title: Polaroid
                 description: Utilidad para tomar fotos de modelos
               context-flow:
                 description: >-
@@ -1702,8 +1331,6 @@ pages:
               title: Color Predeterminado
             morandi:
               colors:
-                color-1: Taupe
-                color-2: Beige
                 color-3: Gris Ceniza
                 color-4: Taupe Claro
                 color-5: Marfil
@@ -1728,7 +1355,6 @@ pages:
               colors:
                 color-1: Bronceado
                 color-2: Taupe Cálido
-                color-3: Umber
                 color-4: Café
                 color-5: Bronce
                 color-6: Oro
@@ -1791,11 +1417,6 @@ pages:
       delete_confirm: '¿Seguro que quieres borrar este fondo?'
     tip:
       label: '¡Un consejo!'
-      description: Using a square image will leverage <b>cover</b> cropping in portrait mode, focusing on the center of the scene.
-sections:
-  section:
-    general:
-      title: General
 theme:
   title: Tema
   description: |
@@ -1847,8 +1468,6 @@ spine:
   scale-and-position:
     title: Escala y Posición
     scale: Escala
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: Extraer colores del modelo
     button-extract:
@@ -1878,8 +1497,6 @@ mmd:
   scale-and-position:
     title: Escala y Posición
     scale: Escala
-    x: X
-    'y': 'Y'
     rotation: Rotación
   theme-color-from-model:
     title: Extraer colores del modelo
@@ -1887,17 +1504,9 @@ mmd:
       title: Extraer
   physics:
     title: Física y Rig
-    enabled: Enable physics (hair, skirt, accessories)
-    ik: Enable IK (inverse kinematics)
-    grant: Enable append-bone propagation
-    gravity: Gravity strength
   gaze:
-    title: Gaze
-    tracking: Looking at
     options:
-      cursor: Mouse
       camera: Cámara
-      none: Disabled
   animation:
     title: Animación
     idle-motion: Movimiento inactivo
@@ -1907,8 +1516,6 @@ mmd:
     description: >-
       Importa archivos de movimiento VMD, establece uno como animación inactiva en bucle o reproduce cualquiera como un gesto de una sola vez. Asigna emociones a movimientos para reproducir gestos junto con expresiones faciales.
   morphs:
-    title: Morphs
-    auto: (auto)
     revert: Revertir a auto
     no-morphs: Este modelo no expone ningún Morph.
     description: >-
@@ -1924,8 +1531,6 @@ tachie:
   scale-and-position:
     title: Escala y Posición
     scale: Escala
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: Extraer colores del modelo
     button-extract:
