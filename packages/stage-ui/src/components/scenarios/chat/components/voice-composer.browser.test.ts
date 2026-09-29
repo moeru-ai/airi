@@ -45,6 +45,7 @@ it('keeps recording after pointerleave and finishes only on the owning pointerup
   vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(destination.stream)
   localStorage.setItem('ui/chat/voice-mode', 'transcription')
   const draft = shallowRef('')
+  const voiceActive = shallowRef(false)
   const screen = render(defineComponent({
     setup() {
       const input = shallowRef<HTMLElement | null>(null)
@@ -54,7 +55,7 @@ it('keeps recording after pointerleave and finishes only on the owning pointerup
       return () => h('div', [
         h('div', { ref: input }),
         h('button', 'Pointer parking'),
-        h(VoiceComposer, { 'inputElement': input.value, 'sessionId': 'gesture-test', 'modelValue': draft.value, 'onUpdate:modelValue': value => draft.value = value }),
+        !draft.value && h(VoiceComposer, { 'inputElement': input.value, 'sessionId': 'gesture-test', 'modelValue': draft.value, 'onUpdate:modelValue': value => draft.value = value, 'onRecordingChange': value => voiceActive.value = value }),
       ])
     },
   }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } }), createRouter({ history: createMemoryHistory(), routes: [] })] } })
@@ -64,6 +65,7 @@ it('keeps recording after pointerleave and finishes only on the owning pointerup
   const element = button.element()
   element.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 1, isPrimary: true, button: 0, buttons: 1, clientX: 100, clientY: 100, bubbles: true }))
   await expect.poll(() => document.querySelector('[data-testid="voice-recording-bar"]')).not.toBeNull()
+  await expect.poll(() => voiceActive.value).toBe(true)
   await new Promise(resolve => setTimeout(resolve, 350))
   element.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, isPrimary: true, buttons: 1, clientX: 94, clientY: 100, bubbles: true }))
   element.dispatchEvent(new PointerEvent('pointerleave', { pointerId: 1, isPrimary: true, buttons: 1, clientX: 94, clientY: 100 }))
@@ -75,5 +77,6 @@ it('keeps recording after pointerleave and finishes only on the owning pointerup
   expect(stop).not.toHaveBeenCalled()
   element.dispatchEvent(new PointerEvent('pointerup', { pointerId: 1, isPrimary: true, button: 0, buttons: 0, bubbles: true }))
   await expect.poll(() => draft.value).toBe('held words')
+  await expect.poll(() => voiceActive.value).toBe(false)
   expect(stop).toHaveBeenCalledOnce()
 })

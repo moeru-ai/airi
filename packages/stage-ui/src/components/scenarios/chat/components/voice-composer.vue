@@ -6,7 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { decodeBase64 } from '@moeru/std/base64'
 import { BasicButton } from '@proj-airi/ui'
 import { onLongPress, useElementBounding, useEventListener, useLocalStorage, useNow, useWindowSize } from '@vueuse/core'
-import { computed, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
@@ -260,6 +260,10 @@ watch(active, (value) => {
     locked.value = false
     cancelling.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  emit('recordingChange', false)
 })
 </script>
 
