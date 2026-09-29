@@ -223,5 +223,7 @@ export async function inspectLive2DModelControls(source: Blob): Promise<Live2DMo
     }
   }))).filter(expression => expression !== undefined)
 
-  return { ...controls, expressions }
+  const motions = controls.motions.filter(motion => reader.file(resolveArchivePath(settingsPath, motion.fileName)))
+
+  return { expressions, motions }
 }

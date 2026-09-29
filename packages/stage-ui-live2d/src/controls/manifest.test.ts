@@ -131,4 +131,30 @@ describe('live2D model controls manifest', () => {
       motions: [{ fileName: 'motions/idle.motion3.json', group: 'Idle', index: 0 }],
     })
   })
+
+  it('excludes missing optional motions from the control manifest', async () => {
+    const zip = new JSZip()
+    zip.file('avatar/avatar.model3.json', JSON.stringify({
+      FileReferences: {
+        Motions: {
+          Idle: [
+            { File: 'motions/missing.motion3.json' },
+            { File: 'motions/idle.motion3.json' },
+          ],
+        },
+      },
+    }))
+    zip.file('avatar/motions/idle.motion3.json', '{}')
+    zip.file('avatar/motions/wave.motion3.json', '{}')
+
+    const archive = blobFromBytes(await zip.generateAsync({ type: 'uint8array' }))
+
+    await expect(inspectLive2DModelControls(archive)).resolves.toEqual({
+      expressions: [],
+      motions: [
+        { fileName: 'motions/idle.motion3.json', group: 'Idle', index: 1 },
+        { fileName: 'motions/wave.motion3.json', group: 'AIRI', index: 0 },
+      ],
+    })
+  })
 })

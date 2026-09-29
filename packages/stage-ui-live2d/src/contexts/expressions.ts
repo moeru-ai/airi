@@ -77,6 +77,8 @@ export interface Live2DExpressionsContext {
   get: (name?: string) => Live2DExpressionResult
   /** Applies or removes one expression without toggling its current state. */
   setActive: (name: string, active: boolean, duration?: number) => Live2DExpressionResult
+  /** Renders temporary previews over expression state without changing it. */
+  setPreviewExpressions: (names: readonly string[]) => void
   toggle: (name: string, duration?: number) => Live2DExpressionResult
   activate: (name: string, intensity?: number, duration?: number) => Live2DExpressionResult
   reset: () => Live2DExpressionResult
@@ -116,6 +118,8 @@ export function createLive2DExpressionsContext(
   const parameterResetTimers = new Map<string, ReturnType<typeof setTimeout>>()
   const parameterResetTimes = new Map<string, number>()
   const activeLastFrame = new Set<string>()
+  let previewExpressionNames: readonly string[] = []
+  let previewValues = new Map<string, number>()
   let executor: Live2DExpressionExecutor | undefined
   let executionResetTimer: ReturnType<typeof setTimeout> | undefined
   let executionGeneration = 0
@@ -202,6 +206,7 @@ export function createLive2DExpressionsContext(
     definitions.value = nextDefinitions
     const registeredDefinition = definitions.value.get(definition.name)
     rebuildParameters()
+    setPreviewExpressions(previewExpressionNames)
 
     return () => {
       if (definitions.value.get(definition.name) !== registeredDefinition)
@@ -214,6 +219,7 @@ export function createLive2DExpressionsContext(
         definitionsAfterCleanup.delete(definition.name)
       definitions.value = definitionsAfterCleanup
       rebuildParameters()
+      setPreviewExpressions(previewExpressionNames)
     }
   }
 
@@ -355,6 +361,15 @@ export function createLive2DExpressionsContext(
     )
   }
 
+  function setPreviewExpressions(names: readonly string[]) {
+    previewExpressionNames = [...names]
+    previewValues = new Map()
+    for (const name of names) {
+      for (const parameter of definitions.value.get(name)?.parameters ?? [])
+        previewValues.set(parameter.parameterId, parameter.value)
+    }
+  }
+
   function toggle(name: string, duration?: number): Live2DExpressionResult {
     const resolved = resolve(name)
     if (!resolved) {
@@ -449,14 +464,15 @@ export function createLive2DExpressionsContext(
     const activeThisFrame = new Set<string>()
 
     for (const parameter of parameters.value.values()) {
-      if (parameter.currentValue === parameter.defaultValue)
+      const previewValue = previewValues.get(parameter.parameterId)
+      if (previewValue === undefined && parameter.currentValue === parameter.defaultValue)
         continue
 
-      let value = parameter.currentValue
+      let value = previewValue ?? parameter.currentValue
       if (parameter.blend === 'Add')
-        value = parameter.modelDefault + parameter.currentValue
+        value = parameter.modelDefault + value
       else if (parameter.blend === 'Multiply')
-        value = coreModel.getParameterValueById(parameter.parameterId) * parameter.currentValue
+        value = coreModel.getParameterValueById(parameter.parameterId) * value
 
       coreModel.setParameterValueById(parameter.parameterId, value)
       activeThisFrame.add(parameter.parameterId)
@@ -480,6 +496,8 @@ export function createLive2DExpressionsContext(
     cancelExecutionReset()
     clearParameterResets()
     activeLastFrame.clear()
+    previewExpressionNames = []
+    previewValues = new Map()
     executor = undefined
     modelId.value = ''
     definitions.value = new Map()
@@ -500,6 +518,7 @@ export function createLive2DExpressionsContext(
     set,
     get,
     setActive,
+    setPreviewExpressions,
     toggle,
     activate,
     reset,

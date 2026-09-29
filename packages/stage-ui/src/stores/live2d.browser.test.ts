@@ -27,6 +27,15 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
   return { pinia, runtime }
 }
 
+function renderedExpressionValue(live2d: ReturnType<typeof createLive2D>) {
+  let value = 0
+  live2d.expressions.apply({
+    getParameterValueById: () => value,
+    setParameterValueById: (_, nextValue) => { value = nextValue },
+  })
+  return value
+}
+
 describe('shared Live2D expression previews', () => {
   afterEach(() => {
     for (const context of syncedContexts.splice(0)) {
@@ -104,23 +113,23 @@ describe('shared Live2D expression previews', () => {
 
     await sharedLive2D.startPreviewingExpression('another-avatar', 'happy', 'settings-window')
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
+    expect(renderedExpressionValue(live2d)).toBe(0)
 
     await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
+    expect(renderedExpressionValue(live2d)).toBe(1)
 
     avatarModelId.value = 'another-avatar'
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
+    expect(renderedExpressionValue(live2d)).toBe(0)
 
     avatarModelId.value = 'avatar-iru'
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
+    expect(renderedExpressionValue(live2d)).toBe(1)
 
     await sharedLive2D.stopPreviewingExpression('avatar-iru', 'happy', 'settings-window')
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
+    expect(renderedExpressionValue(live2d)).toBe(0)
 
     scope.stop()
     live2d.dispose()
@@ -148,12 +157,12 @@ describe('shared Live2D expression previews', () => {
 
       await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
       await nextTick()
-      expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
+      expect(renderedExpressionValue(live2d)).toBe(1)
 
       await vi.advanceTimersByTimeAsync(10_000)
       await nextTick()
       expect(sharedLive2D.expressionPreview).toBeNull()
-      expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
+      expect(renderedExpressionValue(live2d)).toBe(0)
     }
     finally {
       scope.stop()
@@ -179,7 +188,7 @@ describe('shared Live2D expression previews', () => {
     disposePinia(pinia)
   })
 
-  it('reapplies a preview when an ACT expression resets its parameters', async () => {
+  it('keeps an ACT expression active under a preview and restores it after cleanup', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     const sharedLive2D = useSharedLive2D()
@@ -197,15 +206,22 @@ describe('shared Live2D expression previews', () => {
 
     await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
+    expect(renderedExpressionValue(live2d)).toBe(1)
+    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
 
     live2d.expressions.reset()
     live2d.expressions.activate('sad')
     expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(-1)
+    expect(renderedExpressionValue(live2d)).toBe(1)
 
     await sharedLive2D.renewExpressionPreview('settings-window')
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
+    expect(renderedExpressionValue(live2d)).toBe(1)
+
+    await sharedLive2D.stopPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await nextTick()
+    expect(renderedExpressionValue(live2d)).toBe(-1)
+    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(-1)
 
     scope.stop()
     live2d.dispose()
@@ -236,11 +252,11 @@ describe('shared Live2D expression previews', () => {
     await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
     await sharedLive2D.startPreviewingExpression('avatar-iru', 'excited', 'settings-window')
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(2)
+    expect(renderedExpressionValue(live2d)).toBe(2)
 
     await sharedLive2D.stopPreviewingExpression('avatar-iru', 'happy', 'settings-window')
     await nextTick()
-    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(2)
+    expect(renderedExpressionValue(live2d)).toBe(2)
 
     scope.stop()
     live2d.dispose()
