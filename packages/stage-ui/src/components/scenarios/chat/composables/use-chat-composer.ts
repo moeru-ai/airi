@@ -6,6 +6,7 @@ import type { ChatHistoryReplyPayload } from '../reply'
 import { errorMessageFrom } from '@moeru/std'
 import { shallowReadonly, shallowRef, watch } from 'vue'
 
+import { useHearingDraftStore } from '../../../../stores/hearing-drafts'
 import { isChatReplyTargetMessage } from '../reply'
 
 /** One immutable snapshot passed from a composer to the chat domain. */
@@ -78,6 +79,8 @@ function isCancelledSessionSend(error: unknown): boolean {
 export function useChatComposer<TAttachment = never>(options: UseChatComposerOptions<TAttachment>): ChatComposerController<TAttachment> {
   const attachments = shallowRef<TAttachment[]>([])
   const draft = shallowRef('')
+  const hearingDrafts = useHearingDraftStore()
+  const sessionDrafts = new Map<string, string>()
   const isComposing = shallowRef(false)
   const replyTarget = shallowRef<ChatHistoryReplyPayload>()
 
@@ -146,7 +149,23 @@ export function useChatComposer<TAttachment = never>(options: UseChatComposerOpt
     }
   }
 
-  watch(options.activeSessionId, clearReply)
+  watch(options.activeSessionId, (sessionId, previousSessionId) => {
+    sessionDrafts.set(previousSessionId, draft.value)
+    draft.value = sessionDrafts.get(sessionId) ?? ''
+    clearReply()
+  }, { flush: 'sync' })
+
+  watch([options.activeSessionId, () => hearingDrafts.drafts], async ([sessionId]) => {
+    if (!hearingDrafts.drafts[sessionId])
+      return
+    const incoming = await hearingDrafts.take(sessionId)
+    if (!incoming)
+      return
+    if (options.activeSessionId.value === sessionId)
+      draft.value = [draft.value.trimEnd(), incoming].filter(Boolean).join(' ')
+    else
+      sessionDrafts.set(sessionId, [sessionDrafts.get(sessionId)?.trimEnd(), incoming].filter(Boolean).join(' '))
+  }, { immediate: true })
 
   return {
     attachments,

@@ -726,6 +726,18 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      input-mode:
+        label: 听觉输入
+        description: 选择 AIRI 何时聆听。所有模式都支持手动语音消息。
+        off: 关闭
+        push-to-talk: 按住说话
+        always: 持续聆听
+      push-to-talk-shortcut:
+        label: 按住说话快捷键
+        description: 在任何应用中按住此快捷键即可说话。
+        placeholder: 按下组合键
+        reset: 恢复默认值
+        registration-failed: 无法注册此快捷键。请使用屏幕按钮或选择其他快捷键。
       sections:
         section:
           provider-selection:

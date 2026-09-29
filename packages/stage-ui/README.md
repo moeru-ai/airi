@@ -173,3 +173,18 @@ setting applies to dictation drafts.
 
 Cloud chat synchronization transfers text only. It skips audio-only turns and
 their assistant replies. Voice recordings and image attachments stay in local history.
+
+### Push to Talk
+
+`HearingPushToTalk` records while a pointer or shortcut is held. `usePushToTalk`
+shares session capture, transcription, send delay, and cancellation across clients.
+It reuses the isolated manual recorder. It does not start continuous microphone input.
+
+`useHearingDraftStore` keeps unsent transcription by session when no composer is
+open. Its leader owns `append`, `take`, and `discard`. A composer claims each
+transcript once and appends it to the matching local text draft. Session deletion
+uses the existing voice-draft discard event.
+
+The `always` input mode retains the separate microphone enabled setting.
+`off` and `push-to-talk` stop continuous capture. Manual voice messages keep their
+own microphone lifecycle in all modes.

@@ -7,8 +7,8 @@ import { createContext as createBroadcastChannelContext } from '@moeru/eventa/ad
 import { defineStore } from 'pinia'
 import { onScopeDispose, shallowRef } from 'vue'
 
-const voiceDraftDiscarded = defineEventa<{ sessionId?: string }>('eventa:chat:voice-draft:discarded')
-const voiceDraftChannelName = 'airi-chat-voice-draft-discard'
+export const voiceDraftDiscarded = defineEventa<{ sessionId?: string }>('eventa:chat:voice-draft:discarded')
+export const voiceDraftChannelName = 'airi-chat-voice-draft-discard'
 
 /** A voice draft stays with its chat session until its user turn is stored. */
 export interface PendingVoiceSend {

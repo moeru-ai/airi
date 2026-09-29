@@ -10,6 +10,8 @@ import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import PushToTalkShortcut from '../../../components/settings/push-to-talk-shortcut.vue'
+
 import {
   electronSpotlightShortcutGet,
   electronSpotlightShortcutSet,
@@ -149,6 +151,7 @@ onMounted(async () => {
       />
     </div>
   </section>
+  <PushToTalkShortcut />
 </template>
 
 <route lang="yaml">

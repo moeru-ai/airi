@@ -5,6 +5,7 @@ import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { GodotStageManager } from '../../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
+import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../../chat'
 import type { EditorWindowManager } from '../../editor'
 import type { NoticeWindowManager } from '../../notice'
@@ -47,6 +48,7 @@ export async function setupMainWindowElectronInvokes(params: {
   godotStageManager: GodotStageManager
   mcpStdioManager: McpStdioManager
   i18n: I18n
+  globalShortcut: GlobalShortcutService
   onboardingWindowManager: OnboardingWindowManager
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
@@ -57,6 +59,7 @@ export async function setupMainWindowElectronInvokes(params: {
   const { context } = createContext(ipcMain, params.window)
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
+  params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })

@@ -1,9 +1,18 @@
 import type { ChatHistoryReplyPayload } from '../reply'
 
-import { describe, expect, it, vi } from 'vitest'
-import { shallowRef } from 'vue'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { nextTick, shallowRef } from 'vue'
 
+import { useHearingDraftStore } from '../../../../stores/hearing-drafts'
 import { useChatComposer } from './use-chat-composer'
+
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
 
 describe('useChatComposer', () => {
   it('sends a native reply without changing the draft text', async () => {
@@ -121,4 +130,19 @@ describe('useChatComposer', () => {
     composer.clearReplyForMessage({ id: 'assistant-2', role: 'assistant', content: 'Updated target', slices: [], tool_results: [] })
     expect(composer.replyTarget.value).toBeUndefined()
   })
+})
+
+it('keeps typed drafts and appends hearing text to its owning session', async () => {
+  const sessionId = shallowRef('first')
+  const composer = useChatComposer({ activeSessionId: sessionId, send: vi.fn() })
+  composer.draft.value = 'Typed first'
+  sessionId.value = 'second'
+  composer.draft.value = 'Typed second'
+  await useHearingDraftStore().append('first', 'Spoken first')
+  await nextTick()
+  expect(composer.draft.value).toBe('Typed second')
+  sessionId.value = 'first'
+  await vi.waitFor(() => expect(composer.draft.value).toBe('Typed first Spoken first'))
+  sessionId.value = 'second'
+  expect(composer.draft.value).toBe('Typed second')
 })

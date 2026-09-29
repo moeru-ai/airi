@@ -2,7 +2,7 @@ import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
-export type SpeechOutputStopReason = 'manual-chat' | 'manual-all' | 'muted'
+export type SpeechOutputStopReason = 'manual-chat' | 'manual-all' | 'muted' | 'push-to-talk'
 
 /**
  * Represents a user-requested stop-speaking command for the stage output host.

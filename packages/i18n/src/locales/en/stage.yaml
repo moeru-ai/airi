@@ -186,6 +186,7 @@ status:
   configure-hearing: Select and configure a Hearing provider in Settings.
 
 voice:
+  push-to-talk: Hold to talk
   audio: Voice message
   transcription: Dictation
   hold-hint: Hold to record. Tap to switch mode. Press Enter to record hands-free.

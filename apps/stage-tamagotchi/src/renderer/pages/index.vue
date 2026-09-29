@@ -44,6 +44,7 @@ import { createManualRecordingChannel, manualRecordingHeartbeatMs, ManualRecordi
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
+import { useStagePushToTalk } from '../composables/use-stage-push-to-talk'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -362,8 +363,10 @@ useModelSettingsRuntimeOwner({
   },
 })
 
+useStagePushToTalk()
+
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { stream, continuousInputEnabled: enabled } = storeToRefs(settingsAudioDeviceStore)
 const { askPermission, startStream, stopStream } = settingsAudioDeviceStore
 const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
@@ -781,7 +784,7 @@ watch(enabled, async (val) => {
   catch (error) {
     reportVoiceInputFailure(val ? 'start listening' : 'stop listening', error)
     if (val)
-      enabled.value = false
+      settingsAudioDeviceStore.enabled = false
   }
 }, { immediate: true })
 
@@ -796,7 +799,7 @@ watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInpu
   }
   catch (error) {
     reportVoiceInputFailure('restart after transcription settings changed', error)
-    enabled.value = false
+    settingsAudioDeviceStore.enabled = false
   }
 })
 
@@ -851,7 +854,7 @@ watch(stream, async (currentStream) => {
   }
   catch (error) {
     reportVoiceInputFailure('restart after microphone changed', error)
-    enabled.value = false
+    settingsAudioDeviceStore.enabled = false
   }
 })
 

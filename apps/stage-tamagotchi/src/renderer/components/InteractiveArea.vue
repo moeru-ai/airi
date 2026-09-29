@@ -8,7 +8,7 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, HearingPushToTalk, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -50,7 +50,9 @@ const lastEnterTime = ref(0)
 // Each request captures this composer selection, including retries and tool reruns.
 const computerUseEnabled = ref(true)
 const hearingDialogOpen = shallowRef(false)
-const voiceActive = ref(false)
+const manualVoiceActive = ref(false)
+const pushToTalkActive = ref(false)
+const voiceActive = computed(() => manualVoiceActive.value || pushToTalkActive.value)
 const manualRecordingChannel = createManualRecordingChannel()
 const manualRecordingSourceId = crypto.randomUUID()
 let manualRecordingHeartbeat: ReturnType<typeof setInterval> | undefined
@@ -510,13 +512,14 @@ defineExpose({ restoreDraft, snapshotDraft })
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
           </GhostButton>
           <span aria-hidden="true" :class="['mx-1 h-5 w-px bg-neutral-300/70 dark:bg-neutral-700/70']" />
+          <HearingPushToTalk :session-id="activeSessionId" @recording-change="pushToTalkActive = $event" />
           <VoiceComposer
             v-model="messageInput"
             :input-element="voiceInput"
             :session-id="activeSessionId"
             :reply-to-message-id="replyTarget?.message.id"
             :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
-            @recording-change="voiceActive = $event"
+            @recording-change="manualVoiceActive = $event"
             @sent="composer.clearReply()"
           />
           <DropdownMenuRoot>

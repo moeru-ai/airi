@@ -2,7 +2,7 @@
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, HearingPushToTalk, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -25,7 +25,9 @@ const props = defineProps<{
   generating: boolean
 }>()
 
-const voiceActive = shallowRef(false)
+const manualVoiceActive = shallowRef(false)
+const pushToTalkActive = shallowRef(false)
+const voiceActive = computed(() => manualVoiceActive.value || pushToTalkActive.value)
 const voiceInput = useTemplateRef<HTMLElement>('voiceInput')
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
 
@@ -287,12 +289,13 @@ watch(replyTarget, async (target) => {
       <div
         absolute bottom-2 right-2 z-10 flex items-center gap-1
       >
+        <HearingPushToTalk :session-id="activeSessionId" @recording-change="pushToTalkActive = $event" />
         <VoiceComposer
           v-model="messageInput"
           :input-element="voiceInput"
           :session-id="activeSessionId"
           :reply-to-message-id="replyTarget?.message.id"
-          @recording-change="voiceActive = $event"
+          @recording-change="manualVoiceActive = $event"
           @sent="props.composer.clearReply()"
         />
         <button
