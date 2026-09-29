@@ -291,6 +291,37 @@ describe('live2d zip loader settings sanitization', () => {
     expect(await reader.file('avatar/avatar.model3.json')!.async('string')).toBe(settingsText)
   })
 
+  it('keeps every motion group when groups share one file', async () => {
+    await import('./live2d-zip-loader')
+    const { ZipLoader } = await import('pixi-live2d-display/cubism4')
+    const zip = new JSZip()
+    zip.file('avatar/avatar.model3.json', JSON.stringify({
+      Version: 3,
+      FileReferences: {
+        Moc: 'avatar.moc3',
+        Textures: ['textures/avatar.png'],
+        Motions: {
+          Idle: [{ File: 'motions/shared.motion3.json' }],
+          TapBody: [{ File: 'motions/shared.motion3.json' }],
+        },
+      },
+      Groups: [],
+    }))
+    zip.file('avatar/avatar.moc3', new Uint8Array([77, 79, 67, 51]))
+    zip.file('avatar/textures/avatar.png', new Uint8Array([1, 2, 3]))
+    zip.file('avatar/motions/shared.motion3.json', '{}')
+
+    const reader = await JSZip.loadAsync(await blobFromBytes(await zip.generateAsync({ type: 'uint8array' })).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+
+    expect(settings).toMatchObject({
+      motions: {
+        Idle: [{ File: 'motions/shared.motion3.json' }],
+        TapBody: [{ File: 'motions/shared.motion3.json' }],
+      },
+    })
+  })
+
   it('loads an OPFS-restored file directory when model3.json contains Physics: null', async () => {
     await import('./live2d-zip-loader')
     const { FileLoader } = await import('pixi-live2d-display/cubism4')
