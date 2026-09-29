@@ -57,11 +57,8 @@ signIn:
     useDifferentEmail: Usar un correo electrónico diferente
   divider:
     or: o
-  message:
-    redirecting: Redirecting to {provider}…
   error:
     fallback: Error en el inicio de sesión
-    providerTimeout: Provider sign-in timed out. Please try again.
     unknown: S produjo un error inesperado
     socialOnlyNoPassword: Este correo electrónico se registró con Google o GitHub. Inicia sesión con uno de los botones de abajo. Después de iniciar sesión, podrás agregar una contraseña en la configuración de tu cuenta.
     passwordMismatch: Las contraseñas no coinciden.
@@ -128,7 +125,6 @@ profile:
   description: Administre su avatar, nombre para mostrar y cuentas conectadas.
   section:
     profile: Perfil
-    avatar: Avatar
     password: Contraseña
     linkedAccounts: Cuentas conectadas
   field:
