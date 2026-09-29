@@ -12,6 +12,51 @@ auth/OIDC routes.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
+## Contacts and direct conversations
+
+The contact API is an additive backend foundation, not the complete client sync flow.
+It accepts owned hosted characters and private portable definitions.
+Marketplace acquisition remains outside this API.
+
+- `POST /api/v1/contacts` accepts `{ characterId }`. Repeated registration returns
+  the same contact. Registration cannot restore a deleted contact.
+- `PUT /api/v1/contacts/characters/:localId` atomically imports or updates a private
+  definition and its contact. The body contains `document`, `expectedRevision`,
+  and `mutationId`. Revision zero creates; stale revisions return 409.
+  Private definitions never appear through marketplace routes.
+- `GET /api/v1/contacts` returns the full account list, including deletion markers
+  and per-contact revisions. Absence is not a deletion command.
+- `POST /api/v1/chats` accepts `{ type: 'bot', contactId }`. The server derives
+  the members. Bound conversations reject caller-supplied membership changes.
+- `POST /api/v1/chats/:id/contact` assigns an owned, unbound bot conversation to
+  `{ contactId }`. Automated migration also supplies `expectedCharacterId`.
+  Shared conversations and ambiguous automatic assignments are rejected.
+- `POST /api/v1/contacts/characters/:localId/delete` records deletion even if initial
+  import did not finish. It requires `{ deleteDirectConversations: true }`.
+  Delayed imports cannot reuse the deleted identity. Ordinary deletion excludes
+  the built-in character.
+- `POST /api/v1/contacts/:id/delete` requires
+  `{ deleteDirectConversations: true }`. It deletes the contact and its bound
+  direct conversations, including messages, in one transaction.
+  Retries return the retained contact revision and bound conversation ids.
+
+Deletion retains public character sources, groups, other accounts, and unbound histories.
+It removes private documents and soft-deletes their private character rows.
+Migration `0027_contact_ownership` adds nullable bindings without guessing old ownership.
+Migration `0028_private_character_documents` adds private document storage and identity mapping.
+Private registration binds only exact single-user, single-character legacy bot histories
+for that account. It preserves message ids and sequences. Ambiguous histories stay unbound.
+Do not release contact-scoped client history until private character import, restored
+bindings, unbound-history access, and offline deletion have passed acceptance.
+See [the contact ADR](../../docs/ai/adr/2026-09-27-character-card-chat-sync.md).
+
+Run contact tests with `pnpm exec vitest run src/services/domain/contacts.test.ts src/routes/contacts/route.test.ts`.
+For migration and lock-order tests, create an empty, disposable PostgreSQL database
+named `airi_contacts_test` on `127.0.0.1`. Set `CONTACT_TEST_DATABASE_URL` to its
+connection URL, then run `pnpm exec vitest run src/services/domain/contacts.integration.test.ts`.
+The test creates its own tables and runs the checked-in migration. Use a fresh
+database for each run. Never point this test at application data.
+
 ## Redis cache
 
 `src/libs/redis/cache.ts` provides stateless functions for string snapshots.

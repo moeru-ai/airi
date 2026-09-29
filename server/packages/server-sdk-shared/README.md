@@ -2,6 +2,13 @@
 
 Eventa contracts for the hosted chat WebSocket.
 
+The `/contacts` export provides Valibot contracts for private character and contact
+sync. `CharacterDocumentSchema` admits portable persona fields and model selections.
+It rejects credentials, arbitrary extensions, local paths, and unreviewed provider options.
+`PutCharacterDocumentSchema` requires an expected revision and mutation id.
+`ContactListSchema` includes deletion markers; absence is not proof of deletion.
+Use these contracts for cloud replication, not lossless local card backups.
+
 ## Usage
 
 ```shell

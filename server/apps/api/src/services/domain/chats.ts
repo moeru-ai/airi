@@ -2,10 +2,12 @@ import type { MessageRole, SendMessagesRequest, WireMessage } from '@proj-airi/s
 
 import type { Database } from '../../libs/db'
 import type { EngagementMetrics } from '../../otel'
+import type { BindContactInput, CreateChatInput } from '../../routes/chats/schema'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm'
 
+import { contacts } from '../../schemas/contacts'
 import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
@@ -13,15 +15,7 @@ import * as schema from '../../schemas/chats'
 
 const logger = useLogger('chats')
 
-type ChatType = 'private' | 'bot' | 'group' | 'channel'
 type ChatMemberType = 'user' | 'character' | 'bot'
-
-interface CreateChatPayload {
-  id?: string
-  type?: ChatType
-  title?: string
-  members?: { type: ChatMemberType, userId?: string, characterId?: string }[]
-}
 
 type PushMessage = SendMessagesRequest['messages'][number]
 
@@ -48,10 +42,10 @@ export function resolveSenderId(role: string, userId: string): string | null {
 export function createChatService(db: Database, metrics?: EngagementMetrics | null) {
   // ---- internal helpers ---------------------------------------------------
 
-  async function verifyMembership(tx: Parameters<Parameters<Database['transaction']>[0]>[0], chatId: string, userId: string) {
-    const chat = await tx.query.chats.findFirst({
-      where: and(eq(schema.chats.id, chatId), isNull(schema.chats.deletedAt)),
-    })
+  /** Write commands hold the chat lock through commit so deletion cannot invalidate authorization before a write. */
+  async function verifyMembership(tx: Parameters<Parameters<Database['transaction']>[0]>[0], chatId: string, userId: string, lock = false) {
+    const query = tx.select().from(schema.chats).where(and(eq(schema.chats.id, chatId), isNull(schema.chats.deletedAt)))
+    const [chat] = await (lock ? query.for('update') : query)
     if (!chat)
       throw createNotFoundError('Chat not found')
 
@@ -75,15 +69,38 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
   return {
     // -- Chat management (REST) ---------------------------------------------
 
-    async createChat(userId: string, payload: CreateChatPayload) {
+    async createChat(userId: string, payload: CreateChatInput) {
       return db.transaction(async (tx) => {
         const chatId = payload.id ?? nanoid()
         const now = new Date()
+        let contact = null
+        if (payload.contactId) {
+          if (payload.type !== 'bot' || payload.members !== undefined)
+            throw createBadRequestError('Contact chats require type bot and server-owned members')
+          const [owned] = await tx.select().from(contacts).where(and(eq(contacts.id, payload.contactId), eq(contacts.ownerId, userId))).for('update')
+          if (!owned || owned.deletedAt)
+            throw createNotFoundError('Contact not found')
+          contact = owned
+        }
+        else if (payload.type === 'bot' && payload.members?.length) {
+          const characterIds = payload.members
+            .filter(member => member.type !== 'user' && member.characterId)
+            .map(member => member.characterId!)
+          if (characterIds.length > 0) {
+            for (const characterId of [...new Set(characterIds)].sort())
+              await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${JSON.stringify([userId, characterId])}, 0))`)
+            const registered = await tx.select({ id: contacts.id }).from(contacts).where(and(eq(contacts.ownerId, userId), or(inArray(contacts.characterId, characterIds), inArray(contacts.localCharacterId, characterIds)))).orderBy(contacts.id).for('update')
+            if (registered.length > 0)
+              throw createBadRequestError('Use contactId for registered character conversations')
+          }
+        }
 
         await tx.insert(schema.chats).values({
           id: chatId,
           type: payload.type ?? 'group',
           title: payload.title ?? null,
+          contactId: contact?.id ?? null,
+          contactOwnerId: contact?.ownerId ?? null,
           createdAt: now,
           updatedAt: now,
         })
@@ -95,6 +112,14 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           userId,
           characterId: null,
         })
+
+        if (contact) {
+          await tx.insert(schema.chatMembers).values({
+            chatId,
+            memberType: 'character',
+            characterId: contact.characterId,
+          })
+        }
 
         // Add additional members if provided
         if (payload.members && payload.members.length > 0) {
@@ -112,7 +137,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           }
         }
 
-        return { id: chatId, type: payload.type ?? 'group', title: payload.title ?? null, createdAt: now, updatedAt: now }
+        return { id: chatId, type: payload.type ?? 'group', title: payload.title ?? null, contactId: contact?.id ?? null, contactOwnerId: contact?.ownerId ?? null, createdAt: now, updatedAt: now }
       })
     },
 
@@ -128,7 +153,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
 
     async listChats(userId: string) {
       const rows = await db
-        .select({ chat: schema.chats })
+        .selectDistinct({ chat: schema.chats })
         .from(schema.chatMembers)
         .innerJoin(schema.chats, eq(schema.chatMembers.chatId, schema.chats.id))
         .where(and(
@@ -137,12 +162,58 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           isNull(schema.chats.deletedAt),
         ))
 
-      return rows.map(r => r.chat)
+      if (rows.length === 0)
+        return []
+      const members = await db.select().from(schema.chatMembers).where(inArray(schema.chatMembers.chatId, rows.map(row => row.chat.id)))
+      return rows.map(({ chat }) => {
+        const participants = members.filter(member => member.chatId === chat.id)
+        const users = participants.filter(member => member.memberType === 'user')
+        const characters = participants.filter(member => member.memberType !== 'user')
+        const identifiable = chat.type === 'bot' && chat.contactId === null
+          && users.length === 1 && users[0].userId === userId
+          && characters.length === 1
+        return { ...chat, legacyCharacterId: identifiable ? characters[0].characterId : null }
+      })
+    },
+
+    /** Binds an owned direct history without changing message ids or sequence values. A supplied legacy id must match exactly. */
+    async bindContact(userId: string, chatId: string, input: BindContactInput) {
+      return db.transaction(async (tx) => {
+        const [contact] = await tx.select().from(contacts).where(and(eq(contacts.id, input.contactId), eq(contacts.ownerId, userId))).for('update')
+        if (!contact || contact.deletedAt)
+          throw createNotFoundError('Contact not found')
+        const chat = await verifyMembership(tx, chatId, userId, true)
+        if (chat.contactId === contact.id)
+          return chat
+        if (chat.contactId !== null)
+          throw createConflictError('Conversation already belongs to a contact')
+        if (chat.type !== 'bot')
+          throw createBadRequestError('Only direct character conversations can be bound')
+        const members = await tx.select().from(schema.chatMembers).where(eq(schema.chatMembers.chatId, chatId))
+        const users = members.filter(member => member.memberType === 'user')
+        const characters = members.filter(member => member.memberType !== 'user')
+        if (users.length !== 1 || users[0].userId !== userId)
+          throw createBadRequestError('Shared conversations cannot become contact histories')
+        if (input.expectedCharacterId !== undefined && (
+          characters.length !== 1 || characters[0].characterId !== input.expectedCharacterId
+          || contact.localCharacterId !== input.expectedCharacterId
+        )) {
+          throw createConflictError('Legacy character binding changed or is ambiguous')
+        }
+        if (characters.length > 0)
+          await tx.delete(schema.chatMembers).where(inArray(schema.chatMembers.id, characters.map(member => member.id)))
+        await tx.insert(schema.chatMembers).values({ chatId, memberType: 'character', characterId: contact.characterId })
+        const [bound] = await tx.update(schema.chats)
+          .set({ contactId: contact.id, contactOwnerId: userId })
+          .where(eq(schema.chats.id, chatId))
+          .returning()
+        return bound
+      })
     },
 
     async updateChat(userId: string, chatId: string, updates: { title?: string }) {
       return db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
+        await verifyMembership(tx, chatId, userId, true)
         const now = new Date()
 
         const [updated] = await tx.update(schema.chats)
@@ -156,7 +227,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
 
     async deleteChat(userId: string, chatId: string) {
       return db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
+        await verifyMembership(tx, chatId, userId, true)
         const now = new Date()
 
         const [deleted] = await tx.update(schema.chats)
@@ -179,7 +250,9 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
       }
 
       return db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
+        const chat = await verifyMembership(tx, chatId, userId, true)
+        if (chat.contactId)
+          throw createBadRequestError('Contact chat members cannot be changed')
 
         const [added] = await tx.insert(schema.chatMembers).values({
           chatId,
@@ -200,7 +273,9 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
 
     async removeMember(userId: string, chatId: string, memberId: string) {
       return db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
+        const chat = await verifyMembership(tx, chatId, userId, true)
+        if (chat.contactId)
+          throw createBadRequestError('Contact chat members cannot be changed')
 
         const [removed] = await tx.delete(schema.chatMembers)
           .where(and(
@@ -222,17 +297,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         throw createBadRequestError('Only user and assistant messages can be synchronized')
 
       const result = await db.transaction(async (tx) => {
-        await verifyMembership(tx, chatId, userId)
-
-        // Lock chat row to serialize seq assignment
-        const [chatRow] = await tx
-          .select({ id: schema.chats.id })
-          .from(schema.chats)
-          .where(eq(schema.chats.id, chatId))
-          .for('update')
-
-        if (!chatRow)
-          throw createNotFoundError('Chat not found')
+        await verifyMembership(tx, chatId, userId, true)
 
         // Get current max seq for this chat
         const [{ maxSeq }] = await tx

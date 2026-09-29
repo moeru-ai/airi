@@ -6,7 +6,7 @@ import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
 import { createBadRequestError } from '../../utils/error'
-import { AddMemberSchema, CreateChatSchema, UpdateChatSchema } from './schema'
+import { AddMemberSchema, BindContactSchema, CreateChatSchema, UpdateChatSchema } from './schema'
 
 export function createChatRoutes(chatService: ChatService) {
   return new Hono<HonoEnv>()
@@ -29,6 +29,13 @@ export function createChatRoutes(chatService: ChatService) {
       const user = c.get('user')!
       const chat = await chatService.getChat(user.id, c.req.param('id'))
       return c.json(chat)
+    })
+    .post('/:id/contact', async (context) => {
+      const result = safeParse(BindContactSchema, await context.req.json())
+      if (!result.success)
+        throw createBadRequestError('Invalid contact binding', 'INVALID_REQUEST', result.issues)
+      const chat = await chatService.bindContact(context.get('user')!.id, context.req.param('id'), result.output)
+      return context.json(chat)
     })
     .patch('/:id', async (c) => {
       const user = c.get('user')!

@@ -1,6 +1,7 @@
 export * from './characters'
 export * from './chats'
 export * from './config-kv'
+export * from './contacts'
 export * from './flux'
 export * from './flux-transaction'
 export * from './llm-request-attempt'

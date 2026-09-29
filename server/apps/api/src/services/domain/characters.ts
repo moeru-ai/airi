@@ -4,6 +4,8 @@ import type { EngagementMetrics } from '../../otel'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, inArray, isNull, or, sql } from 'drizzle-orm'
 
+import { createNotFoundError } from '../../utils/error'
+
 import * as schema from '../../schemas/characters'
 import * as userCharacterSchema from '../../schemas/user-character'
 
@@ -15,6 +17,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
       return await db.query.character.findFirst({
         where: and(
           eq(schema.character.id, id),
+          eq(schema.character.isPrivate, false),
           isNull(schema.character.deletedAt),
         ),
         with: {
@@ -33,6 +36,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
       return await db.query.character.findMany({
         where: and(
           eq(schema.character.ownerId, ownerId),
+          eq(schema.character.isPrivate, false),
           isNull(schema.character.deletedAt),
         ),
         with: {
@@ -47,7 +51,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
 
     async findAll() {
       return await db.query.character.findMany({
-        where: isNull(schema.character.deletedAt),
+        where: and(isNull(schema.character.deletedAt), eq(schema.character.isPrivate, false)),
         with: {
           i18n: true,
           capabilities: true,
@@ -60,6 +64,9 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
 
     async like(userId: string, characterId: string) {
       const result = await db.transaction(async (tx) => {
+        const visible = await tx.query.character.findFirst({ where: and(eq(schema.character.id, characterId), eq(schema.character.isPrivate, false), isNull(schema.character.deletedAt)) })
+        if (!visible)
+          throw createNotFoundError('Character not found')
         const existing = await tx.query.characterLikes.findFirst({
           where: and(
             eq(userCharacterSchema.characterLikes.userId, userId),
@@ -101,6 +108,9 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
 
     async bookmark(userId: string, characterId: string) {
       const result = await db.transaction(async (tx) => {
+        const visible = await tx.query.character.findFirst({ where: and(eq(schema.character.id, characterId), eq(schema.character.isPrivate, false), isNull(schema.character.deletedAt)) })
+        if (!visible)
+          throw createNotFoundError('Character not found')
         const existing = await tx.query.characterBookmarks.findFirst({
           where: and(
             eq(userCharacterSchema.characterBookmarks.userId, userId),
@@ -208,6 +218,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
             .set({ ...characterData, updatedAt: new Date() })
             .where(and(
               eq(schema.character.id, id),
+              eq(schema.character.isPrivate, false),
               isNull(schema.character.deletedAt),
             ))
             .returning()
@@ -236,6 +247,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
         const fallback = await tx.query.character.findFirst({
           where: and(
             eq(schema.character.id, id),
+            eq(schema.character.isPrivate, false),
             isNull(schema.character.deletedAt),
           ),
         })
@@ -253,6 +265,7 @@ export function createCharacterService(db: Database, metrics?: EngagementMetrics
         .set({ deletedAt: new Date() })
         .where(and(
           eq(schema.character.id, id),
+          eq(schema.character.isPrivate, false),
           isNull(schema.character.deletedAt),
         ))
         .returning()
