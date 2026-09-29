@@ -28,7 +28,7 @@ import { useI18n } from 'vue-i18n'
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
-import { createManualRecordingChannel, manualRecordingStateChanged } from '../../shared/manual-recording'
+import { createManualRecordingChannel, manualRecordingHeartbeatMs, manualRecordingStateChanged } from '../../shared/manual-recording'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
@@ -53,12 +53,26 @@ const hearingDialogOpen = shallowRef(false)
 const voiceActive = ref(false)
 const manualRecordingChannel = createManualRecordingChannel()
 const manualRecordingSourceId = crypto.randomUUID()
+let manualRecordingHeartbeat: ReturnType<typeof setInterval> | undefined
+function publishManualRecordingState(active: boolean) {
+  return manualRecordingChannel.context.emit(manualRecordingStateChanged, { sourceId: manualRecordingSourceId, active })
+}
 watch(voiceActive, (active) => {
-  void manualRecordingChannel.context.emit(manualRecordingStateChanged, { sourceId: manualRecordingSourceId, active })
+  if (manualRecordingHeartbeat)
+    clearInterval(manualRecordingHeartbeat)
+  void publishManualRecordingState(active)
     .catch(error => console.warn('[Interactive Area] Failed to publish manual recording state:', error))
+  if (active) {
+    manualRecordingHeartbeat = setInterval(() => {
+      void publishManualRecordingState(true)
+        .catch(error => console.warn('[Interactive Area] Failed to renew manual recording state:', error))
+    }, manualRecordingHeartbeatMs)
+  }
 }, { flush: 'sync' })
 onUnmounted(() => {
-  void manualRecordingChannel.context.emit(manualRecordingStateChanged, { sourceId: manualRecordingSourceId, active: false })
+  if (manualRecordingHeartbeat)
+    clearInterval(manualRecordingHeartbeat)
+  void publishManualRecordingState(false)
     .catch(error => console.warn('[Interactive Area] Failed to clear manual recording state:', error))
     .finally(() => manualRecordingChannel.dispose())
 })

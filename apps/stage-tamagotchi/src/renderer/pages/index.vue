@@ -40,7 +40,7 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { electronAppIsWayland, electronOpenOnboarding } from '../../shared/eventa'
-import { createManualRecordingChannel, manualRecordingStateChanged } from '../../shared/manual-recording'
+import { createManualRecordingChannel, manualRecordingHeartbeatMs, ManualRecordingLeaseTracker, manualRecordingStateChanged } from '../../shared/manual-recording'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
@@ -399,17 +399,18 @@ const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<Stop
   stop: stopAudioInteractionConsumers,
 })
 const manualRecordingActive = shallowRef(false)
-const manualRecordingSources = new Set<string>()
+const manualRecordingLeases = new ManualRecordingLeaseTracker()
 const manualRecordingChannel = createManualRecordingChannel()
 const stopManualRecordingEvents = manualRecordingChannel.context.on(manualRecordingStateChanged, ({ body }) => {
   if (!body)
     return
-  if (body.active)
-    manualRecordingSources.add(body.sourceId)
-  else
-    manualRecordingSources.delete(body.sourceId)
-  manualRecordingActive.value = manualRecordingSources.size > 0
+  manualRecordingLeases.apply(body)
+  manualRecordingActive.value = manualRecordingLeases.active
 })
+const manualRecordingExpiryTimer = setInterval(() => {
+  manualRecordingLeases.expire()
+  manualRecordingActive.value = manualRecordingLeases.active
+}, manualRecordingHeartbeatMs)
 watch(manualRecordingActive, (active) => {
   if (active) {
     clearAssistantSpeechResumeTimer()
@@ -822,6 +823,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearInterval(manualRecordingExpiryTimer)
   stopManualRecordingEvents()
   manualRecordingChannel.dispose()
   removeStreamingTranscriptionConsumer(transcriptionConsumerId)
