@@ -38,7 +38,7 @@ watch(
     }
     catch (error) {
       if (active)
-        live2d.reportError('expression', error)
+        console.warn(`[Live2D] Skipped optional expression ${name}:`, error)
     }
   },
   { immediate: true },

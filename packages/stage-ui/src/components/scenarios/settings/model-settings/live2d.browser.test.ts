@@ -94,9 +94,12 @@ describe('live2D model settings', () => {
       : []).toContain('happy')
 
     await screen.getByRole('button', { name: 'settings.live2d.expressions.actions.activate' }).first().click()
-    await expect.poll(() => useSharedLive2D(pinia).expressionPreview).toEqual({
+    await expect.poll(() => useSharedLive2D(pinia).expressionPreview).toMatchObject({
       avatarModelId: 'test-avatar',
       names: ['happy'],
     })
+
+    window.dispatchEvent(new Event('pagehide'))
+    await expect.poll(() => useSharedLive2D(pinia).expressionPreview).toBeNull()
   })
 })
