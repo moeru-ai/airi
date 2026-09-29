@@ -786,8 +786,8 @@ pages:
         delay-label: Send delay
         delay-description: Wait before sending transcribed text.
         immediate: Immediately
-      understanding:
-        title: Hearing understanding
+      transcriber:
+        title: Transcriber
         description: Set up speech recognition and test your microphone.
       wake-words:
         title: Calling names

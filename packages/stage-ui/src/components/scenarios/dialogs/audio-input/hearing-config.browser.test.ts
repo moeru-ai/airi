@@ -1,5 +1,6 @@
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { userEvent } from 'vitest/browser'
 import { createApp, nextTick } from 'vue'
 
 import HearingConfig from './hearing-config.vue'
@@ -112,15 +113,22 @@ describe('hearing config audio device ownership', () => {
     host.remove()
   })
 
-  it('offers four hearing modes while keeping voice messages separate', () => {
+  it('offers four hearing modes while keeping voice messages separate', async () => {
     const { app, host } = mountHearingConfig()
 
-    const modes = host.querySelectorAll('[role="radio"]')
+    const trigger = host.querySelector<HTMLElement>('[role="combobox"]')
+    expect(trigger).not.toBeNull()
+    if (trigger)
+      await userEvent.click(trigger)
+    await nextTick()
+    const modes = document.querySelectorAll('[role="option"]')
     expect(modes).toHaveLength(4)
-    expect(host.textContent).toContain('input-mode.off')
-    expect(host.textContent).toContain('input-mode.push-to-talk')
-    expect(host.textContent).toContain('input-mode.wake-word')
-    expect(host.textContent).toContain('input-mode.always')
+    expect([...modes].map(option => option.textContent)).toEqual(expect.arrayContaining([
+      expect.stringContaining('input-mode.off'),
+      expect.stringContaining('input-mode.push-to-talk'),
+      expect.stringContaining('input-mode.wake-word'),
+      expect.stringContaining('input-mode.always'),
+    ]))
     expect(host.textContent).not.toContain('settings.pages.modules.hearing.microphone.label')
 
     app.unmount()

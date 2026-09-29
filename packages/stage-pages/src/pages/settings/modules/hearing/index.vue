@@ -1,24 +1,28 @@
 <script setup lang="ts">
+import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterLink } from 'vue-router'
 
 const { t } = useI18n()
 const { autoSendEnabled, autoSendDelay } = storeToRefs(useHearingStore())
+const pages = computed(() => [
+  { id: 'transcriber', to: '/settings/modules/hearing/transcriber', name: t('settings.pages.modules.hearing.transcriber.title'), description: t('settings.pages.modules.hearing.transcriber.description'), icon: 'i-solar:microphone-3-bold-duotone' },
+  { id: 'wake-words', to: '/settings/modules/hearing/wake-words', name: t('settings.pages.modules.hearing.wake-words.title'), description: t('settings.pages.modules.hearing.wake-words.description'), icon: 'i-solar:bell-bold-duotone' },
+])
 </script>
 
 <template>
   <div :class="['flex flex-col gap-6']">
-    <section :class="['flex flex-col gap-4 rounded-xl bg-neutral-50 p-5 dark:bg-neutral-900/50']">
-      <FieldCheckbox
-        v-model="autoSendEnabled"
-        :label="t('settings.pages.modules.hearing.auto-send.label')"
-        :description="t('settings.pages.modules.hearing.auto-send.description')"
-      />
+    <FieldCheckbox
+      v-model="autoSendEnabled"
+      :label="t('settings.pages.modules.hearing.auto-send.label')"
+      :description="t('settings.pages.modules.hearing.auto-send.description')"
+    />
+    <div v-if="autoSendEnabled" :class="['rounded-xl bg-neutral-50 p-4 dark:bg-[rgba(0,0,0,0.3)]']">
       <FieldRange
-        v-if="autoSendEnabled"
         v-model="autoSendDelay"
         :label="t('settings.pages.modules.hearing.auto-send.delay-label')"
         :description="t('settings.pages.modules.hearing.auto-send.delay-description')"
@@ -27,30 +31,19 @@ const { autoSendEnabled, autoSendDelay } = storeToRefs(useHearingStore())
         :step="100"
         :format-value="value => value === 0 ? t('settings.pages.modules.hearing.auto-send.immediate') : `${(value / 1000).toFixed(1)}s`"
       />
-    </section>
+    </div>
 
-    <nav :class="['grid gap-3 sm:grid-cols-2']">
-      <RouterLink
-        v-for="page in [
-          { path: '/settings/modules/hearing/understanding', title: t('settings.pages.modules.hearing.understanding.title'), description: t('settings.pages.modules.hearing.understanding.description'), icon: 'i-solar:microphone-3-bold-duotone' },
-          { path: '/settings/modules/hearing/wake-words', title: t('settings.pages.modules.hearing.wake-words.title'), description: t('settings.pages.modules.hearing.wake-words.description'), icon: 'i-solar:bell-bold-duotone' },
-        ]"
-        :key="page.path"
-        :to="page.path"
-        :class="[
-          'flex items-center gap-4 rounded-xl border border-solid border-neutral-200 bg-white p-5',
-          'transition-colors hover:border-primary-400/50 hover:bg-primary-50/40',
-          'dark:border-neutral-800 dark:bg-neutral-900 dark:hover:bg-primary-900/10',
-        ]"
-      >
-        <span :class="[page.icon, 'text-2xl text-primary-500']" aria-hidden="true" />
-        <span :class="['min-w-0 flex-1']">
-          <span :class="['block font-medium']">{{ page.title }}</span>
-          <span :class="['block text-sm text-neutral-500 dark:text-neutral-400']">{{ page.description }}</span>
-        </span>
-        <span :class="['i-solar:alt-arrow-right-linear shrink-0 text-neutral-400']" aria-hidden="true" />
-      </RouterLink>
-    </nav>
+    <RippleGrid :items="pages" :columns="{ default: 1, sm: 2 }">
+      <template #item="{ item: page }">
+        <IconStatusItem
+          :title="page.name"
+          :description="page.description"
+          :icon="page.icon"
+          :to="page.to"
+          :show-status="false"
+        />
+      </template>
+    </RippleGrid>
   </div>
 </template>
 

@@ -135,7 +135,7 @@ function begin() {
   if ((mode.value === 'transcription' || !consciousness.supportsAudioInput) && !voice.configured.value) {
     toast(t('stage.voice.configure-title'), {
       description: t('stage.voice.configure-description'),
-      action: { label: t('stage.voice.configure-action'), onClick: () => { void router.push('/settings/modules/hearing/understanding') } },
+      action: { label: t('stage.voice.configure-action'), onClick: () => { void router.push('/settings/modules/hearing/transcriber') } },
     })
     return
   }

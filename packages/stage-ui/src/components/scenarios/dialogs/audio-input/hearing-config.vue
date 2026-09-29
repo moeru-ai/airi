@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import type { SelectTabOption } from '@proj-airi/ui'
-
 import type { HearingInputMode } from '../../../../stores/settings/audio-device'
 
-import { Callout, Checkbox, FieldCombobox, SelectTab } from '@proj-airi/ui'
+import { Callout, FieldCheckbox, FieldCombobox, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,7 +12,7 @@ const props = withDefaults(defineProps<{ granted?: boolean }>(), { granted: true
 const { t } = useI18n()
 const { audioInputOptions, enabled, mode, selectedAudioInput, wakeWordPreparation, wakeWordPreparationError } = storeToRefs(useSettingsAudioDevice())
 
-const modeOptions = computed<SelectTabOption<HearingInputMode>[]>(() => [
+const modeOptions = computed<{ label: string, value: HearingInputMode }[]>(() => [
   { label: t('settings.pages.modules.hearing.input-mode.off'), value: 'off' },
   { label: t('settings.pages.modules.hearing.input-mode.push-to-talk'), value: 'push-to-talk' },
   { label: t('settings.pages.modules.hearing.input-mode.wake-word'), value: 'wake-word' },
@@ -24,31 +22,19 @@ const modeOptions = computed<SelectTabOption<HearingInputMode>[]>(() => [
 
 <template>
   <div :class="['flex flex-col gap-4']">
-    <div :class="['flex flex-col gap-3']">
-      <div :class="['flex items-start justify-between gap-3']">
-        <div>
-          <div :class="['text-sm font-medium']">
-            {{ t('settings.pages.modules.hearing.input-mode.label') }}
-          </div>
-          <div :class="['text-xs text-neutral-500 dark:text-neutral-400']">
-            {{ t('settings.pages.modules.hearing.input-mode.description') }}
-          </div>
-        </div>
-        <Checkbox
-          v-if="mode === 'always' || mode === 'wake-word'"
-          v-model="enabled"
-          :aria-label="t('settings.pages.modules.hearing.microphone.label')"
-          :class="['shrink-0']"
-        />
-      </div>
-      <SelectTab
-        v-model="mode"
-        :options="modeOptions"
-        size="xs"
-        tab-space="compact"
-        :class="['w-full']"
-      />
-    </div>
+    <FieldSelect
+      v-model="mode"
+      :label="t('settings.pages.modules.hearing.input-mode.label')"
+      :description="t('settings.pages.modules.hearing.input-mode.description')"
+      :options="modeOptions"
+      layout="vertical"
+    />
+    <FieldCheckbox
+      v-if="mode === 'always' || mode === 'wake-word'"
+      v-model="enabled"
+      :label="t('settings.pages.modules.hearing.microphone.label')"
+      :description="t('settings.pages.modules.hearing.microphone.description')"
+    />
     <Callout
       v-if="mode === 'wake-word' && wakeWordPreparation === 'preparing'"
       theme="orange"

@@ -611,6 +611,32 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('keeps cancellation correlation for concurrent sessions', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamPeer = createContextChannel()
+    testChannels.push(streamPeer)
+    const context = {
+      turnId: 'turn-1',
+      sessionId: 'session-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    // ROOT CAUSE:
+    // A single producer slot lost session A when session B began sending.
+    // Keep the turn correlation by session so either turn can be canceled.
+    await chatOrchestratorMock.emitBeforeSendHooks('ping', context)
+    await chatOrchestratorMock.emitBeforeSendHooks('pong', { ...context, turnId: 'turn-2', sessionId: 'session-2' })
+    await streamPeer.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
+
+    await vi.waitFor(() => {
+      expect(chatOrchestratorMock.cancelPendingSends).toHaveBeenCalledWith('session-1')
+    })
+    await store.dispose()
+  })
+
   it('broadcasts cancellation when the producing renderer stops its turn', async () => {
     const store = useContextBridgeStore()
     await store.initialize()

@@ -739,7 +739,7 @@ onUnmounted(() => {
 <route lang="yaml">
 meta:
   layout: settings
-  titleKey: settings.pages.modules.hearing.understanding.title
+  titleKey: settings.pages.modules.hearing.transcriber.title
   subtitleKey: settings.pages.modules.hearing.title
   stageTransition:
     name: slide

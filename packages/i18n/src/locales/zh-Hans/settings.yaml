@@ -743,8 +743,8 @@ pages:
         delay-label: 发送延迟
         delay-description: 转写完成后等待一段时间再发送。
         immediate: 立即
-      understanding:
-        title: 听觉理解
+      transcriber:
+        title: 转写器
         description: 配置语音识别并测试麦克风。
       wake-words:
         title: 呼唤名称
