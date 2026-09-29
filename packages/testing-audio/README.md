@@ -70,14 +70,14 @@ A case can independently choose its VAD behavior, ASR, LLM, and TTS configuratio
 
 Use `configureCallingWord` to set one card pronunciation and enable KWS microphone mode. The case does not need an ASR Provider.
 
-Set `callingWordModel: true` so the Web runner prepares the pinned model before the file microphone starts. Electron uses its bundled model.
+Set `pipelines: ['kws']` so the Web runner prepares the pinned model before the file microphone starts. Electron uses its bundled model.
 
 ```ts
 import { configureCallingWord, configureOnboarding } from '../shared/configurations'
 
 const caseOptions = {
   input: new URL('./input.test.wav', import.meta.url),
-  callingWordModel: true,
+  pipelines: ['kws'],
   preflight: [
     configureOnboarding(() => ({ completed: true })),
     configureCallingWord(() => ({

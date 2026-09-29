@@ -1,6 +1,6 @@
 import type { AudioTestTask } from '@proj-airi/vitest-plugin-fakemic'
 
-import type { AudioInputPreflightContext, AudioInputSession, AudioInputTestCase } from './types'
+import type { AudioInputPipeline, AudioInputPreflightContext, AudioInputSession, AudioInputTestCase } from './types'
 
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
@@ -13,7 +13,7 @@ import { expect, installAudioInputMatchers } from './expect-extend'
 import { prepareCallingWordModel } from './setup/calling-word-model'
 
 interface RunnableAudioInputTest extends AudioTestTask {
-  callingWordModel?: boolean
+  pipelines?: readonly AudioInputPipeline[]
 }
 
 installAudioInputMatchers()
@@ -26,7 +26,7 @@ const audioTestAPI = createAudioTestAPI<
 >({
   preflight: definition => definition.preflight,
   createPlans(name, testCase) {
-    const task = { ...createAudioTestTask(name, testCase), callingWordModel: testCase.callingWordModel }
+    const task = { ...createAudioTestTask(name, testCase), pipelines: testCase.pipelines }
     return [{
       name: task.name,
       definition: task,
@@ -37,7 +37,7 @@ const audioTestAPI = createAudioTestAPI<
     }]
   },
   async execute({ plan, task, invokeHandler, runPreflight }) {
-    if (plan.definition.callingWordModel && inject('fakemicRuntime').kind === 'web')
+    if (plan.definition.pipelines?.includes('kws') && inject('fakemicRuntime').kind === 'web')
       await prepareCallingWordModel()
     await runAudioTestSession({
       start() {

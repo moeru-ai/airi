@@ -8,7 +8,7 @@ describe('calling word detection', () => {
   // The spoken phrase repeats three times to exercise the real microphone and Worker path.
   it('activates the character after the calling word', {
     input: new URL('./input.test.wav', import.meta.url),
-    callingWordModel: true,
+    pipelines: ['kws'],
     preflight: [
       configureOnboarding(() => ({ completed: true })),
       configureCallingWord(() => ({ targetCardId, label: 'Light up', tokens: ['L', 'AY1', 'T', 'AH1', 'P'] })),
