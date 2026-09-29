@@ -1,16 +1,14 @@
-import type { GenerationRequest } from '@proj-airi/provider-inference'
 import type { Usage } from '@xsai/shared-chat'
 
+import type { AssistantTurn, GenerationRound } from '../messages/types'
 import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
 import { streamChatCompletions } from './chat-completions'
-import { createContinuationScope } from './request-context'
+import { ProtocolSwitch } from './protocol-switch'
+import { createContinuationScope, supportsContentArray, supportsTools } from './request-context'
 import { streamResponses } from './responses'
 
-/** Builds a compatibility-cache key from the same configuration used by the request. */
-export function modelKey(model: string, { protocol, config }: GenerationRequest): string {
-  return `${protocol === 'responses' ? 'responses:' : ''}${config.baseURL}-${model}`
-}
+export { modelKey } from './request-context'
 
 async function resolveTools(options?: StreamOptions) {
   const tools = typeof options?.tools === 'function'
@@ -20,7 +18,7 @@ async function resolveTools(options?: StreamOptions) {
 }
 
 /** Runs the selected protocol adapter and waits for its generated turn and event consumers. */
-export async function streamFrom({
+async function streamOnce({
   model,
   chatProvider,
   conversation,
@@ -29,9 +27,8 @@ export async function streamFrom({
 }: StreamFromOptions) {
   // Resolve before async tool loading so all decisions use this request's configuration.
   const request = chatProvider.generation(model)
-  const key = modelKey(model, request)
-  const supportedTools = options?.supportsTools ?? (options?.toolsCompatibility?.get(key) !== false)
-  const supportsContentArray = options?.supportsContentArray ?? (options?.contentArrayCompatibility?.get(key) !== false)
+  const supportedTools = supportsTools(model, request, options)
+  const contentArraySupported = supportsContentArray(model, request, options)
   const builtinTools = supportedTools
     ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([]))
     : []
@@ -74,7 +71,7 @@ export async function streamFrom({
     try {
       const streamResult = request.protocol === 'responses'
         ? streamResponses({ config: request.config, webSearch: supportedTools && request.webSearch, conversation, scope, options, tools, onEvent })
-        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, onEvent, supportsContentArray })
+        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, onEvent, supportsContentArray: contentArraySupported })
 
       // NOTICE: Consume underlying promises to prevent unhandled rejections from
       // @xsai/stream-text's SSE parser surfacing as faulted app state.
@@ -141,21 +138,100 @@ export async function streamFrom({
           return
         }
         rejectOnce(error)
-        console.error('Stream steps error:', error)
+        if (!(error instanceof ProtocolSwitch))
+          console.error('Stream steps error:', error)
       })
       // `steps` can reject before the success path awaits `messages`.
       // Keep this rejection sink so xsAI cannot create an unhandled rejection.
-      void streamResult.generatedTurn.catch(error => console.error('Stream generated turn error:', error))
-      void streamResult.usage.catch(error => console.error('Stream usage error:', error))
+      void streamResult.generatedTurn.catch((error) => {
+        if (!(error instanceof ProtocolSwitch))
+          console.error('Stream generated turn error:', error)
+      })
+      void streamResult.usage.catch((error) => {
+        if (!(error instanceof ProtocolSwitch))
+          console.error('Stream usage error:', error)
+      })
       // `steps` and `totalUsage` reject independently when xsAI fails a
       // stream. The success path awaits `totalUsage`, but if `steps` rejects
       // first that await never runs, so keep this unconditional rejection sink.
-      void streamResult.totalUsage.catch(error => console.error('Stream totalUsage error:', error))
+      void streamResult.totalUsage.catch((error) => {
+        if (!(error instanceof ProtocolSwitch))
+          console.error('Stream totalUsage error:', error)
+      })
     }
     catch (error) {
       rejectOnce(error)
     }
   })
+}
+
+function mergeGenerationUsage(rounds: GenerationRound[], last?: Parameters<NonNullable<StreamOptions['onUsage']>>[0]) {
+  const partial = rounds.flatMap(round => round.modelCall?.usage ? [round.modelCall.usage] : [])
+  if (partial.length === 0)
+    return last
+
+  return {
+    inputTokens: partial.reduce((sum, usage) => sum + usage.inputTokens, last?.inputTokens ?? 0),
+    outputTokens: partial.reduce((sum, usage) => sum + usage.outputTokens, last?.outputTokens ?? 0),
+    totalTokens: partial.reduce((sum, usage) => sum + usage.totalTokens, last?.totalTokens ?? 0),
+    source: 'reported' as const,
+  }
+}
+
+/** Keeps one assistant turn across xsAI tool loops even when the next request changes protocol. */
+export async function streamFrom(input: StreamFromOptions): Promise<void> {
+  if (!input.options?.resolveStep)
+    return streamOnce(input)
+
+  const completedRounds: GenerationRound[] = []
+  let turnId = input.options.requestCorrelation?.turnId
+  let request = input
+  let switches = 0
+  while (true) {
+    let finalTurn: AssistantTurn | undefined
+    let lastUsage: Parameters<NonNullable<StreamOptions['onUsage']>>[0] | undefined
+    try {
+      await streamOnce({
+        ...request,
+        options: {
+          ...request.options,
+          generationTurnId: turnId,
+          generationRoundOffset: completedRounds.length,
+          onGeneratedTurn: (turn) => { finalTurn = turn },
+          onUsage: (usage) => { lastUsage = usage },
+        },
+      })
+      if (finalTurn)
+        await input.options.onGeneratedTurn?.({ ...finalTurn, rounds: [...completedRounds, ...finalTurn.rounds] })
+      const usage = mergeGenerationUsage(completedRounds, lastUsage)
+      if (usage)
+        await input.options.onUsage?.(usage)
+      return
+    }
+    catch (error) {
+      if (!(error instanceof ProtocolSwitch))
+        throw error
+      switches += 1
+      if (switches > 10)
+        throw new Error('Generation protocol changed too many times')
+      turnId = error.partialTurn.id
+      completedRounds.push(...error.partialTurn.rounds)
+      if (completedRounds.length >= 10)
+        throw new Error('Generation tool step limit reached')
+      request = {
+        ...input,
+        model: error.next.model,
+        chatProvider: error.next.chatProvider,
+        options: { ...input.options, providerId: error.next.providerId, headers: error.next.headers },
+        conversation: {
+          turns: [
+            ...input.conversation.turns,
+            { ...error.partialTurn, rounds: [...completedRounds] },
+          ],
+        },
+      }
+    }
+  }
 }
 
 // Runtime auto-degrade: patterns that indicate the model/provider does not support tool calling.
