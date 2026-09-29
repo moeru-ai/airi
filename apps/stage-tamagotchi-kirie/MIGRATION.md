@@ -315,6 +315,45 @@ Return to one coordinated published version before acceptance.
 
 ## Acceptance evidence
 
+### Ablation 3: Devtools registration ownership (2026-09-29)
+
+The experiment removed the registration set, disposal loop, and reverse `Detach` callback from [DeveloperToolsService](src-godot/scripts/developer-tools-service.cs).
+It also removed the reverse owner field from `Binding`.
+The source change removes 16 lines overall and adds no replacement abstraction.
+`Binding` still owns both handler registrations and retains its disposal guard and release order.
+
+[Main](src-godot/scripts/Main.cs) releases its registration before the service.
+[SettingsWindow](src-godot/scripts/SettingsWindow.cs) releases its registration before its Eventa context.
+Settings is a child of Main. Godot calls the parent's `_ExitTree` after its children leave the tree.
+See the [Godot lifecycle contract](https://docs.godotengine.org/en/stable/classes/class_node.html#class-node-private-method-exit-tree).
+These are the only attachment sites, so the removed set was empty at normal service disposal.
+Inspector cancellation, HTTP disposal, and developer-window ownership remain unchanged.
+
+The baseline and changed builds ran on macOS with Godot 4.7.2, Kirie 0.6.5, and Metal Forward+.
+Both builds passed repeated Devtools requests from Main and Settings, Settings close and reopen, and Devtools close and recreation.
+Two requests with the same key reused one window, including after recreation.
+Baseline Inspector requests passed from Main and Settings.
+After the change, an Inspector request from the recreated Settings window opened the main renderer's target.
+The changed build did not repeat the Inspector request from Main.
+
+Both completed shutdown checks returned code 0 with Settings and Devtools open.
+The baseline used the application quit adapter. The changed build used the native application menu.
+Both reported five leaked ObjectDB instances and the existing GAP-010 requests for the deferred server channel.
+Interrupted CDP runs were excluded from shutdown evidence. These checks do not establish Windows acceptance.
+
+| Command | Result |
+| --- | --- |
+| `mise x -- dotnet build --no-restore` | Passed before and after the change, with no warnings or errors. |
+| `mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests --no-restore` | Passed. |
+| `mise x -- dotnet format StageTamagotchiKirie.csproj --verify-no-changes --no-restore` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed, 13 files and 42 tests. |
+| `mise x -- pnpm lint` | Failed with the same 1,715 errors and 701 warnings as ablation 2. |
+| `mise x -- pnpm exec moeru-lint apps/stage-tamagotchi-kirie/MIGRATION.md` | Passed. |
+| `git diff --check` | Passed. |
+
+This experiment retains caller-owned registrations and does not change the capability matrix.
+
 ### Ablation 2: Chat registration ownership (2026-09-29)
 
 The experiment removed `ChatWindowManager.OpenBinding`, its registration set, and the reverse `Detach` callback.

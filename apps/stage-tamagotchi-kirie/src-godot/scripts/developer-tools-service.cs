@@ -18,7 +18,6 @@ internal sealed class DeveloperToolsService : IDisposable
     {
         Timeout = TimeSpan.FromSeconds(2),
     };
-    private readonly HashSet<Binding> _bindings = [];
     private readonly Dictionary<string, DeveloperWindow> _windows = [];
     private bool _disposed;
 
@@ -39,9 +38,7 @@ internal sealed class DeveloperToolsService : IDisposable
     public IDisposable Attach(IEventContext context)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var binding = new Binding(this, context);
-        _bindings.Add(binding);
-        return binding;
+        return new Binding(this, context);
     }
 
     public void Dispose()
@@ -52,11 +49,6 @@ internal sealed class DeveloperToolsService : IDisposable
         }
 
         _disposed = true;
-        foreach (var binding in _bindings.ToArray())
-        {
-            binding.Dispose();
-        }
-
         foreach (var window in _windows.Values.ToArray())
         {
             window.RequestClose();
@@ -157,21 +149,14 @@ internal sealed class DeveloperToolsService : IDisposable
         }
     }
 
-    private void Detach(Binding binding)
-    {
-        _bindings.Remove(binding);
-    }
-
     private sealed class Binding : IDisposable
     {
-        private readonly DeveloperToolsService _owner;
         private readonly IDisposable _openWebInspector;
         private readonly IDisposable _openDevtools;
         private bool _disposed;
 
         public Binding(DeveloperToolsService owner, IEventContext context)
         {
-            _owner = owner;
             _openWebInspector = context.RegisterInvokeHandler(
                 AiriDesktopEvents.OpenMainDevtools,
                 async (EmptyPayload _, CancellationToken cancellationToken) =>
@@ -198,7 +183,6 @@ internal sealed class DeveloperToolsService : IDisposable
             _disposed = true;
             _openDevtools.Dispose();
             _openWebInspector.Dispose();
-            _owner.Detach(this);
         }
     }
 }
