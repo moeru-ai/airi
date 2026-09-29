@@ -44,11 +44,25 @@ watch(
   { immediate: true },
 )
 
+// A catalog can hold the same display name for many languages, so the option
+// label carries the locale code. The option slot renders the name and the code
+// separately, as a badge.
+const voiceNameById = computed(() => new Map(props.availableVoices.map(voice => [voice.id, voice.name])))
+
+const voiceLocaleById = computed(() => new Map(props.availableVoices.map((voice) => {
+  const codes = voice.languages.map(language => language.code.toUpperCase()).filter(code => code !== 'UND')
+  return [voice.id, codes.join(' ')]
+})))
+
 const voiceOptions = computed(() => {
-  return props.availableVoices.map(voice => ({
-    value: voice.id,
-    label: voice.name,
-  }))
+  return props.availableVoices.map((voice) => {
+    const locale = voiceLocaleById.value.get(voice.id) ?? ''
+
+    return {
+      value: voice.id,
+      label: locale ? `${voice.name} · ${locale}` : voice.name,
+    }
+  })
 })
 
 // Function to generate speech
@@ -168,7 +182,15 @@ defineExpose({
         :label="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.label')"
         :description="t('settings.pages.providers.provider.elevenlabs.playground.fields.field.voice.description')"
         layout="horizontal"
-      />
+      >
+        <template #option="{ option }">
+          <span class="truncate">{{ voiceNameById.get(String(option.value)) ?? option.label }}</span>
+          <span
+            v-if="voiceLocaleById.get(String(option.value))"
+            class="shrink-0 rounded bg-neutral-200 px-1.5 py-0.5 text-[10px] text-neutral-700 font-semibold tracking-wide dark:bg-neutral-700 dark:text-neutral-200"
+          >{{ voiceLocaleById.get(String(option.value)) }}</span>
+        </template>
+      </FieldCombobox>
 
       <!-- Playground actions -->
       <button
