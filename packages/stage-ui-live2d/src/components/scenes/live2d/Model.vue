@@ -639,7 +639,6 @@ async function setMotion(motionName: string, index?: number) {
   }
   catch (error) {
     console.error('Failed to start motion:', motionName, error)
-    live2d.reportError('motion', error)
     return false
   }
 }
