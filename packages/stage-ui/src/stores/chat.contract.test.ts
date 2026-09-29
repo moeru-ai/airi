@@ -509,6 +509,7 @@ describe('chat store contract', () => {
     sessionMetas['session-2'] = { characterId: 'character-b' }
     sessionMessages['session-2'] = [{ role: 'system', content: 'Character B prompt', id: 'system-b' }]
     llmStreamMock.mockImplementation(async (model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      expect(options.cardId).toBe('character-b')
       expect(model).toBe('model-b')
       expect(options.providerId).toBe('provider-b')
       activeModelRef.value = 'another-foreground-model'

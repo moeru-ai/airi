@@ -224,6 +224,7 @@ describe('createChatOrchestratorRuntime', () => {
     const second = harness.runtime.ingest('second', {
       model: 'old-model',
       chatProvider: provider,
+      cardId: 'queued-character',
       resolveRequest: async () => ({ model: currentModel, chatProvider: provider, providerId: 'new-provider' }),
     })
 
@@ -236,6 +237,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stream.mock.calls[0]?.[0]).toBe('old-model')
     expect(harness.stream.mock.calls[1]?.[0]).toBe('latest-model')
     expect(harness.stream.mock.calls[1]?.[3]?.providerId).toBe('new-provider')
+    expect(harness.stream.mock.calls[1]?.[3]?.cardId).toBe('queued-character')
   })
 
   // ROOT CAUSE:

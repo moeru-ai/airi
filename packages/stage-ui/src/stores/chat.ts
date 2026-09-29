@@ -700,6 +700,7 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     await runtime.ingest(payload.text, {
+      cardId: characterId,
       resolveRequest,
       resolveStep,
       attachments: payload.attachments,

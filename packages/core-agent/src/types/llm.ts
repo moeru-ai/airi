@@ -27,6 +27,8 @@ export type StreamEvent
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /** Character identity pinned by the owning chat session for tool resolution. */
+  cardId?: string
   /** Projects media for each resolved provider request without changing stored history. */
   prepareConversation?: (conversation: Conversation, request: GenerationRequest, providerId?: string) => Promise<Conversation>
   /** Reads the pinned character's current settings before each model request. */

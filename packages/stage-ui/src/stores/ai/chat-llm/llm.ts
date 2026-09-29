@@ -24,7 +24,7 @@ export const useLLM = defineStore('llm', () => {
     let toolExecutionStarted = false
     const { tools: customTools, prepareStringContent, ...streamOptions } = options ?? {}
     const resolveStep = streamOptions.resolveStep
-    const builtinToolsResolver = () => resolveLlmTools({ customTools })
+    const builtinToolsResolver = () => resolveLlmTools({ customTools, cardId: options?.cardId })
 
     const runStream = async () => coreStreamFrom({
       model,
@@ -35,7 +35,7 @@ export const useLLM = defineStore('llm', () => {
         resolveStep: resolveStep
           ? async () => ({
             ...await resolveStep(),
-            tools: await resolveLlmTools({ customTools }),
+            tools: await resolveLlmTools({ customTools, cardId: options?.cardId }),
           })
           : undefined,
         prepareConversation: async (source, request, providerId) => {

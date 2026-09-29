@@ -112,6 +112,8 @@ export type ChatAttachment
  * Options accepted by the chat orchestrator runtime for one user send.
  */
 export interface ChatOrchestratorSendOptions {
+  /** Character identity pinned by the caller for this turn. */
+  cardId?: string
   /** Provider model identifier used for the outbound LLM request. */
   model?: string
   /** Concrete chat provider implementation selected by the caller. */
@@ -903,6 +905,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       await deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
+        cardId: options.cardId,
         providerId: activeProvider,
         supportsAudioInput: options.supportsAudioInput,
         resolveStep: options.resolveStep,

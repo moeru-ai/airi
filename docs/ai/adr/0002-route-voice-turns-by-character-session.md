@@ -16,3 +16,5 @@ A character selection change does not cancel another character's speech.
 
 `ensureSessionForCharacter(characterId)` resolves a canonical session without changing the visible session.
 Concurrent callers share creation through the synchronized authority. Account changes invalidate pending resolution.
+
+Tool resolution receives the pinned character ID at startup and after every model step.
