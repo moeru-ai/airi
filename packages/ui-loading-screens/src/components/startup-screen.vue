@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { Button, Progress } from '@proj-airi/ui'
+import { onClickOutside } from '@vueuse/core'
+import { shallowRef, useTemplateRef, watch } from 'vue'
 
 import '@fontsource-variable/comfortaa/wght.css'
 
 /** Shows startup progress and retains failures until the user retries. */
-defineProps<{
+const props = defineProps<{
   phase: 'splash' | 'loading' | 'error' | 'done'
   progress: number
   logoSrc: string
@@ -22,6 +24,15 @@ const emit = defineEmits<{
   (e: 'retry'): void
   (e: 'alternative'): void
 }>()
+
+const detailsOpen = shallowRef(false)
+const detailsElement = useTemplateRef('detailsElement')
+
+onClickOutside(detailsElement, () => detailsOpen.value = false)
+watch(() => props.phase, (phase) => {
+  if (phase !== 'error')
+    detailsOpen.value = false
+})
 </script>
 
 <template>
@@ -38,6 +49,26 @@ const emit = defineEmits<{
             <div class="startup-error-header">
               <span i-solar:danger-triangle-bold-duotone class="startup-error-symbol" aria-hidden="true" />
               <span>{{ errorStatusLabel }}</span>
+            </div>
+            <div v-if="errorMessage" ref="detailsElement" class="startup-error-details" @keydown.esc="detailsOpen = false">
+              <button
+                type="button"
+                class="startup-error-details-trigger"
+                :aria-label="errorDetailsLabel"
+                :aria-expanded="detailsOpen"
+                aria-controls="startup-error-details-content"
+                @click="detailsOpen = !detailsOpen"
+              >
+                <span i-solar:info-circle-linear aria-hidden="true" />
+              </button>
+              <div v-if="detailsOpen" id="startup-error-details-content" class="startup-error-details-content">
+                <div class="startup-error-details-heading">
+                  {{ errorDetailsLabel }}
+                </div>
+                <div class="startup-error-details-message">
+                  {{ errorMessage }}
+                </div>
+              </div>
             </div>
             <h2 class="startup-error-title">
               {{ errorTitle }}
@@ -61,20 +92,14 @@ const emit = defineEmits<{
           >
             <Progress v-if="phase === 'loading' || phase === 'error'" :progress="progress" :bar-class="phase === 'error' ? 'bg-red-500 dark:bg-red-400' : undefined" class="startup-progress" />
           </div>
-          <div v-if="phase === 'error'" class="startup-error-footer">
-            <div class="startup-error-actions">
-              <Button class="startup-error-action" color="primary" variant="primary" @click="emit('retry')">
-                {{ retryLabel }}
-              </Button>
-              <Button v-if="alternativeLabel" class="startup-error-action" @click="emit('alternative')">
-                {{ alternativeLabel }}
-              </Button>
-            </div>
-            <details v-if="errorMessage" class="startup-error-details">
-              <summary>{{ errorDetailsLabel }}</summary>
-              <span>{{ errorMessage }}</span>
-            </details>
-          </div>
+        </div>
+        <div v-if="phase === 'error'" class="startup-error-recovery">
+          <Button class="startup-error-action" color="primary" variant="primary" @click="emit('retry')">
+            {{ retryLabel }}
+          </Button>
+          <Button v-if="alternativeLabel" class="startup-error-action" @click="emit('alternative')">
+            {{ alternativeLabel }}
+          </Button>
         </div>
       </section>
     </Transition>
@@ -170,14 +195,12 @@ const emit = defineEmits<{
 }
 
 .startup-status-error {
-  top: 50%;
+  top: max(calc(env(safe-area-inset-top) + 96px), 26vh);
   box-sizing: border-box;
   align-items: stretch;
-  width: min(680px, calc(100vw - 48px));
+  width: 100%;
   height: auto;
-  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px);
-  overflow: auto;
-  transform: translate(-50%, -50%);
+  transform: translateX(-50%);
 }
 
 .startup-track {
@@ -198,7 +221,8 @@ const emit = defineEmits<{
 }
 
 .startup-status-error .startup-track {
-  margin-top: 8px;
+  width: calc(100% - 96px);
+  margin: 8px 48px 0;
 }
 
 .startup-progress {
@@ -217,9 +241,12 @@ const emit = defineEmits<{
   white-space: nowrap;
 }
 
-.startup-error,
-.startup-error-footer {
+.startup-error {
   animation: startup-error-enter 400ms 100ms both;
+}
+
+.startup-error-recovery {
+  animation: startup-error-fade-in 400ms 100ms both;
 }
 
 .startup-error-header {
@@ -227,17 +254,20 @@ const emit = defineEmits<{
   align-items: center;
   gap: 12px;
   min-height: 56px;
-  padding: 0 16px;
+  padding: 0 48px;
   border-top: 1px solid #ef4444;
   border-bottom: 1px solid #ef444466;
   background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
-  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.startup-error {
+  position: relative;
 }
 
 .startup-error-header::after {
@@ -255,7 +285,7 @@ const emit = defineEmits<{
 }
 
 .startup-error-title {
-  margin: 24px 0 0;
+  margin: 24px 48px 0;
   font-size: clamp(20px, 4vw, 26px);
   font-weight: 700;
   line-height: 1.35;
@@ -263,7 +293,7 @@ const emit = defineEmits<{
 
 .startup-error-hint {
   max-width: 560px;
-  margin: 10px 0 0;
+  margin: 10px 48px 0;
   color: #737373;
   font-size: 13px;
   line-height: 1.6;
@@ -273,7 +303,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 28px;
+  margin: 28px 48px 0;
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -285,28 +315,16 @@ const emit = defineEmits<{
   line-height: 1;
 }
 
-.startup-error-footer {
-  position: relative;
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid #ef44444d;
-}
-
-.startup-error-footer::before {
-  content: '';
+.startup-error-recovery {
   position: absolute;
-  top: -6px;
-  right: 0;
-  width: 72px;
-  height: 5px;
-  background: repeating-linear-gradient(110deg, #ef4444 0 5px, transparent 5px 11px);
-  opacity: 0.5;
-}
-
-.startup-error-actions {
+  bottom: calc(env(safe-area-inset-bottom) + clamp(48px, 8vh, 96px));
+  left: 50%;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 10px;
+  max-width: calc(100% - 48px);
+  transform: translateX(-50%);
 }
 
 .startup-error-action {
@@ -314,22 +332,59 @@ const emit = defineEmits<{
 }
 
 .startup-error-details {
-  margin-top: 20px;
-  color: #737373;
-  font-size: 12px;
-  line-height: 1.5;
+  position: absolute;
+  top: 14px;
+  right: 150px;
+  z-index: 1;
+}
+
+.startup-error-details-trigger {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: #dc2626;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+.startup-error-details-trigger:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+
+.startup-error-details-content {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 48px));
+  max-height: 40dvh;
+  padding: 14px 16px;
+  overflow: auto;
+  border: 1px solid #ef444466;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 8px 24px #1717171a;
   overflow-wrap: anywhere;
 }
 
-.startup-error-details summary {
-  width: fit-content;
-  cursor: pointer;
+.startup-error-details-heading {
+  margin-bottom: 8px;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 700;
 }
 
-.startup-error-details span {
-  display: block;
-  padding-top: 8px;
+.startup-error-details-message {
+  color: #525252;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 :global(html.dark .startup-error-header),
@@ -343,22 +398,36 @@ const emit = defineEmits<{
   background: linear-gradient(90deg, #f8717124, #f8717108 72%, transparent);
 }
 
-:global(html.dark .startup-error-footer) {
-  border-top-color: #f871714d;
-}
-
-:global(html.dark .startup-error-footer::before) {
-  background: repeating-linear-gradient(110deg, #f87171 0 5px, transparent 5px 11px);
-}
-
-:global(html.dark .startup-error-hint),
-:global(html.dark .startup-error-details) {
+:global(html.dark .startup-error-hint) {
   color: #a3a3a3;
+}
+
+:global(html.dark .startup-error-details-trigger) {
+  color: #f87171;
+}
+
+:global(html.dark .startup-error-details-content) {
+  border-color: #f8717159;
+  background: #262626;
+  box-shadow: 0 8px 24px #0006;
+}
+
+:global(html.dark .startup-error-details-heading) {
+  color: #f87171;
+}
+
+:global(html.dark .startup-error-details-message) {
+  color: #d4d4d4;
 }
 
 @keyframes startup-error-enter {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes startup-error-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 :global(html.dark .startup-label) {
@@ -393,17 +462,51 @@ const emit = defineEmits<{
   }
 
   .startup-status-error {
-    top: calc(50% + 24px);
+    top: max(calc(env(safe-area-inset-top) + 88px), 17vh);
   }
 }
 
 @media (max-width: 600px) {
-  .startup-error-header::after {
-    width: 48px;
+  .startup-error-header {
+    padding: 0 24px;
   }
 
-  .startup-error-actions {
+  .startup-error-title {
+    margin-right: 24px;
+    margin-left: 24px;
+  }
+
+  .startup-error-hint {
+    margin-right: 24px;
+    margin-left: 24px;
+  }
+
+  .startup-error-progress-heading {
+    margin-right: 24px;
+    margin-left: 24px;
+  }
+
+  .startup-status-error .startup-track {
+    width: calc(100% - 48px);
+    margin-right: 24px;
+    margin-left: 24px;
+  }
+
+  .startup-error-header::after {
+    width: 32px;
+  }
+
+  .startup-error-details {
+    right: 64px;
+  }
+
+  .startup-error-details-content {
+    right: -40px;
+  }
+
+  .startup-error-recovery {
     display: grid;
+    width: calc(100% - 48px);
   }
 
   .startup-error-action {
@@ -424,7 +527,7 @@ const emit = defineEmits<{
   }
 
   .startup-error,
-  .startup-error-footer {
+  .startup-error-recovery {
     animation: none;
   }
 

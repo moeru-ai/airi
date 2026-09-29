@@ -10,7 +10,7 @@ Import `StartupScreen` from `@proj-airi/ui-loading-screens/startup-screen`. Give
 <StartupScreen phase="loading" :progress="50" logo-src="/favicon.svg" :label="t('stage.operations.load-models-status.loading')" :error-title="t('stage.startup.failed')" :error-status-label="t('stage.startup.interrupted')" :error-hint="t('stage.startup.recover')" :error-details-label="t('stage.startup.details')" :retry-label="t('stage.startup.retry')" />
 ```
 
-The `splash` phase shows the logo. The `loading` phase reveals a progress bar. The `error` phase shows a warning band and recovery actions. The `done` phase removes the screen.
+The `splash` phase shows the logo. The `loading` phase reveals a progress bar. The `error` phase shows a full-width warning band. Recovery actions stay near the bottom. Error details open in a small panel. The `done` phase removes the screen.
 The screen uses Comfortaa and the `Progress` component from `@proj-airi/ui`.
 `StartupOverlay` reads the resource state and supplies the error text.
 The optional `alternative-label` adds a second action for a recoverable failure.

@@ -58,12 +58,18 @@ it('keeps the startup screen and retry action visible after a resource fails', a
     startup.start('model')
     startup.fail('model', new Error('Download failed'))
 
-    await expect.poll(() => document.querySelector('[role="alert"]')?.textContent).toContain('Download failed')
+    await expect.poll(() => document.querySelector('[role="alert"]')?.textContent).toContain('Could not load character model')
     expect(document.querySelector('.startup-screen')).not.toBeNull()
     expect(document.querySelector('.startup-screen-error .startup-brand')).not.toBeNull()
     expect(document.querySelector('.startup-error-hint')?.textContent).toContain('select another model later')
     expect(document.querySelector('.startup-status-error [role="progressbar"]')).not.toBeNull()
-    expect(document.querySelector('[role="alert"]')?.textContent).toContain('Continue without a character')
+    expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Continue without a character')
+    expect(document.querySelector('.startup-error-details-content')).toBeNull()
+    const detailsTrigger = document.querySelector<HTMLButtonElement>('.startup-error-details-trigger')
+    detailsTrigger?.click()
+    await expect.poll(() => document.querySelector('.startup-error-details-content')?.textContent).toContain('Download failed')
+    await expect.poll(() => Math.round(document.querySelector('.startup-error-header')?.getBoundingClientRect().width ?? 0)).toBe(window.innerWidth)
+    expect(window.innerHeight - document.querySelector('.startup-error-recovery')!.getBoundingClientRect().bottom).toBeLessThan(100)
     expect(finished).toBe(false)
   }
   finally {
