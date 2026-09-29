@@ -3,6 +3,7 @@ import type { Live2DContext, Live2DMotionDriver } from '@proj-airi/stage-ui-live
 import type { Live2DExpressionParameterControl } from '@proj-airi/stage-ui-live2d/controls/manifest'
 import type { SelectTabOption } from '@proj-airi/ui'
 
+import type { Live2DPreviewTarget } from '../../../../stores/live2d'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
 import { defaultModelParameters, isLive2DControlEnabled, updateLive2DControlPolicy, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
@@ -87,7 +88,7 @@ const { expressionPreview } = storeToRefs(sharedLive2D)
 const previewOwnerId = crypto.randomUUID()
 const activeExpressionPreviewNames = computed<ReadonlySet<string>>(() => {
   const preview = expressionPreview.value
-  if (!preview || preview.ownerId !== previewOwnerId || preview.avatarModelId !== selectedAvatarModelId.value)
+  if (!preview || preview.ownerId !== previewOwnerId || preview.characterId !== activeCardId.value || preview.avatarModelId !== selectedAvatarModelId.value)
     return emptyExpressionPreviewNames
 
   return new Set(preview.names)
@@ -127,17 +128,18 @@ async function setExpressionPreview(name: string, active: boolean) {
   if (!avatarModelId)
     return
 
+  const target = { characterId: activeCardId.value, avatarModelId }
   if (active)
-    await sharedLive2D.startPreviewingExpression(avatarModelId, name, previewOwnerId)
+    await sharedLive2D.startPreviewingExpression(target, name, previewOwnerId)
   else
-    await sharedLive2D.stopPreviewingExpression(avatarModelId, name, previewOwnerId)
+    await sharedLive2D.stopPreviewingExpression(target, name, previewOwnerId)
 }
 
-async function stopExpressionPreviews(avatarModelId: string | undefined) {
-  if (!avatarModelId)
+async function stopExpressionPreviews(target: Live2DPreviewTarget | undefined) {
+  if (!target)
     return
 
-  await sharedLive2D.stopPreviewingAllExpressions(avatarModelId, previewOwnerId)
+  await sharedLive2D.stopPreviewingAllExpressions(target, previewOwnerId)
 }
 
 async function stopOwnedExpressionPreviews() {
@@ -145,7 +147,7 @@ async function stopOwnedExpressionPreviews() {
   if (preview?.ownerId !== previewOwnerId)
     return
 
-  await stopExpressionPreviews(preview.avatarModelId)
+  await stopExpressionPreviews({ characterId: preview.characterId, avatarModelId: preview.avatarModelId })
 }
 
 async function setExpressionAvailableToAiri(name: string, available: boolean) {
@@ -161,11 +163,11 @@ async function setExpressionAvailableToAiri(name: string, available: boolean) {
   await airiCardStore.updateLive2DControlPolicy(activeCardId.value, avatarModel.id, policy)
 }
 
-watch(selectedAvatarModelId, async (avatarModelId, previousAvatarModelId) => {
-  if (!previousAvatarModelId || previousAvatarModelId === avatarModelId)
+watch([activeCardId, selectedAvatarModelId], async ([characterId, avatarModelId], [previousCharacterId, previousAvatarModelId]) => {
+  if (!previousAvatarModelId || (previousCharacterId === characterId && previousAvatarModelId === avatarModelId))
     return
 
-  await stopExpressionPreviews(previousAvatarModelId)
+  await stopExpressionPreviews({ characterId: previousCharacterId, avatarModelId: previousAvatarModelId })
 })
 
 watch(live2dExpressionEnabled, async (enabled) => {
@@ -174,8 +176,9 @@ watch(live2dExpressionEnabled, async (enabled) => {
 })
 
 useIntervalFn(() => {
-  if (expressionPreview.value?.ownerId === previewOwnerId)
-    void sharedLive2D.renewExpressionPreview(previewOwnerId)
+  const avatarModelId = selectedAvatarModelId.value
+  if (avatarModelId && expressionPreview.value?.ownerId === previewOwnerId)
+    void sharedLive2D.renewExpressionPreview({ characterId: activeCardId.value, avatarModelId }, previewOwnerId)
 }, 2_000)
 
 useEventListener('pagehide', () => {
