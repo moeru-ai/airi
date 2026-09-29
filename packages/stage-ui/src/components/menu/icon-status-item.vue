@@ -11,6 +11,7 @@ const props = defineProps<{
   iconImage?: string
   to: string
   configured?: boolean
+  showStatus?: boolean
   syncState?: 'synced' | 'pending' | 'not-uploaded'
   pricing?: ProviderPricing
   deployment?: ProviderDeployment
@@ -131,7 +132,7 @@ const syncIcon = computed(() => props.syncState ? syncIcons[props.syncState] : u
         'text-neutral-400 dark:text-neutral-500',
       ]"
     />
-    <div p-2>
+    <div v-if="props.showStatus !== false" :class="['p-2']">
       <div v-if="props.configured" size-4 bg="green-500" rounded-full shadow="lg" />
       <div v-else size-4 border="2 neutral-200 dark:neutral-700" rounded-full bg="white dark:neutral-900" />
     </div>

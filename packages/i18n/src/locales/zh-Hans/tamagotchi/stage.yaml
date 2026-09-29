@@ -9,6 +9,8 @@ docs:
       appearance:
         title: 外观
 'controls-island':
+  'enable-microphone': 开启麦克风
+  'disable-microphone': 关闭麦克风
   'fade-on-hover':
     enable: 悬停时隐藏
     disable: 总是显示

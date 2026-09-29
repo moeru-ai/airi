@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
-import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { Alert, ErrorContainer, HearingConfig, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -8,12 +8,12 @@ import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearin
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
+import HearingPlaygroundTranscripts from '../components/hearing-playground-transcripts.vue'
 
 const { t } = useI18n()
 
@@ -27,8 +27,6 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
-  autoSendEnabled,
-  autoSendDelay,
   confidenceThreshold,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
@@ -39,7 +37,7 @@ const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
-const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
+const { continuousInputEnabled, permissionGranted, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
 const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
@@ -152,10 +150,8 @@ const isSpeech = computed(() => {
 
 async function setupAudioMonitoring() {
   try {
-    if (!selectedAudioInput.value) {
-      console.warn('No audio input device selected')
-      return false
-    }
+    if (!permissionGranted.value)
+      await askPermission()
 
     await stopAudioMonitoring()
 
@@ -208,7 +204,8 @@ async function stopAudioMonitoring(disposeProviderId = activeTranscriptionProvid
   }
 
   stopAnalyzer()
-  if (stream.value)
+  // The playground can close its own capture, but the stage owns a microphone kept on by the user.
+  if (stream.value && !continuousInputEnabled.value)
     stopStream()
 
   await stopVoiceInputSession({ flushActiveRecording: false })
@@ -380,9 +377,8 @@ watch(activeTranscriptionProvider, async (provider, previousProvider) => {
     isMonitoring.value = await setupAudioMonitoring()
 }, { immediate: true })
 
-onMounted(async () => {
+onMounted(() => {
   syncOpenAICompatibleSettings()
-  await askPermission()
 })
 
 onUnmounted(() => {
@@ -391,31 +387,21 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div flex="~ col md:row gap-6">
-    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
-      <div flex="~ col gap-4">
-        <!-- Audio Input Selection -->
-        <div>
-          <FieldCombobox
-            v-model="selectedAudioInput"
-            label="Audio Input Device"
-            description="Select the audio input device for your hearing module."
-            :options="audioInputOptions"
-            placeholder="Select an audio input device"
-            layout="vertical"
-          />
-        </div>
+  <div :class="['flex flex-col md:flex-row gap-6']">
+    <div :class="['bg-neutral-100 dark:bg-[rgba(0,0,0,0.3)] rounded-xl p-4 flex', 'flex-col gap-4 h-fit w-full md:w-[40%]']">
+      <div :class="['flex flex-col gap-4']">
+        <HearingConfig />
 
-        <div flex="~ col gap-4">
+        <div :class="['flex flex-col gap-4']">
           <div>
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+            <h2 :class="['text-lg text-neutral-500 md:text-2xl dark:text-neutral-500']">
               {{ t('settings.pages.providers.title') }}
             </h2>
-            <div text="neutral-400 dark:neutral-400">
+            <div :class="['text-neutral-400 dark:text-neutral-400']">
               <span>{{ t('settings.pages.modules.hearing.sections.section.provider-selection.description') }}</span>
             </div>
           </div>
-          <div max-w-full>
+          <div :class="['max-w-full']">
             <!--
             fieldset has min-width set to --webkit-min-container, in order to use over flow scroll,
             we need to set the min-width to 0.
@@ -423,8 +409,9 @@ onUnmounted(() => {
           -->
             <fieldset
               v-if="moduleTranscriptionProvidersMetadata.length > 0"
-              flex="~ row gap-4"
-              min-w-0 overflow-x-auto scroll-smooth
+              :class="['flex flex-row gap-4 min-w-0 overflow-x-auto']"
+
+              scroll-smooth
               role="radiogroup"
             >
               <RadioCardSimple
@@ -439,37 +426,30 @@ onUnmounted(() => {
                 @click="trackProviderClick(metadata.id, 'hearing')"
               />
               <RouterLink
+                :class="['border-2px border-solid border-neutral-100 bg-white', 'dark:border-neutral-900 hover:border-primary-500/30', 'dark:bg-neutral-900/20 dark:hover:border-primary-400/30 flex', 'flex-col items-center justify-center transition-all', 'duration-200 ease-in-out relative min-w-50', 'w-fit rounded-xl p-4']"
                 to="/settings/providers#transcription"
-                border="2px solid"
-                class="border-neutral-100 bg-white dark:border-neutral-900 hover:border-primary-500/30 dark:bg-neutral-900/20 dark:hover:border-primary-400/30"
-
-                flex="~ col items-center justify-center"
-
-                transition="all duration-200 ease-in-out"
-                relative min-w-50 w-fit rounded-xl p-4
               >
-                <div i-solar:add-circle-line-duotone class="text-2xl text-neutral-500 dark:text-neutral-500" />
+                <div :class="['i-solar:add-circle-line-duotone text-2xl text-neutral-500', 'dark:text-neutral-500']" />
                 <div
-                  class="bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50"
-                  absolute inset-0 z--1
+                  :class="['bg-dotted-neutral-200/80 dark:bg-dotted-neutral-700/50 absolute z--1']"
+
+                  inset-0
                   style="background-size: 10px 10px; mask-image: linear-gradient(165deg, white 30%, transparent 50%);"
                 />
               </RouterLink>
             </fieldset>
             <div v-else>
               <RouterLink
-                class="flex items-center gap-3 rounded-lg p-4"
-                border="2 dashed neutral-200 dark:neutral-800"
-                bg="neutral-50 dark:neutral-800"
-                transition="colors duration-200 ease-in-out"
+                :class="['flex items-center gap-3 rounded-lg p-4 border-2 border-dashed', 'border-neutral-200 dark:border-neutral-800 bg-neutral-50', 'dark:bg-neutral-800 transition-colors duration-200', 'ease-in-out']"
+
                 to="/settings/providers"
               >
-                <div i-solar:warning-circle-line-duotone class="text-2xl text-amber-500 dark:text-amber-400" />
-                <div class="flex flex-col">
-                  <span class="font-medium">No Providers Configured</span>
-                  <span class="text-sm text-neutral-400 dark:text-neutral-500">Click here to set up your Transcription providers</span>
+                <div :class="['i-solar:warning-circle-line-duotone text-2xl text-amber-500', 'dark:text-amber-400']" />
+                <div :class="['flex flex-col']">
+                  <span :class="['font-medium']">No Providers Configured</span>
+                  <span :class="['text-sm text-neutral-400 dark:text-neutral-500']">Click here to set up your Transcription providers</span>
                 </div>
-                <div i-solar:arrow-right-line-duotone class="ml-auto text-xl text-neutral-400 dark:text-neutral-500" />
+                <div :class="['i-solar:arrow-right-line-duotone ml-auto text-xl text-neutral-400', 'dark:text-neutral-500']" />
               </RouterLink>
             </div>
           </div>
@@ -482,26 +462,26 @@ onUnmounted(() => {
 
         <!-- Model selection section -->
         <div v-if="activeTranscriptionProvider">
-          <div flex="~ col gap-4">
+          <div :class="['flex flex-col gap-4']">
             <div>
-              <h2 class="text-lg md:text-2xl">
+              <h2 :class="['text-lg md:text-2xl']">
                 {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.title') }}
               </h2>
-              <div class="flex flex-col items-start gap-1 text-neutral-400 md:flex-row md:items-center md:justify-between dark:text-neutral-400">
+              <div :class="['flex flex-col items-start gap-1 text-neutral-400 md:flex-row', 'md:items-center md:justify-between dark:text-neutral-400']">
                 <span v-if="supportsModelListing && providerModels.length > 0">
                   {{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.subtitle') }}
                 </span>
                 <span v-else>
                   Enter the transcription model to use (e.g., 'whisper-1', 'gpt-4o-transcribe')
                 </span>
-                <span v-if="activeTranscriptionModel" class="text-sm text-neutral-400 font-medium dark:text-neutral-400">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeTranscriptionModel }}</span>
+                <span v-if="activeTranscriptionModel" :class="['text-sm text-neutral-400 font-medium dark:text-neutral-400']">{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.current_model_label') }} {{ activeTranscriptionModel }}</span>
               </div>
             </div>
 
             <!-- Loading state -->
-            <div v-if="isLoadingActiveProviderModels && supportsModelListing" class="flex items-center justify-center py-4">
-              <div class="mr-2 animate-spin">
-                <div i-solar:spinner-line-duotone text-xl />
+            <div v-if="isLoadingActiveProviderModels && supportsModelListing" :class="['flex items-center justify-center py-4']">
+              <div :class="['mr-2 animate-spin']">
+                <div :class="['i-solar:spinner-line-duotone text-xl']" />
               </div>
               <span>{{ t('settings.pages.modules.consciousness.sections.section.provider-model-selection.loading') }}</span>
             </div>
@@ -516,7 +496,7 @@ onUnmounted(() => {
             <!-- Manual input for providers without model listing or when no models are available -->
             <div
               v-else-if="!supportsModelListing || (activeTranscriptionProvider === 'openai-compatible-audio-transcription' && providerModels.length === 0 && !isLoadingActiveProviderModels)"
-              class="mt-2"
+              :class="['mt-2']"
             >
               <FieldInput
                 :model-value="activeTranscriptionModel || activeCustomModelName || ''"
@@ -560,12 +540,12 @@ onUnmounted(() => {
         </div>
 
         <!-- Confidence threshold (only for non-streaming providers) -->
-        <div v-if="!supportsStreamInput" class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
-          <div class="mb-4">
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+        <div v-if="!supportsStreamInput" :class="['border-t border-neutral-200 pt-4 dark:border-neutral-700']">
+          <div :class="['mb-4']">
+            <h2 :class="['text-lg text-neutral-500 md:text-2xl dark:text-neutral-500']">
               {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.title') }}
             </h2>
-            <div text="neutral-400 dark:neutral-400">
+            <div :class="['text-neutral-400 dark:text-neutral-400']">
               {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.description') }}
             </div>
           </div>
@@ -576,53 +556,22 @@ onUnmounted(() => {
             :step="0.1"
             :format-value="value => value <= CONFIDENCE_THRESHOLD_DISABLED ? t('settings.pages.modules.hearing.sections.section.confidence-threshold.disabled') : value.toFixed(1)"
           />
-          <div v-if="confidenceThreshold > CONFIDENCE_THRESHOLD_DISABLED" class="mt-2 text-xs text-neutral-400 dark:text-neutral-500">
+          <div v-if="confidenceThreshold > CONFIDENCE_THRESHOLD_DISABLED" :class="['mt-2 text-xs text-neutral-400 dark:text-neutral-500']">
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-note') }}
           </div>
-          <div v-if="verboseJsonNotSupported" class="mt-2 flex items-center gap-1.5 text-xs text-amber-500 dark:text-amber-400">
-            <div i-solar:warning-circle-line-duotone class="shrink-0" />
+          <div v-if="verboseJsonNotSupported" :class="['mt-2 flex items-center gap-1.5 text-xs text-amber-500', 'dark:text-amber-400']">
+            <div :class="['i-solar:warning-circle-line-duotone shrink-0']" />
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-unsupported') }}
-          </div>
-        </div>
-
-        <!-- Auto-send settings -->
-        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
-          <div class="mb-4">
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Auto-send Settings
-            </h2>
-            <div text="neutral-400 dark:neutral-400">
-              Configure automatic sending of transcribed text to chat
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <FieldCheckbox
-              v-model="autoSendEnabled"
-              label="Auto-send transcribed text"
-              description="Automatically send transcribed text to chat after a delay. This may consume tokens, so disable if you want to manually review and edit transcriptions before sending."
-            />
-
-            <FieldRange
-              v-if="autoSendEnabled"
-              v-model="autoSendDelay"
-              label="Auto-send delay"
-              description="Delay in milliseconds before automatically sending transcribed text (0 = send immediately, recommended: 1000-3000ms)"
-              :min="0"
-              :max="10000"
-              :step="100"
-              :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
-            />
           </div>
         </div>
       </div>
     </div>
 
-    <div flex="~ col gap-6" class="w-full md:w-[60%]">
+    <div :class="['flex flex-col gap-6 w-full md:w-[60%]']">
       <!-- Audio Monitoring Section -->
-      <div w-full rounded-xl>
-        <h2 :class="['mb-4', 'text-lg text-neutral-500 md:text-2xl dark:text-neutral-400']" w-full>
-          <div class="inline-flex items-center gap-4">
+      <div :class="['w-full rounded-xl']">
+        <h2 :class="['w-full', ['mb-4', 'text-lg text-neutral-500 md:text-2xl dark:text-neutral-400']]">
+          <div :class="['inline-flex items-center gap-4']">
             <TestDummyMarker />
             <div>
               {{ t('settings.pages.modules.hearing.sections.section.playground.title') }}
@@ -636,15 +585,15 @@ onUnmounted(() => {
 
         <ErrorContainer
           v-if="error || transcriptionPipelineError"
+          :class="['mb-4']"
           :title="t('settings.pages.modules.hearing.sections.section.playground.error-title')"
           :error="error || transcriptionPipelineError"
-          class="mb-4"
         />
 
         <Button
           :class="['mb-4', 'w-full']"
           data-testid="hearing-playground-monitor-toggle"
-          :disabled="!activeTranscriptionProvider || !selectedAudioInput"
+          :disabled="!activeTranscriptionProvider"
           @click="toggleMonitoring"
         >
           {{ isMonitoring
@@ -658,10 +607,10 @@ onUnmounted(() => {
           :segments="playgroundSegments"
         />
 
-        <div flex="~ col gap-4">
-          <div class="space-y-4">
+        <div :class="['flex flex-col gap-4']">
+          <div :class="['space-y-4']">
             <!-- Audio Level Visualization -->
-            <div class="space-y-3">
+            <div :class="['space-y-3']">
               <!-- Volume Meter -->
               <LevelMeter :level="volumeLevel" label="Input Level" />
 
@@ -677,7 +626,7 @@ onUnmounted(() => {
               />
 
               <!-- Threshold Controls -->
-              <div v-if="useVADModel && loadedVAD" class="space-y-3">
+              <div v-if="useVADModel && loadedVAD" :class="['space-y-3']">
                 <FieldRange
                   v-model="useVADThreshold"
                   label="Sensitivity"
@@ -699,7 +648,7 @@ onUnmounted(() => {
                 />
               </div>
 
-              <div v-else class="space-y-3">
+              <div v-else :class="['space-y-3']">
                 <FieldRange
                   v-model="useVolumeThreshold"
                   label="Sensitivity"
@@ -712,21 +661,18 @@ onUnmounted(() => {
               </div>
 
               <!-- Speaking Indicator -->
-              <div class="flex items-center gap-3">
-                <div
-                  class="h-4 w-4 rounded-full transition-all duration-200"
-                  :class="speakingIndicatorClass"
-                />
-                <span class="text-sm font-medium">
+              <div :class="['flex items-center gap-3']">
+                <div :class="['h-4 w-4 rounded-full transition-all duration-200', speakingIndicatorClass]" />
+                <span :class="['text-sm font-medium']">
                   {{ isSpeech ? 'Speaking Detected' : 'Silence' }}
                 </span>
-                <span class="ml-auto text-xs text-neutral-500">
+                <span :class="['ml-auto text-xs text-neutral-500']">
                   {{ useVADModel && loadedVAD ? 'Model Based' : 'Volume Based' }}
                 </span>
               </div>
 
               <!-- VAD Method Selection -->
-              <div class="border-t border-neutral-200 pt-3 dark:border-neutral-700">
+              <div :class="['border-t border-neutral-200 pt-3 dark:border-neutral-700']">
                 <FieldCheckbox
                   v-model="useVADModel"
                   label="Model Based"
@@ -734,10 +680,10 @@ onUnmounted(() => {
                 />
 
                 <!-- VAD Model Status -->
-                <div v-if="useVADModel" class="mt-3 space-y-2">
-                  <div v-if="loadingVAD" class="flex items-center gap-2 text-primary-600 dark:text-primary-400">
-                    <div class="animate-spin text-sm" i-solar:spinner-line-duotone />
-                    <span class="text-sm">Loading...</span>
+                <div v-if="useVADModel" :class="['mt-3 space-y-2']">
+                  <div v-if="loadingVAD" :class="['flex items-center gap-2 text-primary-600 dark:text-primary-400']">
+                    <div :class="['animate-spin text-sm i-solar:spinner-line-duotone']" />
+                    <span :class="['text-sm']">Loading...</span>
                   </div>
 
                   <ErrorContainer
@@ -746,10 +692,10 @@ onUnmounted(() => {
                     :error="vadModelError"
                   />
 
-                  <div v-else-if="loadedVAD" class="flex items-center gap-2 text-green-600 dark:text-green-400">
-                    <div class="text-sm" i-solar:check-circle-bold-duotone />
-                    <span class="text-sm">Activated</span>
-                    <span class="ml-auto text-xs text-neutral-500">
+                  <div v-else-if="loadedVAD" :class="['flex items-center gap-2 text-green-600 dark:text-green-400']">
+                    <div :class="['text-sm i-solar:check-circle-bold-duotone']" />
+                    <span :class="['text-sm']">Activated</span>
+                    <span :class="['ml-auto text-xs text-neutral-500']">
                       Probability: {{ (isSpeechProb * 100).toFixed(1) }}%
                     </span>
                   </div>
@@ -782,8 +728,8 @@ onUnmounted(() => {
 <route lang="yaml">
 meta:
   layout: settings
-  titleKey: settings.pages.modules.hearing.title
-  subtitleKey: settings.title
+  titleKey: settings.pages.modules.hearing.transcriber.title
+  subtitleKey: settings.pages.modules.hearing.title
   stageTransition:
     name: slide
 </route>

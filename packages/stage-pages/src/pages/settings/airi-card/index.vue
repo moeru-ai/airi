@@ -15,12 +15,15 @@ import CardCreate from './components/CardCreate.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
+import WakeWordAlerts from './components/wake-word-alerts.vue'
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
-const { cards, activeCardId } = storeToRefs(cardStore)
+const { cards, activeCardId, wakeWordConflicts } = storeToRefs(cardStore)
+const unresolvedWakeWordConflicts = computed(() => wakeWordConflicts.value.filter(conflict => !conflict.ownerCardId))
+const showWakeWordConflictDialog = ref(false)
 
 const route = useRoute()
 const router = useRouter()
@@ -55,7 +58,9 @@ watch(inputFiles, async (newFiles) => {
     return
 
   try {
-    await addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
+    const importedId = await addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
+    if (unresolvedWakeWordConflicts.value.some(conflict => conflict.cardIds.includes(importedId)))
+      showWakeWordConflictDialog.value = true
     toast(t('settings.pages.card.imported'))
   }
   catch (error) {
@@ -222,66 +227,62 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 </script>
 
 <template>
-  <div rounded-xl p-4 flex="~ col gap-4">
+  <div :class="['rounded-xl p-4 flex flex-col gap-4']">
+    <WakeWordAlerts v-model="showWakeWordConflictDialog" @review-card="handleSelectCard" />
     <!-- Toolbar with search and filters -->
-    <div flex="~ row" flex-wrap items-center justify-between gap-4>
+    <div :class="['flex flex-row flex-wrap items-center justify-between gap-4']">
       <!-- Search bar -->
-      <div class="relative min-w-[200px] flex-1" inline-flex="~" w-full items-center>
-        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <div i-solar:magnifer-line-duotone class="text-neutral-500 dark:text-neutral-400" />
+      <div :class="['relative min-w-[200px] flex-1 inline-flex w-full items-center']">
+        <div :class="['pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3']">
+          <div :class="['i-solar:magnifer-line-duotone text-neutral-500 dark:text-neutral-400']" />
         </div>
         <input
           v-model="searchQuery"
+          :class="['w-full rounded-xl p-2.5 pl-10 text-sm outline-none', 'focus:border-primary-100 dark:focus:border-primary-400/50 border-2', 'border-solid border-neutral-200 dark:border-neutral-800', 'transition-all duration-200 ease-in-out', 'bg-white dark:bg-neutral-900']"
           type="search"
-          class="w-full rounded-xl p-2.5 pl-10 text-sm outline-none"
-          border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-          transition="all duration-200 ease-in-out"
-          bg="white dark:neutral-900"
+
           :placeholder="t('settings.pages.card.search')"
         >
       </div>
 
       <!-- Sort options -->
-      <div class="relative flex flex-row justify-start gap-2 lg:flex-col">
-        <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
+      <div :class="['relative flex flex-row justify-start gap-2 lg:flex-col']">
+        <div :class="['top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10', 'lg:absolute dark:text-neutral-400']">
           {{ t('settings.pages.card.sort_by') }}:
         </div>
         <ComboboxSelect
           v-model="sortOption"
+          :class="['min-w-[150px]']"
           :options="[
             { value: 'nameAsc', label: t('settings.pages.card.name_asc') },
             { value: 'nameDesc', label: t('settings.pages.card.name_desc') },
             { value: 'recent', label: t('settings.pages.card.recent') },
           ]"
           placeholder="Select sort option"
-          class="min-w-[150px]"
         />
       </div>
     </div>
 
     <!-- Masonry card layout -->
-    <div
-      class="mt-4"
-      :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
-    >
+    <div :class="['mt-4', { 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }]">
       <!-- Upload card -->
       <InputFileCard v-model="inputFiles" accept=".zip">
         <template #default="{ isDragging }">
           <template v-if="!isDragging">
-            <div flex flex-col items-center>
-              <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
-              <p font-medium text="neutral-600 dark:neutral-300">
+            <div :class="['flex flex-col items-center']">
+              <div :class="['i-solar:upload-square-line-duotone mb-4 text-5xl text-neutral-400', 'dark:text-neutral-500']" />
+              <p :class="['font-medium text-neutral-600 dark:text-neutral-300']">
                 {{ t('settings.pages.card.upload') }}
               </p>
-              <p text="neutral-500 dark:neutral-400" mt-2 text-sm>
+              <p :class="['text-neutral-500 dark:text-neutral-400 mt-2 text-sm']">
                 {{ t('settings.pages.card.upload_desc') }}
               </p>
             </div>
           </template>
           <template v-else>
-            <div flex flex-col items-center>
-              <div i-solar:upload-minimalistic-bold class="mb-2 text-5xl text-primary-500 dark:text-primary-400" />
-              <p font-medium text="primary-600 dark:primary-300">
+            <div :class="['flex flex-col items-center']">
+              <div :class="['i-solar:upload-minimalistic-bold mb-2 text-5xl text-primary-500', 'dark:text-primary-400']" />
+              <p :class="['font-medium text-primary-600 dark:text-primary-300']">
                 {{ t('settings.pages.card.drop_here') }}
               </p>
             </div>
@@ -315,11 +316,9 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       <!-- No cards message -->
       <div
         v-if="cards.size === 0"
-        class="col-span-full rounded-xl p-8 text-center"
-        border="~ neutral-200/50 dark:neutral-700/30"
-        bg="neutral-50/50 dark:neutral-900/50"
+        :class="['col-span-full rounded-xl p-8 text-center border', 'border-neutral-200/50 dark:border-neutral-700/30 bg-neutral-50/50', 'dark:bg-neutral-900/50']"
       >
-        <div i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400 />
+        <div :class="['i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400']" />
         <p>{{ t('settings.pages.card.no_cards') }}</p>
       </div>
 
@@ -353,15 +352,13 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <!-- Background decoration -->
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :class="['text-neutral-200/50 dark:text-neutral-600/20 pointer-events-none', 'fixed top-[calc(100dvh-15rem)] bottom-0 right--5 z--1 size-60 flex', 'items-center justify-center']"
+
     :initial="{ scale: 0.9, opacity: 0, x: 20 }"
     :enter="{ scale: 1, opacity: 1, x: 0 }"
     :duration="500"
-    size-60
-    flex items-center justify-center
   >
-    <div text="60" i-solar:emoji-funny-square-bold-duotone />
+    <div :class="['text-60 i-solar:emoji-funny-square-bold-duotone']" />
   </div>
 </template>
 

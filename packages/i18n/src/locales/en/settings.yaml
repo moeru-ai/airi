@@ -370,6 +370,18 @@ pages:
         error:
           fallback: Could not start deletion. Try again later.
   card:
+    wake-word-validation:
+      invalid: 'Calling words for {name} cannot be used: {reason}'
+      review: Review card
+    wake-word-conflict:
+      close: Close
+      title: Choose who responds
+      description: These characters share a calling word pronunciation. Choose one owner for each. Both cards keep the pronunciation.
+      review: Review calling word conflicts
+      pronunciation: 'Shared pronunciation: {tokens}'
+      choose: 'Choose {name}'
+      active: 'Active for {name}'
+      unresolved: '{count} calling word conflicts need an owner'
     activate: Activate
     active: Active
     active_badge: Currently Active
@@ -769,6 +781,32 @@ pages:
     hearing:
       description: Configure how speech recognition works
       title: Hearing
+      auto-send:
+        label: Auto send
+        description: Send transcribed text to chat automatically. Turn this off to review the draft first.
+        delay-label: Send delay
+        delay-description: Wait before sending transcribed text.
+        immediate: Immediately
+      transcriber:
+        title: Transcriber
+        description: Set up speech recognition and test your microphone.
+      wake-words:
+        title: Calling words
+        description: See the words and pronunciations that wake each character.
+        empty: This character has no calling words yet.
+        configure: Ask a character in chat to set the words you use to call them.
+        open-chat: Open chat
+        review-conflicts: Choose who responds to shared pronunciations
+        active: Active
+        paused: Paused on this device
+      input-device:
+        label: Input device
+        description: Select the microphone you want to use.
+        placeholder: Select microphone
+      permission-required: Microphone permission is required.
+      microphone:
+        label: Microphone
+        description: Allow Hearing to use this microphone. The selected input mode controls when it listens.
       input-mode:
         label: Hearing input
         description: Choose when AIRI listens. Voice messages remain available in every mode.

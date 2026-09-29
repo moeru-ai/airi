@@ -54,7 +54,7 @@ const replyTarget = props.composer.replyTarget
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription, autoSendEnabled } = useTranscriptions(
+const { isListening, startStreamingTranscription, stopStreamingTranscription } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
@@ -276,7 +276,6 @@ watch(replyTarget, async (target) => {
               ]"
             >
               <HearingConfig
-                v-model:auto-send="autoSendEnabled"
                 :transcription="isListening"
                 :granted="true"
                 @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"

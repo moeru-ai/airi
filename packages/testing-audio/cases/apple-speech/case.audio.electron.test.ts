@@ -41,7 +41,7 @@ describe('Apple Speech audio input', () => {
     const page = audio.runtimePage
     audio.activatePage(page)
     await page.evaluate(() => {
-      window.location.hash = '/settings/modules/hearing'
+      window.location.hash = '/settings/modules/hearing/transcriber'
     })
     await page.waitForURL(/#\/settings\/modules\/hearing/)
     await page.getByTestId('hearing-playground-monitor-toggle').waitFor({ state: 'visible', timeout: 60_000 })

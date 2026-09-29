@@ -497,6 +497,7 @@ Searchable dropdown/autocomplete using reka-ui with grouping.
 | `placeholder` | `string?` | — | Placeholder |
 | `disabled` | `boolean?` | `false` | Disabled |
 | `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
+| `side` | `'top' \| 'bottom'` | `'bottom'` | Preferred popup side. Collision handling can change the final side. |
 | `contentMinWidth` | `string \| number?` | — | Dropdown min width |
 | `contentWidth` | `string \| number?` | — | Dropdown width |
 
@@ -513,6 +514,7 @@ Simplified Combobox wrapper for string/number options.
 | `placeholder` | `string?` | — | Placeholder |
 | `disabled` | `boolean?` | `false` | Disabled |
 | `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
+| `side` | `'top' \| 'bottom'` | `'bottom'` | Preferred popup side. Collision handling can change the final side. |
 | `title` | `string?` | — | Title |
 | `layout` | `'horizontal' \| 'vertical'?` | — | Layout direction |
 | `contentMinWidth` | `string \| number?` | — | Dropdown min width |
@@ -667,6 +669,7 @@ Displays field information on the left and a compact action button on the right.
 | `placeholder` | `string?` | — | Placeholder |
 | `disabled` | `boolean?` | `false` | Disabled |
 | `openOnClick` | `boolean?` | `true` | Auto-open dropdown on click |
+| `side` | `'top' \| 'bottom'` | `'bottom'` | Preferred popup side. Collision handling can change the final side. |
 | `layout` | `'horizontal' \| 'vertical'` | `'horizontal'` | Layout |
 
 **v-model**: `modelValue: string`
@@ -836,3 +839,5 @@ pass through to the underlying `BasicButton`.
   :takeover="takeover"
 />
 ```
+
+`IconStatusItem.showStatus` defaults to visible. Set it to `false` for navigation cards without a configuration status.

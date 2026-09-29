@@ -1,130 +1,79 @@
-import { createPinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, nextTick } from 'vue'
+import en from '@proj-airi/i18n/locales/en'
+
+import { createPinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { render } from 'vitest-browser-vue'
+import { createI18n } from 'vue-i18n'
 
 import HearingConfig from './hearing-config.vue'
 
-const audioDeviceMocks = vi.hoisted(() => ({
-  componentAskPermission: vi.fn(),
-  storeAskPermission: vi.fn(),
-}))
-
-function createAudioInput(deviceId: string, label: string): MediaDeviceInfo {
-  return {
-    deviceId,
-    groupId: '',
-    kind: 'audioinput',
-    label,
-    toJSON: () => ({}),
-  }
-}
-
-vi.mock('../../../../composables/audio', async () => {
-  const { computed, ref, shallowRef } = await vi.importActual<typeof import('vue')>('vue')
-  const permissionGranted = ref(false)
-
-  audioDeviceMocks.storeAskPermission.mockImplementation(async () => {
-    permissionGranted.value = true
-  })
-
-  return {
-    useAudioDevice: () => ({
-      audioInputs: ref([createAudioInput('store-microphone', 'Store microphone')]),
-      audioInputOptions: computed(() => [
-        { label: 'Store microphone', value: 'store-microphone' },
-      ]),
-      selectedAudioInput: ref('store-microphone'),
-      stream: shallowRef<MediaStream>(),
-      deviceConstraints: computed(() => ({ audio: true })),
-      permissionGranted,
-      askPermission: audioDeviceMocks.storeAskPermission,
-      startStream: vi.fn().mockResolvedValue(undefined),
-      stopStream: vi.fn(),
-    }),
-  }
-})
-
-vi.mock('../../../../composables', async () => {
-  const { ref } = await vi.importActual<typeof import('vue')>('vue')
-  const permissionGranted = ref(false)
-
-  audioDeviceMocks.componentAskPermission.mockImplementation(async () => {
-    permissionGranted.value = true
-  })
-
-  return {
-    useAudioAnalyzer: () => ({ volumeLevel: ref(0) }),
-    useAudioDevice: () => ({
-      audioInputs: ref([createAudioInput('detached-microphone', 'Detached microphone')]),
-      permissionGranted,
-      askPermission: audioDeviceMocks.componentAskPermission,
-    }),
-  }
-})
-
-vi.mock('../../../../stores', async () => {
-  const { useSettingsAudioDevice } = await import('../../../../stores/settings/audio-device')
-  return { useSettingsAudioDevice }
-})
-
-vi.mock('@proj-airi/ui', async () => {
-  const { defineComponent, h } = await vi.importActual<typeof import('vue')>('vue')
-
-  return {
-    Callout: defineComponent({ render: () => h('div') }),
-    FieldCheckbox: defineComponent({ render: () => h('div') }),
-    FieldCombobox: defineComponent({
-      props: {
-        options: {
-          type: Array as () => Array<{ label: string, value: string }>,
-          default: () => [],
-        },
-      },
-      setup(props) {
-        return () => h('div', { 'data-testid': 'device-options' }, props.options.map(option => option.label).join(','))
-      },
-    }),
-  }
-})
+import { useHearingRuntimeStore } from '../../../../stores/hearing-runtime'
+import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 
 function mountHearingConfig() {
-  const host = document.createElement('div')
-  document.body.appendChild(host)
-  const app = createApp(HearingConfig, { granted: true })
-  app.use(createPinia())
-  app.mount(host)
-
-  return { app, host }
+  const pinia = createPinia()
+  setActivePinia(pinia)
+  const screen = render(HearingConfig, {
+    props: { granted: true },
+    global: {
+      plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+    },
+  })
+  const device = useSettingsAudioDevice(pinia)
+  const runtime = useHearingRuntimeStore(pinia)
+  return { screen, device, runtime }
 }
 
-describe('hearing config audio device ownership', () => {
+describe('hearing input settings', () => {
   beforeEach(() => {
-    audioDeviceMocks.componentAskPermission.mockClear()
-    audioDeviceMocks.storeAskPermission.mockClear()
+    localStorage.clear()
+    vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([{
+      deviceId: 'default',
+      groupId: 'microphone',
+      kind: 'audioinput',
+      label: 'Test microphone',
+      toJSON: () => ({}),
+    }])
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
     localStorage.clear()
   })
 
-  it('requests microphone permission through the settings store', async () => {
-    const { app, host } = mountHearingConfig()
-    const button = host.querySelector<HTMLButtonElement>('button[aria-label="Enable microphone input"]')
+  it('does not acquire microphone permission when the settings panel opens', async () => {
+    const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(new MediaStream())
+    const { screen, device } = mountHearingConfig()
 
-    button?.click()
-    await nextTick()
-
-    expect(audioDeviceMocks.storeAskPermission).toHaveBeenCalledOnce()
-    expect(audioDeviceMocks.componentAskPermission).not.toHaveBeenCalled()
-
-    app.unmount()
-    host.remove()
+    await expect.element(screen.getByRole('combobox').first()).toBeVisible()
+    expect(capture).not.toHaveBeenCalled()
+    expect(device.enabled).toBe(false)
   })
 
-  it('renders the device inventory owned by the settings store', () => {
-    const { app, host } = mountHearingConfig()
+  it('acquires permission through the device store when the microphone switch is enabled', async () => {
+    const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async () => new MediaStream())
+    const { screen, device } = mountHearingConfig()
 
-    expect(host.querySelector('[data-testid="device-options"]')?.textContent).toBe('Store microphone')
-    expect(host.textContent).not.toContain('Detached microphone')
+    await screen.getByRole('switch').click()
 
-    app.unmount()
-    host.remove()
+    await expect.poll(() => device.permissionGranted).toBe(true)
+    await expect.poll(() => device.enabled).toBe(true)
+    expect(capture).toHaveBeenCalled()
+    device.enabled = false
+  })
+
+  it('shows calling preparation failures without enabling continuous capture in Push to Talk mode', async () => {
+    const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(new MediaStream())
+    const { screen, device, runtime } = mountHearingConfig()
+    device.mode = 'wake-word'
+    runtime.preparation = 'error'
+    runtime.preparationError = 'Model file is unavailable'
+
+    await expect.element(screen.getByText('Model file is unavailable')).toBeVisible()
+    device.mode = 'push-to-talk'
+
+    await expect.element(screen.getByRole('switch')).not.toBeInTheDocument()
+    await expect.element(screen.getByText('Model file is unavailable')).not.toBeInTheDocument()
+    expect(capture).not.toHaveBeenCalled()
   })
 })
