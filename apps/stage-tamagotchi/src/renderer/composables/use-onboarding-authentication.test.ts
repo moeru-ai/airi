@@ -93,6 +93,56 @@ describe('useOnboardingAuthentication', () => {
     expect(onCloseError).toHaveBeenCalledTimes(1)
     scope.stop()
   })
+
+  it('closes after an explicit action while sign-in confirmation is pending', async () => {
+    const closeWindow = vi.fn<() => Promise<void>>().mockResolvedValue()
+    const scope = effectScope()
+    const controls = scope.run(() => useOnboardingAuthentication({
+      consumeLoginRequest: vi.fn().mockResolvedValue(false),
+      closeRequestId: shallowRef(0),
+      closeWindow,
+      isAuthenticated: shallowRef(false),
+      isConfirming: shallowRef(true),
+      needsLogin: shallowRef(false),
+      onCloseError: vi.fn(),
+      startLogin: vi.fn<() => Promise<void>>().mockResolvedValue(),
+    }))
+
+    await controls!.closeOnboardingWindow()
+
+    expect(closeWindow).toHaveBeenCalledTimes(1)
+    scope.stop()
+  })
+
+  it('closes after a bounded wait when a replicated close request remains pending', async () => {
+    vi.useFakeTimers()
+    try {
+      const closeRequestId = shallowRef(0)
+      const closeWindow = vi.fn<() => Promise<void>>().mockResolvedValue()
+      const scope = effectScope()
+      scope.run(() => useOnboardingAuthentication({
+        consumeLoginRequest: vi.fn().mockResolvedValue(false),
+        closeRequestId,
+        closeWindow,
+        isAuthenticated: shallowRef(false),
+        isConfirming: shallowRef(true),
+        needsLogin: shallowRef(false),
+        onCloseError: vi.fn(),
+        startLogin: vi.fn<() => Promise<void>>().mockResolvedValue(),
+      }))
+
+      closeRequestId.value++
+      await nextTick()
+      expect(closeWindow).not.toHaveBeenCalled()
+
+      await vi.advanceTimersByTimeAsync(30_000)
+      expect(closeWindow).toHaveBeenCalledTimes(1)
+      scope.stop()
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
 })
 
 it('keeps the callback renderer alive until its completion report is acknowledged', async () => {
