@@ -231,9 +231,8 @@ const islandMotionClasses = computed(() => {
   ]
 })
 const mainControlsLayoutClasses = computed(() => [
-  'w-20 flex gap-1',
+  'flex gap-1',
   isTop.value ? 'flex-col-reverse' : 'flex-col',
-  isLeft.value ? 'items-start' : 'items-end',
 ])
 const panelPositionClasses = computed(() => {
   if (dock.value === 'top-left')
@@ -479,7 +478,7 @@ function resetMainWindowPosition() {
 
           <ControlsIslandChatButton :button-style="adjustStyleClasses.button" :icon-class="adjustStyleClasses.icon" />
 
-          <div :class="['relative w-20 flex items-center', isLeft ? 'justify-start' : 'justify-end']">
+          <div class="relative">
             <ControlButton
               :button-style="adjustStyleClasses.button"
               :class="['peer']"
@@ -496,7 +495,7 @@ function resetMainWindowPosition() {
             <div
               :class="[
                 'absolute top-0 z-10 opacity-0 pointer-events-none transition-opacity',
-                isLeft ? 'right-0' : 'left-0',
+                isLeft ? 'left-full ml-2' : 'right-full mr-2',
                 'peer-hover:opacity-100 peer-hover:pointer-events-auto',
                 'peer-focus-visible:opacity-100 peer-focus-visible:pointer-events-auto',
                 'hover:opacity-100 hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto',
@@ -518,12 +517,10 @@ function resetMainWindowPosition() {
             </div>
           </div>
 
-          <div :class="['w-20 flex', isLeft ? 'justify-start' : 'justify-end']">
-            <ControlsIslandSpeechMute
-              :button-style="adjustStyleClasses.button"
-              :icon-class="adjustStyleClasses.icon"
-            />
-          </div>
+          <ControlsIslandSpeechMute
+            :button-style="adjustStyleClasses.button"
+            :icon-class="adjustStyleClasses.icon"
+          />
 
           <ControlButtonTooltip side="inward">
             <ControlButton :button-style="adjustStyleClasses.button" cursor-move :class="{ 'drag-region': isLinux }" @mousedown="startDraggingWindow?.()">

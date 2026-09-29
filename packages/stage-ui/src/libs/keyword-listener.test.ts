@@ -70,7 +70,7 @@ describe('keyword listener PCM boundary', () => {
     const [batch, sampleRate] = detector.processAudio.mock.calls[0]!
     expect(sampleRate).toBe(16_000)
     expect(batch).toHaveLength(1600)
-    expect(batch.slice(0, 5)).toEqual([1, -1, 0, 0, 0])
+    expect(batch.slice(0, 5)).toEqual(new Float32Array([1, -1, 0, 0, 0]))
     expect(onError).not.toHaveBeenCalled()
     listener.stop()
   })

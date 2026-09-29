@@ -132,9 +132,9 @@ beforeEach(() => {
 
 describe('controls Island overflow', () => {
   // ROOT CAUSE:
-  // The microphone settings lane widened the controls column to 80px.
-  // OverlayButton uses self-end, so the direct speaker button moved right
-  // when the Island docked on the left. A dock-aligned row now holds it.
+  // Reserving space for microphone settings widened the controls column to
+  // 80px. OverlayButton uses self-end, so the speaker moved right at the left
+  // dock. The settings button now sits outside the measured controls column.
   for (const dock of ['top-left', 'top-right'] as const) {
     it(`aligns the speaker with the other controls at ${dock}`, async () => {
       await page.viewport(450, 600)
