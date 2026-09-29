@@ -102,7 +102,15 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         }
         if (!stream)
           throw new Error('Microphone is unavailable.')
-        await resuming
+        const resumeCancellation = Promise.withResolvers<void>()
+        const releaseResume = () => resumeCancellation.resolve()
+        startupController.signal.addEventListener('abort', releaseResume, { once: true })
+        try {
+          await Promise.race([resuming, resumeCancellation.promise])
+        }
+        finally {
+          startupController.signal.removeEventListener('abort', releaseResume)
+        }
         if (ticket !== generation)
           return
         const node = analyzer.startAnalyzer(audioContext)

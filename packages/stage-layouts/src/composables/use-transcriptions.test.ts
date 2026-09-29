@@ -394,6 +394,30 @@ describe('useTranscriptions', () => {
         expect(isListening.value).toBe(true)
       })
     })
+
+    it('resumes ambient dictation when its first startup was still pending', async () => {
+      const options = createOptions()
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      const startup = Promise.withResolvers<void>()
+      mockHearingPipeline.transcribeForMediaStream.mockReturnValueOnce(startup.promise).mockResolvedValueOnce(undefined)
+      const { startStreamingTranscription, isListening } = useTranscriptions(options)
+
+      const starting = startStreamingTranscription()
+      await vi.waitFor(() => expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledOnce())
+      expect(isListening.value).toBe(false)
+
+      options.manualRecordingActive.value = true
+      startup.resolve()
+      await starting
+      options.manualRecordingActive.value = false
+
+      await vi.waitFor(() => {
+        expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledTimes(2)
+        expect(isListening.value).toBe(true)
+      })
+    })
   })
 
   describe('cleanup', () => {

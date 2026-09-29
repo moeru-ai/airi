@@ -8,6 +8,7 @@ import { render } from 'vitest-browser-vue'
 import { defineComponent, h, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { useAudioContext } from '../../../../stores/audio'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useProviderStore } from '../../../../stores/providers/provider'
 import { useVoiceComposer } from './use-voice-composer'
@@ -53,6 +54,7 @@ function microphone() {
 
 function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockResolvedValue(undefined), transcription = false, mode: VoiceComposerMode = transcription ? 'transcription' : 'audio') {
   let voice!: ReturnType<typeof useVoiceComposer>
+  let audioContext!: AudioContext
   const session = shallowRef('session-1')
   const errors = vi.fn()
   const screen = render(defineComponent({
@@ -63,6 +65,7 @@ function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockRes
         hearing.activeTranscriptionModel = 'web-speech-api'
       }
       voice = useVoiceComposer({ sessionId: session, needsTranscription: () => false, complete, onError: errors })
+      audioContext = useAudioContext().audioContext
       return () => h('button', {
         onClick: () => {
           for (const context of contexts)
@@ -72,7 +75,7 @@ function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockRes
       }, 'Record')
     },
   }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } })] } })
-  return { voice, complete, errors, session, screen }
+  return { voice, audioContext, complete, errors, session, screen }
 }
 
 describe('manual voice recording lifecycle', () => {
@@ -293,6 +296,25 @@ describe('manual voice recording lifecycle', () => {
     expect(complete).not.toHaveBeenCalled()
     expect(stream.getTracks()[0].readyState).toBe('ended')
     expect(voice.phase.value).toBe('idle')
+  })
+
+  it('cancels while audio context resume remains pending', async () => {
+    const stream = microphone()
+    const getUserMedia = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
+    const { voice, audioContext, complete } = mountVoice()
+    const resume = Promise.withResolvers<void>()
+    vi.spyOn(audioContext, 'resume').mockReturnValueOnce(resume.promise)
+
+    const starting = voice.start('audio')
+    await expect.poll(() => getUserMedia.mock.calls.length).toBe(1)
+    await expect.poll(() => voice.phase.value).toBe('starting')
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await voice.cancel()
+    await starting
+
+    expect(voice.phase.value).toBe('idle')
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+    expect(complete).not.toHaveBeenCalled()
   })
 
   it('cancels while streaming transcription startup is pending', async () => {

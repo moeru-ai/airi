@@ -34,6 +34,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   let resumeAfterRecording = false
   let suspension: Promise<void> | undefined
   let disposed = false
+  let pendingStarts = 0
 
   // Auto-send logic
   let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -80,7 +81,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   }
 
-  const startStreaming = async () => {
+  const startStreamingNow = async () => {
     if (toValue(manualRecordingActive))
       return
     console.info('Starting streaming transcription', {
@@ -221,6 +222,18 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   }
 
+  const startStreaming = async () => {
+    if (toValue(manualRecordingActive))
+      return
+    pendingStarts++
+    try {
+      await startStreamingNow()
+    }
+    finally {
+      pendingStarts--
+    }
+  }
+
   // Watch for auto-send setting changes and clear pending sends if disabled
   watch(autoSendEnabled, (enabled) => {
     if (!enabled) {
@@ -239,7 +252,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
   watch(() => toValue(manualRecordingActive), (active) => {
     if (active) {
-      resumeAfterRecording ||= isListening.value
+      resumeAfterRecording ||= isListening.value || pendingStarts > 0
       suspension = stopStreaming()
     }
     else if (resumeAfterRecording) {

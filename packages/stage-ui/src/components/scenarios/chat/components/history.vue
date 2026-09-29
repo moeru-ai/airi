@@ -102,9 +102,6 @@ function canReplyToMessage(message: ChatHistoryItem) {
   if (message.role === 'assistant' && shouldShowPlaceholder(message) && showStreamingPlaceholder.value)
     return false
 
-  if (message.role === 'user' && Array.isArray(message.content) && message.content.some(part => part.type === 'input_audio'))
-    return true
-
   return getChatHistoryItemCopyText(message).trim().length > 0
 }
 const renderMessages = computed<ChatHistoryItem[]>(() => {

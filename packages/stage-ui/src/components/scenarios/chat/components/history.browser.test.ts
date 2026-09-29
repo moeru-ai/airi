@@ -1243,11 +1243,12 @@ describe('chat history', () => {
     })
   })
 
-  it('allows a reply to an audio-only message', async () => {
+  it('allows a reply to a voice message with a transcript', async () => {
     const message: ChatHistoryItem = {
       id: 'voice-reply-target',
       role: 'user',
       content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }],
+      audioTranscripts: ['Spoken words'],
     }
     const screen = await render(ChatHistory, {
       props: {
@@ -1272,6 +1273,33 @@ describe('chat history', () => {
     await vi.waitFor(() => {
       expect(screen.emitted('replyMessage')).toEqual([[{ message, label: 'You' }]])
     })
+  })
+
+  it('does not offer reply for a voice message without text', async () => {
+    const message: ChatHistoryItem = {
+      id: 'voice-without-transcript',
+      role: 'user',
+      content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }],
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await vi.waitFor(() => expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull())
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a voice message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40)
+
+    expect(screen.emitted('replyMessage')).toBeUndefined()
+    expect(screen.container.querySelector('.i-solar\\:reply-bold-duotone')).toBeNull()
   })
 
   // ROOT CAUSE:
