@@ -19,6 +19,7 @@ export interface Live2DExpressionParameterState {
   name: string
   parameterId: string
   blend: Live2DExpressionBlendMode
+  activeBlend: Live2DExpressionBlendMode
   currentValue: number
   defaultValue: number
   modelDefault: number
@@ -178,6 +179,7 @@ export function createLive2DExpressionsContext(
           name: parameter.parameterId,
           parameterId: parameter.parameterId,
           blend: parameter.blend,
+          activeBlend: previous?.activeBlend ?? parameter.blend,
           currentValue: previous?.blend === parameter.blend ? previous.currentValue : defaultValue,
           defaultValue,
           modelDefault,
@@ -267,6 +269,7 @@ export function createLive2DExpressionsContext(
       if (!parameter)
         continue
 
+      parameter.activeBlend = definitionParameter.blend
       applyParameterValue(parameter, value(definitionParameter, parameter), duration)
       states.push(stateFromParameter(parameter, parameterResetTimes.get(parameter.parameterId)))
     }
@@ -418,6 +421,7 @@ export function createLive2DExpressionsContext(
     clearParameterResets()
     const states: Live2DExpressionState[] = []
     for (const parameter of parameters.value.values()) {
+      parameter.activeBlend = parameter.blend
       parameter.currentValue = parameter.defaultValue
       states.push(stateFromParameter(parameter))
     }
@@ -469,7 +473,7 @@ export function createLive2DExpressionsContext(
         continue
 
       let value = preview?.value ?? parameter.currentValue
-      const blend = preview?.blend ?? parameter.blend
+      const blend = preview?.blend ?? parameter.activeBlend
       if (blend === 'Add')
         value = parameter.modelDefault + value
       else if (blend === 'Multiply')
