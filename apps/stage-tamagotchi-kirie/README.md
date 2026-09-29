@@ -8,12 +8,14 @@ AIRI C# handlers provide the application services and native windows that the
 current migration implements. Some Electron services do not yet have a Kirie
 implementation.
 
-Dependency and build checks: 2026-09-29 on Kirie 0.6.4.
+Dependency and build checks: 2026-09-29 on Kirie 0.6.5.
 The last main-window CEF startup check was on 2026-09-24 with Kirie 0.6.2.
 The last broader live CEF review was on 2026-09-21 with Kirie 0.4.2,
 Godot 4.7.2, and Godot CEF 1.16.1.
 The latest full renderer route audit is from 2026-09-18.
-The current Kirie npm, NuGet, and Godot addon baseline is 0.6.4.
+The current Kirie npm, NuGet, and Godot addon baseline is 0.6.5.
+The 0.6.5 NuGet restore used the official v2 feed because the v3 feed still
+omitted this version. See the restore evidence in [`MIGRATION.md`](MIGRATION.md).
 
 ## When to use this application
 

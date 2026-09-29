@@ -2,13 +2,13 @@
 
 Status: In progress.
 
-Dependency and build evidence: 2026-09-29 on Kirie 0.6.4.
+Dependency and build evidence: 2026-09-29 on Kirie 0.6.5.
 The last main-window CEF startup evidence is from 2026-09-24 with Kirie 0.6.2.
 The last broader live CEF review was on 2026-09-21 with Kirie 0.4.2,
 Godot 4.7.2, and Godot CEF 1.16.1.
 The latest full renderer route audit is from 2026-09-18.
 
-The application targets the published Kirie 0.6.4 release.
+The application targets the published Kirie 0.6.5 release.
 
 ## Document roles
 
@@ -45,17 +45,34 @@ an API for a feature that has no current in-scope failure.
 | Blocked | 0 | None |
 | Deferred | 5 | GAP-010, GAP-023 through GAP-026 |
 
-The dependency files select the published Kirie 0.6.4 npm and NuGet packages.
+The dependency files select Kirie 0.6.5 npm and NuGet packages.
 They do not use sibling-repository package links or project references.
 
-The 2026-09-29 dependency verification passed the focused renderer tests,
+On 2026-09-29, the v3 feed omitted both NuGet 0.6.5 packages and restore
+failed with `NU1102`. The package pages and official v2 downloads were available.
+Restore through `https://www.nuget.org/api/v2/` installed both 0.6.5 packages.
+The C# contract tests and Kirie build passed. The C# build reported no
+warnings or errors. The repository retains its default NuGet source.
+
+Restore command from the application directory:
+
+```sh
+mise x -- dotnet restore tests/StageTamagotchiKirie.Tests/StageTamagotchiKirie.Tests.csproj --source https://www.nuget.org/api/v2/ --no-http-cache
+```
+
+The 2026-09-29 checks on Kirie 0.6.5 passed 36 Node tests and six browser
+tests. The full workspace typecheck also passed.
+The full workspace lint reported 32 formatting errors in local Godot CEF
+artifacts and generated NuGet files.
+
+The 2026-09-29 dependency verification on Kirie 0.6.4 passed the focused renderer tests,
 the C# contract tests, the C# build, the Kirie build, the full workspace
 typecheck, and a headless Godot editor import.
 
 The 2026-09-24 dependency verification passed the focused renderer tests,
 the C# contract tests, the C# build, the Kirie build, the full workspace
 typecheck, and a headless Godot editor import. A live Godot/CEF session rendered
-the main AIRI window. The complete 0.6.4 desktop flow, including notification
+the main AIRI window. The complete 0.6.5 desktop flow, including notification
 activation, remains unverified.
 
 The 2026-09-20 published-package verification passed these operations:
@@ -236,12 +253,12 @@ notification fallbacks outside this milestone.
 
 ## Dependency baseline
 
-The AIRI baseline uses the coordinated Kirie 0.6.4 release:
+The AIRI dependency files target the coordinated Kirie 0.6.5 release:
 
 - npm: `kirie`, `@gd-kirie/ipc`, `@gd-kirie/ipc-eventa`, and
   `@gd-kirie/platform`.
 - NuGet: `GdKirie.EventaAdapter` and `GdKirie.Platform`.
-- Godot addon: the official `kirie-addon.zip` content from Kirie 0.6.4.
+- Godot addon: the official `kirie-addon.zip` content from Kirie 0.6.5.
 - Godot CEF: version 1.16.1 with the checksum from its official release.
 - Godot: 4.7.2 with the matching `Godot.NET.Sdk`.
 
@@ -250,13 +267,17 @@ The renderer subscribes through its shared context. The addon also adds an
 Android export option for command-line arguments. Godot 4.7.2 and Godot CEF
 1.16.1 remain selected.
 
+Kirie 0.6.5 fixes Godot CEF installation on Windows. It uses the system
+`tar.exe` and retries transient rename failures. The release changes no IPC
+or Platform APIs. Source: [Kirie 0.6.4 to 0.6.5 changes](https://github.com/moeru-ai/godot-kirie/compare/v0.6.4...v0.6.5).
+
 The Kirie addon and AIRI configuration select the same Godot CEF release.
 Kirie installed Godot CEF 1.16.1 with the published SHA-256 digest, and the
 macOS framework passes strict code-signature verification.
 
-Source: [Kirie v0.6.4 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.4).
+Source: [Kirie v0.6.5 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.5).
 The official addon archive has SHA-256
-`497fb862d69bd43a53af71871b17738a57734a417735ad9a75dd57e3203e2566`.
+`d07aeaadac2184f39f1cae8a72a26320ee6d21d4000afc5d575db76f2fb9ba7f`.
 
 AIRI has exact `minimumReleaseAgeExclude` entries for the Kirie npm packages.
 Later versions remain subject to the normal pnpm release-age rule. See the
@@ -310,7 +331,7 @@ runtime verification and UI review are complete for GAP-016 and GAP-017.
 | Phase 3 | Complete | `API-GAPS.md` records reproduced runtime gaps. |
 | Phase 4 | Complete | Each WebView uses one application-owned Eventa context. |
 | Phase 5 | Complete | Existing Kirie Platform APIs support the required control flows. |
-| Phase 6 | In progress | Every in-scope gap is accepted or deferred, and the application uses published Kirie 0.6.4 packages. The desktop smoke flow needs a repeat on this baseline. |
+| Phase 6 | In progress | Every in-scope gap is accepted or deferred, and the application uses published Kirie 0.6.5 packages. The desktop smoke flow needs a repeat on this baseline. |
 
 Do not repeat a completed phase unless current evidence shows a regression.
 
@@ -329,7 +350,7 @@ The 2026-09-21 session on Kirie 0.4.2 did not repeat three areas that the
 - External URL opening through `window.open()`.
 - Application data directory opening.
 
-Repeating them and the other desktop flows on Kirie 0.6.4 closes the acceptance
+Repeating them and the other desktop flows on Kirie 0.6.5 closes the acceptance
 requirement that the published packages pass the full desktop smoke flow. The
 areas already completed are listed with the session evidence in Current status.
 

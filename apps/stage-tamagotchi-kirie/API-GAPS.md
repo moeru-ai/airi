@@ -2,8 +2,8 @@
 
 This log contains only errors reproduced with the Stage Tamagotchi renderer in
 the Kirie desktop host. Most runtime evidence was last verified on 2026-09-17
-with Godot 4.7.1 and Kirie 0.3.0. The current dependency baseline uses Kirie
-0.6.4. GAP-019, GAP-026, and GAP-027 have additional evidence from 2026-09-18.
+with Godot 4.7.1 and Kirie 0.3.0. The dependency files target Kirie
+0.6.5. GAP-019, GAP-026, and GAP-027 have additional evidence from 2026-09-18.
 GAP-028 was verified on 2026-09-19 with the official Godot CEF 1.16.0 release.
 The 2026-09-20 live session repeated the shared-context checks on Godot CEF 1.16.1.
 That session also closed and reopened Settings and Chat.
@@ -167,7 +167,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Godot source: [Window 4.7 documentation](https://docs.godotengine.org/en/4.7/classes/class_window.html).
 - Sampling source: [SceneTree 4.7 `process_frame` signal](https://docs.godotengine.org/en/4.7/classes/class_scenetree.html#class-scenetree-signal-process-frame).
 - Accepted result: The initial snapshot reported a focused and visible window. Native minimize and restore actions emitted matching AIRI lifecycle reasons.
-- Dependency baseline: AIRI now uses the coordinated Kirie 0.6.4 npm and NuGet packages.
+- Dependency baseline: The AIRI dependency files target Kirie 0.6.5 npm and NuGet packages.
 - Runtime result: On Kirie 0.3.0, the renderer loaded the published lifecycle API without the former `onStateChanged is not a function` error.
 
 ## GAP-010 evidence
@@ -250,7 +250,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Required result: Kirie forwards each Godot CEF permission request without exposing `CefTexture`. AIRI validates the permission type and exact renderer origin, then asks through a modal inside the main Renderer. It denies all other permission types and all requests from other origins or application windows.
 - Configuration: `project.godot` selects Godot CEF's `Signal` permission policy. The [pinned Godot CEF settings source](https://github.com/dsh0416/godot-cef/blob/v1.16.1/crates/gdcef/src/settings.rs) defines `DenyAll:0,AllowAll:1,Signal:2` and defaults to `DenyAll`.
 - Permission source: Godot CEF keeps each request pending until the application calls its [grant or deny method](https://github.com/dsh0416/godot-cef/blob/v1.16.1/docs/api/methods.md#permission-handling).
-- Dependency result: Kirie 0.4.2 exposed `PermissionRequested`, `GrantPermission()`, and `DenyPermission()` during the 2026-09-21 session. The current AIRI addon comes from Kirie 0.6.4.
+- Dependency result: Kirie 0.4.2 exposed `PermissionRequested`, `GrantPermission()`, and `DenyPermission()` during the 2026-09-21 session. The current AIRI addon comes from Kirie 0.6.5.
 - Policy result: The host coalesces concurrent native request IDs behind one opaque renderer prompt ID. Closing or denying the modal denies the request. A two-minute timeout and host shutdown also deny pending requests.
 - Runtime result: Allow returned a live audio track, which the test stopped immediately. A second request completed without another modal. Reset caused the next request to show the modal again. Deny returned `NotAllowedError`.
 - Permission result: The modal uses the screen-capture dialog shade and blur. The overlay follows the rounded Stage boundary, and the card uses the existing AIRI dialog shadow.
@@ -302,7 +302,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Required result: AIRI sends external HTTP and HTTPS links to the user's system browser.
 - Kirie capability: Kirie Platform provides `openExternalUrl()` through the shared Eventa context and Godot's `OS.shell_open()`.
 - Kirie runtime result: The real Godot host opened the Kirie repository in the system Chrome browser and returned success to the example renderer.
-- Dependency baseline: AIRI now uses the coordinated Kirie 0.6.4 npm and NuGet packages.
+- Dependency baseline: The AIRI dependency files target Kirie 0.6.5 npm and NuGet packages.
 - AIRI integration: The Kirie renderer routes external HTTP and HTTPS links through `openExternalUrl()`.
 - Runtime result: A real `window.open()` request opened the AIRI repository in the system Chrome browser.
 - Security result: AIRI filters non-HTTP schemes. Kirie Platform validates the absolute URL again before it calls `OS.shell_open()`.
@@ -319,7 +319,7 @@ reproduces a failure. The 2026-09-17 audit found these remaining surfaces:
 - Kirie capability: Kirie Platform provides `openApplicationDataDirectory()` through the shared Eventa context.
 - Godot source: [Godot 4.7 `OS.get_user_data_dir()`](https://docs.godotengine.org/en/4.7/classes/class_os.html#class-os-method-get-user-data-dir).
 - Kirie runtime result: The real Godot host opened the example's application data directory and returned its absolute path to the renderer.
-- Dependency baseline: AIRI now uses the coordinated Kirie 0.6.4 npm and NuGet packages.
+- Dependency baseline: The AIRI dependency files target Kirie 0.6.5 npm and NuGet packages.
 - AIRI integration: The data settings action calls `openApplicationDataDirectory()` in Kirie.
 - Runtime result: The real data settings button opened the `AIRI` application data directory in Finder.
 - Project identity: AIRI sets Godot's application name to `AIRI`, so the default project-specific data directory no longer uses `Kirie Basic`.
