@@ -1459,6 +1459,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     for (const sessionId of sessionIds) {
+      await chatAudioRepo.markSessionRemoval(sessionId)
       await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
       await chatAudioRepo.removeSession(sessionId)
     }
@@ -1608,14 +1609,32 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
-      const messages = await mapChatAudio(record.messages, data => chatAudioRepo.save(sessionId, data))
-      sessionMetas.value[sessionId] = cloneDeep(record.meta)
-      sessionMessages.value[sessionId] = cloneDeep(messages)
-      ensureGeneration(sessionId)
-      await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
-        meta: cloneDeep(record.meta),
-        messages: cloneDeep(messages),
-      }))
+      const copies: Promise<string>[] = []
+      try {
+        const messages = await mapChatAudio(record.messages, (data) => {
+          const copy = chatAudioRepo.save(sessionId, data)
+          copies.push(copy)
+          return copy
+        })
+        await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
+          meta: cloneDeep(record.meta),
+          messages: cloneDeep(messages),
+        }))
+        sessionMetas.value[sessionId] = cloneDeep(record.meta)
+        sessionMessages.value[sessionId] = cloneDeep(messages)
+        ensureGeneration(sessionId)
+      }
+      catch (error) {
+        const completed = await Promise.allSettled(copies)
+        const cleanup = await Promise.allSettled(completed.flatMap(result => result.status === 'fulfilled'
+          ? [chatAudioRepo.remove(sessionId, result.value)]
+          : []))
+        for (const result of cleanup) {
+          if (result.status === 'rejected')
+            console.warn('[chat-session] Failed to remove audio from an incomplete import:', sessionId, errorMessageFrom(result.reason))
+        }
+        throw error
+      }
     }
 
     for (const sessionId of new Set([...replacedSessionIds, ...Object.keys(payload.sessions)]))
