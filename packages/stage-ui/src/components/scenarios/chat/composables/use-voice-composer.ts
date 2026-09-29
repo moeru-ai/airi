@@ -57,6 +57,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
   let requiresTranscript = false
   let streaming = false
   let recordingDeadline: ReturnType<typeof setTimeout> | undefined
+  let processingAbortController: AbortController | undefined
   const consumerId = 'manual-composer'
 
   function stopMicrophone() {
@@ -148,6 +149,8 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
     clearTimeout(recordingDeadline)
     recordingDeadline = undefined
     const ticket = generation
+    const abortController = new AbortController()
+    processingAbortController = abortController
     phase.value = 'processing'
     finishing = (async () => {
       try {
@@ -170,7 +173,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         if (!recording?.size)
           throw new Error('The recording is empty.')
         if (requiresTranscript && !streaming) {
-          const text = await pipeline.transcribeForRecording(recording)
+          const text = await pipeline.transcribeForRecording(recording, abortController.signal)
           if (!text)
             throw new Error(pipeline.error.value ?? 'Transcription returned no text.')
           transcript.value = text
@@ -192,6 +195,8 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
           options.onError(errorMessageFrom(error) ?? 'Could not finish recording.')
       }
       finally {
+        if (processingAbortController === abortController)
+          processingAbortController = undefined
         await recorder.discardRecord()
         await pipeline.stopStreamingTranscription(true)
         pipeline.removeStreamingTranscriptionConsumer(consumerId)
@@ -210,6 +215,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
 
   async function cancel() {
     ++generation
+    processingAbortController?.abort()
     clearTimeout(recordingDeadline)
     recordingDeadline = undefined
     // Keep new presses blocked until an outstanding permission request settles.

@@ -481,6 +481,33 @@ describe('chat store contract', () => {
     expect(llmStreamMock.mock.calls[1][2].turns.flatMap((turn: Turn) => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
   })
 
+  it('keeps original audio indexes when only a later recording needs transcription', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('second recording')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'].push({
+      role: 'user',
+      id: 'recorded-turn',
+      content: [
+        { type: 'input_audio', input_audio: { data: 'Zmlyc3Q=', format: 'wav' } },
+        { type: 'input_audio', input_audio: { data: 'c2Vjb25k', format: 'wav' } },
+      ],
+      audioTranscripts: ['first recording', undefined],
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'First request' })
+    await store.send({ sessionId: 'session-1', text: 'Second request' })
+
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledTimes(1)
+    expect(sessionMessages['session-1'][1].audioTranscripts).toEqual(['first recording', 'second recording'])
+    const secondPrompt = llmStreamMock.mock.calls[1][2] as Conversation
+    expect(secondPrompt.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: expect.stringContaining('first recording') })
+    expect(secondPrompt.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'second recording' })
+  })
+
   it('cancels vision preprocessing when its chat turn is cancelled', async () => {
     visionMocks.configured = true
     let visionSignal: AbortSignal | undefined

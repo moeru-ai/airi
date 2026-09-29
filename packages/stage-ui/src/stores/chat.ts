@@ -306,14 +306,16 @@ export const useChatStore = defineStore('chat', () => {
     if (!options?.supportsAudioInput) {
       // Convert a request copy so durable history keeps the original recordings.
       providerContext = structuredClone(providerContext)
+      const sessionId = options?.requestCorrelation?.conversationId
       for (const turn of providerContext.turns) {
         if (turn.type !== 'user')
           continue
-        let audioIndex = 0
+        const missingAudioIndexes = sessionId ? getMissingAudioIndexes(sessionId, turn.id) : []
+        let remainingAudioIndex = 0
         for (const [index, part] of turn.content.entries()) {
           if (part.type !== 'audio')
             continue
-          const sourceAudioIndex = audioIndex++
+          const sourceAudioIndex = missingAudioIndexes[remainingAudioIndex++]
           if (!useHearingStore().configured)
             throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
           const pipeline = useHearingSpeechInputPipeline()
@@ -321,8 +323,7 @@ export const useChatStore = defineStore('chat', () => {
           if (!text)
             throw new Error(pipeline.error ?? 'Audio transcription returned no text.')
           turn.content[index] = { type: 'text', text }
-          const sessionId = options?.requestCorrelation?.conversationId
-          if (sessionId)
+          if (sessionId && sourceAudioIndex !== undefined)
             saveAudioTranscript(sessionId, turn.id, sourceAudioIndex, text)
         }
       }
@@ -411,6 +412,21 @@ export const useChatStore = defineStore('chat', () => {
     const nextMessages = [...messages]
     nextMessages[messageIndex] = { ...message, imageDescriptions }
     chatSession.setSessionMessages(sessionId, nextMessages)
+  }
+
+  function getMissingAudioIndexes(sessionId: string, turnId: string): number[] {
+    const message = chatSession.getSessionMessages(sessionId)
+      .find(item => item.role === 'user' && ownsProjectedTurn(item, turnId))
+    if (message?.role !== 'user' || !Array.isArray(message.content))
+      return []
+
+    let audioIndex = 0
+    return message.content.flatMap((part) => {
+      if (part.type !== 'input_audio')
+        return []
+      const index = audioIndex++
+      return message.audioTranscripts?.[index] ? [] : [index]
+    })
   }
 
   function saveAudioTranscript(sessionId: string, turnId: string, audioIndex: number, transcript: string) {

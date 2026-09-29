@@ -109,6 +109,7 @@ type HearingTranscriptionInput = File | {
 }
 
 interface HearingTranscriptionInvokeOptions {
+  abortSignal?: AbortSignal
   providerOptions?: Record<string, unknown>
 }
 
@@ -473,6 +474,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         if (features.supportsStreamInput && normalizedInput.inputAudioStream) {
           const streamResult = streamExecutor({
             ...request,
+            ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
             inputAudioStream: normalizedInput.inputAudioStream,
           } as Parameters<typeof streamExecutor>[0])
           emitSucceeded(0, true)
@@ -485,6 +487,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         if (!features.supportsStreamInput && normalizedInput.file) {
           const streamResult = streamExecutor({
             ...request,
+            ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
             file: normalizedInput.file,
           } as Parameters<typeof streamExecutor>[0])
           emitSucceeded(0, true)
@@ -497,6 +500,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
         if (features.supportsStreamInput && !normalizedInput.inputAudioStream && normalizedInput.file) {
           const streamResult = streamExecutor({
             ...request,
+            ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
             file: normalizedInput.file,
           } as Parameters<typeof streamExecutor>[0])
           emitSucceeded(0, true)
@@ -518,6 +522,7 @@ export const useHearingStore = defineStore('hearing-store', () => {
       const useVerboseJson = !format && confidenceThreshold.value > CONFIDENCE_THRESHOLD_DISABLED
       const response = await generateTranscription({
         ...provider.transcription(model, options?.providerOptions),
+        ...(options?.abortSignal ? { abortSignal: options.abortSignal } : {}),
         file: normalizedInput.file,
         fileName: resolveTranscriptionFileName(normalizedInput.file, normalizedInput.fileName),
         responseFormat: useVerboseJson ? 'verbose_json' : format,
@@ -549,7 +554,8 @@ export const useHearingStore = defineStore('hearing-store', () => {
       }
     }
     catch (err) {
-      emitFailed(err)
+      if (!options?.abortSignal?.aborted)
+        emitFailed(err)
       throw err
     }
   }
@@ -1307,7 +1313,7 @@ export function useTranscriptionSession() {
     }
   }
 
-  async function transcribeForRecording(recording: Blob | null | undefined) {
+  async function transcribeForRecording(recording: Blob | null | undefined, abortSignal?: AbortSignal) {
     const requestId = ++latestRecordingRequest
     error.value = undefined
 
@@ -1324,6 +1330,7 @@ export function useTranscriptionSession() {
 
     pendingRecordings.value++
     try {
+      abortSignal?.throwIfAborted()
       const providerId = activeTranscriptionProvider.value
       const providerError = resolveActiveTranscriptionProviderError(providerId)
       if (providerError) {
@@ -1333,6 +1340,7 @@ export function useTranscriptionSession() {
       }
 
       const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+      abortSignal?.throwIfAborted()
       if (!provider) {
         throw new Error('Failed to initialize speech provider')
       }
@@ -1353,7 +1361,7 @@ export function useTranscriptionSession() {
         model,
         new File([recording], 'recording.wav', { type: recording.type || 'audio/wav' }),
         undefined,
-        { providerOptions },
+        { abortSignal, providerOptions },
       )
       const text = result.mode === 'stream' ? await result.text : result.text
       if (requestId !== latestRecordingRequest)
@@ -1371,6 +1379,8 @@ export function useTranscriptionSession() {
       return text
     }
     catch (err) {
+      if (abortSignal?.aborted)
+        return
       if (requestId !== latestRecordingRequest)
         return
       error.value = errorMessage(err)
