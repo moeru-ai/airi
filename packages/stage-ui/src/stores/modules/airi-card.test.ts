@@ -440,6 +440,18 @@ describe('airi-card store', () => {
     expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-1')
   })
 
+  it('selects an available model after deleting the built-in default', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    expect(cardStore.selectedAvatarModel?.displayModelId).toBe('preset-live2d-1')
+
+    await cardStore.retainAvailableAvatarModels(['preset-live2d-2', 'preset-vrm-1'])
+
+    expect(cardStore.activeCard?.extensions.airi.avatarModels.some(model => model.displayModelId === 'preset-live2d-1')).toBe(false)
+    expect(cardStore.selectedAvatarModel?.displayModelId).toBe('preset-live2d-2')
+    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-2')
+  })
+
   it('does not infer a default Avatar Model from other available references', async () => {
     const cardStore = useAiriCardStore()
     cardStore.$patch({
