@@ -158,6 +158,39 @@ describe('chat session synchronization', () => {
     await expect(chatAudioRepo.load(secondReference)).rejects.toThrow('Stored chat audio is unavailable')
   })
 
+  it('replaces old audio references when importing the same session twice', async () => {
+    const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = store.activeSessionId
+    const firstReference = await chatAudioRepo.save(sessionId, 'YXVkaW8=')
+    await store.setSessionMessages(sessionId, [
+      { role: 'system', id: 'system', content: 'System' },
+      { role: 'user', id: 'voice', content: [{ type: 'input_audio', input_audio: { data: firstReference, format: 'wav' } }] },
+    ])
+    const exportData = await store.exportSessions()
+
+    function currentReference() {
+      const message = store.sessionMessages[sessionId]?.find(item => item.id === 'voice')
+      const part = Array.isArray(message?.content) ? message.content.find(item => item.type === 'input_audio') : undefined
+      if (part?.type !== 'input_audio')
+        throw new Error('Expected an imported voice message.')
+      return part.input_audio.data
+    }
+
+    await store.importSessions(exportData)
+    const secondReference = currentReference()
+    await expect(chatAudioRepo.load(firstReference)).rejects.toThrow('Stored chat audio is unavailable')
+    expect(await chatAudioRepo.load(secondReference)).toBe('YXVkaW8=')
+
+    await store.importSessions(exportData)
+    const thirdReference = currentReference()
+    await expect(chatAudioRepo.load(secondReference)).rejects.toThrow('Stored chat audio is unavailable')
+    expect(await chatAudioRepo.load(thirdReference)).toBe('YXVkaW8=')
+  })
+
   it('initializes a follower through the canonical session action', async () => {
     // ROOT CAUSE:
     //

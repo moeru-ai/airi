@@ -1542,6 +1542,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (payload.format !== 'chat-sessions-index:v1')
       return
 
+    const replacedSessionIds = new Set([
+      ...Object.keys(sessionMetas.value),
+      ...Object.values(index.value?.characters ?? {}).flatMap(character => Object.keys(character.sessions)),
+    ])
     index.value = cloneDeep(payload.index)
     sessionMessages.value = {}
     sessionMetas.value = {}
@@ -1563,6 +1567,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         messages: cloneDeep(messages),
       }))
     }
+
+    for (const sessionId of new Set([...replacedSessionIds, ...Object.keys(payload.sessions)]))
+      await chatAudioRepo.retainSession(sessionId, chatAudioReferences(sessionMessages.value[sessionId] ?? []))
 
     await ensureActiveSessionForCharacter()
   }

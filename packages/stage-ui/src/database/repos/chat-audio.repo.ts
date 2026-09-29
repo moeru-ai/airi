@@ -80,6 +80,19 @@ export const chatAudioRepo = {
       await storage.removeItem(indexKey(sessionId))
     })
   },
+
+  async retainSession(sessionId: string, retained: Set<string>) {
+    await enqueueIndex(async () => {
+      const references = await storage.getItemRaw<string[]>(indexKey(sessionId)) ?? []
+      const obsolete = references.filter(reference => !retained.has(reference))
+      await Promise.all(obsolete.map(reference => storage.removeItem(`local:chat/audio/${reference.slice(referencePrefix.length)}`)))
+      const remaining = references.filter(reference => retained.has(reference))
+      if (remaining.length)
+        await storage.setItemRaw(indexKey(sessionId), remaining)
+      else
+        await storage.removeItem(indexKey(sessionId))
+    })
+  },
 }
 
 export async function mapChatAudio(messages: ChatHistoryItem[], transform: (data: string) => Promise<string>): Promise<ChatHistoryItem[]> {

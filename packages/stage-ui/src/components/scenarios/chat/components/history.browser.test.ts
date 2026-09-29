@@ -2,13 +2,14 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import ChatHistory from './history.vue'
 
+import { chatAudioRepo } from '../../../../database/repos/chat-audio.repo'
 import { getChatHistoryItemKey } from '../utils'
 
 const triggerHaptic = vi.fn()
@@ -130,6 +131,10 @@ function dispatchTouchEvent(
 describe('chat history', () => {
   beforeEach(() => {
     triggerHaptic.mockClear()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('renders a stored reply relation inside the message bubble', async () => {
@@ -1273,6 +1278,28 @@ describe('chat history', () => {
     await vi.waitFor(() => {
       expect(screen.emitted('replyMessage')).toEqual([[{ message, label: 'You' }]])
     })
+  })
+
+  it('loads voice recording bytes only after playback input', async () => {
+    const loadAudio = vi.spyOn(chatAudioRepo, 'load').mockResolvedValue('YXVkaW8=')
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'voice-on-demand', role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'airi-chat-audio:session/id', format: 'wav' } }] }],
+        variant: 'mobile',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await vi.waitFor(() => expect(screen.container.querySelector('audio')).not.toBeNull())
+    const player = screen.container.querySelector('audio')
+    if (!player)
+      throw new Error('Expected a voice player.')
+
+    expect(loadAudio).not.toHaveBeenCalled()
+    expect(player.getAttribute('src')).toBeNull()
+
+    player.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await vi.waitFor(() => expect(loadAudio).toHaveBeenCalledWith('airi-chat-audio:session/id'))
+    await vi.waitFor(() => expect(player.src).toMatch(/^blob:/))
   })
 
   it('does not offer reply for a voice message without text', async () => {
