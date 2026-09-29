@@ -13,8 +13,8 @@ import { createStreamingTtsPipeline } from './streaming-pipeline'
  * streaming provider — forwards raw tokens upstream and lets the model do
  * its own sentence splitting) implement this surface.
  *
- * Stage.vue holds exactly one `StageTtsSession` at any moment and forwards
- * every chat-orchestrator hook into it without branching on provider id.
+ * Stage.vue holds one `StageTtsSession` per chat turn and forwards that
+ * turn's chat-orchestrator hooks without branching on provider id.
  * The decision of which adapter to construct lives once in
  * {@link createStageTtsSession}.
  */
@@ -105,8 +105,7 @@ export interface PlaybackManagerSubset<TAudio> {
 /**
  * Internal helpers the streaming adapter calls out to. Lets the adapter
  * react to terminal events (error / done) by clearing whatever state the
- * host is holding — Stage.vue keeps a `currentSession` ref and needs to
- * null it when the underlying ws terminates on its own.
+ * host is holding — Stage.vue removes the matching turn when its ws ends.
  */
 export interface StreamingSessionHooks {
   /** Called once when the ws terminates with an error. */
@@ -288,7 +287,7 @@ export interface StageTtsSessionContext<TAudio = AudioBuffer> {
  *   behaviour for every REST provider).
  *
  * Returns:
- * - A `StageTtsSession`. Stage.vue stores it in a single `currentSession`
+ * - A `StageTtsSession`. Stage.vue stores it under the owning turn ID.
  *   ref and calls `appendText` / `appendSpecial` / `finishInput` / `end`
  *   / `cancel` on it from the hooks.
  */

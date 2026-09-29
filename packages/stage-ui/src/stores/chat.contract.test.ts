@@ -84,6 +84,7 @@ const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
+const sessionMetas: Record<string, { characterId: string }> = {}
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
@@ -159,6 +160,8 @@ vi.mock('./chat/session-store', () => ({
   useChatSessionStore: () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
+    sessionMetas,
+    refreshSessionSystemMessage: vi.fn(),
     ensureSession: (sessionId: string) => {
       ensureSessionMock(sessionId)
       sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
@@ -219,6 +222,7 @@ vi.mock('./modules/consciousness', () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
     providerModels: consciousnessModels.value,
+    modelSupportsAudioInput: () => false,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
@@ -228,6 +232,11 @@ vi.mock('./modules/consciousness', () => ({
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: undefined,
+    activeCardId: 'default',
+    moduleDefaults: { consciousness: { provider: 'mock-provider', model: 'gpt-test' } },
+    getCard: (id: string) => id === 'default' || id === 'character-b'
+      ? { extensions: { airi: { modules: { consciousness: id === 'character-b' ? { provider: 'provider-b', model: 'model-b' } : { provider: 'mock-provider', model: 'gpt-test' } } } } }
+      : undefined,
   }),
 }))
 
@@ -298,8 +307,11 @@ describe('chat store contract', () => {
     for (const key of Object.keys(sessionMessages)) {
       delete sessionMessages[key]
     }
+    for (const key of Object.keys(sessionMetas))
+      delete sessionMetas[key]
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+    sessionMetas['session-1'] = { characterId: 'default' }
   })
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {
@@ -356,6 +368,36 @@ describe('chat store contract', () => {
       { type: 'text', text: 'What is this?' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
     ])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Retry rebuilt only text and images. An audio-only turn had no source
+  // content, so the user could not retry a failed voice message.
+  it('preserves audio and its transcript when retrying a failed turn', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }],
+        audioTranscripts: ['hello'],
+        id: 'user-audio',
+      },
+      { role: 'error', content: 'Provider failed' },
+    ]
+
+    const store = useChatStore()
+    await store.retry({ sessionId: 'session-1', index: 2 })
+
+    const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
+    expect(retried.content).toEqual([
+      { type: 'text', text: '' },
+      { type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } },
+    ])
+    expect(retried.audioTranscripts).toEqual(['hello'])
   })
 
   it('cancels vision preprocessing when its chat turn is cancelled', async () => {
@@ -458,7 +500,8 @@ describe('chat store contract', () => {
     visionMocks.runInference.mockReturnValue(new Promise<string>((resolve) => {
       resolveVision = resolve
     }))
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions) => {
+      expect(context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'text' && part.text.includes('A red square.')))).toBe(true)
       await options.onStreamEvent?.({ type: 'finish' })
     })
 
@@ -654,6 +697,7 @@ describe('chat store contract', () => {
     // Reading through getSessionMessages before hydration created a fresh
     // system-only history that could overwrite the persisted conversation.
     delete sessionMessages['session-2']
+    sessionMetas['session-2'] = { characterId: 'default' }
     loadSessionMock.mockImplementationOnce(async () => {
       sessionMessages['session-2'] = [
         { role: 'system', content: 'persisted system prompt', createdAt: 1, id: 'system-2' },

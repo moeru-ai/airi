@@ -2,6 +2,8 @@
 import type { CaptionChannelEvent, HearingInputChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
+import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
+
 import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
@@ -23,12 +25,17 @@ import {
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { KeywordListener } from '@proj-airi/stage-ui/libs/keyword-listener'
+import { getKwsVocabulary, loadKwsModel } from '@proj-airi/stage-ui/libs/kws-model'
+import { resolveWakeWordKeywords, supportedWakeWordKeywords } from '@proj-airi/stage-ui/services/wake-words'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
@@ -41,8 +48,10 @@ import ResourceStatusIsland from '../components/stage-islands/resource-status-is
 
 import { electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { useDesktopPushToTalk } from '../composables/use-desktop-push-to-talk'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
+import { useVoiceInlay } from '../composables/use-voice-inlay'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -352,26 +361,53 @@ useModelSettingsRuntimeOwner({
 })
 
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { stream, enabled, mode } = storeToRefs(settingsAudioDeviceStore)
 const { askPermission, startStream, stopStream } = settingsAudioDeviceStore
 const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
-const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
+const { activeTranscriptionModel, activeTranscriptionProvider, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
 const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
+const cardStore = useAiriCardStore()
+const { cards, wakeWordOwnership } = storeToRefs(cardStore)
+const speechOutput = useSpeechOutputControlStore()
+const voiceInlay = useVoiceInlay()
+const pushToTalkEnabled = computed(() => mode.value === 'push-to-talk')
+let keywordListener: KeywordListener | undefined
+let keywordGeneration = 0
+let wakeGeneration = 0
+let wakeSessionId: string | undefined
+let wakeSegmentComplete = false
+let wakeWindowTimer: ReturnType<typeof setTimeout> | undefined
+let manualSessionId: string | undefined
+let manualCardId: string | undefined
+let streamingSessionId: string | undefined
+const segmentOwners: Array<{ sessionId: string, cardId: string, inputMode: 'always' | 'push-to-talk' | 'wake-word' }> = []
 const streamingTranscriptionUnavailable = ref(false)
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
-const voiceTranscriptBuffer = createTranscriptBuffer({
-  flushDelayMs: 1200,
-  maxBufferedTextLength: 90,
-  async flush(text) {
-    await sendVoiceInputTextToChat(text)
-  },
-})
+const shouldUseStreamInput = computed(() => mode.value === 'always' && supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
+const voiceTranscriptBuffers = new Map<string, ReturnType<typeof createTranscriptBuffer>>()
+
+function bufferVoiceTranscript(text: string, sessionId: string | undefined) {
+  if (!sessionId)
+    return
+  let buffer = voiceTranscriptBuffers.get(sessionId)
+  if (!buffer) {
+    const cardId = chatSession.sessionMetas[sessionId]?.characterId ?? cardStore.activeCardId
+    buffer = createTranscriptBuffer({
+      flushDelayMs: 1200,
+      maxBufferedTextLength: 90,
+      async flush(bufferedText) {
+        await sendVoiceInputTextToChat(bufferedText, sessionId, cardId)
+      },
+    })
+    voiceTranscriptBuffers.set(sessionId, buffer)
+  }
+  buffer.push(text)
+}
 
 const assistantSpeechSuppressedUntil = shallowRef(0)
 const assistantSpeechResumeTimer = shallowRef<ReturnType<typeof setTimeout>>()
@@ -454,12 +490,12 @@ function isVoiceInputSuppressed(now = Date.now()) {
 }
 
 /**
- * Captures whether a queued VAD segment can still leave the app for ASR.
+ * Captures whether a recorded segment can still leave the app for ASR.
  */
 function inspectVoiceInputProviderRequestGate(generation: unknown) {
   const current = generation === voiceInputGeneration
-  const audioEnabled = enabled.value
-  const suppressed = isVoiceInputSuppressed()
+  const audioEnabled = mode.value === 'push-to-talk' || (enabled.value && (mode.value === 'always' || mode.value === 'wake-word'))
+  const suppressed = mode.value === 'always' && isVoiceInputSuppressed()
   let reason: string | undefined
   if (!current)
     reason = 'Skipped stale voice input segment'
@@ -483,7 +519,7 @@ function inspectVoiceInputProviderRequestGate(generation: unknown) {
  * Captures whether live microphone audio can still leave the app for streaming ASR.
  */
 function inspectVoiceInputStreamingRequestGate() {
-  const audioEnabled = enabled.value
+  const audioEnabled = mode.value === 'always' && enabled.value
   const suppressed = isVoiceInputSuppressed()
 
   return {
@@ -536,7 +572,8 @@ function scheduleAssistantSpeechResume() {
  * Ensures the microphone stream has a live audio track before binding recorder or VAD.
  */
 async function ensureLiveAudioInputStream() {
-  if (!enabled.value)
+  const canCapture = () => mode.value === 'push-to-talk' || (enabled.value && (mode.value === 'always' || mode.value === 'wake-word'))
+  if (!canCapture())
     return false
 
   if (stream.value?.getAudioTracks().some(track => track.readyState === 'live'))
@@ -544,17 +581,17 @@ async function ensureLiveAudioInputStream() {
 
   stopStream()
 
-  if (!enabled.value)
+  if (!canCapture())
     return false
 
   await askPermission()
 
-  if (!enabled.value)
+  if (!canCapture())
     return false
 
   await startStream()
 
-  if (!enabled.value) {
+  if (!canCapture()) {
     stopStream()
     return false
   }
@@ -563,6 +600,12 @@ async function ensureLiveAudioInputStream() {
     return true
 
   throw new Error('Microphone stream did not provide a live audio track')
+}
+
+function releasePushToTalkStream() {
+  if (enabled.value && (mode.value === 'always' || mode.value === 'wake-word'))
+    return
+  stopStream()
 }
 
 /**
@@ -575,35 +618,43 @@ function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelE
 }
 
 /**
- * Sends buffered voice input text to the active chat session.
+ * Routes a transcription to its recorded character session.
  */
-async function sendVoiceInputTextToChat(text: string) {
+async function sendVoiceInputTextToChat(text: string, sessionId: string | undefined, cardId = sessionId ? chatSession.sessionMetas[sessionId]?.characterId : undefined) {
+  if (!text.trim() || !sessionId)
+    return
   try {
-    await chatStore.send({
-      sessionId: chatSession.activeSessionId,
-      text,
-    })
+    if (autoSendEnabled.value) {
+      const generation = voiceInputGeneration
+      const inputMode = mode.value
+      if (autoSendDelay.value > 0)
+        await new Promise(resolve => setTimeout(resolve, autoSendDelay.value))
+      if (generation !== voiceInputGeneration || mode.value !== inputMode || chatSession.activeSessionId !== sessionId)
+        return
+      await chatStore.send({ sessionId, text })
+    }
+    else {
+      await voiceInlay.queueVoiceDraft({ cardId: cardId ?? cardStore.activeCardId, sessionId, text })
+    }
   }
   catch (err) {
     reportVoiceInputFailure('send to chat', err)
   }
 }
 
-/** Sends completed streaming-ASR sentences to captions and chat. */
+/** Sends each completed browser-recognition phrase. Other providers emit deltas here. */
 function handleStreamingSentenceEnd(delta: string) {
   if (isVoiceInputSuppressed())
     return
-
-  const finalText = delta
-  if (!finalText || !finalText.trim())
+  if (hearingStore.activeTranscriptionProvider !== 'browser-web-speech-api' || !delta.trim())
     return
-
+  const finalText = delta.trim()
   const sourceId = currentHearingInputSourceId()
   replaceHearingInput(finalText)
   scheduleHearingInputClear(sourceId)
   activeHearingInputSourceId = undefined
   postSpeakerCaption(finalText, 'replace')
-  void sendVoiceInputTextToChat(finalText)
+  void sendVoiceInputTextToChat(finalText, streamingSessionId)
 }
 
 /** Replaces the caption with the provider's current volatile transcript. */
@@ -615,12 +666,22 @@ function handleStreamingTranscriptionUpdate(text: string) {
   postSpeakerCaption(text, 'replace')
 }
 
-/** Publishes the provider's final streaming-ASR text to the caption overlay. */
+/** Submits one complete non-browser streaming-ASR utterance. */
 function handleStreamingSpeechEnd(text: string) {
   if (isVoiceInputSuppressed())
     return
-
-  postSpeakerCaption(text, 'replace')
+  if (hearingStore.activeTranscriptionProvider === 'browser-web-speech-api')
+    return
+  const finalText = text
+  if (!finalText.trim())
+    return
+  const sourceId = currentHearingInputSourceId()
+  replaceHearingInput(finalText)
+  scheduleHearingInputClear(sourceId)
+  activeHearingInputSourceId = undefined
+  postSpeakerCaption(finalText, 'replace')
+  void sendVoiceInputTextToChat(finalText, streamingSessionId)
+  streamingSessionId = undefined
 }
 
 /** Reads the listening generation attached to recorder-backed transcription metadata. */
@@ -642,16 +703,70 @@ const voiceInputSession = useVoiceInputSession(stream, {
     }
     console.info(output, details ?? {})
   },
-  canStartSegment: () => enabled.value && !isVoiceInputSuppressed(),
+  canStartSegment: ({ trigger }) => {
+    if (mode.value === 'always')
+      return enabled.value && !isVoiceInputSuppressed()
+    if (mode.value === 'push-to-talk')
+      return trigger === 'manual' && !!manualSessionId
+    return mode.value === 'wake-word' && trigger !== 'manual' && !!wakeSessionId && !wakeSegmentComplete
+  },
   inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
-  onRecordingReady: () => ({ generation: voiceInputGeneration }),
-  onTranscriptionResult: ({ text }) => {
+  onSegmentStarted: ({ trigger }) => {
+    let sessionId: string | undefined
+    let inputMode: 'always' | 'push-to-talk' | 'wake-word'
+    if (trigger === 'manual') {
+      sessionId = manualSessionId
+      inputMode = 'push-to-talk'
+    }
+    else if (mode.value === 'always') {
+      sessionId = chatSession.activeSessionId
+      inputMode = 'always'
+    }
+    else {
+      sessionId = wakeSessionId
+      inputMode = 'wake-word'
+    }
+    if (sessionId && trigger !== 'manual' && wakeWindowTimer) {
+      clearTimeout(wakeWindowTimer)
+      wakeWindowTimer = undefined
+    }
+    if (sessionId) {
+      const cardId = inputMode === 'push-to-talk'
+        ? manualCardId ?? cardStore.activeCardId
+        : chatSession.sessionMetas[sessionId]?.characterId ?? cardStore.activeCardId
+      segmentOwners.push({ sessionId, cardId, inputMode })
+    }
+  },
+  onRecordingReady: () => ({ generation: voiceInputGeneration, ...segmentOwners.shift() }),
+  onRecordingSkipped: ({ metadata }) => {
+    if (!metadata)
+      segmentOwners.shift()
+    if (mode.value === 'wake-word')
+      void finishWakeInput()
+  },
+  onSegmentStopped: ({ trigger }) => {
+    if (mode.value === 'wake-word' && trigger !== 'manual')
+      wakeSegmentComplete = true
+  },
+  onTranscriptionResult: ({ text, metadata }) => {
     postSpeakerCaption(text)
     toast(`Voice input transcribed: ${text}`)
-    voiceTranscriptBuffer.push(text)
+    if (metadata?.inputMode === 'always') {
+      bufferVoiceTranscript(text, typeof metadata.sessionId === 'string' ? metadata.sessionId : undefined)
+    }
+    else {
+      const sessionId = typeof metadata?.sessionId === 'string' ? metadata.sessionId : undefined
+      const cardId = typeof metadata?.cardId === 'string' ? metadata.cardId : cardStore.activeCardId
+      if (sessionId)
+        void sendVoiceInputTextToChat(text, sessionId, cardId)
+      if (metadata?.inputMode === 'wake-word')
+        void finishWakeInput()
+    }
   },
   onTranscriptionEmpty: () => {
+    if (mode.value === 'wake-word')
+      void finishWakeInput()
     if (transcriptionError.value) {
       reportVoiceInputFailure('transcribe speech', transcriptionError.value)
       return
@@ -660,13 +775,17 @@ const voiceInputSession = useVoiceInputSession(stream, {
     toast('Voice input transcribed no text.')
   },
   onTranscriptionError: ({ error }) => {
+    if (mode.value === 'wake-word')
+      void finishWakeInput()
     reportVoiceInputFailure('transcribe speech', error)
   },
 })
 
 /** Starts the active streaming or recorder-backed voice-input consumers. */
 async function startAudioInteractionConsumers() {
-  if (isVoiceInputSuppressed()) {
+  if (mode.value !== 'always' && (mode.value !== 'wake-word' || !wakeSessionId))
+    return
+  if (mode.value === 'always' && isVoiceInputSuppressed()) {
     scheduleAssistantSpeechResume()
     return
   }
@@ -685,6 +804,7 @@ async function startAudioInteractionConsumers() {
 
     await transcribeForMediaStream(currentStream, {
       consumerId: transcriptionConsumerId,
+      onSpeechStart: () => { streamingSessionId = chatSession.activeSessionId },
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
       onTranscriptionUpdate: handleStreamingTranscriptionUpdate,
@@ -721,15 +841,182 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
     voiceInputSession.stop({ flushActiveRecording: false }),
   ])
 
-  if (flushTranscript)
-    await voiceTranscriptBuffer.dispose()
-  else
-    voiceTranscriptBuffer.clear()
+  if (flushTranscript) {
+    await Promise.all([...voiceTranscriptBuffers.values()].map(buffer => buffer.dispose()))
+  }
+  else {
+    for (const buffer of voiceTranscriptBuffers.values())
+      buffer.clear()
+  }
+  voiceTranscriptBuffers.clear()
 }
 
-watch(enabled, async (val) => {
+async function finishWakeInput() {
+  if (!wakeSessionId)
+    return
+  if (wakeWindowTimer)
+    clearTimeout(wakeWindowTimer)
+  wakeWindowTimer = undefined
+  wakeSessionId = undefined
+  wakeSegmentComplete = false
   try {
-    if (val) {
+    await voiceInputInteractionLifecycle.stop({ flushTranscript: false })
+  }
+  finally {
+    await voiceInlay.hideRecording()
+    if (mode.value === 'wake-word')
+      await keywordListener?.resume()
+  }
+}
+
+async function handleWakeWord(label: string, targets: Map<string, { cardId: string }>) {
+  const target = targets.get(label)
+  if (!target || mode.value !== 'wake-word')
+    return
+
+  const generation = ++wakeGeneration
+  if (nowSpeaking.value) {
+    speechOutput.requestStopSpeaking('wake-word')
+    await new Promise(resolve => setTimeout(resolve, 100))
+  }
+  if (generation !== wakeGeneration || mode.value !== 'wake-word')
+    return
+
+  try {
+    await cardStore.activateCard(target.cardId)
+    if (generation !== wakeGeneration || mode.value !== 'wake-word') {
+      await keywordListener?.resume()
+      return
+    }
+    wakeSessionId = await chatSession.ensureCurrentSession()
+    if (generation !== wakeGeneration || mode.value !== 'wake-word') {
+      await finishWakeInput()
+      return
+    }
+    await voiceInlay.showRecording(target.cardId)
+    if (generation !== wakeGeneration || mode.value !== 'wake-word') {
+      await finishWakeInput()
+      return
+    }
+    wakeSegmentComplete = false
+    await voiceInputInteractionLifecycle.start()
+    if (generation !== wakeGeneration || mode.value !== 'wake-word') {
+      await finishWakeInput()
+      return
+    }
+    wakeWindowTimer = setTimeout(() => {
+      void finishWakeInput().catch(error => reportVoiceInputFailure('close Wake Word window', error))
+    }, 15_000)
+  }
+  catch (error) {
+    reportVoiceInputFailure('start after Wake Word', error)
+    if (wakeSessionId)
+      await finishWakeInput()
+    else
+      await keywordListener?.resume()
+  }
+}
+
+async function askForWakeWordSetup() {
+  if (!settingsAudioDeviceStore.claimWakeWordSetupPrompt())
+    return
+  const sessionId = await chatSession.ensureCurrentSession()
+  await chatStore.promptCharacter({
+    sessionId,
+    instruction: 'Ask the user how they want to call you to start a voice conversation. Invite one or more names and pronunciations. After they answer, use the configure_wake_words tool to save the token sequences.',
+  })
+}
+
+async function prepareKeywordListener(currentStream: MediaStream | undefined, generation: number) {
+  const configured = resolveWakeWordKeywords(cards.value, wakeWordOwnership.value)
+  if (configured.keywords.length === 0)
+    void askForWakeWordSetup().catch(error => reportVoiceInputFailure('ask for Wake Word setup', error))
+
+  settingsAudioDeviceStore.setWakeWordPreparation('preparing')
+  const model = await loadKwsModel()
+  if (generation !== keywordGeneration || mode.value !== 'wake-word')
+    return
+
+  const vocabulary = getKwsVocabulary(model)
+  const active = resolveWakeWordKeywords(cards.value, wakeWordOwnership.value)
+  const keywords = supportedWakeWordKeywords(active.keywords, vocabulary)
+  keywordListener?.stop()
+  const listener = new KeywordListener(model, workletUrl, label => void handleWakeWord(label, active.targets), error => reportVoiceInputFailure('detect Wake Word', error))
+  keywordListener = listener
+  if (currentStream)
+    await listener.start(currentStream, keywords)
+  if (generation !== keywordGeneration)
+    return listener.stop()
+
+  settingsAudioDeviceStore.setWakeWordPreparation(keywords.length > 0 ? 'ready' : 'unconfigured')
+  if (keywords.length === 0)
+    void askForWakeWordSetup().catch(error => reportVoiceInputFailure('ask for Wake Word setup', error))
+}
+
+useDesktopPushToTalk({
+  enabled: pushToTalkEnabled,
+  begin: async (isHeld) => {
+    try {
+      manualSessionId = await chatSession.ensureCurrentSession()
+      if (!isHeld())
+        return
+      manualCardId = chatSession.sessionMetas[manualSessionId]?.characterId ?? cardStore.activeCardId
+      await voiceInlay.showRecording(manualCardId)
+      if (nowSpeaking.value) {
+        speechOutput.requestStopSpeaking('push-to-talk')
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      if (!isHeld() || mode.value !== 'push-to-talk' || !await ensureLiveAudioInputStream())
+        return
+      if (!isHeld() || mode.value !== 'push-to-talk') {
+        releasePushToTalkStream()
+        return
+      }
+      if (!await voiceInputSession.startSegment('manual')) {
+        releasePushToTalkStream()
+        await voiceInlay.hideRecording()
+      }
+    }
+    catch (error) {
+      reportVoiceInputFailure('start Push to Talk', error)
+      releasePushToTalkStream()
+      await voiceInlay.hideRecording()
+    }
+  },
+  end: async () => {
+    try {
+      await voiceInputSession.stopSegment('manual')
+    }
+    finally {
+      releasePushToTalkStream()
+      manualSessionId = undefined
+      manualCardId = undefined
+      await voiceInlay.hideRecording()
+    }
+  },
+})
+
+watch([mode, enabled, stream, cards, wakeWordOwnership], async ([currentMode, isEnabled, currentStream]) => {
+  const generation = ++keywordGeneration
+  ++wakeGeneration
+  keywordListener?.stop()
+  if (!isEnabled || currentMode !== 'wake-word') {
+    if (wakeSessionId)
+      await finishWakeInput()
+    return
+  }
+  try {
+    await prepareKeywordListener(currentStream, generation)
+  }
+  catch (error) {
+    settingsAudioDeviceStore.setWakeWordPreparation('error', errorMessageFrom(error) ?? 'The model could not load.')
+    reportVoiceInputFailure('prepare Wake Word', error)
+  }
+}, { immediate: true, deep: true })
+
+watch([mode, enabled], async ([currentMode, val]) => {
+  try {
+    if (val && currentMode === 'always') {
       await askPermission()
       await voiceInputInteractionLifecycle.start()
     }
@@ -746,7 +1033,7 @@ watch(enabled, async (val) => {
 
 watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInput], async () => {
   streamingTranscriptionUnavailable.value = false
-  if (!enabled.value)
+  if (!enabled.value || mode.value !== 'always')
     return
 
   try {
@@ -760,6 +1047,8 @@ watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInpu
 })
 
 watch(nowSpeaking, async (speaking) => {
+  if (mode.value !== 'always')
+    return
   if (speaking) {
     clearAssistantSpeechResumeTimer()
     try {
@@ -782,6 +1071,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  ++keywordGeneration
+  ++wakeGeneration
+  keywordListener?.stop()
   removeStreamingTranscriptionConsumer(transcriptionConsumerId)
   for (const [timer, sourceId] of hearingInputClearTimers) {
     clearTimeout(timer)
@@ -794,7 +1086,7 @@ onUnmounted(() => {
 })
 
 watch(stream, async (currentStream) => {
-  if (!enabled.value || !currentStream || voiceInputInteractionLifecycle.isStarting() || voiceInputInteractionLifecycle.isStopping() || isVoiceInputSuppressed())
+  if (mode.value !== 'always' || !enabled.value || !currentStream || voiceInputInteractionLifecycle.isStarting() || voiceInputInteractionLifecycle.isStopping() || isVoiceInputSuppressed())
     return
 
   // NOTICE: The controls-island mic toggle and device changes can replace the underlying MediaStream

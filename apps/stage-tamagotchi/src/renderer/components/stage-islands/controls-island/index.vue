@@ -46,7 +46,15 @@ const { dock, isLeft, isTop, motionPhase } = placement
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const context = useElectronEventaContext()
-const { enabled } = storeToRefs(settingsAudioDeviceStore)
+const { enabled, mode, permissionGranted, stream } = storeToRefs(settingsAudioDeviceStore)
+const microphoneActive = computed(() => stream.value?.getAudioTracks().some(track => track.readyState === 'live') ?? false)
+const microphoneButtonLabel = computed(() => {
+  if (mode.value === 'push-to-talk' || mode.value === 'off')
+    return t('tamagotchi.stage.controls-island.open-hearing-controls')
+  return t(enabled.value
+    ? 'tamagotchi.stage.controls-island.disable-microphone'
+    : 'tamagotchi.stage.controls-island.enable-microphone')
+})
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
@@ -93,6 +101,22 @@ function setOverlay(key: string, active: boolean) {
   }
 
   blockingOverlays.delete(key)
+}
+
+async function toggleMicrophone() {
+  if (mode.value === 'push-to-talk' || mode.value === 'off') {
+    setOverlay('hearing', true)
+    return
+  }
+  if (enabled.value) {
+    enabled.value = false
+    return
+  }
+
+  if (!permissionGranted.value)
+    await settingsAudioDeviceStore.askPermission()
+  if (permissionGranted.value)
+    enabled.value = true
 }
 
 // NOTICE: On native Wayland, `isOutsideByCursor` can get permanently stuck
@@ -454,21 +478,44 @@ function resetMainWindowPosition() {
 
           <ControlsIslandChatButton :button-style="adjustStyleClasses.button" :icon-class="adjustStyleClasses.icon" />
 
-          <ControlButtonTooltip side="inward">
-            <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
-              <div class="relative">
-                <ControlButton :button-style="adjustStyleClasses.button">
-                  <Transition name="fade" mode="out-in">
-                    <IndicatorMicVolume v-if="enabled" :class="adjustStyleClasses.icon" />
-                    <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                  </Transition>
+          <div class="relative">
+            <ControlButton
+              :button-style="adjustStyleClasses.button"
+              :class="['peer']"
+              :aria-label="microphoneButtonLabel"
+              :title="microphoneButtonLabel"
+              :aria-pressed="microphoneActive"
+              @click="toggleMicrophone"
+            >
+              <Transition name="fade" mode="out-in">
+                <IndicatorMicVolume v-if="microphoneActive" :class="adjustStyleClasses.icon" />
+                <div v-else i-ph:microphone-slash :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+              </Transition>
+            </ControlButton>
+            <div
+              :class="[
+                'absolute top-0 z-10 opacity-0 pointer-events-none transition-opacity',
+                isLeft ? 'left-full ml-2' : 'right-full mr-2',
+                'peer-hover:opacity-100 peer-hover:pointer-events-auto',
+                'peer-focus-visible:opacity-100 peer-focus-visible:pointer-events-auto',
+                'hover:opacity-100 hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto',
+              ]"
+            >
+              <span
+                aria-hidden="true"
+                :class="['absolute top-0 h-full w-2', isLeft ? 'right-full' : 'left-full']"
+              />
+              <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
+                <ControlButton
+                  :button-style="adjustStyleClasses.button"
+                  :aria-label="t('tamagotchi.stage.controls-island.open-hearing-controls')"
+                  :title="t('tamagotchi.stage.controls-island.open-hearing-controls')"
+                >
+                  <span i-solar:settings-linear :class="adjustStyleClasses.icon" />
                 </ControlButton>
-              </div>
-            </ControlsIslandHearingConfig>
-            <template #tooltip>
-              {{ t('tamagotchi.stage.controls-island.open-hearing-controls') }}
-            </template>
-          </ControlButtonTooltip>
+              </ControlsIslandHearingConfig>
+            </div>
+          </div>
 
           <ControlsIslandSpeechMute
             :button-style="adjustStyleClasses.button"

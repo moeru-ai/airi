@@ -5,7 +5,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, HearingPushToTalk, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -40,16 +40,16 @@ const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeSendSessionId, activeStreamingMessage, sending, streamingMessagesBySession } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const isActiveSessionSending = computed(() => (
-  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  !!streamingMessagesBySession.value[activeSessionId.value]
+  || (sending.value && activeSendSessionId.value === activeSessionId.value)
   || isReceivingRemoteStream.value
 ))
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const visibleStreamingMessage = computed(() => streamingMessagesBySession.value[activeSessionId.value]
+  ?? (activeSendSessionId.value === activeSessionId.value ? activeStreamingMessage.value : streamingMessage.value))
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 const composer = useChatComposer<ChatImageAttachment>({
@@ -463,12 +463,12 @@ onUnmounted(() => {
             @compositionend="isComposing = false"
           />
         </div>
-        <div :class="['min-w-10 shrink-0 flex items-end justify-end gap-1']">
+        <div :class="['min-w-11 shrink-0 flex items-end justify-end gap-1']">
           <button
             v-if="showStopAction"
             data-testid="stop-speaking-button"
             :class="[
-              'size-10 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
+              'size-11 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
               'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
               'text-lg text-neutral-500 transition-all duration-200 active:scale-95',
               'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-400',
@@ -485,14 +485,24 @@ onUnmounted(() => {
             :disabled="!!pendingImages"
             :aria-label="t('stage.chat.actions.send')"
             :class="[
-              'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',
+              'size-11 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',
               'transition-colors duration-200 hover:bg-primary-600 disabled:opacity-40 motion-reduce:transition-none',
             ]"
             @click="handleSend"
           >
             <div class="i-solar:arrow-up-outline size-5" />
           </button>
+          <VoiceComposer
+            v-else
+            v-model="messageInput"
+            size="large"
+            :input-element="inputBubble"
+            :session-id="activeSessionId"
+            :reply-to-message-id="replyTarget?.message.id"
+            @sent="composer.clearReply()"
+          />
         </div>
+        <HearingPushToTalk :session-id="activeSessionId" size="large" :class="['self-end']" />
       </div>
     </div>
     <div

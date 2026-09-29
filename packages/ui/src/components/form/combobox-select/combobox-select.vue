@@ -12,6 +12,7 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   disabled?: boolean
   openOnClick?: boolean
+  side?: 'top' | 'bottom'
   title?: string
   layout?: 'horizontal' | 'vertical'
   contentMinWidth?: string | number
@@ -30,6 +31,7 @@ const modelValue = defineModel<string | number>({ required: false })
     :options="[{ groupLabel: '', children: props.options }]"
     :disabled="props.disabled"
     :open-on-click="props.openOnClick"
+    :side="props.side"
     :content-min-width="props.contentMinWidth"
     :content-width="props.contentWidth"
     :placeholder="props.placeholder"

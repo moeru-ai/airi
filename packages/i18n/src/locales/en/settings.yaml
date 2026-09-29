@@ -370,6 +370,17 @@ pages:
         error:
           fallback: Could not start deletion. Try again later.
   card:
+    wake-word-validation:
+      invalid: 'Wake words for {name} cannot be used: {reason}'
+      review: Review card
+    wake-word-conflict:
+      title: Choose who responds
+      description: These characters share a wake word pronunciation. Choose one owner for each. Both cards keep the pronunciation.
+      review: Review wake word conflicts
+      pronunciation: 'Shared pronunciation: {tokens}'
+      choose: 'Choose {name}'
+      active: 'Active for {name}'
+      unresolved: '{count} wake word conflicts need an owner'
     activate: Activate
     active: Active
     active_badge: Currently Active
@@ -769,6 +780,48 @@ pages:
     hearing:
       description: Configure how speech recognition works
       title: Hearing
+      auto-send:
+        label: Auto send
+        description: Send transcribed text to chat automatically. Turn this off to review the draft first.
+        delay-label: Send delay
+        delay-description: Wait before sending transcribed text.
+        immediate: Immediately
+      transcriber:
+        title: Transcriber
+        description: Set up speech recognition and test your microphone.
+      wake-words:
+        title: Calling names
+        description: See the names and pronunciations that wake each character.
+        empty: This character has no calling name yet.
+        configure: Ask this character in chat to set a calling name and its pronunciation tokens.
+        open-chat: Open chat
+        review-conflicts: Choose who responds to shared pronunciations
+        active: Active
+        paused: Paused on this device
+      input-device:
+        label: Input device
+        description: Select the microphone you want to use.
+        placeholder: Select microphone
+      permission-required: Microphone permission is required.
+      microphone:
+        label: Microphone
+        description: Allow Hearing to use this microphone. The selected input mode controls when it listens.
+      input-mode:
+        label: Hearing input
+        description: Choose when AIRI listens for speech. Voice messages remain available in every mode.
+        off: Off
+        push-to-talk: Push to Talk
+        wake-word: Wake Word
+        always: Always on
+        preparing: Preparing the Wake Word model…
+        unconfigured: No wake word is ready. Your character will ask how you want to call them in chat.
+        failed: Could not prepare Wake Word
+      push-to-talk-shortcut:
+        label: Push to Talk shortcut
+        description: Hold this shortcut to speak from any app.
+        placeholder: Press a key combination
+        reset: Reset to default
+        registration-failed: This shortcut could not be registered. Use the on-screen button or choose another shortcut.
       sections:
         section:
           provider-selection:

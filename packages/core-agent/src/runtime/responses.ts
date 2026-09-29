@@ -1,6 +1,6 @@
 import type { ResponsesConfig } from '@proj-airi/provider-inference'
 import type { ItemParam, ResponsesOptions } from '@xsai-ext/responses'
-import type { Tool } from '@xsai/shared-chat'
+import type { CompletionStep, Tool } from '@xsai/shared-chat'
 
 import type { ProjectionEntry } from '../messages/turns'
 import type { Citation, Conversation, InputSegment, MessageSegment } from '../messages/types'
@@ -12,7 +12,8 @@ import { stepCountAtLeast } from '@xsai/shared-chat'
 import { renderSegmentText } from '../messages/render-context'
 import { projectInput, projectRound } from '../messages/turns'
 import { createGeneration } from './generation'
-import { mergeRequestHeaders } from './request-context'
+import { ProtocolSwitch } from './protocol-switch'
+import { createContinuationScope, mergeRequestHeaders, supportsTools } from './request-context'
 import { toAiriStreamEvent } from './xsai-events'
 
 type InputContent = Exclude<Extract<ItemParam, { role: 'user' }>['content'], string>
@@ -171,16 +172,59 @@ export function streamResponses(input: {
   onEvent: (event: StreamEvent) => Promise<void>
 }) {
   const items = renderConversation(input.conversation, input.scope)
+  const scopes: string[] = []
   const generation = createGeneration({
-    turnId: input.options?.requestCorrelation?.turnId,
+    turnId: input.options?.requestCorrelation?.turnId ?? input.options?.generationTurnId,
     runId: input.options?.requestCorrelation?.runId,
     model: input.config.model,
-    continuation: (data: ItemParam[]) => ({ protocol: 'responses' as const, scope: input.scope, data }),
+    roundOffset: input.options?.generationRoundOffset,
+    continuation: (data: ItemParam[], index) => ({ protocol: 'responses' as const, scope: scopes[index] ?? input.scope, data }),
     project: item => readOutput([item]),
   })
-  const result = responses({
+  const requestOptions: ResponsesOptions = {
     ...input.config,
-    prepareStep: generation.prepareStep,
+    prepareStep: ({ input: current, steps }: { input: ItemParam[], steps: CompletionStep[] }) => {
+      const resolveStep = input.options?.resolveStep
+      if (!resolveStep) {
+        scopes.push(input.scope)
+        return generation.prepareStep({ input: current })
+      }
+      return (async () => {
+        const next = await resolveStep()
+
+        const nextRequest = next.chatProvider.generation(next.model)
+        if (nextRequest.protocol !== 'responses') {
+          const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
+          throw new ProtocolSwitch(next, partialTurn)
+        }
+
+        // NOTICE:
+        // xsAI prepareStep can return only input/model/toolChoice. Its 0.5 Responses
+        // adapter reads the mutable options after prepareStep for each request.
+        // Update provider settings and tools here until xsAI offers a typed step config.
+        // Source: @xsai-ext/responses 0.5 dist/index.js createReader. Remove then.
+        const toolsSupported = supportsTools(next.model, nextRequest, input.options)
+        Object.assign(requestOptions, nextRequest.config, {
+          temperature: next.temperature,
+          topP: next.topP,
+          headers: mergeRequestHeaders(nextRequest.config.headers, input.options?.headers),
+          tools: toolsSupported
+            ? nextRequest.webSearch ? [...(next.tools ?? []), { type: 'web_search' as const }] : next.tools
+            : undefined,
+          toolChoice: toolsSupported ? toolChoice(input.options?.toolChoice) : undefined,
+        })
+        generation.prepareStep({ input: current, model: next.model })
+        scopes.push(createContinuationScope(nextRequest.config, { ...input.options, providerId: next.providerId }))
+        const systemIndex = current.findIndex(item => item.type === 'message' && item.role === 'system')
+        const systemMessage = current[systemIndex]
+        if (systemMessage?.type === 'message' && systemMessage.role === 'system')
+          current[systemIndex] = { ...systemMessage, content: next.systemPrompt }
+        else if (next.systemPrompt)
+          current.unshift({ type: 'message', role: 'system', content: next.systemPrompt })
+
+        return { input: current, model: next.model }
+      })()
+    },
     input: items,
     store: false,
     include: ['reasoning.encrypted_content'],
@@ -212,7 +256,8 @@ export function streamResponses(input: {
         }
       }
     },
-  })
+  }
+  const result = responses(requestOptions)
   const generatedTurn = generation.complete(result.input, result.steps)
   return { ...result, generatedTurn }
 }

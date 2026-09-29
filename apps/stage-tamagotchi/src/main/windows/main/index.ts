@@ -6,6 +6,7 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
 import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
@@ -52,6 +53,7 @@ export async function setupMainWindow(params: {
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
+  inlayWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
@@ -61,6 +63,7 @@ export async function setupMainWindow(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
+  globalShortcut: GlobalShortcutService
 }) {
   const {
     setup: setupConfig,
@@ -177,6 +180,7 @@ export async function setupMainWindow(params: {
     editorWindow: params.editorWindow,
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
+    inlayWindow: params.inlayWindow,
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
     autoUpdater: params.autoUpdater,
@@ -185,6 +189,7 @@ export async function setupMainWindow(params: {
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
+    globalShortcut: params.globalShortcut,
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {

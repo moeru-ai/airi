@@ -10,6 +10,8 @@ import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import PushToTalkShortcut from '../../../components/settings/push-to-talk-shortcut.vue'
+
 import {
   electronSpotlightShortcutGet,
   electronSpotlightShortcutSet,
@@ -113,42 +115,45 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section
-    :class="['flex flex-col gap-4 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800']"
-    @keydown.capture="recordShortcut"
-  >
-    <div :class="['flex items-start gap-3']">
-      <div :class="['min-w-0 flex-1']">
-        <h2 :class="['text-sm text-neutral-900 font-medium dark:text-neutral-50']">
-          {{ tt('spotlight.title') }}
-        </h2>
-        <p :class="['mt-1 text-xs text-neutral-500 leading-relaxed dark:text-neutral-400']">
-          {{ tt('spotlight.description') }}
-        </p>
+  <div :class="['flex flex-col gap-4']">
+    <section
+      :class="['flex flex-col gap-4 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800']"
+      @keydown.capture="recordShortcut"
+    >
+      <div :class="['flex items-start gap-3']">
+        <div :class="['min-w-0 flex-1']">
+          <h2 :class="['text-sm text-neutral-900 font-medium dark:text-neutral-50']">
+            {{ tt('spotlight.title') }}
+          </h2>
+          <p :class="['mt-1 text-xs text-neutral-500 leading-relaxed dark:text-neutral-400']">
+            {{ tt('spotlight.description') }}
+          </p>
+        </div>
       </div>
-    </div>
 
-    <div :class="['flex items-center gap-2']">
-      <button
-        type="button"
-        :class="[
-          'min-h-12 flex-1 rounded-lg border-2 border-solid px-3 py-2 text-left font-mono text-sm transition-colors',
-          'border-neutral-100 bg-neutral-50 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200',
-          'dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900 dark:active:bg-neutral-800',
-        ]"
-        @click="recording = true"
-      >
-        <span :class="recording ? ['animate-pulse animate-duration-2s animate-count-infinite'] : []">
-          {{ shortcutLabel }}
-        </span>
-      </button>
-      <Button
-        size="md"
-        :label="tt('actions.reset')"
-        @click="saveShortcut(null)"
-      />
-    </div>
-  </section>
+      <div :class="['flex items-center gap-2']">
+        <button
+          type="button"
+          :class="[
+            'min-h-12 flex-1 rounded-lg border-2 border-solid px-3 py-2 text-left font-mono text-sm transition-colors',
+            'border-neutral-100 bg-neutral-50 text-neutral-900 hover:bg-neutral-100 active:bg-neutral-200',
+            'dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-100 dark:hover:bg-neutral-900 dark:active:bg-neutral-800',
+          ]"
+          @click="recording = true"
+        >
+          <span :class="recording ? ['animate-pulse animate-duration-2s animate-count-infinite'] : []">
+            {{ shortcutLabel }}
+          </span>
+        </button>
+        <Button
+          size="md"
+          :label="tt('actions.reset')"
+          @click="saveShortcut(null)"
+        />
+      </div>
+    </section>
+    <PushToTalkShortcut />
+  </div>
 </template>
 
 <route lang="yaml">

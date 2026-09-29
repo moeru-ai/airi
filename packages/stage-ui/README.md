@@ -115,7 +115,6 @@ It requires Workers and WebAssembly. Web and Pocket load the selected model from
 Desktop development uses cached local files. Desktop releases bundle all three models.
 Use a remote Provider when model download size or local memory makes that unsuitable.
 The existing VAD pipeline has separate model and runtime downloads.
-
 ### Compact Stage status
 
 `HearingStatus` shows the shared, always-on microphone session. Place it above a
@@ -132,3 +131,49 @@ microphone failures to chat history.
 The component supports reduced motion. Desktop users can enable Streamer mode in
 General settings to hide these overlays without stopping microphone input or sign-in.
 Streamer mode is off by default.
+
+The same Vite plugin serves the pinned Wake Word pack. Web downloads it when
+needed; desktop and Pocket include it in the application build.
+
+## Manual voice composer
+
+`VoiceComposer` adds hold-to-record input to a chat surface. Bind the text draft
+with `v-model` and pass the active `session-id` and the input container as
+`input-element`. Use `recording-change` to hide the editable contents while
+recording; the status content renders inside that same input shell. Pass `reply-to-message-id` and
+`tools` when the surface uses them. Handle `sent` to clear the reply selection.
+
+A short press changes between voice messages and dictation. A long press starts
+recording. The button follows the pointer and shrinks as it moves left toward
+cancellation. Move up to collapse the lock track and lock recording.
+Only the halo follows volume; the timer stays in the input bar. The overlay
+excludes that bar while dimming the Stage, background, and chat.
+Release sends the voice message or inserts the transcript. Enter starts a locked
+recording. Escape cancels it. Locked recordings have explicit finish and cancel
+buttons.
+
+Hearing mode **Off** disables dictation but leaves voice messages available.
+The Push to Talk button sends one transcribed turn on release when Auto send is
+enabled. When Auto send is off, it adds the text to the session draft. Wake Word
+mode listens for one phrase after a recognized character name, then returns to
+keyword detection. The character card stores the name and its pronunciation
+tokens. Local ownership chooses which card receives a pronunciation shared by
+more than one card.
+
+Push to Talk opens the microphone only while held and records without VAD.
+The continuous Hearing switch controls Always and Wake Word modes.
+
+The composer owns its microphone stream and transcription session. It cancels
+pending input when its chat session changes or the component unmounts. It does
+not enable the shared always-on Hearing stream or its automatic send setting.
+Use the existing Hearing controls for continuous listening.
+
+Voice messages keep WAV audio in local chat history. Models whose catalogs
+declare audio input receive the recording. Other models receive a transcript.
+Unknown model capabilities require transcription. Dictation also requires a
+configured Hearing provider and model. Providers with streaming input show live
+text; providers with file input return text after release. No automatic send
+setting applies to dictation drafts.
+
+Cloud chat synchronization currently transfers text only. It does not transfer
+voice recordings, just as it does not transfer image attachments.

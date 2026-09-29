@@ -17,8 +17,8 @@ function createAssistantTurn(turnId?: string, runId?: string): AssistantTurn {
  * Saves the native step even when its portable content is unknown. A later protocol change reports
  * projectionIssues instead of silently omitting data. SDK tool failures stay attached to their call.
  */
-function recordRound<Native extends ProviderContinuation>(turn: AssistantTurn, native: Native, step: CompletionStep, model: string, decode: (item: Native['data'][number]) => ProjectionEntry[]): GenerationRound {
-  const id = `${turn.id}/${turn.rounds.length}`
+function recordRound<Native extends ProviderContinuation>(turn: AssistantTurn, native: Native, step: CompletionStep, model: string, roundOffset: number, decode: (item: Native['data'][number]) => ProjectionEntry[]): GenerationRound {
+  const id = `${turn.id}/${roundOffset + turn.rounds.length}`
   const entries: ProjectionEntry[] = []
   const issues: string[] = []
   for (const item of native.data) {
@@ -50,14 +50,17 @@ export function createGeneration<Native extends ProviderContinuation>(input: {
   turnId?: string
   runId?: string
   model: string
-  continuation: (items: Native['data'][number][]) => Native
+  roundOffset?: number
+  continuation: (items: Native['data'][number][], index: number) => Native
   project: (item: Native['data'][number]) => ProjectionEntry[]
 }) {
   const starts: number[] = []
+  const models: string[] = []
 
   /** SDK snapshots mark step starts; only offsets remain owned by this generation. */
-  function prepareStep({ input: current }: { input: readonly unknown[] }) {
+  function prepareStep({ input: current, model }: { input: readonly unknown[], model?: string }) {
     starts.push(current.length)
+    models.push(model ?? input.model)
     return {}
   }
 
@@ -69,7 +72,7 @@ export function createGeneration<Native extends ProviderContinuation>(input: {
       if (start === undefined)
         throw new Error('Missing SDK model step boundary')
       const output = final.slice(start, starts[index + 1] ?? final.length)
-      recordRound(turn, input.continuation(output), step, input.model, input.project)
+      recordRound(turn, input.continuation(output, index), step, models[index] ?? input.model, input.roundOffset ?? 0, input.project)
     }
     const lastStep = completedSteps.at(-1)
     if ((lastStep?.finishReason === 'tool-calls' || lastStep?.finishReason === 'tool_calls') && lastStep.toolCalls.length > 0 && lastStep.toolResults.length === 0)

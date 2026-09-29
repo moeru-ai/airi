@@ -11,7 +11,8 @@ import icon from '../../../../resources/icon.png?asset'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager/reusable'
 import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { registerVoiceInlayBounds } from './presentation'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
 
 export function setupInlayWindowReusable(params: {
@@ -30,6 +31,7 @@ export function setupInlayWindowReusable(params: {
         sandbox: false,
       },
       ...spotlightLikeWindowConfig(),
+      ...transparentWindowConfig(),
     })
 
     if (isMacOS) {
@@ -63,9 +65,9 @@ export function setupInlayWindowReusable(params: {
       ),
     })
 
-    window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 
+    registerVoiceInlayBounds(window, window.getBounds())
     await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay', {

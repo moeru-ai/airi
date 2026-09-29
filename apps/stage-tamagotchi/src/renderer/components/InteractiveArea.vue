@@ -8,7 +8,7 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, HearingPushToTalk, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -29,6 +29,7 @@ import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
+import { useVoiceInlay } from '../composables/use-voice-inlay'
 import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
 const props = withDefaults(defineProps<{
@@ -56,14 +57,17 @@ const chatStream = useChatStreamStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
+const voiceInlay = useVoiceInlay()
 const { autoSendEnabled } = storeToRefs(useHearingStore())
-const { enabled: microphoneEnabled, permissionGranted: microphonePermissionGranted } = storeToRefs(useSettingsAudioDevice())
+const { permissionGranted: microphonePermissionGranted, stream: microphoneStream } = storeToRefs(useSettingsAudioDevice())
+const microphoneActive = computed(() => microphoneStream.value?.getAudioTracks().some(track => track.readyState === 'live') ?? false)
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
+const { activeSendSessionId, activeStreamingMessage, sending, streamingMessagesBySession } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
+const voiceActive = ref(false)
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
   send: submission => chatStore.send({
@@ -109,6 +113,25 @@ const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
 } = useAnalytics()
+
+function voiceCardId(sessionId: string) {
+  return chatSession.sessionMetas[sessionId]?.characterId ?? activeCardId.value
+}
+
+async function routePushToTalkTranscript(result: { sessionId: string, text: string }) {
+  if (autoSendEnabled.value)
+    await chatStore.send(result)
+  else
+    await voiceInlay.queueVoiceDraft({ ...result, cardId: voiceCardId(result.sessionId) })
+}
+
+function handlePushToTalkRecordingChange(recording: boolean) {
+  const action = recording
+    ? voiceInlay.showRecording(voiceCardId(activeSessionId.value))
+    : voiceInlay.hideRecording()
+  void action.catch(error => console.error('[Push to Talk] Could not update voice inlay:', error))
+}
+
 const latestImageEntries = computed(() => {
   if (!activeCardId.value)
     return []
@@ -185,10 +208,10 @@ watch(sendMode, () => {
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
-const isActiveSessionSending = computed(() => sending.value && activeSendSessionId.value === activeSessionId.value)
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const isActiveSessionSending = computed(() => !!streamingMessagesBySession.value[activeSessionId.value]
+  || (sending.value && activeSendSessionId.value === activeSessionId.value))
+const visibleStreamingMessage = computed(() => streamingMessagesBySession.value[activeSessionId.value]
+  ?? (activeSendSessionId.value === activeSessionId.value ? activeStreamingMessage.value : streamingMessage.value))
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -354,7 +377,7 @@ defineExpose({ restoreDraft, snapshotDraft })
       <div
         ref="message-composer"
         :class="[
-          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
+          'relative min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
           // The composer layer clips overflow, which would cut a ring or a
           // shadow; a border stays inside the box. The floating composer is
           // its own island, so it keeps tighter padding than the windowed one.
@@ -436,6 +459,7 @@ defineExpose({ restoreDraft, snapshotDraft })
               'max-h-[10lh] min-h-[2lh]',
               'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
+              voiceActive && 'invisible',
             ]"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
@@ -453,18 +477,27 @@ defineExpose({ restoreDraft, snapshotDraft })
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
-          <HearingConfigDialog v-model:show="hearingDialogOpen" v-model:auto-send="autoSendEnabled" :granted="microphonePermissionGranted">
+          <HearingConfigDialog v-model:show="hearingDialogOpen" :granted="microphonePermissionGranted">
             <GhostButton
               data-testid="voice-input-button"
               size="unset"
               :class="['size-9']"
-              :active="microphoneEnabled"
+              :active="microphoneActive"
               :title="t('stage.chat.voice-input')"
               :aria-label="t('stage.chat.voice-input')"
             >
-              <span :class="[microphoneEnabled ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
+              <span :class="[microphoneActive ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
             </GhostButton>
           </HearingConfigDialog>
+          <VoiceComposer
+            v-model="messageInput"
+            :input-element="messageComposer"
+            :session-id="activeSessionId"
+            :reply-to-message-id="replyTarget?.message.id"
+            :tools="artistryToolReferences"
+            @recording-change="voiceActive = $event"
+            @sent="composer.clearReply()"
+          />
           <GhostButton
             data-testid="computer-use-toggle"
             size="unset"
@@ -523,6 +556,12 @@ defineExpose({ restoreDraft, snapshotDraft })
               </DropdownMenuContent>
             </DropdownMenuPortal>
           </DropdownMenuRoot>
+
+          <HearingPushToTalk
+            :session-id="activeSessionId"
+            :route-transcript="routePushToTalkTranscript"
+            @recording-change="handlePushToTalkRecordingChange"
+          />
 
           <GhostButton
             v-if="showStopAction"

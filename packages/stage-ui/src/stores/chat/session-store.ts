@@ -208,21 +208,29 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return generateInitialMessageFromPrompt(systemPrompt.value)
   }
 
-  function refreshActiveSessionSystemMessage() {
-    const sessionId = activeSessionId.value
+  function generateInitialMessageForSession(sessionId: string) {
+    const characterId = sessionMetas.value[sessionId]?.characterId
+    if (!characterId || characterId === getCurrentCharacterId())
+      return generateInitialMessage()
+
+    return generateInitialMessageFromPrompt(useAiriCardStore().getSystemPromptForCard(characterId))
+  }
+
+  /** Refreshes one loaded session with its own character's latest prompt. */
+  function refreshSessionSystemMessage(sessionId: string) {
     const meta = sessionMetas.value[sessionId]
 
     // A card switch updates `systemPrompt` before its character session has
     // necessarily finished loading. Never rewrite the previous character's
     // session or persist an empty in-memory placeholder over an IDB history
     // that is still being hydrated.
-    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId())
+    if (!sessionId || !loadedSessions.has(sessionId) || !meta)
       return
 
     const currentMessages = sessionMessages.value[sessionId] ?? []
     const systemMessageIndex = currentMessages.findIndex(message => message.role === 'system')
     const currentSystemMessage = currentMessages[systemMessageIndex]
-    const resolvedSystemMessage = generateInitialMessage()
+    const resolvedSystemMessage = generateInitialMessageForSession(sessionId)
 
     if (currentSystemMessage?.content === resolvedSystemMessage.content)
       return
@@ -239,6 +247,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     replaceSessionMessages(sessionId, [resolvedSystemMessage, ...currentMessages])
+  }
+
+  function refreshActiveSessionSystemMessage() {
+    const sessionId = activeSessionId.value
+    if (sessionMetas.value[sessionId]?.characterId !== getCurrentCharacterId())
+      return
+    refreshSessionSystemMessage(sessionId)
   }
 
   function ensureGeneration(sessionId: string) {
@@ -486,9 +501,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
-
     sessionMetas.value[sessionId] = meta
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessageForSession(sessionId)]
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
     loadedSessions.add(sessionId)
     ensureGeneration(sessionId)
@@ -901,7 +915,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage()]
+        sessionMessages.value[remote.id] = [generateInitialMessageForSession(remote.id)]
         ensureGeneration(remote.id)
 
         if (!index.value)
@@ -1327,7 +1341,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
+      replaceSessionMessages(sessionId, [generateInitialMessageForSession(sessionId)], { persist: false })
     }
   }
 
@@ -1414,7 +1428,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    setSessionMessages(sessionId, [generateInitialMessageForSession(sessionId)])
   }
 
   function getAllSessions() {
@@ -1634,6 +1648,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     persistSessionMessages,
     getSessionMessages,
     getSessionMessagesIfLoaded,
+    refreshSessionSystemMessage,
     sessionMessages,
     sessionMetas,
     getSessionGeneration,

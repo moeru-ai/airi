@@ -9,6 +9,7 @@ import { nextTick, ref } from 'vue'
 const userIdRef = ref<string>('local')
 const activeCardIdRef = ref<string>('default')
 const systemPromptRef = ref<string>('')
+const cardPrompts: Record<string, string> = {}
 
 const getIndexMock = vi.fn<(uid: string) => Promise<ChatSessionsIndex | null>>()
 const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
@@ -44,6 +45,7 @@ vi.mock('../modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCardId: activeCardIdRef,
     systemPrompt: systemPromptRef,
+    getSystemPromptForCard: (cardId: string) => cardPrompts[cardId] ?? '',
   }),
 }))
 
@@ -598,6 +600,24 @@ describe('chat-session-store · cloud deletion', () => {
 })
 
 describe('chat-session-store · active card prompt edits', () => {
+  it('uses the owning character prompt when a background session starts', async () => {
+    systemPromptRef.value = 'Prompt for character A'
+    const store = useChatSessionStore()
+    await store.initialize()
+    cardPrompts.characterB = 'Prompt for character B'
+    store.sessionMetas['background-b'] = {
+      sessionId: 'background-b',
+      userId: 'local',
+      characterId: 'characterB',
+      createdAt: 1,
+      updatedAt: 1,
+    }
+
+    store.ensureSession('background-b')
+
+    expect(store.getSessionMessages('background-b')[0]?.content).toContain('Prompt for character B')
+    expect(store.getSessionMessages('background-b')[0]?.content).not.toContain(systemPromptRef.value)
+  })
   // https://github.com/moeru-ai/airi/discussions/2239
   it('adds the AIRI chat math syntax to the system message for Issue #2239', async () => {
     const store = useChatSessionStore()

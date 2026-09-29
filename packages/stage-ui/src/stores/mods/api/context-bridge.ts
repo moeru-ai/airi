@@ -101,18 +101,18 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
   const remoteStreamSessionId = computed(() => remoteStreamGuard.value?.sessionId)
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
-  let localProducedStream: { sessionId: string, turnId: string } | undefined
+  const localProducedStreams = new Map<string, string>()
   let initialized = false
 
   async function cancelRemoteStream(sessionId: string) {
     const guard = remoteStreamGuard.value
-    const producedStream = localProducedStream?.sessionId === sessionId ? localProducedStream : undefined
-    const turnId = guard?.sessionId === sessionId ? guard.turnId : producedStream?.turnId
+    const producedTurnId = localProducedStreams.get(sessionId)
+    const turnId = guard?.sessionId === sessionId ? guard.turnId : producedTurnId
     if (!turnId)
       return
 
-    if (producedStream)
-      localProducedStream = undefined
+    if (producedTurnId)
+      localProducedStreams.delete(sessionId)
     await contextChannel?.emitStreamCancel({
       sessionId,
       turnId,
@@ -527,10 +527,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           remoteStreamGuard.value = undefined
         }
 
-        if (localProducedStream?.sessionId !== command.sessionId || localProducedStream.turnId !== command.turnId)
+        if (localProducedStreams.get(command.sessionId) !== command.turnId)
           return
 
-        localProducedStream = undefined
+        localProducedStreams.delete(command.sessionId)
         await chatOrchestrator.cancelPendingSends(command.sessionId)
       }))
 
@@ -784,54 +784,52 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
-          localProducedStream = { sessionId, turnId: context.turnId }
-          await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          localProducedStreams.set(context.sessionId, context.turnId)
+          await contextChannel?.emitStream({ type: 'before-send', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
-          await contextChannel?.emitStream({ type: 'after-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-          if (localProducedStream?.sessionId === sessionId && localProducedStream.turnId === context.turnId)
-            localProducedStream = undefined
+          await contextChannel?.emitStream({ type: 'after-send', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          if (localProducedStreams.get(context.sessionId) === context.turnId)
+            localProducedStreams.delete(context.sessionId)
         }),
         chatOrchestrator.onTokenLiteral(async (literal, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'stream-end', sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'stream-end', sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
@@ -1043,7 +1041,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       initialized = false
       remoteStreamGuard.value = undefined
-      localProducedStream = undefined
+      localProducedStreams.clear()
 
       for (const [requestId, waiter] of sparkNotifyBridgeWaiters) {
         if (waiter.timeout)

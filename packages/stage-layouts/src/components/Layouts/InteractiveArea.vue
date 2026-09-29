@@ -22,7 +22,7 @@ import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 
 const { isReady } = useDeferredMount()
 const chatOrchestrator = useChatStore()
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeSendSessionId, activeStreamingMessage, sending, streamingMessagesBySession } = storeToRefs(chatOrchestrator)
 const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
@@ -40,12 +40,12 @@ const composer = useChatComposer<ChatImageAttachment>({
 const { clearReplyForMessage, selectReply } = composer
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const isActiveSessionSending = computed(() => (
-  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  !!streamingMessagesBySession.value[activeSessionId.value]
+  || (sending.value && activeSendSessionId.value === activeSessionId.value)
   || isReceivingRemoteStream.value
 ))
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const visibleStreamingMessage = computed(() => streamingMessagesBySession.value[activeSessionId.value]
+  ?? (activeSendSessionId.value === activeSessionId.value ? activeStreamingMessage.value : streamingMessage.value))
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 

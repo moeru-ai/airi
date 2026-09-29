@@ -27,6 +27,25 @@ export type StreamEvent
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /** Character that owns the current turn and its built-in tools. */
+  cardId?: string
+  /** Reads the pinned character's current settings before every model step, including tool continuations. */
+  resolveStep?: () => Promise<{
+    model: string
+    chatProvider: GenerationProvider
+    providerId: string
+    supportsAudioInput?: boolean
+    systemPrompt: string
+    temperature?: number
+    topP?: number
+    tools?: Tool[]
+  }>
+  /** Projects stored audio when a later model request cannot accept it. */
+  transcribeAudio?: (data: string, format: string) => Promise<string>
+  /** Internal generated-turn identity reused after a protocol handoff. */
+  generationTurnId?: string
+  /** Internal number of rounds already completed in this assistant turn. */
+  generationRoundOffset?: number
   /** Provider registry identity used to isolate native continuation data. */
   providerId?: string
   /** Called once with this turn only, after every tool step has settled. */

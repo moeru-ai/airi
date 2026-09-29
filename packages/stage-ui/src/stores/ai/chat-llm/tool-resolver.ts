@@ -5,8 +5,11 @@ import type { Tool } from '@xsai/shared-chat'
 import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
 import { uniqBy } from 'es-toolkit'
 
+import { pinnedKwsVocabulary } from '../../../services/wake-words'
 import { createWebSearchTools, debug, mcp } from '../../../tools'
+import { createWakeWordTool } from '../../../tools/wake-words'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useAiriCardStore } from '../../modules/airi-card'
 import { useWebSearchStore } from '../../modules/web-search'
 import { useLlmToolsStore } from './tools'
 
@@ -59,6 +62,10 @@ export interface ResolveLlmToolsOptions {
    * @default useLlmToolsStore().activeTools
    */
   activeTools?: Tool[]
+  /** Character fixed at the start of this turn. The tool can edit only this card. */
+  cardId?: string
+  /** Overrides the model vocabulary source for focused tests. */
+  wakeWordTools?: ToolSource
 }
 
 /**
@@ -99,12 +106,8 @@ async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise
 
   const modsServerChannelStore = useModsServerChannelStore()
   const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-    // TODO(@nekomeowww): instruct the LLM to understand what destination is.
-    // Currently without skill like prompt injection, many issues occur.
-    // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
-    //
-    // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
-    // empty array to avoid wrong routing.
+    // TODO: Add destination guidance for the model. Empty destinations send
+    // the command to every connected module until routing is reliable.
     command.destinations = []
 
     modsServerChannelStore.send({
@@ -130,6 +133,20 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
   return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
 }
 
+async function resolveWakeWordTools(options: ResolveLlmToolsOptions): Promise<Tool[]> {
+  if (options.wakeWordTools != null)
+    return resolveToolSource(options.wakeWordTools)
+  if (!options.cardId)
+    return []
+
+  const cardStore = useAiriCardStore()
+  return [await createWakeWordTool({
+    cardId: options.cardId,
+    cardStore,
+    getVocabulary: async () => pinnedKwsVocabulary,
+  })]
+}
+
 /**
  * Resolves every tool visible to an LLM request.
  *
@@ -144,12 +161,14 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     debugTools,
     sparkCommandTools,
     webSearchTools,
+    wakeWordTools,
     customTools,
   ] = await Promise.all([
     resolveToolSource(options.builtInTools ?? mcp),
     resolveToolSource(options.debugTools ?? debug),
     resolveSparkCommandTools(options.sparkCommandTools),
     resolveWebSearchTools(options.webSearchTools),
+    resolveWakeWordTools(options),
     resolveCustomTools(options.customTools),
   ])
 
@@ -159,6 +178,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...debugTools,
       ...sparkCommandTools,
       ...webSearchTools,
+      ...wakeWordTools,
       ...customTools,
       ...activeTools,
     ].toReversed(),

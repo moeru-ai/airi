@@ -1,5 +1,6 @@
 /** Callbacks that receive results from one shared streaming transcription session. */
 export interface StreamingTranscriptionCallbacks {
+  onSpeechStart?: () => void
   onSentenceEnd?: (delta: string) => void
   onSpeechEnd?: (text: string) => void
   /** Receives the complete current transcript after each provider update. */
@@ -24,6 +25,7 @@ export class StreamingTranscriptionConsumers {
   /** Registers or replaces the callbacks for one consumer. */
   register(consumer: StreamingTranscriptionConsumer) {
     this.consumers.set(consumer.consumerId, {
+      onSpeechStart: consumer.onSpeechStart,
       onSentenceEnd: consumer.onSentenceEnd,
       onSpeechEnd: consumer.onSpeechEnd,
       onTranscriptionUpdate: consumer.onTranscriptionUpdate,
@@ -38,6 +40,11 @@ export class StreamingTranscriptionConsumers {
   /** Whether any owner still needs the shared provider session. */
   hasConsumers() {
     return this.consumers.size > 0
+  }
+
+  /** Marks the start of a speech turn for each current consumer. */
+  emitSpeechStart() {
+    this.emit('onSpeechStart', '')
   }
 
   /** Sends a completed sentence to all current consumers. */

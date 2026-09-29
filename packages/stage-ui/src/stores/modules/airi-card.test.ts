@@ -582,4 +582,79 @@ describe('airi-card store', () => {
     expect(cardStore.activeCardId).toBe('default')
     expect(cardStore.activeCard?.name).toBe('ReLU')
   })
+
+  it('asks for a new owner when an imported card shares an assigned wake pronunciation', async () => {
+    const cardStore = useAiriCardStore()
+    const cardWithWakeWord = (name: string): AiriCard => ({
+      name,
+      version: '1.0.0',
+      extensions: {
+        airi: {
+          agents: {},
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+            wakeWords: { keywords: [{ label: name, matches: [{ tokens: ['HELLO'] }] }] },
+          },
+        },
+      },
+    })
+
+    const firstId = await cardStore.addCard(cardWithWakeWord('First'), 'scratch')
+    const secondId = await cardStore.addCard(cardWithWakeWord('Second'), 'import')
+    expect(cardStore.wakeWordConflicts).toEqual([{ sequence: 'HELLO', cardIds: [firstId, secondId] }])
+
+    expect(await cardStore.assignWakeWordOwner('HELLO', firstId)).toBe(true)
+    expect(cardStore.wakeWordConflicts[0]?.ownerCardId).toBe(firstId)
+
+    const thirdId = await cardStore.addCard(cardWithWakeWord('Third'), 'import')
+    expect(cardStore.wakeWordConflicts).toEqual([{ sequence: 'HELLO', cardIds: [firstId, secondId, thirdId] }])
+    expect(cardStore.getCard(firstId)?.extensions.airi.modules.wakeWords?.keywords).toHaveLength(1)
+    expect(cardStore.getCard(secondId)?.extensions.airi.modules.wakeWords?.keywords).toHaveLength(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Imported cards can carry token names from a different KWS model. Dropping
+  // the card loses unrelated character data, while activating its wake word
+  // gives the worker an unusable pronunciation. Keep the card and report the
+  // pinned-model validation error until the card is corrected.
+  it('keeps an imported card and reports tokens outside the pinned model', async () => {
+    const cardStore = useAiriCardStore()
+    const cardId = await cardStore.addCard({
+      name: 'Another model',
+      version: '1.0.0',
+      extensions: {
+        airi: {
+          agents: {},
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+            wakeWords: { keywords: [{ label: 'Hello', matches: [{ tokens: ['NOT_IN_ZIPFORMER_3M'] }] }] },
+          },
+        },
+      },
+    }, 'import')
+
+    expect(cardStore.getCard(cardId)?.name).toBe('Another model')
+    expect(cardStore.wakeWordValidationIssues.get(cardId)).toContain('NOT_IN_ZIPFORMER_3M')
+    expect(await cardStore.updateCardWakeWords(cardId, [{ label: 'Hello', matches: [{ tokens: ['AA0'] }] }], ['AA0'])).toEqual({ status: 'saved' })
+    expect(cardStore.wakeWordValidationIssues.has(cardId)).toBe(false)
+  })
+
+  it('returns a cross-card pronunciation conflict to the editing agent', async () => {
+    const cardStore = useAiriCardStore()
+    const firstId = await cardStore.addCard({ name: 'First', version: '1.0.0' }, 'scratch')
+    const secondId = await cardStore.addCard({ name: 'Second', version: '1.0.0' }, 'scratch')
+    const keywords = [{ label: 'Hello', matches: [{ tokens: ['HELLO'] }] }]
+
+    expect(await cardStore.updateCardWakeWords(firstId, keywords, ['HELLO'])).toEqual({ status: 'saved' })
+    expect(await cardStore.updateCardWakeWords(secondId, keywords, ['HELLO'])).toEqual({
+      status: 'conflict',
+      conflicts: [{ cardId: firstId, cardName: 'First', keyword: 'Hello', sequence: 'HELLO' }],
+    })
+    expect(cardStore.getCard(secondId)?.extensions.airi.modules.wakeWords).toBeUndefined()
+  })
 })

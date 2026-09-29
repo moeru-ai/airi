@@ -557,6 +557,7 @@ describe('context bridge contract', () => {
 
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -595,12 +596,39 @@ describe('context bridge contract', () => {
     testChannels.push(streamPeer)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
 
     await chatOrchestratorMock.emitBeforeSendHooks('ping', context)
+    await streamPeer.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
+
+    await vi.waitFor(() => {
+      expect(chatOrchestratorMock.cancelPendingSends).toHaveBeenCalledWith('session-1')
+    })
+    await store.dispose()
+  })
+
+  it('keeps cancellation correlation for concurrent sessions', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamPeer = createContextChannel()
+    testChannels.push(streamPeer)
+    const context = {
+      turnId: 'turn-1',
+      sessionId: 'session-1',
+      message: { role: 'user', content: 'ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    // ROOT CAUSE:
+    // A single producer slot lost session A when session B began sending.
+    // Keep the turn correlation by session so either turn can be canceled.
+    await chatOrchestratorMock.emitBeforeSendHooks('ping', context)
+    await chatOrchestratorMock.emitBeforeSendHooks('pong', { ...context, turnId: 'turn-2', sessionId: 'session-2' })
     await streamPeer.emitStreamCancel({ sessionId: 'session-1', turnId: 'turn-1' })
 
     await vi.waitFor(() => {
@@ -620,6 +648,7 @@ describe('context bridge contract', () => {
     })
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -646,6 +675,7 @@ describe('context bridge contract', () => {
     testChannels.push(streamPeer)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -669,6 +699,7 @@ describe('context bridge contract', () => {
     testChannels.push(streamPeer)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -696,6 +727,7 @@ describe('context bridge contract', () => {
     })
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -722,6 +754,7 @@ describe('context bridge contract', () => {
 
     const context = {
       turnId: 'turn-1',
+      sessionId: 'remote-session',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -735,7 +768,10 @@ describe('context bridge contract', () => {
     streamSender.postMessage({ type: 'token-special', special: 'remote-special', sessionId: 'remote-session', context })
     await waitForBroadcastDelivery()
 
-    expect(outgoingStreamMessages.filter(message => message.sessionId === 'session-1')).toHaveLength(1)
+    // One local broadcast and one test-sender broadcast are visible here.
+    // Processing the latter must not echo a third message.
+    expect(outgoingStreamMessages).toHaveLength(2)
+    expect(outgoingStreamMessages.every(message => message.sessionId === 'remote-session')).toBe(true)
 
     await store.dispose()
   })
@@ -746,6 +782,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -756,7 +793,7 @@ describe('context bridge contract', () => {
     await chatOrchestratorMock.emitTokenLiteralHooks('session A token', context)
     await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))
 
-    expect(outgoingStreamMessages[0]?.sessionId).toBe('session-a')
+    expect(outgoingStreamMessages[0]?.sessionId).toBe('session-1')
     await store.dispose()
   })
 
@@ -766,6 +803,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -790,6 +828,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -814,6 +853,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-2',
+      sessionId: 'session-2',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
       composedMessage: [],
@@ -842,6 +882,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-3',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
       composedMessage: [],
@@ -876,6 +917,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-4',
+      sessionId: 'session-2',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
       composedMessage: [],
@@ -907,6 +949,7 @@ describe('context bridge contract', () => {
 
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],

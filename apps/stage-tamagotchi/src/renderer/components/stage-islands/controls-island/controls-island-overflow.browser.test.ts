@@ -131,6 +131,24 @@ beforeEach(() => {
 })
 
 describe('controls Island overflow', () => {
+  // ROOT CAUSE:
+  // Reserving space for microphone settings widened the controls column to
+  // 80px. OverlayButton uses self-end, so the speaker moved right at the left
+  // dock. The settings button now sits outside the measured controls column.
+  for (const dock of ['top-left', 'top-right'] as const) {
+    it(`aligns the speaker with the other controls at ${dock}`, async () => {
+      await page.viewport(450, 600)
+      const { i18n, screen } = mountControlsIsland(dock)
+      await nextTick()
+      const main = screen.getByTestId('main-controls').element() as HTMLElement
+      const label = (key: string) => i18n.global.t(`tamagotchi.stage.controls-island.${key}`)
+      const button = (name: string) => Array.from(main.querySelectorAll('button'))
+        .find(element => element.getAttribute('aria-label') === label(name))!
+
+      expect(button('mute').getBoundingClientRect().left).toBe(button('expand').getBoundingClientRect().left)
+    })
+  }
+
   for (const dock of docks) {
     for (const size of sizes) {
       // ROOT CAUSE:

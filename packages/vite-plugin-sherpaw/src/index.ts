@@ -1,4 +1,4 @@
-import type { SherpawModel } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import type { SherpawModelArtifacts } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import type { Plugin } from 'vite'
 
 import { rm } from 'node:fs/promises'
@@ -11,11 +11,11 @@ import { normalizePath } from 'vite'
 /** Selects models for this application. Downloads remain in a separate cache. */
 export interface SherpawOptions {
   /** Models exposed to the runtime. Remote models load lazily when first used. */
-  models: readonly SherpawModel[]
+  models: readonly SherpawModelArtifacts[]
   /** Models served from the download cache during development. @default [] */
-  developmentModels?: readonly SherpawModel[]
+  developmentModels?: readonly SherpawModelArtifacts[]
   /** Models copied into the application build. @default [] */
-  bundledModels?: readonly SherpawModel[]
+  bundledModels?: readonly SherpawModelArtifacts[]
   /** Shared download cache, resolved against the Vite root. @default '.cache' */
   cacheDir?: string
 }

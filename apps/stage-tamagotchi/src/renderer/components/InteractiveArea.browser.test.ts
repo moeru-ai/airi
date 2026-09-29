@@ -26,6 +26,14 @@ import InteractiveArea from './InteractiveArea.vue'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
+vi.mock('../composables/use-voice-inlay', () => ({
+  useVoiceInlay: () => ({
+    showRecording: vi.fn().mockResolvedValue(undefined),
+    hideRecording: vi.fn().mockResolvedValue(undefined),
+    queueVoiceDraft: vi.fn().mockResolvedValue(undefined),
+  }),
+}))
+
 function createTestI18n() {
   return createI18n({
     legacy: false,
@@ -418,7 +426,7 @@ describe('interactive area synchronized state', () => {
     const send = screen.getByRole('button', { name: 'stage.chat.actions.send' }).element()
     await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
     expect(bubble.getBoundingClientRect().width).toBe(emptyWidth)
-    expect(send.getBoundingClientRect().height).toBe(40)
+    expect(send.getBoundingClientRect().height).toBe(44)
     expect(bubble.getBoundingClientRect().bottom).toBe(send.getBoundingClientRect().bottom)
     const bubbleBounds = bubble.getBoundingClientRect()
     const inputBounds = input.getBoundingClientRect()
@@ -894,6 +902,34 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByText('Leader A foreground response')).not.toBeInTheDocument()
   })
 
+  it('shows the selected session stream while another character also replies', async () => {
+    const { chat, screen } = await renderArea()
+    chat.$patch({
+      sending: true,
+      activeSendSessionId: 'session-a',
+      streamingMessagesBySession: {
+        'session-a': {
+          id: 'a-stream',
+          role: 'assistant',
+          content: 'Character A is replying',
+          slices: [{ type: 'text', text: 'Character A is replying' }],
+          tool_results: [],
+        },
+        'session-b': {
+          id: 'b-stream',
+          role: 'assistant',
+          content: 'Character B is replying',
+          slices: [{ type: 'text', text: 'Character B is replying' }],
+          tool_results: [],
+        },
+      },
+    })
+    await nextTick()
+
+    await expect.element(screen.getByText('Character B is replying')).toBeVisible()
+    await expect.element(screen.getByText('Character A is replying')).not.toBeInTheDocument()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743309235
   it('scopes the mobile synchronized stream to its local session for Issue #2085', async () => {
     // ROOT CAUSE:
@@ -940,6 +976,29 @@ describe('interactive area synchronized state', () => {
     })
     await nextTick()
     await expect.element(screen.getByText('Session B live response')).toBeVisible()
+
+    chat.$patch({
+      activeSendSessionId: 'session-a',
+      streamingMessagesBySession: {
+        'session-a': {
+          id: 'session-a-parallel',
+          role: 'assistant',
+          content: 'Session A parallel response',
+          slices: [{ type: 'text', text: 'Session A parallel response' }],
+          tool_results: [],
+        },
+        'session-b': {
+          id: 'session-b-parallel',
+          role: 'assistant',
+          content: 'Session B parallel response',
+          slices: [{ type: 'text', text: 'Session B parallel response' }],
+          tool_results: [],
+        },
+      },
+    })
+    await nextTick()
+    await expect.element(screen.getByText('Session B parallel response')).toBeVisible()
+    await expect.element(screen.getByText('Session A parallel response')).not.toBeInTheDocument()
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743366443
@@ -976,6 +1035,29 @@ describe('interactive area synchronized state', () => {
 
     await expect.element(screen.getByText('Session B web response')).toBeVisible()
     await expect.element(screen.getByText('Session A foreground response')).not.toBeInTheDocument()
+
+    chat.$patch({
+      activeSendSessionId: 'session-a',
+      streamingMessagesBySession: {
+        'session-a': {
+          id: 'session-a-web-parallel',
+          role: 'assistant',
+          content: 'Session A web parallel response',
+          slices: [{ type: 'text', text: 'Session A web parallel response' }],
+          tool_results: [],
+        },
+        'session-b': {
+          id: 'session-b-web-parallel',
+          role: 'assistant',
+          content: 'Session B web parallel response',
+          slices: [{ type: 'text', text: 'Session B web parallel response' }],
+          tool_results: [],
+        },
+      },
+    })
+    await nextTick()
+    await expect.element(screen.getByText('Session B web parallel response')).toBeVisible()
+    await expect.element(screen.getByText('Session A web parallel response')).not.toBeInTheDocument()
   })
 
   it('routes a stage-web send through the synchronized chat action', async () => {

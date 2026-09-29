@@ -535,6 +535,12 @@ export const electronShortcutUnregisterAll = defineInvokeEventa<void>('eventa:in
 export const electronShortcutList = defineInvokeEventa<ShortcutBinding[]>('eventa:invoke:electron:shortcut:list')
 export const electronShortcutTriggered = defineEventa<ElectronShortcutTriggerPayload>('eventa:event:electron:shortcut:triggered')
 
+/** Selects the compact listening capsule or the editable draft window. */
+export type VoiceInlayPresentation = 'listening' | 'draft'
+/** Opens the voice inlay without focus during listening and with focus for a draft. */
+export const electronVoiceInlayShow = defineInvokeEventa<void, { focus: boolean, presentation: VoiceInlayPresentation }>('eventa:invoke:electron:voice-inlay:show')
+export const electronVoiceInlayHide = defineInvokeEventa<void>('eventa:invoke:electron:voice-inlay:hide')
+
 // <- Global shortcut
 
 export type StageThreeRuntimeTraceEnvelope

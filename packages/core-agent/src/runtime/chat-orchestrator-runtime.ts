@@ -107,19 +107,25 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
     || (message.citations?.length ?? 0) > 0
     || !!message.categorization?.reasoning.trim()
 }
+/** Binary attachments persist as base64 so history can cross renderer boundaries. */
+export type ChatAttachment
+  = | { type: 'image', data: string, mimeType: string }
+    | { type: 'audio', data: string, mimeType: 'audio/wav', transcript?: string }
 
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
  */
 export interface ChatOrchestratorSendOptions {
   /** Provider model identifier used for the outbound LLM request. */
-  model: string
+  model?: string
   /** Concrete chat provider implementation selected by the caller. */
-  chatProvider: GenerationProvider
+  chatProvider?: GenerationProvider
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
-  /** Image attachments appended to the user message content parts. */
-  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Media appended to the durable user message and the model request. */
+  attachments?: ChatAttachment[]
+  /** False projects available audio transcripts into text without changing history. @default true */
+  supportsAudioInput?: boolean
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
   /** Serializable tool names stored with the user message for later requests. */
@@ -132,6 +138,14 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /** Read mutable character settings when this send reaches its session queue. */
+  resolveRequest?: () => Promise<Pick<ChatOrchestratorSendOptions, 'model' | 'chatProvider' | 'supportsAudioInput' | 'temperature' | 'topP'> & { providerId: string }>
+  /** Reads live settings again before each model request in this fixed-character turn. */
+  resolveStep?: StreamOptions['resolveStep']
+  /** Character fixed for this turn, independent of later window selection. */
+  characterId?: string
+  /** Model-only instruction that starts an assistant reply without a stored user message. */
+  assistantOnlyInstruction?: string
 }
 
 interface QueuedSend {
@@ -227,6 +241,8 @@ export interface ChatOrchestratorRuntimeState {
   activeSendSessionId?: string
   /** Latest assistant stream snapshot owned by the active send session. */
   activeStreamingMessage?: StreamingAssistantMessage
+  /** Active assistant streams keyed by their owning chat session. */
+  streamingMessagesBySession: Record<string, StreamingAssistantMessage>
   /** Number of sends waiting behind the active one. */
   pendingQueuedSendCount: number
 }
@@ -367,11 +383,13 @@ export interface ChatOrchestratorRuntimeDeps {
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
   /** Called after assistant streaming and hook finalization. */
   onAssistantTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
@@ -428,6 +446,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   let sending = false
   let activeSendSessionId: string | undefined
   let activeStreamingMessage: StreamingAssistantMessage | undefined
+  const streamingMessages = new Map<string, StreamingAssistantMessage>()
   let pendingQueuedSends: QueuedSend[] = []
 
   function emitStateChange() {
@@ -435,6 +454,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       sending,
       activeSendSessionId,
       activeStreamingMessage,
+      streamingMessagesBySession: Object.fromEntries(streamingMessages),
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
   }
@@ -458,8 +478,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   function beginStream(sessionId: string, message: StreamingAssistantMessage) {
     sending = true
-    activeSendSessionId = sessionId
-    activeStreamingMessage = cloneStreamingMessage(message)
+    streamingMessages.set(sessionId, cloneStreamingMessage(message))
+    activeSendSessionId = isForegroundSession(sessionId) || !activeSendSessionId ? sessionId : activeSendSessionId
+    activeStreamingMessage = streamingMessages.get(activeSendSessionId)
     emitStateChange()
 
     if (isForegroundSession(sessionId))
@@ -467,10 +488,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function updateStream(sessionId: string, message: StreamingAssistantMessage) {
-    if (sessionId === activeSendSessionId) {
-      activeStreamingMessage = cloneStreamingMessage(message)
-      emitStateChange()
-    }
+    streamingMessages.set(sessionId, cloneStreamingMessage(message))
+    if (isForegroundSession(sessionId))
+      activeSendSessionId = sessionId
+    activeStreamingMessage = activeSendSessionId ? streamingMessages.get(activeSendSessionId) : undefined
+    emitStateChange()
 
     if (isForegroundSession(sessionId))
       deps.foregroundStream.patch(cloneStreamingMessage(message))
@@ -497,15 +519,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildContext(history: ChatHistoryItem[]): Conversation {
+  function buildContext(history: ChatHistoryItem[], supportsAudioInput: boolean): Conversation {
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
     const turns = history.flatMap((message, historyIndex): Turn[] => {
       if (message.role === 'assistant' && message.generationTranscript)
         return [structuredClone(unwrapMessage(message.generationTranscript))]
+      const rawMessage = { ...unwrapMessage(message) }
+      if (!supportsAudioInput && rawMessage.role === 'user' && Array.isArray(rawMessage.content)) {
+        let audioIndex = 0
+        rawMessage.content = rawMessage.content.map((part) => {
+          if (part.type !== 'input_audio')
+            return part
+          const transcript = message.audioTranscripts?.[audioIndex++]
+          // Audio without a stored transcript reaches the stage ASR adapter.
+          return transcript ? { type: 'text' as const, text: transcript } : part
+        })
+      }
       const source = message.role === 'user'
-        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
-        : unwrapMessage(message)
+        ? prependTextToContent(rawMessage, `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
+        : rawMessage
       return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
     })
     return { turns }
@@ -513,13 +546,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   async function performSend(
     sendingMessage: string,
-    options: ChatOrchestratorSendOptions,
+    options: ChatOrchestratorSendOptions & { model: string, chatProvider: GenerationProvider },
     generation: number,
     sessionId: string,
     abortSignal: AbortSignal,
     activeProvider: string,
   ) {
-    if (!sendingMessage && !options.attachments?.length)
+    if (!sendingMessage && !options.attachments?.length && !options.assistantOnlyInstruction)
       return
 
     deps.session.ensureSession(sessionId)
@@ -549,6 +582,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const roundId = createId()
     const streamingMessageContext: ChatStreamEventContext = {
       turnId: roundId,
+      sessionId,
       message: {
         role: 'user',
         content: sendingMessage,
@@ -594,8 +628,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       roundId,
       turnIndex,
     }
-    deps.onTrackFirstMessage?.()
-    if (isActivationAttempt) {
+    if (!options.assistantOnlyInstruction)
+      deps.onTrackFirstMessage?.()
+    if (isActivationAttempt && !options.assistantOnlyInstruction) {
       deps.onChatActivationStarted?.({
         ...correlation,
         source: sendSource,
@@ -603,11 +638,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         provider: activeProvider,
       })
     }
-    deps.onMessageSendStarted?.({
-      ...correlation,
-      source: sendSource,
-      model: options.model,
-    })
+    if (!options.assistantOnlyInstruction) {
+      deps.onMessageSendStarted?.({
+        ...correlation,
+        source: sendSource,
+        model: options.model,
+      })
+    }
     const roundStartedAt = monotonicNow()
     let assistantStored = false
     let generationCompleted = false
@@ -619,7 +656,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (options.attachments) {
         for (const attachment of options.attachments) {
-          if (attachment.type === 'image') {
+          if (attachment.type === 'audio') {
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.data, format: 'wav' } })
+          }
+          else if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
@@ -655,33 +695,39 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const userMessage = {
         role: 'user' as const,
         content: finalContent,
+        audioTranscripts: options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript),
         createdAt: sendingCreatedAt,
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
       }
-      deps.session.appendSessionMessage(sessionId, userMessage)
+      if (!options.assistantOnlyInstruction) {
+        deps.session.appendSessionMessage(sessionId, userMessage)
 
-      // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
+        // Cloud sync v1: only the raw text part round-trips; image attachments
+        // and other non-text parts stay local.
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
+      }
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
-      deps.onUserTurnReady?.({
-        messageText: sendingMessage,
-        sessionMessages: sessionMessagesForSend,
-      })
+      if (!options.assistantOnlyInstruction) {
+        deps.onUserTurnReady?.({
+          sessionId,
+          messageText: sendingMessage,
+          sessionMessages: sessionMessagesForSend,
+        })
+      }
 
-      const categorizer = createStreamingCategorizer(deps.getActiveProvider())
+      const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
 
       const parser = useLlmmarkerParser({
@@ -722,7 +768,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          const finalCategorization = categorizeResponse(fullText, activeProvider)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -755,7 +801,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      const context = buildContext(sessionMessagesForSend, options.supportsAudioInput ?? true)
+      if (options.assistantOnlyInstruction) {
+        context.turns.push({
+          id: `instruction-${roundId}`,
+          type: 'user',
+          content: [{ type: 'text', text: options.assistantOnlyInstruction }],
+        })
+      }
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
@@ -807,12 +860,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
+        provider: activeProvider,
         hasVoice,
       })
 
       await deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
+        cardId: options.characterId,
+        resolveStep: options.resolveStep,
         providerId: activeProvider,
         abortSignal,
         onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
@@ -971,23 +1026,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       deps.onAssistantTurnReady?.({
+        sessionId,
         messageText: fullText,
         sessionMessages: sessionMessagesForSend,
       })
 
       resetForegroundStream(sessionId)
       const durationMs = Math.round(monotonicNow() - roundStartedAt)
-      deps.onMessageRound?.({
-        ...correlation,
-        durationMs,
-        hasVoice,
-        model: options.model,
-        inputTokens: generationUsage.inputTokens,
-        outputTokens: generationUsage.outputTokens,
-        totalTokens: generationUsage.totalTokens,
-        usageSource: generationUsage.source,
-      })
-      if (isActivationAttempt) {
+      if (!options.assistantOnlyInstruction) {
+        deps.onMessageRound?.({
+          ...correlation,
+          durationMs,
+          hasVoice,
+          model: options.model,
+          inputTokens: generationUsage.inputTokens,
+          outputTokens: generationUsage.outputTokens,
+          totalTokens: generationUsage.totalTokens,
+          usageSource: generationUsage.source,
+        })
+      }
+      if (isActivationAttempt && !options.assistantOnlyInstruction) {
         deps.onChatActivationSucceeded?.({
           ...correlation,
           durationMs,
@@ -1009,15 +1067,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       resetForegroundStream(sessionId)
 
       console.error('Error sending message:', error)
-      deps.onMessageRoundFailed?.({
-        ...correlation,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        failureStage: 'llm_response',
-        errorCode: 'llm_response_failed',
-      })
-      if (isActivationAttempt) {
+      if (!options.assistantOnlyInstruction) {
+        deps.onMessageRoundFailed?.({
+          ...correlation,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          failureStage: 'llm_response',
+          errorCode: 'llm_response_failed',
+        })
+      }
+      if (isActivationAttempt && !options.assistantOnlyInstruction) {
         deps.onChatActivationFailed?.({
           ...correlation,
           source: sendSource,
@@ -1038,14 +1098,28 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
         resetForegroundStream(sessionId)
       }
-      setSending(false)
+      streamingMessages.delete(sessionId)
+      if (activeSendSessionId === sessionId) {
+        activeSendSessionId = streamingMessages.has(deps.getActiveSessionId())
+          ? deps.getActiveSessionId()
+          : streamingMessages.keys().next().value
+      }
+      activeStreamingMessage = activeSendSessionId ? streamingMessages.get(activeSendSessionId) : undefined
+      sending = streamingMessages.size > 0
+      emitStateChange()
       deps.onSendSettled?.({ sessionId })
     }
   }
 
-  const sendQueue = createQueue<QueuedSend>({
-    handlers: [
-      async ({ data }) => {
+  const sendQueues = new Map<string, ReturnType<typeof createQueue<QueuedSend>>>()
+
+  function getSendQueue(sessionId: string) {
+    const existing = sendQueues.get(sessionId)
+    if (existing)
+      return existing
+
+    const sendQueue = createQueue<QueuedSend>({
+      handlers: [async ({ data }) => {
         const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
 
         if (cancelled)
@@ -1059,7 +1133,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         const controller = new AbortController()
         activeSends.set(sessionId, controller)
         try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
+          const request = await options.resolveRequest?.()
+          const resolvedOptions = request ? { ...options, ...request } : options
+          if (!resolvedOptions.model || !resolvedOptions.chatProvider)
+            throw new Error('Chat request has no provider or model')
+          await performSend(sendingMessage, {
+            ...resolvedOptions,
+            model: resolvedOptions.model,
+            chatProvider: resolvedOptions.chatProvider,
+          }, generation, sessionId, controller.signal, request?.providerId ?? providerId)
           deferred.resolve()
         }
         catch (error) {
@@ -1068,19 +1150,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         finally {
           activeSends.delete(sessionId)
         }
-      },
-    ],
-  })
+      }],
+    })
 
-  sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.push(queuedSend)
-    emitStateChange()
-  })
+    sendQueue.on('enqueue', (queuedSend) => {
+      pendingQueuedSends.push(queuedSend)
+      emitStateChange()
+    })
 
-  sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
-    emitStateChange()
-  })
+    sendQueue.on('dequeue', (queuedSend) => {
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+      emitStateChange()
+    })
+    sendQueue.on('drain', () => {
+      if (sendQueues.get(sessionId) === sendQueue)
+        sendQueues.delete(sessionId)
+    })
+    sendQueues.set(sessionId, sendQueue)
+    return sendQueue
+  }
 
   function ingest(
     sendingMessage: string,
@@ -1091,7 +1179,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const generation = deps.session.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+      getSendQueue(sessionId).enqueue({
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
         options,

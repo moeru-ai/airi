@@ -3,10 +3,13 @@ import type { BrowserWindow } from 'electron'
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
 
+import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ipcMain } from 'electron'
 
+import { electronVoiceInlayHide, electronVoiceInlayShow } from '../../../../shared/eventa'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
+import { presentVoiceInlay } from '../presentation'
 
 export async function setupInlayWindowInvokes(params: {
   inlayWindow: BrowserWindow
@@ -19,6 +22,8 @@ export async function setupInlayWindowInvokes(params: {
   ipcMain.setMaxListeners(0)
 
   const { context } = createContext(ipcMain, params.inlayWindow)
+  defineInvokeHandler(context, electronVoiceInlayHide, () => params.inlayWindow.hide())
+  defineInvokeHandler(context, electronVoiceInlayShow, ({ focus, presentation }) => presentVoiceInlay(params.inlayWindow, presentation, focus))
 
   await setupBaseWindowElectronInvokes({
     context,

@@ -126,14 +126,15 @@ export const useSpeechStore = defineStore('speech', () => {
     )
   })
 
-  const supportsSSML = computed(() => {
+  function supportsSSMLFor(provider: string, model: string) {
     // Currently only ElevenLabs and some other providers support SSML
     // only part voices are support SSML in cosyvoice-v2 which is provided by alibaba
-    if (activeSpeechProvider.value === 'alibaba-cloud-model-studio' && activeSpeechModel.value === 'cosyvoice-v2') {
+    if (provider === 'alibaba-cloud-model-studio' && model === 'cosyvoice-v2') {
       return true
     }
-    return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(activeSpeechProvider.value)
-  })
+    return ['elevenlabs', 'microsoft-speech', 'azure-speech'].includes(provider)
+  }
+  const supportsSSML = computed(() => supportsSSMLFor(activeSpeechProvider.value, activeSpeechModel.value))
 
   // Only leader loads own these counters. Older responses for a provider cannot
   // replace its newer catalog. Caller request status has separate local ownership.
@@ -677,6 +678,7 @@ export const useSpeechStore = defineStore('speech', () => {
     // Computed
     availableSpeechProvidersMetadata,
     supportsSSML,
+    supportsSSMLFor,
     supportsModelListing,
     providerModels,
     isLoadingActiveProviderModels,

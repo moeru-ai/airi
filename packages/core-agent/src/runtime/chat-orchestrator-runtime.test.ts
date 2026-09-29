@@ -156,6 +156,93 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  it('runs different sessions together while preserving order within each session', async () => {
+    const harness = createHarness()
+    const releases: Array<() => void> = []
+    const started: string[] = []
+    harness.stream.mockImplementation(async (_model, _provider, context) => {
+      const user = context.turns.findLast(turn => turn.type === 'user')
+      started.push(user?.type === 'user' ? user.content.filter(part => part.type === 'text').map(part => part.text).join(' ') : '')
+      await new Promise<void>(resolve => releases.push(resolve))
+    })
+
+    const a1 = harness.runtime.ingest('A first', { model: 'gpt-test', chatProvider: provider }, 'session-1')
+    const a2 = harness.runtime.ingest('A second', { model: 'gpt-test', chatProvider: provider }, 'session-1')
+    const b1 = harness.runtime.ingest('B first', { model: 'gpt-test', chatProvider: provider }, 'session-2')
+
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(2))
+    expect(started[0]).toContain('A first')
+    expect(started[1]).toContain('B first')
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(1)
+    expect(harness.stateChanges.at(-1)).toMatchObject({
+      streamingMessagesBySession: {
+        'session-1': expect.objectContaining({ role: 'assistant' }),
+        'session-2': expect.objectContaining({ role: 'assistant' }),
+      },
+    })
+
+    releases[1]?.()
+    await b1
+    expect(harness.runtime.getSending()).toBe(true)
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+    expect(harness.stateChanges.at(-1)).toMatchObject({
+      streamingMessagesBySession: { 'session-1': expect.objectContaining({ role: 'assistant' }) },
+    })
+
+    releases[0]?.()
+    await a1
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(3))
+    expect(started[2]).toContain('A second')
+    releases[2]?.()
+    await a2
+    expect(harness.runtime.getSending()).toBe(false)
+  })
+
+  it('reads changed request settings when a queued session turn starts', async () => {
+    const harness = createHarness()
+    let releaseFirst: (() => void) | undefined
+    let currentModel = 'new-model'
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
+    })
+    const first = harness.runtime.ingest('first', { model: 'old-model', chatProvider: provider })
+    const second = harness.runtime.ingest('second', {
+      model: 'old-model',
+      chatProvider: provider,
+      resolveRequest: async () => ({ model: currentModel, chatProvider: provider, providerId: 'new-provider' }),
+    })
+
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    currentModel = 'latest-model'
+    releaseFirst?.()
+    await first
+    await second
+
+    expect(harness.stream.mock.calls[0]?.[0]).toBe('old-model')
+    expect(harness.stream.mock.calls[1]?.[0]).toBe('latest-model')
+    expect(harness.stream.mock.calls[1]?.[3]?.providerId).toBe('new-provider')
+  })
+
+  it('generates a character prompt without saving a synthetic user message', async () => {
+    const harness = createHarness()
+    const instruction = 'Ask how the user would like to call you.'
+    await harness.runtime.ingest('', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      assistantOnlyInstruction: instruction,
+    })
+
+    const context = harness.stream.mock.calls[0]?.[2]
+    expect(context?.turns.at(-1)).toMatchObject({
+      type: 'user',
+      content: [{ type: 'text', text: instruction }],
+    })
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'user')).toBe(false)
+    expect(harness.userAppended).toHaveLength(0)
+    expect(harness.sessionMessages['session-1']?.some(message => message.role === 'assistant')).toBe(true)
+  })
   // ROOT CAUSE:
   //
   // The marker parser buffered 24 literal characters plus its marker-safety tail.
@@ -1091,6 +1178,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stateChanges.at(-1)).toEqual({
       activeSendSessionId: 'session-1',
       activeStreamingMessage: undefined,
+      streamingMessagesBySession: {},
       sending: true,
       pendingQueuedSendCount: 0,
     })
@@ -1100,6 +1188,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stateChanges.at(-1)).toEqual({
       activeSendSessionId: undefined,
       activeStreamingMessage: undefined,
+      streamingMessagesBySession: {},
       sending: false,
       pendingQueuedSendCount: 0,
     })
@@ -1153,6 +1242,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stateChanges.at(-1)).toEqual({
       activeSendSessionId: undefined,
       activeStreamingMessage: undefined,
+      streamingMessagesBySession: {},
       sending: false,
       pendingQueuedSendCount: 0,
     })
@@ -1213,6 +1303,40 @@ describe('createChatOrchestratorRuntime', () => {
 
     await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
     await firstSend
+  })
+
+  it('keeps audio-only turns in history and sends native audio to capable models', async () => {
+    const harness = createHarness()
+    await harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+    const sent = harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')
+    expect(sent?.content).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
+    expect(sent).not.toHaveProperty('audioTranscripts')
+  })
+
+  it('projects transcripts for text-only models while retaining playable recordings', async () => {
+    const harness = createHarness()
+    await harness.runtime.ingest('', {
+      model: 'text-model',
+      chatProvider: provider,
+      supportsAudioInput: false,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav', transcript: 'Turn on the light.' }],
+    }, 'session-1')
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+    expect(stored?.audioTranscripts).toEqual(['Turn on the light.'])
+    const sent = harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')
+    expect(sent?.content).toContainEqual({ type: 'text', text: 'Turn on the light.' })
+    expect(sent?.content).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
+    expect(sent).not.toHaveProperty('audioTranscripts')
+    await harness.runtime.ingest('Thanks', { model: 'text-model', chatProvider: provider, supportsAudioInput: false }, 'session-1')
+    expect(harness.stream.mock.calls[1][2].turns.filter(turn => turn.type === 'user').flatMap(turn => turn.content)).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
   })
 
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {

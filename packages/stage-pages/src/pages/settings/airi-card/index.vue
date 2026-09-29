@@ -15,12 +15,15 @@ import CardCreate from './components/CardCreate.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
+import WakeWordConflictDialog from './components/WakeWordConflictDialog.vue'
 
 const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
-const { cards, activeCardId } = storeToRefs(cardStore)
+const { cards, activeCardId, wakeWordConflicts, wakeWordValidationIssues } = storeToRefs(cardStore)
+const unresolvedWakeWordConflicts = computed(() => wakeWordConflicts.value.filter(conflict => !conflict.ownerCardId))
+const showWakeWordConflictDialog = ref(false)
 
 const route = useRoute()
 const router = useRouter()
@@ -55,7 +58,9 @@ watch(inputFiles, async (newFiles) => {
     return
 
   try {
-    await addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
+    const importedId = await addCard(await importAiriCardPackage({ file, displayModelsStore }), 'import')
+    if (unresolvedWakeWordConflicts.value.some(conflict => conflict.cardIds.includes(importedId)))
+      showWakeWordConflictDialog.value = true
     toast(t('settings.pages.card.imported'))
   }
   catch (error) {
@@ -223,6 +228,37 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
 <template>
   <div rounded-xl p-4 flex="~ col gap-4">
+    <div
+      v-for="[cardId, reason] in wakeWordValidationIssues"
+      :key="cardId"
+      class="flex flex-wrap items-center justify-between gap-3 border border-amber-300 rounded-lg border-solid bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950"
+    >
+      <p class="text-sm text-amber-900 dark:text-amber-100">
+        {{ t('settings.pages.card.wake-word-validation.invalid', { name: cards.get(cardId)?.name, reason }) }}
+      </p>
+      <button
+        type="button"
+        class="rounded-lg bg-amber-700 px-3 py-2 text-sm text-white hover:bg-amber-800"
+        @click="handleSelectCard(cardId)"
+      >
+        {{ t('settings.pages.card.wake-word-validation.review') }}
+      </button>
+    </div>
+    <div
+      v-if="unresolvedWakeWordConflicts.length"
+      :class="['flex flex-wrap items-center justify-between gap-3 rounded-lg border border-solid border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950']"
+    >
+      <p :class="['text-sm text-amber-900 dark:text-amber-100']">
+        {{ t('settings.pages.card.wake-word-conflict.unresolved', { count: unresolvedWakeWordConflicts.length }) }}
+      </p>
+      <button
+        type="button"
+        :class="['rounded-lg bg-amber-700 px-3 py-2 text-sm text-white hover:bg-amber-800']"
+        @click="showWakeWordConflictDialog = true"
+      >
+        {{ t('settings.pages.card.wake-word-conflict.review') }}
+      </button>
+    </div>
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>
       <!-- Search bar -->
@@ -342,6 +378,8 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
     @confirm="handleDeleteConfirm"
     @cancel="cardToDelete = null"
   />
+
+  <WakeWordConflictDialog v-model="showWakeWordConflictDialog" />
 
   <!-- Card detail dialog -->
   <CardDetailDialog

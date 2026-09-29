@@ -51,7 +51,13 @@ export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
     return message.content
 
   if (Array.isArray(message.content)) {
-    return getTextFromContentParts(message.content)
+    const text = getTextFromContentParts(message.content)
+
+    if (text)
+      return text
+
+    // Binary audio must never become clipboard or reply-preview text.
+    return message.content.filter(entry => !('type' in entry) || entry.type !== 'input_audio').map(entry => JSON.stringify(entry)).join('\n')
   }
 
   return ''

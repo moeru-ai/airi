@@ -18,7 +18,8 @@ export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: StreamOptions) {
     const key = modelKey(model, chatProvider.generation(model))
     const { tools: customTools, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools })
+    const resolveStep = options?.resolveStep
+    const builtinToolsResolver = () => resolveLlmTools({ customTools, cardId: options?.cardId })
 
     const runStream = () => coreStreamFrom({
       model,
@@ -26,6 +27,12 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        resolveStep: resolveStep
+          ? async () => ({
+            ...await resolveStep(),
+            tools: await resolveLlmTools({ customTools, cardId: options.cardId }),
+          })
+          : undefined,
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
       },

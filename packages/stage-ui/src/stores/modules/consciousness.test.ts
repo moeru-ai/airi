@@ -176,6 +176,20 @@ describe('consciousness store provider selection', () => {
     expect(enabledProvider.generation('test-model').config).not.toHaveProperty('reasoning')
   })
 
+  it('uses transcription when the selected protocol cannot send audio', async () => {
+    const config = useProviderConfigStore()
+    const providers = useProviderStore()
+    config.ensureProvider('openai', 'openai', { apiKey: 'sk-test', api: 'responses' })
+    vi.spyOn(providers, 'getModelsForProvider').mockReturnValue([{ id: 'audio-model', name: 'Audio', provider: 'openai', inputModalities: ['text', 'audio'] }])
+    const store = useConsciousnessStore()
+
+    // ROOT CAUSE:
+    // The model catalog advertised audio, but the Responses adapter rejected audio turns.
+    expect(store.modelSupportsAudioInput('openai', 'audio-model')).toBe(false)
+    await config.patchProviderConfig('openai', { api: 'chat-completions' })
+    expect(store.modelSupportsAudioInput('openai', 'audio-model')).toBe(true)
+  })
+
   // ROOT CAUSE:
   //
   // The model selection was only cleared on provider switches by a watcher in
