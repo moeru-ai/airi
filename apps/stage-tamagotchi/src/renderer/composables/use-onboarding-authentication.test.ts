@@ -135,7 +135,10 @@ describe('useOnboardingAuthentication', () => {
       await nextTick()
       expect(closeWindow).not.toHaveBeenCalled()
 
-      await vi.advanceTimersByTimeAsync(30_000)
+      await vi.advanceTimersByTimeAsync(15_000)
+      closeRequestId.value++
+      await nextTick()
+      await vi.advanceTimersByTimeAsync(15_000)
       expect(closeWindow).toHaveBeenCalledTimes(1)
       scope.stop()
     }

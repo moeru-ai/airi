@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 
 /** Limits how long a replicated close request waits for sign-in confirmation. */
 const CONFIRMATION_CLOSE_TIMEOUT_MS = 30_000
@@ -31,6 +31,7 @@ interface OnboardingAuthenticationControls {
 export function useOnboardingAuthentication(options: UseOnboardingAuthenticationOptions): OnboardingAuthenticationControls {
   let closing = false
   const initialCloseRequestId = options.closeRequestId.value
+  const shouldClose = computed(() => options.isAuthenticated.value || options.closeRequestId.value !== initialCloseRequestId)
 
   /**
    * Closes onboarding after a direct action or a released automatic request. A failed close can be retried.
@@ -66,8 +67,8 @@ export function useOnboardingAuthentication(options: UseOnboardingAuthentication
    *     -> `electronAuthComplete` status or confirmation timeout
    *       -> {@link closeOnboardingWindow}
    */
-  watch([options.isAuthenticated, options.closeRequestId, options.isConfirming], ([authenticated, requestId, confirming], _, onCleanup) => {
-    if (!authenticated && requestId === initialCloseRequestId)
+  watch([shouldClose, options.isConfirming], ([requested, confirming], _, onCleanup) => {
+    if (!requested)
       return
 
     if (!confirming) {
