@@ -573,6 +573,11 @@ pages:
         title: Models
         description: Remove imported Live2D, VRM, Spine, and MMD models.
         delete: Delete all models
+      model-downloads:
+        title: Downloaded speech models
+        description: Sherpaw model files stored on this device.
+        empty: No speech models are downloaded.
+        refresh: Refresh
       modules:
         title: Modules
         description: Reset module preferences and credentials.
@@ -606,6 +611,8 @@ pages:
       import_error: Failed to import chat sessions. Please check the file format.
       chats_deleted: Chat sessions deleted.
       models_deleted: Models deleted.
+      model_download_cancelled: Model download canceled.
+      model_download_removed: Downloaded model removed.
       modules_reset: Module settings reset.
       providers_reset: Provider settings reset.
       all_deleted: All local data deleted.
