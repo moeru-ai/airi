@@ -261,7 +261,7 @@ watch(() => props.phase, (phase) => {
   padding: 8px 20px;
   overflow: hidden;
   border-top: 1px solid #ef444499;
-  border-bottom: 1px solid #ef44444d;
+  border-bottom: 1px solid #ef44441f;
   background: linear-gradient(90deg, #ef444410, #ef444404 60%, #ef444408);
   color: #dc2626;
   font-size: clamp(28px, 2.5vw, 32px);
@@ -278,9 +278,9 @@ watch(() => props.phase, (phase) => {
   content: '';
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(110deg, transparent 0 18px, currentColor 18px 24px, transparent 24px 42px);
+  background: repeating-linear-gradient(110deg, transparent 0 17px, currentColor 17px 28px, transparent 28px 42px);
   background-size: 42px 100%;
-  opacity: 0.05;
+  opacity: 0.09;
   pointer-events: none;
   animation: startup-warning-scroll 2s linear infinite;
 }
@@ -414,7 +414,7 @@ watch(() => props.phase, (phase) => {
 
 :global(html.dark .startup-error-header) {
   border-color: #f8717199;
-  border-bottom-color: #f871714d;
+  border-bottom-color: #f871711f;
   background: linear-gradient(90deg, #f8717110, #f8717104 60%, #f8717108);
 }
 
