@@ -4,7 +4,7 @@ import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useLLM } from '../../stores/ai/chat-llm/llm'
-import { useVisionStore } from '../../stores/modules/vision'
+import { useVisionActivityStore, useVisionStore } from '../../stores/modules/vision'
 import { useProviderStore } from '../../stores/providers/provider'
 import { useVisionInference } from './use-vision-inference'
 
@@ -47,7 +47,7 @@ describe('useVisionInference', () => {
   //
   // The vision tests used the old chat-only provider API after inference adopted
   // GenerationProvider. Real Pinia stores keep method and state contracts checked.
-  it('passes the generation provider, image context, and abort signal to llmStore.stream', async () => {
+  it('passes the generation provider, image context, abort signal, and no tools to llmStore.stream', async () => {
     stream.mockImplementation(async (model, generationProvider, conversation, options) => {
       expect(model).toBe('mock-model')
       expect(generationProvider).toBe(provider)
@@ -57,6 +57,7 @@ describe('useVisionInference', () => {
         content: [{ type: 'text', text: 'Interpret this frame' }, { type: 'image', url: 'data:image/png;base64,Zm9v' }],
       }])
       expect(options?.abortSignal).toBeInstanceOf(AbortSignal)
+      expect(options?.supportsTools).toBe(false)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'Frame summary' })
     })
 
@@ -67,6 +68,27 @@ describe('useVisionInference', () => {
       workloadId: 'screen:interpret',
       promptOverride: 'Interpret this frame',
     })).resolves.toBe('Frame summary')
+  })
+
+  it('counts each inference and each failure for the settings page', async () => {
+    stream.mockImplementationOnce(async (_model, _provider, _messages, options) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'A red square.' })
+    })
+    stream.mockRejectedValueOnce(new Error('Model unavailable'))
+    const { runVisionInference } = useVisionInference()
+    const input = { imageDataUrl: 'data:image/png;base64,Zm9v', workloadId: 'screen:understand' as const }
+
+    await runVisionInference(input)
+    await expect(runVisionInference(input)).rejects.toThrow('Model unavailable')
+
+    // A provider that cannot start fails before the request, and still counts.
+    vi.spyOn(useProviderStore(), 'getChatProviderInstance').mockRejectedValueOnce(new Error('Provider unavailable'))
+    await expect(runVisionInference(input)).rejects.toThrow('Provider unavailable')
+
+    const activity = useVisionActivityStore()
+    expect(activity.inferenceCount).toBe(3)
+    expect(activity.failedInferenceCount).toBe(2)
+    expect(activity.lastInference).toMatchObject({ provider: 'openai', model: 'mock-model', error: 'Provider unavailable' })
   })
 
   it('aborts vision inference when the stream never settles', async () => {

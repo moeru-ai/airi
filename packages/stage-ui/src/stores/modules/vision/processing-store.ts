@@ -3,6 +3,8 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { useVisionActivityStore } from './activity'
+
 export interface VisionTickOutcome {
   capturedAt?: number
   contextUpdates?: number
@@ -32,6 +34,8 @@ function countInWindow(history: number[], windowMs: number) {
 }
 
 export const useVisionProcessingStore = defineStore('vision-processing', () => {
+  // The synchronized activity store owns the counts, so every window shows them.
+  const activityStore = useVisionActivityStore()
   const captureIntervalMs = useLocalStorageManualReset<number>(
     'settings/vision/capture-interval-ms',
     DEFAULT_CAPTURE_INTERVAL_MS,
@@ -41,11 +45,11 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   const isProcessing = ref(false)
   const tickCount = ref(0)
   const skippedTicks = ref(0)
-  const captureCount = ref(0)
-  const contextUpdateCount = ref(0)
+  const captureCount = computed(() => activityStore.captureCount)
+  const contextUpdateCount = computed(() => activityStore.contextUpdateCount)
   const lastTickAt = ref<number | null>(null)
-  const lastCaptureAt = ref<number | null>(null)
-  const lastContextUpdateAt = ref<number | null>(null)
+  const lastCaptureAt = computed(() => activityStore.lastCaptureAt)
+  const lastContextUpdateAt = computed(() => activityStore.lastContextUpdateAt)
   const lastProcessingDurationMs = ref<number | null>(null)
   const lastError = ref<string | null>(null)
 
@@ -72,8 +76,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   }
 
   function recordCapture(capturedAt = Date.now()) {
-    captureCount.value += 1
-    lastCaptureAt.value = capturedAt
+    activityStore.recordCapture(capturedAt)
     captureHistory.value.push(capturedAt)
     trimHistoryByAge(captureHistory.value, HISTORY_MAX_AGE_MS)
   }
@@ -82,8 +85,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     if (count <= 0)
       return
 
-    contextUpdateCount.value += count
-    lastContextUpdateAt.value = updatedAt
+    activityStore.recordContextUpdates(count, updatedAt)
     for (let index = 0; index < count; index += 1)
       contextUpdateHistory.value.push(updatedAt)
     trimHistoryByAge(contextUpdateHistory.value, HISTORY_MAX_AGE_MS)
@@ -127,6 +129,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
       return
 
     isRunning.value = true
+    activityStore.setTickerRunning(true)
     if (intervalHandle)
       clearInterval(intervalHandle)
 
@@ -138,6 +141,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
 
   function stopTicker() {
     isRunning.value = false
+    activityStore.setTickerRunning(false)
     if (intervalHandle)
       clearInterval(intervalHandle)
     intervalHandle = null
@@ -146,11 +150,8 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   function resetMetrics() {
     tickCount.value = 0
     skippedTicks.value = 0
-    captureCount.value = 0
-    contextUpdateCount.value = 0
+    activityStore.resetCaptureMetrics()
     lastTickAt.value = null
-    lastCaptureAt.value = null
-    lastContextUpdateAt.value = null
     lastProcessingDurationMs.value = null
     lastError.value = null
     processingHistoryMs.value = []

@@ -89,6 +89,8 @@
     "@xsai-apple-speech/transcription": "catalog:",
     "@xsai-apple-speech/transcription-electron-plugin": "catalog:",
     "@xsai-apple-speech/transcription-native": "catalog:",
+    "@xsai-apple-vision/vision-electron-plugin": "catalog:",
+    "@xsai-apple-vision/vision-native": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-transformers/embed": "catalog:",
     "@xsai-transformers/transcription": "catalog:",
@@ -151,7 +153,8 @@
   },
   "optionalDependencies": {
     "@xsai-apple-speech/transcription-native-darwin-arm64": "catalog:",
-    "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:"
+    "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:",
+    "@xsai-apple-vision/vision-native-darwin-arm64": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",

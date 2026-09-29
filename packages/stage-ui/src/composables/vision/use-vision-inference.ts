@@ -3,11 +3,12 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import type { VisionWorkloadId } from './use-vision-workloads'
 
+import { errorMessageFrom } from '@moeru/std'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useLLM } from '../../stores/ai/chat-llm/llm'
-import { useVisionStore } from '../../stores/modules/vision'
+import { useVisionActivityStore, useVisionStore } from '../../stores/modules/vision'
 import { useProviderStore } from '../../stores/providers/provider'
 import { getVisionWorkload } from './use-vision-workloads'
 
@@ -40,19 +41,18 @@ export function useVisionInference() {
   const llmStore = useLLM()
   const providersStore = useProviderStore()
   const visionStore = useVisionStore()
+  const activityStore = useVisionActivityStore()
   const { activeProvider, activeModel, ollamaThinkingEnabled } = storeToRefs(visionStore)
 
   const lastText = ref('')
 
-  async function runVisionInference(input: VisionInferenceInput) {
-    if (!activeProvider.value || !activeModel.value)
-      throw new Error('Vision provider/model not configured')
-
-    const provider = await providersStore.getChatProviderInstance(activeProvider.value)
+  /** Reads one image with the given vision provider and returns the trimmed text. */
+  async function describeImage(providerId: string, modelId: string, input: VisionInferenceInput) {
+    const provider = await providersStore.getChatProviderInstance(providerId)
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider: GenerationProvider = activeProvider.value === 'vision-ollama'
+    const visionProvider: GenerationProvider = providerId === 'vision-ollama'
       ? {
           generation(model) {
             const request = provider.generation(model)
@@ -76,7 +76,10 @@ export function useVisionInference() {
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
-      await llmStore.stream(activeModel.value, visionProvider, context, {
+      await llmStore.stream(modelId, visionProvider, context, {
+        // A frame description calls no tools. The chat tool list only costs context,
+        // and a provider without tool calling rejects it.
+        supportsTools: false,
         abortSignal: input.abortSignal ? AbortSignal.any([input.abortSignal, abortController.signal]) : abortController.signal,
         onStreamEvent: (event) => {
           if (event.type === 'text-delta') {
@@ -97,7 +100,37 @@ export function useVisionInference() {
       clearTimeout(timeoutHandle)
     }
 
-    lastText.value = buffer.trim()
+    return buffer.trim()
+  }
+
+  async function runVisionInference(input: VisionInferenceInput) {
+    if (!activeProvider.value || !activeModel.value)
+      throw new Error('Vision provider/model not configured')
+
+    const providerId = activeProvider.value
+    const modelId = activeModel.value
+    const startedAt = Date.now()
+    // Every attempt counts, including a failure before the request, such as a
+    // provider that cannot start.
+    function recordInference(result: { text: string } | { error: string }) {
+      activityStore.recordInference({
+        at: Date.now(),
+        provider: providerId,
+        model: modelId,
+        durationMs: Date.now() - startedAt,
+        ...result,
+      })
+    }
+
+    try {
+      lastText.value = await describeImage(providerId, modelId, input)
+    }
+    catch (error) {
+      recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
+      throw error
+    }
+
+    recordInference({ text: lastText.value })
     return lastText.value
   }
 
