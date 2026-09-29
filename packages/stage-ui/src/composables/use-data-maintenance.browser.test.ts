@@ -127,3 +127,36 @@ it('discards pending voice recordings when deleting all chat sessions', async ()
 
   expect(voiceSends.pendingSends).toEqual({})
 })
+
+it('discards voice drafts in another renderer when deleting all chat sessions', async () => {
+  const namespace = `maintenance:${crypto.randomUUID()}`
+  const owner = mountMaintenance(namespace, 'leader-only')
+  const settings = mountMaintenance(namespace, 'follower-only')
+  const voiceSends = useVoiceSendStore(owner.pinia)
+  voiceSends.pendingSends = {
+    'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
+  }
+  vi.spyOn(useChatStore(settings.pinia), 'cancelPendingSends').mockResolvedValue(undefined)
+  vi.spyOn(useChatSessionStore(settings.pinia), 'resetAllSessions').mockResolvedValue(undefined)
+
+  await settings.maintenance.deleteAllChatSessions()
+
+  await vi.waitFor(() => expect(voiceSends.pendingSends).toEqual({}))
+})
+
+it('discards one voice draft in another renderer when deleting its session', async () => {
+  const namespace = `maintenance:${crypto.randomUUID()}`
+  const owner = mountMaintenance(namespace, 'leader-only')
+  const settings = mountMaintenance(namespace, 'follower-only')
+  const voiceSends = useVoiceSendStore(owner.pinia)
+  voiceSends.pendingSends = {
+    'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
+    'session-2': { sessionId: 'session-2', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
+  }
+  vi.spyOn(useChatSessionStore(settings.pinia), 'deleteSession').mockResolvedValue(undefined)
+
+  await useChatStore(settings.pinia).deleteSession('session-1')
+
+  await vi.waitFor(() => expect(voiceSends.pendingSends['session-1']).toBeUndefined())
+  expect(voiceSends.pendingSends['session-2']).toBeDefined()
+})
