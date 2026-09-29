@@ -71,11 +71,15 @@ async function loadVoicesWhenConfigured() {
   }
 }
 
+// The page must load the catalog on mount. A saved key does not change after a
+// reload, so a watcher without `immediate` never asks for the voices and the
+// selector stays empty.
 watchDebounced([
   () => providers.value[providerId]?.apiKey,
   () => providers.value[providerId]?.baseUrl,
 ], loadVoicesWhenConfigured, {
   debounce: 500,
+  immediate: true,
 })
 </script>
 
