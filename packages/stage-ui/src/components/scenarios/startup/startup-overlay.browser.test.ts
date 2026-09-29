@@ -19,7 +19,28 @@ function mountOverlay(onFinished: () => void) {
   document.body.appendChild(host)
   hosts.push(host)
   const pinia = createPinia()
-  const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: { stage: { operations: { 'load-models-status': { loading: 'Loading' } }, startup: { 'failed': 'Startup failed', 'failed-resource': 'Could not load {resource}', 'details': 'Details', 'retry': 'Retry', 'continue-without-model': 'Continue without a character', 'resources': { model: 'character model' } } } } } })
+  const i18n = createI18n({
+    legacy: false,
+    locale: 'en',
+    messages: {
+      en: {
+        stage: {
+          operations: { 'load-models-status': { loading: 'Loading' } },
+          startup: {
+            'failed': 'Startup failed',
+            'failed-resource': 'Could not load {resource}',
+            'interrupted': 'Load interrupted',
+            'recover': 'Restart AIRI to try again.',
+            'recover-model': 'Restart AIRI to try again. Or continue without a character and select another model later.',
+            'details': 'Error details',
+            'retry': 'Restart AIRI',
+            'continue-without-model': 'Continue without a character',
+            'resources': { model: 'character model' },
+          },
+        },
+      },
+    },
+  })
   const app = createApp({ render: () => h(StartupOverlay, { logoSrc: '/favicon.svg', onFinished }, { default: () => h('main', 'stage') }) })
   app.use(pinia)
   app.use(i18n)
@@ -39,6 +60,9 @@ it('keeps the startup screen and retry action visible after a resource fails', a
 
     await expect.poll(() => document.querySelector('[role="alert"]')?.textContent).toContain('Download failed')
     expect(document.querySelector('.startup-screen')).not.toBeNull()
+    expect(document.querySelector('.startup-screen-error .startup-brand')).not.toBeNull()
+    expect(document.querySelector('.startup-error-hint')?.textContent).toContain('select another model later')
+    expect(document.querySelector('.startup-status-error [role="progressbar"]')).not.toBeNull()
     expect(document.querySelector('[role="alert"]')?.textContent).toContain('Continue without a character')
     expect(finished).toBe(false)
   }

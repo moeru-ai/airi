@@ -81,8 +81,11 @@ render-error:
 startup:
   failed: 启动失败
   failed-resource: 无法加载{resource}
-  details: 详情
-  retry: 重试
+  interrupted: 加载中断
+  recover: 重新启动 AIRI 再试一次。如果仍然失败，请查看下方的错误详情。
+  recover-model: 重新启动 AIRI 再试一次，或暂不加载角色，稍后选择其他模型。
+  details: 错误详情
+  retry: 重新启动 AIRI
   continue-without-model: 暂不加载角色
   resources:
     auth: 账户设置

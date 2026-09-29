@@ -52,6 +52,8 @@ watch([ready, opened], async ([isReady, isOpen]) => {
     :logo-src="logoSrc"
     :label="t('stage.operations.load-models-status.loading')"
     :error-title="errorTitle"
+    :error-status-label="t('stage.startup.interrupted')"
+    :error-hint="t(failed?.id === 'model' ? 'stage.startup.recover-model' : 'stage.startup.recover')"
     :error-message="failed?.error"
     :error-details-label="t('stage.startup.details')"
     :retry-label="t('stage.startup.retry')"
