@@ -247,7 +247,7 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
-const { selectedAvatarModel } = storeToRefs(useAiriCardStore())
+const { activeCardId: selectedCharacterId, selectedAvatarModel } = storeToRefs(useAiriCardStore())
 const { sending: chatSending } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
@@ -269,7 +269,7 @@ const live2d = createLive2D({
     ? selectedAvatarModel.value.config.controls
     : undefined,
 })
-useSharedLive2DExpressionPreview(live2d, () => selectedAvatarModel.value?.id)
+useSharedLive2DExpressionPreview(live2d, selectedCharacterId, () => selectedAvatarModel.value?.id)
 
 const emotionsQueue = createQueue<EmotionPayload>({
   handlers: [
