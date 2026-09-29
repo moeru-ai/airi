@@ -1,6 +1,6 @@
 import JSZip from 'jszip'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { inspectLive2DModelControls } from './manifest'
 
@@ -67,5 +67,42 @@ describe('live2D model controls manifest', () => {
         { fileName: 'motions/wave.motion3.json', group: 'AIRI', index: 0 },
       ],
     })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2458#discussion_r4132272695
+  // ROOT CAUSE:
+  // One invalid expression rejects the whole archive inspection.
+  // Valid expressions and motions must remain available.
+  it('keeps valid controls when one optional expression is malformed', async () => {
+    const zip = new JSZip()
+    zip.file('avatar/avatar.model3.json', JSON.stringify({
+      FileReferences: {
+        Expressions: [
+          { Name: 'happy', File: 'expressions/happy.exp3.json' },
+          { Name: 'broken', File: 'expressions/broken.exp3.json' },
+        ],
+        Motions: { Idle: [{ File: 'motions/idle.motion3.json' }] },
+      },
+    }))
+    zip.file('avatar/expressions/happy.exp3.json', JSON.stringify({ Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }] }))
+    zip.file('avatar/expressions/broken.exp3.json', '{invalid json')
+    zip.file('avatar/motions/idle.motion3.json', '{}')
+
+    const archive = blobFromBytes(await zip.generateAsync({ type: 'uint8array' }))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await expect(inspectLive2DModelControls(archive)).resolves.toEqual({
+        expressions: [{
+          name: 'happy',
+          fileName: 'expressions/happy.exp3.json',
+          parameters: [{ parameterId: 'ParamEyeSmile', value: 1, blend: 'Add' }],
+        }],
+        motions: [{ fileName: 'motions/idle.motion3.json', group: 'Idle', index: 0 }],
+      })
+      expect(warn).toHaveBeenCalledOnce()
+    }
+    finally {
+      warn.mockRestore()
+    }
   })
 })

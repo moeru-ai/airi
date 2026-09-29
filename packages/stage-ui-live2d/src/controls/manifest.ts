@@ -200,22 +200,28 @@ export async function inspectLive2DModelControls(source: Blob): Promise<Live2DMo
   }
 
   const controls = resolveLive2DModelControls(settingsPath, references, filePaths)
-  const expressions = await Promise.all(controls.expressions.map(async (expression) => {
+  const expressions = (await Promise.all(controls.expressions.map(async (expression) => {
     const expressionPath = resolveArchivePath(settingsPath, expression.fileName)
     const expressionFile = reader.file(expressionPath)
     if (!expressionFile)
       return expression
 
-    const definition = parseLive2DExpression(
-      expression.name,
-      expression.fileName,
-      await expressionFile.async('text'),
-    )
-    return {
-      ...expression,
-      parameters: definition.parameters,
+    try {
+      const definition = parseLive2DExpression(
+        expression.name,
+        expression.fileName,
+        await expressionFile.async('text'),
+      )
+      return {
+        ...expression,
+        parameters: definition.parameters,
+      }
     }
-  }))
+    catch (error) {
+      console.warn(`[Live2D] Skipped optional expression ${expression.name}:`, error)
+      return undefined
+    }
+  }))).filter(expression => expression !== undefined)
 
   return { ...controls, expressions }
 }
