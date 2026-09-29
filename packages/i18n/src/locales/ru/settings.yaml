@@ -44,7 +44,6 @@ dialogs:
     loginPrompt: Войдите, чтобы использовать официального провайдера AIRI для наилучшего опыта.
     loginAction: Войти
     setupWithoutSigningIn: Настройка с вашим провайдером
-    flux: Flux
     buyFlux: Пополнить Flux
     select-model: Выберите модель
     no-models: Нет доступных моделей
@@ -126,17 +125,12 @@ model-select:
       title: Модель
       files: '{count} файлов'
       types:
-        cubism: 'Cubism {version} ({format})'
-        cubism-compatible: 'Cubism 3+ ({format})'
         unknown: Неизвестно
     resources:
       title: Ресурсы
-      motions: Motions
       expressions: Выражения
       parameters: Параметры
       textures: Текстуры
-      referenced-and-found: '{referenced} referenced · {found} found'
-      referenced: '{count} referenced'
       found: '{count} найдено'
     issues:
       title: Проблемы
@@ -166,8 +160,6 @@ live2d:
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб
-    x: X
-    'y': 'Y'
   switch-to-vrm:
     title: Переключиться на 3D-аватар?
     change-to-vrm: Нажмите здесь, чтобы переключиться на настройки 3D-аватара (VRM)
@@ -181,31 +173,9 @@ live2d:
     title: Анимация
     motion-driver:
       title: Драйвер движения
-      description: Select how AIRI creates idle body and eye motion.
       options:
         universal:
           title: Универсальный
-          description: Use model motions, idle eye movement, and mouse tracking.
-        magic:
-          title: MAGIC
-          description: Generate motion from the bundled MAGIC dataset.
-      magic:
-        profile:
-          title: MAGIC profile
-          description: Select the bundled motion dataset that fits the MAGIC driver.
-          options:
-            idle-calm:
-              title: Idle / calm
-              description: Use the bundled idle and calm motion recording.
-            speaking-excited:
-              title: Speaking / excited
-              description: Use the bundled speaking and excited motion recording.
-        skip-mouth-open:
-          title: Skip generated mouth opening
-          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
-        force-view-target:
-          title: Force forward view target
-          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Включить отслеживание мыши
       description: Посмотрите на курсор во время движения. Изысканное движение глаз возобновляется после остановки курсора.
@@ -236,10 +206,7 @@ live2d:
     render-scale:
       title: Масштаб рендеринга
     fps:
-      title: FPS
       description: Ограничить скорость рендеринга кадров
-      options:
-        unlimited: '∞'
     shadow: Отбрасывать тень
     reset-parameters: Сброс к параметрам по умолчанию
   clear-model-cache: Очистка кеша
@@ -346,7 +313,6 @@ pages:
           warning: Это не может быть отменено. Активная подписка будет отменена, Flux баланс сброшен.
           confirmEmail:
             label: Введите ваш адрес электронной почты для подтверждения
-            placeholder: ''
             mismatch: Адрес электронной почты не совпадает.
           confirm: Отправить письмо с подтверждением
           cancel: Отмена
@@ -363,7 +329,6 @@ pages:
     save: Сохранить изменения
     save_and_activate: Сохранить и активировать
     card_not_found: Карта не найдена
-    back: Back
     character: Персонаж
     close: Закрыть
     chat:
@@ -383,13 +348,6 @@ pages:
     drop_here: Перетащите сюда для загрузки
     create_card: Создать новую карту
     edit_card: Редактировать карточку
-    saved: Card saved
-    unsaved:
-      badge: Unsaved
-      title: Discard changes?
-      message: Your changes are not saved. If you leave this page, you will lose them.
-      keep_editing: Keep editing
-      discard: Discard changes
     creation:
       identity: Личность
       name: Имя
@@ -408,11 +366,6 @@ pages:
         posthistoryinstructions: Не забывайте подражать человеку.
       modules_info: >-
         Настроить модули для этой карты символов. Если не установлено, будет использоваться конфигурация модулей по умолчанию.
-      sections:
-        chat: Chat
-        vision: Vision
-        speech: Speech
-        body: Body
       use_default: Использовать по умолчанию
       use_default_not_configured: Использовать по умолчанию (не настроено)
       inherit_global_settings: Наследовать глобальные настройки
@@ -435,7 +388,6 @@ pages:
         consciousness_model: Выберите сознательную модель (AI модель) для этого персонажа.
         speech_model: Выберите модель синтеза речи и голос для этого персонажа.
       errors:
-        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Имя должно быть корректным и непустым.
         version: 'Ошибка: неверная версия!'
         description: 'Ошибка: необходимо указать описание карты.'
@@ -445,7 +397,6 @@ pages:
         posthistoryinstructions: 'Ошибка: требуется post-history промпт.'
         invalid_artistry_json: 'Ошибка: Параметры провайдера Artistry содержат недопустимые JSON.'
       none: Отсутствует
-      none_disabled: None (Disabled)
     modules: Модули
     name_asc: Имя (А-Я)
     name_desc: Имя (Я-А)
@@ -482,7 +433,6 @@ pages:
     sections:
       chats:
         title: Чат сеансов
-        description: Export or import saved chat sessions.
         export: Экспорт чатов
         import: Импорт чатов
         delete: Удалить все сеансы чата
@@ -534,15 +484,12 @@ pages:
     sections:
       section:
         live2d:
-          title: Live2D
           description: Настройка моделей Live2D
         vrm:
-          title: VRM
           description: Настройка 3D-моделей VRM
         scene: Сцена
   modules:
     beat_sync:
-      description: Vibe with beats from the audio source
       title: Синхронизировать Beat Sync
       sections:
         audio_source:
@@ -589,7 +536,6 @@ pages:
               description: Прогреть ли перед обнаружением ударов для лучшей точности.
               label: Разминка
     artistry:
-      title: Artistry
       description: Генерация изображения, фон сцены и рисование.
       page:
         title: Конфигурация поставщика Artistry
@@ -636,11 +582,9 @@ pages:
       model:
         label: Модель Artistry (опционально)
         description: Идентификатор модели при необходимости поставщика
-        placeholder: e.g. black-forest-labs/flux-schnell
       prompt-prefix:
         label: Стандартный префикс Artistry по умолчанию
         description: Приготовиться к каждому запросу, посланному генератору изображений.
-        placeholder: e.g. Masterpiece, high quality, 1girl, anime,
       options:
         label: Опции поставщика Artistry (JSON)
       widget-instructions:
@@ -650,7 +594,6 @@ pages:
       essential: Основные
       messaging: Сообщения
       gaming: Игры
-      artistry: Artistry
     consciousness:
       description: Личность, модель сознания и др.
       sections:
@@ -679,12 +622,6 @@ pages:
             show_less: Показать меньше
             show_more: Показать больше
             temperature_label: Температура
-            temperature_enabled: Custom temperature
-            top_p_enabled: Custom Top P
-            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
-            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
-            top_p_label: Top P
-            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: Выберите модель у провайдера
             title: Модель
           model-options:
@@ -695,7 +632,6 @@ pages:
     description: Мыслительный процесс, зрение, синтез речи, игры и т. д.
     gaming-factorio:
       description: Играем в Factorio!
-      title: Factorio
       enable: Включить интеграцию Factorio
       enable-description: Разрешить AIRI взаимодействовать с игрой Factorio
       server-address: Адрес сервера
@@ -709,7 +645,6 @@ pages:
       configured: Factorio настроен правильно!
     gaming-minecraft:
       description: Играем в Minecraft!
-      title: Minecraft
       enable: Включить интеграцию Minecraft
       enable-description: >-
         Включать самопознание Minecraft в этапы чата и оставить включённой пассивную видимость среды выполнения.
@@ -746,8 +681,6 @@ pages:
           provider-selection:
             description: Выберите подходящего провайдера синтеза речи
           playground:
-            current: Current transcript
-            description: Listen through the active Hearing pipeline and keep each completed speech segment below.
             empty: Начать мониторинг и говорите в выбранный микрофон.
             error-title: Ошибка транскрипции
             listening: Слушает речь…
@@ -755,7 +688,6 @@ pages:
             segment: 'Голосовой сегмент {number}'
             start: Начать мониторинг
             stop: Остановить мониторинг
-            title: Hearing playground
             transcribing: Транскрибирование...
             transcription-failed: Ошибка транскрипции.
           confidence-threshold:
@@ -775,7 +707,6 @@ pages:
       title: Кратковременная память
     messaging-discord:
       description: Чат и голосовой чат через Discord
-      title: Discord
       enable: Включить интеграцию Discord
       enable-description: Разрешить AIRI взаимодействовать через Discord
       token: Токен бота
@@ -833,7 +764,6 @@ pages:
       title: Зрение
     x:
       description: Просмотр и использование X / Twitter
-      title: X / Twitter
       enable: Включить интеграцию X / Twitter
       enable-description: Разрешить AIRI взаимодействовать с X / Twitter
       api-key: API-ключ
@@ -872,7 +802,7 @@ pages:
         empty: Здесь пока ничего нет. Добавьте одно ниже!
       add:
         title: Новый
-        description: 'Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше.'
+        description: "Заполните новый сервер, затем нажмите кнопку «Сохранить и перезапустить» — он будет перемещен в «Конфигурация» выше."
         pending-badge: Не сохранено
       status:
         unknown: Не загружен
@@ -904,7 +834,6 @@ pages:
         args:
           label: Аргументы
           description: По одному на строку, по порядку.
-          placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
           label: Рабочая папка
           description: Необязательный каталог, используемый в качестве рабочего каталога процесса.
@@ -933,7 +862,6 @@ pages:
         success: Подключено! Найдено {count} инструментов за {ms}мс.
         failure: Сбой соединения после {ms}мс
       errors:
-        empty-identifier: Server # {index} is missing an identifier.
         duplicate-identifier: Идентификатор "{name}" используется более одного раза — имена должны быть уникальными.
         empty-command: '"{name}" отсутствует команда.'
         invalid-shape: Это не похоже на mcp.json — для root требуется поле "mcpServers".
@@ -942,7 +870,6 @@ pages:
         json-applied: JSON применен к форме. Нажмите «Сохранить и перезапустить», чтобы сохранить его на диск.
         restarted: Все перезапущено! {started} запущен, {failed} не удалось, {skipped} пропущен.
   flux:
-    title: Flux
     buy: Пополнить
     currency: Валюта
     description: Текущий Flux
@@ -960,7 +887,6 @@ pages:
       typeAddition: Пополнение
       typeConsumption: Использование
       typeInitial: Начальный грант
-      typePromo: Promo Grant
       loading: Загрузка истории...
       empty: Пока нет записей транзакций.
       loadMore: Загрузить ещё
@@ -992,12 +918,6 @@ pages:
           common:
             fields:
               field:
-                web-search:
-                  label: Web search
-                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
-                api-protocol:
-                  label: API protocol
-                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API-ключ
                   description: Ключ API, используемый для авторизации запросов для этого провайдера
@@ -1006,7 +926,6 @@ pages:
                   label: Базовый URL
                   description: >-
                     Базовый url, используемый для подключения к удаленному сервису. Часто выглядит как http://localhost:11434/v1 или https://example.com/v1.
-                  placeholder: Base url...
                 download-model:
                   label: Скачать модель
                   description: Скачать модель Chromium Prompt API
@@ -1084,10 +1003,6 @@ pages:
           title: Настройки голоса
     labels:
       recommended: Рекомендуется
-    sync:
-      synced: Synced
-      pending: Waiting to upload
-      not-uploaded: Not uploaded. Complete this provider on this device.
     filters:
       pricing: Цены
       deployment: Развертывание
@@ -1112,15 +1027,12 @@ pages:
         description: >-
           Провайдеры транскрипции (speech-to-text): Whisper.cpp, OpenAI, Azure Speech
       artistry:
-        title: Artistry
         description: Поставщики моделей генерации и создания изображений, например ComfyUI, Replicate.
         items:
           comfyui:
             description: Генерирование локального изображения.
           replicate:
             description: Облачный сервис моделей
-          nanobanana:
-            description: Google AI Studio Image Preview.
     helpinfo:
       title: Впервые здесь?
       description: >
@@ -1133,42 +1045,27 @@ pages:
     description: LLM-модели, провайдеры речи и др.
     provider:
       apple-speech-transcription:
-        title: Apple Speech
         description: "Распознавание речи на устройствах в macOS 26 или более поздних версиях.\nAPI ключ не требуется."
-        fields:
-          locale:
-            label: Locale
-            description: Use an exact Apple Speech locale, such as en-US or zh-CN.
-            placeholder: en-US
       app-local-audio-transcription:
         title: Приложение (локально)
-        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
         title: Приложение (локально)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: Браузер (локально)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: Браузер (локально)
-        description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
         description: Bailian.console.aliyun.com
-        title: Alibaba Cloud Model Studio
       amazon-bedrock:
-        title: Amazon Bedrock
-        description: aws.amazon.com/bedrock
         config:
           api-key:
             label: Ключ API Bedrock
             description: Ключ Amazon Bedrock API (создать в консоли AWS → Bedrock → API Keys)
-            placeholder: bedrock-...
           region:
             label: Регион AWS
             description: Регион AWS, где включен Bedrock (например, us-east-1, us-west-2)
       anthropic:
         description: Anthropic.com
-        title: Anthropic | Claude
         helpinfo:
           title: Перед началом
           description:
@@ -1191,7 +1088,6 @@ pages:
               placeholder: Ваш Cloudflare Account ID
             api-key:
               placeholder: Введите Cloudflare API Key
-        title: Cloudflare Workers AI
       common:
         status:
           validating: Проверка
@@ -1208,25 +1104,11 @@ pages:
               description: Регулировка громкости речи
               label: Громкость
       voicevox:
-        description: voicevox.hiroshiba.jp
-        title: VOICEVOX
         fields:
           field:
             intonation:
               description: Настройте разницу в интонации чтения
               label: Интонация
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
-      aivis-speech:
-        description: aivis-project.com
-        title: AivisSpeech
-        fields:
-          field:
-            intonation:
-              description: Adjust how strongly the speaking style is expressed
-              label: Emotion expression strength
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: Deepgram.com
         title: Глупо грамма
@@ -1260,11 +1142,9 @@ pages:
             server_url:
               label: URL сервера
               description: Адрес, в котором запущен ComfyUI
-              placeholder: http://localhost:8188
           cors:
             title: Обнаружен блок CORS
             description: ComfyUI по умолчанию блокирует запросы от других приложений. Чтобы разрешить подключение AIRI, вы должны запустить ComfyUI с флагом `--enable-cors-header "*"`.
-            command: python main.py --enable-cors-header "*"
           workflows:
             title: Шаблоны рабочего процесса
             upload: Загрузить рабочий процесс
@@ -1288,50 +1168,34 @@ pages:
             save: Сохранить рабочий процесс
       replicate:
         settings:
-          title: Replicate.ai
           heading: Конфигурация Replicate.ai
           description: Настройте параметры генерации изображений в облаке.
           api_key:
             label: API ключ
             description: Ваш Replicate API токен (начинается с r8_)
-            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Модель по умолчанию
             description: Резервная строка владельца/модели используется, если карта персонажа не указана
-            placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Соотношение сторон
             description: Соотношение сторон по умолчанию (например, 16:9, 1:1, 9:16)
-            placeholder: '16:9'
           inference_steps:
             label: Шаги осмотра
             description: Количество шагов для процесса распространения (ниже - быстрее, выше - качество)
       nanobanana:
         settings:
-          title: Nano Banana
-          heading: Nano Banana (Google AI Studio)
           description: Настроить возможности генерации изображений Google Gemini.
           api_key:
             label: API ключ
             description: Ваш API ключ Google AI Studio
-            placeholder: AIpk...
           preferred_model:
             label: Предпочитаемая модель
             description: Конкретная модель Gemini image preview для использования
           default_resolution:
             label: Разрешение по умолчанию
             description: Целевое разрешение для сгенерированных изображений
-          model_options:
-            nano_banana_2: Nano Banana 2 (Gemini 3.1 Flash Image)
-            nano_banana_pro: Nano Banana Pro (Gemini 3 Pro Image)
-            nano_banana: Nano Banana (Gemini 2.5 Flash Image)
       deepseek:
         description: Deepseek.com
-        fields:
-          field:
-            thinking-mode:
-              description: Controls whether DeepSeek reasoning models use thinking in chat requests.
-        title: DeepSeek
       elevenlabs:
         description: Elevenlabs.io
         fields:
@@ -1350,7 +1214,6 @@ pages:
               label: Стабильность
             style:
               description: Выразительность/стиль голоса
-              label: Style
         playground:
           buttons:
             button:
@@ -1370,7 +1233,6 @@ pages:
           title: Песочница голоса
           validation:
             error-missing-api-key: Введите API-ключ, чтобы протестировать голос.
-        title: ElevenLabs
       kokoro-local:
         description: Локальный синтезатор речи с помощью Kokoro-82M.
         fields:
@@ -1395,104 +1257,50 @@ pages:
         playground:
           default-text: Привет! Это тест-системы синтеза речи.
           title: Голосовая платформа
-        title: Kokoro TTS (Local)
       fireworks:
         description: Fireworks.ai
-        title: Fireworks.ai
-      google-gemini-audio-speech:
-        description: aistudio.google.com
-        title: Google Gemini
       microsoft-speech:
-        description: speech.microsoft.com
         fields:
           field:
             region:
               description: Регион Speech Service
               label: Регион
-        title: Microsoft / Azure Speech
       index-tts-vllm:
-        description: https://index-tts.github.io/
-        title: Bilibili / IndexTTS
         callout_indextts2_unavailable_title: Ограниченная поддержка
         callout_indextts2_unavailable: Поддержка IndexTTS2 в настоящее время недоступна. Пожалуйста, используйте IndexTTS.
-      azure-ai-foundry:
-        description: Azure AI Foundry
-        title: Azure AI Foundry
       minimax:
         description: Minimaxi.com
-        title: MiniMax
       minimax-global:
         description: Minimax.io
         title: MiniMax Глобальный
       minimax-speech:
         description: Minimax.io
         title: MiniMax речь
-      mimo:
-        description: api.xiaomimimo.com
-        title: Xiaomi MiMo
       mistral:
         description: Mistral.ai
-        title: Mistral
       moonshot:
         description: Moonshot.ai
-        title: Moonshot AI
       modelscope:
         description: Modelscope.cn
         title: Область Модели
       novita:
         description: Novita.ai
-        title: Novita
-      ollama:
-        description: ollama.ai
-        title: Ollama
-      openai:
-        description: openai.com
-        title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: Совместимый с OpenAI
-        title: OpenAI Compatible
       nvidia:
         description: Build.nvidia.com
-        title: NVIDIA NIM
       n1n:
         description: n1n.ai - Высокая производительность AI API провайдера.
-        title: n1n
-      openpaths:
-        description: openpaths.io
-        title: OpenPaths
       openrouter:
         description: Openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
-        title: OpenRouter
-      perplexity:
-        description: perplexity.ai
-        title: Perplexity
       player2:
         description: Player2.game
-        title: Player2
-      together:
-        description: together.ai
-        title: Together.ai
-      google-generative-ai:
-        description: gemini.google.com
-        title: Google Gemini
       groq:
         description: Groq.com
-        title: Groq
       featherless:
         description: Featherless.ai
-        title: Featherless AI
       lm-studio:
         description: Lmstudio.ai
-        title: LM Studio
-      vllm:
-        description: vllm.ai
-        title: vLLM
       volcengine:
         description: Volcengine.com
         fields:
@@ -1500,42 +1308,18 @@ pages:
             appId:
               description: App ID проекта (получается в Console)
               label: Идентификатор приложения (App ID)
-        title: Volcano Engine
       volcengine-coding-plan:
         description: План кодирования Volcengine
-        models:
-          ark-code-latest:
-            description: Uses the model selected in the Coding Plan console, including Auto; changes apply in 3–5 minutes.
-          legacy:
-            description: Legacy Coding Plan model scheduled for retirement. Switch to a currently supported model.
         title: План кодирования Volcengine
-      byteplus:
-        description: byteplus.com
-        title: BytePlus
       byteplus-coding-plan:
         description: План кодирования BytePlus
         title: План кодирования BytePlus
-      xai:
-        description: x.ai
-        title: xAI
       zai:
-        description: z.ai
         title: 智谱大模型
-      302-ai:
-        description: 302.AI
-        title: 302.AI
-      comet-api:
-        description: CometAPI.com
-        title: Comet API
       cerebras:
         description: Cerebras.ai
-        title: Cerebras
-      aliyun-nls:
-        description: Aliyun NLS
-        title: Aliyun NLS
       browser-web-speech-api:
         description: Браузер  STT (требует Chrome/Edge/Safari)
-        title: Web Speech API
       prompt-api:
         description: С помощью API Prompt вы можете отправлять запросы на естественном языке в базовую модель Chrome.
         title: Подсказка API
@@ -1552,7 +1336,6 @@ pages:
         playground:
           title: Песочница транскрипции
       aihubmix:
-        title: AIHubMix
         description: https://aihubmix.com (скидка 10%)
     title: Провайдеры
   connection:
@@ -1627,34 +1410,7 @@ pages:
               markdown-stress:
                 title: Нагрузочное тестирование обработки Markdown
                 description: Напряжение парсинг и рендеринга с тяжелыми чатами
-              plugin-host:
-                actions:
-                  enable-and-load: Enable and Load
-                  disable-and-unload: Disable and Unload
-                  import-folder: Import Folder
-                  confirm-import: Import Extension
-                  cancel-import: Cancel
-                errors:
-                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
-                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
-                  prepare-import: Failed to inspect the Extension folder.
-                  commit-import: 'Failed to import Extension {extensionId}.'
-                  cancel-import: Failed to cancel the Extension import.
-                import:
-                  title: Review Extension Import
-                  description: The Extension stays disabled and unloaded after import.
-                  source: Source folder
-                  runtimes: Runtimes
-                  entrypoints: Entrypoints
-                  package-size: Package
-                  package-size-value: '{fileCount} files · {totalBytes}'
-                  permissions: Permissions
-                  kits: Kits
-                  no-permissions: No permissions declared.
-                  no-kits: No Kits declared.
-                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
-                title: useMagicKeys Tool
                 description: Тестировать ярлыки
               audio-record:
                 title: Запись аудио
@@ -1675,7 +1431,6 @@ pages:
                 title: Изображение
                 description: Изображение
               polaroid:
-                title: Polaroid
                 description: Утилита для съемки моделей
               context-flow:
                 description: >-
@@ -1727,7 +1482,6 @@ pages:
             japanese:
               colors:
                 color-1: Бронзовый
-                color-2: Warm Taupe
                 color-3: Умбра
                 color-4: Кофе
                 color-5: Бронза
@@ -1740,7 +1494,6 @@ pages:
               colors:
                 color-1: Скандинавский синий
                 color-2: Лёд
-                color-3: Fjord
                 color-4: Сталь
                 color-5: Ледниковый
                 color-6: Сланец
@@ -1750,14 +1503,9 @@ pages:
               title: Скандинавские цвета
             chinese:
               colors:
-                color-1: Rosy Dawn
-                color-2: Chinese Red
-                color-3: Smoky Brown
-                color-4: Bamboo Green
                 color-5: Темно-фиолетовый
                 color-6: Золотисто-Желтый
                 color-7: Лазурно-голубой
-                color-8: Ochre
               description: >-
                 Традиционные китайские цвета, вдохновлённые текстилем, фарфором и живописью
               title: Китайские традиционные цвета
@@ -1847,8 +1595,6 @@ spine:
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: Извлечь цвета из модели
     button-extract:
@@ -1878,62 +1624,39 @@ mmd:
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб
-    x: X
-    'y': 'Y'
     rotation: Вращение
   theme-color-from-model:
     title: Извлечь цвета из модели
     button-extract:
       title: Извлечь
   physics:
-    title: Physics & Rig
     enabled: Включить физику (волосы, юбки, аксессуары)
-    ik: Enable IK (inverse kinematics)
-    grant: Enable append-bone propagation
     gravity: Сила гравитации
   gaze:
-    title: Gaze
-    tracking: Looking at
     options:
       cursor: Мышь
       camera: Камера
       none: Отключено
   animation:
     title: Анимация
-    idle-motion: Idle Motion
-    import-motion: Import Motion (.vmd)
     play-once: ' Предпросмотр Анимации'
-    remove: Remove motion
-    description: >-
-      Import VMD motion files, set one as the looping idle, or play any as a one-shot gesture. Map emotions to motions to play gestures alongside facial expressions.
   morphs:
-    title: Morphs
     auto: (авто)
-    revert: Revert to auto
-    no-morphs: This model exposes no morphs.
-    description: >-
-      The renderer auto-detects standard Japanese morph names (あいうえお, まばたき). Override a slot here if your model uses non-standard names.
   materials:
     title: Материалы
     no-materials: Эта модель не содержит материалов.
     description: >-
       Регулировка непрозрачности отдельных частей модели (лицо, волосы, одежда, аксессуары). Установите значение 0, чтобы скрыть его.
 tachie:
-  title: Tachie Settings
-  archive-description: Tachie models use .tachie.zip archives containing emotion-named images.
   scale-and-position:
     title: Масштаб и позиция
     scale: Масштаб
-    x: X
-    'y': 'Y'
   theme-color-from-model:
-    title: Extract colors from model
     button-extract:
       title: Извлечь
   rendering:
     title: Рендеринг
     render-scale: Масштаб рендеринга
-    shadow: Theme-colored drop shadow
 websocket-secure-enabled:
   title: Включить безопасный WebSocket (WSS)
   description: >-

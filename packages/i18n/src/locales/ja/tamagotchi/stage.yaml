@@ -14,13 +14,10 @@ docs:
     disable: 常に表示
   'open-settings': 設定を開く
   'open-chat': チャットを開く
-  'hide-chat': Hide Chat
   'refresh': 再読み込み
   'center-main-window': 画面中央に移動
   'open-hearing-controls': 聴覚コントロールを開く
   'drag-to-move-window': ウィンドウをドラッグして移動
-  'mute': Mute
-  'unmute': Unmute
   'switch-to-light-mode': ライトモードに切り替え
   'switch-to-dark-mode': ダークモードに切り替え
   'pin-on-top': ピン留め
@@ -33,16 +30,6 @@ docs:
   'logging-in': サインイン中…
   'account': アカウント
   'logout': サインアウト
-'chat-window':
-  style:
-    title: Chat window style
-    legacy: Classic window
-    floating-attached: Floating, beside the character
-    floating-free: Floating, anywhere on screen
-    pinned: Keep on top
-  resize: Drag to resize the chat
-  move: Drag to move the chat
-  fold: Hide chat
 widgets:
   close: ウィジェットを閉じる
   empty:
@@ -50,8 +37,6 @@ widgets:
     description: ツールまたはプラグインが生成すると、ここにウィジェットが表示されます。
   loading: ウィジェットを読み込み中…
   waiting: '"{id}" のウィジェット データを待機中…'
-inlay:
-  close: Close
 notice:
   'fade-on-hover':
     title: ホバー時にフェード
@@ -76,7 +61,6 @@ about:
     title: リンク
     home: ホーム
     documentation: ドキュメント
-    github: GitHub
   update:
     lane:
       label: アップデート チャンネル

@@ -1,73 +1,14 @@
-character-switcher:
-  title: Switch character
-  manage: Manage characters
-  empty: No characters yet
-  failed: Could not switch characters. Try again.
-mobile-tools:
-  sign-in: Sign in to AIRI
-  account-description: Account and preferences
-  sound: Sound
-  character-voice: Character voice
-  title: Settings
-  appearance: Appearance
-  dark-mode: Dark mode
-  application: Application
-  more: More
-  background: Background
-  settings: All settings
-  about: About
-  view: View
-  close-view: Save and close view controls
-  hearing: Hearing
 chat:
-  voice-input: Voice input
-  images:
-    empty: Share a thought or a picture.
-    use-vision: Use the vision model for chat images
-    use-vision-description: Choose a provider and model below. It reads attached images before your chat model replies. Without a vision model, images go directly to the chat model.
-    attach: 'Attach images'
-    remove: 'Remove {name}'
-    unsupported: 'Use PNG, JPEG, WebP, or GIF images.'
-    too-large: 'Each image must be 3 MB or smaller.'
-    too-many: 'Attach up to {count} images at a time.'
-    total-too-large: 'All attached images together must be 3 MB or smaller.'
-    read-failed: 'Could not read this image. Try again.'
-    no-description: 'The vision model returned no image description. Check Settings → Modules → Vision and try again.'
-    reading: 'Reading images…'
-    description: 'Image attachment'
   actions:
-    reply: Reply
     retry: 다시 시도
-    send: Send message
-    stop: Stop response
   message:
     character-name:
-      airi: AIRI
       core-system: 코어
       you: 당신
-  reply:
-    cancel: Cancel reply
-    message: Message
-    replying-to: Replying to {name}
   reasoning: 추론
-  swipe-demo:
-    show-label: Show labels
-    delete: Delete
-    archive: Archive
-    pin: Pin
-    actions: Show actions
-    row: 'Conversation {n}'
   sessions:
-    delete-short: Delete
-    confirm-delete-short: Confirm delete
     title: 대화
     new: + New
-    current: Current
-    confirm-delete: Delete this conversation and its messages?
-    cancel: Cancel
-    empty: No conversations yet
-    cloud-badge: Synced to cloud
-    new-chat-fallback: New chat
     delete: 대화 삭제
 render-error:
   title: '{renderer}에서 이 모델을 렌더링할 수 없습니다'
@@ -78,10 +19,7 @@ render-error:
     오류: {error}
 message: 듣고 있어요...
 send-mode:
-  title: Send key
   enter: 엔터
-  ctrl-enter: Ctrl + Enter
-  double-enter: Double Enter
 speech-output:
   mute: 음성 음소거
   unmute: 음소거 해제
@@ -119,49 +57,23 @@ promo-banner:
   items:
     signin:
       watermark: 달
-      fallbackLabel: Moon Gift
-      title: 7-Day Sign-In
-      eventName: Sign in to claim stardust, avatar frames, and launch gifts.
-      date: 03/28 - 04/10
-      reward: Up to 120 Stardust
       cta: 로그인
     build:
       watermark: 빌드
       fallbackLabel: 빌드 보너스
-      title: Supply Box Bonus
-      eventName: Finish construction tasks to earn bonus vouchers and double materials.
-      date: 03/30 - 04/12
-      reward: 5 Supply Vouchers + Upgrade Materials
       cta: 작업 보기
-    spring:
-      watermark: Spring
-      fallbackLabel: Spring Draw
-      title: Capsule Carnival
-      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
-      date: 04/01 - 04/18
-      reward: Half-Price First Pull + Rare Charm
-      cta: Draw Now
     coupon:
       watermark: 대화
       fallbackLabel: 쿠폰
-      title: Top-Up Coupon
-      eventName: Finish chat interactions to claim coupons for expansion and voice packs.
-      date: 04/02 - 04/20
-      reward: Save 6 on 30 / Save 15 on 68
       cta: 쿠폰 받기
     home:
       watermark: 홈
       fallbackLabel: 방 테마
       title: 봄 테마 업데이트
       eventName: ........
-      date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Sign-in
       cta: 테마 보기
 waiting: 대기 중
 websocket-status:
   connected: 연결됨
   disconnected: 연결 없음
   open-settings: 연결 설정 열기
-computer-use:
-  label: Use computer
-  description: Allow this chat window to inspect and control native apps on this computer.

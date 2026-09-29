@@ -25,8 +25,6 @@ dialogs:
     validationPartial: Cấu hình đã được xác thực một phần
     validationFailed: Xác thực cấu hình thất bại
     validationError: 'Lỗi xác thực: {error}'
-    testGeneration: Ping API
-    testGenerationRunning: Ping...
     testGenerationFailed: Ping test thất bại
     retryPingCheck: Thử lại
     skipForNow: Bỏ qua
@@ -44,7 +42,6 @@ dialogs:
     loginPrompt: Đăng nhập để sử dụng nhà cung cấp AIRI chính thức để có trải nghiệm tốt nhất.
     loginAction: Đăng nhập
     setupWithoutSigningIn: Thiết lập nhà cung cấp của bạn
-    flux: Flux
     buyFlux: Mua Flux
     select-model: Chọn mô hình
     no-models: Không có mô hình khả dụng
@@ -117,38 +114,6 @@ model-select:
     import: Nhập
     remove: Xóa
     confirm: Xác nhận
-  live2d-report:
-    title: Before import
-    description: Review the model data and any issues found in the archive.
-    description-short: Review the model data and issues.
-    close: Close
-    model:
-      title: Model
-      files: '{count} files'
-      types:
-        cubism: 'Cubism {version} ({format})'
-        cubism-compatible: 'Cubism 3+ ({format})'
-        unknown: Unknown
-    resources:
-      title: Resources
-      motions: Motions
-      expressions: Expressions
-      parameters: Parameters
-      textures: Textures
-      referenced-and-found: '{referenced} referenced · {found} found'
-      referenced: '{count} referenced'
-      found: '{count} found'
-    issues:
-      title: Issues
-      errors: '{count} errors'
-      warnings: '{count} warnings'
-      none: No issues found.
-      how-to-fix: How to fix
-      resolve-before-import: Resolve the errors before import.
-    actions:
-      cancel: Cancel
-      confirm: Confirm Import
-      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Tải từ tệp
@@ -166,8 +131,6 @@ live2d:
   scale-and-position:
     title: Tỉ lệ và vị trí
     scale: Tỉ lệ
-    x: X
-    'y': 'Y'
   switch-to-vrm:
     title: Chuyển sang mô hình 3D?
     change-to-vrm: Bấm vào đây để đổi sang cài đặt mô hình 3D (VRM)
@@ -179,33 +142,6 @@ live2d:
       title: Trích xuất
   animation:
     title: Hoạt ảnh
-    motion-driver:
-      title: Motion driver
-      description: Select how AIRI creates idle body and eye motion.
-      options:
-        universal:
-          title: Universal
-          description: Use model motions, idle eye movement, and mouse tracking.
-        magic:
-          title: MAGIC
-          description: Generate motion from the bundled MAGIC dataset.
-      magic:
-        profile:
-          title: MAGIC profile
-          description: Select the bundled motion dataset that fits the MAGIC driver.
-          options:
-            idle-calm:
-              title: Idle / calm
-              description: Use the bundled idle and calm motion recording.
-            speaking-excited:
-              title: Speaking / excited
-              description: Use the bundled speaking and excited motion recording.
-        skip-mouth-open:
-          title: Skip generated mouth opening
-          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
-        force-view-target:
-          title: Force forward view target
-          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Bật theo dõi chuột
       description: Nhìn vào con trỏ chuột trong khi nó di chuyển. Chuyển động mắt khi rảnh (idle) sẽ tiếp tục khi con trỏ chuột dừng lại.
@@ -236,10 +172,7 @@ live2d:
     render-scale:
       title: Tỉ lệ render
     fps:
-      title: FPS
       description: Giới hạn tốc độ khung hình render
-      options:
-        unlimited: '∞'
     shadow: Đổ bóng
     reset-parameters: Đặt lại tham số mặc định
   clear-model-cache: Xóa bộ nhớ đệm của mô hình
@@ -346,7 +279,6 @@ pages:
           warning: Hành động này không thể đảo ngược. Các gói đăng ký đang hoạt động sẽ bị hủy, số dư Flux sẽ bị xóa sạch.
           confirmEmail:
             label: Nhập email để xác nhận
-            placeholder: ''
             mismatch: Email không khớp.
           confirm: Gửi email xác nhận
           cancel: Hủy
@@ -363,7 +295,6 @@ pages:
     save: Lưu thay đổi
     save_and_activate: Lưu và kích hoạt
     card_not_found: Không tìm thấy thẻ
-    back: Back
     character: Nhân vật
     close: Đóng
     chat:
@@ -383,13 +314,6 @@ pages:
     drop_here: Kéo vào đây để tải lên
     create_card: Tạo thẻ mới
     edit_card: Chỉnh sửa thẻ
-    saved: Card saved
-    unsaved:
-      badge: Unsaved
-      title: Discard changes?
-      message: Your changes are not saved. If you leave this page, you will lose them.
-      keep_editing: Keep editing
-      discard: Discard changes
     creation:
       identity: Danh tính
       name: Tên
@@ -408,14 +332,8 @@ pages:
         posthistoryinstructions: Nhớ bắt chước như một con người.
       modules_info: >-
         Cấu hình các module cho thẻ nhân vật này. Nếu không thiết lập, cấu hình mặc định sẽ được sử dụng.
-      sections:
-        chat: Chat
-        vision: Vision
-        speech: Speech
-        body: Body
       use_default: Sử dụng mặc định
       use_default_not_configured: Sử dụng mặc định (chưa cấu hình)
-      inherit_global_settings: Inherit global settings
       fields_info:
         subtitle: >-
           Bạn có thể thêm chi tiết về nhân vật, giải thích lịch sử, bối cảnh và cách nhân vật nên trả lời.
@@ -435,7 +353,6 @@ pages:
         consciousness_model: Chọn mô hình ý thức (mô hình AI) cho nhân vật này.
         speech_model: Chọn mô hình tổng hợp tiếng nói và giọng đọc cho nhân vật này.
       errors:
-        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Tên không hợp lệ hoặc rỗng.
         version: 'Lỗi: Số phiên bản không hợp lệ!'
         description: 'Lỗi: Phải có mô tả cho thẻ này.'
@@ -445,7 +362,6 @@ pages:
         posthistoryinstructions: 'Lỗi: Cần có lịch sử đăng lời nhắc'
         invalid_artistry_json: 'Các tùy chọn cho nhà cung cấp nghệ thuật (Nghệ thuật provider) chứa JSON không hợp lệ.'
       none: Không
-      none_disabled: None (Disabled)
     modules: Mô-đun
     name_asc: Tên (A-Z)
     name_desc: Tên (Z-A)
@@ -534,10 +450,8 @@ pages:
     sections:
       section:
         live2d:
-          title: Live2D
           description: Cấu hình mô hình Live2D
         vrm:
-          title: VRM
           description: Cấu hình mô hình 3D VRM
         scene: Bối cảnh
   modules:
@@ -636,11 +550,9 @@ pages:
       model:
         label: Mô Hình Nghệ Thuật (Ghi Đè Tùy Chọn)
         description: Mã định danh mô hình nếu nhà cung cấp yêu cầu
-        placeholder: e.g. black-forest-labs/flux-schnell
       prompt-prefix:
         label: Tiền Tố Prompt Nghệ Thuật Mặc Định
         description: Được thêm vào đầu mỗi prompt khi gửi đến trình tạo ảnh.
-        placeholder: e.g. Masterpiece, high quality, 1girl, anime,
       options:
         label: Tùy Chọn Nhà Cung Cấp Nghệ Thuật (JSON)
       widget-instructions:
@@ -678,13 +590,6 @@ pages:
             search_results: Tìm thấy {count}/{total} mô hình
             show_less: Ẩn bớt
             show_more: Hiện thêm
-            temperature_label: Temperature
-            temperature_enabled: Custom temperature
-            top_p_enabled: Custom Top P
-            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
-            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
-            top_p_label: Top P
-            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: Chọn một mô hình mặc định từ nhà cung cấp
             title: Mô hình
           model-options:
@@ -695,7 +600,6 @@ pages:
     description: Tư duy, thị giác, tổng hợp giọng nói, chơi game, v.v.
     gaming-factorio:
       description: Chơi Factorio!
-      title: Factorio
       enable: Bật tích hợp Factorio
       enable-description: Cho phép AIRI tương tác với trò chơi Factorio
       server-address: Địa chỉ máy chủ
@@ -709,7 +613,6 @@ pages:
       configured: Đã cấu hình Factorio thành công!
     gaming-minecraft:
       description: Chơi Minecraft!
-      title: Minecraft
       enable: Bật tích hợp Minecraft
       enable-description: >-
         Bao gồm tự nhận thức về Minecraft trong lượt trò chuyện trên Sân khấu (Stage) và duy trì hiển thị thụ động trong thời gian chạy.
@@ -775,7 +678,6 @@ pages:
       title: Trí nhớ ngắn hạn
     messaging-discord:
       description: Trò chuyện & gọi thoại qua Discord
-      title: Discord
       enable: Bật tích hợp Discord
       enable-description: Cho phép AIRI tương tác qua Discord
       token: Mã token của bot
@@ -833,7 +735,6 @@ pages:
       title: Thị giác
     x:
       description: Sử Dụng Twitter
-      title: X / Twitter
       enable: Bật tích hợp X / Twitter
       enable-description: Cho phép AIRI tương tác với X / Twitter
       api-key: Khóa API
@@ -872,7 +773,7 @@ pages:
         empty: Chưa có cái nào ở đây hết. Thêm một cái vào bên dưới đi!
       add:
         title: Mới
-        description: 'Điền thông tin máy chủ mới, sau đó nhấp "Lưu và khởi động lại". Máy chủ sẽ được chuyển lên mục "Đã cấu hình" ở trên.'
+        description: "Điền thông tin máy chủ mới, sau đó nhấp \"Lưu và khởi động lại\". Máy chủ sẽ được chuyển lên mục \"Đã cấu hình\" ở trên."
         pending-badge: Chưa được lưu
       status:
         unknown: chưa tải
@@ -904,7 +805,6 @@ pages:
         args:
           label: Đối số
           description: Mỗi dòng một đối số, theo thứ tự.
-          placeholder: "-y\nsome-package-name\n/tmp"
         cwd:
           label: Thư mục làm việc
           description: Thư mục tùy chọn được dùng làm thư mục làm việc của tiến trình.
@@ -942,7 +842,6 @@ pages:
         json-applied: Đã áp dụng JSON vào biểu mẫu. Nhấp "Lưu và khởi động lại" để lưu vào đĩa.
         restarted: Tất cả đã được khởi động lại! {started} đã khởi động, {failed} thất bại, {skipped} đã bỏ qua.
   flux:
-    title: Flux
     buy: Mua
     currency: Tiền tệ
     description: Số Flux hiện tại
@@ -992,16 +891,9 @@ pages:
           common:
             fields:
               field:
-                web-search:
-                  label: Web search
-                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
-                api-protocol:
-                  label: API protocol
-                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: Khóa API
                   description: Khóa dùng để ủy quyền yêu cầu cho nhà cung cấp này
-                  placeholder: sk-...
                 base-url:
                   label: URL cơ sở
                   description: >-
@@ -1084,10 +976,6 @@ pages:
           title: Cài đặt giọng nói
     labels:
       recommended: Được gợi ý
-    sync:
-      synced: Synced
-      pending: Waiting to upload
-      not-uploaded: Not uploaded. Complete this provider on this device.
     filters:
       pricing: Bảng Giá
       deployment: Triển khai
@@ -1139,36 +1027,25 @@ pages:
           locale:
             label: Ngôn ngữ địa phương
             description: Sử dụng locale Apple Giọng nói chính xác, chẳng hạn en-US hoặc zh-CN.
-            placeholder: en-US
       app-local-audio-transcription:
         title: Ứng dụng (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
         title: Ứng dụng (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: Trình duyệt (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: Trình duyệt (Local)
-        description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
-        description: bailian.console.aliyun.com
         title: Mô hình Studio Alibaba Cloud
       amazon-bedrock:
-        title: Amazon Bedrock
-        description: aws.amazon.com/bedrock
         config:
           api-key:
             label: Khóa API Bedrock
             description: Khóa API Amazon Bedrock (tạo trong AWS Console → Bedrock → API Keys)
-            placeholder: bedrock-...
           region:
             label: Khu vực AWS
             description: 'Khu vực AWS nơi Bedrock được bật (ví dụ: us-east-1, us-west-2)'
       anthropic:
-        description: anthropic.com
-        title: Anthropic | Claude
         helpinfo:
           title: Trước khi bắt đầu
           description:
@@ -1182,7 +1059,6 @@ pages:
               Nếu cần dùng, bạn phải có proxy backend riêng như Serverless Function
             part6: hoặc dịch vụ bypass CORS để vượt hạn chế.
       cloudflare-workers-ai:
-        description: cloudflare.com
         fields:
           field:
             account-id:
@@ -1191,7 +1067,6 @@ pages:
               placeholder: ID tài khoản Cloudflare của bạn
             api-key:
               placeholder: Nhập khóa API cho Cloudflare
-        title: Cloudflare Workers AI
       common:
         status:
           validating: Đang xác thực
@@ -1207,29 +1082,6 @@ pages:
             volume:
               description: Điều chỉnh âm lượng
               label: Âm lượng
-      voicevox:
-        description: voicevox.hiroshiba.jp
-        title: VOICEVOX
-        fields:
-          field:
-            intonation:
-              description: Adjust how much the intonation of the reading varies
-              label: Intonation
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
-      aivis-speech:
-        description: aivis-project.com
-        title: AivisSpeech
-        fields:
-          field:
-            intonation:
-              description: Adjust how strongly the speaking style is expressed
-              label: Emotion expression strength
-        callout_origin_title: Reaching the engine from a browser
-        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
-      deepgram-tts:
-        description: deepgram.com
-        title: Deepgram
       speech-noop:
         title: Không có
         description: Không phát âm thanh.
@@ -1260,11 +1112,9 @@ pages:
             server_url:
               label: URL máy chủ
               description: Địa chỉ ComfyUI đang hoạt động
-              placeholder: http://localhost:8188
           cors:
             title: Yêu Cầu Bị Chặn Bởi CORS
             description: ComfyUI mặc định chặn các yêu cầu từ các ứng dụng khác. Để cho phép AIRI kết nối, bạn phải bắt đầu ComfyUI với flag `--enable-cors-header "*"`.
-            command: python main.py --enable-cors-header "*"
           workflows:
             title: Mẫu Workflow
             upload: Tải Workflow
@@ -1288,33 +1138,27 @@ pages:
             save: Lưu Workflow
       replicate:
         settings:
-          title: Replicate.ai
           heading: Cấu Hình Replicate.ai
           description: Cấu hình cài đặt trình tạo ảnh của bạn.
           api_key:
             label: Khóa API
             description: Token Replicate API của bạn (bắt đầu với r8_)
-            placeholder: r8_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
           default_model:
             label: Mô Hình Mặc Định
             description: Chuỗi owner/model dự phòng được dùng nếu thẻ nhân vật không chỉ định.
-            placeholder: black-forest-labs/flux-schnell
           aspect_ratio:
             label: Tỉ Lệ Khung Hình
             description: 'Tỉ lệ ảnh mặc định (ví dụ: 16:9 1:1 9:16)'
-            placeholder: '16:9'
           inference_steps:
             label: Các Bước Suy Luận
             description: Số lượng bước cho quá trình khử nhiễu (giá trị thấp thì nhanh hơn, giá trị cao thì chất lượng tốt hơn)
       nanobanana:
         settings:
-          title: Nano Banana
           heading: Nano Banana (Google AIスタジオ)
           description: Cấu hình khả năng tạo ảnh gốc của Google Gemini.
           api_key:
             label: Khóa API
             description: Khóa Google AI Studio API của bạn
-            placeholder: AIpk...
           preferred_model:
             label: Mô hình ưu tiên
             description: Mô hình xem trước tạo ảnh Gemini cụ thể sẽ được sử dụng
@@ -1326,14 +1170,11 @@ pages:
             nano_banana_pro: Nano Banana Pro（Gemini 3 Pro Image）
             nano_banana: Nano Banana（Gemini 2.5 Flash Image）
       deepseek:
-        description: deepseek.com
         fields:
           field:
             thinking-mode:
               description: Kiểm soát việc các mô hình suy luận DeepSeek có sử dụng chế độ suy nghĩ trong yêu cầu trò chuyện hay không.
-        title: DeepSeek
       elevenlabs:
-        description: elevenlabs.io
         fields:
           field:
             simularity-boost:
@@ -1370,7 +1211,6 @@ pages:
           title: Thử nghiệm giọng nói
           validation:
             error-missing-api-key: Vui lòng nhập khóa API để thử giọng.
-        title: ElevenLabs
       kokoro-local:
         description: Chuyển văn bản thành giọng nói cục bộ dùng Kokoro-82M.
         fields:
@@ -1396,14 +1236,7 @@ pages:
           default-text: Xin chào! Đây là bản thử nghiệm hệ thống giọng nói Kokoro.
           title: Thử nghiệm giọng nói
         title: Kokoro TTS (Cục bộ)
-      fireworks:
-        description: fireworks.ai
-        title: Fireworks.ai
-      google-gemini-audio-speech:
-        description: aistudio.google.com
-        title: Google Gemini
       microsoft-speech:
-        description: speech.microsoft.com
         fields:
           field:
             region:
@@ -1411,90 +1244,16 @@ pages:
               label: Khu vực
         title: Microsoft / Azure Giọng nói
       index-tts-vllm:
-        description: https://index-tts.github.io/
-        title: Bilibili / IndexTTS
         callout_indextts2_unavailable_title: Hỗ trợ hạn chế
         callout_indextts2_unavailable: IndexTTS2 hiện chưa hỗ trợ. Vui lòng dùng IndexTTS.
-      azure-ai-foundry:
-        description: Azure AI Foundry
-        title: Azure AI Foundry
-      minimax:
-        description: minimaxi.com
-        title: MiniMax
-      minimax-global:
-        description: minimax.io
-        title: MiniMax Global
       minimax-speech:
-        description:
         title: MiniMax Giọng nói
-      mimo:
-        description:
-        title: Xiaomi MiMo
-      mistral:
-        description: mistral.ai
-        title: Mistral
-      moonshot:
-        description: moonshot.ai
-        title: Moonshot AI
-      modelscope:
-        description: modelscope.cn
-        title: ModelScope
-      novita:
-        description: novita.ai
-        title: Novita
-      ollama:
-        description: ollama.ai
-        title: Ollama
-      openai:
-        description: openai.com
-        title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: Tương thích OpenAI
         title: Tương thích OpenAI
-      nvidia:
-        description: build.nvidia.com
-        title: NVIDIA NIM
       n1n:
         description: n1n.ai - Cung cấp API AI hiệu năng cao.
-        title: n1n
-      openpaths:
-        description: openpaths.io
-        title: OpenPaths
-      openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
-        title: OpenRouter
-      perplexity:
-        description: perplexity.ai
-        title: Perplexity
-      player2:
-        description: player2.game
-        title: Player2
-      together:
-        description: together.ai
-        title: Together.ai
-      google-generative-ai:
-        description: gemini.google.com
-        title: Google Gemini
-      groq:
-        description: groq.com
-        title: Groq
-      featherless:
-        description: featherless.ai
-        title: Featherless AI
-      lm-studio:
-        description: lmstudio.ai
-        title: LM Studio
-      vllm:
-        description: vllm.ai
-        title: vLLM
       volcengine:
-        description: volcengine.com
         fields:
           field:
             appId:
@@ -1509,36 +1268,14 @@ pages:
           legacy:
             description: Mô hình Coding Plan cũ đã được lên lịch ngừng hỗ trợ. Hãy chuyển sang mô hình hiện được hỗ trợ.
         title: Kế hoạch Lập trình Volcengine
-      byteplus:
-        description: byteplus.com
-        title: BytePlus
       byteplus-coding-plan:
         description: Kế hoạch Lập trình BytePlus
         title: Kế hoạch Lập trình BytePlus
-      xai:
-        description: x.ai
-        title: xAI
-      zai:
-        description: z.ai
-        title: Z.ai
-      302-ai:
-        description: 302.AI
-        title: 302.AI
-      comet-api:
-        description: CometAPI.com
-        title: Comet API
-      cerebras:
-        description: cerebras.ai
-        title: Cerebras
-      aliyun-nls:
-        description: Aliyun NLS
-        title: Aliyun NLS
       browser-web-speech-api:
         description: STT gốc trình duyệt (yêu cầu Chrome/Edge/Safari)
         title: Web Giọng nói API
       prompt-api:
         description: Với Prompt API, bạn có thể gửi yêu cầu bằng ngôn ngữ tự nhiên đến mô hình cơ sở trong Chrome.
-        title: Prompt API
       official:
         title: Nhà Cung Cấp Chính Thức
         description: Nhà cung cấp AI chính thức bởi AIRI.
@@ -1552,7 +1289,6 @@ pages:
         playground:
           title: Thử nghiệm chuyển văn bản
       aihubmix:
-        title: AIHubMix
         description: https://aihubmix.com (Giảm giá 10%)
     title: Nhà cung cấp
   connection:
@@ -1561,7 +1297,6 @@ pages:
     websocket-url:
       description: Địa chỉ đầy đủ máy chủ WebSocket (ví dụ ws://localhost:6121/ws)
       label: Địa chỉ máy chủ WebSocket
-      placeholder: ws://localhost:6121/ws
     server-hostname:
       label: Expose On Network
       description: Choose whether the AIRI gateway only listens on this device or can be reached from your local network.
@@ -1627,32 +1362,6 @@ pages:
               markdown-stress:
                 title: Kiểm thử Markdown
                 description: Thử nghiệm phân tích Markdown với hội thoại lớn
-              plugin-host:
-                actions:
-                  enable-and-load: Enable and Load
-                  disable-and-unload: Disable and Unload
-                  import-folder: Import Folder
-                  confirm-import: Import Extension
-                  cancel-import: Cancel
-                errors:
-                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
-                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
-                  prepare-import: Failed to inspect the Extension folder.
-                  commit-import: 'Failed to import Extension {extensionId}.'
-                  cancel-import: Failed to cancel the Extension import.
-                import:
-                  title: Review Extension Import
-                  description: The Extension stays disabled and unloaded after import.
-                  source: Source folder
-                  runtimes: Runtimes
-                  entrypoints: Entrypoints
-                  package-size: Package
-                  package-size-value: '{fileCount} files · {totalBytes}'
-                  permissions: Permissions
-                  kits: Kits
-                  no-permissions: No permissions declared.
-                  no-kits: No Kits declared.
-                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: Công cụ useMagicKeys
                 description: Kiểm tra các phím tắt
@@ -1830,7 +1539,6 @@ vrm:
       title: Nhìn Vào
       options:
         option:
-          camera: Camera
           mouse: Chuột
           disabled: Tắt
   switch-to-vrm:
@@ -1847,8 +1555,6 @@ spine:
   scale-and-position:
     title: Tỷ lệ và vị trí
     scale: Tỷ lệ
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: Trích xuất màu từ mô hình
     button-extract:
@@ -1878,8 +1584,6 @@ mmd:
   scale-and-position:
     title: Tỷ lệ và vị trí
     scale: Tỷ lệ
-    x: X
-    'y': 'Y'
     rotation: Xoay
   theme-color-from-model:
     title: Trích xuất màu từ mô hình
@@ -1896,7 +1600,6 @@ mmd:
     tracking: Nhìn vào
     options:
       cursor: Chuột
-      camera: Camera
       none: Vô hiệu hóa
   animation:
     title: Hoạt ảnh
@@ -1924,8 +1627,6 @@ tachie:
   scale-and-position:
     title: Tỷ lệ và vị trí
     scale: Tỷ lệ
-    x: X
-    'y': 'Y'
   theme-color-from-model:
     title: Trích xuất màu từ mô hình
     button-extract:
