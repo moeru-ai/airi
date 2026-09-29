@@ -17,7 +17,7 @@ function tt(key: string, values?: Record<string, string | number>) {
     ? t(`settings.pages.card.wake-word-conflict.${key}`, values)
     : t(`settings.pages.card.wake-word-conflict.${key}`)
 }
-const unresolved = computed(() => wakeWordConflicts.value.filter(conflict => !conflict.ownerCardId))
+const unresolvedCount = computed(() => wakeWordConflicts.value.filter(conflict => !conflict.ownerCardId).length)
 
 function cardLabel(id: string) {
   const name = cards.value.get(id)?.name ?? id
@@ -26,7 +26,7 @@ function cardLabel(id: string) {
 
 async function choose(sequence: string, cardId: string) {
   const assigned = await cardStore.assignWakeWordOwner(sequence, cardId)
-  if (assigned && unresolved.value.length === 0)
+  if (assigned && unresolvedCount.value === 0)
     emit('update:modelValue', false)
 }
 </script>
@@ -34,12 +34,12 @@ async function choose(sequence: string, cardId: string) {
 <template>
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
-      <DialogOverlay :class="['fixed inset-0 z-100 bg-black/50']" />
+      <DialogOverlay :class="['fixed inset-0 z-100 bg-black/50 backdrop-blur-sm']" />
       <DialogContent
         :class="[
           'fixed left-1/2 top-1/2 z-100 max-h-[80dvh] max-w-lg w-[calc(100vw-2rem)] overflow-y-auto',
-          'border border-solid border-neutral-200 rounded-xl bg-white p-6 shadow-xl -translate-x-1/2 -translate-y-1/2',
-          'dark:border-neutral-700 dark:bg-neutral-800',
+          'rounded-2xl bg-white p-6 shadow-xl outline-none -translate-x-1/2 -translate-y-1/2',
+          'dark:bg-neutral-900',
         ]"
       >
         <DialogTitle :class="['text-lg text-neutral-900 font-medium dark:text-neutral-50']">
@@ -51,18 +51,22 @@ async function choose(sequence: string, cardId: string) {
 
         <div :class="['mt-5 flex flex-col gap-4']">
           <section
-            v-for="conflict in unresolved"
+            v-for="conflict in wakeWordConflicts"
             :key="conflict.sequence"
-            :class="['rounded-lg border border-solid border-neutral-200 p-3 dark:border-neutral-700']"
+            :class="['rounded-xl bg-neutral-50 p-4 dark:bg-[rgba(0,0,0,0.3)]']"
           >
             <p :class="['mb-3 break-all text-xs text-neutral-500 dark:text-neutral-400']">
               {{ tt('pronunciation', { tokens: conflict.sequence }) }}
+            </p>
+            <p v-if="conflict.ownerCardId" :class="['mb-3 text-sm text-green-600 dark:text-green-400']">
+              {{ tt('active', { name: cardLabel(conflict.ownerCardId) }) }}
             </p>
             <div :class="['flex flex-wrap gap-2']">
               <Button
                 v-for="id in conflict.cardIds"
                 :key="id"
                 :label="tt('choose', { name: cardLabel(id) })"
+                :color="conflict.ownerCardId === id ? 'primary' : undefined"
                 @click="choose(conflict.sequence, id)"
               />
             </div>

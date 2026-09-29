@@ -122,6 +122,8 @@ class BackgroundWakeWordPlugin : Plugin() {
         if (characterId != null) {
             result.put("characterId", characterId)
             result.put("tokens", if (tokens != null) JSONArray(tokens) else JSONArray())
+        }
+        if (preferences.contains(BackgroundWakeWordService.PENDING_CHARACTER_ID)) {
             preferences.edit()
                 .remove(BackgroundWakeWordService.PENDING_CHARACTER_ID)
                 .remove(BackgroundWakeWordService.PENDING_TOKENS)

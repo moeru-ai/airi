@@ -50,6 +50,20 @@ export function streamChatCompletions(input: {
           throw new ProtocolSwitch(next, partialTurn)
         }
 
+        if (next.supportsAudioInput === false) {
+          for (const message of current) {
+            if (!Array.isArray(message.content))
+              continue
+            for (const [index, part] of message.content.entries()) {
+              if (part.type !== 'input_audio')
+                continue
+              if (!input.options?.transcribeAudio)
+                throw new Error('The selected model cannot accept audio and no transcription adapter is available')
+              message.content[index] = { type: 'text', text: await input.options.transcribeAudio(part.input_audio.data, part.input_audio.format) }
+            }
+          }
+        }
+
         // NOTICE:
         // xsAI prepareStep can return only input/model/toolChoice. Its 0.5 streamText
         // implementation reads the mutable options after prepareStep for each request.

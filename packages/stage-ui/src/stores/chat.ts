@@ -45,6 +45,7 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { useHearingSpeechInputPipeline, useHearingStore } from './modules/hearing'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useProviderStore } from './providers/provider'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -192,6 +193,7 @@ export const useChatStore = defineStore('chat', () => {
   // without its paired prompt-injection defense.
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
+  const providersStore = useProviderStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
@@ -264,7 +266,7 @@ export const useChatStore = defineStore('chat', () => {
         ownedTurnSpans.set(sessionId, turnSpan)
     }
 
-    const selectedModel = consciousnessStore.providerModels.find(candidate => candidate.id === model)
+    const selectedModel = providersStore.getModelsForProvider(options?.providerId ?? activeProvider.value).find(candidate => candidate.id === model)
     const supportsNativeVision = selectedModel?.metadata?.abilities?.vision === true
     let providerContext = context
     const hasImages = context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'image'))
@@ -313,6 +315,15 @@ export const useChatStore = defineStore('chat', () => {
       // A model change can expose older audio turns to a text-only model.
       // Convert a request copy so durable history keeps the original recordings.
       const requestContext = structuredClone(providerContext)
+      async function transcribeAudio(data: string, format: string) {
+        if (!useHearingStore().configured)
+          throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
+        const pipeline = useHearingSpeechInputPipeline()
+        const text = await pipeline.transcribeForRecording(new Blob([new Uint8Array(decodeBase64(data))], { type: `audio/${format}` }))
+        if (!text)
+          throw new Error(pipeline.error ?? 'Audio transcription returned no text.')
+        return text
+      }
       if (!consciousnessStore.modelSupportsAudioInput(options?.providerId ?? '', model)) {
         for (const turn of requestContext.turns) {
           if (turn.type !== 'user')
@@ -320,20 +331,14 @@ export const useChatStore = defineStore('chat', () => {
           for (const [index, part] of turn.content.entries()) {
             if (part.type !== 'audio')
               continue
-            if (!useHearingStore().configured)
-              throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
-            // The shared ASR pipeline owns one result. Convert audio sequentially.
-            const pipeline = useHearingSpeechInputPipeline()
-            const text = await pipeline.transcribeForRecording(new Blob([new Uint8Array(decodeBase64(part.data))], { type: `audio/${part.format}` }))
-            if (!text)
-              throw new Error(pipeline.error ?? 'Audio transcription returned no text.')
-            turn.content[index] = { type: 'text', text }
+            turn.content[index] = { type: 'text', text: await transcribeAudio(part.data, part.format) }
           }
         }
       }
       await llmStore.stream(model, chatProvider, requestContext, {
         ...options,
         headers,
+        transcribeAudio,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1

@@ -186,6 +186,7 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
   const completedRounds: GenerationRound[] = []
   let turnId = input.options.requestCorrelation?.turnId
   let request = input
+  let sourceConversation = input.conversation
   let switches = 0
   while (true) {
     let finalTurn: AssistantTurn | undefined
@@ -218,6 +219,21 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
       completedRounds.push(...error.partialTurn.rounds)
       if (completedRounds.length >= 10)
         throw new Error('Generation tool step limit reached')
+      const conversation = structuredClone(sourceConversation)
+      if (error.next.supportsAudioInput === false) {
+        for (const turn of conversation.turns) {
+          if (turn.type !== 'user')
+            continue
+          for (const [index, part] of turn.content.entries()) {
+            if (part.type !== 'audio')
+              continue
+            if (!input.options.transcribeAudio)
+              throw new Error('The selected model cannot accept audio and no transcription adapter is available')
+            turn.content[index] = { type: 'text', text: await input.options.transcribeAudio(part.data, part.format) }
+          }
+        }
+      }
+      sourceConversation = conversation
       request = {
         ...input,
         model: error.next.model,
@@ -225,7 +241,7 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
         options: { ...input.options, providerId: error.next.providerId },
         conversation: {
           turns: [
-            ...input.conversation.turns,
+            ...conversation.turns,
             { ...error.partialTurn, rounds: [...completedRounds] },
           ],
         },

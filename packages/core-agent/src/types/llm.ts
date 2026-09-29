@@ -34,11 +34,14 @@ export interface StreamOptions {
     model: string
     chatProvider: GenerationProvider
     providerId: string
+    supportsAudioInput?: boolean
     systemPrompt: string
     temperature?: number
     topP?: number
     tools?: Tool[]
   }>
+  /** Projects stored audio when a later model request cannot accept it. */
+  transcribeAudio?: (data: string, format: string) => Promise<string>
   /** Internal generated-turn identity reused after a protocol handoff. */
   generationTurnId?: string
   /** Internal number of rounds already completed in this assistant turn. */

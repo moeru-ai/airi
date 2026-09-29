@@ -116,3 +116,44 @@ it('applies the new Chat model tool and content compatibility after a tool chang
   expect(requests[1].tools).toBeUndefined()
   expect(requests[1].messages[0].content).toBe('Look')
 })
+
+it('transcribes retained audio before a text-only tool continuation', async () => {
+  const requests: Array<{ messages: Array<{ content: unknown }> }> = []
+  let supportsAudioInput = true
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    const chunk = requests.length === 1
+      ? { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'change-1', type: 'function', function: { name: 'change', arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }
+      : { choices: [{ index: 0, delta: { content: 'Done.' }, finish_reason: 'stop' }] }
+    return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { 'Content-Type': 'text/event-stream' } })
+  }
+  const provider: GenerationProvider = { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) }
+  const transcribeAudio = vi.fn(async () => 'spoken words')
+  const change = {
+    type: 'function' as const,
+    function: { name: 'change', parameters: { type: 'object', properties: {} } },
+    execute: () => {
+      supportsAudioInput = false
+      return 'changed'
+    },
+  }
+
+  // ROOT CAUSE:
+  // Initial audio projection ran once. A later text-only model still received audio.
+  await streamFrom({
+    model: 'audio-model',
+    chatProvider: provider,
+    conversation: { turns: [{ type: 'user', id: 'user', content: [{ type: 'audio', data: 'AA==', format: 'wav' }] }] },
+    options: {
+      tools: [change],
+      transcribeAudio,
+      resolveStep: async () => ({ model: supportsAudioInput ? 'audio-model' : 'text-model', chatProvider: provider, providerId: 'provider', supportsAudioInput, systemPrompt: '', tools: [change] }),
+    },
+  })
+
+  expect(requests).toHaveLength(2)
+  expect(JSON.stringify(requests[0].messages[0].content)).toContain('input_audio')
+  expect(JSON.stringify(requests[1].messages[0].content)).toContain('spoken words')
+  expect(JSON.stringify(requests[1].messages[0].content)).not.toContain('input_audio')
+  expect(transcribeAudio).toHaveBeenCalledOnce()
+})

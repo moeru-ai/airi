@@ -174,6 +174,7 @@ it('continues one assistant turn in Responses after a Chat Completions tool swit
   const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'chat-completions', model: 'chat-model' }
   const requests: Array<{ url: string, body: Record<string, unknown> }> = []
   const onGeneratedTurn = vi.fn()
+  const transcribeAudio = vi.fn(async () => 'spoken words')
   const fetch: typeof globalThis.fetch = async (url, init) => {
     requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
     if (requests.length === 1) {
@@ -193,12 +194,14 @@ it('continues one assistant turn in Responses after a Chat Completions tool swit
   await streamFrom({
     model: live.model,
     chatProvider: liveProvider,
-    conversation: { turns: [] },
+    conversation: { turns: [{ type: 'user', id: 'audio-question', content: [{ type: 'audio', data: 'AA==', format: 'wav' }] }] },
     options: {
+      transcribeAudio,
       resolveStep: async () => ({
         model: live.model,
         chatProvider: liveProvider,
         providerId: 'live',
+        supportsAudioInput: live.protocol === 'chat-completions',
         systemPrompt: 'The character stays the same.',
         tools: [{
           type: 'function',
@@ -219,6 +222,8 @@ it('continues one assistant turn in Responses after a Chat Completions tool swit
   expect(requests[1].url).toContain('responses.example')
   expect(requests[1].body.model).toBe('responses-model')
   expect(JSON.stringify(requests[1].body.input)).toContain('switched')
+  expect(JSON.stringify(requests[1].body.input)).toContain('spoken words')
+  expect(transcribeAudio).toHaveBeenCalledOnce()
   expect(onGeneratedTurn).toHaveBeenCalledOnce()
   const rounds: AssistantTurn['rounds'] = onGeneratedTurn.mock.calls[0][0].rounds
   expect(rounds.map(round => round.continuation?.protocol)).toEqual(['chat-completions', 'responses'])

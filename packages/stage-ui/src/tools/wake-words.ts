@@ -4,22 +4,22 @@ import type { useAiriCardStore } from '../stores/modules/airi-card'
 
 import { errorMessageFrom } from '@moeru/std'
 import { tool } from '@xsai/tool'
-import { z } from 'zod'
+import { array, description, minLength, nullable, number, object, pipe, string } from 'valibot'
 
 import { pinnedKwsVocabulary } from '../services/wake-words'
 
 type AiriCardStore = Pick<ReturnType<typeof useAiriCardStore>, 'updateCardWakeWords'>
 
-const matchSchema = z.object({
-  tokens: z.array(z.string()).min(1),
-  score: z.number().nullable().describe('Use null for the model default.'),
-  threshold: z.number().nullable().describe('Use null for the model default.'),
+const matchSchema = object({
+  tokens: pipe(array(string()), minLength(1)),
+  score: pipe(nullable(number()), description('Use null for the model default.')),
+  threshold: pipe(nullable(number()), description('Use null for the model default.')),
 })
-const keywordSchema = z.object({
-  label: z.string().min(1),
-  matches: z.array(matchSchema).min(1),
-  score: z.number().nullable().describe('Use null for the model default.'),
-  threshold: z.number().nullable().describe('Use null for the model default.'),
+const keywordSchema = object({
+  label: pipe(string(), minLength(1)),
+  matches: pipe(array(matchSchema), minLength(1)),
+  score: pipe(nullable(number()), description('Use null for the model default.')),
+  threshold: pipe(nullable(number()), description('Use null for the model default.')),
 })
 
 /**
@@ -35,8 +35,8 @@ export async function createWakeWordTool(options: {
   return tool({
     name: 'configure_wake_words',
     description: `Replace your own character card wake words. Supply model tokens, not text, pinyin, or phonemes. The same spoken name can have several pronunciations: include every pronunciation as a separate matches entry with its own complete tokens array. Use only these tokens from the configured KWS model: ${[...pinnedKwsVocabulary].join(', ')}. This tool cannot edit another character. If a pronunciation conflicts with another character, explain the conflict to the user in your own words and ask which name they want to use.`,
-    parameters: z.object({
-      keywords: z.array(keywordSchema).describe('The complete replacement list of wake words for your character. Use an empty list to clear them.'),
+    parameters: object({
+      keywords: pipe(array(keywordSchema), description('The complete replacement list of wake words for your character. Use an empty list to clear them.')),
     }),
     execute: async ({ keywords }) => {
       const cardKeywords = keywords.map(keyword => ({
