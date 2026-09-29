@@ -8,6 +8,8 @@ import { useI18n } from 'vue-i18n'
 
 import { useAudioAnalyzer } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
+import { useHearingRuntimeStore } from '../../../../stores/hearing-runtime'
+import { useHearingStore } from '../../../../stores/modules/hearing'
 
 const props = withDefaults(defineProps<{
   granted?: boolean // permission status on OS level
@@ -16,11 +18,14 @@ const props = withDefaults(defineProps<{
 })
 
 const { t } = useI18n()
+const { configured } = storeToRefs(useHearingStore())
+const { preparation, preparationError } = storeToRefs(useHearingRuntimeStore())
 const deviceStore = useSettingsAudioDevice()
 const modeOptions = computed<{ label: string, value: HearingInputMode }[]>(() => [
   { label: t('settings.pages.modules.hearing.input-mode.off'), value: 'off' },
   { label: t('settings.pages.modules.hearing.input-mode.push-to-talk'), value: 'push-to-talk' },
   { label: t('settings.pages.modules.hearing.input-mode.always'), value: 'always' },
+  { label: t('settings.pages.modules.hearing.input-mode.wake-word'), value: 'wake-word' },
 ])
 const { askPermission } = deviceStore
 const { audioInputOptions, enabled, mode, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
@@ -79,6 +84,9 @@ function toggleHearingEnabled() {
       :options="modeOptions"
       layout="vertical"
     />
+    <Callout v-if="mode === 'wake-word' && enabled && preparation !== 'idle'" :class="['text-sm']">
+      {{ !configured ? t('stage.status.configure-hearing') : preparationError || t(`settings.pages.modules.hearing.calling-status.${preparation}`) }}
+    </Callout>
     <!-- Minimal mic control with animated rings -->
     <div v-if="mode !== 'push-to-talk'" :class="['flex flex-col items-center justify-center py-2']">
       <div class="relative h-28 w-28 select-none">

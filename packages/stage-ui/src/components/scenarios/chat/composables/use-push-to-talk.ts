@@ -2,11 +2,8 @@ import type { MaybeRefOrGetter } from 'vue'
 
 import { computed, onScopeDispose, shallowRef, toValue, watch } from 'vue'
 
+import { useHearingDelivery } from '../../../../composables/use-hearing-delivery'
 import { useSpeakingStore } from '../../../../stores/audio'
-import { useChatStore } from '../../../../stores/chat'
-import { useChatSessionStore } from '../../../../stores/chat/session-store'
-import { useHearingDraftStore } from '../../../../stores/hearing-drafts'
-import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useSpeechOutputControlStore } from '../../../../stores/speech-output-control'
 import { useVoiceComposer } from './use-voice-composer'
@@ -18,10 +15,7 @@ export function usePushToTalk(options: {
   onRecordingChange?: (active: boolean) => void
 }) {
   const device = useSettingsAudioDevice()
-  const hearing = useHearingStore()
-  const chat = useChatStore()
-  const sessions = useChatSessionStore()
-  const drafts = useHearingDraftStore()
+  const delivery = useHearingDelivery()
   const speaking = useSpeakingStore()
   const output = useSpeechOutputControlStore()
   const held = shallowRef(false)
@@ -34,29 +28,7 @@ export function usePushToTalk(options: {
     onError: options.onError,
     complete: async (result) => {
       const ticket = generation
-      const text = result.text.trim()
-      if (!text || !sessions.sessionMetas[result.sessionId])
-        return
-      if (!hearing.autoSendEnabled) {
-        await drafts.append(result.sessionId, text)
-        return
-      }
-      if (hearing.autoSendDelay > 0)
-        await new Promise(resolve => setTimeout(resolve, hearing.autoSendDelay))
-      if (!sessions.sessionMetas[result.sessionId])
-        return
-      // Completed speech belongs to the captured session even after its input is disabled.
-      if (ticket !== generation || !enabled.value || !hearing.autoSendEnabled) {
-        await drafts.append(result.sessionId, text)
-        return
-      }
-      try {
-        await chat.send({ sessionId: result.sessionId, text })
-      }
-      catch (error) {
-        await drafts.append(result.sessionId, text)
-        throw error
-      }
+      await delivery.deliver(result.sessionId, result.text, () => ticket === generation && enabled.value)
     },
   })
 

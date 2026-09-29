@@ -112,6 +112,8 @@ export type ChatAttachment
  * Options accepted by the chat orchestrator runtime for one user send.
  */
 export interface ChatOrchestratorSendOptions {
+  /** Request-only instruction that starts an assistant reply without storing a user turn. */
+  assistantOnlyInstruction?: string
   /** Character identity pinned by the caller for this turn. */
   cardId?: string
   /** Provider model identifier used for the outbound LLM request. */
@@ -560,7 +562,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     abortSignal: AbortSignal,
     activeProvider: string,
   ) {
-    if (!sendingMessage && !options.attachments?.length)
+    if (!sendingMessage && !options.attachments?.length && !options.assistantOnlyInstruction)
       return
 
     deps.session.ensureSession(sessionId)
@@ -572,7 +574,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // Activation measures whether a conversation reaches its first assistant
     // response. Later turns still emit message and latency telemetry, but they
     // must not inflate the one-time activation milestones.
-    const isActivationAttempt = !existingSessionMessages.some(message => message.role === 'assistant' && !message.interrupted)
+    const isActivationAttempt = !options.assistantOnlyInstruction && !existingSessionMessages.some(message => message.role === 'assistant' && !message.interrupted)
 
     // Datetime is no longer injected through the side-channel context store.
     // It is applied at message-assembly time (see below) as a system-prompt
@@ -636,7 +638,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       roundId,
       turnIndex,
     }
-    deps.onTrackFirstMessage?.()
+    if (!options.assistantOnlyInstruction)
+      deps.onTrackFirstMessage?.()
     if (isActivationAttempt) {
       deps.onChatActivationStarted?.({
         ...correlation,
@@ -645,11 +648,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         provider: activeProvider,
       })
     }
-    deps.onMessageSendStarted?.({
-      ...correlation,
-      source: sendSource,
-      model: options.model,
-    })
+    if (!options.assistantOnlyInstruction) {
+      deps.onMessageSendStarted?.({
+        ...correlation,
+        source: sendSource,
+        model: options.model,
+      })
+    }
     const roundStartedAt = monotonicNow()
     let assistantStored = false
     let generationCompleted = false
@@ -735,33 +740,31 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
       }
-      try {
-        await deps.session.appendSessionMessage(sessionId, userMessage)
-      }
-      catch (error) {
-        await discardStoredAudio()
-        throw error
-      }
+      if (!options.assistantOnlyInstruction) {
+        try {
+          await deps.session.appendSessionMessage(sessionId, userMessage)
+        }
+        catch (error) {
+          await discardStoredAudio()
+          throw error
+        }
 
-      // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
-
+        // Cloud sync v1: only the raw text part round-trips; image attachments
+        // and other non-text parts stay local.
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
+      }
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
-      deps.onUserTurnReady?.({
-        sessionId,
-        messageText: sendingMessage,
-        sessionMessages: sessionMessagesForSend,
-      })
+      if (!options.assistantOnlyInstruction)
+        deps.onUserTurnReady?.({ sessionId, messageText: sendingMessage, sessionMessages: sessionMessagesForSend })
 
       const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
@@ -838,6 +841,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const context = buildContext(sessionMessagesForSend, options.supportsAudioInput ?? true)
+      if (options.assistantOnlyInstruction) {
+        context.turns.push({
+          id: `instruction-${roundId}`,
+          type: 'user',
+          content: [{ type: 'text', text: options.assistantOnlyInstruction }],
+        })
+      }
       if (deps.resolveAudioData) {
         for (const turn of context.turns) {
           if (turn.type !== 'user')
@@ -1074,16 +1084,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       resetForegroundStream(sessionId)
       const durationMs = Math.round(monotonicNow() - roundStartedAt)
-      deps.onMessageRound?.({
-        ...correlation,
-        durationMs,
-        hasVoice,
-        model: options.model,
-        inputTokens: generationUsage.inputTokens,
-        outputTokens: generationUsage.outputTokens,
-        totalTokens: generationUsage.totalTokens,
-        usageSource: generationUsage.source,
-      })
+      if (!options.assistantOnlyInstruction) {
+        deps.onMessageRound?.({
+          ...correlation,
+          durationMs,
+          hasVoice,
+          model: options.model,
+          inputTokens: generationUsage.inputTokens,
+          outputTokens: generationUsage.outputTokens,
+          totalTokens: generationUsage.totalTokens,
+          usageSource: generationUsage.source,
+        })
+      }
       if (isActivationAttempt) {
         deps.onChatActivationSucceeded?.({
           ...correlation,
@@ -1106,14 +1118,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       resetForegroundStream(sessionId)
 
       console.error('Error sending message:', error)
-      deps.onMessageRoundFailed?.({
-        ...correlation,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        failureStage: 'llm_response',
-        errorCode: 'llm_response_failed',
-      })
+      if (!options.assistantOnlyInstruction) {
+        deps.onMessageRoundFailed?.({
+          ...correlation,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          failureStage: 'llm_response',
+          errorCode: 'llm_response_failed',
+        })
+      }
       if (isActivationAttempt) {
         deps.onChatActivationFailed?.({
           ...correlation,

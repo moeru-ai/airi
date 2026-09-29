@@ -59,6 +59,8 @@ interface ForkOptions {
 
 /** A serializable chat request that any application context can send to the leader. */
 export interface ChatSendPayload {
+  /** Internal setup instruction. It never becomes a stored user message. */
+  assistantOnlyInstruction?: string
   /** Media for the new user message, using the core chat contract. */
   attachments?: ChatOrchestratorSendOptions['attachments']
   /** Original input metadata for chat hooks and telemetry. */
@@ -701,6 +703,7 @@ export const useChatStore = defineStore('chat', () => {
 
     await runtime.ingest(payload.text, {
       cardId: characterId,
+      assistantOnlyInstruction: payload.assistantOnlyInstruction,
       resolveRequest,
       resolveStep,
       attachments: payload.attachments,
@@ -725,6 +728,11 @@ export const useChatStore = defineStore('chat', () => {
         .map(message => structuredClone(toRaw(message))),
       sessionId: payload.sessionId,
     }
+  }
+
+  /** Starts a character-owned setup reply without inventing a user message. */
+  async function promptCharacter(payload: { sessionId: string, instruction: string }): Promise<ChatSendResult> {
+    return useChatStore().send({ sessionId: payload.sessionId, text: '', assistantOnlyInstruction: payload.instruction })
   }
 
   /** Sends one serializable chat request through the elected leader. */
@@ -845,6 +853,7 @@ export const useChatStore = defineStore('chat', () => {
     rerunToolCall,
     retry,
     send,
+    promptCharacter,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
 

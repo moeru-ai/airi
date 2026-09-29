@@ -3,6 +3,26 @@ import { describe, expect, it, vi } from 'vitest'
 import { StreamingTranscriptionConsumers } from './streaming-transcription-consumers'
 
 describe('streaming transcription consumers', () => {
+  it('keeps delayed results bound to their speech-start segment', () => {
+    const consumers = new StreamingTranscriptionConsumers()
+    const owners = new WeakMap<object, string>()
+    const delivered: string[] = []
+    let selected = 'character-a'
+    consumers.register({
+      consumerId: 'stage',
+      onSpeechStart: segment => owners.set(segment, selected),
+      onSentenceEnd: (text, segment) => delivered.push(`${segment ? owners.get(segment) : 'missing'}:${text}`),
+    })
+    const first = { id: 1 }
+    const second = { id: 2 }
+    consumers.emitSpeechStart(first)
+    selected = 'character-b'
+    consumers.emitSpeechStart(second)
+    consumers.emitSentenceEnd('first', first)
+    consumers.emitSentenceEnd('second', second)
+    expect(delivered).toEqual(['character-a:first', 'character-b:second'])
+  })
+
   it('updates and removes consumers without restarting other callbacks', () => {
     // ROOT CAUSE:
     //
@@ -26,16 +46,16 @@ describe('streaming transcription consumers', () => {
 
     expect(firstOriginal).not.toHaveBeenCalled()
     expect(firstUpdated).toHaveBeenCalledOnce()
-    expect(firstUpdated).toHaveBeenCalledWith('hello')
+    expect(firstUpdated).toHaveBeenCalledWith('hello', undefined)
     expect(second).toHaveBeenCalledOnce()
-    expect(second).toHaveBeenCalledWith('hello')
+    expect(second).toHaveBeenCalledWith('hello', undefined)
 
     consumers.remove('first')
     consumers.emitSentenceEnd('world')
 
     expect(firstUpdated).toHaveBeenCalledOnce()
     expect(second).toHaveBeenCalledTimes(2)
-    expect(second).toHaveBeenLastCalledWith('world')
+    expect(second).toHaveBeenLastCalledWith('world', undefined)
     consumers.remove('second')
     expect(consumers.hasConsumers()).toBe(false)
   })
@@ -55,7 +75,7 @@ describe('streaming transcription consumers', () => {
     consumers.emitSpeechEnd('complete')
 
     expect(second).toHaveBeenCalledOnce()
-    expect(second).toHaveBeenCalledWith('complete')
+    expect(second).toHaveBeenCalledWith('complete', undefined)
     expect(consoleError).toHaveBeenCalledWith(
       '[Hearing Pipeline] Streaming consumer first onSpeechEnd failed:',
       error,
@@ -73,7 +93,7 @@ describe('streaming transcription consumers', () => {
     consumers.emitTranscriptionUpdate('provider correction')
 
     expect(onTranscriptionUpdate).toHaveBeenCalledOnce()
-    expect(onTranscriptionUpdate).toHaveBeenCalledWith('provider correction')
+    expect(onTranscriptionUpdate).toHaveBeenCalledWith('provider correction', undefined)
     expect(onSentenceEnd).not.toHaveBeenCalled()
   })
 })

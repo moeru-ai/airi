@@ -6,7 +6,7 @@ import { computed, ref, watch } from 'vue'
 import { useAudioDevice } from '../../composables/audio'
 
 /** Automatic capture is separate from manual recording, which owns its microphone. */
-export type HearingInputMode = 'off' | 'push-to-talk' | 'always'
+export type HearingInputMode = 'off' | 'push-to-talk' | 'always' | 'wake-word'
 
 let microphonePermissionStatus: PermissionStatus
 
@@ -28,10 +28,29 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   // Retain device failures after input is disabled so the Stage can explain them.
   const error = ref<string>()
   const mode = useLocalStorageManualReset<HearingInputMode>('settings/audio/input/mode', 'always')
-  const continuousInputEnabled = computed(() => audioInputEnabled.value && mode.value === 'always')
+  const wakeWordSetupPrompted = useLocalStorageManualReset('settings/audio/input/wake-setup-prompted', false, { flush: 'sync' })
+  const continuousInputEnabled = computed(() => audioInputEnabled.value && (mode.value === 'always' || mode.value === 'wake-word'))
   let audioInputStartGeneration = 0
   let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
   let stopPendingAudioInput = false
+
+  /** Only the active foreground hearing runtime claims this persisted setup request. */
+  function claimWakeWordSetupPrompt() {
+    if (mode.value !== 'wake-word' || wakeWordSetupPrompted.value)
+      return false
+    wakeWordSetupPrompted.value = true
+    return true
+  }
+
+  /** Allows another setup request after configured words become unavailable again. */
+  function resetWakeWordSetupPrompt() {
+    wakeWordSetupPrompted.value = false
+  }
+
+  watch(mode, (nextMode) => {
+    if (nextMode !== 'wake-word')
+      resetWakeWordSetupPrompt()
+  }, { flush: 'sync' })
 
   function syncSelectedAudioInputFromRuntime() {
     if (selectedAudioInputPersist.value !== selectedAudioInputNonPersist.value)
@@ -175,6 +194,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     selectedAudioInputNonPersist.value = ''
     audioInputEnabled.reset()
     mode.value = 'off'
+    resetWakeWordSetupPrompt()
     stopStream()
   }
 
@@ -188,6 +208,8 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     enabled: audioInputEnabled,
     mode,
     continuousInputEnabled,
+    claimWakeWordSetupPrompt,
+    resetWakeWordSetupPrompt,
 
     stream,
 

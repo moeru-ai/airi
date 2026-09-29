@@ -57,6 +57,7 @@ export interface VoiceInputSessionOptions {
   shouldUseStreamInput?: MaybeRefOrGetter<boolean>
   vad?: VoiceInputSessionVadOptions
   volumeFallback?: VoiceInputSessionVolumeFallbackOptions
+  captureSegmentMetadata?: (event: VoiceInputSessionEvent) => Record<string, unknown>
   canStartSegment?: (event: VoiceInputSessionEvent) => boolean | Promise<boolean>
   inspectBeforeTranscription?: (event: VoiceInputSessionEvent) => VoiceInputSessionGate | Promise<VoiceInputSessionGate | undefined> | undefined
   inspectAfterTranscription?: (event: VoiceInputSessionEvent) => VoiceInputSessionGate | Promise<VoiceInputSessionGate | undefined> | undefined
@@ -123,6 +124,7 @@ export function useVoiceInputSession(
   let nextRecordingSegmentId = 0
   let discardNextRecording = false
   let activeTranscriptionCount = 0
+  let segmentationGeneration = 0
 
   const {
     init: initVAD,
@@ -228,7 +230,8 @@ export function useVoiceInputSession(
       return false
     }
 
-    const segment = createVoiceInputRecordingSegment(++nextRecordingSegmentId, trigger)
+    event.metadata = options.captureSegmentMetadata?.(event)
+    const segment = createVoiceInputRecordingSegment(++nextRecordingSegmentId, trigger, event.metadata)
     activeRecordingSegment.value = segment
 
     if (options.canStartSegment) {
@@ -243,14 +246,22 @@ export function useVoiceInputSession(
         activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
         lastError.value = error
         log('error', 'segment-start-gate-failed', 'Recorder segment start gate failed.', { trigger, error })
-        await options.onTranscriptionError?.({ trigger, error })
+        await options.onTranscriptionError?.({ ...event, error })
         return false
       }
     }
 
     try {
+      if (activeRecordingSegment.value !== segment)
+        return false
+
       await options.onSegmentStart?.(event)
+      if (activeRecordingSegment.value !== segment)
+        return false
+
       await recorder.startRecord()
+      if (activeRecordingSegment.value !== segment)
+        return false
 
       try {
         await options.onSegmentStarted?.(event)
@@ -266,14 +277,14 @@ export function useVoiceInputSession(
       activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, segment)
       lastError.value = error
       log('error', 'segment-start-failed', 'Failed to start recorder-backed voice input segment.', { trigger, error })
-      await options.onTranscriptionError?.({ trigger, error })
+      await options.onTranscriptionError?.({ ...event, error })
       return false
     }
   }
 
   async function stopSegment(trigger: VoiceInputSessionTrigger = 'manual') {
-    const event: VoiceInputSessionEvent = { trigger }
     const segment = activeRecordingSegment.value
+    const event: VoiceInputSessionEvent = { trigger, metadata: segment?.metadata }
 
     if (shouldUseStreamInput.value && !isRecording.value && !segment) {
       log('info', 'segment-stop-skipped-streaming', 'Recorder segment stop skipped because streaming transcription is active.', { trigger })
@@ -301,7 +312,7 @@ export function useVoiceInputSession(
     catch (error) {
       lastError.value = error
       log('error', 'segment-stop-hook-failed', 'Caller stop hook failed; finalizing recorder segment anyway.', { trigger, error })
-      await options.onTranscriptionError?.({ trigger, error })
+      await options.onTranscriptionError?.({ ...event, error })
     }
 
     try {
@@ -317,15 +328,16 @@ export function useVoiceInputSession(
       vadRecordings.delete(stoppedSegment.id)
       lastError.value = error
       log('error', 'segment-stop-failed', 'Failed to stop recorder-backed voice input segment.', { trigger, error })
-      await options.onTranscriptionError?.({ trigger, error })
+      await options.onTranscriptionError?.({ ...event, error })
     }
     finally {
       activeRecordingSegment.value = resolveActiveVoiceInputRecordingSegmentAfterStop(activeRecordingSegment.value, stoppedSegment)
     }
   }
 
-  async function processRecording(recording: Blob | undefined, trigger: VoiceInputSessionTrigger, ticket: VoiceInputTranscriptionTicket) {
-    const event: VoiceInputSessionEvent = { trigger, recording }
+  async function processRecording(recording: Blob | undefined, segment: VoiceInputRecordingSegment, ticket: VoiceInputTranscriptionTicket) {
+    const { trigger, metadata: capturedMetadata } = segment
+    const event: VoiceInputSessionEvent = { trigger, recording, metadata: capturedMetadata }
 
     if (isStaleTranscriptionTicket(ticket, trigger, 'recording-start'))
       return
@@ -337,7 +349,7 @@ export function useVoiceInputSession(
     }
 
     const metadata = await options.onRecordingReady?.(event) ?? undefined
-    const readyEvent = { ...event, metadata }
+    const readyEvent = { ...event, metadata: { ...metadata, ...capturedMetadata } }
     if (isStaleTranscriptionTicket(ticket, trigger, 'recording-ready'))
       return
 
@@ -411,15 +423,15 @@ export function useVoiceInputSession(
       return
     }
 
-    const segment = stoppedRecordingSegments.shift()
-    const trigger = segment?.trigger ?? activeRecordingTrigger.value ?? 'manual'
+    const segment = stoppedRecordingSegments.shift() ?? activeRecordingSegment.value ?? createVoiceInputRecordingSegment(++nextRecordingSegmentId, 'manual')
+    const { trigger } = segment
     const recordingForTranscription = segment
       ? vadRecordings.get(segment.id) ?? recording
       : recording
     if (segment)
       vadRecordings.delete(segment.id)
     await transcriptionChain
-      .enqueue(ticket => processRecording(recordingForTranscription, trigger, ticket))
+      .enqueue(ticket => processRecording(recordingForTranscription, segment, ticket))
       .catch((error) => {
         lastError.value = error
         log('error', 'recording-processing-error', 'Voice input recording processing failed.', { trigger, error })
@@ -560,6 +572,7 @@ export function useVoiceInputSession(
   }
 
   async function startAutoSegmentation() {
+    const generation = ++segmentationGeneration
     const stream = mediaRef.value
     if (!stream)
       throw new Error('No microphone stream available for voice input')
@@ -572,10 +585,12 @@ export function useVoiceInputSession(
       getError: () => vadError.value,
       log,
     })
-    await startVolumeFallback(stream)
+    if (generation === segmentationGeneration)
+      await startVolumeFallback(stream)
   }
 
   async function stop(options: { flushActiveRecording?: boolean } = {}) {
+    ++segmentationGeneration
     stopVolumeFallback()
     disposeVAD()
     transcriptionChain.reset()

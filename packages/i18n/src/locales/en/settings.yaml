@@ -775,6 +775,12 @@ pages:
         off: Off
         push-to-talk: Push to Talk
         always: Always on
+        wake-word: Calling words
+      calling-status:
+        preparing: Preparing calling words…
+        ready: Listening for your calling words.
+        unconfigured: Ask your character to configure calling words before you start.
+        error: Calling words could not start.
       push-to-talk-shortcut:
         label: Push to Talk shortcut
         description: Hold this shortcut to speak from any app.

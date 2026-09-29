@@ -3,10 +3,11 @@ export type VoiceInputSessionTrigger = 'manual' | 'vad' | 'volume'
 export interface VoiceInputRecordingSegment {
   id: number
   trigger: VoiceInputSessionTrigger
+  metadata?: Record<string, unknown>
 }
 
-export function createVoiceInputRecordingSegment(id: number, trigger: VoiceInputSessionTrigger): VoiceInputRecordingSegment {
-  return { id, trigger }
+export function createVoiceInputRecordingSegment(id: number, trigger: VoiceInputSessionTrigger, metadata?: Record<string, unknown>): VoiceInputRecordingSegment {
+  return { id, trigger, ...(metadata ? { metadata } : {}) }
 }
 
 function isSameVoiceInputRecordingSegment(

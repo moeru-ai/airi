@@ -732,6 +732,12 @@ pages:
         off: 关闭
         push-to-talk: 按住说话
         always: 持续聆听
+        wake-word: 角色唤醒词
+      calling-status:
+        preparing: 正在准备唤醒词…
+        ready: 正在聆听角色唤醒词。
+        unconfigured: 请先让角色配置唤醒词。
+        error: 唤醒词启动失败。
       push-to-talk-shortcut:
         label: 按住说话快捷键
         description: 在任何应用中按住此快捷键即可说话。
