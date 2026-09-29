@@ -118,7 +118,7 @@ it('discards pending voice recordings when deleting all chat sessions', async ()
   const { pinia, maintenance } = mountMaintenance(`maintenance:${crypto.randomUUID()}`, 'leader-only')
   const voiceSends = useVoiceSendStore(pinia)
   voiceSends.pendingSends = {
-    'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, historyBoundary: 0, status: 'failed' },
+    'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
   }
   vi.spyOn(useChatStore(pinia), 'cancelPendingSends').mockResolvedValue(undefined)
   vi.spyOn(useChatSessionStore(pinia), 'resetAllSessions').mockResolvedValue(undefined)

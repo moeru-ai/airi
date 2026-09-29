@@ -304,19 +304,29 @@ export const useChatStore = defineStore('chat', () => {
     }
     options?.abortSignal?.throwIfAborted()
 
-    if (!options?.supportsAudioInput) {
+    const prepareTextOnlyAudioContext = async (source: Conversation, useStoredTranscripts: boolean) => {
+      if (!source.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'audio')))
+        return source
+
       // Convert a request copy so durable history keeps the original recordings.
-      providerContext = structuredClone(providerContext)
+      const textContext = structuredClone(source)
       const sessionId = options?.requestCorrelation?.conversationId
-      for (const turn of providerContext.turns) {
+      for (const turn of textContext.turns) {
         if (turn.type !== 'user')
           continue
-        const missingAudioIndexes = sessionId ? getMissingAudioIndexes(sessionId, turn.id) : []
+        const missingAudioIndexes = sessionId && !useStoredTranscripts ? getMissingAudioIndexes(sessionId, turn.id) : []
         let remainingAudioIndex = 0
         for (const [index, part] of turn.content.entries()) {
           if (part.type !== 'audio')
             continue
-          const sourceAudioIndex = missingAudioIndexes[remainingAudioIndex++]
+          const sourceAudioIndex = useStoredTranscripts ? remainingAudioIndex++ : missingAudioIndexes[remainingAudioIndex++]
+          const storedTranscript = sessionId && useStoredTranscripts && sourceAudioIndex !== undefined
+            ? getAudioTranscript(sessionId, turn.id, sourceAudioIndex)
+            : undefined
+          if (storedTranscript) {
+            turn.content[index] = { type: 'text', text: storedTranscript }
+            continue
+          }
           if (!useHearingStore().configured)
             throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
           const pipeline = useHearingSpeechInputPipeline()
@@ -329,7 +339,11 @@ export const useChatStore = defineStore('chat', () => {
             saveAudioTranscript(sessionId, turn.id, sourceAudioIndex, text)
         }
       }
+      return textContext
     }
+
+    if (!options?.supportsAudioInput)
+      providerContext = await prepareTextOnlyAudioContext(providerContext, false)
 
     const providerMessages = renderConversationPreview(providerContext)
     if (options?.requestCorrelation?.conversationId)
@@ -350,6 +364,7 @@ export const useChatStore = defineStore('chat', () => {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
         headers,
+        prepareStringContent: () => prepareTextOnlyAudioContext(providerContext, true),
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1
@@ -429,6 +444,12 @@ export const useChatStore = defineStore('chat', () => {
       const index = audioIndex++
       return message.audioTranscripts?.[index] ? [] : [index]
     })
+  }
+
+  function getAudioTranscript(sessionId: string, turnId: string, audioIndex: number): string | undefined {
+    return chatSession.getSessionMessages(sessionId)
+      .find(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+      ?.audioTranscripts?.[audioIndex]
   }
 
   function saveAudioTranscript(sessionId: string, turnId: string, audioIndex: number, transcript: string) {

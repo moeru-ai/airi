@@ -511,6 +511,47 @@ describe('chat store contract', () => {
     expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
   })
 
+  it('uses a stored transcript when native audio falls back to string content', async () => {
+    audioCapability.enabled = true
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions & { prepareStringContent: () => Promise<Conversation> }) => {
+      expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+      const textContext = await options.prepareStringContent()
+      expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+      expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=', transcript: 'spoken words' }],
+    })
+
+    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } })
+  })
+
+  it('transcribes native audio before retrying string-only content', async () => {
+    audioCapability.enabled = true
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions & { prepareStringContent: () => Promise<Conversation> }) => {
+      const textContext = await options.prepareStringContent()
+      expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledOnce()
+    expect(sessionMessages['session-1'][1].audioTranscripts).toEqual(['spoken words'])
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } })
+  })
+
   it('passes stored voice transcripts to autonomous artistry without repeating them in the chat prompt', async () => {
     transcriptionMocks.configured = true
     transcriptionMocks.transcribe.mockResolvedValue('spoken words')
@@ -1486,8 +1527,8 @@ describe('chat store contract', () => {
     const store = useChatStore()
     const voiceSends = useVoiceSendStore()
     voiceSends.pendingSends = {
-      'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, historyBoundary: 0, status: 'failed' },
-      'session-2': { sessionId: 'session-2', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, historyBoundary: 0, status: 'failed' },
+      'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
+      'session-2': { sessionId: 'session-2', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
     }
     const firstSend = store.send({
       sessionId: 'session-1',

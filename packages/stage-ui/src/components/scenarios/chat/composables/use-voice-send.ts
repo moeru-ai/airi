@@ -26,8 +26,10 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
   const pendingSend = computed(() => drafts.pendingSends[toValue(options.sessionId)])
 
   function recordingStored(pending: PendingVoiceSend) {
-    return chatSession.sessionMessages[pending.sessionId]?.slice(pending.historyBoundary).some(message =>
+    return chatSession.sessionMessages[pending.sessionId]?.some(message =>
       message.role === 'user'
+      && !!message.id
+      && !pending.existingMessageIds.includes(message.id)
       && Array.isArray(message.content)
       && message.content.some(part => part.type === 'input_audio' && part.input_audio.data === pending.audio.data)) ?? false
   }
@@ -94,7 +96,7 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
       audio: result.audio,
       replyToMessageId,
       tools,
-      historyBoundary: chatSession.sessionMessages[result.sessionId]?.length ?? 0,
+      existingMessageIds: chatSession.sessionMessages[result.sessionId]?.flatMap(message => message.id ? [message.id] : []) ?? [],
       status: 'failed',
     }
     drafts.pendingSends = { ...drafts.pendingSends, [result.sessionId]: pending }

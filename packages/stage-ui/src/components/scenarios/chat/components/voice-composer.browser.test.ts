@@ -148,7 +148,7 @@ it('keeps a failed voice send for retry until the user turn is stored', async ()
     const audio = payload.attachments?.[0]
     if (!audio || audio.type !== 'audio')
       throw new Error('Expected audio attachment')
-    chatSession.sessionMessages[payload.sessionId] = [{ role: 'user', content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: audio.data, format: 'wav' } }] }]
+    chatSession.sessionMessages[payload.sessionId] = [{ role: 'user', id: 'new-voice-turn', content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: audio.data, format: 'wav' } }] }]
     return { sessionId: payload.sessionId, messages: chatSession.sessionMessages[payload.sessionId] }
   })
   await screen.getByTestId('voice-retry-send').click()
@@ -182,4 +182,38 @@ it('keeps a failed voice send when an older turn has the same audio', async () =
   expect(voiceSend.pendingSend.value).toBeDefined()
   expect(accepted).not.toHaveBeenCalled()
   expect(failed).toHaveBeenCalledOnce()
+})
+
+it('accepts a stored recording after Retry truncates earlier history', async () => {
+  const accepted = vi.fn()
+  const failed = vi.fn()
+  let voiceSend!: ReturnType<typeof useVoiceSend>
+  let chat!: ReturnType<typeof useChatStore>
+  let session!: ReturnType<typeof useChatSessionStore>
+  render(defineComponent({
+    setup() {
+      chat = useChatStore()
+      session = useChatSessionStore()
+      session.sessionMessages['retry-voice'] = [
+        { role: 'system', id: 'system', content: 'system prompt' },
+        { role: 'user', id: 'old-user', content: 'old message' },
+        { role: 'assistant', id: 'old-answer', content: 'old answer', slices: [], tool_results: [] },
+      ]
+      voiceSend = useVoiceSend({ sessionId: 'retry-voice', replyToMessageId: undefined, onAccepted: accepted, onError: failed })
+      return () => h('div')
+    },
+  }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } }), createRouter({ history: createMemoryHistory(), routes: [] })] } })
+  const sending = Promise.withResolvers<Awaited<ReturnType<typeof chat.send>>>()
+  vi.spyOn(chat, 'send').mockReturnValueOnce(sending.promise)
+
+  voiceSend.queue({ sessionId: 'retry-voice', mode: 'audio', text: '', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' } })
+  session.sessionMessages['retry-voice'] = [
+    session.sessionMessages['retry-voice'][0],
+    { role: 'user', id: 'new-voice-turn', content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }] },
+  ]
+  sending.resolve({ sessionId: 'retry-voice', messages: session.sessionMessages['retry-voice'] })
+
+  await expect.poll(() => accepted.mock.calls.length).toBe(1)
+  expect(voiceSend.pendingSend.value).toBeUndefined()
+  expect(failed).not.toHaveBeenCalled()
 })

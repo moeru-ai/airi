@@ -11,7 +11,7 @@ export interface PendingVoiceSend {
   audio: Extract<ChatAttachment, { type: 'audio' }>
   replyToMessageId?: string
   tools?: ChatToolReference[]
-  historyBoundary: number
+  existingMessageIds: string[]
   status: 'sending' | 'failed'
 }
 
