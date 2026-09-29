@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 import java.util.Properties
+import java.net.URI
+import java.security.MessageDigest
 
 val minSdkVersion: Int by rootProject.extra
 val compileSdkVersion: Int by rootProject.extra
@@ -79,11 +81,54 @@ dependencies {
     implementation("androidx.core:core-splashscreen:$coreSplashScreenVersion")
     implementation("com.squareup.okhttp3:okhttp:$okhttpVersion")
     implementation(project(":capacitor-android"))
+    implementation(files("libs/sherpa-onnx-1.13.8.aar"))
     testImplementation("junit:junit:$junitVersion")
     testImplementation("org.json:json:$orgJsonVersion")
     androidTestImplementation("androidx.test.ext:junit:$androidxJunitVersion")
     androidTestImplementation("androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion")
     implementation(project(":capacitor-cordova-android-plugins"))
+}
+
+// The installed APK includes Sherpa's native library. The pinned download keeps
+// the 50 MB AAR out of Git while making the native build reproducible.
+val sherpaAar = layout.projectDirectory.file("libs/sherpa-onnx-1.13.8.aar")
+val downloadSherpaAar by tasks.registering {
+    outputs.file(sherpaAar)
+    outputs.upToDateWhen { false }
+    doLast {
+        val target = sherpaAar.asFile
+        val expectedSha256 = "633c24321e06b1fe79feafa03ea16cbc0f8a286641e2da3559bac91bdb13bd96"
+        val source = "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/sherpa-onnx-1.13.8.aar"
+        target.parentFile.mkdirs()
+        if (!target.exists()) {
+            val temporary = target.resolveSibling("${target.name}.download")
+            try {
+                val connection = URI(source).toURL().openConnection().apply {
+                    connectTimeout = 30000
+                    readTimeout = 120000
+                }
+                connection.getInputStream().use { input -> temporary.outputStream().use(input::copyTo) }
+                temporary.renameTo(target) || error("Cannot install Sherpa ONNX AAR")
+            } finally {
+                temporary.delete()
+            }
+        }
+        val actualSha256 = target.inputStream().use { input ->
+            val digest = MessageDigest.getInstance("SHA-256")
+            val buffer = ByteArray(8192)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                digest.update(buffer, 0, count)
+            }
+            digest.digest().joinToString("") { "%02x".format(it) }
+        }
+        check(actualSha256 == expectedSha256) { "Sherpa ONNX AAR checksum mismatch" }
+    }
+}
+
+tasks.named("preBuild") {
+    dependsOn(downloadSherpaAar)
 }
 
 apply(from = "capacitor.build.gradle")

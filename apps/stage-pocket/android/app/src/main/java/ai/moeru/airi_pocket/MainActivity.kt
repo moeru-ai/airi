@@ -3,6 +3,7 @@ package ai.moeru.airi_pocket
 import android.graphics.Color
 import android.net.Uri
 import android.net.http.SslError
+import android.os.Bundle
 import android.webkit.SslErrorHandler
 import android.webkit.WebView
 import com.getcapacitor.Bridge
@@ -21,6 +22,9 @@ import ai.moeru.airi_pocket.websocket.createHostWebSocketClient
 class MainActivity : BridgeActivity() {
     companion object {
         internal var webSocketSessionFactoryOverrideForTesting: ((String, (HostWebSocketEvent) -> Unit) -> HostWebSocketSession)? = null
+
+        @Volatile
+        internal var isVisible = false
     }
 
     private val webSocketBridgeClient = createHostWebSocketClient()
@@ -28,6 +32,7 @@ class MainActivity : BridgeActivity() {
 
     override fun load() {
         registerPlugin(MicrophonePermissionPlugin::class.java)
+        registerPlugin(BackgroundWakeWordPlugin::class.java)
         registerPlugin(WebAuthenticationPlugin::class.java)
         super.load()
 
@@ -40,6 +45,46 @@ class MainActivity : BridgeActivity() {
         }
 
         bridge.setWebViewClient(DebugTlsBypassWebViewClient(bridge))
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        handleWakeNotification(intent)
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleWakeNotification(intent)
+    }
+
+    private fun handleWakeNotification(intent: android.content.Intent?) {
+        if (intent?.action != BackgroundWakeWordService.ACTION_OPEN_WAKE) return
+        val id = intent.getStringExtra(BackgroundWakeWordService.EXTRA_WAKE_ID) ?: return
+        val matches = synchronized(BackgroundWakeWordService.pendingLock) {
+            val preferences = getSharedPreferences(BackgroundWakeWordService.PREFERENCES, MODE_PRIVATE)
+            if (preferences.getString(BackgroundWakeWordService.PENDING_WAKE_ID, null) != id) {
+                false
+            } else {
+                preferences.edit().putBoolean(BackgroundWakeWordService.NOTIFICATION_TAPPED, true).apply()
+                true
+            }
+        }
+        if (!matches) return
+        BackgroundWakeWordPlugin.onNotificationTap()
+    }
+
+    override fun onResume() {
+        isVisible = true
+        BackgroundWakeWordService.setWebViewCaptureActive(true)
+        BackgroundWakeWordService.instance?.setAppVisible(true)
+        super.onResume()
+    }
+
+    override fun onPause() {
+        isVisible = false
+        BackgroundWakeWordService.instance?.setAppVisible(false)
+        super.onPause()
     }
 
     override fun onDestroy() {
