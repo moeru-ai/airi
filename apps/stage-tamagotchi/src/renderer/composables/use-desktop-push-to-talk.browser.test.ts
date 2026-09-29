@@ -52,8 +52,8 @@ it('invalidates a released hold while microphone startup is pending', async () =
   shortcutMock.trigger?.({ body: { id: 'voice-push-to-talk', phase: 'down' } })
   await Promise.resolve()
   shortcutMock.trigger?.({ body: { id: 'voice-push-to-talk', phase: 'up' } })
-  finishStartup()
   await vi.waitFor(() => expect(end).toHaveBeenCalledOnce())
+  finishStartup()
 
   expect(recorded).not.toHaveBeenCalled()
   app.unmount()

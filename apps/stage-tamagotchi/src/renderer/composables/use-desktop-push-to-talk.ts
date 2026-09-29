@@ -51,7 +51,9 @@ export function useDesktopPushToTalk(options: {
       return
     hold.active = false
     isHeld.value = false
-    pendingRelease = hold.beginPromise.then(() => hold.didBegin ? options.end() : undefined).catch((error) => {
+    // Release must reach microphone startup cancellation before permission resolves.
+    const ending = hold.didBegin ? options.end() : Promise.resolve()
+    pendingRelease = Promise.all([hold.beginPromise, ending]).then(() => {}).catch((error) => {
       console.error('[Push to Talk] Could not stop recording:', error)
     })
     await pendingRelease
