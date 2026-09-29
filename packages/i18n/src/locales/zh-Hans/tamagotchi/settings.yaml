@@ -79,7 +79,6 @@ devtools:
         export-last-recording: 导出上次录制
       metrics:
         fps:
-          label: FPS
           description: 最近 10 秒内的动画帧率。每个样本为 1000 除以帧间隔（毫秒）。
         frame-duration:
           label: 帧时间（毫秒）
