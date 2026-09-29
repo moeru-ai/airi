@@ -8,7 +8,7 @@ import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, nextTick, ref } from 'vue'
+import { createApp, nextTick, reactive, ref } from 'vue'
 
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -83,7 +83,8 @@ const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
-const sessionMessages: Record<string, any[]> = {}
+// The chat session store keeps messages in reactive state, so the mock does too.
+const sessionMessages = reactive<Record<string, any[]>>({})
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
@@ -500,7 +501,7 @@ describe('chat store contract', () => {
     })
 
     const store = useChatStore()
-    await store.send({
+    const result = await store.send({
       sessionId: 'session-1',
       text: 'Read this',
       attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
@@ -510,6 +511,9 @@ describe('chat store contract', () => {
       text: 'What color was it?',
     })
 
+    // Storing the description spread the reactive message. Its content array
+    // stayed a proxy, and `structuredClone` rejected the send result.
+    expect(() => structuredClone(result)).not.toThrow()
     expect(visionMocks.runInference).toHaveBeenCalledOnce()
     expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions).toEqual([
       {
@@ -517,6 +521,40 @@ describe('chat store contract', () => {
         imageIndex: 0,
       },
     ])
+  })
+
+  it('sends a failed image read as a note and does not read the image again', async () => {
+    // ROOT CAUSE:
+    //
+    // A failed image read rejected the send and stored nothing. Each later turn
+    // read the same image again, so a text message also waited and failed.
+    //
+    // We fixed this by storing a note about the failure as the description.
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })
+    await store.send({
+      sessionId: 'session-1',
+      text: 'Hello again',
+    })
+
+    expect(visionMocks.runInference).toHaveBeenCalledOnce()
+    expect(llmStreamMock).toHaveBeenCalledTimes(2)
+    expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        role: 'user',
+        content: expect.stringContaining('The image could not be read. Vision inference timed out after 60000ms'),
+      }),
+    ]))
   })
 
   it('sends images directly when the selected chat model supports vision', async () => {
