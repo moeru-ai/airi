@@ -584,6 +584,31 @@ describe('chat store contract', () => {
       .toEqual([{ description: 'A red square.', imageIndex: 0 }])
   })
 
+  it('keeps a failed earlier read inside its session', async () => {
+    // ROOT CAUSE:
+    //
+    // A stored message without an id gets its turn id from its position. The
+    // failed read of one session then skipped the image at that position in
+    // another session.
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    for (const sessionId of ['session-1', 'session-2']) {
+      sessionMessages[sessionId] = [
+        { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+        { role: 'user', content: [{ type: 'text', text: 'Read this' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }], createdAt: 2 },
+      ]
+    }
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+    await store.send({ sessionId: 'session-2', text: 'Hello' })
+
+    expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
+  })
+
   it('sends images directly when the selected chat model supports vision', async () => {
     visionMocks.configured = true
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: true } } }]

@@ -230,7 +230,7 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.dispose()
   }
 
-  /** Failed image reads of this leader, keyed by vision provider, model, turn, and image. */
+  /** Failed image reads of this leader, keyed by session, vision provider, model, turn, and image. */
   const failedImageReads = new Set<string>()
 
   async function streamWithStageAdapters(
@@ -276,7 +276,9 @@ export const useChatStore = defineStore('chat', () => {
           // An earlier turn keeps its failed read for this vision selection, so
           // each later turn does not read it again. The current turn reports it.
           const isCurrentTurn = turnId === currentTurnId
-          const readKey = JSON.stringify([visionStore.activeProvider, visionStore.activeModel, turnId, imageIndex])
+          // A stored message without an id gets a turn id from its position, so
+          // the session keeps two sessions apart.
+          const readKey = JSON.stringify([sessionId, visionStore.activeProvider, visionStore.activeModel, turnId, imageIndex])
           if (!isCurrentTurn && failedImageReads.has(readKey))
             return UNREADABLE_EARLIER_IMAGE
 
