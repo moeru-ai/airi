@@ -150,7 +150,7 @@ export function resolveLive2DModelControls(
 
   return {
     expressions: [...new Map(expressions.map(expression => [expression.name, expression])).values()],
-    motions: [...new Map(motions.map(motion => [motion.fileName, motion])).values()],
+    motions,
   }
 }
 
@@ -223,7 +223,9 @@ export async function inspectLive2DModelControls(source: Blob): Promise<Live2DMo
     }
   }))).filter(expression => expression !== undefined)
 
-  const motions = controls.motions.filter(motion => reader.file(resolveArchivePath(settingsPath, motion.fileName)))
+  const motions = [...new Map(controls.motions
+    .filter(motion => reader.file(resolveArchivePath(settingsPath, motion.fileName)))
+    .map(motion => [motion.fileName, motion])).values()]
 
   return { expressions, motions }
 }
