@@ -17,5 +17,11 @@ export interface PendingVoiceSend {
 export const useVoiceSendStore = defineStore('voice-send', () => {
   const pendingSends = shallowRef<Record<string, PendingVoiceSend>>({})
 
-  return { pendingSends }
+  function discardSession(sessionId: string) {
+    const next = { ...pendingSends.value }
+    delete next[sessionId]
+    pendingSends.value = next
+  }
+
+  return { pendingSends, discardSession }
 })

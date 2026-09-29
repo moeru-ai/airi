@@ -57,6 +57,7 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
     messageInputRef: messageInput,
     sendMessage: handleSend,
     isStageTamagotchi,
+    manualRecordingActive: voiceActive,
   },
 )
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)

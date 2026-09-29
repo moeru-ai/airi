@@ -16,6 +16,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
+import { useVoiceSendStore } from './chat/voice-send'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
@@ -1483,6 +1484,11 @@ describe('chat store contract', () => {
     })
 
     const store = useChatStore()
+    const voiceSends = useVoiceSendStore()
+    voiceSends.pendingSends = {
+      'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, status: 'failed' },
+      'session-2': { sessionId: 'session-2', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, status: 'failed' },
+    }
     const firstSend = store.send({
       sessionId: 'session-1',
       text: 'active turn',
@@ -1509,6 +1515,8 @@ describe('chat store contract', () => {
     await store.deleteSession('session-1')
 
     expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(voiceSends.pendingSends['session-1']).toBeUndefined()
+    expect(voiceSends.pendingSends['session-2']).toBeDefined()
     expect(await queuedOutcome).toBe('Chat session was reset before send could start')
     expect(sessionMessages['session-1']).toBeUndefined()
 

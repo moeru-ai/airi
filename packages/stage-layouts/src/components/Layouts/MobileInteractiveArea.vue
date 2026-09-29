@@ -228,6 +228,7 @@ useTranscriptions(
     messageInputRef: messageInput,
     sendMessage: handleSend,
     isStageTamagotchi,
+    manualRecordingActive: voiceActive,
   },
 )
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
@@ -258,7 +259,7 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  if (!pendingImages.value)
+  if (!voiceActive.value && !pendingImages.value)
     await submitInterruptingResponse()
 }
 

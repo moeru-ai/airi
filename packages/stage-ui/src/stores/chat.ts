@@ -37,6 +37,7 @@ import { useChatContextStore } from './chat/context-store'
 import { describeChatImages } from './chat/image-projection'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
+import { useVoiceSendStore } from './chat/voice-send'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
@@ -697,6 +698,7 @@ export const useChatStore = defineStore('chat', () => {
   /** Cancels queued work before permanently removing its owning session. */
   function deleteSession(sessionId: string): Promise<void> {
     runtime.cancelPendingSends(sessionId)
+    useVoiceSendStore().discardSession(sessionId)
     return chatSession.deleteSession(sessionId)
   }
 

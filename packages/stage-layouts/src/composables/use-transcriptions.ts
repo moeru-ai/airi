@@ -12,10 +12,11 @@ interface TranscriptionOptions {
   messageInputRef: Ref<string>
   sendMessage: () => void
   isStageTamagotchi: MaybeRefOrGetter<boolean>
+  manualRecordingActive: MaybeRefOrGetter<boolean>
 }
 
 export function useTranscriptions(options: TranscriptionOptions) {
-  const { messageInputRef: messageInput, sendMessage, isStageTamagotchi } = options
+  const { messageInputRef: messageInput, sendMessage, isStageTamagotchi, manualRecordingActive } = options
 
   const hearingStore = useHearingStore()
   const audioDeviceSettingsStore = useSettingsAudioDevice()
@@ -30,6 +31,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const isListening = ref(false)
   const transcriptionConsumerId = `interactive-area:${useId()}`
   const streamingInput = useStreamingTranscriptionInput(messageInput)
+  let resumeAfterRecording = false
+  let suspension: Promise<void> | undefined
+  let disposed = false
 
   // Auto-send logic
   let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
@@ -41,7 +45,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   }
   async function debouncedAutoSend() {
     // Double-check auto-send is enabled before proceeding
-    if (!autoSendEnabled.value) {
+    if (!autoSendEnabled.value || toValue(manualRecordingActive)) {
       clearPendingAutoSend()
       return
     }
@@ -51,7 +55,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
     autoSendTimeout = setTimeout(async () => {
       // Final check before sending - auto-send might have been disabled while waiting
-      if (!autoSendEnabled.value) {
+      if (!autoSendEnabled.value || toValue(manualRecordingActive)) {
         clearPendingAutoSend()
         return
       }
@@ -77,6 +81,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
   }
 
   const startStreaming = async () => {
+    if (toValue(manualRecordingActive))
+      return
     console.info('Starting streaming transcription', {
       enabled: hearingEnabled.value,
       hasStream: !!stream.value,
@@ -140,6 +146,8 @@ export function useTranscriptions(options: TranscriptionOptions) {
       if (!stream.value) {
         console.info('Requesting microphone permission', { source: 'useTranscriptions' })
         await askPermission()
+        if (toValue(manualRecordingActive))
+          return
 
         // If still no stream, try starting it manually
         if (!stream.value && hearingEnabled.value) {
@@ -162,6 +170,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
       isListening.value = false
     }
 
+    if (toValue(manualRecordingActive))
+      return
+
     if (!stream.value) {
       const errorMsg = 'Failed to get audio stream for transcription. Please check microphone permissions and ensure a device is selected.'
       console.error(errorMsg, { source: 'useTranscriptions' })
@@ -178,18 +189,28 @@ export function useTranscriptions(options: TranscriptionOptions) {
       await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
         onSentenceEnd: (delta) => {
+          if (toValue(manualRecordingActive))
+            return
           if (streamingInput.commit(delta)) {
             console.info('Received final transcription:', delta, { source: 'useTranscriptions' })
             debouncedAutoSend()
           }
         },
-        onSpeechEnd: streamingInput.clear,
-        onTranscriptionUpdate: streamingInput.replace,
+        onSpeechEnd: () => {
+          if (!toValue(manualRecordingActive))
+            streamingInput.clear()
+        },
+        onTranscriptionUpdate: (text) => {
+          if (!toValue(manualRecordingActive))
+            streamingInput.replace(text)
+        },
       })
 
       // Only set listening to true if transcription started successfully
       // (transcribeForMediaStream might return early if session already exists)
-      isListening.value = !hearingPipeline.error
+      isListening.value = !hearingPipeline.error && !toValue(manualRecordingActive)
+      if (toValue(manualRecordingActive))
+        await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
       console.info('Streaming transcription initiated successfully', { source: 'useTranscriptions' })
     }
     catch (err) {
@@ -216,7 +237,24 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }
   })
 
+  watch(() => toValue(manualRecordingActive), (active) => {
+    if (active) {
+      resumeAfterRecording ||= isListening.value
+      suspension = stopStreaming()
+    }
+    else if (resumeAfterRecording) {
+      void (async () => {
+        await suspension
+        if (disposed || toValue(manualRecordingActive) || !hearingEnabled.value)
+          return
+        resumeAfterRecording = false
+        await startStreaming()
+      })().catch(() => {})
+    }
+  }, { flush: 'sync' })
+
   onScopeDispose(() => {
+    disposed = true
     clearPendingAutoSend()
     stopStreaming()
   })

@@ -121,6 +121,7 @@ describe('useTranscriptions', () => {
     messageInputRef: ref(''),
     sendMessage: vi.fn(),
     isStageTamagotchi: ref(isTamagotchi),
+    manualRecordingActive: ref(false),
   })
 
   describe('initialization', () => {
@@ -366,6 +367,32 @@ describe('useTranscriptions', () => {
       vi.advanceTimersByTime(1000)
 
       expect(mockSendMessage).not.toHaveBeenCalled()
+    })
+
+    it('pauses ambient dictation and auto-send during manual recording, then resumes', async () => {
+      const options = createOptions()
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.transcribeForMediaStream.mockResolvedValue(undefined)
+      const { startStreamingTranscription, isListening } = useTranscriptions(options)
+
+      await startStreamingTranscription()
+      expect(isListening.value).toBe(true)
+      const ambientCallbacks = mockHearingPipeline.transcribeForMediaStream.mock.calls[0][1]
+
+      options.manualRecordingActive.value = true
+      ambientCallbacks.onSentenceEnd('manual words')
+      expect(options.messageInputRef.value).toBe('')
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
+      vi.advanceTimersByTime(3000)
+      expect(options.sendMessage).not.toHaveBeenCalled()
+
+      options.manualRecordingActive.value = false
+      await vi.waitFor(() => {
+        expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledTimes(2)
+        expect(isListening.value).toBe(true)
+      })
     })
   })
 

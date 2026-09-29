@@ -55,6 +55,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
   let source: MediaStreamAudioSourceNode | undefined
   let generation = 0
   let starting: Promise<void> | undefined
+  let permissionPending = false
   let finishing: Promise<void> | undefined
   let activeMode: VoiceComposerMode = 'audio'
   let activeSession = ''
@@ -77,7 +78,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
   }
 
   async function start(mode: VoiceComposerMode) {
-    if (phase.value !== 'idle')
+    if (phase.value !== 'idle' || permissionPending)
       return
     const ticket = ++generation
     activeSession = toValue(options.sessionId)
@@ -92,7 +93,9 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
     starting = (async () => {
       try {
         const resuming = audioContext.resume()
+        permissionPending = true
         const stream = await media.start()
+        permissionPending = false
         if (ticket !== generation) {
           stopMicrophone()
           return
@@ -160,6 +163,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         }
       }
       finally {
+        permissionPending = false
         if (startupAbortController === startupController)
           startupAbortController = undefined
       }
@@ -249,7 +253,13 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
     processingAbortController?.abort()
     clearTimeout(recordingDeadline)
     recordingDeadline = undefined
-    // Keep new presses blocked until an outstanding permission request settles.
+    if (permissionPending) {
+      stopMicrophone()
+      input.reset()
+      transcript.value = ''
+      phase.value = 'idle'
+      return
+    }
     if (phase.value !== 'idle')
       phase.value = 'processing'
     await starting

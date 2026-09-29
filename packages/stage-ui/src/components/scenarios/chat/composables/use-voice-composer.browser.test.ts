@@ -285,10 +285,11 @@ describe('manual voice recording lifecycle', () => {
     vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockReturnValue(permission.promise)
     const { voice, complete } = mountVoice()
     const starting = voice.start('audio')
-    const cancelling = voice.cancel()
+    await voice.cancel()
+    expect(voice.phase.value).toBe('idle')
+    expect(complete).not.toHaveBeenCalled()
     permission.resolve(stream)
     await starting
-    await cancelling
     expect(complete).not.toHaveBeenCalled()
     expect(stream.getTracks()[0].readyState).toBe('ended')
     expect(voice.phase.value).toBe('idle')
