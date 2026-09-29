@@ -68,7 +68,6 @@ const { activeSendSessionId, activeStreamingMessage, sending, streamingMessagesB
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
 const voiceActive = ref(false)
-const voiceInput = useTemplateRef<HTMLElement>('voiceInput')
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
   send: submission => chatStore.send({
@@ -378,7 +377,7 @@ defineExpose({ restoreDraft, snapshotDraft })
       <div
         ref="message-composer"
         :class="[
-          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
+          'relative min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
           // The composer layer clips overflow, which would cut a ring or a
           // shadow; a border stays inside the box. The floating composer is
           // its own island, so it keeps tighter padding than the windowed one.
@@ -460,6 +459,7 @@ defineExpose({ restoreDraft, snapshotDraft })
               'max-h-[10lh] min-h-[2lh]',
               'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
+              voiceActive && 'invisible',
             ]"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
@@ -489,6 +489,15 @@ defineExpose({ restoreDraft, snapshotDraft })
               <span :class="[microphoneActive ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
             </GhostButton>
           </HearingConfigDialog>
+          <VoiceComposer
+            v-model="messageInput"
+            :input-element="messageComposer"
+            :session-id="activeSessionId"
+            :reply-to-message-id="replyTarget?.message.id"
+            :tools="artistryToolReferences"
+            @recording-change="voiceActive = $event"
+            @sent="composer.clearReply()"
+          />
           <GhostButton
             data-testid="computer-use-toggle"
             size="unset"
@@ -588,46 +597,6 @@ defineExpose({ restoreDraft, snapshotDraft })
             multiple
             @change="handleFileSelect"
           >
-        </div>
-        <div
-          ref="voiceInput"
-          :class="[
-            'relative w-full shrink-0 overflow-hidden rounded-xl border-2 border-solid',
-            'border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
-            'dark:border-primary-400/20 dark:bg-primary-900/70',
-          ]"
-        >
-          <ChatReplyPreview
-            :class="[voiceActive && 'invisible']"
-            :target="replyTarget"
-            @cancel="handleCancelReply"
-          />
-          <BasicTextarea
-            v-model="messageInput"
-            :submit-on-enter="false"
-            :placeholder="t('stage.message')"
-            :class="['ph-no-capture [scrollbar-gutter:stable] pr-14', voiceActive && 'invisible']"
-            text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
-            bg="transparent"
-            max-h="[10lh]" min-h="14"
-            w-full resize-none overflow-y-auto border-2 border-transparent border-solid p-2 font-medium outline-none
-            transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-            @compositionstart="isComposing = true"
-            @compositionend="isComposing = false"
-            @keydown="handleMessageInputKeydown"
-            @paste-file="handleFilePaste"
-          />
-          <div :class="['absolute bottom-2 right-2']">
-            <VoiceComposer
-              v-model="messageInput"
-              :input-element="voiceInput"
-              :session-id="activeSessionId"
-              :reply-to-message-id="replyTarget?.message.id"
-              :tools="artistryToolReferences"
-              @recording-change="voiceActive = $event"
-              @sent="composer.clearReply()"
-            />
-          </div>
         </div>
       </div>
     </template>

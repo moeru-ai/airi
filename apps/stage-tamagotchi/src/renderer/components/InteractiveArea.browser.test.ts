@@ -426,7 +426,7 @@ describe('interactive area synchronized state', () => {
     const send = screen.getByRole('button', { name: 'stage.chat.actions.send' }).element()
     await expect.poll(() => input.getBoundingClientRect().height).toBe(32)
     expect(bubble.getBoundingClientRect().width).toBe(emptyWidth)
-    expect(send.getBoundingClientRect().height).toBe(40)
+    expect(send.getBoundingClientRect().height).toBe(44)
     expect(bubble.getBoundingClientRect().bottom).toBe(send.getBoundingClientRect().bottom)
     const bubbleBounds = bubble.getBoundingClientRect()
     const inputBounds = input.getBoundingClientRect()

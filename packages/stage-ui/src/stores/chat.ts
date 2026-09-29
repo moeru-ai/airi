@@ -138,13 +138,19 @@ function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPa
     return texts
   }, []).join('\n\n')
 
-  const attachments = message.content.flatMap((part) => {
-    if (part.type !== 'image_url')
-      return []
-
-    const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
-    return match ? [{ type: 'image' as const, mimeType: match[1], data: match[2] }] : []
-  })
+  const attachments: NonNullable<ChatSendPayload['attachments']> = []
+  let audioIndex = 0
+  for (const part of message.content) {
+    if (part.type === 'input_audio') {
+      const transcript = message.audioTranscripts?.[audioIndex++]
+      attachments.push({ type: 'audio', mimeType: 'audio/wav', data: part.input_audio.data, transcript })
+    }
+    else if (part.type === 'image_url') {
+      const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
+      if (match)
+        attachments.push({ type: 'image', mimeType: match[1], data: match[2] })
+    }
+  }
 
   return text || attachments.length ? { text, attachments } : null
 }
@@ -306,9 +312,9 @@ export const useChatStore = defineStore('chat', () => {
     try {
       // A model change can expose older audio turns to a text-only model.
       // Convert a request copy so durable history keeps the original recordings.
-      const providerContext = structuredClone(context)
+      const requestContext = structuredClone(providerContext)
       if (!consciousnessStore.modelSupportsAudioInput(options?.providerId ?? '', model)) {
-        for (const turn of providerContext.turns) {
+        for (const turn of requestContext.turns) {
           if (turn.type !== 'user')
             continue
           for (const [index, part] of turn.content.entries()) {
@@ -325,7 +331,7 @@ export const useChatStore = defineStore('chat', () => {
           }
         }
       }
-      await llmStore.stream(model, chatProvider, providerContext, {
+      await llmStore.stream(model, chatProvider, requestContext, {
         ...options,
         headers,
         onStreamEvent: async (event: StreamEvent) => {

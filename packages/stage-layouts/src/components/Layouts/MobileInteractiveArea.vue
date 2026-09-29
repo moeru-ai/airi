@@ -463,12 +463,12 @@ onUnmounted(() => {
             @compositionend="isComposing = false"
           />
         </div>
-        <div :class="['min-w-10 shrink-0 flex items-end justify-end gap-1']">
+        <div :class="['min-w-11 shrink-0 flex items-end justify-end gap-1']">
           <button
             v-if="showStopAction"
             data-testid="stop-speaking-button"
             :class="[
-              'size-10 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
+              'size-11 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
               'border-2 border-solid border-neutral-200/60 bg-neutral-100/80',
               'text-lg text-neutral-500 transition-all duration-200 active:scale-95',
               'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-neutral-400',
@@ -485,7 +485,7 @@ onUnmounted(() => {
             :disabled="!!pendingImages"
             :aria-label="t('stage.chat.actions.send')"
             :class="[
-              'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',
+              'size-11 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',
               'transition-colors duration-200 hover:bg-primary-600 disabled:opacity-40 motion-reduce:transition-none',
             ]"
             @click="handleSend"
