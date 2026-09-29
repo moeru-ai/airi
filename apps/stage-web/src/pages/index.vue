@@ -12,29 +12,33 @@ import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
-import { startupSceneStateKey } from '@proj-airi/stage-ui/composables/startup-scene'
 import { createVoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, inject, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 const paused = ref(false)
-const sceneState = ref<'pending' | 'loading' | 'mounted'>('pending')
-const startupSceneState = inject(startupSceneStateKey)
+const modelRenderState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const modelRenderError = ref<Error>()
+const startup = useStartupResourcesStore()
 
-watch(sceneState, (state) => {
-  if (state === 'mounted' && startupSceneState && startupSceneState.value !== 'error')
-    startupSceneState.value = 'mounted'
+watch([modelRenderState, modelRenderError, () => startup.resources.find(resource => resource.id === 'model')?.status], ([state, error, status]) => {
+  if (status !== 'loading')
+    return
+  if (error)
+    startup.fail('model', error)
+  else if (state === 'mounted')
+    startup.complete('model')
 })
 
-function markSceneFailed() {
-  if (startupSceneState)
-    startupSceneState.value = 'error'
+function markModelFailed(error: Error) {
+  modelRenderError.value = error
 }
 
 function handleSettingsOpen(open: boolean) {
@@ -230,12 +234,12 @@ const cursorPosition = computed(() => ({
             <ViewControlSlider />
           </div>
           <WidgetStage
-            v-model:state="sceneState"
+            v-model:state="modelRenderState"
             h-full w-full
             :cursor-position="cursorPosition"
             :enable-orbit-controls="!isMobile"
             :paused="paused"
-            @error="markSceneFailed"
+            @error="markModelFailed"
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />

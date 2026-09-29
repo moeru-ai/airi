@@ -4,13 +4,13 @@ Shared core for stage
 
 ## Startup progress
 
-`createStartupProgress` tracks completed startup tasks and checks their dependencies.
-`StartupScreenProvider` wraps the stage, owns the splash and loading phases, and waits for each app's loading function.
+`useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
+The apps register the complete resource list before work starts. Their startup flows report each module's result through the store.
+`StartupOverlay` reads the store and shows splash, progress, or an error with a retry action.
 Each app's HTML shows the first splash before Vue mounts. CSS hides it when Vue renders into `#app`.
-The provider shares scene state with the home page through `startupSceneStateKey`.
-Web and pocket apps finish the scene task after the initial character model mounts.
-A renderer error ends the wait and shows the stage error panel.
-The provider emits `hidden` after its screen exits. Apps open onboarding from that event.
+The home page reports when its character model is ready or fails. A failed model keeps the overlay visible.
+If the model fails, the user can retry the app or continue without a character.
+The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
 
 ## Chat sampling
 

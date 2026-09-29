@@ -1,25 +1,30 @@
 <script setup lang="ts">
-import { Progress } from '@proj-airi/ui'
+import { Button, Progress } from '@proj-airi/ui'
 
 import '@fontsource-variable/comfortaa/wght.css'
 
-/** Shows startup tasks as a percentage from 0 to 100. The caller supplies a translated label. */
+/** Shows startup progress and retains failures until the user retries. */
 defineProps<{
-  phase: 'splash' | 'loading' | 'done'
+  phase: 'splash' | 'loading' | 'error' | 'done'
   progress: number
   logoSrc: string
   label: string
-  instantExit?: boolean
+  errorTitle: string
+  errorMessage?: string
+  errorDetailsLabel: string
+  retryLabel: string
+  alternativeLabel?: string
 }>()
 
 const emit = defineEmits<{
-  (e: 'hidden'): void
+  (e: 'retry'): void
+  (e: 'alternative'): void
 }>()
 </script>
 
 <template>
   <Teleport to="body">
-    <Transition name="startup-exit" :css="!instantExit" @after-leave="emit('hidden')">
+    <Transition name="startup-exit">
       <section v-if="phase !== 'done'" class="startup-screen">
         <div class="startup-brand">
           <img class="startup-logo" :src="logoSrc" alt="">
@@ -27,16 +32,29 @@ const emit = defineEmits<{
         </div>
         <div class="startup-status">
           <span v-if="phase === 'loading'" class="startup-label">{{ label }}</span>
+          <div v-if="phase === 'error'" class="startup-error" role="alert">
+            <strong>{{ errorTitle }}</strong>
+            <details v-if="errorMessage" class="startup-error-details">
+              <summary>{{ errorDetailsLabel }}</summary>
+              <span>{{ errorMessage }}</span>
+            </details>
+            <Button class="startup-retry" @click="emit('retry')">
+              {{ retryLabel }}
+            </Button>
+            <Button v-if="alternativeLabel" @click="emit('alternative')">
+              {{ alternativeLabel }}
+            </Button>
+          </div>
           <div
             class="startup-track"
-            :class="{ 'startup-track-loading': phase === 'loading' }"
-            :role="phase === 'loading' ? 'progressbar' : undefined"
-            :aria-label="phase === 'loading' ? label : undefined"
-            :aria-valuemin="phase === 'loading' ? 0 : undefined"
-            :aria-valuemax="phase === 'loading' ? 100 : undefined"
-            :aria-valuenow="phase === 'loading' ? progress : undefined"
+            :class="{ 'startup-track-loading': phase === 'loading' || phase === 'error' }"
+            :role="phase === 'loading' || phase === 'error' ? 'progressbar' : undefined"
+            :aria-label="phase === 'error' ? errorTitle : label"
+            :aria-valuemin="phase === 'loading' || phase === 'error' ? 0 : undefined"
+            :aria-valuemax="phase === 'loading' || phase === 'error' ? 100 : undefined"
+            :aria-valuenow="phase === 'loading' || phase === 'error' ? progress : undefined"
           >
-            <Progress v-if="phase === 'loading'" :progress="progress" class="startup-progress" />
+            <Progress v-if="phase === 'loading' || phase === 'error'" :progress="progress" class="startup-progress" />
           </div>
         </div>
       </section>
@@ -129,6 +147,25 @@ const emit = defineEmits<{
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.startup-error {
+  position: absolute;
+  bottom: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(320px, 80vw);
+  text-align: center;
+  font-size: 13px;
+}
+
+.startup-error span { overflow-wrap: anywhere; }
+.startup-error-details { max-width: 100%; color: #737373; }
+.startup-error-details summary { cursor: pointer; }
+.startup-retry {
+  margin-top: 8px;
 }
 
 :global(html.dark .startup-label) {

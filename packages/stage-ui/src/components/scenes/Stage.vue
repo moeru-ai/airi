@@ -193,7 +193,7 @@ function handleStageRenderError(error: Error) {
 
 function reportStageRenderError(error: unknown) {
   console.error(error)
-  handleStageRenderError(error instanceof Error ? error : new Error(errorMessageFrom(error) ?? 'Failed to render stage'))
+  handleStageRenderError(new Error(errorMessageFrom(error) ?? 'Failed to render stage'))
 }
 
 async function retryStageRenderer() {

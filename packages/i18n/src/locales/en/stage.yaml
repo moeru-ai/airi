@@ -79,6 +79,23 @@ render-error:
     {renderer} failed to render the selected model.
     Model ID: {modelId}
     Error: {error}
+startup:
+  failed: Startup failed
+  failed-resource: Could not load {resource}
+  details: Details
+  retry: Retry
+  continue-without-model: Continue without a character
+  resources:
+    auth: account settings
+    modelIndex: model list
+    card: character settings
+    chat: chat history
+    services: app services
+    modelData: saved models
+    modelSelection: model settings
+    audio: audio settings
+    route: page
+    model: character model
 message: Say something...
 send-mode:
   title: Send key
