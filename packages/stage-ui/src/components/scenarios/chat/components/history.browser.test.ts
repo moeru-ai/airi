@@ -479,6 +479,11 @@ describe('chat history', () => {
     // nothing either.
     expect(screen.container.querySelector('button[aria-label="Re-run tool call"]')).toBeNull()
     expect(toolCallToggle()?.disabled).toBe(true)
+    // The window takes the pointer while a header menu is open, so a right
+    // click can still reach a message.
+    screen.container.querySelector('.chat-message-item-container')?.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 40, clientY: 40 }))
+    await new Promise(resolve => setTimeout(resolve, 100))
+    expect(document.querySelector('[role="menu"]')).toBeNull()
   })
 
   it('keeps short error formatting', async () => {

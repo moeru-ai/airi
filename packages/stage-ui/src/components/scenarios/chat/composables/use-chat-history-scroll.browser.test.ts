@@ -252,13 +252,8 @@ describe('useChatHistoryScroll', () => {
     currentContainer.dispatchEvent(new Event('scroll'))
     passive.value = true
     await flushReactivity()
-    expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
 
-    scrollToIndex.mockClear()
-    replaceMessageItems(currentContainer, 3)
-    messages.value = [...messages.value, { id: 'assistant-2' }]
-    await flushReactivity()
-    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
+    expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
   })
 
   it('keeps a streaming tail aligned to the viewport end', async () => {

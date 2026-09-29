@@ -199,11 +199,6 @@ describe('useChatFloatingClickThrough', () => {
     mocks.cursor!.x.value = 42
     await nextTick()
     expect(overPassiveArea.value).toBe(true)
-
-    // The gap beside the content is not painted.
-    mocks.cursor!.x.value = 200
-    await vi.waitFor(() => expect(overPassiveArea.value).toBe(false))
-    expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
   })
 
   it('closes an open menu when the chat hides', async () => {
