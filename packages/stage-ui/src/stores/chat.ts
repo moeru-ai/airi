@@ -243,6 +243,13 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.dispose()
   }
 
+  /**
+   * Projects media before streaming a queued chat request.
+   *
+   * Triggering workflow:
+   * {@link createChatOrchestratorRuntime} -> `llm.stream`
+   * -> `streamWithStageAdapters` -> `llmStore.stream`.
+   */
   async function streamWithStageAdapters(
     model: string,
     chatProvider: GenerationProvider,
@@ -296,15 +303,17 @@ export const useChatStore = defineStore('chat', () => {
     }
     options?.abortSignal?.throwIfAborted()
 
-    if (!consciousnessStore.supportsAudioInput) {
+    if (!options?.supportsAudioInput) {
       // Convert a request copy so durable history keeps the original recordings.
       providerContext = structuredClone(providerContext)
       for (const turn of providerContext.turns) {
         if (turn.type !== 'user')
           continue
+        let audioIndex = 0
         for (const [index, part] of turn.content.entries()) {
           if (part.type !== 'audio')
             continue
+          const sourceAudioIndex = audioIndex++
           if (!useHearingStore().configured)
             throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
           const pipeline = useHearingSpeechInputPipeline()
@@ -312,6 +321,9 @@ export const useChatStore = defineStore('chat', () => {
           if (!text)
             throw new Error(pipeline.error ?? 'Audio transcription returned no text.')
           turn.content[index] = { type: 'text', text }
+          const sessionId = options?.requestCorrelation?.conversationId
+          if (sessionId)
+            saveAudioTranscript(sessionId, turn.id, sourceAudioIndex, text)
         }
       }
     }
@@ -401,6 +413,22 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
+  function saveAudioTranscript(sessionId: string, turnId: string, audioIndex: number, transcript: string) {
+    const messages = chatSession.getSessionMessages(sessionId)
+    const messageIndex = messages.findIndex(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+    if (messageIndex < 0)
+      return
+
+    const message = messages[messageIndex]
+    if (message.role !== 'user')
+      return
+    const audioTranscripts = [...(message.audioTranscripts ?? [])]
+    audioTranscripts[audioIndex] = transcript
+    const nextMessages = [...messages]
+    nextMessages[messageIndex] = { ...message, audioTranscripts }
+    chatSession.setSessionMessages(sessionId, nextMessages)
+  }
+
   const runtime = createChatOrchestratorRuntime({
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
@@ -465,8 +493,16 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onAssistantMessageAppended: ({ sessionId, message }) => {
-      if (isCloudSyncableMessage(message) && message.id) {
+    /**
+     * Syncs a reply only when its user turn reached cloud sync.
+     *
+     * Triggering workflow:
+     * {@link createChatOrchestratorRuntime} -> `onAssistantMessageAppended`
+     * -> `chatSession.pushMessageToCloud`.
+     */
+    onAssistantMessageAppended: ({ sessionId, message, roundId }) => {
+      const sourceMessage = chatSession.getSessionMessages(sessionId).find(item => item.role === 'user' && item.id === roundId)
+      if (sourceMessage && isCloudSyncableMessage(sourceMessage) && isCloudSyncableMessage(message) && message.id) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'assistant',

@@ -1242,6 +1242,7 @@ describe('createChatOrchestratorRuntime', () => {
     expect(stored?.audioTranscripts).toEqual(['Turn on the light.'])
     const sent = harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')
     expect(sent?.content).toContainEqual({ type: 'text', text: 'Turn on the light.' })
+    expect(harness.stream.mock.calls[0][3]?.supportsAudioInput).toBe(false)
     expect(sent?.content).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
     expect(sent).not.toHaveProperty('audioTranscripts')
     await harness.runtime.ingest('Thanks', { model: 'text-model', chatProvider: provider, supportsAudioInput: false }, 'session-1')

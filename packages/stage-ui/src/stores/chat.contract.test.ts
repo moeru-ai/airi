@@ -67,6 +67,7 @@ const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
 const createUserAccountContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
+const pushMessageToCloudMock = vi.hoisted(() => vi.fn())
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
@@ -78,6 +79,7 @@ const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
 const audioCapability = vi.hoisted(() => ({ enabled: false }))
+const transcriptionMocks = vi.hoisted(() => ({ configured: false, transcribe: vi.fn() }))
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
 
 const activeSessionIdRef = ref('session-1')
@@ -186,7 +188,7 @@ vi.mock('./chat/session-store', () => ({
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
-    pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
+    pushMessageToCloud: pushMessageToCloudMock,
   }),
 }))
 
@@ -225,6 +227,11 @@ vi.mock('./modules/consciousness', () => ({
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
   }),
+}))
+
+vi.mock('./modules/hearing', () => ({
+  useHearingStore: () => ({ get configured() { return transcriptionMocks.configured } }),
+  useHearingSpeechInputPipeline: () => ({ transcribeForRecording: transcriptionMocks.transcribe }),
 }))
 
 vi.mock('./modules/airi-card', () => ({
@@ -270,6 +277,7 @@ describe('chat store contract', () => {
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
+    pushMessageToCloudMock.mockReset().mockResolvedValue(undefined)
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
@@ -288,6 +296,8 @@ describe('chat store contract', () => {
     })))
     visionMocks.configured = false
     audioCapability.enabled = false
+    transcriptionMocks.configured = false
+    transcriptionMocks.transcribe.mockReset()
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
     ioTracerMocks.activeTurnSpan.value = undefined
@@ -390,6 +400,85 @@ describe('chat store contract', () => {
     ])
     expect(retried.audioTranscripts).toEqual(['spoken words'])
     expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenCalledWith(expect.objectContaining({ mode: 'voice', trigger_method: 'voice' }))
+  })
+
+  it('keeps an audio-only turn and its assistant reply out of text-only cloud sync', async () => {
+    audioCapability.enabled = true
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'Reply' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+    expect(pushMessageToCloudMock).not.toHaveBeenCalled()
+
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+    expect(pushMessageToCloudMock).toHaveBeenCalledTimes(2)
+    expect(pushMessageToCloudMock).toHaveBeenCalledWith('session-1', expect.objectContaining({ role: 'user', content: 'Hello' }))
+    expect(pushMessageToCloudMock).toHaveBeenCalledWith('session-1', expect.objectContaining({ role: 'assistant', content: 'Reply' }))
+  })
+
+  it('keeps queued voice audio when the selected model changes', async () => {
+    let releaseFirstSend: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    const firstSend = store.send({ sessionId: 'session-1', text: 'Hold queue' })
+    await vi.waitFor(() => expect(llmStreamMock).toHaveBeenCalledTimes(1))
+
+    audioCapability.enabled = true
+    const voiceSend = store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+    await vi.waitFor(() => expect(store.pendingQueuedSendCount).toBe(1))
+    audioCapability.enabled = false
+    releaseFirstSend?.()
+    await firstSend
+    await voiceSend
+
+    const voiceContext = llmStreamMock.mock.calls[1][2] as Conversation
+    expect(voiceContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+  })
+
+  it('stores a historical recording transcript after its first text-only request', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'].push({
+      role: 'user',
+      id: 'recorded-turn',
+      content: [
+        { type: 'text', text: '' },
+        { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } },
+      ],
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'First request' })
+    await store.send({ sessionId: 'session-1', text: 'Second request' })
+
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledTimes(1)
+    expect(sessionMessages['session-1'][1].audioTranscripts).toEqual(['spoken words'])
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } })
+    expect(llmStreamMock.mock.calls[1][2].turns.flatMap((turn: Turn) => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
   })
 
   it('cancels vision preprocessing when its chat turn is cancelled', async () => {

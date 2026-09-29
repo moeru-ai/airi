@@ -370,6 +370,7 @@ export interface ChatOrchestratorRuntimeDeps {
     sessionId: string
     message: StreamingAssistantMessage
     messageText: string
+    roundId: string
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
@@ -835,6 +836,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
+        supportsAudioInput: options.supportsAudioInput,
         abortSignal,
         onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
         requestCorrelation: {
@@ -965,6 +967,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           sessionId,
           message: finalAssistant,
           messageText: fullText,
+          roundId,
         })
       }
 

@@ -164,5 +164,5 @@ configured Hearing provider and model. Providers with streaming input show live
 text; providers with file input return text after release. No automatic send
 setting applies to dictation drafts.
 
-Cloud chat synchronization transfers text only. It skips audio-only turns.
-Voice recordings and image attachments stay in local history.
+Cloud chat synchronization transfers text only. It skips audio-only turns and
+their assistant replies. Voice recordings and image attachments stay in local history.

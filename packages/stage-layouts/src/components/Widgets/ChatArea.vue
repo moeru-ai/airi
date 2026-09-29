@@ -12,7 +12,7 @@ import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
@@ -25,7 +25,7 @@ const props = defineProps<{
   generating: boolean
 }>()
 
-const voiceActive = ref(false)
+const voiceActive = shallowRef(false)
 const voiceInput = useTemplateRef<HTMLElement>('voiceInput')
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
 
@@ -84,7 +84,7 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  if (!pendingImages.value)
+  if (!voiceActive.value && !pendingImages.value)
     await submitInterruptingResponse()
 }
 
@@ -295,7 +295,7 @@ watch(replyTarget, async (target) => {
           @sent="props.composer.clearReply()"
         />
         <button
-          v-if="showStopAction"
+          v-if="!voiceActive && showStopAction"
           data-testid="stop-speaking-button"
           :class="[
             composerActionButtonClass,
@@ -308,7 +308,7 @@ watch(replyTarget, async (target) => {
           <div class="i-solar:stop-outline size-5" />
         </button>
         <button
-          v-else
+          v-else-if="!voiceActive"
           type="button"
           :aria-label="t('stage.chat.actions.send')"
           :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
