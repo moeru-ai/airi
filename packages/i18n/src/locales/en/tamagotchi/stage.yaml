@@ -118,3 +118,13 @@ about:
       title: Update Available
       description: A new version (v{version}) is available.
       no-release-notes-markdown: _No release notes provided._
+
+voice-inlay:
+  draft-title: 'Voice draft'
+  indicator-title: 'Voice input'
+  recording: 'Recording'
+  transcribing: 'Transcribing'
+  draft: 'Voice draft for {name}'
+  pending: '{count} pending'
+  discard: 'Discard'
+  send: 'Send'

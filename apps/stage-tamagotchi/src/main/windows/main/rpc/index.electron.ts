@@ -25,6 +25,8 @@ import {
   electronOpenEditor,
   electronOpenMainDevtools,
   electronOpenSettings,
+  electronVoiceInlayHide,
+  electronVoiceInlayShow,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
@@ -33,6 +35,7 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
+import { hideVoiceInlay, presentVoiceInlay } from '../../inlay/presentation'
 import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
@@ -40,6 +43,8 @@ export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
+  inlayWindow: () => Promise<BrowserWindow>
+  indicatorWindow: () => Promise<BrowserWindow>
   chatWindow: ChatWindowManager
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
@@ -71,6 +76,14 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
+  defineInvokeHandler(context, electronVoiceInlayShow, async ({ focus, presentation }) => {
+    const [inlay, indicator] = await Promise.all([params.inlayWindow(), params.indicatorWindow()])
+    presentVoiceInlay(inlay, indicator, presentation, focus)
+  })
+  defineInvokeHandler(context, electronVoiceInlayHide, async () => {
+    const [inlay, indicator] = await Promise.all([params.inlayWindow(), params.indicatorWindow()])
+    hideVoiceInlay(inlay, indicator)
+  })
   defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())
   const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))

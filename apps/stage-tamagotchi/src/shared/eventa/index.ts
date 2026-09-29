@@ -602,3 +602,19 @@ export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invo
 
 export { electron } from '@proj-airi/electron-eventa'
 export * from '@proj-airi/electron-eventa/electron-updater'
+
+/** Selects a non-interactive recording capsule or an editable draft. */
+export type VoiceInlayPresentation = 'listening' | 'draft'
+export const electronVoiceInlayShow = defineInvokeEventa<void, { focus: boolean, presentation: VoiceInlayPresentation }>('eventa:invoke:electron:voice-inlay:show')
+export const electronVoiceInlayHide = defineInvokeEventa<void>('eventa:invoke:electron:voice-inlay:hide')
+
+/** Transient speech state is published by the main renderer, outside Pinia snapshots. */
+export interface VoiceInlayActivity {
+  segmentId: string
+  sessionId: string
+  phase: 'recording' | 'transcribing'
+  text: string
+}
+export const voiceInlayChannelName = 'airi:voice-inlay'
+export const voiceInlayActivityChanged = defineEventa<VoiceInlayActivity | null>('voice-inlay:activity')
+export const voiceInlayActivityRequested = defineEventa('voice-inlay:request-activity')
