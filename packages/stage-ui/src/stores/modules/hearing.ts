@@ -1213,12 +1213,13 @@ export function useTranscriptionSession() {
         }
 
         let speechHasFinalResult = false
+        let speechHasAnyFinalResult = false
         const result = streamWebSpeechAPITranscription(stream, {
           onRecognitionCycleEnd: () => {
             if (finishingSession.value !== abortController)
               return
             finishingSession.value = undefined
-            if (!abortController.signal.aborted)
+            if (!abortController.signal.aborted && !speechHasAnyFinalResult)
               error.value = 'No transcription result returned from the browser'
           },
           onSpeechStart: () => {
@@ -1241,6 +1242,7 @@ export function useTranscriptionSession() {
             if (abortController.signal.aborted)
               return
             speechHasFinalResult = true
+            speechHasAnyFinalResult = true
             if (finishingSession.value === abortController)
               finishingSession.value = undefined
             bumpIdle() // Bump idle timer on activity (only if enabled)

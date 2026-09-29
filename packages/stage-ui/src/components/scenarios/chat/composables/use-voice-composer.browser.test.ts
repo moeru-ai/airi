@@ -68,6 +68,8 @@ describe('manual voice recording lifecycle', () => {
     expect(errors).not.toHaveBeenCalled()
     expect(complete).toHaveBeenCalledOnce()
     const result = complete.mock.calls[0][0]
+    if (result.mode !== 'audio')
+      throw new Error('Expected audio recording')
     expect(result.audio.mimeType).toBe('audio/wav')
     expect(atob(result.audio.data).slice(0, 4)).toBe('RIFF')
     expect(result.sessionId).toBe('session-1')
@@ -119,7 +121,7 @@ describe('manual voice recording lifecycle', () => {
     await voice.finish()
     expect(errors).not.toHaveBeenCalled()
     expect(complete).toHaveBeenCalledOnce()
-    expect(complete.mock.calls[0][0].text).toBe('你好世界')
+    expect(complete.mock.calls[0][0]).toEqual({ sessionId: 'session-1', mode: 'transcription', text: '你好世界' })
   })
 
   it('saves a live transcript for native audio when file transcription is unavailable', async () => {
@@ -143,8 +145,42 @@ describe('manual voice recording lifecycle', () => {
     await voice.finish()
 
     expect(complete).toHaveBeenCalledOnce()
-    expect(complete.mock.calls[0][0].mode).toBe('audio')
-    expect(complete.mock.calls[0][0].audio.transcript).toBe('saved words')
+    const result = complete.mock.calls[0][0]
+    if (result.mode !== 'audio')
+      throw new Error('Expected audio recording')
+    expect(result.audio.transcript).toBe('saved words')
+  })
+
+  it('keeps committed text after a later empty recognition cycle', async () => {
+    let recognition: Recognition | undefined
+    class Recognition {
+      onresult?: (event: { resultIndex: number, results: { isFinal: boolean, 0: { transcript: string } }[] }) => void
+      onend?: () => void
+      onspeechstart?: () => void
+      onspeechend?: () => void
+      constructor() { recognition = this }
+      start() {}
+      stop() { this.onend?.() }
+      abort() { this.onend?.() }
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition)
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(microphone())
+    const { voice, complete, errors, screen } = mountVoice(undefined, true)
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => voice.phase.value).toBe('recording')
+
+    const activeRecognition = recognition
+    if (!activeRecognition)
+      throw new Error('Recognition did not start')
+    activeRecognition.onspeechstart?.()
+    activeRecognition.onresult?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: 'first words' } }] })
+    activeRecognition.onspeechstart?.()
+    activeRecognition.onspeechend?.()
+    activeRecognition.onend?.()
+    await voice.finish()
+
+    expect(errors).not.toHaveBeenCalled()
+    expect(complete.mock.calls[0][0].text).toBe('first words')
   })
 
   it('cancels a streaming stop when recognition never reports its final result', async () => {

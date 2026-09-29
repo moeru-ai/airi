@@ -19,11 +19,15 @@ const MAX_MANUAL_RECORDING_DURATION_MS = 90_000
 /** The active hold determines whether release sends audio or inserts text. */
 export type VoiceComposerMode = 'audio' | 'transcription'
 
+export type VoiceComposerResult
+  = | { sessionId: string, mode: 'audio', audio: Extract<ChatAttachment, { type: 'audio' }>, text: string }
+    | { sessionId: string, mode: 'transcription', text: string }
+
 /** One recording is bound to the chat session that was selected on press. */
 export interface VoiceComposerOptions {
   sessionId: MaybeRefOrGetter<string>
   needsTranscription: () => boolean
-  complete: (result: { sessionId: string, mode: VoiceComposerMode, audio: Extract<ChatAttachment, { type: 'audio' }>, text: string }) => Promise<void>
+  complete: (result: VoiceComposerResult) => Promise<void>
   onError: (message: string) => void
 }
 
@@ -181,12 +185,18 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         }
         if (requiresTranscript && !transcript.value.trim())
           throw new Error('Transcription returned no text.')
+        if (ticket !== generation)
+          return
+        if (activeMode === 'transcription') {
+          await options.complete({ sessionId: activeSession, mode: 'transcription', text: transcript.value.trim() })
+          return
+        }
         const data = encodeBase64(await recording.arrayBuffer())
         if (ticket !== generation)
           return
         await options.complete({
           sessionId: activeSession,
-          mode: activeMode,
+          mode: 'audio',
           text: transcript.value.trim(),
           audio: { type: 'audio', data, mimeType: 'audio/wav', transcript: transcript.value.trim() || undefined },
         })
