@@ -1281,7 +1281,8 @@ describe('chat history', () => {
   })
 
   it('loads voice recording bytes only after playback input', async () => {
-    const loadAudio = vi.spyOn(chatAudioRepo, 'load').mockResolvedValue('YXVkaW8=')
+    const recording = Promise.withResolvers<string>()
+    const loadAudio = vi.spyOn(chatAudioRepo, 'load').mockReturnValue(recording.promise)
     const screen = await render(ChatHistory, {
       props: {
         messages: [{ id: 'voice-on-demand', role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'airi-chat-audio:session/id', format: 'wav' } }] }],
@@ -1297,8 +1298,12 @@ describe('chat history', () => {
     expect(loadAudio).not.toHaveBeenCalled()
     expect(player.getAttribute('src')).toBeNull()
 
+    const play = vi.spyOn(player, 'play').mockResolvedValue()
     player.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
     await vi.waitFor(() => expect(loadAudio).toHaveBeenCalledWith('airi-chat-audio:session/id'))
+    expect(play).toHaveBeenCalledOnce()
+    expect(player.getAttribute('src')).toBeNull()
+    recording.resolve('YXVkaW8=')
     await vi.waitFor(() => expect(player.src).toMatch(/^blob:/))
   })
 

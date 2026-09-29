@@ -1,8 +1,11 @@
 import type { ChatHistoryItem } from '../../types/chat'
 
-import { expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 
+import { storage } from '../storage'
 import { chatAudioRepo, mapChatAudio } from './chat-audio.repo'
+
+afterEach(() => vi.restoreAllMocks())
 
 it('keeps recorded bytes outside a synchronized history snapshot', async () => {
   const messages: ChatHistoryItem[] = [{
@@ -20,4 +23,22 @@ it('keeps recorded bytes outside a synchronized history snapshot', async () => {
   const anotherReference = await chatAudioRepo.save(sessionId, 'c2Vjb25k')
   await chatAudioRepo.removeSession(sessionId)
   await expect(chatAudioRepo.load(anotherReference)).rejects.toThrow('Stored chat audio is unavailable')
+})
+
+it('removes a saved blob when its index update fails', async () => {
+  const sessionId = crypto.randomUUID()
+  const setItemRaw = storage.setItemRaw.bind(storage)
+  vi.spyOn(storage, 'setItemRaw').mockImplementation(async (key, value) => {
+    if (key === `local:chat/audio-index/${sessionId}`)
+      throw new Error('Storage quota exceeded')
+    return await setItemRaw(key, value)
+  })
+  const removeItem = vi.spyOn(storage, 'removeItem')
+
+  await expect(chatAudioRepo.save(sessionId, 'YXVkaW8=')).rejects.toThrow('Storage quota exceeded')
+
+  const audioKey = removeItem.mock.calls.find(([key]) => key.startsWith(`local:chat/audio/${sessionId}/`))?.[0]
+  if (!audioKey)
+    throw new Error('Expected the failed audio write to be removed.')
+  expect(await storage.getItemRaw(audioKey)).toBeNull()
 })

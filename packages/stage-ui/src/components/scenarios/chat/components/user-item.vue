@@ -84,6 +84,7 @@ async function loadRecording(index: number, event: Event) {
   const reference = recording.input_audio.data
   const generation = recordingGeneration
   pendingRecordingLoads.set(index, reference)
+  void element.play().catch(() => {})
   try {
     const data = await chatAudioRepo.load(reference)
     if (generation !== recordingGeneration || recordings.value[index]?.input_audio.data !== reference)
