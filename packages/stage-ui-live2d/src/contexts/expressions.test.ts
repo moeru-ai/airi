@@ -122,6 +122,34 @@ describe('live2D expressions context', () => {
     expect(expressions.parameters.value.get('ParamMultiply')?.currentValue).toBe(1)
   })
 
+  it('uses the selected preview blend when expressions share a parameter', () => {
+    const expressions = createLive2DExpressionsContext({
+      getParameterDefault: () => 0.5,
+      isEnabled: () => true,
+    })
+    expressions.beginModel('iru')
+    expressions.register(parseLive2DExpression('add', 'add.exp3.json', JSON.stringify({
+      Parameters: [{ Id: 'ParamEyeSmile', Value: 0.25, Blend: 'Add' }],
+    })))
+    expressions.register(parseLive2DExpression('multiply', 'multiply.exp3.json', JSON.stringify({
+      Parameters: [{ Id: 'ParamEyeSmile', Value: 0.7, Blend: 'Multiply' }],
+    })))
+
+    let rendered = 0.5
+    const coreModel = {
+      getParameterValueById: () => 0.5,
+      setParameterValueById: (_: string, value: number) => { rendered = value },
+    }
+    expressions.setPreviewExpressions(['add', 'multiply'])
+    expressions.apply(coreModel)
+    expect(rendered).toBeCloseTo(0.35)
+    expect(expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
+
+    expressions.setPreviewExpressions([])
+    expressions.apply(coreModel)
+    expect(rendered).toBe(0.5)
+  })
+
   it('resets an executed expression after its duration', async () => {
     vi.useFakeTimers()
     const expressions = createExpressions()
