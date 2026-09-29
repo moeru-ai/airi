@@ -515,6 +515,7 @@ export const useChatStore = defineStore('chat', () => {
     unwrapMessage: message => toRaw(message),
     storeAudioData: (sessionId, data) => chatAudioRepo.save(sessionId, data),
     resolveAudioData: data => chatAudioRepo.load(data),
+    discardStoredAudioData: (sessionId, reference) => chatAudioRepo.remove(sessionId, reference),
     onStateChange: syncRuntimeState,
     onSendSettled: settleOwnedActiveTurnSpan,
     ...analyticsHooks,

@@ -19,6 +19,7 @@ const provider: GenerationProvider = {
 function createHarness(getActiveProvider = () => 'mock-provider', audioAdapters?: {
   storeAudioData: (sessionId: string, data: string) => Promise<string>
   resolveAudioData: (data: string) => Promise<string>
+  discardStoredAudioData?: (sessionId: string, reference: string) => Promise<void>
 }) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
@@ -1274,6 +1275,36 @@ describe('createChatOrchestratorRuntime', () => {
 
     await harness.runtime.ingest('Next turn', { model: 'audio-model', chatProvider: provider }, 'session-1')
     expect(harness.stream.mock.calls[1][2].turns.filter(turn => turn.type === 'user').flatMap(turn => turn.content)).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
+  })
+
+  it('removes audio stored before a stopped turn reaches history', async () => {
+    let finishStorage: (() => void) | undefined
+    const storageStarted = Promise.withResolvers<void>()
+    const discardStoredAudioData = vi.fn().mockResolvedValue(undefined)
+    const harness = createHarness(undefined, {
+      storeAudioData: async () => {
+        storageStarted.resolve()
+        await new Promise<void>((resolve) => {
+          finishStorage = resolve
+        })
+        return 'audio-ref'
+      },
+      resolveAudioData: async data => data,
+      discardStoredAudioData,
+    })
+    const send = harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')
+
+    await storageStarted.promise
+    harness.generation.set(2)
+    finishStorage?.()
+    await send
+
+    expect(discardStoredAudioData).toHaveBeenCalledWith('session-1', 'audio-ref')
+    expect(harness.sessionMessages['session-1']).not.toContainEqual(expect.objectContaining({ role: 'user' }))
   })
 
   it('projects transcripts for text-only models while retaining playable recordings', async () => {

@@ -275,6 +275,8 @@ export interface ChatOrchestratorRuntimeDeps {
   storeAudioData?: (sessionId: string, data: string) => Promise<string>
   /** Resolves a stored audio reference before the provider reads history. */
   resolveAudioData?: (data: string) => Promise<string>
+  /** Removes audio that a stopped send stored before its user turn was appended. */
+  discardStoredAudioData?: (sessionId: string, reference: string) => Promise<void>
   /** Called whenever writable runtime state changes. */
   onStateChange?: (state: ChatOrchestratorRuntimeState) => void
   /** Called after a runtime-owned send completes or fails and `sending` has been cleared. */
@@ -652,11 +654,33 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
-      const storedContent = deps.storeAudioData && contentParts.length > 1
-        ? await Promise.all(contentParts.map(async part => part.type === 'input_audio'
-            ? { ...part, input_audio: { ...part.input_audio, data: await deps.storeAudioData!(sessionId, part.input_audio.data) } }
-            : part))
-        : finalContent
+      const storedAudioReferences: string[] = []
+      const discardStoredAudio = async () => {
+        if (!deps.discardStoredAudioData)
+          return
+        for (const reference of storedAudioReferences)
+          await deps.discardStoredAudioData(sessionId, reference)
+      }
+      let storedContent = finalContent
+      if (deps.storeAudioData && contentParts.length > 1) {
+        const storedParts: CommonContentPart[] = []
+        try {
+          for (const part of contentParts) {
+            if (part.type !== 'input_audio') {
+              storedParts.push(part)
+              continue
+            }
+            const reference = await deps.storeAudioData(sessionId, part.input_audio.data)
+            storedAudioReferences.push(reference)
+            storedParts.push({ ...part, input_audio: { ...part.input_audio, data: reference } })
+          }
+        }
+        catch (error) {
+          await discardStoredAudio()
+          throw error
+        }
+        storedContent = storedParts
+      }
       if (!streamingMessageContext.input) {
         streamingMessageContext.input = {
           type: 'input:text',
@@ -666,8 +690,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
       }
 
-      if (shouldAbort())
+      if (shouldAbort()) {
+        await discardStoredAudio()
         return
+      }
 
       replyToMessageId = resolveReplyTargetId(
         options.replyToMessageId,

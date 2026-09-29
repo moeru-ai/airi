@@ -37,7 +37,7 @@ export function chatAudioReferences(messages: ChatHistoryItem[]) {
 export const chatAudioRepo = {
   async save(sessionId: string, data: string) {
     if (isChatAudioReference(data))
-      return data
+      data = await this.load(data)
     const reference = `${referencePrefix}${sessionId}/${nanoid()}`
     await storage.setItemRaw(`local:chat/audio/${reference.slice(referencePrefix.length)}`, data)
     await enqueueIndex(async () => {
