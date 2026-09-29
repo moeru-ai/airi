@@ -12,6 +12,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
+import { chatAudioRepo, mapChatAudio } from '../../database/repos/chat-audio.repo'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { authedFetch } from '../../libs/auth-fetch'
 import {
@@ -473,9 +474,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * - The new session id. When `setActive` is not `false` the session is
    *   also made the active one.
    */
-  async function createSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
+  async function createSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], sessionId?: string, title?: string }) {
     const currentUserId = getCurrentUserId()
-    const sessionId = nanoid()
+    const sessionId = options?.sessionId ?? nanoid()
     const now = Date.now()
     const meta: ChatSessionMeta = {
       sessionId,
@@ -593,6 +594,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
+    void chatAudioRepo.removeSession(sessionId).catch(error => console.warn('[chat-session] Failed to remove voice recordings:', error))
     // Drop any pending outbox sends for this session — pushing messages
     // to a deleted chat is wasted work and may surface as a server-side
     // 404/410 next time we drain.
@@ -1433,8 +1435,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
     }
 
-    for (const sessionId of sessionIds)
+    for (const sessionId of sessionIds) {
       await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
+      void chatAudioRepo.removeSession(sessionId).catch(error => console.warn('[chat-session] Failed to remove voice recordings:', error))
+    }
 
     sessionMessages.value = {}
     sessionMetas.value = {}
@@ -1483,8 +1487,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await loadSession(options.fromSessionId)
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
-    const nextMessages = parentMessages.slice(0, forkIndex)
-    return await createSession(characterId, { setActive: false, messages: nextMessages })
+    const sessionId = nanoid()
+    const nextMessages = await mapChatAudio(parentMessages.slice(0, forkIndex), async data => chatAudioRepo.save(sessionId, await chatAudioRepo.load(data)))
+    return await createSession(characterId, { setActive: false, messages: nextMessages, sessionId })
   }
 
   async function exportSessions(): Promise<ChatSessionsExport> {
@@ -1504,13 +1509,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       for (const sessionId of Object.keys(character.sessions)) {
         const stored = await chatSessionsRepo.getSession(sessionId)
         if (stored) {
-          sessions[sessionId] = stored
+          sessions[sessionId] = { ...stored, messages: await mapChatAudio(stored.messages, data => chatAudioRepo.load(data)) }
           continue
         }
         const meta = sessionMetas.value[sessionId]
         const messages = sessionMessages.value[sessionId]
         if (meta && messages)
-          sessions[sessionId] = { meta, messages }
+          sessions[sessionId] = { meta, messages: await mapChatAudio(messages, data => chatAudioRepo.load(data)) }
       }
     }
 
@@ -1537,12 +1542,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
+      const messages = await mapChatAudio(record.messages, data => chatAudioRepo.save(sessionId, data))
       sessionMetas.value[sessionId] = cloneDeep(record.meta)
-      sessionMessages.value[sessionId] = cloneDeep(record.messages)
+      sessionMessages.value[sessionId] = cloneDeep(messages)
       ensureGeneration(sessionId)
       await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
         meta: cloneDeep(record.meta),
-        messages: cloneDeep(record.messages),
+        messages: cloneDeep(messages),
       }))
     }
 

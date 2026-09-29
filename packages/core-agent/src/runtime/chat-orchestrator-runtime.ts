@@ -103,7 +103,7 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
     || (message.citations?.length ?? 0) > 0
     || !!message.categorization?.reasoning.trim()
 }
-/** Binary attachments persist as base64 so history can cross renderer boundaries. */
+/** Send attachments carry base64 data. The session adapter stores audio by reference. */
 export type ChatAttachment
   = | { type: 'image', data: string, mimeType: string }
     | { type: 'audio', data: string, mimeType: 'audio/wav', transcript?: string }
@@ -271,6 +271,10 @@ export interface ChatOrchestratorRuntimeDeps {
   createId?: () => string
   /** Optional adapter for removing framework proxies before provider composition. */
   unwrapMessage?: <T>(message: T) => T
+  /** Stores audio outside synchronized chat history and returns its reference. */
+  storeAudioData?: (sessionId: string, data: string) => Promise<string>
+  /** Resolves a stored audio reference before the provider reads history. */
+  resolveAudioData?: (data: string) => Promise<string>
   /** Called whenever writable runtime state changes. */
   onStateChange?: (state: ChatOrchestratorRuntimeState) => void
   /** Called after a runtime-owned send completes or fails and `sending` has been cleared. */
@@ -648,6 +652,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+      const storedContent = deps.storeAudioData && contentParts.length > 1
+        ? await Promise.all(contentParts.map(async part => part.type === 'input_audio'
+            ? { ...part, input_audio: { ...part.input_audio, data: await deps.storeAudioData!(sessionId, part.input_audio.data) } }
+            : part))
+        : finalContent
       if (!streamingMessageContext.input) {
         streamingMessageContext.input = {
           type: 'input:text',
@@ -671,7 +680,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const userMessage = {
         role: 'user' as const,
-        content: finalContent,
+        content: storedContent,
         audioTranscripts: options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript),
         createdAt: sendingCreatedAt,
         id: roundId,
@@ -774,6 +783,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const context = buildContext(sessionMessagesForSend, options.supportsAudioInput ?? true)
+      if (deps.resolveAudioData) {
+        for (const turn of context.turns) {
+          if (turn.type !== 'user')
+            continue
+          for (const part of turn.content) {
+            if (part.type === 'audio')
+              part.data = await deps.resolveAudioData(part.data)
+          }
+        }
+      }
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')

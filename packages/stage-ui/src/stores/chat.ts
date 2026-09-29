@@ -20,6 +20,7 @@ import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
+import { chatAudioRepo } from '../database/repos/chat-audio.repo'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -113,7 +114,7 @@ function ownsProjectedTurn(message: ChatHistoryItem, turnId: string) {
   return message.id === turnId || `${message.id}-0` === turnId
 }
 
-function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'input' | 'text'> | null {
+async function retryContentFrom(message: ChatHistoryItem | undefined): Promise<Pick<ChatSendPayload, 'attachments' | 'input' | 'text'> | null> {
   if (!message || message.role !== 'user')
     return null
 
@@ -152,6 +153,11 @@ function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPa
       if (match)
         attachments.push({ type: 'image', mimeType: match[1], data: match[2] })
     }
+  }
+
+  for (const attachment of attachments) {
+    if (attachment.type === 'audio')
+      attachment.data = await chatAudioRepo.load(attachment.data)
   }
 
   const audio = attachments.find(attachment => attachment.type === 'audio')
@@ -328,7 +334,7 @@ export const useChatStore = defineStore('chat', () => {
             continue
           }
           if (!useHearingStore().configured)
-            throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
+            throw new Error(t('stage.voice.configure-description'))
           const pipeline = useHearingSpeechInputPipeline()
           const text = await pipeline.transcribeForRecording(new Blob([new Uint8Array(decodeBase64(part.data))], { type: `audio/${part.format}` }), options?.abortSignal)
           options?.abortSignal?.throwIfAborted()
@@ -507,6 +513,8 @@ export const useChatStore = defineStore('chat', () => {
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
+    storeAudioData: (sessionId, data) => chatAudioRepo.save(sessionId, data),
+    resolveAudioData: data => chatAudioRepo.load(data),
     onStateChange: syncRuntimeState,
     onSendSettled: settleOwnedActiveTurnSpan,
     ...analyticsHooks,
@@ -670,7 +678,7 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Retry target has no retriable source message')
 
     const sourceMessage = currentMessages[sourceIndex]
-    const retryContent = retryContentFrom(sourceMessage)
+    const retryContent = await retryContentFrom(sourceMessage)
     if (!retryContent)
       throw new Error('Retry target has no retriable user message')
 

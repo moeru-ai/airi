@@ -7,6 +7,7 @@ import type { VoiceComposerResult } from './use-voice-composer'
 import { decodeBase64 } from '@moeru/std/base64'
 import { computed, toValue, watch } from 'vue'
 
+import { chatAudioRepo } from '../../../../database/repos/chat-audio.repo'
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useVoiceSendStore } from '../../../../stores/chat/voice-send'
@@ -25,13 +26,21 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
   const drafts = useVoiceSendStore()
   const pendingSend = computed(() => drafts.pendingSends[toValue(options.sessionId)])
 
-  function recordingStored(pending: PendingVoiceSend) {
-    return chatSession.sessionMessages[pending.sessionId]?.some(message =>
+  async function recordingStored(pending: PendingVoiceSend) {
+    const candidates = chatSession.sessionMessages[pending.sessionId]?.filter(message =>
       message.role === 'user'
       && !!message.id
       && !pending.existingMessageIds.includes(message.id)
-      && Array.isArray(message.content)
-      && message.content.some(part => part.type === 'input_audio' && part.input_audio.data === pending.audio.data)) ?? false
+      && Array.isArray(message.content)) ?? []
+    for (const message of candidates) {
+      if (!Array.isArray(message.content))
+        continue
+      for (const part of message.content) {
+        if (part.type === 'input_audio' && await chatAudioRepo.load(part.input_audio.data) === pending.audio.data)
+          return true
+      }
+    }
+    return false
   }
 
   function acceptPending(pending: PendingVoiceSend) {
@@ -62,7 +71,7 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
         replyToMessageId: pending.replyToMessageId,
         tools: pending.tools,
       })
-      if (recordingStored(pending)) {
+      if (await recordingStored(pending)) {
         acceptPending(pending)
         return
       }
@@ -71,7 +80,7 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
       options.onError()
     }
     catch (error) {
-      if (recordingStored(pending)) {
+      if (await recordingStored(pending)) {
         acceptPending(pending)
       }
       else if (drafts.pendingSends[pending.sessionId] === pending) {
@@ -105,8 +114,12 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
 
   watch(() => chatSession.sessionMessages[toValue(options.sessionId)], () => {
     const pending = pendingSend.value
-    if (pending && recordingStored(pending))
-      acceptPending(pending)
+    if (pending) {
+      void recordingStored(pending).then((stored) => {
+        if (stored)
+          acceptPending(pending)
+      }).catch(error => console.warn('[Voice Send] Failed to check stored recording:', error))
+    }
   }, { immediate: true, flush: 'sync' })
 
   return { pendingSend, queue, sendPending, discardPending }

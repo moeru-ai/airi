@@ -3,11 +3,12 @@ import type { ChatHistoryItem, ChatMessage } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatReplyQuote from './reply-quote.vue'
 
+import { chatAudioRepo } from '../../../../database/repos/chat-audio.repo'
 import { MarkdownRenderer } from '../../../markdown'
 import { ChatActionMenu } from '../components/action-menu'
 import { getChatHistoryItemCopyText } from '../utils'
@@ -54,12 +55,26 @@ const images = computed(() => {
     return noMedia
   return raw.filter(part => part.type === 'image_url').map(part => part.image_url.url)
 })
-const recordings = computed(() => {
-  const raw = props.message.content
-  if (!Array.isArray(raw))
-    return noMedia
-  return raw.filter(part => part.type === 'input_audio').map(part => `data:audio/${part.input_audio.format};base64,${part.input_audio.data}`)
-})
+const recordings = shallowRef<string[]>([])
+watch(() => props.message.content, async (raw, _, onCleanup) => {
+  let active = true
+  onCleanup(() => active = false)
+  if (!Array.isArray(raw)) {
+    recordings.value = []
+    return
+  }
+  const audio = raw.filter(part => part.type === 'input_audio')
+  try {
+    const sources = await Promise.all(audio.map(async part => `data:audio/${part.input_audio.format};base64,${await chatAudioRepo.load(part.input_audio.data)}`))
+    if (active)
+      recordings.value = sources
+  }
+  catch (error) {
+    if (active)
+      recordings.value = []
+    console.warn('[Chat History] Failed to load voice recording:', error)
+  }
+}, { immediate: true })
 
 const containerClasses = computed(() => [
   'flex',

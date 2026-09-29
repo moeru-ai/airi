@@ -81,6 +81,7 @@ const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
 const audioCapability = vi.hoisted(() => ({ enabled: false }))
 const transcriptionMocks = vi.hoisted(() => ({ configured: false, transcribe: vi.fn() }))
+const storedAudio = vi.hoisted(() => new Map<string, string>())
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
 const runArtistTaskMock = vi.hoisted(() => vi.fn())
 
@@ -101,6 +102,17 @@ vi.mock('pinia', async () => {
 
 vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
+}))
+
+vi.mock('../database/repos/chat-audio.repo', () => ({
+  chatAudioRepo: {
+    save: async (_sessionId: string, data: string) => {
+      const reference = `airi-chat-audio:${storedAudio.size}`
+      storedAudio.set(reference, data)
+      return reference
+    },
+    load: async (data: string) => storedAudio.get(data) ?? data,
+  },
 }))
 
 vi.mock('../libs/product-signals', () => ({
@@ -261,6 +273,7 @@ const provider: GenerationProvider = {
 
 describe('chat store contract', () => {
   beforeEach(() => {
+    storedAudio.clear()
     setActivePinia(createPinia())
     llmStreamMock.mockReset()
     trackFirstMessageMock.mockReset()
@@ -400,7 +413,7 @@ describe('chat store contract', () => {
     const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
     expect(retried.content).toEqual([
       { type: 'text', text: '' },
-      { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } },
+      { type: 'input_audio', input_audio: { data: 'airi-chat-audio:0', format: 'wav' } },
     ])
     expect(retried.audioTranscripts).toEqual(['spoken words'])
     expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenCalledWith(expect.objectContaining({ mode: 'voice', trigger_method: 'voice' }))
@@ -487,6 +500,16 @@ describe('chat store contract', () => {
     expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).not.toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
   })
 
+  it('shows the translated Hearing setup error when a text model needs transcription', async () => {
+    await expect(useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })).rejects.toThrow('stage.voice.configure-description')
+
+    expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: 'stage.voice.configure-description' })
+  })
+
   it('captures audio capability with the selected model before loading the session', async () => {
     audioCapability.enabled = true
     loadSessionMock.mockImplementationOnce(async () => {
@@ -528,7 +551,7 @@ describe('chat store contract', () => {
     })
 
     expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
-    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } })
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'airi-chat-audio:0', format: 'wav' } })
   })
 
   it('transcribes native audio before retrying string-only content', async () => {
@@ -549,7 +572,7 @@ describe('chat store contract', () => {
 
     expect(transcriptionMocks.transcribe).toHaveBeenCalledOnce()
     expect(sessionMessages['session-1'][1].audioTranscripts).toEqual(['spoken words'])
-    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } })
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'airi-chat-audio:0', format: 'wav' } })
   })
 
   it('passes stored voice transcripts to autonomous artistry without repeating them in the chat prompt', async () => {

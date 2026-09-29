@@ -16,7 +16,10 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider') {
+function createHarness(getActiveProvider = () => 'mock-provider', audioAdapters?: {
+  storeAudioData: (sessionId: string, data: string) => Promise<string>
+  resolveAudioData: (data: string) => Promise<string>
+}) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -85,6 +88,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
+    ...audioAdapters,
     getSystemPromptSupplement: () => systemPromptSupplement,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
@@ -1250,6 +1254,26 @@ describe('createChatOrchestratorRuntime', () => {
     const sent = harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')
     expect(sent?.content).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
     expect(sent).not.toHaveProperty('audioTranscripts')
+  })
+
+  it('stores audio references in history and resolves bytes for later provider turns', async () => {
+    const storedAudio = new Map([['audio-ref', 'UklGRg==']])
+    const harness = createHarness(undefined, {
+      storeAudioData: async () => 'audio-ref',
+      resolveAudioData: async data => storedAudio.get(data) ?? data,
+    })
+    await harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')
+
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'audio-ref', format: 'wav' } })
+    expect(harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')?.content).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
+
+    await harness.runtime.ingest('Next turn', { model: 'audio-model', chatProvider: provider }, 'session-1')
+    expect(harness.stream.mock.calls[1][2].turns.filter(turn => turn.type === 'user').flatMap(turn => turn.content)).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
   })
 
   it('projects transcripts for text-only models while retaining playable recordings', async () => {
