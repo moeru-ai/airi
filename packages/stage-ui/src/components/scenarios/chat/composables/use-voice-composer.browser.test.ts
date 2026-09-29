@@ -152,13 +152,13 @@ describe('manual voice recording lifecycle', () => {
   })
 
   it('keeps committed text after a later empty recognition cycle', async () => {
-    let recognition: Recognition | undefined
     class Recognition {
+      static current: Recognition | undefined
       onresult?: (event: { resultIndex: number, results: { isFinal: boolean, 0: { transcript: string } }[] }) => void
       onend?: () => void
       onspeechstart?: () => void
       onspeechend?: () => void
-      constructor() { recognition = this }
+      constructor() { Recognition.current = this }
       start() {}
       stop() { this.onend?.() }
       abort() { this.onend?.() }
@@ -169,7 +169,7 @@ describe('manual voice recording lifecycle', () => {
     await screen.getByRole('button', { name: 'Record' }).click()
     await expect.poll(() => voice.phase.value).toBe('recording')
 
-    const activeRecognition = recognition
+    const activeRecognition = Recognition.current
     if (!activeRecognition)
       throw new Error('Recognition did not start')
     activeRecognition.onspeechstart?.()
