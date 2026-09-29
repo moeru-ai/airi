@@ -141,6 +141,8 @@ describe('manual voice recording lifecycle', () => {
     const { voice, complete, screen } = mountVoice(undefined, true, 'audio')
     await screen.getByRole('button', { name: 'Record' }).click()
     await expect.poll(() => voice.phase.value).toBe('recording')
+    const captureStart = contexts[0].currentTime
+    await expect.poll(() => contexts[0].currentTime - captureStart).toBeGreaterThan(0.25)
 
     await voice.finish()
 
@@ -168,6 +170,8 @@ describe('manual voice recording lifecycle', () => {
     const { voice, complete, errors, screen } = mountVoice(undefined, true)
     await screen.getByRole('button', { name: 'Record' }).click()
     await expect.poll(() => voice.phase.value).toBe('recording')
+    const captureStart = contexts[0].currentTime
+    await expect.poll(() => contexts[0].currentTime - captureStart).toBeGreaterThan(0.25)
 
     const activeRecognition = Recognition.current
     if (!activeRecognition)
