@@ -495,15 +495,16 @@ onUnmounted(() => {
           >
             <div class="i-solar:arrow-up-outline size-5" />
           </button>
-          <VoiceComposer
-            v-else
-            v-model="messageInput"
-            :input-element="inputBubble"
-            :session-id="activeSessionId"
-            :reply-to-message-id="replyTarget?.message.id"
-            @recording-change="voiceActive = $event"
-            @sent="composer.clearReply()"
-          />
+          <div v-show="!showStopAction && !hasSubmission" flex shrink-0>
+            <VoiceComposer
+              v-model="messageInput"
+              :input-element="inputBubble"
+              :session-id="activeSessionId"
+              :reply-to-message-id="replyTarget?.message.id"
+              @recording-change="voiceActive = $event"
+              @sent="composer.clearReply()"
+            />
+          </div>
         </div>
       </div>
     </div>

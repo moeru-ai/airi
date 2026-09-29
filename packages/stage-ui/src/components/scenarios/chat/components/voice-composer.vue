@@ -3,7 +3,6 @@ import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
 import { errorMessageFrom } from '@moeru/std'
-import { decodeBase64 } from '@moeru/std/base64'
 import { BasicButton } from '@proj-airi/ui'
 import { onLongPress, useElementBounding, useEventListener, useLocalStorage, useNow, useWindowSize } from '@vueuse/core'
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
@@ -11,9 +10,10 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import { useChatStore } from '../../../../stores/chat'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
+import { useProviderStore } from '../../../../stores/providers/provider'
 import { useVoiceComposer } from '../composables/use-voice-composer'
+import { useVoiceSend } from '../composables/use-voice-send'
 
 const props = defineProps<{
   /**
@@ -30,8 +30,8 @@ const emit = defineEmits<{ sent: [], recordingChange: [active: boolean] }>()
 const draft = defineModel<string>({ required: true })
 const { t } = useI18n()
 const router = useRouter()
-const chat = useChatStore()
 const consciousness = useConsciousnessStore()
+const providers = useProviderStore()
 const mode = useLocalStorage<VoiceComposerMode>('ui/chat/voice-mode', 'audio')
 const button = useTemplateRef<InstanceType<typeof BasicButton>>('button')
 const locked = shallowRef(false)
@@ -45,6 +45,12 @@ let pointerId: number | undefined
 let suppressClick = false
 let replyToMessageId: string | undefined
 let tools: ChatToolReference[] | undefined
+const { pendingSend, queue, sendPending, discardPending } = useVoiceSend({
+  sessionId: () => props.sessionId,
+  replyToMessageId: () => props.replyToMessageId,
+  onAccepted: () => emit('sent'),
+  onError: error => toast.error(t('stage.voice.failed'), { description: errorMessageFrom(error) ?? t('stage.voice.failed') }),
+})
 
 const voice = useVoiceComposer({
   sessionId: () => props.sessionId,
@@ -55,19 +61,7 @@ const voice = useVoiceComposer({
       draft.value = [draft.value.trimEnd(), result.text].filter(Boolean).join(' ')
       return
     }
-    // Chat send resolves after the model reply. The recording UI closes when delivery starts.
-    void chat.send({
-      sessionId: result.sessionId,
-      text: '',
-      attachments: [result.audio],
-      input: {
-        type: 'input:voice',
-        data: { audio: new Uint8Array(decodeBase64(result.audio.data)).buffer },
-      },
-      replyToMessageId,
-      tools,
-    }).catch(error => toast.error(t('stage.voice.failed'), { description: errorMessageFrom(error) ?? t('stage.voice.failed') }))
-    emit('sent')
+    queue(result, replyToMessageId, tools)
   },
 })
 const { phase, transcript, volume, startedAt } = voice
@@ -245,7 +239,8 @@ useEventListener(document, 'visibilitychange', () => {
 })
 // Catalog discovery restores audio capability after a persisted model selection.
 watch(() => consciousness.activeProvider, (provider) => {
-  if (provider)
+  const modelStatus = providers.providerRuntimeState[provider]?.modelStatus
+  if (provider && modelStatus !== 'ready' && modelStatus !== 'loading' && modelStatus !== 'error')
     void consciousness.loadModelsForProvider(provider).catch(() => {})
 }, { immediate: true })
 
@@ -268,13 +263,41 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <div v-if="pendingSend" :class="['flex shrink-0 items-center gap-1']">
+    <BasicButton
+      data-testid="voice-retry-send"
+      size="unset"
+      type="button"
+      :disabled="pendingSend.status === 'sending'"
+      :aria-label="t('stage.voice.send')"
+      :title="t('stage.voice.send')"
+      :class="['size-10 rounded-full bg-primary-100/90 text-primary-600 dark:bg-primary-900/90 dark:text-primary-200']"
+      @click="sendPending(pendingSend)"
+    >
+      <span :class="[pendingSend.status === 'sending' ? 'i-svg-spinners:ring-resize' : 'i-solar:arrow-up-linear', 'size-5']" aria-hidden="true" />
+    </BasicButton>
+    <BasicButton
+      v-if="pendingSend.status === 'failed'"
+      data-testid="voice-discard-send"
+      size="unset"
+      type="button"
+      :aria-label="t('stage.voice.cancel')"
+      :title="t('stage.voice.cancel')"
+      :class="['size-10 rounded-full text-neutral-500 dark:text-neutral-300']"
+      @click="discardPending(pendingSend)"
+    >
+      <span :class="['i-solar:close-circle-linear size-5']" aria-hidden="true" />
+    </BasicButton>
+  </div>
   <BasicButton
+    v-else
     ref="button"
     size="unset"
     type="button"
     data-testid="voice-composer-button"
     :aria-label="t(`stage.voice.${mode}`)"
     :title="`${t(`stage.voice.${mode}`)} · ${t('stage.voice.hold-hint')}`"
+    :style="{ pointerEvents: active ? 'none' : undefined }"
     :class="[
       size === 'large' ? 'size-11' : 'size-10',
       'shrink-0 touch-none select-none self-end rounded-full outline-none',
