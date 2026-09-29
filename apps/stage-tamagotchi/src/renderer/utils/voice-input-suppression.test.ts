@@ -11,6 +11,7 @@ describe('shouldSuppressVoiceInput', () => {
     const result = shouldSuppressVoiceInput({
       assistantSpeaking: true,
       suppressedUntil: 0,
+      manualRecordingActive: false,
     }, 1000)
 
     expect(result).toBe(true)
@@ -20,6 +21,7 @@ describe('shouldSuppressVoiceInput', () => {
     const result = shouldSuppressVoiceInput({
       assistantSpeaking: false,
       suppressedUntil: 1800,
+      manualRecordingActive: false,
     }, 1200)
 
     expect(result).toBe(true)
@@ -29,9 +31,18 @@ describe('shouldSuppressVoiceInput', () => {
     const result = shouldSuppressVoiceInput({
       assistantSpeaking: false,
       suppressedUntil: 1800,
+      manualRecordingActive: false,
     }, 1800)
 
     expect(result).toBe(false)
+  })
+
+  it('suppresses ambient voice input during manual recording', () => {
+    expect(shouldSuppressVoiceInput({
+      assistantSpeaking: false,
+      suppressedUntil: 0,
+      manualRecordingActive: true,
+    }, 1000)).toBe(true)
   })
 })
 

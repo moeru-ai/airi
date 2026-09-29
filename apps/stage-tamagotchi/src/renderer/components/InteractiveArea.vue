@@ -22,12 +22,13 @@ import { BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
+import { createManualRecordingChannel, manualRecordingStateChanged } from '../../shared/manual-recording'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
@@ -50,6 +51,17 @@ const lastEnterTime = ref(0)
 const computerUseEnabled = ref(true)
 const hearingDialogOpen = shallowRef(false)
 const voiceActive = ref(false)
+const manualRecordingChannel = createManualRecordingChannel()
+const manualRecordingSourceId = crypto.randomUUID()
+watch(voiceActive, (active) => {
+  void manualRecordingChannel.context.emit(manualRecordingStateChanged, { sourceId: manualRecordingSourceId, active })
+    .catch(error => console.warn('[Interactive Area] Failed to publish manual recording state:', error))
+}, { flush: 'sync' })
+onUnmounted(() => {
+  void manualRecordingChannel.context.emit(manualRecordingStateChanged, { sourceId: manualRecordingSourceId, active: false })
+    .catch(error => console.warn('[Interactive Area] Failed to clear manual recording state:', error))
+    .finally(() => manualRecordingChannel.dispose())
+})
 const voiceInput = useTemplateRef<HTMLElement>('voiceInput')
 
 const chatStore = useChatStore()
