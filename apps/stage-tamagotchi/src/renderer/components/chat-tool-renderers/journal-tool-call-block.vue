@@ -9,6 +9,8 @@ const props = defineProps<{
   args: string
   state?: 'executing' | 'done' | 'error'
   result?: unknown
+  /** `true` keeps the details as they are, such as in a passive feed. */
+  actionsDisabled?: boolean
 }>()
 
 interface TextJournalArgs {
@@ -128,6 +130,7 @@ function openGeneratedImagePreview() {
   <ChatToolCallShell
     :tool-name="toolName"
     :state="state"
+    :actions-disabled="actionsDisabled"
   >
     <template #labelSuffix>
       <span v-if="state === 'error' && resultText" class="ml-2 text-xs text-red-500 op-80">

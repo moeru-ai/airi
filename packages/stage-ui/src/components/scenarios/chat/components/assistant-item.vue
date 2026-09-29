@@ -167,6 +167,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 :args="slice.toolCall.args"
                 :state="resolveToolCallBlockState(getToolCallResult(sliceIndex))"
                 :result="getToolCallResult(sliceIndex)?.result"
+                :actions-disabled="actionsDisabled"
                 @tool-call-rerun="emitToolCallRerun(sliceIndex, $event)"
               />
               <template v-else-if="slice.type === 'tool-call-result'" />

@@ -439,7 +439,16 @@ describe('chat history', () => {
     onTestFinished(() => page.viewport(innerWidth, innerHeight))
     const messages: ChatHistoryItem[] = [
       { id: 'user-1', role: 'user', content: 'hello' },
-      { id: 'assistant-1', role: 'assistant', content: 'Hi there', slices: [{ type: 'text', text: 'Hi there' }], tool_results: [] },
+      {
+        id: 'assistant-1',
+        role: 'assistant',
+        content: 'Hi there',
+        slices: [
+          { type: 'text', text: 'Hi there' },
+          { type: 'tool-call', toolCall: { toolCallId: 'call-weather', toolCallType: 'function', toolName: 'weather', args: '{}' } },
+        ],
+        tool_results: [],
+      },
       { id: 'user-2', role: 'user', content: 'again' },
       { role: 'error', content: 'Remote sent 400 response' },
     ]
@@ -457,6 +466,8 @@ describe('chat history', () => {
     const actionTriggers = () => screen.container.querySelectorAll('button[aria-label="Message actions"]')
     await vi.waitFor(() => expect(actionTriggers()).toHaveLength(4))
     expect(screen.container.querySelector('button[aria-label="Retry"]')).not.toBeNull()
+    expect(screen.container.querySelector('button[aria-label="Re-run tool call"]')).not.toBeNull()
+    const toolCallToggle = () => [...screen.container.querySelectorAll('button')].find(button => button.textContent?.includes('weather'))
 
     await screen.rerender({ ...props, passive: true })
 
@@ -464,6 +475,10 @@ describe('chat history', () => {
     expect(screen.container.querySelectorAll('.chat-message-item')).toHaveLength(4)
     expect(screen.container.querySelector('button[aria-label="Retry"]')).toBeNull()
     expect(screen.container.querySelector('.i-solar\\:reply-bold-duotone')).toBeNull()
+    // Keyboard focus still reaches the history, so the tool call must offer
+    // nothing either.
+    expect(screen.container.querySelector('button[aria-label="Re-run tool call"]')).toBeNull()
+    expect(toolCallToggle()?.disabled).toBe(true)
   })
 
   it('keeps short error formatting', async () => {

@@ -5,6 +5,8 @@ import { Collapsible } from '@proj-airi/ui'
 interface Props {
   toolName: string
   state?: 'executing' | 'done' | 'error'
+  /** `true` keeps the details as they are, so the header does not toggle them. */
+  actionsDisabled?: boolean
 }
 
 defineProps<Props>()
@@ -35,6 +37,7 @@ defineSlots<{
             'min-w-0 flex-1 text-start',
             'inline-flex items-center',
           ]"
+          :disabled="actionsDisabled"
           @click="setVisible(!visible)"
         >
           <div

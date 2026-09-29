@@ -12,6 +12,8 @@ const props = defineProps<{
   args: string
   state?: 'executing' | 'done' | 'error'
   result?: unknown
+  /** `true` hides the rerun button and keeps the details as they are. */
+  actionsDisabled?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -43,9 +45,11 @@ function emitToolCallRerun() {
   <ChatToolCallShell
     :tool-name="toolName"
     :state="state"
+    :actions-disabled="actionsDisabled"
   >
     <template #actions>
       <button
+        v-if="!actionsDisabled"
         aria-label="Re-run tool call"
         :class="[
           'h-6 w-6 shrink-0 rounded-md',
