@@ -320,9 +320,9 @@ export const useChatStore = defineStore('chat', () => {
             throw new Error('Select a transcription provider and model in Settings > Modules > Hearing to send audio to this model.')
           const pipeline = useHearingSpeechInputPipeline()
           const text = await pipeline.transcribeForRecording(new Blob([new Uint8Array(decodeBase64(part.data))], { type: `audio/${part.format}` }), options?.abortSignal)
+          options?.abortSignal?.throwIfAborted()
           if (!text)
             throw new Error(pipeline.error ?? 'Audio transcription returned no text.')
-          options?.abortSignal?.throwIfAborted()
           turn.content[index] = { type: 'text', text }
           if (sessionId && sourceAudioIndex !== undefined)
             saveAudioTranscript(sessionId, turn.id, sourceAudioIndex, text)
