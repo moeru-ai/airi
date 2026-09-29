@@ -48,3 +48,40 @@ describe('speech provider settings pages', () => {
     expect(missing).toEqual([])
   })
 })
+
+/**
+ * `PAGELESS_TRANSCRIPTION_PROVIDERS` lists the transcription providers that the
+ * catalog shows without a settings page. Each entry states why it is not needed.
+ */
+const PAGELESS_TRANSCRIPTION_PROVIDERS = new Set([
+  // Both providers declare `views.hearing`, so the Hearing module renders their
+  // settings inline instead of routing to a provider page.
+  'apple-speech-transcription',
+  'sherpaw-transcription',
+])
+
+
+const transcriptionPagesDirectory = resolve(
+  import.meta.dirname,
+  '../../../../../stage-pages/src/pages/settings/providers/transcription',
+)
+
+describe('transcription provider settings pages', () => {
+  // ROOT CAUSE:
+  //
+  // The transcription directory has no `[providerId].vue` catch-all, so a
+  // transcription provider without a page reaches the global catch-all route
+  // and the catalog link dead-ends.
+  //
+  // The new MiniMax provider needs a page. This test keeps the next
+  // transcription provider from shipping without one.
+  it('has a settings page for every listed transcription provider', () => {
+    const missing = listProviders()
+      .filter(definition => getProviderCategory(definition.tasks) === 'transcription')
+      .filter(definition => !PAGELESS_TRANSCRIPTION_PROVIDERS.has(definition.id))
+      .filter(definition => !existsSync(resolve(transcriptionPagesDirectory, `${definition.id}.vue`)))
+      .map(definition => definition.id)
+
+    expect(missing).toEqual([])
+  })
+})

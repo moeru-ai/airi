@@ -1875,6 +1875,18 @@ pages:
               label: 감정 표현 강도
         callout_origin_title: 브라우저에서 엔진에 연결
         callout_origin: 브라우저는 이 기기의 엔진에만 연결할 수 있습니다. 다른 기기의 엔진에는 데스크톱 앱을 사용하세요. 엔진도 이 사이트를 허용해야 하며 포트 10101의 설정 페이지에서 설정할 수 있습니다.
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: 사용되는 언어를 나타내는 BCP-47 태그입니다. 비워 두면 여러 언어를 인식합니다.
+              label: 언어
+              placeholder: 비워 두면 자동 감지
+            model:
+              description: 이 요청에 사용되는 음성 인식 모델 버전입니다.
+              label: 모델
+        title: MiniMax 음성 인식
       speech-noop:
         title: 없음
         description: 음성 출력이 없습니다.

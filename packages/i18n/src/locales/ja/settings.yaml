@@ -1670,6 +1670,18 @@ pages:
               label: 感情表現の強さ
         callout_origin_title: ブラウザーからエンジンに接続
         callout_origin: ブラウザーはこの端末のエンジンにのみ接続できます。別の端末のエンジンにはデスクトップアプリを使ってください。エンジン側でもこのサイトを許可する必要があります。ポート 10101 の設定ページで設定してください。
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: 話されている言語を示す BCP-47 タグです。空欄にすると複数の言語を認識します。
+              label: 言語
+              placeholder: 空欄で自動検出
+            model:
+              description: このリクエストで使用する音声認識モデルのバージョンです。
+              label: モデル
+        title: MiniMax 文字起こし
       speech-noop:
         title: なし
         description: 音声を再生しません。
