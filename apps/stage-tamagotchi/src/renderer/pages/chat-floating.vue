@@ -63,7 +63,7 @@ const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', tr
 // composer tab stay in control, and an unfolded composer pauses all of this.
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const passiveFeed = computed(() => danmaku.value && fadeOnHoverEnabled.value && composerFolded.value)
-const { hitTest, overPassiveArea } = useChatFloatingClickThrough({
+const { hitTest } = useChatFloatingClickThrough({
   pinned: () => state.value.pinned,
   passiveArea: () => passiveFeed.value ? interactiveArea.value?.historyLayer : undefined,
 })
@@ -277,7 +277,6 @@ function moveByKeyboard(delta: WindowDelta) {
             floating
             :composer-foldable="danmaku"
             :passive="passiveFeed"
-            :history-faded="overPassiveArea"
           />
         </div>
       </div>

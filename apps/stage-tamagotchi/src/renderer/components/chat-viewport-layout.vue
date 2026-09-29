@@ -5,11 +5,8 @@ import { computed, useTemplateRef } from 'vue'
 withDefaults(defineProps<{
   /** `true` when the composer slot owns its bottom space, such as a foldable composer whose tab drops to the bottom edge. */
   composerAtEdge?: boolean
-  /** `true` fades the history out. The composer layer stays. */
-  historyFaded?: boolean
 }>(), {
   composerAtEdge: false,
-  historyFaded: false,
 })
 
 defineSlots<{
@@ -42,8 +39,6 @@ defineExpose({
       data-testid="chat-history-layer"
       :class="[
         'chat-history-layer',
-        'transition-opacity duration-250 ease-in-out',
-        historyFaded ? 'op-0' : 'op-100',
       ]"
     >
       <slot name="history" :tail-inset="composerHeight" />

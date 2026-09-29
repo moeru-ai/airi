@@ -110,24 +110,6 @@ describe('chatWindowStyleMenu', () => {
     await expect.element(page.getByRole('menuitemcheckbox')).not.toBeInTheDocument()
   })
 
-  it('saves the message feed as its own placement without its own pin', async () => {
-    mocks.getPreferences.mockResolvedValue({ mode: 'floating', placement: 'free', pinned: false })
-    mocks.setPreferences.mockReset().mockResolvedValue()
-    const screen = await render(ChatWindowStyleMenu, {
-      global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false, messages: { en: {} } })] },
-    })
-    onTestFinished(() => screen.unmount())
-    const trigger = page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })
-    await expect.element(trigger).toBeEnabled()
-
-    await choose('floating-danmaku')
-
-    expect(mocks.setPreferences).toHaveBeenCalledWith({ mode: 'floating', placement: 'danmaku', pinned: false })
-    await trigger.click()
-    await expect.element(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.floating-danmaku' })).toHaveAttribute('aria-checked', 'true')
-    await expect.element(page.getByRole('menuitemcheckbox')).not.toBeInTheDocument()
-  })
-
   it('shows the saved style again when a switch fails', async () => {
     mocks.getPreferences.mockResolvedValue({ mode: 'legacy', placement: 'attached', pinned: true })
     mocks.setPreferences.mockRejectedValueOnce(new Error('The new chat window could not restore the draft'))

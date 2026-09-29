@@ -52,18 +52,14 @@ const props = withDefaults(defineProps<{
    * newest message.
    */
   passive?: boolean
-  /** `true` fades the history out. The composer and its tab stay. */
-  historyFaded?: boolean
 }>(), {
   floating: false,
   composerFoldable: false,
   passive: false,
-  historyFaded: false,
 })
 
 /** Whether a foldable composer is folded away. */
 const composerFolded = defineModel<boolean>('composerFolded', { default: false })
-const composerShown = computed(() => !props.composerFoldable || !composerFolded.value)
 const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
@@ -341,7 +337,6 @@ defineExpose({
   <ChatViewportLayout
     ref="viewport-layout"
     :composer-at-edge="props.composerFoldable"
-    :history-faded="props.historyFaded"
   >
     <template #history="{ tailInset }">
       <!--
@@ -402,220 +397,218 @@ defineExpose({
       >
         <div :class="[composerFolded ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear', 'size-4']" />
       </button>
-      <Transition name="chat-composer-fold">
+      <div
+        ref="message-composer"
+        :class="[
+          'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
+          // A foldable composer leaves the bottom edge to its folded tab.
+          props.composerFoldable ? 'chat-composer-foldable mb-4' : '',
+          props.composerFoldable && composerFolded ? 'chat-composer-folded' : '',
+          // The composer layer clips overflow, which would cut a ring or a
+          // shadow; a border stays inside the box. The floating composer is
+          // its own island, so it keeps tighter padding than the windowed one.
+          props.floating
+            ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
+            : [
+              'bg-neutral-100/70 p-3 backdrop-blur-xl dark:bg-neutral-900/65',
+              'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
+            ],
+        ]"
+      >
         <div
-          v-show="composerShown"
-          ref="message-composer"
+          data-testid="chat-composer-previews"
           :class="[
-            'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
-            // A foldable composer leaves the bottom edge to its folded tab.
-            props.composerFoldable ? 'mb-4' : '',
-            // The composer layer clips overflow, which would cut a ring or a
-            // shadow; a border stays inside the box. The floating composer is
-            // its own island, so it keeps tighter padding than the windowed one.
-            props.floating
-              ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
-              : [
-                'bg-neutral-100/70 p-3 backdrop-blur-xl dark:bg-neutral-900/65',
-                'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
-              ],
+            'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <!-- Journal Preview Chips -->
+          <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
+            <div
+              v-for="entry in latestImageEntries"
+              :key="entry.id"
+              :class="[
+                'group relative h-14 w-14 shrink-0 cursor-pointer of-hidden rounded-lg',
+                'border border-primary-200/30 transition-all hover:border-primary-500',
+                'dark:border-primary-800/30 dark:hover:border-primary-400',
+              ]"
+              @click="openImagePreview(entry)"
+            >
+              <img :src="entry.url || ''" class="h-full w-full object-cover">
+              <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
+                <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
+              </div>
+
+              <!-- Save Button (Top Right, Hover Only) -->
+              <button
+                :class="[
+                  'absolute right-1 top-1 z-10 p-1 rounded-md bg-black/40 text-white backdrop-blur-sm',
+                  'opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/60',
+                ]"
+                title="Save to computer"
+                @click.stop="journalPreviewStore.downloadImage(entry.url || '', entry.title)"
+              >
+                <div class="i-solar:download-minimalistic-bold-duotone text-[10px]" />
+              </button>
+            </div>
+          </div>
           <div
-            data-testid="chat-composer-previews"
+            v-if="attachments.length > 0"
             :class="[
-              'min-h-0 overflow-y-auto scrollbar-none',
+              'flex flex-nowrap gap-2 overflow-x-auto p-2 scrollbar-none',
             ]"
           >
-            <!-- Journal Preview Chips -->
-            <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
-              <div
-                v-for="entry in latestImageEntries"
-                :key="entry.id"
-                :class="[
-                  'group relative h-14 w-14 shrink-0 cursor-pointer of-hidden rounded-lg',
-                  'border border-primary-200/30 transition-all hover:border-primary-500',
-                  'dark:border-primary-800/30 dark:hover:border-primary-400',
-                ]"
-                @click="openImagePreview(entry)"
-              >
-                <img :src="entry.url || ''" class="h-full w-full object-cover">
-                <div :class="['absolute inset-0 flex items-end p-1', 'bg-gradient-to-t from-black/60 to-transparent']">
-                  <span class="truncate text-[8px] text-white font-medium">{{ entry.title }}</span>
-                </div>
-
-                <!-- Save Button (Top Right, Hover Only) -->
-                <button
-                  :class="[
-                    'absolute right-1 top-1 z-10 p-1 rounded-md bg-black/40 text-white backdrop-blur-sm',
-                    'opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/60',
-                  ]"
-                  title="Save to computer"
-                  @click.stop="journalPreviewStore.downloadImage(entry.url || '', entry.title)"
-                >
-                  <div class="i-solar:download-minimalistic-bold-duotone text-[10px]" />
-                </button>
-              </div>
-            </div>
-            <div
-              v-if="attachments.length > 0"
-              :class="[
-                'flex flex-nowrap gap-2 overflow-x-auto p-2 scrollbar-none',
-              ]"
-            >
-              <ChatImageAttachmentPreview
-                v-for="(attachment, index) in attachments"
-                :key="attachment.previewId"
-                :file="attachment.file"
-                @remove="removeAttachment(index)"
-              />
-            </div>
-          </div>
-          <p v-if="imageError" role="alert" :class="['px-2 text-sm text-red-600 dark:text-red-400']">
-            {{ imageError }}
-          </p>
-          <p v-if="pendingImages" role="status" :class="['px-2 text-sm text-neutral-500']">
-            {{ t('stage.chat.images.reading') }}
-          </p>
-          <div :class="['w-full shrink-0 overflow-hidden bg-transparent']">
-            <ChatReplyPreview
-              :target="replyTarget"
-              @cancel="handleCancelReply"
+            <ChatImageAttachmentPreview
+              v-for="(attachment, index) in attachments"
+              :key="attachment.previewId"
+              :file="attachment.file"
+              @remove="removeAttachment(index)"
             />
-            <BasicTextarea
-              v-model="messageInput"
-              :submit-on-enter="false"
-              :placeholder="t('stage.message')"
-              :class="[
-                'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent p-2 font-medium outline-none [scrollbar-gutter:stable]',
-                'max-h-[10lh] min-h-[2lh]',
-                'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
-                'transition-colors duration-200 ease-out motion-reduce:transition-none',
-              ]"
-              @compositionstart="isComposing = true"
-              @compositionend="isComposing = false"
-              @keydown="handleMessageInputKeydown"
-              @paste-file="handleFilePaste"
-            />
-          </div>
-          <div data-testid="chat-composer-actions" :class="['flex shrink-0 items-center gap-1 pt-1']">
-            <GhostButton
-              size="unset"
-              :class="['size-9 transition-colors duration-200 motion-reduce:transition-none']"
-              :title="t('stage.chat.images.attach')"
-              :aria-label="t('stage.chat.images.attach')"
-              @click="handleManualAttach"
-            >
-              <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
-            </GhostButton>
-            <HearingConfigDialog v-model:show="hearingDialogOpen" v-model:auto-send="autoSendEnabled" :granted="microphonePermissionGranted">
-              <GhostButton
-                data-testid="voice-input-button"
-                size="unset"
-                :class="['size-9']"
-                :active="microphoneEnabled"
-                :title="t('stage.chat.voice-input')"
-                :aria-label="t('stage.chat.voice-input')"
-              >
-                <span :class="[microphoneEnabled ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
-              </GhostButton>
-            </HearingConfigDialog>
-            <GhostButton
-              data-testid="computer-use-toggle"
-              size="unset"
-              :class="['size-9']"
-              :aria-label="t('stage.computer-use.label')"
-              :title="t('stage.computer-use.description')"
-              :active="computerUseEnabled"
-              :aria-pressed="computerUseEnabled"
-              :disabled="isActiveSessionSending"
-              @click="computerUseEnabled = !computerUseEnabled"
-            >
-              <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
-            </GhostButton>
-            <span aria-hidden="true" :class="['mx-1 h-5 w-px bg-neutral-300/70 dark:bg-neutral-700/70']" />
-            <DropdownMenuRoot>
-              <DropdownMenuTrigger as-child>
-                <GhostButton
-                  size="unset"
-                  :class="['size-9']"
-                  :title="t('stage.send-mode.title')"
-                  :aria-label="t('stage.send-mode.title')"
-                >
-                  <span :class="['i-solar:keyboard-bold-duotone h-5 w-5']" />
-                </GhostButton>
-              </DropdownMenuTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuContent
-                  align="end"
-                  side="top"
-                  :side-offset="8"
-                  :class="[
-                    'z-50 min-w-[180px] rounded-xl p-1 shadow',
-                    'bg-white dark:bg-neutral-800',
-                    'flex flex-col gap-1',
-                    'data-[side=top]:animate-slideDownAndFade',
-                    'data-[side=left]:animate-none',
-                    'data-[side=bottom]:animate-none',
-                    'data-[side=right]:animate-none',
-                  ]"
-                >
-                  <DropdownMenuItem
-                    v-for="mode in SEND_MODES"
-                    :key="mode"
-                    :class="[
-                      'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
-                      'hover:bg-primary-50 dark:hover:bg-primary-900/20',
-                      sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
-                    ]"
-                    @select="sendMode = mode"
-                  >
-                    <div class="mr-2 h-4 w-4 flex shrink-0 items-center justify-center">
-                      <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
-                    </div>
-                    <span>{{ sendModeLabels[mode] }}</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenuPortal>
-            </DropdownMenuRoot>
-
-            <GhostButton
-              v-if="showStopAction"
-              size="unset"
-              :class="['ml-auto size-9 rounded-full']"
-              data-testid="stop-speaking-button"
-              :title="t('stage.chat.actions.stop')"
-              :aria-label="t('stage.chat.actions.stop')"
-              @click="stopActiveResponse"
-            >
-              <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
-            </GhostButton>
-
-            <BasicButton
-              v-else
-              size="unset"
-              :aria-label="t('stage.chat.actions.send')"
-              :title="t('stage.chat.actions.send')"
-              :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
-              :class="[
-                'ml-auto size-9 rounded-full bg-primary-500 text-white',
-                'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
-              ]"
-              @click="handleSend"
-            >
-              <span :class="['i-solar:arrow-up-outline h-5 w-5']" />
-            </BasicButton>
-            <input
-              ref="fileInput"
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              class="hidden"
-              multiple
-              @change="handleFileSelect"
-            >
           </div>
         </div>
-      </Transition>
+        <p v-if="imageError" role="alert" :class="['px-2 text-sm text-red-600 dark:text-red-400']">
+          {{ imageError }}
+        </p>
+        <p v-if="pendingImages" role="status" :class="['px-2 text-sm text-neutral-500']">
+          {{ t('stage.chat.images.reading') }}
+        </p>
+        <div :class="['w-full shrink-0 overflow-hidden bg-transparent']">
+          <ChatReplyPreview
+            :target="replyTarget"
+            @cancel="handleCancelReply"
+          />
+          <BasicTextarea
+            v-model="messageInput"
+            :submit-on-enter="false"
+            :placeholder="t('stage.message')"
+            :class="[
+              'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent p-2 font-medium outline-none [scrollbar-gutter:stable]',
+              'max-h-[10lh] min-h-[2lh]',
+              'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
+              'transition-colors duration-200 ease-out motion-reduce:transition-none',
+            ]"
+            @compositionstart="isComposing = true"
+            @compositionend="isComposing = false"
+            @keydown="handleMessageInputKeydown"
+            @paste-file="handleFilePaste"
+          />
+        </div>
+        <div data-testid="chat-composer-actions" :class="['flex shrink-0 items-center gap-1 pt-1']">
+          <GhostButton
+            size="unset"
+            :class="['size-9 transition-colors duration-200 motion-reduce:transition-none']"
+            :title="t('stage.chat.images.attach')"
+            :aria-label="t('stage.chat.images.attach')"
+            @click="handleManualAttach"
+          >
+            <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
+          </GhostButton>
+          <HearingConfigDialog v-model:show="hearingDialogOpen" v-model:auto-send="autoSendEnabled" :granted="microphonePermissionGranted">
+            <GhostButton
+              data-testid="voice-input-button"
+              size="unset"
+              :class="['size-9']"
+              :active="microphoneEnabled"
+              :title="t('stage.chat.voice-input')"
+              :aria-label="t('stage.chat.voice-input')"
+            >
+              <span :class="[microphoneEnabled ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
+            </GhostButton>
+          </HearingConfigDialog>
+          <GhostButton
+            data-testid="computer-use-toggle"
+            size="unset"
+            :class="['size-9']"
+            :aria-label="t('stage.computer-use.label')"
+            :title="t('stage.computer-use.description')"
+            :active="computerUseEnabled"
+            :aria-pressed="computerUseEnabled"
+            :disabled="isActiveSessionSending"
+            @click="computerUseEnabled = !computerUseEnabled"
+          >
+            <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
+          </GhostButton>
+          <span aria-hidden="true" :class="['mx-1 h-5 w-px bg-neutral-300/70 dark:bg-neutral-700/70']" />
+          <DropdownMenuRoot>
+            <DropdownMenuTrigger as-child>
+              <GhostButton
+                size="unset"
+                :class="['size-9']"
+                :title="t('stage.send-mode.title')"
+                :aria-label="t('stage.send-mode.title')"
+              >
+                <span :class="['i-solar:keyboard-bold-duotone h-5 w-5']" />
+              </GhostButton>
+            </DropdownMenuTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuContent
+                align="end"
+                side="top"
+                :side-offset="8"
+                :class="[
+                  'z-50 min-w-[180px] rounded-xl p-1 shadow',
+                  'bg-white dark:bg-neutral-800',
+                  'flex flex-col gap-1',
+                  'data-[side=top]:animate-slideDownAndFade',
+                  'data-[side=left]:animate-none',
+                  'data-[side=bottom]:animate-none',
+                  'data-[side=right]:animate-none',
+                ]"
+              >
+                <DropdownMenuItem
+                  v-for="mode in SEND_MODES"
+                  :key="mode"
+                  :class="[
+                    'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
+                    'hover:bg-primary-50 dark:hover:bg-primary-900/20',
+                    sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
+                  ]"
+                  @select="sendMode = mode"
+                >
+                  <div class="mr-2 h-4 w-4 flex shrink-0 items-center justify-center">
+                    <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
+                  </div>
+                  <span>{{ sendModeLabels[mode] }}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenuPortal>
+          </DropdownMenuRoot>
+
+          <GhostButton
+            v-if="showStopAction"
+            size="unset"
+            :class="['ml-auto size-9 rounded-full']"
+            data-testid="stop-speaking-button"
+            :title="t('stage.chat.actions.stop')"
+            :aria-label="t('stage.chat.actions.stop')"
+            @click="stopActiveResponse"
+          >
+            <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
+          </GhostButton>
+
+          <BasicButton
+            v-else
+            size="unset"
+            :aria-label="t('stage.chat.actions.send')"
+            :title="t('stage.chat.actions.send')"
+            :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+            :class="[
+              'ml-auto size-9 rounded-full bg-primary-500 text-white',
+              'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
+            ]"
+            @click="handleSend"
+          >
+            <span :class="['i-solar:arrow-up-outline h-5 w-5']" />
+          </BasicButton>
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            class="hidden"
+            multiple
+            @change="handleFileSelect"
+          >
+        </div>
+      </div>
     </template>
   </ChatViewportLayout>
 
@@ -624,30 +617,32 @@ defineExpose({
 </template>
 
 <style scoped>
-/* The composer folds down with the tab on top of it, and the history follows its height down. */
-.chat-composer-fold-enter-active,
-.chat-composer-fold-leave-active {
+/*
+ * The composer folds down with the tab on top of it, and the history follows
+ * its height down. A hidden composer takes no focus.
+ */
+.chat-composer-foldable {
   interpolate-size: allow-keywords;
   transition:
     height 250ms ease,
     padding 250ms ease,
     margin 250ms ease,
     border-width 250ms ease,
-    opacity 200ms ease;
+    opacity 200ms ease,
+    visibility 250ms;
 }
 
-.chat-composer-fold-enter-from,
-.chat-composer-fold-leave-to {
+.chat-composer-folded {
   height: 0;
   padding-block: 0;
   margin-block: 0;
   border-block-width: 0;
   opacity: 0;
+  visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-composer-fold-enter-active,
-  .chat-composer-fold-leave-active {
+  .chat-composer-foldable {
     transition: none;
   }
 }

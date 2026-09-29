@@ -4,7 +4,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke, useElectronMouse, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
 import { useEventListener, useMutationObserver } from '@vueuse/core'
 import { parse } from 'culori'
-import { nextTick, readonly, shallowRef, toValue, watch } from 'vue'
+import { nextTick, shallowRef, toValue, watch } from 'vue'
 
 function paintsBackground(style: CSSStyleDeclaration) {
   if (style.backgroundImage !== 'none')
@@ -89,9 +89,8 @@ export async function dismissOverlays() {
  *   more than {@link handJitter} on the screen since.
  *
  * The passive area never takes the pointer, and it is inert while it is set,
- * so keyboard focus cannot reach it either. The returned `overPassiveArea` is
- * `true` while the cursor is over something that the area paints, so the page
- * can fade the area out. The area counts as painted while it is faded out,
+ * so keyboard focus cannot reach it either. It fades out while the cursor is
+ * over something that it paints. It counts as painted while it is faded out,
  * so the fade does not end only because it hid the content.
  *
  * The main process creates the window click-through. The cursor position comes
@@ -129,8 +128,6 @@ export function useChatFloatingClickThrough(options: {
   useEventListener(window, 'pointercancel', () => pointerHeld.value = false, { capture: true })
   useEventListener(window, 'blur', () => pointerHeld.value = false)
 
-  const overPassiveArea = shallowRef(false)
-
   // NOTICE:
   // Hit testing skips inert content, so the passive area stops being inert
   // for one synchronous `elementFromPoint`. Nothing renders, focuses, or
@@ -154,7 +151,8 @@ export function useChatFloatingClickThrough(options: {
     const passiveArea = toValue(options.passiveArea) ?? undefined
     const target = elementUnderCursor(passiveArea)
     const inPassiveArea = target !== null && passiveArea !== undefined && passiveArea.contains(target)
-    overPassiveArea.value = inPassiveArea && isPaintedAt(target, passiveArea)
+    if (passiveArea)
+      passiveArea.style.opacity = inPassiveArea && isPaintedAt(target, passiveArea) ? '0' : ''
 
     if ((!toValue(options.pinned) && !passiveArea) || pointerHeld.value)
       return true
@@ -191,15 +189,20 @@ export function useChatFloatingClickThrough(options: {
   }
 
   watch(() => toValue(options.passiveArea), (area, previous) => {
-    if (previous)
+    if (previous) {
       previous.inert = false
-    if (area)
+      previous.style.opacity = ''
+      previous.style.transition = ''
+    }
+    if (area) {
       area.inert = true
+      area.style.transition = 'opacity 250ms ease-in-out'
+    }
   }, { immediate: true })
 
   // Dialogs and menus mount straight into the body.
   useMutationObserver(document.body, hitTest, { childList: true })
   watch([() => toValue(options.pinned), () => toValue(options.passiveArea), pointerHeld, x, y], hitTest, { immediate: true })
 
-  return { hitTest, overPassiveArea: readonly(overPassiveArea) }
+  return { hitTest }
 }

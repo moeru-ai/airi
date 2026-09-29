@@ -48,13 +48,13 @@ async function renderPage() {
 }
 
 /** Mounts `content` under the cursor and runs the hit test once it is painted. */
-async function renderPainted(content: () => VNode, pinned: MaybeRefOrGetter<boolean> = true) {
+async function renderPainted(content: () => VNode, pinned: MaybeRefOrGetter<boolean> = true, passiveArea?: MaybeRefOrGetter<HTMLElement | null>) {
   mocks.cursor!.x.value = 40
   mocks.cursor!.y.value = 40
   let hitTest = () => {}
   const screen = await render(defineComponent({
     setup() {
-      hitTest = useChatFloatingClickThrough({ pinned }).hitTest
+      hitTest = useChatFloatingClickThrough({ pinned, passiveArea }).hitTest
       return content
     },
   }))
@@ -172,35 +172,20 @@ describe('useChatFloatingClickThrough', () => {
     expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
   })
 
-  it('keeps a painted passive area inert and click-through, and reports the cursor over it, even unpinned and faded out', async () => {
-    mocks.cursor!.x.value = 40
-    mocks.cursor!.y.value = 40
+  it('keeps a painted passive area inert, click-through, and faded out under the cursor, even unpinned', async () => {
     const area = shallowRef<HTMLElement | null>(null)
-    const faded = shallowRef(false)
-    let overPassiveArea = shallowRef(false) as Readonly<ShallowRef<boolean>>
-    const screen = await render(defineComponent({
-      setup() {
-        const clickThrough = useChatFloatingClickThrough({ pinned: false, passiveArea: area })
-        overPassiveArea = clickThrough.overPassiveArea
-        return () => h('div', { ref: area, style: { opacity: faded.value ? '0' : '1' } }, [
-          h('div', { style: { ...box, background: 'white' } }),
-        ])
-      },
-    }))
-    onTestFinished(() => screen.unmount())
+    await renderPainted(() => h('div', { ref: area }, [h('div', { style: { ...box, background: 'white' } })]), false, area)
 
-    await vi.waitFor(() => expect(overPassiveArea.value).toBe(true))
-    expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
-    // Keyboard focus cannot reach the area, and the hit test still finds its content.
+    // The hit test still finds the content of the inert area.
+    await vi.waitFor(() => expect(area.value?.style.opacity).toBe('0'))
     expect(area.value?.inert).toBe(true)
+    expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
 
-    // The page fades the area out under the cursor. The area still counts as
-    // painted, so the fade does not end by itself.
-    faded.value = true
-    await nextTick()
+    // The faded area still counts as painted, so the fade does not end by itself.
+    await vi.waitFor(() => expect(getComputedStyle(area.value!).opacity).toBe('0'))
     mocks.cursor!.x.value = 42
     await nextTick()
-    expect(overPassiveArea.value).toBe(true)
+    expect(area.value?.style.opacity).toBe('0')
   })
 
   it('closes an open menu when the chat hides', async () => {
