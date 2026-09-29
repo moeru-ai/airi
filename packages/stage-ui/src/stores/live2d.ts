@@ -167,7 +167,10 @@ export function useSharedLive2DExpressionPreview(
 
       const nextAppliedExpressionNames = new Set<string>()
       for (const name of desiredExpressionNames) {
-        if ((!removedExpression && appliedExpressionNames.has(name)) || live2d.expressions.setActive(name, true).success)
+        const definition = definitions.get(name)
+        const isApplied = !removedExpression && appliedExpressionNames.has(name)
+          && definition?.parameters.every(parameter => live2d.expressions.parameters.value.get(parameter.parameterId)?.currentValue === parameter.value)
+        if (isApplied || live2d.expressions.setActive(name, true).success)
           nextAppliedExpressionNames.add(name)
       }
       appliedExpressionNames = nextAppliedExpressionNames

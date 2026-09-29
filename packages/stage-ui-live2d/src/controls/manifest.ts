@@ -204,7 +204,7 @@ export async function inspectLive2DModelControls(source: Blob): Promise<Live2DMo
     const expressionPath = resolveArchivePath(settingsPath, expression.fileName)
     const expressionFile = reader.file(expressionPath)
     if (!expressionFile)
-      return expression
+      return undefined
 
     try {
       const definition = parseLive2DExpression(

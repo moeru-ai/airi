@@ -179,6 +179,39 @@ describe('shared Live2D expression previews', () => {
     disposePinia(pinia)
   })
 
+  it('reapplies a preview when an ACT expression resets its parameters', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const sharedLive2D = useSharedLive2D()
+    const live2d = createLive2D()
+    const scope = effectScope()
+
+    live2d.beginModelLoad('display-model-iru')
+    live2d.expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
+      Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
+    })))
+    live2d.expressions.register(parseLive2DExpression('sad', 'sad.exp3.json', JSON.stringify({
+      Parameters: [{ Id: 'ParamEyeSmile', Value: -1, Blend: 'Add' }],
+    })))
+    scope.run(() => useSharedLive2DExpressionPreview(live2d, 'avatar-iru'))
+
+    await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await nextTick()
+    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
+
+    live2d.expressions.reset()
+    live2d.expressions.activate('sad')
+    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(-1)
+
+    await sharedLive2D.renewExpressionPreview('settings-window')
+    await nextTick()
+    expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(1)
+
+    scope.stop()
+    live2d.dispose()
+    disposePinia(pinia)
+  })
+
   // https://github.com/moeru-ai/airi/pull/2458#discussion_r3924569281
   // ROOT CAUSE:
   //

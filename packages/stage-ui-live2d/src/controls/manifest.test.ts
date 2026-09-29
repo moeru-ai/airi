@@ -105,4 +105,30 @@ describe('live2D model controls manifest', () => {
       warn.mockRestore()
     }
   })
+
+  it('excludes missing optional expressions from the control manifest', async () => {
+    const zip = new JSZip()
+    zip.file('avatar/avatar.model3.json', JSON.stringify({
+      FileReferences: {
+        Expressions: [
+          { Name: 'happy', File: 'expressions/happy.exp3.json' },
+          { Name: 'missing', File: 'expressions/missing.exp3.json' },
+        ],
+        Motions: { Idle: [{ File: 'motions/idle.motion3.json' }] },
+      },
+    }))
+    zip.file('avatar/expressions/happy.exp3.json', JSON.stringify({ Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }] }))
+    zip.file('avatar/motions/idle.motion3.json', '{}')
+
+    const archive = blobFromBytes(await zip.generateAsync({ type: 'uint8array' }))
+
+    await expect(inspectLive2DModelControls(archive)).resolves.toEqual({
+      expressions: [{
+        name: 'happy',
+        fileName: 'expressions/happy.exp3.json',
+        parameters: [{ parameterId: 'ParamEyeSmile', value: 1, blend: 'Add' }],
+      }],
+      motions: [{ fileName: 'motions/idle.motion3.json', group: 'Idle', index: 0 }],
+    })
+  })
 })
