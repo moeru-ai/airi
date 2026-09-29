@@ -575,6 +575,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const cloudChatId = meta.cloudChatId
     const currentUserId = getCurrentUserId()
     const isCloudUser = currentUserId !== 'local'
+    await chatAudioRepo.markSessionRemoval(sessionId)
 
     // ROOT CAUSE:
     //
@@ -1326,6 +1327,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       else
         selectWindowSessionFromIndex()
 
+      for (const removedSessionId of await chatAudioRepo.pendingSessionRemovals()) {
+        try {
+          if (!await chatSessionsRepo.getSession(removedSessionId))
+            await chatAudioRepo.removeSession(removedSessionId)
+        }
+        catch (error) {
+          console.warn('[chat-session] Failed to retry audio cleanup for', removedSessionId, errorMessageFrom(error))
+        }
+      }
+
       ready.value = true
     })()
 
@@ -1500,8 +1511,47 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const sessionId = nanoid()
-    const nextMessages = await mapChatAudio(parentMessages.slice(0, forkIndex), async data => chatAudioRepo.save(sessionId, await chatAudioRepo.load(data)))
-    return await createSession(characterId, { setActive: false, messages: nextMessages, sessionId })
+    const copies: Promise<string>[] = []
+    try {
+      const nextMessages = await mapChatAudio(parentMessages.slice(0, forkIndex), (data) => {
+        const copy = chatAudioRepo.load(data).then(audio => chatAudioRepo.save(sessionId, audio))
+        copies.push(copy)
+        return copy
+      })
+      return await createSession(characterId, { setActive: false, messages: nextMessages, sessionId })
+    }
+    catch (error) {
+      await Promise.allSettled(copies)
+      delete sessionMetas.value[sessionId]
+      delete sessionMessages.value[sessionId]
+      delete sessionGenerations.value[sessionId]
+      loadedSessions.delete(sessionId)
+      staleSessions.delete(sessionId)
+      cloudHydratedSessions.delete(sessionId)
+      loadingSessions.delete(sessionId)
+      if (index.value?.characters[characterId])
+        delete index.value.characters[characterId].sessions[sessionId]
+      try {
+        await chatAudioRepo.markSessionRemoval(sessionId)
+      }
+      catch (cleanupError) {
+        console.warn('[chat-session] Failed to mark fork audio for cleanup:', sessionId, errorMessageFrom(cleanupError))
+      }
+      try {
+        await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
+        await chatAudioRepo.removeSession(sessionId)
+      }
+      catch (cleanupError) {
+        console.warn('[chat-session] Failed to roll back fork audio:', sessionId, errorMessageFrom(cleanupError))
+      }
+      try {
+        await persistIndex()
+      }
+      catch (cleanupError) {
+        console.warn('[chat-session] Failed to remove fork from the index:', sessionId, errorMessageFrom(cleanupError))
+      }
+      throw error
+    }
   }
 
   async function exportSessions(): Promise<ChatSessionsExport> {
