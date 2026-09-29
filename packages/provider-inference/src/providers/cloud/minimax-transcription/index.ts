@@ -45,6 +45,11 @@ function createMinimaxAsrFetch(config: MinimaxTranscriptionConfig): typeof globa
     // a `verbose_json` request valid instead of failing on an unknown field.
     const language = config.language?.trim() || source.get('language')?.toString()?.trim()
     const headers = new Headers(request.headers)
+    // The incoming request carries a Content-Type bound to its own multipart
+    // boundary. Sending that header with the rebuilt body would point at the
+    // wrong boundary, and the API answers `400 Error when parsing request`.
+    // Deleting it lets fetch generate a matching one.
+    headers.delete('content-type')
     if (language)
       headers.set('language', language)
     else
