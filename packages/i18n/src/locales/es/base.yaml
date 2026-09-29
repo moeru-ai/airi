@@ -47,4 +47,3 @@ toaster:
     message: Nueva versión lista, ¿recargar ahora?
     action:
       notNow: Ahora no
-      ok: OK

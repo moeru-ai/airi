@@ -32,7 +32,6 @@ notice:
     toggle: 要關閉時，將游標移到 {controls} 區域，再次點擊 {icon}。
     controls-label: 控制島
     icon-label: 隱藏圖示
-    value: '0'
     targets: 角色與介面
     confirm: 知道了
     dont-show-again: 不再提示

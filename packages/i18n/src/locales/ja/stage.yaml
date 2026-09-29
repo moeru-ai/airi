@@ -3,7 +3,6 @@ chat:
     retry: 再試行
   message:
     character-name:
-      airi: AIRI
       core-system: コアシステム
       you: あなた
   reasoning: 推論

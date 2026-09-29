@@ -91,7 +91,7 @@ analytics:
 model-select:
   panel-callout:
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      {select-button}을(를) 클릭하여 모델을 선택하거나 가져오세요. 현재 {zip}(Live2D 및 Spine 모델용), {vrm}(VRM 모델용), {mmd}(MMD 모델용, 텍스처와 함께 압축)를 지원합니다.
 live2d:
   change-model:
     from-file: 파일로부터 불러오기

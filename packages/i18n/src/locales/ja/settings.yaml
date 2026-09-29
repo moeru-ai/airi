@@ -106,7 +106,7 @@ model-select:
   panel-callout:
     support-status-header: 2D および 3D モデルの両方をサポートしています
     support-status: >
-      {select-button} をクリックしてモデルを選択またはインポートします。現在、{zip} (Live2D および Spine モデル用) と {vrm} (VRM モデル用) に対応しています。
+      {select-button} をクリックしてモデルを選択またはインポートします。現在、{zip} (Live2D および Spine モデル用)、{vrm} (VRM モデル用)、{mmd} (MMD モデル用、テクスチャと一緒に圧縮したもの) に対応しています。
     model-type-example: >
       Neuro-sama は Live2D Inc. が開発したフレームワークによる 2D モデルを使用しており、Grok Ani (Grok Companion 内) はオープンフォーマットである VRM / MMD の 3D モデルを使用しています。
   select-model:
@@ -133,8 +133,6 @@ live2d:
   scale-and-position:
     title: スケールと位置
     scale: スケール
-    x: X
-    'y': 'Y'
   switch-to-vrm:
     title: 3Dアバターに切り替えますか？
     change-to-vrm: 3Dアバター設定 (VRM) に切り替えるにはここをクリック
@@ -454,10 +452,8 @@ pages:
     sections:
       section:
         live2d:
-          title: Live2D
           description: Live2Dモデルと設定を構成
         vrm:
-          title: VRM
           description: 3D VRMモデルと設定を構成
         scene: シーン
   modules:
@@ -606,7 +602,6 @@ pages:
     description: 思考、視覚、音声合成、ゲームなど。
     gaming-factorio:
       description: Factorioをプレイ！
-      title: Factorio
       enable: Factorio連携を有効にする
       enable-description: AIRIがFactorioゲームと通信できるようにする
       server-address: サーバーアドレス
@@ -620,7 +615,6 @@ pages:
       configured: Factorioは適切に設定されています！
     gaming-minecraft:
       description: Minecraftをプレイ！
-      title: Minecraft
       enable: Minecraft連携を有効にする
       enable-description: >-
         ステージ上での会話中に Minecraft の自己意識を含め、実行中にパッシブな表示を維持します。
@@ -686,7 +680,6 @@ pages:
       title: 短期記憶
     messaging-discord:
       description: Discordでのチャットとボイスチャット
-      title: Discord
       enable: Discord連携を有効にする
       enable-description: AIRIがDiscordを介して対話できるようにする
       token: ボットトークン
@@ -744,7 +737,6 @@ pages:
       title: 視覚
     x:
       description: X / Twitterの閲覧と使用
-      title: X / Twitter
       enable: X / Twitter連携を有効にする
       enable-description: AIRIがX / Twitterと対話できるようにする
       api-key: APIキー
@@ -783,7 +775,7 @@ pages:
         empty: ここにはまだ何もありません。以下から追加してください！
       add:
         title: 新規
-        description: '新しいサーバー情報を入力し、「保存して再起動」をクリックします。サーバーは上の「設定済み」セクションに移動します。'
+        description: "新しいサーバー情報を入力し、「保存して再起動」をクリックします。サーバーは上の「設定済み」セクションに移動します。"
         pending-badge: 未保存
       status:
         unknown: 未読み込み
@@ -1040,19 +1032,12 @@ pages:
             description: en-US や zh-CN など、正確な Apple Speech のロケールを使用します。
       app-local-audio-transcription:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
         title: アプリ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: ブラウザ (ローカル)
-        description: https://github.com/moeru-ai/xsai-transformers
-      alibaba-cloud-model-studio:
-        description: bailian.console.aliyun.com
-        title: Alibaba Cloud Model Studio
       amazon-bedrock:
         description: aws.amazon.com/bedrok
         config:
@@ -1063,8 +1048,6 @@ pages:
             label: AWS リージョン
             description: 'Bedrock が有効な AWS リージョン (例: us-east-1, us-west-2)'
       anthropic:
-        description: anthropic.com
-        title: Anthropic | Claude
         helpinfo:
           title: 始める前に
           description:
@@ -1078,7 +1061,6 @@ pages:
               このプロバイダーを使用する必要がある場合は、 Serverless Function で実行される専用のプロキシバックエンド、
             part6: またはCORS制限をバイパスするためのCORSバイパスサービスが必要です。
       cloudflare-workers-ai:
-        description: cloudflare.com
         fields:
           field:
             account-id:
@@ -1087,7 +1069,6 @@ pages:
               placeholder: あなたのCloudflareアカウントID
             api-key:
               placeholder: Cloudflare APIキーを入力
-        title: Cloudflare Workers AI
       common:
         status:
           validating: 検証中
@@ -1190,14 +1171,11 @@ pages:
           model_options:
             nano_banana: ナノバナナ(Gemini 2.5フラッシュ画像)
       deepseek:
-        description: deepseek.com
         fields:
           field:
             thinking-mode:
               description: DeepSeek 推論モデルがチャットリクエストで思考モードを使用するかどうかを制御します。
-        title: DeepSeek
       elevenlabs:
-        description: elevenlabs.io
         fields:
           field:
             simularity-boost:
@@ -1234,7 +1212,6 @@ pages:
           title: 音声合成実験場
           validation:
             error-missing-api-key: 音声をテストするにはAPIキーを入力してください。
-        title: ElevenLabs
       kokoro-local:
         description: Kokoro-82M を使用したローカルテキスト読み上げ。
         fields:
@@ -1260,82 +1237,28 @@ pages:
           default-text: こんにちは！これは Kokoro 音声システムのテストです。
           title: ボイスプレイグラウンド
         title: Kokoro TTS (ローカル)
-      fireworks:
-        description: fireworks.ai
-        title: Fireworks.ai
       microsoft-speech:
-        description: speech.microsoft.com
         fields:
           field:
             region:
               description: 音声サービスリージョン
               label: リージョン
-        title: Microsoft / Azure Speech
       index-tts-vllm:
-        description: https://index-tts.github.io/
         title: Bilibili/IndexTTS
         callout_indextts2_unavailable_title: 限定的なサポート
         callout_indextts2_unavailable: IndexTTS2 は現在未対応です。IndexTTS をご利用ください。
-      azure-ai-foundry:
-        description: Azure AI Foundry
-        title: Azure AI Foundry
       minimax-speech:
         title: MiniMax 音声
-      mistral:
-        description: mistral.ai
-        title: Mistral
-      moonshot:
-        description: moonshot.ai
-        title: Moonshot AI
-      modelscope:
-        description: modelscope.cn
-        title: ModelScope
-      novita:
-        description: novita.ai
-        title: Novita
-      ollama:
-        description: ollama.ai
-        title: Ollama
-      openai:
-        description: openai.com
-        title: OpenAI
       openai-compatible:
         description: OpenAI互換
         title: OpenAI互換
       n1n:
         description: n1n.ai - 高性能 AI API を提供。
-      openrouter:
-        description: openrouter.ai
-        title: OpenRouter
-      perplexity:
-        description: perplexity.ai
-        title: Perplexity
-      player2:
-        description: player2.game
-        title: Player2
-      together:
-        description: together.ai
-        title: Together.ai
-      google-generative-ai:
-        description: gemini.google.com
-        title: Google Gemini
-      featherless:
-        description: featherless.ai
-        title: Featherless AI
-      lm-studio:
-        description: lmstudio.ai
-        title: LM Studio
-      vllm:
-        description: vllm.ai
-        title: vLLM
       volcengine:
-        description: volcengine.com
         fields:
           field:
             appId:
               description: コンソールで取得できるプロジェクトのApp ID
-              label: App ID
-        title: Volcano Engine
       volcengine-coding-plan:
         description: Volcengineコーディングプラン
         models:
@@ -1347,21 +1270,6 @@ pages:
       byteplus-coding-plan:
         description: BytePlusコーディングプラン
         title: BytePlusコーディングプラン
-      xai:
-        description: x.ai
-        title: xAI
-      302-ai:
-        description: 302.AI
-        title: 302.AI
-      comet-api:
-        description: CometAPI.com
-        title: Comet API
-      cerebras:
-        description: cerebras.ai
-        title: Cerebras
-      aliyun-nls:
-        description: Aliyun NLS
-        title: Aliyun NLS
       browser-web-speech-api:
         description: ブラウザ組み込み STT (Chrome/Edge/Safari が必要)
       prompt-api:

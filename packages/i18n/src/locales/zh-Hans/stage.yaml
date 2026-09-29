@@ -45,7 +45,6 @@ chat:
     stop: 停止回复
   message:
     character-name:
-      airi: AIRI
       core-system: 核心系统
       you: 你
   reply:
@@ -82,8 +81,6 @@ render-error:
 message: 说点什么...
 send-mode:
   title: 发送键值
-  enter: Enter
-  ctrl-enter: Ctrl + Enter
   double-enter: 双击Enter
 speech-output:
   mute: 静音语音
@@ -163,7 +160,6 @@ websocket-status:
 computer-use:
   label: 使用电脑
   description: 允许此聊天窗口查看和操作本机应用。
-
 status:
   preparing: 正在准备麦克风
   listening: 正在听
