@@ -33,12 +33,36 @@ function createRendererAppleVisionProvider() {
   const eventa = createContext(requireAppleVisionHostWindow().electron.ipcRenderer)
   const provider = createElectronAppleVisionProvider({ context: eventa.context })
   return {
-    // Apple Foundation Models has one on-device model. A stored model name, such
-    // as `auto` of another provider, never reaches the addon.
+    // Apple Foundation Models has one on-device model. The addon rejects any
+    // other name, so a stored model name never reaches it.
     chat: () => provider.chat(),
     dispose() {
       eventa.dispose()
     },
+  }
+}
+
+/**
+ * Whether this Mac can load the addon, which needs macOS 27 or later on Apple
+ * silicon. The check reads the languages instead of the availability, because
+ * an availability check starts the OCR preparation in the main process. The
+ * validator reports the availability after the user adds the provider.
+ */
+async function canLoadAppleVision() {
+  const hostWindow = appleVisionHostWindow()
+  if (!hostWindow)
+    return false
+
+  const { context, dispose } = createContext(hostWindow.electron.ipcRenderer)
+  try {
+    await createElectronAppleVisionProvider({ context }).supportedLanguages()
+    return true
+  }
+  catch {
+    return false
+  }
+  finally {
+    dispose()
   }
 }
 
@@ -75,7 +99,7 @@ export const providerAppleVision = defineProvider<AppleVisionConfig, AppleVision
   // The on-device model has a small context window and no tool calls, so it
   // serves the vision module only.
   tasks: ['vision', 'image-understanding'],
-  isAvailableBy: () => appleVisionHostWindow() != null,
+  isAvailableBy: canLoadAppleVision,
 
   createProviderConfig: () => appleVisionConfigSchema,
   createProvider: createRendererAppleVisionProvider,

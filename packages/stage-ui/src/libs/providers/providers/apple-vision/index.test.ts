@@ -8,6 +8,7 @@ import { providerAppleVision } from '.'
 const mocks = vi.hoisted(() => ({
   chat: vi.fn((model = 'system') => ({ model })),
   dispose: vi.fn(),
+  supportedLanguages: vi.fn(),
   isAvailable: vi.fn(),
 }))
 
@@ -22,7 +23,7 @@ vi.mock('@proj-airi/stage-shared', () => ({
 
 vi.mock('@xsai-apple-vision/vision-electron-plugin', () => ({
   APPLE_VISION_MODEL: 'system',
-  createAppleVisionProvider: () => ({ chat: mocks.chat, isAvailable: mocks.isAvailable }),
+  createAppleVisionProvider: () => ({ chat: mocks.chat, isAvailable: mocks.isAvailable, supportedLanguages: mocks.supportedLanguages }),
 }))
 
 const translate = ((key: string) => key) as ProviderTranslator
@@ -69,17 +70,23 @@ describe('apple vision provider', () => {
     expect(catalog?.defaultModel).toBe('system')
   })
 
-  // ROOT CAUSE:
-  //
-  // The vision module passed its stored model, `auto` of the official provider,
-  // and Apple Vision rejected it with a 400 response.
-  //
-  // We fixed this by never passing a model name to the one on-device model.
+  // The card stores the catalog default. A stored model of another provider,
+  // such as `auto`, still does not reach the addon, which rejects it.
   it('ignores the stored model name', async () => {
     vi.stubGlobal('window', { electron: { ipcRenderer: {} }, platform: 'darwin' })
     const provider = getGenerationProvider(await providerAppleVision.createProvider({}))
 
     expect(provider?.generation('auto')).toEqual({ protocol: 'chat-completions', config: { model: 'system' } })
+  })
+
+  it('lists the provider only on a Mac that can load the addon', async () => {
+    vi.stubGlobal('window', { electron: { ipcRenderer: {} }, platform: 'darwin' })
+    mocks.supportedLanguages.mockResolvedValueOnce(['en-US'])
+    mocks.supportedLanguages.mockRejectedValueOnce(new Error('Cannot find module \'@xsai-apple-vision/vision-native-darwin-x64\''))
+
+    expect(await providerAppleVision.isAvailableBy?.()).toBe(true)
+    expect(await providerAppleVision.isAvailableBy?.()).toBe(false)
+    expect(mocks.isAvailable).not.toHaveBeenCalled()
   })
 
   it('is unavailable outside macOS', async () => {

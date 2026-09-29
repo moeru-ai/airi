@@ -15,7 +15,9 @@ import { isMacOS } from 'std-env'
  *
  * The Provider reads small text in screenshots with the built-in OCR tool.
  * The first OCR call compiles the OCR models for this app, which takes about a
- * minute, so the service prepares them in the background at startup.
+ * minute. The service prepares them in the background after the first check
+ * that finds the model available, so a Mac that cannot run the model never
+ * loads the addon for it.
  *
  * Call stack:
  *
@@ -26,26 +28,33 @@ import { isMacOS } from 'std-env'
  */
 export async function setupAppleVisionService(options: { lifecycle: Lifecycle }) {
   if (!isMacOS)
-    return { dispose: () => Promise.resolve() }
+    return { dispose: () => {} }
 
   const log = useLogg('main/apple-vision').useGlobalConfig()
   const { createAppleVisionProvider } = await import('@xsai-apple-vision/vision-native')
-  const provider = createAppleVisionProvider({ builtInTools: { ocr: true, barcode: false } })
+  const nativeProvider = createAppleVisionProvider({ builtInTools: { ocr: true, barcode: false } })
+  let preparation: Promise<void> | undefined
+
+  const provider: typeof nativeProvider = {
+    ...nativeProvider,
+    async isAvailable() {
+      const availability = await nativeProvider.isAvailable()
+      if (availability.available) {
+        preparation ??= nativeProvider.prepare().catch((error) => {
+          log.withError(error).warn('Could not prepare the OCR models')
+        })
+      }
+      return availability
+    },
+  }
+
   const eventa = createContext(ipcMain)
   const setup = setupAppleVision({ context: eventa.context, provider })
-  let disposal: Promise<void> | undefined
-
-  provider.prepare().catch((error) => {
-    log.withError(error).warn('Could not prepare the OCR models')
-  })
 
   const dispose = () => {
-    disposal ??= (async () => {
-      // Remove the handlers before the transport stops.
-      setup.dispose()
-      eventa.dispose()
-    })()
-    return disposal
+    // Remove the handlers before the transport stops.
+    setup.dispose()
+    eventa.dispose()
   }
 
   options.lifecycle.appHooks.onStop(dispose)
