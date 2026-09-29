@@ -9,12 +9,34 @@ import { defineComponent, h, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { useHearingStore } from '../../../../stores/modules/hearing'
+import { useProviderStore } from '../../../../stores/providers/provider'
 import { useVoiceComposer } from './use-voice-composer'
+
+const vadStartup = vi.hoisted(() => ({ pending: undefined as Promise<void> | undefined, speechStart: false, started: vi.fn(), disposed: vi.fn() }))
+vi.mock('../../../../stores/ai/models/vad', () => ({
+  useVAD: (_worker: string, options: { onSpeechStart?: () => void }) => ({
+    init: () => {
+      vadStartup.started()
+      return vadStartup.pending
+    },
+    loaded: { value: true },
+    inferenceError: { value: '' },
+    start: () => {
+      if (vadStartup.speechStart)
+        options.onSpeechStart?.()
+    },
+    dispose: vadStartup.disposed,
+  }),
+}))
 
 const contexts: AudioContext[] = []
 afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
+  vadStartup.pending = undefined
+  vadStartup.speechStart = false
+  vadStartup.started.mockClear()
+  vadStartup.disposed.mockClear()
   await Promise.all(contexts.splice(0).map(context => context.close()))
 })
 
@@ -270,6 +292,72 @@ describe('manual voice recording lifecycle', () => {
     expect(complete).not.toHaveBeenCalled()
     expect(stream.getTracks()[0].readyState).toBe('ended')
     expect(voice.phase.value).toBe('idle')
+  })
+
+  it('cancels while streaming transcription startup is pending', async () => {
+    const stream = microphone()
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
+    const { voice, complete, errors, screen } = mountVoice()
+    const hearing = useHearingStore()
+    hearing.activeTranscriptionProvider = 'pending-vad-test'
+    hearing.activeTranscriptionModel = 'test-model'
+    vi.spyOn(useProviderStore(), 'getTranscriptionFeatures').mockReturnValue({ supportsGenerate: false, supportsStreamOutput: false, supportsStreamInput: true })
+    vadStartup.pending = Promise.withResolvers<void>().promise
+
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => vadStartup.started.mock.calls.length).toBe(1)
+    await voice.cancel()
+
+    expect(voice.phase.value).toBe('idle')
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+    expect(vadStartup.disposed).toHaveBeenCalledOnce()
+    expect(complete).not.toHaveBeenCalled()
+    expect(errors).not.toHaveBeenCalled()
+  })
+
+  it('releases the microphone at the duration limit when VAD startup stalls', async () => {
+    const schedule = globalThis.setTimeout.bind(globalThis)
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((handler, delay, ...args) =>
+      schedule(handler, delay === 90_000 ? 1500 : delay, ...args))
+    const stream = microphone()
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
+    const { voice, complete, errors, screen } = mountVoice()
+    const hearing = useHearingStore()
+    hearing.activeTranscriptionProvider = 'pending-vad-test'
+    hearing.activeTranscriptionModel = 'test-model'
+    vi.spyOn(useProviderStore(), 'getTranscriptionFeatures').mockReturnValue({ supportsGenerate: false, supportsStreamOutput: false, supportsStreamInput: true })
+    vadStartup.pending = Promise.withResolvers<void>().promise
+
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => vadStartup.started.mock.calls.length).toBe(1)
+    await expect.poll(() => voice.phase.value, { timeout: 5000 }).toBe('idle')
+
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+    expect(complete).not.toHaveBeenCalled()
+    expect(errors).toHaveBeenCalledOnce()
+  })
+
+  it('cancels while a streaming provider is starting', async () => {
+    const stream = microphone()
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
+    const { voice, complete, errors, screen } = mountVoice()
+    const hearing = useHearingStore()
+    hearing.activeTranscriptionProvider = 'pending-provider-test'
+    hearing.activeTranscriptionModel = 'test-model'
+    const providers = useProviderStore()
+    vi.spyOn(providers, 'getTranscriptionFeatures').mockReturnValue({ supportsGenerate: false, supportsStreamOutput: false, supportsStreamInput: true })
+    const createProvider = vi.spyOn(providers, 'getProviderInstance').mockImplementation(async () => await new Promise<never>(() => {}))
+    vadStartup.speechStart = true
+
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => createProvider.mock.calls.length).toBe(1)
+    await voice.cancel()
+
+    expect(voice.phase.value).toBe('idle')
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+    expect(vadStartup.disposed).toHaveBeenCalledOnce()
+    expect(complete).not.toHaveBeenCalled()
+    expect(errors).not.toHaveBeenCalled()
   })
 
   it('discards a recording when its owning chat session changes', async () => {

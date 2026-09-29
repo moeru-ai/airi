@@ -117,6 +117,7 @@ interface MediaStreamTranscriptionOptions extends StreamingTranscriptionConsumer
   sampleRate?: number
   providerOptions?: Record<string, unknown>
   idleTimeoutMs?: number
+  abortSignal?: AbortSignal
 }
 
 /** Audio captured for one VAD speech segment before its provider session starts. */
@@ -641,6 +642,7 @@ export function useTranscriptionSession() {
   const streamingVadSession = shallowRef<{
     vad: Pick<ReturnType<typeof useVAD>, 'dispose'>
     lifecycle: ReturnType<typeof createVadStreamingSession<VadSpeechSegment>>
+    startupAbortController: AbortController
     stream: MediaStream
     providerId: string
     callbacks: StreamingTranscriptionCallbacks
@@ -655,6 +657,22 @@ export function useTranscriptionSession() {
     const next = streamingBinding.then(operation)
     streamingBinding = next.then(() => undefined, () => undefined)
     return next
+  }
+
+  async function waitForStreamingStartup<T>(operation: Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (!signal)
+      return await operation
+
+    signal.throwIfAborted()
+    const { promise: cancelled, reject } = Promise.withResolvers<never>()
+    const interrupt = () => reject(signal.reason)
+    signal.addEventListener('abort', interrupt, { once: true })
+    try {
+      return await Promise.race([operation, cancelled])
+    }
+    finally {
+      signal.removeEventListener('abort', interrupt)
+    }
   }
 
   /** Removes callbacks owned by one streaming transcription consumer. */
@@ -887,6 +905,7 @@ export function useTranscriptionSession() {
     if (vadSession) {
       streamingVadSession.value = undefined
       vadSession.stopSignal = stopSignal
+      vadSession.startupAbortController.abort()
       vadSession.vad.dispose()
       if (abort) {
         const text = await stopRealtimeTranscription(realtimeSession, true, disposeProviderId, stopSignal)
@@ -999,7 +1018,11 @@ export function useTranscriptionSession() {
     vadSession: NonNullable<typeof streamingVadSession.value>,
     segment: VadSpeechSegment,
   ) {
-    const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+    const startupSignal = vadSession.startupAbortController.signal
+    const provider = await waitForStreamingStartup(
+      providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId),
+      startupSignal,
+    )
     if (!provider)
       throw new Error('Failed to initialize speech provider')
 
@@ -1016,19 +1039,31 @@ export function useTranscriptionSession() {
     streamingSession.value = session
     startStreamingAsrSpan(providerId)
 
-    const result = await hearingStore.transcription(
-      providerId,
-      provider,
-      activeTranscriptionModel.value,
-      { inputAudioStream: audioStream },
-      undefined,
-      {
-        providerOptions: {
-          abortSignal: abortController.signal,
-          ...options.providerOptions,
-        },
-      },
-    )
+    let result: HearingTranscriptionResult
+    try {
+      result = await waitForStreamingStartup(
+        hearingStore.transcription(
+          providerId,
+          provider,
+          activeTranscriptionModel.value,
+          { inputAudioStream: audioStream },
+          undefined,
+          {
+            providerOptions: {
+              ...options.providerOptions,
+              abortSignal: abortController.signal,
+            },
+          },
+        ),
+        startupSignal,
+      )
+    }
+    catch (cause) {
+      abortController.abort()
+      if (streamingSession.value === session)
+        streamingSession.value = undefined
+      throw cause
+    }
 
     if (streamingSession.value !== session)
       return
@@ -1065,6 +1100,8 @@ export function useTranscriptionSession() {
         await finishRealtimeTranscription(vadSession.stopSignal)
       },
       onError: (err) => {
+        if (vadSession.startupAbortController.signal.aborted)
+          return
         error.value = errorMessage(err)
         console.error('Error managing VAD streaming transcription:', error.value)
       },
@@ -1072,6 +1109,7 @@ export function useTranscriptionSession() {
     vadSession = {
       vad,
       lifecycle,
+      startupAbortController: new AbortController(),
       stream,
       providerId,
       callbacks: streamingCallbacks,
@@ -1079,19 +1117,21 @@ export function useTranscriptionSession() {
     streamingVadSession.value = vadSession
 
     try {
-      await vad.init()
+      await waitForStreamingStartup(vad.init(), options.abortSignal)
       if (streamingVadSession.value !== vadSession)
         return
       if (!vad.loaded.value)
         throw new Error(vad.inferenceError.value || 'Failed to initialize voice activity detection.')
 
-      await vad.start(stream)
+      options.abortSignal?.throwIfAborted()
+      await waitForStreamingStartup(vad.start(stream), options.abortSignal)
       if (streamingVadSession.value !== vadSession)
         vad.dispose()
     }
     catch (cause) {
       if (streamingVadSession.value === vadSession)
         streamingVadSession.value = undefined
+      vadSession.startupAbortController.abort()
       vad.dispose()
       await lifecycle.dispose()
       throw cause
@@ -1119,6 +1159,7 @@ export function useTranscriptionSession() {
     let consumerRegistered = false
 
     try {
+      options.abortSignal?.throwIfAborted()
       const providerId = activeTranscriptionProvider.value
       const providerError = resolveActiveTranscriptionProviderError(providerId)
       if (providerError) {
@@ -1133,6 +1174,7 @@ export function useTranscriptionSession() {
       if (providerId === 'browser-web-speech-api') {
         if (streamingVadSession.value)
           await stopStreamingTranscriptionNow(false, streamingVadSession.value.providerId)
+        options.abortSignal?.throwIfAborted()
 
         trackVoiceInputStarted({ stt_provider_id: providerId })
 
@@ -1169,13 +1211,14 @@ export function useTranscriptionSession() {
 
         if (existingSession)
           await stopStreamingTranscriptionNow(false, existingSession.providerId)
+        options.abortSignal?.throwIfAborted()
 
         startStreamingAsrSpan(providerId)
 
         // Auto-select default model if not selected
         if (!activeTranscriptionModel.value) {
           // Try to get models for the provider and select the first one
-          const models = await providersStore.getModelsForProvider(providerId)
+          const models = providersStore.getModelsForProvider(providerId)
           if (models.length > 0) {
             activeTranscriptionModel.value = models[0].id
             console.info('Auto-selected Web Speech API model:', models[0].id)
@@ -1187,6 +1230,7 @@ export function useTranscriptionSession() {
           }
         }
 
+        options.abortSignal?.throwIfAborted()
         const abortController = new AbortController()
 
         // Get provider config for language settings
@@ -1320,12 +1364,14 @@ export function useTranscriptionSession() {
 
       if (streamingSession.value?.providerId === 'browser-web-speech-api')
         await stopStreamingTranscriptionNow(false, streamingSession.value.providerId)
+      options.abortSignal?.throwIfAborted()
 
       const existingVadSession = streamingVadSession.value
       if (existingVadSession) {
         if (existingVadSession.providerId !== providerId || existingVadSession.stream !== stream) {
           console.info('[Hearing Pipeline] Provider or microphone stream changed, restarting VAD detection')
           await stopStreamingTranscriptionNow(false, existingVadSession.providerId)
+          options.abortSignal?.throwIfAborted()
         }
         else {
           console.info('[Hearing Pipeline] VAD detection already active, reusing it with updated consumers')
@@ -1341,7 +1387,7 @@ export function useTranscriptionSession() {
 
       endStreamingAsrSpan()
 
-      if (isExpectedStreamStopError(err))
+      if (options.abortSignal?.aborted || isExpectedStreamStopError(err))
         return
 
       error.value = errorMessage(err)

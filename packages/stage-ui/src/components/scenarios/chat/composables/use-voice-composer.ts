@@ -60,6 +60,8 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
   let activeSession = ''
   let requiresTranscript = false
   let streaming = false
+  let streamingStartupPending = false
+  let startupAbortController: AbortController | undefined
   let recordingDeadline: ReturnType<typeof setTimeout> | undefined
   let processingAbortController: AbortController | undefined
   const consumerId = 'manual-composer'
@@ -85,6 +87,8 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
     transcript.value = ''
     input.reset()
     phase.value = 'starting'
+    const startupController = new AbortController()
+    startupAbortController = startupController
     starting = (async () => {
       try {
         const resuming = audioContext.resume()
@@ -109,28 +113,39 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         startedAt.value = Date.now()
         phase.value = 'recording'
         recordingDeadline = setTimeout(() => {
+          if (streamingStartupPending)
+            startupController.abort()
           void finish()
         }, MAX_MANUAL_RECORDING_DURATION_MS)
         streaming = requiresTranscript && pipeline.supportsStreamInput.value
         if (streaming) {
           const browserRecognition = hearing.activeTranscriptionProvider === 'browser-web-speech-api'
-          await pipeline.transcribeForMediaStream(stream, {
-            consumerId,
-            onTranscriptionUpdate: (text) => {
-              if (ticket === generation)
-                input.replace(text)
-            },
-            // Browser recognition commits sentences. Other providers emit token
-            // deltas here, so commit their full utterance only at speech end.
-            onSentenceEnd: (text) => {
-              if (ticket === generation && browserRecognition)
-                input.commit(text)
-            },
-            onSpeechEnd: (text) => {
-              if (ticket === generation && !browserRecognition)
-                input.commit(text)
-            },
-          })
+          streamingStartupPending = true
+          try {
+            await pipeline.transcribeForMediaStream(stream, {
+              consumerId,
+              abortSignal: startupController.signal,
+              onTranscriptionUpdate: (text) => {
+                if (ticket === generation)
+                  input.replace(text)
+              },
+              // Browser recognition commits sentences. Other providers emit token
+              // deltas here, so commit their full utterance only at speech end.
+              onSentenceEnd: (text) => {
+                if (ticket === generation && browserRecognition)
+                  input.commit(text)
+              },
+              onSpeechEnd: (text) => {
+                if (ticket === generation && !browserRecognition)
+                  input.commit(text)
+              },
+            })
+          }
+          finally {
+            streamingStartupPending = false
+          }
+          if (startupController.signal.aborted)
+            throw new Error('Transcription did not start.')
           if (pipeline.error.value)
             throw new Error(pipeline.error.value)
         }
@@ -143,6 +158,10 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
           phase.value = 'idle'
           options.onError(errorMessageFrom(error) ?? 'Could not start recording.')
         }
+      }
+      finally {
+        if (startupAbortController === startupController)
+          startupAbortController = undefined
       }
     })()
     await starting
@@ -226,6 +245,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
 
   async function cancel() {
     ++generation
+    startupAbortController?.abort()
     processingAbortController?.abort()
     clearTimeout(recordingDeadline)
     recordingDeadline = undefined
