@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { onScopeDispose, watch } from 'vue'
+import { watch } from 'vue'
 
 /** Limits how long a replicated close request waits for sign-in confirmation. */
 const CONFIRMATION_CLOSE_TIMEOUT_MS = 30_000
@@ -30,8 +30,7 @@ interface OnboardingAuthenticationControls {
  */
 export function useOnboardingAuthentication(options: UseOnboardingAuthenticationOptions): OnboardingAuthenticationControls {
   let closing = false
-  let closeRequested = false
-  let pendingCloseTimer: ReturnType<typeof setTimeout> | undefined
+  const initialCloseRequestId = options.closeRequestId.value
 
   /**
    * Closes onboarding after a direct action or a released automatic request. A failed close can be retried.
@@ -44,11 +43,6 @@ export function useOnboardingAuthentication(options: UseOnboardingAuthentication
    *       -> `electronOnboardingClose` through `options.closeWindow`
    */
   async function closeOnboardingWindow(): Promise<void> {
-    closeRequested = true
-    if (pendingCloseTimer !== undefined) {
-      clearTimeout(pendingCloseTimer)
-      pendingCloseTimer = undefined
-    }
     if (closing)
       return
 
@@ -72,28 +66,19 @@ export function useOnboardingAuthentication(options: UseOnboardingAuthentication
    *     -> `electronAuthComplete` status or confirmation timeout
    *       -> {@link closeOnboardingWindow}
    */
-  watch([options.isAuthenticated, options.closeRequestId, options.isConfirming], ([authenticated, requestId], previous) => {
-    const previousRequestId = previous?.[1]
-    if (closeRequested || authenticated || (previousRequestId !== undefined && requestId !== previousRequestId)) {
-      closeRequested = true
-      // Session replication can request closure before the source renderer
-      // reports completion to main. Wait for that report before auto-closing.
-      if (options.isConfirming.value) {
-        pendingCloseTimer ??= setTimeout(() => {
-          pendingCloseTimer = undefined
-          void closeOnboardingWindow()
-        }, CONFIRMATION_CLOSE_TIMEOUT_MS)
-      }
-      else {
-        void closeOnboardingWindow()
-      }
-    }
-  }, { immediate: true })
+  watch([options.isAuthenticated, options.closeRequestId, options.isConfirming], ([authenticated, requestId, confirming], _, onCleanup) => {
+    if (!authenticated && requestId === initialCloseRequestId)
+      return
 
-  onScopeDispose(() => {
-    if (pendingCloseTimer !== undefined)
-      clearTimeout(pendingCloseTimer)
-  })
+    if (!confirming) {
+      void closeOnboardingWindow()
+      return
+    }
+
+    // Session replication can request closure before main receives the completion report.
+    const timer = setTimeout(() => void closeOnboardingWindow(), CONFIRMATION_CLOSE_TIMEOUT_MS)
+    onCleanup(() => clearTimeout(timer))
+  }, { immediate: true })
 
   // The onboarding window is a separate Electron renderer with its own Pinia
   // instance. It must initiate login itself and stay alive for the token callback.
