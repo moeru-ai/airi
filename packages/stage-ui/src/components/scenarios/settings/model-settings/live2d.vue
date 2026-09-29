@@ -8,6 +8,7 @@ import type { ModelSettingsRuntimeSnapshot } from './runtime'
 import { defaultModelParameters, isLive2DControlEnabled, updateLive2DControlPolicy, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
 import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
+import { useEventListener, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -83,9 +84,10 @@ const {
 } = storeToRefs(airiCardStore)
 const sharedLive2D = useSharedLive2D()
 const { expressionPreview } = storeToRefs(sharedLive2D)
+const previewOwnerId = crypto.randomUUID()
 const activeExpressionPreviewNames = computed<ReadonlySet<string>>(() => {
   const preview = expressionPreview.value
-  if (!preview || preview.avatarModelId !== selectedAvatarModelId.value)
+  if (!preview || preview.ownerId !== previewOwnerId || preview.avatarModelId !== selectedAvatarModelId.value)
     return emptyExpressionPreviewNames
 
   return new Set(preview.names)
@@ -126,20 +128,24 @@ async function setExpressionPreview(name: string, active: boolean) {
     return
 
   if (active)
-    await sharedLive2D.startPreviewingExpression(avatarModelId, name)
+    await sharedLive2D.startPreviewingExpression(avatarModelId, name, previewOwnerId)
   else
-    await sharedLive2D.stopPreviewingExpression(avatarModelId, name)
+    await sharedLive2D.stopPreviewingExpression(avatarModelId, name, previewOwnerId)
 }
 
 async function stopExpressionPreviews(avatarModelId: string | undefined) {
   if (!avatarModelId)
     return
 
-  await sharedLive2D.stopPreviewingAllExpressions(avatarModelId)
+  await sharedLive2D.stopPreviewingAllExpressions(avatarModelId, previewOwnerId)
 }
 
-async function resetExpressionPreviews() {
-  await stopExpressionPreviews(selectedAvatarModelId.value)
+async function stopOwnedExpressionPreviews() {
+  const preview = expressionPreview.value
+  if (preview?.ownerId !== previewOwnerId)
+    return
+
+  await stopExpressionPreviews(preview.avatarModelId)
 }
 
 async function setExpressionAvailableToAiri(name: string, available: boolean) {
@@ -164,12 +170,20 @@ watch(selectedAvatarModelId, async (avatarModelId, previousAvatarModelId) => {
 
 watch(live2dExpressionEnabled, async (enabled) => {
   if (!enabled)
-    await resetExpressionPreviews()
+    await stopOwnedExpressionPreviews()
 })
 
+useIntervalFn(() => {
+  if (expressionPreview.value?.ownerId === previewOwnerId)
+    void sharedLive2D.renewExpressionPreview(previewOwnerId)
+}, 2_000)
+
+useEventListener('pagehide', () => {
+  void stopOwnedExpressionPreviews()
+}, { capture: true })
+
 onBeforeUnmount(() => {
-  if (activeExpressionPreviewNames.value.size > 0)
-    void resetExpressionPreviews()
+  void stopOwnedExpressionPreviews()
 })
 
 const selectedRuntimeMotion = ref<string>('')
@@ -863,7 +877,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       <div mt-4 flex gap-2>
         <Button
           :disabled="!canActivateExpressions || activeExpressionPreviewNames.size === 0"
-          @click="resetExpressionPreviews"
+          @click="stopOwnedExpressionPreviews"
         >
           {{ t('settings.live2d.expressions.reset') }}
         </Button>

@@ -17,6 +17,7 @@ import Live2DReportModal from './reports/live2d/modal.vue'
 import TachieReportModal from './tachieReportModal.vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../../../../stores/display-models'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 
 const props = defineProps<{
   selectedModel?: DisplayModel
@@ -27,6 +28,7 @@ const emits = defineEmits<{
 }>()
 
 const displayModelStore = useDisplayModelsStore()
+const airiCardStore = useAiriCardStore()
 const { displayModelsFromIndexedDBLoading, displayModels, cloudOnlyModels, syncStatuses, syncErrors } = storeToRefs(displayModelStore)
 const { t } = useI18n()
 
@@ -35,16 +37,9 @@ const listedModels = computed(() => [
   ...cloudOnlyModels.value.map(model => ({ id: model.id, name: model.name, format: model.format as DisplayModelFormat, previewImage: undefined, cloudOnly: true })),
 ])
 
-function handleRemoveModel(model: { id: string }) {
-  const wasActive = props.selectedModel?.id === model.id
-  displayModelStore.removeDisplayModel(model.id)
-  // Removing the model that is currently on stage must also take it off the
-  // stage; otherwise the scene keeps rendering the already-loaded mesh (its
-  // blob URL stays valid). Switch to the first remaining model, or none.
-  if (wasActive) {
-    const fallback = displayModels.value.find(m => m.id !== model.id)
-    emits('pick', fallback)
-  }
+async function handleRemoveModel(model: { id: string }) {
+  await displayModelStore.removeDisplayModel(model.id)
+  await airiCardStore.retainAvailableAvatarModels(displayModels.value.map(available => available.id))
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)
