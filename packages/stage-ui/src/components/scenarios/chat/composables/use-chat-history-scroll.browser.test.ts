@@ -218,7 +218,7 @@ describe('useChatHistoryScroll', () => {
     expect(scrollToIndex).not.toHaveBeenCalled()
   })
 
-  it('returns to the tail when the history turns passive after a user scroll', async () => {
+  it('returns to the tail when the history turns passive, and keeps following after an older selection', async () => {
     const currentContainer = createScrollContainer(2)
     currentContainer.scrollTop = currentContainer.scrollHeight
     const container = shallowRef<HTMLElement | null>(currentContainer)
@@ -229,13 +229,18 @@ describe('useChatHistoryScroll', () => {
     await flushReactivity()
     scrollToIndex.mockClear()
 
-    currentContainer.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -100 }))
-    currentContainer.scrollTop = 0
-    currentContainer.dispatchEvent(new Event('scroll'))
+    // An inert history never changes its selection again, so nothing else clears this.
+    document.getSelection()?.selectAllChildren(currentContainer.firstElementChild!)
+    await vi.waitFor(() => expect(document.getSelection()?.anchorNode).not.toBeNull())
+    await new Promise(resolve => setTimeout(resolve, 0))
     passive.value = true
     await flushReactivity()
-
     expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
+
+    replaceMessageItems(currentContainer, 3)
+    messages.value = [...messages.value, { id: 'assistant-2' }]
+    await flushReactivity()
+    expect(scrollToIndex).toHaveBeenLastCalledWith(2, 'end')
   })
 
   it('keeps a streaming tail aligned to the viewport end', async () => {

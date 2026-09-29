@@ -157,12 +157,17 @@ export function useChatHistoryScroll<TMessage>({
     { flush: 'post', immediate: true },
   )
 
-  // A history that turns passive can no longer be scrolled by hand, so it
-  // returns to the tail at once, even from a position the reader chose. The
-  // scroll listener then follows the tail again.
+  // Nobody can scroll or inspect a passive history, and an older selection
+  // or pointer ends with no event that clears its flag. The history returns
+  // to the tail, and the scroll listener follows it again.
   watch(passive, (isPassive) => {
+    if (!isPassive)
+      return
+
+    isPointerOrFocusOnOlderMessage = false
+    isSelectionInOlderMessage = false
     const lastIndex = messages.value.length - 1
-    if (isPassive && container.value && lastIndex >= 0)
+    if (container.value && lastIndex >= 0)
       scrollToIndex(lastIndex, 'end')
   }, { flush: 'post' })
 }
