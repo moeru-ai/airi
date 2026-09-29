@@ -245,10 +245,11 @@ export function useTranscriptions(options: TranscriptionOptions) {
   // Watch for auto-send setting changes and clear pending sends if disabled
   watch(hearingEnabled, async (enabled) => {
     if (!enabled) {
+      resumeAfterRecording = false
       await stopStreaming()
       console.info('Stopping streaming transcription because hearing is disabled.', { source: 'useTranscriptions' })
     }
-  })
+  }, { flush: 'sync' })
 
   watch(() => toValue(manualRecordingActive), (active) => {
     if (active) {
@@ -258,8 +259,12 @@ export function useTranscriptions(options: TranscriptionOptions) {
     else if (resumeAfterRecording) {
       void (async () => {
         await suspension
-        if (disposed || toValue(manualRecordingActive) || !hearingEnabled.value)
+        if (disposed || toValue(manualRecordingActive))
           return
+        if (!hearingEnabled.value) {
+          resumeAfterRecording = false
+          return
+        }
         resumeAfterRecording = false
         await startStreaming()
       })().catch(() => {})

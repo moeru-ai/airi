@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { until } from '@vueuse/core'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
@@ -417,6 +417,29 @@ describe('useTranscriptions', () => {
         expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledTimes(2)
         expect(isListening.value).toBe(true)
       })
+    })
+
+    it('clears ambient resume intent when the microphone is disabled during manual recording', async () => {
+      const options = createOptions()
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.transcribeForMediaStream.mockResolvedValue(undefined)
+      const { startStreamingTranscription, isListening } = useTranscriptions(options)
+
+      await startStreamingTranscription()
+      expect(isListening.value).toBe(true)
+      options.manualRecordingActive.value = true
+      mockAudioDevice.enabled.value = false
+      await nextTick()
+      options.manualRecordingActive.value = false
+      mockAudioDevice.enabled.value = true
+      options.manualRecordingActive.value = true
+      options.manualRecordingActive.value = false
+      await flushPromises()
+
+      expect(isListening.value).toBe(false)
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledOnce()
     })
   })
 
