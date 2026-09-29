@@ -60,7 +60,6 @@ notice:
     toggle: 可以通过将光标移动到 {controls} 区域，再次点击 {icon} 来关闭此功能。
     controls-label: 控制岛
     icon-label: 隐藏图标
-    value: '0'
     targets: 角色和界面
     confirm: 知道了
     dont-show-again: 不再提示
@@ -76,7 +75,6 @@ about:
     title: 网址
     home: 首页
     documentation: 文档
-    github: GitHub
   update:
     lane:
       label: 更新频道

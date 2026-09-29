@@ -14,13 +14,10 @@ docs:
     disable: Luôn hiển thị
   'open-settings': Mở cài đặt
   'open-chat': Mở trò chuyện
-  'hide-chat': Hide Chat
   'refresh': Làm mới
   'center-main-window': Di chuyển vào giữa màn hình
   'open-hearing-controls': Kiểm soát thính giác mở
   'drag-to-move-window': Kéo để di chuyển cửa sổ
-  'mute': Mute
-  'unmute': Unmute
   'switch-to-light-mode': Chuyển sang chế độ sáng
   'switch-to-dark-mode': Chuyển sang chế độ tối
   'pin-on-top': Ghim lên trên
@@ -33,16 +30,6 @@ docs:
   'logging-in': Đang đăng nhập...
   'account': Tài khoản
   'logout': Đăng xuất
-'chat-window':
-  style:
-    title: Chat window style
-    legacy: Classic window
-    floating-attached: Floating, beside the character
-    floating-free: Floating, anywhere on screen
-    pinned: Keep on top
-  resize: Drag to resize the chat
-  move: Drag to move the chat
-  fold: Hide chat
 widgets:
   close: Đóng tiện ích
   empty:
@@ -50,8 +37,6 @@ widgets:
     description: Các widget sẽ xuất hiện tại đây khi một công cụ hoặc plugin tạo ra chúng.
   loading: Đang tải tiện ích…
   waiting: Đang đợi dữ liệu tiện ích cho "{id}"…
-inlay:
-  close: Close
 notice:
   'fade-on-hover':
     title: Mờ dần khi rê chuột
@@ -60,7 +45,6 @@ notice:
     toggle: Tắt đi bằng cách rê chuột qua {controls} rồi bấm lại {icon}.
     controls-label: Đảo Điều Khiển
     icon-label: biểu tượng mắt gạch
-    value: '0'
     targets: Nhân vật và giao diện
     confirm: Đã hiểu
     dont-show-again: Đừng hiển thị lại
@@ -76,7 +60,6 @@ about:
     title: Các Liên Kết
     home: Trang chủ
     documentation: Tài liệu
-    github:
   update:
     lane:
       label: Luồng cập nhật
@@ -85,10 +68,7 @@ about:
     channels:
       auto: Tự động
       stable: Ổn định
-      alpha:
-      beta:
       nightly: Hàng ngày
-      canary: Canary
     status:
       downloading: Đang tải bản cập nhật...
       error-prefix: Lỗi

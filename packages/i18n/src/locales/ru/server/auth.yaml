@@ -34,9 +34,6 @@ signIn:
     create:
       heading: Создайте свой аккаунт
       description: Мы создадим новую учетную запись для {email}.
-  email:
-    label: Email
-    placeholder: you{'@'}example.com
   password:
     label: Пароль
     placeholder: Ваш пароль
@@ -86,9 +83,6 @@ verifyEmail:
 forgotPassword:
   title: Сбросить ваш пароль
   description: Введите адрес электронной почты, связанный с вашей учетной записью, и мы вышлем вам ссылку для сброса.
-  email:
-    label: Email
-    placeholder: you{'@'}example.com
   action:
     send: Отправить ссылку для сброса
     backToSignIn: Вернуться ко входу
@@ -132,7 +126,6 @@ profile:
     password: Пароль
     linkedAccounts: Подключенные аккаунты
   field:
-    email: Email
     emailVerified: Статус email
     createdAt: Присоединился
   label:
