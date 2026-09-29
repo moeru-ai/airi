@@ -49,6 +49,12 @@ const props = withDefaults(defineProps<{
    * uses `hover`, so a scrollbar the wheel cannot reveal still appears.
    */
   scrollbar?: 'scroll' | 'hover'
+  /**
+   * `true` when the host shows the history as a feed that nobody scrolls or
+   * reads by hand. The history then always follows new messages, even while
+   * the pointer rests on an older one, and the messages offer no actions.
+   */
+  passive?: boolean
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   sending: false,
@@ -56,6 +62,7 @@ const props = withDefaults(defineProps<{
   variant: 'desktop',
   surface: 'translucent',
   scrollbar: 'scroll',
+  passive: false,
   toolCallRenderers: () => ({}),
 })
 
@@ -93,7 +100,7 @@ function shouldShowPlaceholder(message: ChatHistoryItem) {
   return !!streaming.value.id && message.id === streaming.value.id
 }
 function canReplyToMessage(message: ChatHistoryItem) {
-  if (!message.id)
+  if (props.passive || !message.id)
     return false
 
   if (message.role !== 'assistant' && message.role !== 'user')
@@ -146,6 +153,7 @@ useChatHistoryScroll({
   getKey: getChatHistoryItemKey,
   scrollToIndex,
   tailInset,
+  passive: computed(() => props.passive),
 })
 useChatHistoryTopFade({
   container: chatHistoryRef,
@@ -250,6 +258,7 @@ function emitToolCallRerun(
             :scroll-container="chatHistoryRef"
             :variant="variant"
             :surface="surface"
+            :actions-disabled="passive"
             @copy="emitCopyMessage(message, index)"
             @retry="emitRetryMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
@@ -265,6 +274,7 @@ function emitToolCallRerun(
             :variant="variant"
             :surface="surface"
             :tool-call-renderers="toolCallRenderers"
+            :actions-disabled="passive"
             @copy="emitCopyMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
             @reply="emitReplyMessage(message)"
@@ -279,6 +289,7 @@ function emitToolCallRerun(
             :scroll-container="chatHistoryRef"
             :variant="variant"
             :surface="surface"
+            :actions-disabled="passive"
             @copy="emitCopyMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
             @reply="emitReplyMessage(message)"

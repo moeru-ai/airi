@@ -39,7 +39,7 @@ const minimumSize = { width: 300, height: 260 }
 interface FloatingChatBounds {
   width: number
   height: number
-  /** Position in `free` placement. Attached placement derives it from the main window. */
+  /** Position in `free` and `danmaku` placement. Attached placement derives it from the main window. */
   x?: number
   y?: number
 }
@@ -93,7 +93,7 @@ function gripDirection(layout: AttachedChatLayout): ResizeDirection {
 export function setupFloatingChatWindow(params: {
   getMainWindow: () => BrowserWindow | undefined
   getPlacement: () => ChatFloatingPlacement
-  /** Whether a `free` chat stays above other windows. */
+  /** Whether a chat that is not attached stays above other windows. */
   getPinned: () => boolean
   getBounds: () => FloatingChatBounds
   saveBounds: (bounds: FloatingChatBounds) => void
@@ -325,7 +325,7 @@ export function setupFloatingChatWindow(params: {
   }
 
   function moveTo(target: BrowserWindow, position: Point) {
-    if (params.getPlacement() !== 'free')
+    if (params.getPlacement() === 'attached')
       return
 
     const { width, height } = target.getBounds()
@@ -335,8 +335,8 @@ export function setupFloatingChatWindow(params: {
   function persistBounds(target: BrowserWindow) {
     const bounds = target.getBounds()
     // Attached placement derives the position from the main window, so only
-    // free placement owns one worth keeping.
-    const position = params.getPlacement() === 'free' ? { x: bounds.x, y: bounds.y } : {}
+    // the other placements own one worth keeping.
+    const position = params.getPlacement() !== 'attached' ? { x: bounds.x, y: bounds.y } : {}
     params.saveBounds({ width: bounds.width, height: bounds.height, ...position })
   }
 
@@ -345,7 +345,8 @@ export function setupFloatingChatWindow(params: {
     const attachedTo = params.getPlacement() === 'attached' && main && !main.isDestroyed() ? main : undefined
 
     // The layout stays during a resize, so the chat never jumps to the other
-    // side under the cursor. A free chat has its grip at the top-left.
+    // side under the cursor. A chat that is not attached has its grip at the
+    // top-left.
     stopSlide()
     const resized = resizeBoundsByDelta(target.getBounds(), {
       ...delta,
@@ -381,7 +382,7 @@ export function setupFloatingChatWindow(params: {
     })
 
     // The saved position may be on a display that is gone or smaller now.
-    if (params.getPlacement() === 'free' && saved.x != null && saved.y != null)
+    if (params.getPlacement() !== 'attached' && saved.x != null && saved.y != null)
       target.setBounds(keepChatOnDisplay({ x: saved.x, y: saved.y, width: saved.width, height: saved.height }, screen.getAllDisplays()))
 
     target.setVisibleOnAllWorkspaces(true)
@@ -398,10 +399,10 @@ export function setupFloatingChatWindow(params: {
     const { context: targetContext } = createElectronContext(ipcMain, target, { onlySameWindow: true })
     context = targetContext
     // Every platform reports `move`; `moved` is only on macOS and Windows.
-    // Only a free chat owns its position; an attached one follows the main
-    // window, and the grip saves its size.
+    // Only a chat that is not attached owns its position. An attached one
+    // follows the main window, and the grip saves its size.
     const persistMove = debounce(() => {
-      if (!target.isDestroyed() && params.getPlacement() === 'free')
+      if (!target.isDestroyed() && params.getPlacement() !== 'attached')
         persistBounds(target)
     }, 300)
     target.on('move', persistMove)

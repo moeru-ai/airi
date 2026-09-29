@@ -38,11 +38,13 @@ function startScrollBehavior({
   messages,
   scrollToIndex,
   tailInset = shallowRef(0),
+  passive = shallowRef(false),
 }: {
   container: ShallowRef<HTMLElement | null>
   messages: ShallowRef<TestMessage[]>
   scrollToIndex: (index: number, align: 'start' | 'end') => void
   tailInset?: ShallowRef<number>
+  passive?: ShallowRef<boolean>
 }) {
   const scope = effectScope()
   activeScopes.push(scope)
@@ -53,6 +55,7 @@ function startScrollBehavior({
       getKey: message => message.id,
       scrollToIndex,
       tailInset,
+      passive,
     })
   })
 }
@@ -213,6 +216,49 @@ describe('useChatHistoryScroll', () => {
     await flushReactivity()
 
     expect(scrollToIndex).not.toHaveBeenCalled()
+  })
+
+  it('keeps a passive history on new messages while the pointer rests on an older one', async () => {
+    const currentContainer = createScrollContainer(2)
+    currentContainer.scrollTop = currentContainer.scrollHeight
+    const container = shallowRef<HTMLElement | null>(currentContainer)
+    const messages = shallowRef<TestMessage[]>([{ id: 'user-1' }, { id: 'assistant-1' }])
+    const scrollToIndex = vi.fn()
+    startScrollBehavior({ container, messages, scrollToIndex, passive: shallowRef(true) })
+    await flushReactivity()
+    scrollToIndex.mockClear()
+
+    currentContainer.firstElementChild?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))
+    replaceMessageItems(currentContainer, 3)
+    messages.value = [...messages.value, { id: 'assistant-2' }]
+    await flushReactivity()
+
+    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
+  })
+
+  it('returns to the tail when the history turns passive after a user scroll', async () => {
+    const currentContainer = createScrollContainer(2)
+    currentContainer.scrollTop = currentContainer.scrollHeight
+    const container = shallowRef<HTMLElement | null>(currentContainer)
+    const messages = shallowRef<TestMessage[]>([{ id: 'user-1' }, { id: 'assistant-1' }])
+    const scrollToIndex = vi.fn()
+    const passive = shallowRef(false)
+    startScrollBehavior({ container, messages, scrollToIndex, passive })
+    await flushReactivity()
+    scrollToIndex.mockClear()
+
+    currentContainer.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -100 }))
+    currentContainer.scrollTop = 0
+    currentContainer.dispatchEvent(new Event('scroll'))
+    passive.value = true
+    await flushReactivity()
+    expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
+
+    scrollToIndex.mockClear()
+    replaceMessageItems(currentContainer, 3)
+    messages.value = [...messages.value, { id: 'assistant-2' }]
+    await flushReactivity()
+    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
   })
 
   it('keeps a streaming tail aligned to the viewport end', async () => {

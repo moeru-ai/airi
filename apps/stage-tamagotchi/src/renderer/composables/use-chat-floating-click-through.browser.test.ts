@@ -172,6 +172,40 @@ describe('useChatFloatingClickThrough', () => {
     expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
   })
 
+  it('lets clicks through a painted passive area and reports the cursor over it, even unpinned and faded out', async () => {
+    mocks.cursor!.x.value = 40
+    mocks.cursor!.y.value = 40
+    const area = shallowRef<HTMLElement | null>(null)
+    const faded = shallowRef(false)
+    let overPassiveArea = shallowRef(false) as Readonly<ShallowRef<boolean>>
+    const screen = await render(defineComponent({
+      setup() {
+        const clickThrough = useChatFloatingClickThrough({ pinned: false, passiveArea: area })
+        overPassiveArea = clickThrough.overPassiveArea
+        return () => h('div', { ref: area, style: { opacity: faded.value ? '0' : '1' } }, [
+          h('div', { style: { ...box, background: 'white' } }),
+        ])
+      },
+    }))
+    onTestFinished(() => screen.unmount())
+
+    await vi.waitFor(() => expect(overPassiveArea.value).toBe(true))
+    expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
+
+    // The page fades the area out under the cursor. The area still counts as
+    // painted, so the fade does not end by itself.
+    faded.value = true
+    await nextTick()
+    mocks.cursor!.x.value = 42
+    await nextTick()
+    expect(overPassiveArea.value).toBe(true)
+
+    // The gap beside the content is not painted.
+    mocks.cursor!.x.value = 200
+    await vi.waitFor(() => expect(overPassiveArea.value).toBe(false))
+    expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
+  })
+
   it('closes an open menu when the chat hides', async () => {
     // ROOT CAUSE:
     //

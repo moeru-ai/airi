@@ -37,6 +37,8 @@ const props = withDefaults(defineProps<{
   placement?: 'left' | 'right'
   pressFeedbackEnabled?: boolean
   scrollContainer?: HTMLElement | null
+  /** `true` when the message offers no actions: no menu trigger and no context menu. */
+  disabled?: boolean
 }>(), {
   canCopy: true,
   canReply: false,
@@ -47,6 +49,7 @@ const props = withDefaults(defineProps<{
   placement: 'right',
   pressFeedbackEnabled: false,
   scrollContainer: null,
+  disabled: false,
 })
 
 const emit = defineEmits<{
@@ -328,7 +331,7 @@ onUnmounted(() => scaleAnimation?.cancel())
     :press-open-delay="contextMenuPressOpenDelay"
     @update:open="handleContextMenuOpenChange"
   >
-    <ContextMenuTrigger as-child>
+    <ContextMenuTrigger as-child :disabled="disabled">
       <div
         ref="contextMenuContainer"
         :data-pressing="isPressing"
@@ -352,7 +355,7 @@ onUnmounted(() => scaleAnimation?.cancel())
 
         <DropdownMenuRoot @update:open="handleDropdownMenuOpenChange">
           <DropdownMenuTrigger
-            v-if="hasMenuItems && !shouldDisableDropdownMenu"
+            v-if="hasMenuItems && !shouldDisableDropdownMenu && !disabled"
             as-child
             :class="[
               'absolute z-10 opacity-0 transition-opacity duration-200',

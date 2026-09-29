@@ -2,16 +2,31 @@
 import { useElementSize } from '@vueuse/core'
 import { computed, useTemplateRef } from 'vue'
 
+withDefaults(defineProps<{
+  /** `true` when the composer slot owns its bottom space, such as a foldable composer whose tab drops to the bottom edge. */
+  composerAtEdge?: boolean
+  /** `true` fades the history out. The composer layer stays. */
+  historyFaded?: boolean
+}>(), {
+  composerAtEdge: false,
+  historyFaded: false,
+})
+
 defineSlots<{
   composer: () => unknown
   history: (props: { tailInset: number }) => unknown
 }>()
 
+const historyLayer = useTemplateRef<HTMLElement>('history-layer')
 const composerLayer = useTemplateRef<HTMLElement>('composer-layer')
 const { height: composerHeight } = useElementSize(composerLayer, undefined, { box: 'border-box' })
 const layoutStyle = computed(() => ({
   '--chat-composer-height': `${composerHeight.value}px`,
 }))
+
+defineExpose({
+  historyLayer,
+})
 </script>
 
 <template>
@@ -23,9 +38,12 @@ const layoutStyle = computed(() => ({
     :style="layoutStyle"
   >
     <div
+      ref="history-layer"
       data-testid="chat-history-layer"
       :class="[
         'chat-history-layer',
+        'transition-opacity duration-250 ease-in-out',
+        historyFaded ? 'op-0' : 'op-100',
       ]"
     >
       <slot name="history" :tail-inset="composerHeight" />
@@ -36,6 +54,7 @@ const layoutStyle = computed(() => ({
       data-testid="chat-composer-layer"
       :class="[
         'chat-composer-layer',
+        composerAtEdge ? 'chat-composer-layer--at-edge' : '',
       ]"
     >
       <slot name="composer" />
@@ -68,6 +87,10 @@ const layoutStyle = computed(() => ({
   max-height: calc(100% - 1rem);
   margin: 0 1rem 1rem;
   overflow: hidden;
+}
+
+.chat-composer-layer--at-edge {
+  margin-bottom: 0;
 }
 
 .chat-viewport-layout :deep(.chat-history-list) {

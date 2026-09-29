@@ -20,8 +20,11 @@ const props = withDefaults(defineProps<{
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
+  /** `true` when the message offers no actions, such as in a passive feed. */
+  actionsDisabled?: boolean
 }>(), {
   canRetry: false,
+  actionsDisabled: false,
   scrollContainer: null,
   showPlaceholder: false,
   variant: 'desktop',
@@ -69,6 +72,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       :copy-text="copyText"
       :can-delete="!showPlaceholder"
       :can-retry="canRetry && !showPlaceholder"
+      :disabled="actionsDisabled"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"
       @retry="emit('retry')"
@@ -136,7 +140,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       </template>
     </ChatActionMenu>
     <div
-      v-if="canRetry && !showPlaceholder"
+      v-if="canRetry && !showPlaceholder && !actionsDisabled"
       :class="[
         'self-end mt-1 w-fit',
       ]"

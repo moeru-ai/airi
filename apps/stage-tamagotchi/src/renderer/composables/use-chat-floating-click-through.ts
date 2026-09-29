@@ -4,7 +4,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import { useElectronEventaInvoke, useElectronMouse, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
 import { useEventListener, useMutationObserver } from '@vueuse/core'
 import { parse } from 'culori'
-import { nextTick, shallowRef, toValue, watch } from 'vue'
+import { nextTick, readonly, shallowRef, toValue, watch } from 'vue'
 
 function paintsBackground(style: CSSStyleDeclaration) {
   if (style.backgroundImage !== 'none')
@@ -24,12 +24,15 @@ function paintsBackground(style: CSSStyleDeclaration) {
  * or `visibility: hidden`. Text and icons sit inside such backgrounds in this
  * window; text drawn straight onto the transparent page passes clicks through
  * like the space around it.
+ *
+ * `fadingRoot` is left out of the opacity check, so content that this root
+ * fades out still counts as painted.
  */
-function isPaintedAt(target: Element) {
+function isPaintedAt(target: Element, fadingRoot?: Element) {
   let painted = false
   for (let element: Element | null = target; element; element = element.parentElement) {
     const style = getComputedStyle(element)
-    if (style.opacity === '0' || style.visibility === 'hidden')
+    if ((style.opacity === '0' && element !== fadingRoot) || style.visibility === 'hidden')
       return false
     if (!painted && paintsBackground(style))
       painted = true
@@ -72,15 +75,23 @@ export async function dismissOverlays() {
  * paints nothing, and interactive wherever the user can see something.
  *
  * The window takes the pointer when one of these holds:
- * - The chat is not pinned above other windows. As on the main window, an
- *   unpinned window that passes a click through sinks behind the app the
- *   click activates (see `resolveFadeOnHoverInteraction`).
+ * - The chat is not pinned above other windows, and no passive area is set.
+ *   As on the main window, an unpinned window that passes a click through
+ *   sinks behind the app the click activates (see
+ *   `resolveFadeOnHoverInteraction`). A passive area lifts this, as Auto Hide
+ *   does on the main window, because what it holds must not block the app
+ *   below either way.
  * - A pointer pressed in the window is still held, so a drag of the
  *   scrollbar, a text selection or a resize keeps going off the painted area.
  * - A dialog or menu is open.
  * - The page paints something under the cursor.
  * - The page painted under the cursor, and the hand has not pressed or moved
  *   more than {@link handJitter} on the screen since.
+ *
+ * The passive area never takes the pointer. The returned `overPassiveArea` is
+ * `true` while the cursor is over something that the area paints, so the page
+ * can fade the area out. The area counts as painted while it is faded out,
+ * so the fade does not end only because it hid the content.
  *
  * The main process creates the window click-through. The cursor position comes
  * from the main process, not from DOM events, because a click-through window
@@ -94,6 +105,8 @@ export async function dismissOverlays() {
 export function useChatFloatingClickThrough(options: {
   /** Whether the chat window stays above other windows. */
   pinned: MaybeRefOrGetter<boolean>
+  /** Content that passes every click through, such as a passive message feed. */
+  passiveArea?: MaybeRefOrGetter<HTMLElement | null | undefined>
 }) {
   const { x, y } = useElectronRelativeMouse()
   // An attached window moves with the main window, so only the screen
@@ -115,14 +128,25 @@ export function useChatFloatingClickThrough(options: {
   useEventListener(window, 'pointercancel', () => pointerHeld.value = false, { capture: true })
   useEventListener(window, 'blur', () => pointerHeld.value = false)
 
+  const overPassiveArea = shallowRef(false)
+
   function takesPointer() {
-    if (!toValue(options.pinned) || pointerHeld.value)
+    const passiveArea = toValue(options.passiveArea) ?? undefined
+    const target = document.elementFromPoint(x.value, y.value)
+    const inPassiveArea = target !== null && passiveArea !== undefined && passiveArea.contains(target)
+    overPassiveArea.value = inPassiveArea && isPaintedAt(target, passiveArea)
+
+    if ((!toValue(options.pinned) && !passiveArea) || pointerHeld.value)
       return true
 
     if (document.querySelector(openOverlaySelector))
       return true
 
-    const target = document.elementFromPoint(x.value, y.value)
+    if (inPassiveArea) {
+      paintedAt = undefined
+      return false
+    }
+
     if (target && isPaintedAt(target)) {
       paintedAt = { x: hand.x.value, y: hand.y.value }
       return true
@@ -148,7 +172,7 @@ export function useChatFloatingClickThrough(options: {
 
   // Dialogs and menus mount straight into the body.
   useMutationObserver(document.body, hitTest, { childList: true })
-  watch([() => toValue(options.pinned), pointerHeld, x, y], hitTest, { immediate: true })
+  watch([() => toValue(options.pinned), () => toValue(options.passiveArea), pointerHeld, x, y], hitTest, { immediate: true })
 
-  return { hitTest }
+  return { hitTest, overPassiveArea: readonly(overPassiveArea) }
 }

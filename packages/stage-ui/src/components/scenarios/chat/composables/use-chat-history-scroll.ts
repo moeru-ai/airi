@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 
 import { useEventListener } from '@vueuse/core'
-import { computed, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 interface ChatHistoryScrollOptions<TMessage> {
   container: Readonly<Ref<HTMLElement | null>>
@@ -10,6 +10,11 @@ interface ChatHistoryScrollOptions<TMessage> {
   scrollToIndex: (index: number, align: 'start' | 'end') => void
   /** Space that a floating composer covers at the end of the viewport. */
   tailInset: Readonly<Ref<number>>
+  /**
+   * `true` when nobody reads the history by hand, such as a feed that passes
+   * every click through. The history then always follows the tail.
+   */
+  passive?: Readonly<Ref<boolean>>
 }
 
 /**
@@ -17,7 +22,8 @@ interface ChatHistoryScrollOptions<TMessage> {
  *
  * A user scroll away from the tail disables automatic movement. Layout changes
  * and index scrolls do not disable it. Pointer, focus, and selection on an older
- * message also block movement until that inspection ends.
+ * message also block movement until that inspection ends. A passive history
+ * ignores all of these and always follows the tail.
  */
 export function useChatHistoryScroll<TMessage>({
   container,
@@ -25,6 +31,7 @@ export function useChatHistoryScroll<TMessage>({
   getKey,
   scrollToIndex,
   tailInset,
+  passive = shallowRef(false),
 }: ChatHistoryScrollOptions<TMessage>) {
   let didRequestInitialScroll = false
   let hasUserScrollIntent = false
@@ -136,7 +143,7 @@ export function useChatHistoryScroll<TMessage>({
       previousLastMessageKey = currentLastMessageKey
       const isInspectingHistory = isPointerOrFocusOnOlderMessage || isSelectionInOlderMessage
 
-      if (!isFollowingConversation || isInspectingHistory)
+      if (!passive.value && (!isFollowingConversation || isInspectingHistory))
         return
 
       if (previousKey === currentLastMessageKey) {
@@ -149,4 +156,16 @@ export function useChatHistoryScroll<TMessage>({
     },
     { flush: 'post', immediate: true },
   )
+
+  // A history that turns passive can no longer be scrolled by hand, so it
+  // returns to the tail at once, even from a position the reader chose.
+  watch(passive, (isPassive) => {
+    const lastIndex = messages.value.length - 1
+    if (!isPassive || !container.value || lastIndex < 0)
+      return
+
+    isFollowingConversation = true
+    hasUserScrollIntent = false
+    scrollToIndex(lastIndex, 'end')
+  }, { flush: 'post' })
 }

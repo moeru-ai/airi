@@ -2,8 +2,9 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
+import { page } from 'vitest/browser'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
@@ -429,6 +430,40 @@ describe('chat history', () => {
         key: getChatHistoryItemKey(messages[1], 1),
       },
     ]])
+  })
+
+  it('offers no message actions in a passive history', async () => {
+    // The web build hides the menu trigger below the desktop breakpoint.
+    const { innerWidth, innerHeight } = window
+    await page.viewport(1024, 768)
+    onTestFinished(() => page.viewport(innerWidth, innerHeight))
+    const messages: ChatHistoryItem[] = [
+      { id: 'user-1', role: 'user', content: 'hello' },
+      { id: 'assistant-1', role: 'assistant', content: 'Hi there', slices: [{ type: 'text', text: 'Hi there' }], tool_results: [] },
+      { id: 'user-2', role: 'user', content: 'again' },
+      { role: 'error', content: 'Remote sent 400 response' },
+    ]
+    const props = {
+      messages,
+      passive: false,
+      style: 'height: 480px; width: 480px; overflow-y: auto;',
+    }
+    const screen = await render(ChatHistory, {
+      props,
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+    const actionTriggers = () => screen.container.querySelectorAll('button[aria-label="Message actions"]')
+    await vi.waitFor(() => expect(actionTriggers()).toHaveLength(4))
+    expect(screen.container.querySelector('button[aria-label="Retry"]')).not.toBeNull()
+
+    await screen.rerender({ ...props, passive: true })
+
+    await vi.waitFor(() => expect(actionTriggers()).toHaveLength(0))
+    expect(screen.container.querySelectorAll('.chat-message-item')).toHaveLength(4)
+    expect(screen.container.querySelector('button[aria-label="Retry"]')).toBeNull()
+    expect(screen.container.querySelector('.i-solar\\:reply-bold-duotone')).toBeNull()
   })
 
   it('keeps short error formatting', async () => {
