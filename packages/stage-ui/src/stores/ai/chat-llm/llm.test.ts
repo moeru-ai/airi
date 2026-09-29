@@ -161,6 +161,35 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[2][0].messages).toContainEqual({ role: 'user', content: 'spoken words' })
   })
 
+  it('records tool incompatibility for the resolved model instead of the initial selection', async () => {
+    const store = useLLM()
+    streamTextMock.mockImplementationOnce(() => {
+      throw new Error('model does not support tools')
+    }).mockImplementation(() => createMockStreamResult())
+    const conversation: Conversation = { turns: [] }
+    await expect(store.stream('model-a', provider, conversation, {
+      resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+    })).rejects.toThrow('model does not support tools')
+
+    await store.stream('model-a', provider, conversation)
+    await store.stream('model-b', provider, conversation)
+
+    expect(streamTextMock.mock.calls[1][0].tools?.length).toBeGreaterThan(0)
+    expect(streamTextMock.mock.calls[2][0].tools).toBeUndefined()
+  })
+
+  it('does not replay a turn after a tool starts and a later request rejects content arrays', async () => {
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      const steps = (async () => {
+        await options.onEvent({ type: 'tool-call.done', toolCallId: 'call-1', toolName: 'write', args: {} })
+        throw new Error('messages[0]: invalid type: sequence, expected a string')
+      })()
+      return { ...createMockStreamResult(), steps }
+    })
+    await expect(useLLM().stream('model-a', provider, { turns: [] })).rejects.toThrow('expected a string')
+    expect(streamTextMock).toHaveBeenCalledOnce()
+  })
+
   it('ignores later error events after steps have resolved', async () => {
     let onEvent: ((event: unknown) => Promise<void>) | undefined
     let resolveSteps: ((steps: unknown[]) => void) | undefined

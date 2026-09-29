@@ -195,11 +195,25 @@ it('continues one assistant turn in Responses after a Chat Completions tool swit
       : { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } },
   }
 
+  const conversation: Conversation = {
+    turns: [{ type: 'user', id: 'audio-question', content: [{ type: 'audio', data: 'AA==', format: 'wav' }] }],
+  }
+  const prepareConversation = vi.fn(async (source: Conversation, request: ReturnType<GenerationProvider['generation']>) => {
+    if (request.protocol === 'chat-completions')
+      return source
+    const projected = structuredClone(source)
+    for (const turn of projected.turns) {
+      if (turn.type === 'user')
+        turn.content = turn.content.map(part => part.type === 'audio' ? { type: 'text', text: 'spoken words' } : part)
+    }
+    return projected
+  })
   await streamFrom({
     model: live.model,
     chatProvider: liveProvider,
-    conversation: { turns: [] },
+    conversation,
     options: {
+      prepareConversation,
       resolveStep: async () => ({
         model: live.model,
         chatProvider: liveProvider,
@@ -219,6 +233,10 @@ it('continues one assistant turn in Responses after a Chat Completions tool swit
     },
   })
 
+  expect(prepareConversation).toHaveBeenCalledTimes(2)
+  expect(JSON.stringify(requests[0].body.messages)).toContain('input_audio')
+  expect(JSON.stringify(requests[1].body.input)).toContain('spoken words')
+  expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', data: 'AA==' }] })
   expect(requests).toHaveLength(2)
   expect(requests[0].url).toContain('chat.example')
   expect(requests[1].url).toContain('responses.example')

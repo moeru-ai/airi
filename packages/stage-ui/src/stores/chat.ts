@@ -266,12 +266,16 @@ export const useChatStore = defineStore('chat', () => {
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
-    const headers = { ...options?.headers }
-    if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
-      headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
-      headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+    function requestHeaders(providerId: string | undefined) {
+      const headers = { ...options?.headers }
+      if (getProviderMode(providerId) === 'official' && options?.requestCorrelation) {
+        headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
+        headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
+        headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+      }
+      return headers
     }
+    const headers = requestHeaders(options?.providerId)
 
     const hadExistingTurn = !!activeTurnSpan.value
     if (!hadExistingTurn) {
@@ -366,11 +370,23 @@ export const useChatStore = defineStore('chat', () => {
     const llmRequestTs = performance.now()
     let llmFirstTokenEmitted = false
 
+    const resolveStep = options?.resolveStep
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
         headers,
-        prepareStringContent: () => prepareTextOnlyAudioContext(providerContext, true),
+        resolveStep: resolveStep
+          ? async () => {
+            const step = await resolveStep()
+            return { ...step, headers: requestHeaders(step.providerId) }
+          }
+          : undefined,
+        prepareConversation: async (source, request, providerId) => {
+          const supportsAudio = request.protocol === 'chat-completions'
+            && consciousnessStore.modelSupportsAudioInput(providerId ?? '', request.config.model)
+          return supportsAudio ? source : prepareTextOnlyAudioContext(source, true)
+        },
+        prepareStringContent: source => prepareTextOnlyAudioContext(source, true),
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1

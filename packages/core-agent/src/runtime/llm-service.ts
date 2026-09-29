@@ -30,6 +30,8 @@ async function streamOnce({
   const currentProvider = initialStep?.chatProvider ?? chatProvider
   // Resolve before async tool loading so all decisions use this request's configuration.
   const request = currentProvider.generation(currentModel)
+  const providerId = initialStep?.providerId ?? options?.providerId
+  const requestConversation = await options?.prepareConversation?.(conversation, request, providerId) ?? conversation
   const supportedTools = supportsTools(currentModel, request, options)
   const contentArraySupported = supportsContentArray(currentModel, request, options)
   const builtinTools = supportedTools && !initialStep
@@ -75,8 +77,8 @@ async function streamOnce({
 
     try {
       const streamResult = request.protocol === 'responses'
-        ? streamResponses({ config: request.config, webSearch: supportedTools && request.webSearch, conversation, scope, options, tools, initialStep, onEvent })
-        : streamChatCompletions({ config: request.config, conversation, scope, options, tools, initialStep, onEvent, supportsContentArray: contentArraySupported })
+        ? streamResponses({ config: request.config, webSearch: supportedTools && request.webSearch, conversation: requestConversation, scope, options, tools, initialStep, onEvent })
+        : streamChatCompletions({ config: request.config, conversation: requestConversation, scope, options, tools, initialStep, onEvent, supportsContentArray: contentArraySupported })
 
       // NOTICE:
       // `steps` settles after all tool rounds, while provider finish events can arrive earlier.
