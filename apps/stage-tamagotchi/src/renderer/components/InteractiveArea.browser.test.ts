@@ -1006,8 +1006,6 @@ describe('interactive area synchronized state', () => {
       replyToMessageId: undefined,
       sessionId: 'session-b',
       text: 'mobile follower message',
-      attachments: [],
-      replyToMessageId: undefined,
     }))
   })
 
