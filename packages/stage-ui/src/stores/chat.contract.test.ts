@@ -76,7 +76,7 @@ const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
-const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
+const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn() }))
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
 
 const activeSessionIdRef = ref('session-1')
@@ -149,7 +149,16 @@ vi.mock('./chat/context-store', () => ({
 }))
 
 vi.mock('./modules/vision', () => ({
-  useVisionStore: () => ({ get configured() { return visionMocks.configured }, useForChat: true }),
+  useVisionStore: () => ({
+    get configured() {
+      return visionMocks.configured
+    },
+    activeProvider: 'apple-vision',
+    get activeModel() {
+      return visionMocks.model
+    },
+    useForChat: true,
+  }),
 }))
 
 vi.mock('../composables/vision/use-vision-inference', () => ({
@@ -286,6 +295,7 @@ describe('chat store contract', () => {
       execute: vi.fn(),
     })))
     visionMocks.configured = false
+    visionMocks.model = 'system'
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
     ioTracerMocks.activeTurnSpan.value = undefined
@@ -523,13 +533,29 @@ describe('chat store contract', () => {
     ])
   })
 
-  it('sends a failed image read as a note and does not read the image again', async () => {
+  it('reports a failed read of the current image and stores no description', async () => {
     // ROOT CAUSE:
     //
-    // A failed image read rejected the send and stored nothing. Each later turn
-    // read the same image again, so a text message also waited and failed.
+    // An earlier fix stored each failed read as the image description. A
+    // temporary failure then hid the image for good, and the send reported no error.
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+
+    const store = useChatStore()
+    await expect(store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })).rejects.toThrow('Vision inference timed out after 60000ms')
+
+    expect(sessionMessages['session-1'].find(message => message.role === 'user')?.imageDescriptions).toBeUndefined()
+  })
+
+  it('reads a failed earlier image once for each vision selection', async () => {
+    // ROOT CAUSE:
     //
-    // We fixed this by storing a note about the failure as the description.
+    // Nothing kept a failed read, so each later turn read the same earlier
+    // image again and failed, even a text message.
     visionMocks.configured = true
     visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
@@ -537,24 +563,25 @@ describe('chat store contract', () => {
     })
 
     const store = useChatStore()
-    await store.send({
+    await expect(store.send({
       sessionId: 'session-1',
       text: 'Read this',
       attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
-    })
-    await store.send({
-      sessionId: 'session-1',
-      text: 'Hello again',
-    })
+    })).rejects.toThrow()
+    await store.send({ sessionId: 'session-1', text: 'Hello again' })
 
     expect(visionMocks.runInference).toHaveBeenCalledOnce()
-    expect(llmStreamMock).toHaveBeenCalledTimes(2)
     expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        role: 'user',
-        content: expect.stringContaining('The image could not be read. Vision inference timed out after 60000ms'),
-      }),
+      expect.objectContaining({ role: 'user', content: expect.stringContaining('It could not be read.') }),
     ]))
+
+    visionMocks.model = 'another-model'
+    visionMocks.runInference.mockResolvedValue('A red square.')
+    await store.send({ sessionId: 'session-1', text: 'Try again' })
+
+    expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
+    expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions)
+      .toEqual([{ description: 'A red square.', imageIndex: 0 }])
   })
 
   it('sends images directly when the selected chat model supports vision', async () => {
