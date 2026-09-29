@@ -23,6 +23,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { getSchemaDefault } from '../../libs/zod'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
@@ -390,6 +391,15 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
+  async function getInitialProviderConfig(providerId: string) {
+    const schema = await getProviderDefinition(providerId).createProviderConfig({ t })
+    const defaultOptions = getSchemaDefault(schema) as Record<string, unknown>
+    return {
+      ...defaultOptions,
+      ...(Object.hasOwn(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+    }
+  }
+
   function initializeProviderRuntimeState(providerId: string) {
     if (!providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId] = {
@@ -406,7 +416,7 @@ export const useProviderStore = defineStore('provider', () => {
     await waitForProviderMetadata()
     if (!providerConfigStore.getProvider(providerId)) {
       const definitionId = getProviderDefinitionId(providerId)
-      await providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
+      await providerConfigStore.ensureProvider(providerId, definitionId, await getInitialProviderConfig(providerId))
     }
     initializeProviderRuntimeState(providerId)
   }
@@ -903,7 +913,7 @@ export const useProviderStore = defineStore('provider', () => {
     let config = providerCredentials.value[providerId]
     const noCredentials = definition.requiresCredentials === false || providerId === 'browser-web-speech-api'
     if (!config && noCredentials) {
-      config = getDefaultProviderConfig(providerId) || {}
+      config = await getInitialProviderConfig(providerId)
       const definitionId = getProviderDefinitionId(providerId)
       providerConfigStore.ensureProvider(providerId, definitionId, config)
     }
