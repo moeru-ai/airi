@@ -48,8 +48,8 @@ const props = withDefaults(defineProps<{
   composerFoldable?: boolean
   /**
    * `true` when nobody scrolls or reads the history by hand, such as a feed
-   * that passes every click through. The history then always follows new
-   * messages, and its messages offer no actions.
+   * that passes every click through. The history then returns to the
+   * newest message.
    */
   passive?: boolean
   /** `true` fades the history out. The composer and its tab stay. */

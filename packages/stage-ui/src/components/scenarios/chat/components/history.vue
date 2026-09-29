@@ -51,8 +51,8 @@ const props = withDefaults(defineProps<{
   scrollbar?: 'scroll' | 'hover'
   /**
    * `true` when the host shows the history as a feed that nobody scrolls or
-   * reads by hand. The history then always follows new messages, even while
-   * the pointer rests on an older one, and the messages offer no actions.
+   * reads by hand. The history then returns to the newest message, because
+   * nobody can scroll it back.
    */
   passive?: boolean
   toolCallRenderers?: ChatToolCallRendererRegistry
@@ -100,7 +100,7 @@ function shouldShowPlaceholder(message: ChatHistoryItem) {
   return !!streaming.value.id && message.id === streaming.value.id
 }
 function canReplyToMessage(message: ChatHistoryItem) {
-  if (props.passive || !message.id)
+  if (!message.id)
     return false
 
   if (message.role !== 'assistant' && message.role !== 'user')
@@ -258,7 +258,6 @@ function emitToolCallRerun(
             :scroll-container="chatHistoryRef"
             :variant="variant"
             :surface="surface"
-            :actions-disabled="passive"
             @copy="emitCopyMessage(message, index)"
             @retry="emitRetryMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
@@ -274,7 +273,6 @@ function emitToolCallRerun(
             :variant="variant"
             :surface="surface"
             :tool-call-renderers="toolCallRenderers"
-            :actions-disabled="passive"
             @copy="emitCopyMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
             @reply="emitReplyMessage(message)"
@@ -289,7 +287,6 @@ function emitToolCallRerun(
             :scroll-container="chatHistoryRef"
             :variant="variant"
             :surface="surface"
-            :actions-disabled="passive"
             @copy="emitCopyMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
             @reply="emitReplyMessage(message)"

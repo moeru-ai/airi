@@ -21,11 +21,8 @@ const props = withDefaults(defineProps<{
   variant?: 'desktop' | 'mobile'
   /** How the bubble paints its background; see `ChatHistory`'s `surface`. */
   surface?: 'translucent' | 'opaque'
-  /** `true` when the message offers no actions, such as in a passive feed. */
-  actionsDisabled?: boolean
 }>(), {
   canReply: false,
-  actionsDisabled: false,
   scrollContainer: null,
   variant: 'desktop',
   surface: 'translucent',
@@ -81,7 +78,6 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
       :can-reply="canReply"
       :copy-text="copyText"
       placement="left"
-      :disabled="actionsDisabled"
       :press-feedback-enabled="variant === 'mobile'"
       :scroll-container="scrollContainer"
       @copy="emit('copy')"

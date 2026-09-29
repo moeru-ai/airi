@@ -19,8 +19,6 @@ export interface ChatToolCallRendererProps {
   args: string
   state?: 'executing' | 'done' | 'error'
   result?: unknown
-  /** `true` when the renderer must offer no actions, such as in a passive feed. */
-  actionsDisabled?: boolean
 }
 
 /**

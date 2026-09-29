@@ -88,7 +88,8 @@ export async function dismissOverlays() {
  * - The page painted under the cursor, and the hand has not pressed or moved
  *   more than {@link handJitter} on the screen since.
  *
- * The passive area never takes the pointer. The returned `overPassiveArea` is
+ * The passive area never takes the pointer, and it is inert while it is set,
+ * so keyboard focus cannot reach it either. The returned `overPassiveArea` is
  * `true` while the cursor is over something that the area paints, so the page
  * can fade the area out. The area counts as painted while it is faded out,
  * so the fade does not end only because it hid the content.
@@ -105,7 +106,7 @@ export async function dismissOverlays() {
 export function useChatFloatingClickThrough(options: {
   /** Whether the chat window stays above other windows. */
   pinned: MaybeRefOrGetter<boolean>
-  /** Content that passes every click through, such as a passive message feed. */
+  /** Content that takes no pointer and no keyboard focus, such as a passive message feed. */
   passiveArea?: MaybeRefOrGetter<HTMLElement | null | undefined>
 }) {
   const { x, y } = useElectronRelativeMouse()
@@ -130,9 +131,28 @@ export function useChatFloatingClickThrough(options: {
 
   const overPassiveArea = shallowRef(false)
 
+  // NOTICE:
+  // Hit testing skips inert content, so the passive area stops being inert
+  // for one synchronous `elementFromPoint`. Nothing renders, focuses, or
+  // dispatches in between.
+  // Source: HTML `inert` hit-tests as `pointer-events: none`.
+  // Removal: when a hit test can include inert content.
+  function elementUnderCursor(passiveArea: HTMLElement | undefined) {
+    if (!passiveArea?.inert)
+      return document.elementFromPoint(x.value, y.value)
+
+    passiveArea.inert = false
+    try {
+      return document.elementFromPoint(x.value, y.value)
+    }
+    finally {
+      passiveArea.inert = true
+    }
+  }
+
   function takesPointer() {
     const passiveArea = toValue(options.passiveArea) ?? undefined
-    const target = document.elementFromPoint(x.value, y.value)
+    const target = elementUnderCursor(passiveArea)
     const inPassiveArea = target !== null && passiveArea !== undefined && passiveArea.contains(target)
     overPassiveArea.value = inPassiveArea && isPaintedAt(target, passiveArea)
 
@@ -169,6 +189,13 @@ export function useChatFloatingClickThrough(options: {
     appliedTakesPointer = next
     void setIgnoreMouseEvents([!next, { forward: true }])
   }
+
+  watch(() => toValue(options.passiveArea), (area, previous) => {
+    if (previous)
+      previous.inert = false
+    if (area)
+      area.inert = true
+  }, { immediate: true })
 
   // Dialogs and menus mount straight into the body.
   useMutationObserver(document.body, hitTest, { childList: true })

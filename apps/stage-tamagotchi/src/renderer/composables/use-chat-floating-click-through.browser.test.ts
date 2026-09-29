@@ -172,7 +172,7 @@ describe('useChatFloatingClickThrough', () => {
     expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
   })
 
-  it('lets clicks through a painted passive area and reports the cursor over it, even unpinned and faded out', async () => {
+  it('keeps a painted passive area inert and click-through, and reports the cursor over it, even unpinned and faded out', async () => {
     mocks.cursor!.x.value = 40
     mocks.cursor!.y.value = 40
     const area = shallowRef<HTMLElement | null>(null)
@@ -191,6 +191,8 @@ describe('useChatFloatingClickThrough', () => {
 
     await vi.waitFor(() => expect(overPassiveArea.value).toBe(true))
     expect(mocks.setIgnoreMouseEvents).toHaveBeenLastCalledWith([true, { forward: true }])
+    // Keyboard focus cannot reach the area, and the hit test still finds its content.
+    expect(area.value?.inert).toBe(true)
 
     // The page fades the area out under the cursor. The area still counts as
     // painted, so the fade does not end by itself.

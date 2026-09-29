@@ -11,8 +11,9 @@ interface ChatHistoryScrollOptions<TMessage> {
   /** Space that a floating composer covers at the end of the viewport. */
   tailInset: Readonly<Ref<number>>
   /**
-   * `true` when nobody reads the history by hand, such as a feed that passes
-   * every click through. The history then always follows the tail.
+   * `true` when nobody scrolls the history by hand, such as a feed that
+   * passes every click through. The history returns to the tail when it
+   * turns passive.
    */
   passive?: Readonly<Ref<boolean>>
 }
@@ -22,8 +23,7 @@ interface ChatHistoryScrollOptions<TMessage> {
  *
  * A user scroll away from the tail disables automatic movement. Layout changes
  * and index scrolls do not disable it. Pointer, focus, and selection on an older
- * message also block movement until that inspection ends. A passive history
- * ignores all of these and always follows the tail.
+ * message also block movement until that inspection ends.
  */
 export function useChatHistoryScroll<TMessage>({
   container,
@@ -143,7 +143,7 @@ export function useChatHistoryScroll<TMessage>({
       previousLastMessageKey = currentLastMessageKey
       const isInspectingHistory = isPointerOrFocusOnOlderMessage || isSelectionInOlderMessage
 
-      if (!passive.value && (!isFollowingConversation || isInspectingHistory))
+      if (!isFollowingConversation || isInspectingHistory)
         return
 
       if (previousKey === currentLastMessageKey) {

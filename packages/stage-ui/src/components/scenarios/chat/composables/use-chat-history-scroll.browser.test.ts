@@ -218,24 +218,6 @@ describe('useChatHistoryScroll', () => {
     expect(scrollToIndex).not.toHaveBeenCalled()
   })
 
-  it('keeps a passive history on new messages while the pointer rests on an older one', async () => {
-    const currentContainer = createScrollContainer(2)
-    currentContainer.scrollTop = currentContainer.scrollHeight
-    const container = shallowRef<HTMLElement | null>(currentContainer)
-    const messages = shallowRef<TestMessage[]>([{ id: 'user-1' }, { id: 'assistant-1' }])
-    const scrollToIndex = vi.fn()
-    startScrollBehavior({ container, messages, scrollToIndex, passive: shallowRef(true) })
-    await flushReactivity()
-    scrollToIndex.mockClear()
-
-    currentContainer.firstElementChild?.dispatchEvent(new PointerEvent('pointerover', { bubbles: true }))
-    replaceMessageItems(currentContainer, 3)
-    messages.value = [...messages.value, { id: 'assistant-2' }]
-    await flushReactivity()
-
-    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
-  })
-
   it('returns to the tail when the history turns passive after a user scroll', async () => {
     const currentContainer = createScrollContainer(2)
     currentContainer.scrollTop = currentContainer.scrollHeight
