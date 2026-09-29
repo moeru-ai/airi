@@ -12,12 +12,15 @@ import VoiceComposer from './voice-composer.vue'
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useHearingStore } from '../../../../stores/modules/hearing'
+import { useVoiceSend } from '../composables/use-voice-send'
 
 let context: AudioContext | undefined
 afterEach(async () => {
   vi.restoreAllMocks()
   vi.unstubAllGlobals()
-  await context?.close()
+  if (context?.state !== 'closed')
+    await context?.close()
+  context = undefined
   localStorage.removeItem('ui/chat/voice-mode')
 })
 
@@ -152,4 +155,31 @@ it('keeps a failed voice send for retry until the user turn is stored', async ()
   await expect.poll(() => sent.mock.calls.length).toBe(1)
   expect(send.mock.calls[1][0].attachments).toEqual(send.mock.calls[0][0].attachments)
   expect(screen.getByTestId('voice-composer-button').element()).toBeTruthy()
+})
+
+it('keeps a failed voice send when an older turn has the same audio', async () => {
+  const accepted = vi.fn()
+  const failed = vi.fn()
+  let voiceSend!: ReturnType<typeof useVoiceSend>
+  let chat!: ReturnType<typeof useChatStore>
+  render(defineComponent({
+    setup() {
+      chat = useChatStore()
+      const session = useChatSessionStore()
+      session.sessionMessages['duplicate-audio'] = [{
+        role: 'user',
+        content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }],
+      }]
+      voiceSend = useVoiceSend({ sessionId: 'duplicate-audio', replyToMessageId: undefined, onAccepted: accepted, onError: failed })
+      return () => h('div')
+    },
+  }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } }), createRouter({ history: createMemoryHistory(), routes: [] })] } })
+  vi.spyOn(chat, 'send').mockRejectedValueOnce(new Error('Send failed'))
+
+  voiceSend.queue({ sessionId: 'duplicate-audio', mode: 'audio', text: '', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' } })
+
+  await expect.poll(() => voiceSend.pendingSend.value?.status).toBe('failed')
+  expect(voiceSend.pendingSend.value).toBeDefined()
+  expect(accepted).not.toHaveBeenCalled()
+  expect(failed).toHaveBeenCalledOnce()
 })

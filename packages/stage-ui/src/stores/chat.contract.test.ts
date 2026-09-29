@@ -1486,8 +1486,8 @@ describe('chat store contract', () => {
     const store = useChatStore()
     const voiceSends = useVoiceSendStore()
     voiceSends.pendingSends = {
-      'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, status: 'failed' },
-      'session-2': { sessionId: 'session-2', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, status: 'failed' },
+      'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, historyBoundary: 0, status: 'failed' },
+      'session-2': { sessionId: 'session-2', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, historyBoundary: 0, status: 'failed' },
     }
     const firstSend = store.send({
       sessionId: 'session-1',

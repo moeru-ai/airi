@@ -335,6 +335,29 @@ describe('createChatOrchestratorRuntime', () => {
     })
   })
 
+  it('uses a stored voice transcript to identify the replied message', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1']?.push({
+      role: 'user',
+      id: 'voice-earlier',
+      content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }],
+      audioTranscripts: ['Turn on the light.'],
+    })
+
+    await harness.runtime.ingest('Why?', {
+      model: 'text-model',
+      chatProvider: provider,
+      supportsAudioInput: false,
+      replyToMessageId: 'voice-earlier',
+    })
+
+    const providerMessages = conversationToChatMessages(harness.stream.mock.calls[0]![2])
+    expect(providerMessages.at(-1)).toMatchObject({
+      role: 'user',
+      content: '[2026-04-25 18:47] [Replying to: Turn on the light.]\nWhy?',
+    })
+  })
+
   // ROOT CAUSE:
   //
   // xsAI kept the assistant tool call and tool result in its private message copy.

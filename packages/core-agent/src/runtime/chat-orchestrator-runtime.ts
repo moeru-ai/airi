@@ -45,16 +45,12 @@ function prependTextToContent<T extends { content?: unknown }>(msg: T, text: str
 }
 
 function getMessageText(message: ChatHistoryItem): string {
-  if (typeof message.content === 'string')
-    return message.content
-
-  if (!Array.isArray(message.content))
-    return ''
-
-  return message.content
-    .filter(part => part.type === 'text')
-    .map(part => part.text)
-    .join('\n')
+  const text = typeof message.content === 'string'
+    ? message.content
+    : Array.isArray(message.content)
+      ? message.content.filter(part => part.type === 'text').map(part => part.text).join('\n')
+      : ''
+  return [text, ...(message.audioTranscripts ?? [])].filter(Boolean).join('\n')
 }
 
 /**

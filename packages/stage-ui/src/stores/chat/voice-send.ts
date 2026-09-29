@@ -11,6 +11,7 @@ export interface PendingVoiceSend {
   audio: Extract<ChatAttachment, { type: 'audio' }>
   replyToMessageId?: string
   tools?: ChatToolReference[]
+  historyBoundary: number
   status: 'sending' | 'failed'
 }
 
@@ -23,5 +24,9 @@ export const useVoiceSendStore = defineStore('voice-send', () => {
     pendingSends.value = next
   }
 
-  return { pendingSends, discardSession }
+  function discardAll() {
+    pendingSends.value = {}
+  }
+
+  return { pendingSends, discardSession, discardAll }
 })
