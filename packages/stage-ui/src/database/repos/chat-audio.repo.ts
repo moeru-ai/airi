@@ -21,6 +21,19 @@ export function isChatAudioReference(data: string) {
   return data.startsWith(referencePrefix)
 }
 
+export function chatAudioReferences(messages: ChatHistoryItem[]) {
+  const references = new Set<string>()
+  for (const message of messages) {
+    if (message.role !== 'user' || !Array.isArray(message.content))
+      continue
+    for (const part of message.content) {
+      if (part.type === 'input_audio' && isChatAudioReference(part.input_audio.data))
+        references.add(part.input_audio.data)
+    }
+  }
+  return references
+}
+
 export const chatAudioRepo = {
   async save(sessionId: string, data: string) {
     if (isChatAudioReference(data))
@@ -42,6 +55,22 @@ export const chatAudioRepo = {
     if (stored === null || stored === undefined)
       throw new Error('Stored chat audio is unavailable')
     return stored
+  },
+
+  async remove(sessionId: string, reference: string) {
+    if (!isChatAudioReference(reference) || !reference.startsWith(`${referencePrefix}${sessionId}/`))
+      return
+    await enqueueIndex(async () => {
+      const references = await storage.getItemRaw<string[]>(indexKey(sessionId)) ?? []
+      if (!references.includes(reference))
+        return
+      await storage.removeItem(`local:chat/audio/${reference.slice(referencePrefix.length)}`)
+      const remaining = references.filter(item => item !== reference)
+      if (remaining.length)
+        await storage.setItemRaw(indexKey(sessionId), remaining)
+      else
+        await storage.removeItem(indexKey(sessionId))
+    })
   },
 
   async removeSession(sessionId: string) {

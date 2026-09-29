@@ -47,6 +47,18 @@ vi.mock('../modules/airi-card', () => ({
   }),
 }))
 
+vi.mock('../../database/repos/chat-audio.repo', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../database/repos/chat-audio.repo')>()
+  return {
+    ...actual,
+    chatAudioRepo: {
+      ...actual.chatAudioRepo,
+      remove: vi.fn().mockResolvedValue(undefined),
+      removeSession: vi.fn().mockResolvedValue(undefined),
+    },
+  }
+})
+
 vi.mock('../../database/repos/chat-sessions.repo', () => ({
   chatSessionsRepo: {
     getIndex: (uid: string) => getIndexMock(uid),

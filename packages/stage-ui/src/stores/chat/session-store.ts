@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import { chatAudioRepo, mapChatAudio } from '../../database/repos/chat-audio.repo'
+import { chatAudioReferences, chatAudioRepo, mapChatAudio } from '../../database/repos/chat-audio.repo'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { authedFetch } from '../../libs/auth-fetch'
 import {
@@ -318,14 +318,26 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
+    const previousReferences = chatAudioReferences(sessionMessages.value[sessionId] ?? [])
+    const nextReferences = chatAudioReferences(next)
     sessionMessages.value[sessionId] = next
 
-    if (options?.persist !== false)
-      void persistSession(sessionId)
+    if (options?.persist === false)
+      return Promise.resolve()
+
+    const persisted = persistSession(sessionId).then(async () => {
+      const retainedReferences = chatAudioReferences(sessionMessages.value[sessionId] ?? [])
+      for (const reference of previousReferences) {
+        if (!nextReferences.has(reference) && !retainedReferences.has(reference))
+          await chatAudioRepo.remove(sessionId, reference)
+      }
+    })
+    void persisted.catch(error => console.warn('[chat-session] Failed to persist messages or remove voice recordings:', error))
+    return persisted
   }
 
   function setSessionMessages(sessionId: string, next: ChatHistoryItem[]) {
-    replaceSessionMessages(sessionId, next)
+    return replaceSessionMessages(sessionId, next)
   }
 
   function appendSessionMessage(sessionId: string, message: ChatHistoryItem) {
@@ -349,7 +361,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return true
     })
 
-    setSessionMessages(payload.sessionId, nextMessages)
+    await setSessionMessages(payload.sessionId, nextMessages)
   }
 
   /**
@@ -594,7 +606,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
-    void chatAudioRepo.removeSession(sessionId).catch(error => console.warn('[chat-session] Failed to remove voice recordings:', error))
+    await chatAudioRepo.removeSession(sessionId)
     // Drop any pending outbox sends for this session — pushing messages
     // to a deleted chat is wasted work and may surface as a server-side
     // 404/410 next time we drain.
@@ -1437,7 +1449,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     for (const sessionId of sessionIds) {
       await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
-      void chatAudioRepo.removeSession(sessionId).catch(error => console.warn('[chat-session] Failed to remove voice recordings:', error))
+      await chatAudioRepo.removeSession(sessionId)
     }
 
     sessionMessages.value = {}

@@ -682,7 +682,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!retryContent)
       throw new Error('Retry target has no retriable user message')
 
-    chatSession.setSessionMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
+    await chatSession.setSessionMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
 
     try {
       return await executeSend({

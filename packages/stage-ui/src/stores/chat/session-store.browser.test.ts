@@ -7,6 +7,8 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, ref } from 'vue'
 
+import { chatAudioRepo } from '../../database/repos/chat-audio.repo'
+
 const useTestAuthStore = defineStore('auth', () => {
   const userId = ref('local')
   const token = ref<string | null>(null)
@@ -125,6 +127,37 @@ afterEach(() => {
 })
 
 describe('chat session synchronization', () => {
+  it('clears removed message audio and waits for all audio deletion', async () => {
+    const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = store.activeSessionId
+    const firstReference = await chatAudioRepo.save(sessionId, 'Zmlyc3Q=')
+    const secondReference = await chatAudioRepo.save(sessionId, 'c2Vjb25k')
+    await store.setSessionMessages(sessionId, [
+      { role: 'system', id: 'system', content: 'System' },
+      { role: 'user', id: 'first', content: [{ type: 'input_audio', input_audio: { data: firstReference, format: 'wav' } }] },
+      { role: 'user', id: 'second', content: [{ type: 'input_audio', input_audio: { data: secondReference, format: 'wav' } }] },
+    ])
+
+    await store.deleteMessage({ sessionId, messageId: 'first' })
+    await expect(chatAudioRepo.load(firstReference)).rejects.toThrow('Stored chat audio is unavailable')
+    expect(await chatAudioRepo.load(secondReference)).toBe('c2Vjb25k')
+
+    const retriedReference = await chatAudioRepo.save(sessionId, 'dGhpcmQ=')
+    await store.setSessionMessages(sessionId, [
+      ...store.getSessionMessages(sessionId),
+      { role: 'user', id: 'retried', content: [{ type: 'input_audio', input_audio: { data: retriedReference, format: 'wav' } }] },
+    ])
+    await store.setSessionMessages(sessionId, store.getSessionMessages(sessionId).slice(0, -1))
+    await expect(chatAudioRepo.load(retriedReference)).rejects.toThrow('Stored chat audio is unavailable')
+
+    await store.resetAllSessions()
+    await expect(chatAudioRepo.load(secondReference)).rejects.toThrow('Stored chat audio is unavailable')
+  })
+
   it('initializes a follower through the canonical session action', async () => {
     // ROOT CAUSE:
     //
