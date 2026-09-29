@@ -19,13 +19,15 @@ import type {
   providerOfficialSpeechStreaming,
   providerOfficialTranscription,
 } from './official'
+import type { providerSherpawTranscription } from './sherpaw'
 
 import { orderBy } from 'es-toolkit'
 
 const providerRegistry = new Map<string, ProviderDefinition>()
 
 type StageOnlyProviderId
-  = | typeof providerAliyunNlsTranscription.id
+  = | typeof providerSherpawTranscription.id
+    | typeof providerAliyunNlsTranscription.id
     | typeof providerAppleSpeechTranscription.id
     | typeof providerAppLocalAudioSpeech.id
     | typeof providerAppLocalAudioTranscription.id

@@ -141,6 +141,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 
 | Task | Read |
 | --- | --- |
+| Design, change, or review UI appearance and interaction | [AIRI Design Guide](DESIGN.md) |
 | Write, refactor, or review TypeScript or Vue code | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
 | Write or debug tests, reproduce a bug, add mocks, or fix test import boundaries | [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md) |
 | Change UnoCSS, Vue styles, UI components, animations, icons, or color mode | [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md) |
