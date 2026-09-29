@@ -1,3 +1,4 @@
+import { playwright } from '@vitest/browser-playwright'
 import { defineConfig } from 'vitest/config'
 
 import { providerInferenceProjects } from './packages/provider-inference/vitest.config'
@@ -5,6 +6,19 @@ import { providerInferenceProjects } from './packages/provider-inference/vitest.
 export default defineConfig({
   test: {
     projects: [
+      'services/debug-server',
+      {
+        test: {
+          name: 'io-tracer-browser',
+          include: ['packages/stage-ui/src/composables/use-io-tracer.browser.test.ts'],
+          browser: {
+            enabled: true,
+            headless: true,
+            provider: playwright(),
+            instances: [{ browser: 'chromium' }],
+          },
+        },
+      },
       'server/apps/auth',
       'server/apps/api',
       'apps/ui-server-auth',
