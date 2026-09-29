@@ -164,6 +164,14 @@ export function streamWebSpeechAPITranscription(
   options?: WebSpeechAPIExtraOptions & {
     onSentenceEnd?: (delta: string) => void
     onSpeechEnd?: (text: string) => void
+    /** Receives the current interim utterance, excluding committed sentences. */
+    onTranscriptionUpdate?: (text: string) => void
+    /** Browser speech detection, before any final transcript. */
+    onSpeechStart?: () => void
+    /** Audio ended; recognition may still be pending. */
+    onSpeechCaptureEnd?: () => void
+    /** One recognition cycle ended, before a continuous restart. */
+    onRecognitionCycleEnd?: () => void
   },
 ): StreamTranscriptionResult & { recognition?: any } {
   const deferredText = createDeferred<string>()
@@ -255,6 +263,8 @@ export function streamWebSpeechAPITranscription(
       console.info('Web Speech API transcribed (final):', trimmedTranscript)
     }
 
+    options?.onTranscriptionUpdate?.(interimTranscript)
+
     // Log interim results for debugging (don't emit as final)
     if (interimTranscript && recognition.interimResults) {
       console.info('Web Speech API transcribed (interim):', interimTranscript)
@@ -269,14 +279,12 @@ export function streamWebSpeechAPITranscription(
       return
     }
 
-    if (errorType === 'audio-capture') {
-      console.warn('Web Speech API: Microphone access issue. Please check microphone permissions.')
+    if (errorType === 'aborted') {
       return
     }
+    if (deferredText.isRejected || deferredText.isResolved)
+      return
 
-    if (errorType === 'network' || errorType === 'aborted') {
-      return
-    }
     const error = new Error(`Speech recognition error: ${errorType}`)
     fullStreamCtrl?.error(error)
     textStreamCtrl?.error(error)
@@ -286,7 +294,11 @@ export function streamWebSpeechAPITranscription(
   }
 
   recognition.onend = () => {
+    options?.onRecognitionCycleEnd?.()
     console.info('Web Speech API recognition ended. Continuous mode:', options?.continuous !== false, 'Aborted:', options?.abortSignal?.aborted)
+
+    if (deferredText.isRejected)
+      return
 
     // If continuous mode and not aborted, restart recognition
     if (options?.continuous !== false && !options?.abortSignal?.aborted) {
@@ -362,6 +374,8 @@ export function streamWebSpeechAPITranscription(
     newRecognition.onresult = sourceRecognition.onresult
     newRecognition.onerror = sourceRecognition.onerror
     newRecognition.onend = sourceRecognition.onend
+    newRecognition.onspeechstart = sourceRecognition.onspeechstart
+    newRecognition.onspeechend = sourceRecognition.onspeechend
     recognitionInstance = newRecognition
     newRecognition.start()
     return newRecognition
@@ -431,10 +445,12 @@ export function streamWebSpeechAPITranscription(
   }
 
   recognition.onspeechstart = () => {
+    options?.onSpeechStart?.()
     console.info('Web Speech API speech detected')
   }
 
   recognition.onspeechend = () => {
+    options?.onSpeechCaptureEnd?.()
     console.info('Web Speech API speech ended')
   }
 

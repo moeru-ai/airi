@@ -2022,3 +2022,7 @@ wip:
   description: >-
     This feature is currently under development and not yet publicly available.
     Check back in future updates for this functionality.
+
+streamer-mode:
+  title: Streamer mode
+  description: Hide microphone and sign-in indicators on the character window.
