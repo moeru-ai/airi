@@ -21,7 +21,10 @@ export interface AudioInputPreflightContext {
 export type AudioInputPreflightCallback = AudioTestPreflightCallback<AudioInputPreflightContext>
 
 /** One AIRI audio-input test definition. */
-export type AudioInputTestCase = AudioTestCase<AudioInputPreflightContext>
+export interface AudioInputTestCase extends AudioTestCase<AudioInputPreflightContext> {
+  /** Prepare the pinned KWS model before starting the file microphone. */
+  callingWordModel?: boolean
+}
 
 /** Snapshot of the observable AIRI audio pipeline state. */
 export interface AudioInputSnapshot {

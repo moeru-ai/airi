@@ -10,8 +10,11 @@ import { createAudioTestAPI, createAudioTestTask, runAudioTestSession, startFake
 import { inject } from 'vitest'
 
 import { expect, installAudioInputMatchers } from './expect-extend'
+import { prepareCallingWordModel } from './setup/calling-word-model'
 
-type RunnableAudioInputTest = AudioTestTask
+interface RunnableAudioInputTest extends AudioTestTask {
+  callingWordModel?: boolean
+}
 
 installAudioInputMatchers()
 
@@ -23,7 +26,7 @@ const audioTestAPI = createAudioTestAPI<
 >({
   preflight: definition => definition.preflight,
   createPlans(name, testCase) {
-    const task = createAudioTestTask(name, testCase)
+    const task = { ...createAudioTestTask(name, testCase), callingWordModel: testCase.callingWordModel }
     return [{
       name: task.name,
       definition: task,
@@ -34,6 +37,8 @@ const audioTestAPI = createAudioTestAPI<
     }]
   },
   async execute({ plan, task, invokeHandler, runPreflight }) {
+    if (plan.definition.callingWordModel && inject('fakemicRuntime').kind === 'web')
+      await prepareCallingWordModel()
     await runAudioTestSession({
       start() {
         const microphoneInput = fileURLToPath(plan.definition.input)

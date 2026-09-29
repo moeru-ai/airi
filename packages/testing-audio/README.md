@@ -66,6 +66,42 @@ describe('audio input pipeline', () => {
 
 A case can independently choose its VAD behavior, ASR, LLM, and TTS configuration. A configuration callback can read its own environment, write local storage, use another persistence mechanism, or deliberately leave onboarding incomplete.
 
+## Test calling word detection
+
+Use `configureCallingWord` to set one card pronunciation and enable KWS microphone mode. The case does not need an ASR Provider.
+
+Set `callingWordModel: true` so the Web runner prepares the pinned model before the file microphone starts. Electron uses its bundled model.
+
+```ts
+import { configureCallingWord, configureOnboarding } from '../shared/configurations'
+
+const caseOptions = {
+  input: new URL('./input.test.wav', import.meta.url),
+  callingWordModel: true,
+  preflight: [
+    configureOnboarding(() => ({ completed: true })),
+    configureCallingWord(() => ({
+      targetCardId: 'testing-audio-calling-word',
+      label: 'Light up',
+      tokens: ['L', 'AY1', 'T', 'AH1', 'P'],
+    })),
+  ],
+}
+```
+
+The `calling-word` case feeds synthetic speech through Chromium's file microphone. It waits for AIRI to switch to the configured card.
+
+The recording starts with 35 seconds of silence. This gives the detector time to start before speech begins.
+The fixture repeats "Light up" three times in 16 kHz mono PCM. The speech was generated with the macOS Samantha voice.
+
+Run the case on both hosts:
+
+```bash
+pnpm -F @proj-airi/testing-audio test:run cases/calling-word/case.audio.test.ts
+```
+
+For one host, build its app and select `--project audio-web` or `--project audio-electron`.
+
 ## Provider environment
 
 Each case selects its environment variables. `loadCaseEnvironment` uses Vite test mode to read repository, `packages/stage-ui`, and package environment files. Process variables have the highest priority.
