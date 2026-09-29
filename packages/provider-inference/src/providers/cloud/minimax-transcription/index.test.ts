@@ -97,6 +97,32 @@ describe('providerMinimaxTranscription', () => {
     expect((init.headers as Headers).get('language')).toBeNull()
   })
 
+  // ROOT CAUSE:
+  //
+  // A `Request` built from a FormData body carries a `Content-Type` bound to
+  // that body's multipart boundary. Forwarding it with a rebuilt body broke
+  // parsing, and the API answered `400 Error when parsing request`.
+  it('lets fetch rebuild the multipart boundary instead of forwarding the old one', async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response('{}', { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = readProvider().transcription('asr-1.0')
+    const source = new FormData()
+    source.append('model', 'asr-1.0')
+    source.append('file', new Blob(['x']), 'a.wav')
+    await request.fetch!('https://api.minimax.io/v1/audio/transcriptions', {
+      method: 'POST',
+      body: source,
+      headers: { Authorization: 'Bearer sk-test' },
+    })
+
+    const { init } = lastCall(fetchMock as never)
+    const headers = init.headers as Headers
+    // An explicit Content-Type would pin the stale boundary and break parsing.
+    expect(headers.get('content-type')).toBeNull()
+    expect(headers.get('authorization')).toBe('Bearer sk-test')
+  })
+
   it('offers the documented ASR model', async () => {
     const models = await providerMinimaxTranscription.extraMethods!.listModels!(config, readProvider())
     expect(models.map(model => model.id)).toEqual(['asr-1.0'])

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { RemovableRef } from '@vueuse/core'
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
 import {
@@ -16,7 +15,6 @@ import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldInput } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 
 const providerId = 'minimax-transcription'
@@ -25,49 +23,41 @@ const defaultModel = 'asr-1.0'
 const hearingStore = useHearingStore()
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
-const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
+const config = computed<Record<string, unknown> | undefined>(() => providerStore.getProviderConfig(providerId))
+
+async function updateConfig(field: 'apiKey' | 'baseUrl' | 'language', value: string) {
+  await providersStore.initializeProvider(providerId)
+  await providerStore.patchProviderConfig(providerId, { [field]: value })
+}
 
 const apiKey = computed({
-  get: () => providers.value[providerId]?.apiKey || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].apiKey = value
-  },
+  get: () => typeof config.value?.apiKey === 'string' ? config.value.apiKey : '',
+  set: async (value: string) => { await updateConfig('apiKey', value) },
 })
 
 const baseUrl = computed({
-  get: () => providers.value[providerId]?.baseUrl || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].baseUrl = value
-  },
+  get: () => typeof config.value?.baseUrl === 'string' ? config.value.baseUrl : '',
+  set: async (value: string) => { await updateConfig('baseUrl', value) },
 })
 
-// An empty language lets the API recognise mixed languages.
+// An empty language lets the API recognize mixed languages.
 const language = computed({
-  get: () => providers.value[providerId]?.language || '',
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].language = value
-  },
+  get: () => typeof config.value?.language === 'string' ? config.value.language : '',
+  set: async (value: string) => { await updateConfig('language', value) },
 })
 
 const model = computed({
-  get: () => providers.value[providerId]?.model || defaultModel,
-  set: (value) => {
-    if (!providers.value[providerId])
-      providers.value[providerId] = {}
-    providers.value[providerId].model = value
+  get: () => typeof config.value?.model === 'string' && config.value.model ? config.value.model : defaultModel,
+  set: async (value: string) => {
+    await providersStore.initializeProvider(providerId)
+    await providerStore.setProviderModel(providerId, value)
   },
 })
 
-const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
+const apiKeyConfigured = computed(() => Boolean(apiKey.value))
 
 async function handleGenerateTranscription(file: File) {
-  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, any>>(providerId)
+  const provider = await providersStore.getProviderInstance<TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>>(providerId)
   if (!provider)
     throw new Error('Failed to initialize transcription provider')
 

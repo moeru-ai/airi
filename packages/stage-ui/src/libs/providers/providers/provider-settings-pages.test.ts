@@ -60,7 +60,6 @@ const PAGELESS_TRANSCRIPTION_PROVIDERS = new Set([
   'sherpaw-transcription',
 ])
 
-
 const transcriptionPagesDirectory = resolve(
   import.meta.dirname,
   '../../../../../stage-pages/src/pages/settings/providers/transcription',
