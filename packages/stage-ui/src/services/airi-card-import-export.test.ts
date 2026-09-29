@@ -62,6 +62,50 @@ describe('airi card package import/export', () => {
     expect(airiFrom(imported).defaultAvatarModelId).toBe(airiFrom(imported).avatarModels[0].id)
   })
 
+  it('keeps the selected Live2D control policy through package transfer', async () => {
+    const displayModelsStore = useDisplayModelsStore()
+    const card = createCard('local-live2d')
+    card.extensions.airi.avatarModels = [{
+      id: 'selected-avatar-model',
+      displayModelId: 'local-live2d',
+      type: 'live2d',
+      config: { controls: {
+        disabledExpressions: ['smile'],
+        disabledMotions: ['motions/idle.motion3.json'],
+      } },
+    }]
+    vi.spyOn(displayModelsStore, 'getDisplayModel').mockResolvedValue({
+      id: 'local-live2d',
+      format: DisplayModelFormat.Live2dZip,
+      type: 'file',
+      file: new File(['live2d-archive'], 'model.zip'),
+      name: 'model.zip',
+      importedAt: 1,
+    })
+    mockAddDisplayModel(displayModelsStore, 'imported-live2d')
+
+    const exported = await exportAiriCardPackage({ card, displayModelsStore })
+    const zip = await JSZip.loadAsync(await exported.arrayBuffer())
+    expect(await readJson(zip, 'manifest.json')).toMatchObject({
+      resources: { displayModel: { controls: {
+        disabledExpressions: ['smile'],
+        disabledMotions: ['motions/idle.motion3.json'],
+      } } },
+    })
+    expect(airiFrom(await readJson<ccv3.CharacterCardV3>(zip, 'card.json')).avatarModels).toEqual([])
+
+    const imported = await importAiriCardPackage({ file: new File([exported], 'card.zip'), displayModelsStore })
+    expect(airiFrom(imported).avatarModels[0]).toMatchObject({
+      displayModelId: 'imported-live2d',
+      type: 'live2d',
+      config: { controls: {
+        disabledExpressions: ['smile'],
+        disabledMotions: ['motions/idle.motion3.json'],
+      } },
+    })
+    expect(airiFrom(imported).avatarModels[0].id).not.toBe('selected-avatar-model')
+  })
+
   it('applies the share-field whitelist to externally edited package JSON', async () => {
     const displayModelsStore = useDisplayModelsStore()
     const source = exportToJSON(createCard('preset-live2d-1'))

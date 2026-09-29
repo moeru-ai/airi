@@ -1,4 +1,5 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
+import type { Live2DControlPolicy } from '@proj-airi/stage-ui-live2d/types/avatar-model'
 import type { GenericSchema, InferOutput } from 'valibot'
 
 import type { DisplayModel, useDisplayModelsStore } from '../stores/display-models'
@@ -36,6 +37,10 @@ const manifestSchema = object({
       path: string(),
       format: picklist([DisplayModelFormat.Live2dZip, DisplayModelFormat.SpineZip, DisplayModelFormat.TachieZip, DisplayModelFormat.VRM]),
       name: string(),
+      controls: optional(object({
+        disabledExpressions: array(string()),
+        disabledMotions: array(string()),
+      })),
     }),
   })),
 })
@@ -112,12 +117,13 @@ export async function importAiriCardPackage({ file, displayModelsStore }: { file
   const cardJson = await readJsonFile(zip, manifest.card.path, characterCardV3Schema)
   const displayModel = await importDisplayModel(zip, manifest, displayModelsStore)
 
-  return exportToJSON(cardFromCharacterCard(cardJson, displayModel))
+  return exportToJSON(cardFromCharacterCard(cardJson, displayModel, manifest.resources?.displayModel.controls))
 }
 
 async function exportDisplayModel(card: AiriCard, store: DisplayModelsStore) {
   const extension = card.extensions.airi
-  const displayModelId = extension.avatarModels.find(model => model.id === extension.defaultAvatarModelId)?.displayModelId
+  const avatarModel = extension.avatarModels.find(model => model.id === extension.defaultAvatarModelId)
+  const displayModelId = avatarModel?.displayModelId
   if (!displayModelId)
     return
 
@@ -140,6 +146,12 @@ async function exportDisplayModel(card: AiriCard, store: DisplayModelsStore) {
       format: model.format,
       name: payload.file.name,
       path: `models/body-model.${modelExt}`,
+      ...(avatarModel?.type === 'live2d'
+        ? { controls: {
+            disabledExpressions: [...avatarModel.config.controls.disabledExpressions],
+            disabledMotions: [...avatarModel.config.controls.disabledMotions],
+          } }
+        : {}),
     },
   }
 }
@@ -200,7 +212,11 @@ function cardFromAiriCard(card: AiriCard): ShareableAiriCard {
   }
 }
 
-function cardFromCharacterCard(card: CharacterCardPackageJson, displayModel?: DisplayModel): ShareableAiriCard {
+function cardFromCharacterCard(
+  card: CharacterCardPackageJson,
+  displayModel?: DisplayModel,
+  controls?: Live2DControlPolicy,
+): ShareableAiriCard {
   const data = card.data
   return {
     name: data.name,
@@ -213,16 +229,26 @@ function cardFromCharacterCard(card: CharacterCardPackageJson, displayModel?: Di
     notes: data.creator_notes,
     systemPrompt: data.system_prompt,
     postHistoryInstructions: data.post_history_instructions,
-    extensions: { airi: sanitizeAiri(data.extensions?.airi, displayModel) },
+    extensions: { airi: sanitizeAiri(data.extensions?.airi, displayModel, controls) },
   }
 }
 
-function sanitizeAiri(value: unknown, displayModel?: DisplayModel): AiriExtension {
+function sanitizeAiri(
+  value: unknown,
+  displayModel?: DisplayModel,
+  controls?: Live2DControlPolicy,
+): AiriExtension {
   const source = isRecord(value) ? value : {}
   const modules = isRecord(source.modules) ? source.modules : {}
   const artistry = isRecord(modules.artistry) ? modules.artistry : {}
   const speech = isRecord(modules.speech) ? modules.speech : {}
   const avatarModel = displayModel ? createAvatarModelReference(displayModel.id, displayModel.format) : undefined
+  if (avatarModel?.type === 'live2d' && controls) {
+    avatarModel.config.controls = {
+      disabledExpressions: [...controls.disabledExpressions],
+      disabledMotions: [...controls.disabledMotions],
+    }
+  }
 
   return {
     ...(source.wakeWords === undefined ? {} : { wakeWords: parse(array(wakeWordSchema), source.wakeWords) }),
