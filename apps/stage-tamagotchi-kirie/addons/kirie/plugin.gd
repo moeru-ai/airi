@@ -1,19 +1,17 @@
 @tool
 extends EditorPlugin
 
-const KirieExportPlugin = preload("res://addons/kirie/export_plugin.gd")
+const _ExportPlugin = preload("./export_plugin.gd")
 
-var _export_plugin: EditorExportPlugin
-
+var _export_plugin: EditorExportPlugin = null
 
 func _enter_tree() -> void:
-	_export_plugin = KirieExportPlugin.new()
-	add_export_plugin(_export_plugin)
-
+	var export_plugin = _ExportPlugin.new()
+	self._export_plugin = export_plugin
+	self.add_export_plugin(export_plugin)
 
 func _exit_tree() -> void:
-	if _export_plugin == null:
+	if self._export_plugin == null:
 		return
-
-	remove_export_plugin(_export_plugin)
-	_export_plugin = null
+	self.remove_export_plugin(self._export_plugin)
+	self._export_plugin = null

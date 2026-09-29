@@ -1,6 +1,7 @@
 import type { GlobalShortcut } from '@gd-kirie/platform'
 import type { ShortcutAccelerator, ShortcutRegistrationResult } from '@proj-airi/stage-shared/global-shortcut'
 
+import { notificationActivated } from '@gd-kirie/platform'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 
 import {
@@ -32,8 +33,8 @@ export function useHostSpotlightWindow() {
   const openChat = useHostChat()
   const hide = defineInvoke(host.context, kirieSpotlightHide)
   const pendingNotificationIds = new Set<string>()
-  const stopActivated = host.platform!.notifications.onActivated((event) => {
-    if (!pendingNotificationIds.delete(event.id))
+  const stopActivated = host.context.on(notificationActivated, ({ body }) => {
+    if (!body || !pendingNotificationIds.delete(body.id))
       return
 
     void openChat()

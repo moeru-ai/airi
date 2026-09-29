@@ -2,11 +2,13 @@
 
 Status: In progress.
 
-Evidence last verified: 2026-09-21 for published-package commands and a live
-CEF smoke on Kirie 0.4.2, Godot 4.7.2, and Godot CEF 1.16.1.
+Dependency and build evidence: 2026-09-29 on Kirie 0.6.4.
+The last main-window CEF startup evidence is from 2026-09-24 with Kirie 0.6.2.
+The last broader live CEF review was on 2026-09-21 with Kirie 0.4.2,
+Godot 4.7.2, and Godot CEF 1.16.1.
 The latest full renderer route audit is from 2026-09-18.
 
-The application targets the published Kirie 0.4.2 release.
+The application targets the published Kirie 0.6.4 release.
 
 ## Document roles
 
@@ -43,8 +45,18 @@ an API for a feature that has no current in-scope failure.
 | Blocked | 0 | None |
 | Deferred | 5 | GAP-010, GAP-023 through GAP-026 |
 
-The dependency files select the published Kirie 0.4.2 npm and NuGet packages.
+The dependency files select the published Kirie 0.6.4 npm and NuGet packages.
 They do not use sibling-repository package links or project references.
+
+The 2026-09-29 dependency verification passed the focused renderer tests,
+the C# contract tests, the C# build, the Kirie build, the full workspace
+typecheck, and a headless Godot editor import.
+
+The 2026-09-24 dependency verification passed the focused renderer tests,
+the C# contract tests, the C# build, the Kirie build, the full workspace
+typecheck, and a headless Godot editor import. A live Godot/CEF session rendered
+the main AIRI window. The complete 0.6.4 desktop flow, including notification
+activation, remains unverified.
 
 The 2026-09-20 published-package verification passed these operations:
 
@@ -217,35 +229,34 @@ renderer shows result notifications through Kirie Platform.
 
 Do not add a Kirie Core API for Spotlight.
 
-The current milestone also targets macOS only. Kirie Platform implements desktop
-notifications for macOS 11 or later and throws `PlatformNotSupportedException`
-elsewhere, so the Spotlight result notification has no delivery path on Windows
-or Linux. `API-GAPS.md` records this in its audited list with the reopen
-condition. Do not add notification fallbacks for other platforms in this
-milestone.
+The current milestone targets macOS only. The [Kirie Platform 0.6.4 documentation](https://github.com/moeru-ai/godot-kirie/blob/v0.6.4/packages/platform/README.md#desktop-notifications)
+also lists Windows 10 version 1607 or later. Linux has no notification
+backend. `API-GAPS.md` records the unverified desktop platforms. Do not add
+notification fallbacks outside this milestone.
 
 ## Dependency baseline
 
-The AIRI baseline uses the coordinated Kirie 0.4.2 release:
+The AIRI baseline uses the coordinated Kirie 0.6.4 release:
 
 - npm: `kirie`, `@gd-kirie/ipc`, `@gd-kirie/ipc-eventa`, and
   `@gd-kirie/platform`.
 - NuGet: `GdKirie.EventaAdapter` and `GdKirie.Platform`.
-- Godot addon: the official `kirie-addon.zip` content from Kirie 0.4.2.
+- Godot addon: the official `kirie-addon.zip` content from Kirie 0.6.4.
 - Godot CEF: version 1.16.1 with the checksum from its official release.
 - Godot: 4.7.2 with the matching `Godot.NET.Sdk`.
 
-Kirie 0.4.2 changes no package API and no addon source. It raises the Godot
-baseline to 4.7.2 and selects Forward+ on desktop with Mobile on iOS and
-Android. AIRI already selected Forward+ on desktop, so the migration keeps its
-renderer settings. Only the version strings move: the addon `plugin.cfg`, the
-npm and NuGet pins, the `Godot.NET.Sdk`, and the local Godot tool version.
+Kirie 0.6.4 exports host-window and notification events as Eventa contracts.
+The renderer subscribes through its shared context. The addon also adds an
+Android export option for command-line arguments. Godot 4.7.2 and Godot CEF
+1.16.1 remain selected.
 
 The Kirie addon and AIRI configuration select the same Godot CEF release.
 Kirie installed Godot CEF 1.16.1 with the published SHA-256 digest, and the
 macOS framework passes strict code-signature verification.
 
-Source: [Kirie v0.4.2 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.4.2).
+Source: [Kirie v0.6.4 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.4).
+The official addon archive has SHA-256
+`497fb862d69bd43a53af71871b17738a57734a417735ad9a75dd57e3203e2566`.
 
 AIRI has exact `minimumReleaseAgeExclude` entries for the Kirie npm packages.
 Later versions remain subject to the normal pnpm release-age rule. See the
@@ -299,7 +310,7 @@ runtime verification and UI review are complete for GAP-016 and GAP-017.
 | Phase 3 | Complete | `API-GAPS.md` records reproduced runtime gaps. |
 | Phase 4 | Complete | Each WebView uses one application-owned Eventa context. |
 | Phase 5 | Complete | Existing Kirie Platform APIs support the required control flows. |
-| Phase 6 | In progress | Every in-scope gap is accepted or deferred, and the application uses published Kirie 0.4.2 packages. Three smoke areas still need a repeat on the current baseline. |
+| Phase 6 | In progress | Every in-scope gap is accepted or deferred, and the application uses published Kirie 0.6.4 packages. The desktop smoke flow needs a repeat on this baseline. |
 
 Do not repeat a completed phase unless current evidence shows a regression.
 
@@ -318,9 +329,9 @@ The 2026-09-21 session on Kirie 0.4.2 did not repeat three areas that the
 - External URL opening through `window.open()`.
 - Application data directory opening.
 
-Repeating them on the current baseline closes the acceptance requirement that
-the published packages pass the full desktop smoke flow. The areas already
-completed are listed with the session evidence in Current status.
+Repeating them and the other desktop flows on Kirie 0.6.4 closes the acceptance
+requirement that the published packages pass the full desktop smoke flow. The
+areas already completed are listed with the session evidence in Current status.
 
 ## Deferred work
 

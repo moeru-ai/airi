@@ -8,9 +8,12 @@ AIRI C# handlers provide the application services and native windows that the
 current migration implements. Some Electron services do not yet have a Kirie
 implementation.
 
-Command verification and live CEF smoke: 2026-09-21 on Kirie 0.4.2, Godot 4.7.2,
-and Godot CEF 1.16.1.
+Dependency and build checks: 2026-09-29 on Kirie 0.6.4.
+The last main-window CEF startup check was on 2026-09-24 with Kirie 0.6.2.
+The last broader live CEF review was on 2026-09-21 with Kirie 0.4.2,
+Godot 4.7.2, and Godot CEF 1.16.1.
 The latest full renderer route audit is from 2026-09-18.
+The current Kirie npm, NuGet, and Godot addon baseline is 0.6.4.
 
 ## When to use this application
 
@@ -24,9 +27,8 @@ Do not use this application to verify these features:
 - Model-specific media capture.
 - Server channel, plugin host, Artistry, and MCP sidecar services.
 - Production desktop packaging and application updates.
-- Desktop notifications on Windows or Linux. Kirie Platform implements them for
-  macOS 11 or later only, so the Spotlight result notification has no delivery
-  path on the other desktop platforms.
+- Desktop notifications on Windows or Linux. This migration verifies macOS
+  only. Kirie 0.6.4 supports Windows notifications; Linux remains unsupported.
 
 ## Migration documentation
 

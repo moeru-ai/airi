@@ -2,6 +2,7 @@ import type { HostWindowState } from '@gd-kirie/platform'
 
 import type { ElectronWindowLifecycleReason, ElectronWindowLifecycleState } from '../../shared/eventa'
 
+import { hostWindowStateChanged } from '@gd-kirie/platform'
 import { defineInvoke } from '@moeru/eventa'
 
 import { electronGetWindowLifecycleState, electronWindowLifecycleChanged } from '../../shared/eventa'
@@ -64,7 +65,10 @@ function createKirieWindowLifecycle(): HostWindowLifecycle {
       return toAiriWindowState(previous, 'snapshot')
     },
     onChanged(listener) {
-      return host.platform!.hostWindow.onStateChanged((next) => {
+      return host.context.on(hostWindowStateChanged, ({ body: next }) => {
+        if (!next)
+          return
+
         const reason = changeReason(previous, next)
         previous = next
         listener(toAiriWindowState(next, reason))

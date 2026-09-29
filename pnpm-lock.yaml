@@ -2511,14 +2511,14 @@ importers:
         specifier: 'catalog:'
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
       '@gd-kirie/ipc':
-        specifier: 0.4.2
-        version: 0.4.2
+        specifier: 0.6.4
+        version: 0.6.4
       '@gd-kirie/ipc-eventa':
-        specifier: 0.4.2
-        version: 0.4.2(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        specifier: 0.6.4
+        version: 0.6.4(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@gd-kirie/platform':
-        specifier: 0.4.2
-        version: 0.4.2(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+        specifier: 0.6.4
+        version: 0.6.4(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.12
@@ -2917,8 +2917,8 @@ importers:
         specifier: 'catalog:'
         version: 43.4.1(supports-color@10.2.2)
       kirie:
-        specifier: 0.4.2
-        version: 0.4.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+        specifier: 0.6.4
+        version: 0.6.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       less:
         specifier: 'catalog:'
         version: 4.9.0(supports-color@10.2.2)
@@ -8608,17 +8608,17 @@ packages:
     peerDependencies:
       vue: '*'
 
-  '@gd-kirie/build@0.4.2':
-    resolution: {integrity: sha512-v+wEY3ec5142lKL3piGroDkRUVwniF+dLtZvpxGsolW0qUbX9TCojFbGFh3D3LJfpjy7FMq99zQsl+Zr7ijL5g==}
+  '@gd-kirie/build@0.6.4':
+    resolution: {integrity: sha512-bGt8Iv8Yeux3KGqaNVHlHtQ+2GzX2qEZJK/oI/TmCcV637BZ1hC7EaixagsiaUPcc0IsiRPQeAZNDhLRbdfyhw==}
 
-  '@gd-kirie/ipc-eventa@0.4.2':
-    resolution: {integrity: sha512-qGIge0/cklUfH21gnLLkHqPjM9Jrev5WGDugavHTIQ7eNlDQeJyZox2aE1uVs7D2at39mJzlL8zeV6hQEHTPCg==}
+  '@gd-kirie/ipc-eventa@0.6.4':
+    resolution: {integrity: sha512-0duHO5QZIr/4O3dws3vaMzoF4nNWq7eBcLlyBY/ThmcFIAWXmuag/wOHzVUMM4M/nQcWTiDbdVEkiyW3hHSx6w==}
 
-  '@gd-kirie/ipc@0.4.2':
-    resolution: {integrity: sha512-4nS1YYvJswYA7eqvcMxH7xMSeZwXSv6VRDSmdZdlJcUc8t2+Hxh+kdy6P3zWXhKVk9N54UOTySZqJMnAcJkL8A==}
+  '@gd-kirie/ipc@0.6.4':
+    resolution: {integrity: sha512-pyFqAJSvTf2pzkOwaki3wZ+zvbqCIcLP/g0laHR40vF3LeWrsmDrwMPZfF/nEhvkvCCsaAWwSFkklZ3vYrYKtQ==}
 
-  '@gd-kirie/platform@0.4.2':
-    resolution: {integrity: sha512-gPKHCI5bU34r6yNE5RSxBcekBQBZ7pfSRGb8aIHiHVNBDuBwDNp6MDYunaLEQ2ZbY2O7sUNQAo9SfSEVF5Gkjw==}
+  '@gd-kirie/platform@0.6.4':
+    resolution: {integrity: sha512-2kDewTJDOuhxqFFx8ijD7+XN2egDuRnOq8p7+1ixgOKQU8FJu+xMaYaUbeyfHXMoYmN8i+NAoCbcipPti+ApYw==}
 
   '@grammyjs/files@1.2.0':
     resolution: {integrity: sha512-UhQNGe2gpGgGMdrAUFXrZld3qQjt/3oYBHIo1aU0zIrKKvI5bgxzXSjPaJpx69HUO9mM7TbOaSsJL8lWbqnzJw==}
@@ -17274,8 +17274,8 @@ packages:
     resolution: {integrity: sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==}
     engines: {node: '>=0.10.0'}
 
-  kirie@0.4.2:
-    resolution: {integrity: sha512-3Rle0u/KG6RMspy6TE4WOHhWGImjwjclgLvJE0XWONggqW6OexX4PT7oS8t6HrhHP3pDyWyGw2RKC5oTa440Bg==}
+  kirie@0.6.4:
+    resolution: {integrity: sha512-Tva7N0g1ONOBJW8LfuQuYzl0mZm/FVN9Ok6zUxzExoO25ctAHDF2/7uqxOMfa5wZdxsmYbIO3rZ6ow0hO1j9lg==}
     hasBin: true
 
   klaw@1.3.1:
@@ -24213,7 +24213,7 @@ snapshots:
     dependencies:
       vue: 3.5.41(typescript@6.0.3)
 
-  '@gd-kirie/build@0.4.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)':
+  '@gd-kirie/build@0.6.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)':
     dependencies:
       execa: 9.6.1
       ini: 7.0.0
@@ -24232,9 +24232,9 @@ snapshots:
       - tsx
       - yaml
 
-  '@gd-kirie/ipc-eventa@0.4.2(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/ipc-eventa@0.6.4(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc': 0.4.2
+      '@gd-kirie/ipc': 0.6.4
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -24243,13 +24243,13 @@ snapshots:
       - hono
       - web-worker
 
-  '@gd-kirie/ipc@0.4.2':
+  '@gd-kirie/ipc@0.6.4':
     dependencies:
       cborg: 4.5.8
 
-  '@gd-kirie/platform@0.4.2(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+  '@gd-kirie/platform@0.6.4(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@gd-kirie/ipc-eventa': 0.4.2(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/ipc-eventa': 0.6.4(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
     transitivePeerDependencies:
       - '@tauri-apps/api'
@@ -33342,9 +33342,9 @@ snapshots:
 
   kind-of@6.0.3: {}
 
-  kirie@0.4.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0):
+  kirie@0.6.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0):
     dependencies:
-      '@gd-kirie/build': 0.4.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@gd-kirie/build': 0.6.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       citty: 0.2.2
       execa: 9.6.1
       giget: 3.3.0

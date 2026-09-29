@@ -13,14 +13,13 @@ import {
 const invoke = vi.hoisted(() => vi.fn())
 const openChat = vi.hoisted(() => vi.fn())
 const notifications = vi.hoisted(() => ({
-  onActivated: vi.fn(),
   show: vi.fn(),
 }))
 const platformShortcuts = vi.hoisted(() => ({
   register: vi.fn(),
   unregister: vi.fn(),
 }))
-const listeners = vi.hoisted(() => new Set<(event: { body?: ShortcutAccelerator }) => void>())
+const listeners = vi.hoisted(() => new Map<string, (event: { body?: unknown }) => void>())
 
 vi.mock('@moeru/eventa', async (importOriginal) => {
   const original = await importOriginal<typeof import('@moeru/eventa')>()
@@ -35,12 +34,9 @@ vi.mock('@moeru/eventa', async (importOriginal) => {
 vi.mock('./owner', () => ({
   initializeHostContext: () => ({
     context: {
-      on: (
-        _event: unknown,
-        listener: (event: { body?: ShortcutAccelerator }) => void,
-      ) => {
-        listeners.add(listener)
-        return () => listeners.delete(listener)
+      on: (event: { id: string }, listener: (event: { body?: unknown }) => void) => {
+        listeners.set(event.id, listener)
+        return () => listeners.delete(event.id)
       },
     },
     platform: {
@@ -80,7 +76,6 @@ describe('spotlight host context', () => {
     })
     openChat.mockReset().mockResolvedValue(undefined)
     notifications.show.mockReset().mockResolvedValue(undefined)
-    notifications.onActivated.mockReset().mockReturnValue(vi.fn())
     platformShortcuts.register.mockReset().mockResolvedValue(undefined)
     platformShortcuts.unregister.mockReset().mockResolvedValue(undefined)
     await useHostGlobalShortcuts().unregisterAll()
@@ -98,12 +93,6 @@ describe('spotlight host context', () => {
   })
 
   it('shows a Platform notification and opens Chat on activation', async () => {
-    let onActivated: ((event: { id: string }) => void) | undefined
-    notifications.onActivated.mockImplementation((listener: (event: { id: string }) => void) => {
-      onActivated = listener
-      return vi.fn()
-    })
-
     await useHostSpotlightWindow().showResultNotification('Hello from Spotlight')
 
     expect(notifications.show).toHaveBeenCalledWith({
@@ -113,7 +102,7 @@ describe('spotlight host context', () => {
     })
 
     const notificationId = notifications.show.mock.calls[0]![0].id as string
-    onActivated?.({ id: notificationId })
+    listeners.get('kirie:platform:notification:activated')?.({ body: { id: notificationId } })
     expect(openChat).toHaveBeenCalledOnce()
   })
 
@@ -207,7 +196,7 @@ describe('spotlight host context', () => {
       expect(platformShortcuts.register).toHaveBeenCalledOnce()
     })
 
-    for (const listener of listeners)
+    for (const [, listener] of listeners)
       listener({ body: next })
 
     await vi.waitFor(() => {

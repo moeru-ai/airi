@@ -9,8 +9,8 @@
 
   <ItemGroup>
     <Compile Remove="tests/**/*.cs" />
-    <PackageReference Include="GdKirie.EventaAdapter" Version="0.4.2" />
-    <PackageReference Include="GdKirie.Platform" Version="0.4.2" />
+    <PackageReference Include="GdKirie.EventaAdapter" Version="0.6.4" />
+    <PackageReference Include="GdKirie.Platform" Version="0.6.4" />
   </ItemGroup>
 
 </Project>
