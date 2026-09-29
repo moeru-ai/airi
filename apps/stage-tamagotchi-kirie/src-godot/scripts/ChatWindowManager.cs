@@ -11,7 +11,7 @@ internal sealed class ChatWindowManager : IDisposable
     private readonly KirieEventaJsonRegistry _registry;
     private readonly string _rendererUrl;
     private readonly MicrophonePermissionService _microphonePermissions;
-    private readonly HashSet<OpenBinding> _openBindings = [];
+    private readonly IDisposable _openRegistration;
     private ChatWindow? _window;
     private bool _disposed;
 
@@ -28,7 +28,7 @@ internal sealed class ChatWindowManager : IDisposable
         _registry = registry;
         _rendererUrl = rendererUrl;
         _microphonePermissions = microphonePermissions;
-        Attach(context);
+        _openRegistration = Attach(context);
     }
 
     // Spotlight result notifications open Chat from the Spotlight renderer.
@@ -36,9 +36,13 @@ internal sealed class ChatWindowManager : IDisposable
     public IDisposable Attach(IEventContext context)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var binding = new OpenBinding(this, context);
-        _openBindings.Add(binding);
-        return binding;
+        return context.RegisterInvokeHandler(
+            AiriDesktopEvents.OpenChat,
+            (EmptyPayload _, CancellationToken _) =>
+            {
+                Open();
+                return Task.FromResult(new EmptyPayload());
+            });
     }
 
     public void Dispose()
@@ -49,10 +53,7 @@ internal sealed class ChatWindowManager : IDisposable
         }
 
         _disposed = true;
-        foreach (var binding in _openBindings.ToArray())
-        {
-            binding.Dispose();
-        }
+        _openRegistration.Dispose();
     }
 
     private void Open()
@@ -89,42 +90,6 @@ internal sealed class ChatWindowManager : IDisposable
         if (_window == window)
         {
             _window = null;
-        }
-    }
-
-    private void Detach(OpenBinding binding)
-    {
-        _openBindings.Remove(binding);
-    }
-
-    private sealed class OpenBinding : IDisposable
-    {
-        private readonly ChatWindowManager _owner;
-        private readonly IDisposable _openRegistration;
-        private bool _disposed;
-
-        public OpenBinding(ChatWindowManager owner, IEventContext context)
-        {
-            _owner = owner;
-            _openRegistration = context.RegisterInvokeHandler(
-                AiriDesktopEvents.OpenChat,
-                (EmptyPayload _, CancellationToken _) =>
-                {
-                    owner.Open();
-                    return Task.FromResult(new EmptyPayload());
-                });
-        }
-
-        public void Dispose()
-        {
-            if (_disposed)
-            {
-                return;
-            }
-
-            _disposed = true;
-            _openRegistration.Dispose();
-            _owner.Detach(this);
         }
     }
 }

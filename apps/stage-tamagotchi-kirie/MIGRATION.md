@@ -315,6 +315,42 @@ Return to one coordinated published version before acceptance.
 
 ## Acceptance evidence
 
+### Ablation 2: Chat registration ownership (2026-09-29)
+
+The experiment removed `ChatWindowManager.OpenBinding`, its registration set, and the reverse `Detach` callback.
+[ChatWindowManager](src-godot/scripts/ChatWindowManager.cs) now retains its main registration and returns Eventa registrations directly from `Attach`.
+The source change removes 35 lines overall.
+
+[SpotlightWindow](src-godot/scripts/SpotlightWindow.cs) already owns its Chat registration and disposes it before its Eventa context.
+Spotlight is a child of Main. Godot runs a parent's `_ExitTree` after its children leave the tree.
+See the [Godot lifecycle contract](https://docs.godotengine.org/en/stable/classes/class_node.html#class-node-private-method-exit-tree).
+Thus, Spotlight releases its registration before Main disposes the Chat manager.
+The removed registration set added no cleanup to this ownership sequence.
+
+The baseline and changed builds ran on macOS with Godot 4.7.2, Kirie 0.6.5, and Metal Forward+.
+Both builds passed main-window open, repeated open, native title-bar close, and reopen from the hidden Spotlight renderer.
+After the change, two Spotlight requests reused one replacement Chat page.
+That page completed initialization, displayed its input controls, and had no route error.
+Both application exits returned code 0 and reported the same four leaked ObjectDB instances.
+These checks do not establish notification delivery or Windows acceptance.
+
+Initial `--no-restore` checks failed with `NU1605` because local generated assets selected GodotSharp 4.7.1.
+The normal build and test commands restored the pinned 4.7.2 dependencies without configuration changes.
+
+| Command | Result |
+| --- | --- |
+| `mise x -- dotnet build` | Passed after restoring the project assets. |
+| `mise x -- dotnet build --no-restore` | Passed after the change and after format verification, with no warnings or errors. |
+| `mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests` | Passed after restoring the test assets. |
+| `mise x -- dotnet format StageTamagotchiKirie.csproj --verify-no-changes --no-restore` | Passed without workspace warnings. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed, 13 files and 42 tests. |
+| `mise x -- pnpm lint` | Failed with the same 1,715 errors and 701 warnings as ablation 1. |
+| `mise x -- pnpm exec moeru-lint apps/stage-tamagotchi-kirie/MIGRATION.md` | Passed. |
+| `git diff --check` | Passed. |
+
+This experiment retains direct registration ownership and does not change the capability matrix.
+
 ### Ablation 1: Spotlight CEF lookup (2026-09-29)
 
 The experiment removed `SpotlightWindow.FindCefControl` and its search through arbitrary child controls.
