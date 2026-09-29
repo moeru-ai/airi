@@ -1,20 +1,15 @@
 import type { MaybeRefOrGetter } from 'vue'
 
+import type { PendingVoiceSend } from '../../../../stores/chat/voice-send'
 import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerResult } from './use-voice-composer'
 
 import { decodeBase64 } from '@moeru/std/base64'
-import { computed, shallowRef, toValue, watch } from 'vue'
+import { computed, toValue, watch } from 'vue'
 
 import { useChatStore } from '../../../../stores/chat'
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
-
-interface PendingVoiceSend {
-  result: Extract<VoiceComposerResult, { mode: 'audio' }>
-  replyToMessageId?: string
-  tools?: ChatToolReference[]
-  status: 'sending' | 'failed'
-}
+import { useVoiceSendStore } from '../../../../stores/chat/voice-send'
 
 interface UseVoiceSendOptions {
   sessionId: MaybeRefOrGetter<string>
@@ -27,40 +22,40 @@ interface UseVoiceSendOptions {
 export function useVoiceSend(options: UseVoiceSendOptions) {
   const chat = useChatStore()
   const chatSession = useChatSessionStore()
-  const pendingSends = shallowRef<Record<string, PendingVoiceSend>>({})
-  const pendingSend = computed(() => pendingSends.value[toValue(options.sessionId)])
+  const drafts = useVoiceSendStore()
+  const pendingSend = computed(() => drafts.pendingSends[toValue(options.sessionId)])
 
   function recordingStored(pending: PendingVoiceSend) {
-    return chatSession.sessionMessages[pending.result.sessionId]?.some(message =>
+    return chatSession.sessionMessages[pending.sessionId]?.some(message =>
       message.role === 'user'
       && Array.isArray(message.content)
-      && message.content.some(part => part.type === 'input_audio' && part.input_audio.data === pending.result.audio.data)) ?? false
+      && message.content.some(part => part.type === 'input_audio' && part.input_audio.data === pending.audio.data)) ?? false
   }
 
   function acceptPending(pending: PendingVoiceSend) {
-    const sessionId = pending.result.sessionId
-    if (pendingSends.value[sessionId] !== pending)
+    const sessionId = pending.sessionId
+    if (drafts.pendingSends[sessionId] !== pending)
       return
-    const next = { ...pendingSends.value }
+    const next = { ...drafts.pendingSends }
     delete next[sessionId]
-    pendingSends.value = next
+    drafts.pendingSends = next
     if (toValue(options.sessionId) === sessionId && toValue(options.replyToMessageId) === pending.replyToMessageId)
       options.onAccepted()
   }
 
   async function sendPending(pending: PendingVoiceSend) {
-    if (pendingSends.value[pending.result.sessionId] !== pending || pending.status === 'sending')
+    if (drafts.pendingSends[pending.sessionId] !== pending || pending.status === 'sending')
       return
     pending.status = 'sending'
-    pendingSends.value = { ...pendingSends.value }
+    drafts.pendingSends = { ...drafts.pendingSends }
     try {
       await chat.send({
-        sessionId: pending.result.sessionId,
+        sessionId: pending.sessionId,
         text: '',
-        attachments: [pending.result.audio],
+        attachments: [pending.audio],
         input: {
           type: 'input:voice',
-          data: { audio: new Uint8Array(decodeBase64(pending.result.audio.data)).buffer },
+          data: { audio: new Uint8Array(decodeBase64(pending.audio.data)).buffer },
         },
         replyToMessageId: pending.replyToMessageId,
         tools: pending.tools,
@@ -70,32 +65,32 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
         return
       }
       pending.status = 'failed'
-      pendingSends.value = { ...pendingSends.value }
+      drafts.pendingSends = { ...drafts.pendingSends }
       options.onError()
     }
     catch (error) {
       if (recordingStored(pending)) {
         acceptPending(pending)
       }
-      else if (pendingSends.value[pending.result.sessionId] === pending) {
+      else if (drafts.pendingSends[pending.sessionId] === pending) {
         pending.status = 'failed'
-        pendingSends.value = { ...pendingSends.value }
+        drafts.pendingSends = { ...drafts.pendingSends }
       }
       options.onError(error)
     }
   }
 
   function discardPending(pending: PendingVoiceSend) {
-    if (pendingSends.value[pending.result.sessionId] !== pending)
+    if (drafts.pendingSends[pending.sessionId] !== pending)
       return
-    const next = { ...pendingSends.value }
-    delete next[pending.result.sessionId]
-    pendingSends.value = next
+    const next = { ...drafts.pendingSends }
+    delete next[pending.sessionId]
+    drafts.pendingSends = next
   }
 
-  function queue(result: PendingVoiceSend['result'], replyToMessageId?: string, tools?: ChatToolReference[]) {
-    const pending: PendingVoiceSend = { result, replyToMessageId, tools, status: 'failed' }
-    pendingSends.value = { ...pendingSends.value, [result.sessionId]: pending }
+  function queue(result: Extract<VoiceComposerResult, { mode: 'audio' }>, replyToMessageId?: string, tools?: ChatToolReference[]) {
+    const pending: PendingVoiceSend = { sessionId: result.sessionId, audio: result.audio, replyToMessageId, tools, status: 'failed' }
+    drafts.pendingSends = { ...drafts.pendingSends, [result.sessionId]: pending }
     void sendPending(pending)
   }
 
@@ -103,7 +98,7 @@ export function useVoiceSend(options: UseVoiceSendOptions) {
     const pending = pendingSend.value
     if (pending && recordingStored(pending))
       acceptPending(pending)
-  }, { flush: 'sync' })
+  }, { immediate: true, flush: 'sync' })
 
   return { pendingSend, queue, sendPending, discardPending }
 }

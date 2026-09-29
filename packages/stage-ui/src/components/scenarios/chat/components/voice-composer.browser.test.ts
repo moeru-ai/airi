@@ -107,6 +107,7 @@ it('keeps a failed voice send for retry until the user turn is stored', async ()
   let chat!: ReturnType<typeof useChatStore>
   let chatSession!: ReturnType<typeof useChatSessionStore>
   const sent = vi.fn()
+  const showComposer = shallowRef(true)
   const screen = render(defineComponent({
     setup() {
       const input = shallowRef<HTMLElement | null>(null)
@@ -118,7 +119,8 @@ it('keeps a failed voice send for retry until the user turn is stored', async ()
       return () => h('div', [
         h('div', { ref: input }),
         h('button', 'Pointer parking'),
-        h(VoiceComposer, { 'inputElement': input.value, 'sessionId': 'voice-send-test', 'replyToMessageId': 'reply-1', 'modelValue': '', 'onUpdate:modelValue': () => {}, 'onSent': sent }),
+        h('button', { onClick: () => showComposer.value = !showComposer.value }, 'Toggle composer'),
+        showComposer.value && h(VoiceComposer, { 'inputElement': input.value, 'sessionId': 'voice-send-test', 'replyToMessageId': 'reply-1', 'modelValue': '', 'onUpdate:modelValue': () => {}, 'onSent': sent }),
       ])
     },
   }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } }), createRouter({ history: createMemoryHistory(), routes: [] })] } })
@@ -134,6 +136,9 @@ it('keeps a failed voice send for retry until the user turn is stored', async ()
   await expect.poll(() => screen.getByTestId('voice-retry-send').element().hasAttribute('disabled')).toBe(false)
   expect(send.mock.calls[0][0].replyToMessageId).toBe('reply-1')
   expect(sent).not.toHaveBeenCalled()
+  await screen.getByRole('button', { name: 'Toggle composer' }).click()
+  await screen.getByRole('button', { name: 'Toggle composer' }).click()
+  expect(screen.getByTestId('voice-retry-send').element()).toBeTruthy()
 
   send.mockImplementationOnce(async (payload) => {
     const audio = payload.attachments?.[0]

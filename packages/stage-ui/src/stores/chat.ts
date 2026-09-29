@@ -529,8 +529,11 @@ export const useChatStore = defineStore('chat', () => {
     },
     onUserTurnReady: ({ messageText, sessionMessages }) => {
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
-      if (autonomousTarget === 'user')
-        void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
+      if (autonomousTarget === 'user') {
+        const transcripts = sessionMessages.findLast(message => message.role === 'user')?.audioTranscripts ?? []
+        const inputText = [messageText, ...transcripts].filter(text => !!text?.trim()).join(' ')
+        void artistryAutonomousStore.runArtistTask(inputText, toProviderHistory(sessionMessages))
+      }
     },
     onAssistantTurnReady: ({ messageText, sessionMessages }) => {
       const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry

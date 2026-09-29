@@ -81,6 +81,7 @@ const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn()
 const audioCapability = vi.hoisted(() => ({ enabled: false }))
 const transcriptionMocks = vi.hoisted(() => ({ configured: false, transcribe: vi.fn() }))
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
+const runArtistTaskMock = vi.hoisted(() => vi.fn())
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
@@ -242,7 +243,7 @@ vi.mock('./modules/airi-card', () => ({
 
 vi.mock('./modules/artistry-autonomous', () => ({
   useAutonomousArtistryStore: () => ({
-    runArtistTask: vi.fn(),
+    runArtistTask: runArtistTaskMock,
   }),
 }))
 
@@ -300,6 +301,7 @@ describe('chat store contract', () => {
     transcriptionMocks.transcribe.mockReset()
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
+    runArtistTaskMock.mockReset()
     ioTracerMocks.activeTurnSpan.value = undefined
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
@@ -506,6 +508,26 @@ describe('chat store contract', () => {
     const context = llmStreamMock.mock.calls[0][2] as Conversation
     expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
     expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+  })
+
+  it('passes stored voice transcripts to autonomous artistry without repeating them in the chat prompt', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=', transcript: 'spoken words' }],
+    })
+
+    expect(runArtistTaskMock).toHaveBeenCalledWith('spoken words', expect.any(Array))
+    const context = llmStreamMock.mock.calls[0][2] as Conversation
+    const userParts = context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])
+    expect(userParts.filter(part => part.type === 'text' && part.text === 'spoken words')).toHaveLength(1)
+    expect(userParts).not.toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
   })
 
   it('stores a historical recording transcript after its first text-only request', async () => {
