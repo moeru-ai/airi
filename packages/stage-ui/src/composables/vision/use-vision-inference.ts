@@ -111,26 +111,26 @@ export function useVisionInference() {
     const modelId = activeModel.value
     const startedAt = Date.now()
     // Every attempt counts, including a failure before the request, such as a
-    // provider that cannot start.
-    async function recordInference(result: { text: string } | { error: string }) {
-      await activityStore.recordInference({
+    // provider that cannot start. The report does not delay or fail the read.
+    function recordInference(result: { text: string } | { error: string }) {
+      activityStore.recordInference({
         at: Date.now(),
         provider: providerId,
         model: modelId,
         durationMs: Date.now() - startedAt,
         ...result,
-      })
+      }).catch(error => console.warn('[vision] Failed to report an inference:', error))
     }
 
     try {
       lastText.value = await describeImage(providerId, modelId, input)
     }
     catch (error) {
-      await recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
+      recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
       throw error
     }
 
-    await recordInference({ text: lastText.value })
+    recordInference({ text: lastText.value })
     return lastText.value
   }
 

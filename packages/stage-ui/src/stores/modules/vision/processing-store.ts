@@ -33,8 +33,16 @@ function countInWindow(history: number[], windowMs: number) {
   return count
 }
 
+/** Logs a failed activity report. A report never stops the ticker. */
+function reportActivity(write: Promise<void>) {
+  write.catch(error => console.warn('[vision] Failed to report activity:', error))
+}
+
+/**
+ * Runs the screen ticker of this window and keeps its timing history.
+ * The counts that every window shows belong to {@link useVisionActivityStore}.
+ */
 export const useVisionProcessingStore = defineStore('vision-processing', () => {
-  // The synchronized activity store owns the counts, so every window shows them.
   const activityStore = useVisionActivityStore()
   const captureIntervalMs = useLocalStorageManualReset<number>(
     'settings/vision/capture-interval-ms',
@@ -45,11 +53,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
   const isProcessing = ref(false)
   const tickCount = ref(0)
   const skippedTicks = ref(0)
-  const captureCount = computed(() => activityStore.captureCount)
-  const contextUpdateCount = computed(() => activityStore.contextUpdateCount)
   const lastTickAt = ref<number | null>(null)
-  const lastCaptureAt = computed(() => activityStore.lastCaptureAt)
-  const lastContextUpdateAt = computed(() => activityStore.lastContextUpdateAt)
   const lastProcessingDurationMs = ref<number | null>(null)
   const lastError = ref<string | null>(null)
 
@@ -75,20 +79,20 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     processingHistoryMs.value = [...processingHistoryMs.value, durationMs].slice(-PROCESSING_HISTORY_LIMIT)
   }
 
-  async function recordCapture(capturedAt = Date.now()) {
+  function recordCapture(capturedAt = Date.now()) {
+    reportActivity(activityStore.recordCapture(capturedAt))
     captureHistory.value.push(capturedAt)
     trimHistoryByAge(captureHistory.value, HISTORY_MAX_AGE_MS)
-    await activityStore.recordCapture(capturedAt)
   }
 
-  async function recordContextUpdates(count = 1, updatedAt = Date.now()) {
+  function recordContextUpdates(count = 1, updatedAt = Date.now()) {
     if (count <= 0)
       return
 
+    reportActivity(activityStore.recordContextUpdates(count, updatedAt))
     for (let index = 0; index < count; index += 1)
       contextUpdateHistory.value.push(updatedAt)
     trimHistoryByAge(contextUpdateHistory.value, HISTORY_MAX_AGE_MS)
-    await activityStore.recordContextUpdates(count, updatedAt)
   }
 
   async function runTick() {
@@ -110,9 +114,9 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
       lastError.value = null
 
       if (outcome?.capturedAt)
-        await recordCapture(outcome.capturedAt)
+        recordCapture(outcome.capturedAt)
       if (outcome?.contextUpdates)
-        await recordContextUpdates(outcome.contextUpdates)
+        recordContextUpdates(outcome.contextUpdates)
     }
     catch (error) {
       lastError.value = errorMessageFrom(error) || 'Unknown error'
@@ -123,7 +127,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     }
   }
 
-  async function startTicker(handler: VisionTickHandler) {
+  function startTicker(handler: VisionTickHandler) {
     tickHandler.value = handler
     if (isRunning.value)
       return
@@ -136,33 +140,30 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     intervalHandle = setInterval(() => {
       void runTick()
     }, captureIntervalMs.value)
-    await activityStore.setTickerRunning(true)
   }
 
-  /** Stops the local interval at once, then reports the stop to the leader. */
-  async function stopTicker() {
+  function stopTicker() {
     isRunning.value = false
     if (intervalHandle)
       clearInterval(intervalHandle)
     intervalHandle = null
-    await activityStore.setTickerRunning(false)
   }
 
-  async function resetMetrics() {
+  function resetMetrics() {
     tickCount.value = 0
     skippedTicks.value = 0
+    reportActivity(activityStore.resetCaptureMetrics())
     lastTickAt.value = null
     lastProcessingDurationMs.value = null
     lastError.value = null
     processingHistoryMs.value = []
     captureHistory.value = []
     contextUpdateHistory.value = []
-    await activityStore.resetCaptureMetrics()
   }
 
-  async function resetState() {
-    await stopTicker()
-    await resetMetrics()
+  function resetState() {
+    stopTicker()
+    resetMetrics()
     captureIntervalMs.reset()
   }
 
@@ -185,11 +186,7 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     isProcessing,
     tickCount,
     skippedTicks,
-    captureCount,
-    contextUpdateCount,
     lastTickAt,
-    lastCaptureAt,
-    lastContextUpdateAt,
     lastProcessingDurationMs,
     lastError,
     processingHistoryMs,

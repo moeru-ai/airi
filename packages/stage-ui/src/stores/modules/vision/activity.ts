@@ -26,9 +26,10 @@ export interface VisionInferenceRecord {
  *
  * Every write is a leader action. A follower that wrote the state directly
  * would propose its whole snapshot, and a concurrent write could lose a count.
+ * Callers do not wait for a write, so a slow leader never delays a capture or
+ * an inference.
  */
 export const useVisionActivityStore = defineStore('vision-activity', () => {
-  const tickerRunning = ref(false)
   const captureCount = ref(0)
   const lastCaptureAt = ref<number | null>(null)
   const contextUpdateCount = ref(0)
@@ -37,10 +38,6 @@ export const useVisionActivityStore = defineStore('vision-activity', () => {
   const inferenceCount = ref(0)
   const failedInferenceCount = ref(0)
   const lastInference = ref<VisionInferenceRecord | null>(null)
-
-  async function setTickerRunning(running: boolean) {
-    tickerRunning.value = running
-  }
 
   async function recordCapture(capturedAt: number) {
     captureCount.value += 1
@@ -67,7 +64,6 @@ export const useVisionActivityStore = defineStore('vision-activity', () => {
   }
 
   return {
-    tickerRunning,
     captureCount,
     lastCaptureAt,
     contextUpdateCount,
@@ -75,7 +71,6 @@ export const useVisionActivityStore = defineStore('vision-activity', () => {
     inferenceCount,
     failedInferenceCount,
     lastInference,
-    setTickerRunning,
     recordCapture,
     recordContextUpdates,
     recordInference,
@@ -83,7 +78,7 @@ export const useVisionActivityStore = defineStore('vision-activity', () => {
   }
 }, {
   synced: {
-    actions: ['recordCapture', 'recordContextUpdates', 'recordInference', 'resetCaptureMetrics', 'setTickerRunning'],
+    actions: ['recordCapture', 'recordContextUpdates', 'recordInference', 'resetCaptureMetrics'],
     state: true,
   },
 })

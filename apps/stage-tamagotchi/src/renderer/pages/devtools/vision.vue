@@ -5,7 +5,7 @@ import type { SourcesOptions } from 'electron'
 import { errorMessageFrom } from '@moeru/std'
 import { ProcessingMeter } from '@proj-airi/stage-ui/components'
 import { VISION_WORKLOADS } from '@proj-airi/stage-ui/composables'
-import { useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useVisionActivityStore, useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, ref } from 'vue'
@@ -24,13 +24,12 @@ const {
   captureIntervalMs,
   isRunning,
   isProcessing,
-  captureCount,
-  contextUpdateCount,
   lastProcessingDurationMs,
   captureRatePerMinute,
   contextUpdateRatePerMinute,
   processingHistoryMs,
 } = storeToRefs(visionProcessingStore)
+const { captureCount, contextUpdateCount } = storeToRefs(useVisionActivityStore())
 const {
   lastResultText,
   lastResultAt,
@@ -215,11 +214,11 @@ async function startCaptureLoop() {
     return
   }
 
-  await visionProcessingStore.startTicker(handleVisionTick)
+  visionProcessingStore.startTicker(handleVisionTick)
 }
 
 async function stopCaptureLoop() {
-  await visionProcessingStore.stopTicker()
+  visionProcessingStore.stopTicker()
   stopStream()
   if (videoRef.value) {
     videoRef.value.pause()
@@ -257,8 +256,7 @@ function handlePermissionGranted() {
 }
 
 onBeforeUnmount(() => {
-  // The interval stops before the first await. Only the leader report is pending.
-  void visionProcessingStore.stopTicker()
+  visionProcessingStore.stopTicker()
   stopStream()
   cleanup()
 })

@@ -822,16 +822,12 @@ pages:
           label: 捕获间隔
           description: 数值越小，捕获越频繁，占用的资源也越多。
       stats:
-        ticker: 定时器
-        ticker-active: 运行中
-        ticker-idle: 空闲
         captures: 捕获次数
         context-updates: 上下文更新
         inferences: 图像识别调用
         inferences-description: 视觉模型的每一次调用，包括聊天图片
         failed-inferences: 失败次数
         last-inference: 上次调用
-        last-capture: 上次捕获 {time}
         last-update: 上次更新 {time}
         since-start: 自应用启动以来
         never: 从未

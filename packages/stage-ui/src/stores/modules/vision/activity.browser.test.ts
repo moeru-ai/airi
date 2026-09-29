@@ -58,27 +58,25 @@ afterEach(() => {
 })
 
 describe('vision activity', () => {
-  it('shows the devtools ticker and the stage inferences on the settings page', async () => {
+  it('shows the devtools captures and the stage inferences on the settings page', async () => {
     // ROOT CAUSE:
     //
     // The settings page read the processing store of its own window. The ticker
-    // runs in the devtools window, so the page always showed Idle and Never.
+    // runs in the devtools window, so the page always showed no captures.
     //
     // We fixed this by keeping the counts in a synchronized store.
     const { stage, devtoolsProcessing, settings } = await createWindows()
 
-    await devtoolsProcessing.startTicker(() => ({ capturedAt: 1_000, contextUpdates: 1 }))
+    devtoolsProcessing.startTicker(() => ({ capturedAt: 1_000, contextUpdates: 1 }))
     await stage.recordInference(inference(2_000, 'Model unavailable'))
 
     await vi.waitFor(() => expect(settings).toMatchObject({
-      tickerRunning: true,
       captureCount: 1,
       contextUpdateCount: 1,
       inferenceCount: 1,
       failedInferenceCount: 1,
     }))
-    await devtoolsProcessing.stopTicker()
-    await vi.waitFor(() => expect(settings.tickerRunning).toBe(false))
+    devtoolsProcessing.stopTicker()
   })
 
   it('keeps every count when the devtools and stage windows write at once', async () => {

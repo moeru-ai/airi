@@ -33,7 +33,6 @@ const {
 } = storeToRefs(visionStore)
 const { captureIntervalMs } = storeToRefs(visionProcessingStore)
 const {
-  tickerRunning,
   captureCount,
   contextUpdateCount,
   lastCaptureAt,
@@ -378,18 +377,6 @@ function formatRelativeTime(timestamp: number | null) {
         />
 
         <div :class="['grid', 'gap-4', 'md:grid-cols-3']">
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
-            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
-              {{ t('settings.pages.modules.vision.stats.ticker') }}
-            </div>
-            <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
-              {{ tickerRunning ? t('settings.pages.modules.vision.stats.ticker-active') : t('settings.pages.modules.vision.stats.ticker-idle') }}
-            </div>
-            <div :class="['text-xs', 'text-neutral-400']">
-              {{ t('settings.pages.modules.vision.stats.last-capture', { time: formattedLastCapture }) }}
-            </div>
-          </div>
-
           <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
               {{ t('settings.pages.modules.vision.stats.captures') }}
