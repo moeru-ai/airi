@@ -38,7 +38,10 @@ chat:
     no-description: '视觉模型没有返回图片描述。请检查“设置 → 模块 → 视觉”后重试。'
     reading: '正在读取图片…'
     description: '图片附件'
+  image: 附加图片
   actions:
+    attach: 添加图片
+    remove-attachment: 移除 {name}
     reply: 回复
     retry: 重试
     send: 发送消息
@@ -174,3 +177,24 @@ status:
   sign-in-unconfirmed: 未能确认登录会话，请重新登录。
   dismiss: 关闭提示
   configure-hearing: 请先在设置中选择并配置听觉服务。
+voice:
+  dictation-disabled: 开启听觉输入后才能使用听写。你仍可以发送语音消息。
+  push-to-talk: 按住说话
+  audio: 语音消息
+  transcription: 语音转文字
+  hold-hint: 长按录音，短按切换模式。按 Enter 可免手持录音。
+  listening: 正在聆听…
+  lock: 上滑锁定
+  locked: 已锁定录音
+  cancel-hint: 左滑取消
+  release-cancel: 松开取消
+  release-send: 松开发送语音
+  release-insert: 松开填入文字
+  processing: 正在处理…
+  cancel: 取消
+  send: 发送语音
+  insert: 填入文字
+  failed: 语音输入失败
+  configure-title: 配置语音转文字
+  configure-description: 请在聆听设置中选择转写服务和模型，以使用语音转文字，或向不支持音频的模型发送语音。
+  configure-action: 打开聆听设置

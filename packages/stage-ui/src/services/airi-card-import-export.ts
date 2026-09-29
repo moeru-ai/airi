@@ -2,7 +2,7 @@ import type { Card, ccv3 } from '@proj-airi/ccc'
 import type { GenericSchema, InferOutput } from 'valibot'
 
 import type { DisplayModel, useDisplayModelsStore } from '../stores/display-models'
-import type { AiriCard, AiriExtension } from '../types/airiCard'
+import type { AiriCard, AiriExtension, WakeWordKeyword } from '../types/airiCard'
 
 import JSZip from 'jszip'
 
@@ -220,6 +220,7 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
   const artistry = isRecord(modules.artistry) ? modules.artistry : {}
   const speech = isRecord(modules.speech) ? modules.speech : {}
   const displayModelId = displayModelIdOverride ?? stringValue(modules.displayModelId)
+  const wakeWords = sanitizeWakeWords(modules.wakeWords)
 
   return {
     modules: {
@@ -230,6 +231,7 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
         voice_id: stringValue(speech.voice_id),
       },
       ...(displayModelId ? { displayModelId } : {}),
+      ...(wakeWords ? { wakeWords } : {}),
       artistry: {
         ...(typeof artistry.provider === 'string' ? { provider: artistry.provider } : {}),
         ...(typeof artistry.model === 'string' ? { model: artistry.model } : {}),
@@ -243,6 +245,40 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
     },
     agents: {},
   }
+}
+
+function sanitizeWakeWords(value: unknown): { keywords: WakeWordKeyword[] } | undefined {
+  if (!isRecord(value) || !Array.isArray(value.keywords))
+    return
+
+  const keywords: WakeWordKeyword[] = []
+  for (const item of value.keywords) {
+    if (!isRecord(item) || typeof item.label !== 'string' || !item.label.trim() || !Array.isArray(item.matches))
+      continue
+
+    const matches = item.matches.flatMap((match) => {
+      if (!isRecord(match) || !Array.isArray(match.tokens) || !match.tokens.length)
+        return []
+      if (!match.tokens.every(token => typeof token === 'string' && token.length > 0 && !/[\s\0]/u.test(token)))
+        return []
+      return [{
+        tokens: [...match.tokens] as string[],
+        ...(typeof match.score === 'number' ? { score: match.score } : {}),
+        ...(typeof match.threshold === 'number' ? { threshold: match.threshold } : {}),
+      }]
+    })
+    if (!matches.length)
+      continue
+
+    keywords.push({
+      label: item.label,
+      matches,
+      ...(typeof item.score === 'number' ? { score: item.score } : {}),
+      ...(typeof item.threshold === 'number' ? { threshold: item.threshold } : {}),
+    })
+  }
+
+  return { keywords }
 }
 
 function providerModel(value: unknown) {

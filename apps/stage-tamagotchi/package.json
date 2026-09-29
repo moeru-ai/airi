@@ -206,6 +206,7 @@
     "h3": "catalog:",
     "less": "catalog:",
     "mkcert": "catalog:",
+    "pinia-plugin-synced": "catalog:",
     "std-env": "catalog:",
     "superjson": "catalog:",
     "unocss-preset-scrollbar": "catalog:",

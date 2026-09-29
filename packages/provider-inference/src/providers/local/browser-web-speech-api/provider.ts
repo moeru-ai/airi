@@ -163,9 +163,9 @@ export function streamWebSpeechAPITranscription(
   _mediaStream: MediaStream,
   options?: WebSpeechAPIExtraOptions & {
     onSentenceEnd?: (delta: string) => void
-    onSpeechEnd?: (text: string) => void
-    /** Receives the current interim utterance, excluding committed sentences. */
+    /** Receives the replaceable current utterance, excluding committed sentences. */
     onTranscriptionUpdate?: (text: string) => void
+    onSpeechEnd?: (text: string) => void
     /** Browser speech detection, before any final transcript. */
     onSpeechStart?: () => void
     /** Audio ended; recognition may still be pending. */
@@ -173,12 +173,16 @@ export function streamWebSpeechAPITranscription(
     /** One recognition cycle ended, before a continuous restart. */
     onRecognitionCycleEnd?: () => void
   },
-): StreamTranscriptionResult & { recognition?: any } {
+): StreamTranscriptionResult & { recognition?: any, stop: () => void } {
   const deferredText = createDeferred<string>()
   let fullText = ''
   let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
   let fullStreamCtrl: ReadableStreamDefaultController<StreamTranscriptionDelta> | undefined
   let recognitionInstance: any = null
+  // A normal stop drains the final result; abort discards it. A queued restart
+  // belongs only to the listening state and must not outlive either transition.
+  let stopping = false
+  let restartTimer: ReturnType<typeof setTimeout> | undefined
 
   const fullStream = new ReadableStream<StreamTranscriptionDelta>({
     start(controller) {
@@ -214,6 +218,7 @@ export function streamWebSpeechAPITranscription(
       fullStream,
       text: deferredText.promise,
       textStream,
+      stop: () => {},
     }
   }
 
@@ -233,6 +238,9 @@ export function streamWebSpeechAPITranscription(
   })
 
   recognition.onresult = (event: any) => {
+    // Browsers can deliver queued results after abort or an error.
+    if (deferredText.isResolved || deferredText.isRejected)
+      return
     let finalTranscript = ''
     let interimTranscript = ''
 
@@ -272,6 +280,8 @@ export function streamWebSpeechAPITranscription(
   }
 
   recognition.onerror = (event: any) => {
+    if (deferredText.isResolved || deferredText.isRejected)
+      return
     const errorType = event.error || 'unknown'
     console.warn('Web Speech API error:', errorType)
 
@@ -279,12 +289,9 @@ export function streamWebSpeechAPITranscription(
       return
     }
 
-    if (errorType === 'aborted') {
-      return
-    }
-    if (deferredText.isRejected || deferredText.isResolved)
-      return
-
+    // Explicit cancellation settles before the browser abort event reaches us.
+    // An abort here is external (for example an audio-session interruption),
+    // so preserve it as a failure instead of turning it into an empty transcript.
     const error = new Error(`Speech recognition error: ${errorType}`)
     fullStreamCtrl?.error(error)
     textStreamCtrl?.error(error)
@@ -295,18 +302,23 @@ export function streamWebSpeechAPITranscription(
 
   recognition.onend = () => {
     options?.onRecognitionCycleEnd?.()
+    if (deferredText.isResolved || deferredText.isRejected)
+      return
     console.info('Web Speech API recognition ended. Continuous mode:', options?.continuous !== false, 'Aborted:', options?.abortSignal?.aborted)
 
     if (deferredText.isRejected)
       return
 
     // If continuous mode and not aborted, restart recognition
-    if (options?.continuous !== false && !options?.abortSignal?.aborted) {
+    if (!stopping && options?.continuous !== false && !options?.abortSignal?.aborted) {
       // Use the current recognitionInstance to ensure we're using the correct instance
       const currentRecognition = recognitionInstance || recognition
 
       // Small delay before restarting to avoid rapid restart loops
-      setTimeout(() => {
+      restartTimer = setTimeout(() => {
+        restartTimer = undefined
+        if (stopping || deferredText.isResolved || deferredText.isRejected)
+          return
         try {
           currentRecognition.start()
           console.info('Web Speech API recognition restarted (continuous mode)')
@@ -350,20 +362,34 @@ export function streamWebSpeechAPITranscription(
     }
   }
 
-  // Handle abort signal
-  if (options?.abortSignal) {
-    options.abortSignal.addEventListener('abort', () => {
-      try {
-        recognition.stop()
-      }
-      catch {}
-      const error = new DOMException('Aborted', 'AbortError')
-      fullStreamCtrl?.error(error)
-      textStreamCtrl?.error(error)
-      deferredText.reject(error)
-      deferredText.isRejected = true
-    })
+  /** Finishes recognition after any final result, without restarting continuous input. */
+  function stop() {
+    if (stopping || deferredText.isResolved || deferredText.isRejected)
+      return
+    stopping = true
+    if (restartTimer !== undefined) {
+      clearTimeout(restartTimer)
+      restartTimer = undefined
+      // Recognition already ended; only the scheduled restart remains.
+      recognition.onend()
+      return
+    }
+    recognitionInstance.stop()
   }
+
+  // Abort settles before calling the browser because abort may emit end synchronously.
+  options?.abortSignal?.addEventListener('abort', () => {
+    if (deferredText.isResolved || deferredText.isRejected)
+      return
+    stopping = true
+    clearTimeout(restartTimer)
+    const error = new DOMException('Aborted', 'AbortError')
+    deferredText.isRejected = true
+    fullStreamCtrl?.error(error)
+    textStreamCtrl?.error(error)
+    deferredText.reject(error)
+    recognitionInstance.abort()
+  }, { once: true })
 
   function createAndStartNewRecognitionInstance(sourceRecognition: any): any {
     const newRecognition = new SpeechRecognition()
@@ -484,5 +510,6 @@ export function streamWebSpeechAPITranscription(
     text: deferredText.promise,
     textStream,
     recognition: recognitionInstance,
+    stop,
   }
 }

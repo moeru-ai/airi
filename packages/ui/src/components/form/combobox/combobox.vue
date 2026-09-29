@@ -25,11 +25,13 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   disabled?: boolean
   openOnClick?: boolean
+  side?: 'top' | 'bottom'
   contentMinWidth?: string | number
   contentWidth?: string | number
 }>(), {
   disabled: false,
   openOnClick: true,
+  side: 'bottom',
 })
 
 const modelValue = defineModel<T>({ required: false })
@@ -121,7 +123,7 @@ function toCssSize(value?: string | number): string | undefined {
     <ComboboxPortal>
       <ComboboxContent
         position="popper"
-        side="bottom"
+        :side="props.side"
         align="start"
         :side-offset="4"
         :avoid-collisions="true"

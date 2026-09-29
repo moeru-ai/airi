@@ -557,6 +557,7 @@ describe('context bridge contract', () => {
 
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -595,6 +596,7 @@ describe('context bridge contract', () => {
     testChannels.push(streamPeer)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -620,6 +622,7 @@ describe('context bridge contract', () => {
     })
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -646,6 +649,7 @@ describe('context bridge contract', () => {
     testChannels.push(streamPeer)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -669,6 +673,7 @@ describe('context bridge contract', () => {
     testChannels.push(streamPeer)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -696,6 +701,7 @@ describe('context bridge contract', () => {
     })
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -722,6 +728,7 @@ describe('context bridge contract', () => {
 
     const context = {
       turnId: 'turn-1',
+      sessionId: 'remote-session',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -735,7 +742,10 @@ describe('context bridge contract', () => {
     streamSender.postMessage({ type: 'token-special', special: 'remote-special', sessionId: 'remote-session', context })
     await waitForBroadcastDelivery()
 
-    expect(outgoingStreamMessages.filter(message => message.sessionId === 'session-1')).toHaveLength(1)
+    // One local broadcast and one test-sender broadcast are visible here.
+    // Processing the latter must not echo a third message.
+    expect(outgoingStreamMessages).toHaveLength(2)
+    expect(outgoingStreamMessages.every(message => message.sessionId === 'remote-session')).toBe(true)
 
     await store.dispose()
   })
@@ -746,6 +756,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -756,7 +767,7 @@ describe('context bridge contract', () => {
     await chatOrchestratorMock.emitTokenLiteralHooks('session A token', context)
     await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))
 
-    expect(outgoingStreamMessages[0]?.sessionId).toBe('session-a')
+    expect(outgoingStreamMessages[0]?.sessionId).toBe('session-1')
     await store.dispose()
   })
 
@@ -766,6 +777,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -790,6 +802,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
@@ -814,6 +827,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-2',
+      sessionId: 'session-2',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
       composedMessage: [],
@@ -842,6 +856,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-3',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
       composedMessage: [],
@@ -876,6 +891,7 @@ describe('context bridge contract', () => {
     const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
     const context = {
       turnId: 'turn-4',
+      sessionId: 'session-2',
       message: { role: 'user', content: 'background ping' },
       contexts: {},
       composedMessage: [],
@@ -907,6 +923,7 @@ describe('context bridge contract', () => {
 
     const context = {
       turnId: 'turn-1',
+      sessionId: 'session-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],

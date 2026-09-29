@@ -5,6 +5,7 @@ import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { GodotStageManager } from '../../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
+import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../../chat'
 import type { EditorWindowManager } from '../../editor'
 import type { NoticeWindowManager } from '../../notice'
@@ -24,6 +25,8 @@ import {
   electronOpenEditor,
   electronOpenMainDevtools,
   electronOpenSettings,
+  electronVoiceInlayHide,
+  electronVoiceInlayShow,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
@@ -32,6 +35,7 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
+import { presentVoiceInlay } from '../../inlay/presentation'
 import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
@@ -40,6 +44,7 @@ export async function setupMainWindowElectronInvokes(params: {
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
+  inlayWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
@@ -48,6 +53,7 @@ export async function setupMainWindowElectronInvokes(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
+  globalShortcut: GlobalShortcutService
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -57,6 +63,7 @@ export async function setupMainWindowElectronInvokes(params: {
   const { context } = createContext(ipcMain, params.window)
 
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
+  params.globalShortcut.registerWindow({ context, window: params.window })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
   createMcpServersService({ context, manager: params.mcpStdioManager })
@@ -72,5 +79,10 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())
   const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))
   params.window.once('closed', stopChatButtonState)
+  defineInvokeHandler(context, electronVoiceInlayShow, async ({ focus, presentation }) => {
+    const inlay = await params.inlayWindow()
+    presentVoiceInlay(inlay, presentation, focus)
+  })
+  defineInvokeHandler(context, electronVoiceInlayHide, async () => (await params.inlayWindow()).hide())
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }

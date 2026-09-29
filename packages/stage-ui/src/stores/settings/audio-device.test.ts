@@ -66,6 +66,27 @@ function createAudioInput(deviceId: string): MediaDeviceInfo {
 }
 
 describe('store settings-audio-devices', () => {
+  it('keeps the selected mode when the microphone is toggled', async () => {
+    storageMock.values.set('settings/audio/input/enabled', true)
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+
+    expect(store.mode).toBe('always')
+
+    store.setHearingMode('push-to-talk')
+    expect(store.enabled).toBe(true)
+
+    store.setHearingMode('wake-word')
+    expect(store.enabled).toBe(true)
+
+    store.enabled = false
+    await nextTick()
+    expect(store.mode).toBe('wake-word')
+
+    store.enabled = true
+    await nextTick()
+    expect(store.mode).toBe('wake-word')
+  })
   beforeEach(() => {
     setActivePinia(createTestingPinia({ createSpy: vi.fn, stubActions: false }))
     storageMock.values.clear()
@@ -125,6 +146,46 @@ describe('store settings-audio-devices', () => {
     expect(store.enabled).toBe(true)
   })
 
+  it('keeps the microphone closed in Push to Talk mode until capture starts', async () => {
+    storageMock.values.set('settings/audio/input/enabled', true)
+    storageMock.values.set('settings/audio/input/mode', 'push-to-talk')
+    audioDeviceMock.startStream.mockResolvedValue(undefined)
+
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+
+    store.initialize()
+    await nextTick()
+
+    expect(audioDeviceMock.startStream).not.toHaveBeenCalled()
+
+    await store.startStream()
+    expect(audioDeviceMock.startStream).toHaveBeenCalledOnce()
+
+    store.stopStream()
+    expect(audioDeviceMock.stopStream).toHaveBeenCalledOnce()
+    expect(store.enabled).toBe(true)
+  })
+
+  it('releases the microphone when switching from continuous listening to Push to Talk', async () => {
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+    audioDeviceMock.startStream.mockResolvedValue(undefined)
+
+    store.setHearingMode('always')
+    store.enabled = true
+    await nextTick()
+    expect(audioDeviceMock.startStream).toHaveBeenCalledOnce()
+
+    store.setHearingMode('push-to-talk')
+    await nextTick()
+    expect(audioDeviceMock.stopStream).toHaveBeenCalledOnce()
+
+    store.setHearingMode('wake-word')
+    await nextTick()
+    expect(audioDeviceMock.startStream).toHaveBeenCalledTimes(2)
+  })
+
   it('exposes permission state from the audio device that owns selection', async () => {
     audioDeviceMock.audioInputs.value = [createAudioInput('microphone-1')]
     audioDeviceMock.selectedAudioInput.value = 'microphone-1'
@@ -147,6 +208,7 @@ describe('store settings-audio-devices', () => {
   it('reuses a pending microphone start after disable and re-enable', async () => {
     const { useSettingsAudioDevice } = await import('./audio-device')
     const store = useSettingsAudioDevice()
+    store.setHearingMode('always')
 
     let resolveStart!: () => void
     audioDeviceMock.startStream.mockImplementation(() => new Promise<void>((resolve) => {
@@ -178,6 +240,7 @@ describe('store settings-audio-devices', () => {
   it('stops a microphone stream that resolves after the toggle was disabled', async () => {
     const { useSettingsAudioDevice } = await import('./audio-device')
     const store = useSettingsAudioDevice()
+    store.setHearingMode('always')
     let resolveStart!: () => void
     audioDeviceMock.startStream.mockImplementation(() => new Promise<void>((resolve) => {
       resolveStart = resolve

@@ -347,6 +347,9 @@ async function playSpecialToken(
   })
 }
 const lipSyncNode = ref<AudioNode>()
+const activeOutputNodes = new Map<AudioBufferSourceNode, GainNode>()
+let bargeInEndsAt = 0
+let bargeInStopTimer: ReturnType<typeof setTimeout> | undefined
 
 async function playFunction(item: Parameters<Parameters<typeof createPlaybackManager<AudioBuffer>>[0]['play']>[0], signal: AbortSignal): Promise<void> {
   if (!audioContext || !item.audio)
@@ -370,14 +373,20 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
   }
 
   const source = audioContext.createBufferSource()
+  const outputGain = audioContext.createGain()
   currentAudioSource.value = source
   source.buffer = item.audio
 
-  source.connect(audioContext.destination)
+  source.connect(outputGain)
+  outputGain.connect(audioContext.destination)
   if (audioAnalyser.value)
-    source.connect(audioAnalyser.value)
+    outputGain.connect(audioAnalyser.value)
   if (lipSyncNode.value)
-    source.connect(lipSyncNode.value)
+    outputGain.connect(lipSyncNode.value)
+  activeOutputNodes.set(source, outputGain)
+  const startsDuringBargeIn = bargeInEndsAt > audioContext.currentTime
+  if (startsDuringBargeIn)
+    outputGain.gain.value = 0
 
   return new Promise<void>((resolve) => {
     let settled = false
@@ -392,8 +401,10 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
       try {
         source.stop()
         source.disconnect()
+        outputGain.disconnect()
       }
       catch {}
+      activeOutputNodes.delete(source)
       if (currentAudioSource.value === source)
         currentAudioSource.value = undefined
       resolveOnce()
@@ -412,6 +423,8 @@ async function playFunction(item: Parameters<Parameters<typeof createPlaybackMan
 
     try {
       source.start(0)
+      if (startsDuringBargeIn)
+        source.stop(bargeInEndsAt)
     }
     catch {
       stopPlayback()
@@ -718,11 +731,38 @@ function setupAnalyser() {
 let currentSession: StageTtsSession | null = null
 
 function stopSpeechOutput(reason: string) {
+  if (bargeInStopTimer) {
+    clearTimeout(bargeInStopTimer)
+    bargeInStopTimer = undefined
+  }
+  bargeInEndsAt = 0
   currentSession?.cancel(reason)
   currentSession = null
   speechPipeline.stopAll(reason)
   playbackManager.stopAll(reason)
   resetAssistantSpeechSurface(reason)
+}
+
+function fadeSpeechOutput(reason: string) {
+  if (!audioContext || !activeOutputNodes.size) {
+    stopSpeechOutput(reason)
+    return
+  }
+
+  const endsAt = audioContext.currentTime + 0.1
+  bargeInEndsAt = endsAt
+  for (const [source, gain] of activeOutputNodes) {
+    gain.gain.cancelScheduledValues(audioContext.currentTime)
+    gain.gain.setValueAtTime(gain.gain.value, audioContext.currentTime)
+    gain.gain.linearRampToValueAtTime(0, endsAt)
+    try {
+      source.stop(endsAt)
+    }
+    catch {}
+  }
+  if (bargeInStopTimer)
+    clearTimeout(bargeInStopTimer)
+  bargeInStopTimer = setTimeout(stopSpeechOutput, 100, reason)
 }
 
 /**
@@ -838,7 +878,10 @@ watch(latestStopRequest, (request) => {
   if (!request)
     return
 
-  stopSpeechOutput(request.reason)
+  if (request.reason === 'push-to-talk' || request.reason === 'wake-word')
+    fadeSpeechOutput(request.reason)
+  else
+    stopSpeechOutput(request.reason)
 })
 
 watch(speechMuted, (muted) => {
@@ -1001,6 +1044,8 @@ async function captureCharacterFrame() {
 }
 
 onUnmounted(() => {
+  if (bargeInStopTimer)
+    clearTimeout(bargeInStopTimer)
   disposePlaybackStateHandler()
   resetLive2dLipSync()
   chatHookCleanups.forEach(dispose => dispose?.())

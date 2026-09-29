@@ -1,23 +1,28 @@
 <script setup lang="ts">
-import type { VoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
-
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
 import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
 import workletUrl from '@proj-airi/stage-ui/workers/vad/process.worklet?worker&url'
 
+import { errorMessageFrom } from '@moeru/std'
 import { BackgroundProvider } from '@proj-airi/stage-layouts/components/Backgrounds'
 import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { HoloCoupon } from '@proj-airi/stage-ui/components'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-recorder'
-import { createVoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
+import { KeywordListener } from '@proj-airi/stage-ui/libs/keyword-listener'
+import { getKwsVocabulary, loadKwsModel } from '@proj-airi/stage-ui/libs/kws-model'
+import { appendHearingDraft } from '@proj-airi/stage-ui/services/hearing-drafts'
+import { resolveWakeWordKeywords, supportedWakeWordKeywords } from '@proj-airi/stage-ui/services/wake-words'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
+import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
@@ -56,24 +61,44 @@ onMounted(() => syncBackgroundTheme())
 
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
+const { stream, enabled, mode } = storeToRefs(settingsAudioDeviceStore)
 const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
-const { releaseStreamingTranscriptionConsumer, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
+const { removeStreamingTranscriptionConsumer, stopStreamingTranscription, transcribeForMediaStream, transcribeForRecording } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
-const consciousnessStore = useConsciousnessStore()
-const { activeProvider: activeChatProvider, activeModel: activeChatModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
 const chatStore = useChatStore()
+const chatSession = useChatSessionStore()
+const cardStore = useAiriCardStore()
+const { cards, wakeWordOwnership } = storeToRefs(cardStore)
+const { autoSendEnabled, activeTranscriptionProvider } = storeToRefs(useHearingStore())
+const speechOutput = useSpeechOutputControlStore()
+let keywordListener: KeywordListener | undefined
+let wakeSessionId: string | undefined
+let wakeSpeechTimer: ReturnType<typeof setTimeout> | undefined
+let wakeGeneration = 0
+let detectorGeneration = 0
+let browserFinalizedText = ''
+let browserVadEnded = false
+let browserSpeechActive = false
+
+function deliverBrowserUtterance() {
+  if (!browserVadEnded || !browserFinalizedText.trim())
+    return
+  const text = browserFinalizedText
+  browserFinalizedText = ''
+  browserVadEnded = false
+  void sendVoiceInputTextToChat(text)
+}
 
 /** Identifies this page in the shared streaming transcription session. */
 const transcriptionConsumerId = 'stage-web:voice-input'
+const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 
 const {
   init: initVAD,
   dispose: disposeVAD,
   start: startVAD,
   loaded: vadLoaded,
-  inferenceError: vadError,
 } = useVAD(workletUrl, {
   threshold: ref(0.6),
   onSpeechStart: () => handleSpeechStart(),
@@ -82,101 +107,215 @@ const {
 })
 
 let stopOnStopRecord: (() => void) | undefined
-let currentBinding: VoiceInputBinding | undefined
 
 async function sendVoiceInputTextToChat(text: string | undefined) {
   if (!text?.trim())
     return
 
   try {
-    const providerId = activeChatProvider.value
-    const model = activeChatModel.value
-    if (!providerId || !model)
+    const sessionId = wakeSessionId ?? chatSession.activeSessionId
+    if (!sessionId)
       return
-
-    const provider = await consciousnessStore.getChatProviderInstance(providerId)
-
-    await chatStore.ingest(text, {
-      model,
-      chatProvider: provider,
-      temperature: activeTemperature.value,
-      topP: activeTopP.value,
-    })
+    if (wakeSessionId)
+      finishWakeInput()
+    if (autoSendEnabled.value)
+      await chatStore.send({ sessionId, text })
+    else
+      appendHearingDraft(sessionId, text)
   }
   catch (error) {
     console.error('Failed to send chat from voice:', error)
   }
 }
 
-async function startAudioInteraction(binding: VoiceInputBinding) {
-  currentBinding = binding
-  if (binding.mode === 'stream') {
-    await transcribeForMediaStream(binding.stream, {
-      consumerId: transcriptionConsumerId,
-      onSentenceEnd: (text) => {
-        if (currentBinding === binding)
-          void sendVoiceInputTextToChat(text)
-      },
-    })
-    if (hearingPipeline.error)
-      throw new Error(hearingPipeline.error)
+function finishWakeInput() {
+  if (wakeSpeechTimer)
+    clearTimeout(wakeSpeechTimer)
+  wakeSpeechTimer = undefined
+  wakeSessionId = undefined
+  stopAudioInteraction()
+  void keywordListener?.resume()
+}
+
+async function handleWake(label: string, targets: Map<string, { cardId: string }>) {
+  const target = targets.get(label)
+  if (!target || mode.value !== 'wake-word')
     return
+  const generation = ++wakeGeneration
+  if (useSpeakingStore().nowSpeaking) {
+    speechOutput.requestStopSpeaking('wake-word')
+    await new Promise(resolve => setTimeout(resolve, 100))
   }
-
-  await initVAD()
-  if (!vadLoaded.value)
-    throw new Error(vadError.value || 'Failed to initialize voice activity detection.')
-  if (currentBinding !== binding)
+  if (generation !== wakeGeneration || mode.value !== 'wake-word')
     return
-  await startVAD(binding.stream)
+  await cardStore.activateCard(target.cardId)
+  wakeSessionId = await chatSession.ensureCurrentSession()
+  await startAudioInteraction()
+  wakeSpeechTimer = setTimeout(finishWakeInput, 15_000)
+}
 
-  stopOnStopRecord = onStopRecord(async (recording) => {
-    const text = await transcribeForRecording(recording)
-    if (currentBinding === binding)
-      await sendVoiceInputTextToChat(text)
+async function askForWakeWords() {
+  if (!settingsAudioDeviceStore.claimWakeWordSetupPrompt())
+    return
+  const sessionId = await chatSession.ensureCurrentSession()
+  void chatStore.promptCharacter({
+    sessionId,
+    instruction: 'Ask the user how they want to call you to start a voice conversation. Invite them to give one or more names or pronunciations. After they answer, use the configure_wake_words tool to save the encoded pronunciations.',
   })
+}
+
+async function startKeywordListening(currentStream: MediaStream | undefined, generation: number) {
+  const configured = resolveWakeWordKeywords(cards.value, wakeWordOwnership.value)
+  if (configured.keywords.length === 0)
+    void askForWakeWords().catch(error => console.error('Could not ask for Wake Word setup:', error))
+  settingsAudioDeviceStore.setWakeWordPreparation('preparing')
+  const model = await loadKwsModel()
+  if (generation !== detectorGeneration || mode.value !== 'wake-word')
+    return
+  const vocabulary = getKwsVocabulary(model)
+  const active = resolveWakeWordKeywords(cards.value, wakeWordOwnership.value)
+  const keywords = supportedWakeWordKeywords(active.keywords, vocabulary)
+  keywordListener?.stop()
+  const listener = new KeywordListener(model, workletUrl, label => void handleWake(label, active.targets), error => console.error('Wake Word detection failed:', error))
+  keywordListener = listener
+  if (currentStream)
+    await listener.start(currentStream, keywords)
+  if (generation !== detectorGeneration)
+    return listener.stop()
+  if (keywords.length > 0) {
+    settingsAudioDeviceStore.setWakeWordPreparation('ready')
+  }
+  else {
+    settingsAudioDeviceStore.setWakeWordPreparation('unconfigured')
+    void askForWakeWords().catch(error => console.error('Could not ask for Wake Word setup:', error))
+  }
+}
+
+async function startAudioInteraction() {
+  try {
+    await initVAD()
+    if (stream.value)
+      await startVAD(stream.value)
+
+    if (shouldUseStreamInput.value && stream.value) {
+      const browserRecognition = activeTranscriptionProvider.value === 'browser-web-speech-api'
+      await transcribeForMediaStream(stream.value, {
+        consumerId: transcriptionConsumerId,
+        onSentenceEnd: (text) => {
+          if (browserRecognition && (browserSpeechActive || browserVadEnded)) {
+            browserFinalizedText += `${browserFinalizedText ? ' ' : ''}${text.trim()}`
+            deliverBrowserUtterance()
+          }
+        },
+        onSpeechEnd: (text) => {
+          if (!browserRecognition)
+            void sendVoiceInputTextToChat(text)
+        },
+      })
+      return
+    }
+
+    stopOnStopRecord = onStopRecord(async (recording) => {
+      const text = await transcribeForRecording(recording)
+      await sendVoiceInputTextToChat(text)
+    })
+  }
+  catch (error) {
+    console.error('Audio interaction init failed:', error)
+  }
 }
 
 async function handleSpeechStart() {
-  if (currentBinding?.mode === 'recording')
-    await startRecord()
+  if (wakeSpeechTimer) {
+    clearTimeout(wakeSpeechTimer)
+    wakeSpeechTimer = undefined
+  }
+  if (activeTranscriptionProvider.value === 'browser-web-speech-api') {
+    browserFinalizedText = ''
+    browserVadEnded = false
+    browserSpeechActive = true
+  }
+  // For streaming providers, ChatArea component handles transcription manually
+  // The main page should not start automatic transcription to avoid duplicate sessions
+  if (shouldUseStreamInput.value) {
+    return
+  }
+
+  startRecord()
 }
 
 async function handleSpeechEnd() {
-  if (currentBinding?.mode === 'recording')
-    await stopRecord()
+  if (shouldUseStreamInput.value) {
+    if (activeTranscriptionProvider.value === 'browser-web-speech-api') {
+      browserSpeechActive = false
+      browserVadEnded = true
+      deliverBrowserUtterance()
+    }
+    return
+  }
+
+  stopRecord()
 }
 
 async function handleSpeechCancel() {
-  if (currentBinding?.mode === 'recording')
+  if (!shouldUseStreamInput.value)
     await discardRecord()
+  if (wakeSessionId)
+    finishWakeInput()
 }
 
-async function stopAudioInteraction() {
-  currentBinding = undefined
-  stopOnStopRecord?.()
-  stopOnStopRecord = undefined
-  disposeVAD()
-  await discardRecord()
-  await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
+function stopAudioInteraction() {
+  try {
+    browserFinalizedText = ''
+    browserVadEnded = false
+    browserSpeechActive = false
+    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
+    stopOnStopRecord?.()
+    stopOnStopRecord = undefined
+    void stopStreamingTranscription(true)
+    disposeVAD()
+  }
+  catch {}
 }
 
-const voiceInputBinding = createVoiceInputBinding({
-  start: startAudioInteraction,
-  stop: stopAudioInteraction,
-})
-
-watch([enabled, stream, supportsStreamInput], ([isEnabled, currentStream, supportsStream]) => {
-  const binding: VoiceInputBinding | undefined = isEnabled && currentStream
-    ? { stream: currentStream, mode: supportsStream ? 'stream' : 'recording' }
-    : undefined
-  void voiceInputBinding.update(binding).catch((error) => {
-    console.error('Audio interaction failed:', error)
-  })
-}, { immediate: true })
+watch([mode, enabled, stream, cards, wakeWordOwnership], async ([currentMode, isEnabled, currentStream]) => {
+  const generation = ++detectorGeneration
+  ++wakeGeneration
+  if (wakeSpeechTimer)
+    clearTimeout(wakeSpeechTimer)
+  wakeSpeechTimer = undefined
+  wakeSessionId = undefined
+  stopAudioInteraction()
+  keywordListener?.stop()
+  try {
+    if (currentMode === 'always' && isEnabled && currentStream)
+      await startAudioInteraction()
+    else if (currentMode === 'wake-word' && isEnabled)
+      await startKeywordListening(currentStream, generation)
+  }
+  catch (error) {
+    settingsAudioDeviceStore.setWakeWordPreparation('error', errorMessageFrom(error) ?? 'The model could not load.')
+    console.error('Could not prepare Wake Word:', error)
+  }
+}, { immediate: true, deep: true })
 
 onUnmounted(() => {
-  void voiceInputBinding.update().catch(error => console.error('Failed to stop audio interaction:', error))
+  ++detectorGeneration
+  if (wakeSpeechTimer)
+    clearTimeout(wakeSpeechTimer)
+  stopAudioInteraction()
+  keywordListener?.stop()
+})
+
+watch([stream, () => vadLoaded.value], async ([s, loaded]) => {
+  if (enabled.value && loaded && s && (mode.value === 'always' || !!wakeSessionId)) {
+    try {
+      await startVAD(s)
+    }
+    catch (e) {
+      console.error('Failed to start VAD with stream:', e)
+    }
+  }
 })
 
 const { x: mouseX, y: mouseY } = useMouse()

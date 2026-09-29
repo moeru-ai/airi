@@ -163,3 +163,4 @@ packages/i18n/glossary/glossary.tbx
 # Sherpaw models downloaded by the Vite plugin
 apps/*/public/sherpaw/
 apps/*/src/renderer/public/sherpaw/
+apps/stage-pocket/android/app/libs/sherpa-onnx-*.aar

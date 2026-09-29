@@ -1,7 +1,8 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
-import type { AiriCard, AiriExtension } from '../../types/airiCard'
+import type { WakeWordOwnership } from '../../services/wake-words'
+import type { AiriCard, AiriExtension, WakeWordKeyword } from '../../types/airiCard'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -14,6 +15,7 @@ import { useI18n } from 'vue-i18n'
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
+import { pinnedKwsVocabulary, resolveWakeWordKeywords, validateWakeWordKeywords, wakeWordSequence } from '../../services/wake-words'
 import { useProviderConfigStore } from '../providers/config'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
@@ -49,6 +51,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // would create a second cross-window state channel and echo cloned maps.
   const cards = useLocalStorageManualReset<Map<string, AiriCard>>('airi-cards', new Map(), { listenToStorageChanges: false })
   const activeCardId = useLocalStorageManualReset<string>('airi-card-active-id', 'default', { listenToStorageChanges: false })
+  // Conflict choices depend on this device's imported cards. Card exports do
+  // not include this state; each device can choose a different owner.
+  const wakeWordOwnership = useLocalStorageManualReset<WakeWordOwnership>('airi-card-wake-word-ownership', {}, {
+    listenToStorageChanges: false,
+    serializer: StorageSerializers.object,
+  })
   let initialized = false
 
   // Only leader-owned commands change defaults or apply card overrides. Runtime
@@ -62,6 +70,25 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   let pendingAuthenticationSetup: Promise<void> | undefined
 
   const activeCard = computed(() => cards.value.get(activeCardId.value))
+  const wakeWordConflicts = computed(() => resolveWakeWordKeywords(cards.value, wakeWordOwnership.value).conflicts)
+  // A card keeps its imported data even when its tokens do not belong to the
+  // pinned model. This projection follows later card edits without another
+  // persisted copy of the validation result.
+  const wakeWordValidationIssues = computed(() => {
+    const issues = new Map<string, string>()
+    for (const [cardId, card] of cards.value) {
+      const keywords = card.extensions.airi.modules.wakeWords?.keywords
+      if (keywords === undefined)
+        continue
+      try {
+        validateWakeWordKeywords(keywords, pinnedKwsVocabulary)
+      }
+      catch (error) {
+        issues.set(cardId, errorMessageFrom(error) ?? 'Invalid wake word configuration')
+      }
+    }
+    return issues
+  })
   function useRuntimeModuleStores() {
     return {
       artistry: useArtistryStore(),
@@ -197,6 +224,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
     const newCardId = nanoid()
     cards.value.set(newCardId, newAiriCard(card))
+    if (source === 'import') {
+      const nextOwnership = { ...wakeWordOwnership.value }
+      let resetOwnership = false
+      for (const conflict of wakeWordConflicts.value) {
+        if (conflict.cardIds.includes(newCardId) && Object.hasOwn(nextOwnership, conflict.sequence)) {
+          delete nextOwnership[conflict.sequence]
+          resetOwnership = true
+        }
+      }
+      if (resetOwnership)
+        wakeWordOwnership.value = nextOwnership
+    }
     captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
@@ -243,6 +282,56 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
   const getCard = (id: string) => {
     return cards.value.get(id)
+  }
+
+  /** Reads one card's prompt without changing the globally selected card. */
+  function getSystemPromptForCard(id: string) {
+    return resolveSystemPrompt(cards.value.get(id))
+  }
+
+  /** Replaces one turn owner's wake words after model-token and cross-card checks. */
+  async function updateCardWakeWords(id: string, keywords: WakeWordKeyword[], vocabulary: string[]) {
+    await pendingAuthenticationSetup
+    const card = cards.value.get(id)
+    if (!card)
+      return { status: 'missing-card' as const }
+
+    validateWakeWordKeywords(keywords, new Set(vocabulary))
+    const requested = new Set(keywords.flatMap(keyword => keyword.matches.map(match => wakeWordSequence(match.tokens))))
+    const conflicts = [...cards.value].filter(([otherId]) => otherId !== id).flatMap(([otherId, otherCard]) => (otherCard.extensions.airi.modules.wakeWords?.keywords ?? [])
+      .flatMap(keyword => keyword.matches
+        .filter(match => requested.has(wakeWordSequence(match.tokens)))
+        .map(match => ({
+          cardId: otherId,
+          cardName: otherCard.name,
+          keyword: keyword.label,
+          sequence: wakeWordSequence(match.tokens),
+        }))))
+    if (conflicts.length > 0)
+      return { status: 'conflict' as const, conflicts }
+
+    const extension = resolveAiriExtension(card)
+    cards.value.set(id, {
+      ...card,
+      extensions: {
+        ...card.extensions,
+        airi: {
+          ...extension,
+          modules: { ...extension.modules, wakeWords: { keywords: structuredClone(keywords) } },
+        },
+      },
+    })
+    return { status: 'saved' as const }
+  }
+
+  /** Selects the local owner of one pronunciation shared by imported cards. */
+  async function assignWakeWordOwner(sequence: string, cardId: string) {
+    const conflict = wakeWordConflicts.value.find(item => item.sequence === sequence)
+    if (!conflict?.cardIds.includes(cardId))
+      return false
+
+    wakeWordOwnership.value = { ...wakeWordOwnership.value, [sequence]: cardId }
+    return true
   }
 
   function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
@@ -600,6 +689,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardSpeech,
     updateActiveCardVision,
     getCard,
+    getSystemPromptForCard,
+    wakeWordOwnership,
+    wakeWordConflicts,
+    wakeWordValidationIssues,
+    updateCardWakeWords,
+    assignWakeWordOwner,
     resetState,
     initialize,
     activateCard,
@@ -648,6 +743,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'updateActiveCardSpeech',
       'updateActiveCardVision',
       'updateCard',
+      'updateCardWakeWords',
+      'assignWakeWordOwner',
     ],
     state: true,
   },

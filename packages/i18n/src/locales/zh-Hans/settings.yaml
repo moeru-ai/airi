@@ -344,6 +344,17 @@ pages:
         error:
           fallback: 无法开始删除操作，请稍后重试。
   card:
+    wake-word-validation:
+      invalid: '{name}的唤醒词无法使用：{reason}'
+      review: 查看角色卡片
+    wake-word-conflict:
+      title: 选择响应的角色
+      description: 这些角色使用了相同的唤醒读法。请为每条冲突读法选择一个角色；两张卡片都会保留配置。
+      review: 查看唤醒词冲突
+      pronunciation: '相同读法：{tokens}'
+      choose: '选择{name}'
+      active: '由{name}响应'
+      unresolved: '{count} 条唤醒词冲突尚未指定角色'
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
@@ -726,6 +737,48 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      auto-send:
+        label: 自动发送
+        description: 自动把转写文字发送到聊天。关闭后可以先检查草稿。
+        delay-label: 发送延迟
+        delay-description: 转写完成后等待一段时间再发送。
+        immediate: 立即
+      understanding:
+        title: 听觉理解
+        description: 配置语音识别并测试麦克风。
+      wake-words:
+        title: 呼唤名称
+        description: 查看每个角色的唤醒称呼和发音。
+        empty: 这个角色还没有设置呼唤名称。
+        configure: 在聊天中请这个角色设置称呼及对应的发音 token。
+        open-chat: 打开聊天
+        review-conflicts: 选择重复发音由哪个角色响应
+        active: 生效中
+        paused: 在此设备上暂停
+      input-device:
+        label: 输入设备
+        description: 选择使用的麦克风。
+        placeholder: 选择麦克风
+      permission-required: 需要麦克风权限。
+      microphone:
+        label: 麦克风
+        description: 允许听觉使用麦克风。实际何时监听由听觉输入模式决定。
+      input-mode:
+        label: 听觉输入
+        description: 选择 AIRI 何时监听语音。所有模式下仍可发送语音消息。
+        off: 关闭
+        push-to-talk: 按住说话
+        wake-word: 唤醒词
+        always: 始终开启
+        preparing: 正在准备唤醒词模型……
+        unconfigured: 尚未配置可用的唤醒词。角色会在聊天中询问你想怎样称呼它。
+        failed: 无法准备唤醒词
+      push-to-talk-shortcut:
+        label: 按住说话快捷键
+        description: 在任何应用中按住此快捷键即可说话。
+        placeholder: 按下组合键
+        reset: 恢复默认值
+        registration-failed: 无法注册此快捷键。请使用屏幕按钮或选择其他快捷键。
       sections:
         section:
           provider-selection:

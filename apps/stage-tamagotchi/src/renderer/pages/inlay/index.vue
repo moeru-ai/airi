@@ -1,106 +1,124 @@
 <script setup lang="ts">
-import type { BackgroundMaterialType, VibrancyType } from '@proj-airi/electron-eventa'
-
-import { electron } from '@proj-airi/electron-eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { FieldCombobox } from '@proj-airi/ui'
-import { useAsyncState } from '@vueuse/core'
-import { ref, watch } from 'vue'
+import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { Button, Textarea } from '@proj-airi/ui'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
-const getIsWindows = useElectronEventaInvoke(electron.app.isWindows)
-const setVibrancy = useElectronEventaInvoke(electron.window.setVibrancy)
-const setBackgroundMaterial = useElectronEventaInvoke(electron.window.setBackgroundMaterial)
+import { electronVoiceInlayHide, electronVoiceInlayShow } from '../../../shared/eventa'
+import { useVoiceInlayStore } from '../../stores/voice-inlay'
 
-const { state: isWindows } = useAsyncState(() => getIsWindows(), false)
-const vibrancy = ref<NonNullable<VibrancyType>>()
-const backgroundMaterial = ref<NonNullable<BackgroundMaterialType>>()
-
+const inlay = useVoiceInlayStore()
+const cards = useAiriCardStore()
+const chat = useChatStore()
+const hideWindow = useElectronEventaInvoke(electronVoiceInlayHide)
+const showWindow = useElectronEventaInvoke(electronVoiceInlayShow)
 const { t } = useI18n()
 
-watch(
-  vibrancy,
-  (newVibrancy) => {
-    setVibrancy([newVibrancy ?? null])
+const draft = computed(() => inlay.activeDraft)
+const draftText = computed({
+  get: () => draft.value?.text ?? '',
+  set: (text: string) => {
+    if (draft.value)
+      inlay.editVoiceDraft(draft.value.cardId, text)
   },
-)
+})
+const characterName = computed(() => cards.getCard(draft.value?.cardId ?? inlay.recordingCardId ?? '')?.name ?? '')
+const pendingNames = computed(() => inlay.pendingCardIds
+  .slice(0, -1)
+  .map(id => cards.getCard(id)?.name ?? id))
 
-watch(
-  backgroundMaterial,
-  (newBackgroundMaterial) => {
-    if (!newBackgroundMaterial)
-      return
+async function hideIfIdle() {
+  if (!inlay.activeDraft && !inlay.recordingCardId)
+    await hideWindow()
+}
 
-    setBackgroundMaterial([newBackgroundMaterial])
-  },
-)
+function discard() {
+  if (!draft.value)
+    return
+  inlay.removeVoiceDraft(draft.value.cardId)
+  void hideIfIdle()
+}
 
-function handleClose() {
-  window.close()
+function send() {
+  const current = draft.value
+  if (!current || !current.text.trim())
+    return
+
+  const text = current.text.trim()
+  inlay.removeVoiceDraft(current.cardId)
+  void hideIfIdle()
+  // The leader continues this turn after the inlay restores the earlier draft.
+  void chat.send({ sessionId: current.sessionId, text }).catch((error) => {
+    inlay.queueVoiceDraft({ ...current, text })
+    void showWindow({ focus: true, presentation: 'draft' })
+    toast.error(errorMessageFrom(error) ?? 'Could not send the voice draft')
+  })
 }
 </script>
 
 <template>
-  <div :class="['relative p-4']">
-    <div class="drag-region" />
-    <div :class="['absolute right-2 top-2 z-10 flex items-center gap-1', '[-webkit-app-region:no-drag]']">
-      <button
-        type="button"
-        :class="[
-          'size-8 flex items-center justify-center rounded-full text-white transition',
-          'bg-black/40 hover:bg-black/60',
-        ]"
-        :title="t('tamagotchi.stage.inlay.close')"
-        :aria-label="t('tamagotchi.stage.inlay.close')"
-        @click="handleClose"
-      >
-        <span aria-hidden="true" :class="['text-2xl leading-none']">×</span>
-      </button>
+  <main
+    v-if="inlay.recordingCardId"
+    :class="['h-full w-full flex items-center justify-center']"
+    role="status"
+  >
+    <div
+      :class="[
+        'max-w-full min-w-0 flex items-center gap-2.5 rounded-full px-4 py-2.5',
+        'bg-neutral-900/95 text-white shadow-lg dark:bg-neutral-100/95 dark:text-neutral-900',
+      ]"
+    >
+      <span :class="['size-2.5 shrink-0 animate-pulse rounded-full bg-red-400 motion-reduce:animate-none']" />
+      <span :class="['i-solar:microphone-bold size-4 shrink-0']" aria-hidden="true" />
+      <span :class="['min-w-0 truncate text-sm font-medium']">{{ t('tamagotchi.stage.voice-inlay.recording') }}</span>
+      <span v-if="characterName" :class="['min-w-0 truncate text-xs opacity-70']">{{ characterName }}</span>
+    </div>
+  </main>
+  <main
+    v-else
+    :class="[
+      'h-full flex flex-col gap-3 rounded-xl p-4',
+      'border border-solid border-neutral-200 bg-white/95 text-neutral-900 shadow-lg',
+      'dark:border-neutral-700 dark:bg-neutral-900/95 dark:text-neutral-50',
+    ]"
+  >
+    <div :class="['flex items-center justify-between gap-2']">
+      <div :class="['flex min-w-0 items-center gap-2']">
+        <strong :class="['truncate text-sm']">
+          {{ t('tamagotchi.stage.voice-inlay.draft', { name: characterName }) }}
+        </strong>
+      </div>
+      <span v-if="inlay.pendingCount" :class="['shrink-0 text-xs text-neutral-500 dark:text-neutral-400']">
+        {{ t('tamagotchi.stage.voice-inlay.pending', { count: inlay.pendingCount }) }}
+      </span>
     </div>
 
-    <div class="py-4">
-      <h1>Spotlight</h1>
-      <p>This is the Spotlight page.</p>
+    <div v-if="pendingNames.length" :class="['truncate text-xs text-neutral-500 dark:text-neutral-400']">
+      {{ pendingNames.join(' · ') }}
     </div>
 
-    <div class="space-y-2">
-      <FieldCombobox
-        v-model="vibrancy"
-        label="Vibrancy"
-        description="Set the vibrancy effect of the window."
-        :options="[
-          { label: 'titlebar', value: 'titlebar' },
-          { label: 'selection', value: 'selection' },
-          { label: 'menu', value: 'menu' },
-          { label: 'popover', value: 'popover' },
-          { label: 'sidebar', value: 'sidebar' },
-          { label: 'header', value: 'header' },
-          { label: 'sheet', value: 'sheet' },
-          { label: 'window', value: 'window' },
-          { label: 'hud', value: 'hud' },
-          { label: 'fullscreen-ui', value: 'fullscreen-ui' },
-          { label: 'tooltip', value: 'tooltip' },
-          { label: 'content', value: 'content' },
-          { label: 'under-window', value: 'under-window' },
-          { label: 'under-page', value: 'under-page' },
-        ]"
+    <template v-if="draft">
+      <Textarea
+        v-model="draftText"
+        :aria-label="t('tamagotchi.stage.voice-inlay.draft', { name: characterName })"
+        :class="['min-h-20 flex-1 resize-none']"
       />
-
-      <FieldCombobox
-        v-if="isWindows"
-        v-model="backgroundMaterial"
-        label="Background Material"
-        description="Set the background material of the window."
-        :options="[
-          { label: 'auto', value: 'auto' },
-          { label: 'none', value: 'none' },
-          { label: 'mica', value: 'mica' },
-          { label: 'acrylic', value: 'acrylic' },
-          { label: 'tabbed', value: 'tabbed' },
-        ]"
-      />
-    </div>
-  </div>
+      <div :class="['flex justify-end gap-2']">
+        <Button :label="t('tamagotchi.stage.voice-inlay.discard')" @click="discard" />
+        <Button
+          :label="t('tamagotchi.stage.voice-inlay.send')"
+          color="primary"
+          variant="primary"
+          :disabled="!draftText.trim()"
+          @click="send"
+        />
+      </div>
+    </template>
+  </main>
 </template>
 
 <route lang="yaml">

@@ -4,6 +4,8 @@ import { createApp, nextTick } from 'vue'
 
 import HearingConfig from './hearing-config.vue'
 
+import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
+
 const audioDeviceMocks = vi.hoisted(() => ({
   componentAskPermission: vi.fn(),
   storeAskPermission: vi.fn(),
@@ -67,34 +69,19 @@ vi.mock('../../../../stores', async () => {
   return { useSettingsAudioDevice }
 })
 
-vi.mock('@proj-airi/ui', async () => {
-  const { defineComponent, h } = await vi.importActual<typeof import('vue')>('vue')
-
-  return {
-    Callout: defineComponent({ render: () => h('div') }),
-    FieldCheckbox: defineComponent({ render: () => h('div') }),
-    FieldCombobox: defineComponent({
-      props: {
-        options: {
-          type: Array as () => Array<{ label: string, value: string }>,
-          default: () => [],
-        },
-      },
-      setup(props) {
-        return () => h('div', { 'data-testid': 'device-options' }, props.options.map(option => option.label).join(','))
-      },
-    }),
-  }
-})
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key }),
+}))
 
 function mountHearingConfig() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(HearingConfig, { granted: true })
-  app.use(createPinia())
+  const pinia = createPinia()
+  app.use(pinia)
   app.mount(host)
 
-  return { app, host }
+  return { app, host, store: useSettingsAudioDevice(pinia) }
 }
 
 describe('hearing config audio device ownership', () => {
@@ -104,14 +91,11 @@ describe('hearing config audio device ownership', () => {
     localStorage.clear()
   })
 
-  it('requests microphone permission through the settings store', async () => {
+  it('does not request microphone permission when viewing input settings', async () => {
     const { app, host } = mountHearingConfig()
-    const button = host.querySelector<HTMLButtonElement>('button[aria-label="Enable microphone input"]')
-
-    button?.click()
     await nextTick()
 
-    expect(audioDeviceMocks.storeAskPermission).toHaveBeenCalledOnce()
+    expect(audioDeviceMocks.storeAskPermission).not.toHaveBeenCalled()
     expect(audioDeviceMocks.componentAskPermission).not.toHaveBeenCalled()
 
     app.unmount()
@@ -121,8 +105,37 @@ describe('hearing config audio device ownership', () => {
   it('renders the device inventory owned by the settings store', () => {
     const { app, host } = mountHearingConfig()
 
-    expect(host.querySelector('[data-testid="device-options"]')?.textContent).toBe('Store microphone')
+    expect(host.querySelector<HTMLInputElement>('input')?.value).toBe('Store microphone')
     expect(host.textContent).not.toContain('Detached microphone')
+
+    app.unmount()
+    host.remove()
+  })
+
+  it('offers four hearing modes while keeping voice messages separate', () => {
+    const { app, host } = mountHearingConfig()
+
+    const modes = host.querySelectorAll('[role="radio"]')
+    expect(modes).toHaveLength(4)
+    expect(host.textContent).toContain('input-mode.off')
+    expect(host.textContent).toContain('input-mode.push-to-talk')
+    expect(host.textContent).toContain('input-mode.wake-word')
+    expect(host.textContent).toContain('input-mode.always')
+    expect(host.textContent).not.toContain('settings.pages.modules.hearing.microphone.label')
+
+    app.unmount()
+    host.remove()
+  })
+
+  it('shows the microphone switch only for continuous hearing modes', async () => {
+    const { app, host, store } = mountHearingConfig()
+    store.setHearingMode('push-to-talk')
+    await nextTick()
+    expect(host.querySelector('[role="switch"]')).toBeNull()
+
+    store.setHearingMode('always')
+    await nextTick()
+    expect(host.querySelector('[role="switch"]')).not.toBeNull()
 
     app.unmount()
     host.remove()

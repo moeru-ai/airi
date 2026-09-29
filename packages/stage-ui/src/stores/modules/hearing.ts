@@ -582,7 +582,12 @@ export const useHearingStore = defineStore('hearing-store', () => {
   },
 })
 
-export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech:audio-input-pipeline', () => {
+/**
+ * Owns one independent transcription lifecycle. Manual composers use their own
+ * instance so cancellation cannot stop the shared always-on hearing session.
+ * The caller must stop streaming and remove its consumer before disposal.
+ */
+export function useTranscriptionSession() {
   const error = ref<string>()
   const transcript = ref('')
   // Activity stays local to this session. A continuously open microphone is not
@@ -621,7 +626,7 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     mediaStreamSource?: MediaStreamAudioSourceNode
     audioStreamController?: ReadableStreamDefaultController<Uint8Array>
     abortController: AbortController
-    result?: HearingTranscriptionResult & { recognition?: any }
+    result?: HearingTranscriptionResult | (ReturnType<typeof streamWebSpeechAPITranscription> & { mode: 'stream' })
     idleTimer?: ReturnType<typeof setTimeout>
     mediaStream?: MediaStream
     providerId?: string
@@ -713,20 +718,14 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     // Special handling for Web Speech API
     if (session.providerId === 'browser-web-speech-api') {
       try {
-        const reason = new DOMException(abort ? 'Aborted' : 'Stopped', 'AbortError')
-        if (!session.abortController.signal.aborted) {
-          session.abortController.abort(reason)
+        const result = session.result as ReturnType<typeof streamWebSpeechAPITranscription>
+        if (abort) {
+          session.abortController.abort(new DOMException('Aborted', 'AbortError'))
         }
-
-        // Stop Web Speech API recognition if it exists
-        const recognition: unknown = session.result?.recognition
-        if (recognition && typeof recognition === 'object' && 'stop' in recognition && typeof recognition.stop === 'function') {
-          try {
-            recognition.stop()
-          }
-          catch (err) {
-            console.warn('Error stopping Web Speech API recognition:', err)
-          }
+        else {
+          // Release must wait for result/end. Aborting here rejects the final
+          // text before browsers that finalize on stop can deliver it.
+          result.stop()
         }
       }
       catch (err) {
@@ -747,6 +746,10 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
 
           error.value = errorMessage(err)
           console.error('Error getting transcription result:', error.value)
+        }
+        finally {
+          if (streamingSession.value === session)
+            streamingSession.value = undefined
         }
       }
 
@@ -1390,4 +1393,6 @@ export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech
     stopStreamingTranscription,
     supportsStreamInput,
   }
-})
+}
+
+export const useHearingSpeechInputPipeline = defineStore('modules:hearing:speech:audio-input-pipeline', useTranscriptionSession)

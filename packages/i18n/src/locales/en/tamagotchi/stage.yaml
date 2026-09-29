@@ -1,3 +1,9 @@
+voice-inlay:
+  recording: Listening…
+  pending: '{count} pending'
+  send: Send
+  discard: Discard
+  draft: 'Voice draft for {name}'
 operations:
   load-models: Load Models
   load-models-status:
@@ -18,6 +24,8 @@ docs:
   'refresh': Refresh
   'center-main-window': Move to screen center
   'open-hearing-controls': Open hearing Controls
+  'enable-microphone': Enable microphone
+  'disable-microphone': Disable microphone
   'drag-to-move-window': Drag to move window
   'mute': Mute
   'unmute': Unmute

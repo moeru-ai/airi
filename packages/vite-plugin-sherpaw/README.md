@@ -1,6 +1,6 @@
 # Sherpaw models for Vite
 
-This plugin exposes pinned speech model URLs to Vite applications. Hosts select local models separately for development and builds.
+This plugin exposes pinned Sherpaw preload packs to Vite applications. Hosts select local packs separately for development and builds.
 
 ```ts
 import { paraformerBilingualZhEn } from '@proj-airi/provider-inference/sherpaw-transcription/models'
@@ -24,6 +24,8 @@ export default defineConfig({
 | `zipformerMultilingual` | Arabic, English, Indonesian, Japanese, Russian, Thai, Vietnamese, Chinese | Sherpaw data and metadata | About 339 MB |
 | `xAsrBilingualZhEnInt8` | Chinese, English | Sherpaw data and metadata | About 169 MB |
 
+Wake Word uses `KWS_MODEL` from `@proj-airi/stage-ui/libs/kws-model-info`. Its preload pair contains the encoder, decoder, joiner, and token vocabulary. The same plugin serves this pack in development and adds it to desktop and Pocket builds. Web keeps its pinned remote URLs.
+
 The required `models` option controls which presets the runtime can use. Remote presets load on demand.
 `developmentModels` selects local models for Vite development. `bundledModels` selects files for production builds.
 Set `cacheDir` to share downloads between applications:
@@ -46,7 +48,7 @@ The plugin downloads local files to a revision-scoped cache. It removes its prev
 Production builds add only `bundledModels` to the Vite asset graph. An empty list for the current mode performs no model download.
 The download cache survives selection changes. Its default path is `.cache` relative to the Vite root.
 
-`@proj-airi/provider-inference/sherpaw-transcription/models` owns the preset contract, including recognizer architecture and supported languages. The build plugin does not own runtime model metadata.
+`@proj-airi/provider-inference/sherpaw-transcription/models` owns transcription presets. The shared stage UI owns the KWS pack identity. The plugin uses only each pack's ID, repository, revision, and artifact directory. It does not own recognizer settings.
 
 Local download failures stop startup or the build. Development serves `developmentModels` through Vite.
 Remote files keep their pinned Hugging Face URLs and load when recognition starts.
@@ -75,10 +77,10 @@ The main process serves these URLs from the renderer package. Renderer `fetch()`
 ## Development loading
 
 The plugin downloads only configured `developmentModels` before the Vite development server starts. Existing cache files are reused.
-AIRI Electron uses the repository's `.cache/sherpaw/<model-id>/<revision>/` directory for all three development models.
+AIRI Electron uses the repository's `.cache/sherpaw/<model-id>/<revision>/` directory for the three transcription models and the KWS pack.
 
 Vite converts the generated URL imports into local development URLs. Files outside the application root use Vite's `/@fs/` route. Sherpaw reads the selected model through that server when recognition starts. Basemove runs only during production builds.
 
-AIRI Web and Stage Pocket keep all three presets remote in development and production.
+AIRI Web and Stage Pocket keep the three transcription presets remote in development and production. Pocket bundles KWS; Web loads KWS on demand.
 Electron development downloads about 745 MB once.
 Later development runs serve the files from `.cache`. Desktop release workflows bundle all three presets. Ordinary CI builds keep them remote.

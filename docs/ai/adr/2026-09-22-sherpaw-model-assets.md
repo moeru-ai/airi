@@ -7,11 +7,13 @@ Status: accepted
 Sherpaw model metadata and recognition logic live in `provider-inference/src/providers/local/sherpaw-transcription`. The catalogue owns stable IDs, supported languages, recognizer architecture, pinned revisions, and artifact locations. The provider owns each Worker session. The host supplies model URLs, caching, and the Worker URL.
 
 The Vite plugin exposes every configured model to the runtime. A model can use a pinned remote URL or a local URL.
+The plugin also serves the KWS preload pack. `stage-ui/src/libs/kws-model-info.ts` owns its pinned ID and artifact location. The KWS recognizer remains in `@sherpaw/kws`.
 `developmentModels` selects local development files. `bundledModels` selects production build files. Both lists are subsets of `models`.
 
 Web builds expose remote models and download the selected model when recognition starts.
 Desktop development downloads all three models to the shared repository cache before Vite starts. Ordinary CI keeps them remote.
 Desktop release workflows set `SHERPAW_BUNDLE_MODELS=true` and package all three models.
+Desktop and Pocket bundle the KWS pack in every build. Web downloads it when Wake Word starts.
 Vite rewrites bundled model URLs to `airi-sherpaw://assets/` in Electron builds.
 The main process serves only model files from the renderer package through this protocol.
 Renderer `fetch()` cannot read the same files through `file://`.
@@ -51,10 +53,10 @@ The service will publish download and activation progress through the shared inf
 
 | Profile | Remote models | Local models |
 | --- | --- | --- |
-| Web development and release | All configured models | None |
-| Desktop development | None | All three models in the repository cache |
-| Pull request CI | All configured models | None |
-| Desktop release | None | All three models in the application package |
+| Web development and release | Transcription and KWS models | None |
+| Desktop development | None | Three transcription models and KWS in the repository cache |
+| Pull request CI | Transcription models | KWS in the application package |
+| Desktop release | None | Three transcription models and KWS in the application package |
 | Unit tests | Fixture metadata only | None |
 
 CI jobs that do not package a desktop release do not download production model artifacts.

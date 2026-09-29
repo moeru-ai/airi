@@ -2,12 +2,11 @@
 import { useResizeObserver, useScreenSafeArea } from '@vueuse/core'
 import { DialogContent, DialogOverlay, DialogPortal, DialogRoot, DialogTitle, DialogTrigger, VisuallyHidden } from 'reka-ui'
 import { DrawerContent, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTrigger } from 'vaul-vue'
-import { onMounted, watch } from 'vue'
+import { onMounted } from 'vue'
 
 import HearingConfig from './hearing-config.vue'
 
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
-import { useSettingsAudioDevice } from '../../../../stores'
 
 const props = defineProps<{
   overlayDim?: boolean
@@ -16,17 +15,11 @@ const props = defineProps<{
 }>()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
-const autoSend = defineModel<boolean | undefined>('autoSend')
 
 const { isDesktop } = useBreakpoints()
-const { askPermission } = useSettingsAudioDevice()
 const screenSafeArea = useScreenSafeArea()
 
 useResizeObserver(document.documentElement, () => screenSafeArea.update())
-watch(showDialog, (show) => {
-  if (show)
-    askPermission()
-})
 onMounted(() => screenSafeArea.update())
 </script>
 
@@ -43,12 +36,11 @@ onMounted(() => screenSafeArea.update())
         ]"
         class="fixed inset-0 z-[9999] data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn"
       />
-      <DialogContent class="fixed left-1/2 top-1/2 z-[9999] max-h-full max-w-5xl w-[92dvw] transform overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
+      <DialogContent :class="['fixed left-1/2 top-1/2 z-[9999] max-h-[calc(100dvh-2rem)] max-w-lg w-[calc(100dvw-2rem)] overflow-y-auto rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md -translate-x-1/2 -translate-y-1/2 dark:bg-neutral-900']">
         <VisuallyHidden>
           <DialogTitle>Hearing Input</DialogTitle>
         </VisuallyHidden>
         <HearingConfig
-          v-model:auto-send="autoSend"
           :granted="props.granted"
         />
         <slot name="extra" />
@@ -66,7 +58,7 @@ onMounted(() => screenSafeArea.update())
           'fixed bottom-0 left-0 right-0 z-1000',
           'mt-20 px-4 pt-4',
           'flex flex-col',
-          'h-full max-h-80',
+          'max-h-[min(85dvh,36rem)] overflow-y-auto',
           'rounded-t-[32px] outline-none backdrop-blur-md',
           'bg-neutral-50/85 dark:bg-neutral-900/90',
         ]"
@@ -78,7 +70,6 @@ onMounted(() => screenSafeArea.update())
           ]"
         />
         <HearingConfig
-          v-model:auto-send="autoSend"
           :granted="props.granted"
         />
         <slot name="extra" />

@@ -10,6 +10,12 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { Sherpaw } from './index'
 
 const models = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
+const kwsModel = {
+  id: 'kws-zh-en',
+  repository: 'moeru-ai/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20',
+  revision: 'pinned-revision',
+  directory: 'install/bin/wasm',
+}
 let root: string
 let cacheDir: string
 
@@ -74,6 +80,34 @@ it('bundles only the explicit bundled model subset', async () => {
   expect(code).toContain('bundled')
   expect(code).toContain(zipformerMultilingual.revision)
   expect(code).toContain(xAsrBilingualZhEnInt8.revision)
+})
+
+it('bundles a KWS preload pair alongside remote transcription models', async () => {
+  const cache = join(cacheDir, sherpawModelPath(kwsModel))
+  await mkdir(cache, { recursive: true })
+  await writeFile(join(cache, 'preload.data'), new Uint8Array([4, 5]))
+  await writeFile(join(cache, 'preload.js.metadata'), JSON.stringify({
+    files: [{ filename: '/tokens.txt', start: 0, end: 2 }],
+    remote_package_size: 2,
+  }))
+
+  await build({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [Sherpaw({ models: [paraformerBilingualZhEn, kwsModel], bundledModels: [kwsModel], cacheDir })],
+  })
+
+  const directory = join(root, 'dist', 'assets')
+  const files = await readdir(directory)
+  expect(files.filter(file => file.endsWith('.data'))).toHaveLength(1)
+  expect(files.filter(file => file.endsWith('.metadata'))).toHaveLength(1)
+  const script = files.find(file => file.endsWith('.js'))!
+  const code = await readFile(join(directory, script), 'utf8')
+  expect(code).toContain(kwsModel.id)
+  expect(code).toContain(paraformerBilingualZhEn.id)
+  expect(code).toContain('bundled')
+  expect(code).toContain('remote')
 })
 
 it('rejects a bundled model that the runtime catalogue does not expose', async () => {

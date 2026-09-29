@@ -2,6 +2,13 @@ catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   # NOTICE:
+  # Sherpaw KWS was released on 2026-09-27 for this integration.
+  # The release-age gate blocks its runtime packages until 2026-09-30.
+  # Remove these entries after that date.
+  - '@sherpaw/kws@0.2.0'
+  - '@sherpaw/preloader@0.2.0'
+  - '@sherpaw/shared@0.2.0'
+  # NOTICE:
   # electron-builder 26.16.1 fixes macOS signing on the current GitHub runner.
   # Remove these exact exceptions after the 72-hour release-age window expires.
   - app-builder-lib@26.16.1
@@ -203,6 +210,7 @@ catalog:
   '@radix-ui/colors': ^3.0.0
   '@ricky0123/vad-web': ^0.0.30
   '@rive-app/canvas-lite': ^2.40.1
+  '@sherpaw/kws': 0.2.0
   '@sherpaw/xsai-transcription': 0.2.1
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3

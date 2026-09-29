@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
-import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
+import { Alert, ErrorContainer, HearingConfig, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -8,12 +8,12 @@ import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearin
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
-import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import HearingPlaygroundTranscripts from './components/hearing-playground-transcripts.vue'
+import HearingPlaygroundTranscripts from '../components/hearing-playground-transcripts.vue'
 
 const { t } = useI18n()
 
@@ -27,8 +27,6 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
-  autoSendEnabled,
-  autoSendDelay,
   confidenceThreshold,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
@@ -38,8 +36,8 @@ const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
-const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
+const { stopStream, startStream } = settingsAudioDeviceStore
+const { enabled, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
 const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
 const { audioContext } = storeToRefs(useAudioContext())
 const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
@@ -208,7 +206,8 @@ async function stopAudioMonitoring(disposeProviderId = activeTranscriptionProvid
   }
 
   stopAnalyzer()
-  if (stream.value)
+  // The playground can close its own capture, but the stage owns a microphone kept on by the user.
+  if (stream.value && !enabled.value)
     stopStream()
 
   await stopVoiceInputSession({ flushActiveRecording: false })
@@ -380,9 +379,8 @@ watch(activeTranscriptionProvider, async (provider, previousProvider) => {
     isMonitoring.value = await setupAudioMonitoring()
 }, { immediate: true })
 
-onMounted(async () => {
+onMounted(() => {
   syncOpenAICompatibleSettings()
-  await askPermission()
 })
 
 onUnmounted(() => {
@@ -394,17 +392,7 @@ onUnmounted(() => {
   <div flex="~ col md:row gap-6">
     <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
       <div flex="~ col gap-4">
-        <!-- Audio Input Selection -->
-        <div>
-          <FieldCombobox
-            v-model="selectedAudioInput"
-            label="Audio Input Device"
-            description="Select the audio input device for your hearing module."
-            :options="audioInputOptions"
-            placeholder="Select an audio input device"
-            layout="vertical"
-          />
-        </div>
+        <HearingConfig />
 
         <div flex="~ col gap-4">
           <div>
@@ -584,37 +572,6 @@ onUnmounted(() => {
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-unsupported') }}
           </div>
         </div>
-
-        <!-- Auto-send settings -->
-        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
-          <div class="mb-4">
-            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
-              Auto-send Settings
-            </h2>
-            <div text="neutral-400 dark:neutral-400">
-              Configure automatic sending of transcribed text to chat
-            </div>
-          </div>
-
-          <div class="space-y-4">
-            <FieldCheckbox
-              v-model="autoSendEnabled"
-              label="Auto-send transcribed text"
-              description="Automatically send transcribed text to chat after a delay. This may consume tokens, so disable if you want to manually review and edit transcriptions before sending."
-            />
-
-            <FieldRange
-              v-if="autoSendEnabled"
-              v-model="autoSendDelay"
-              label="Auto-send delay"
-              description="Delay in milliseconds before automatically sending transcribed text (0 = send immediately, recommended: 1000-3000ms)"
-              :min="0"
-              :max="10000"
-              :step="100"
-              :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
-            />
-          </div>
-        </div>
       </div>
     </div>
 
@@ -782,8 +739,8 @@ onUnmounted(() => {
 <route lang="yaml">
 meta:
   layout: settings
-  titleKey: settings.pages.modules.hearing.title
-  subtitleKey: settings.title
+  titleKey: settings.pages.modules.hearing.understanding.title
+  subtitleKey: settings.pages.modules.hearing.title
   stageTransition:
     name: slide
 </route>

@@ -1,3 +1,9 @@
+voice-inlay:
+  recording: 正在聆听……
+  pending: '另有 {count} 条待处理'
+  send: 发送
+  discard: 丢弃
+  draft: '给{name}的语音草稿'
 operations:
   load-models: 加载推理模型
   load-models-status:
@@ -18,6 +24,8 @@ docs:
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
+  'enable-microphone': 开启麦克风
+  'disable-microphone': 关闭麦克风
   'drag-to-move-window': 拖动以移动窗口
   'mute': 静音
   'unmute': 取消静音

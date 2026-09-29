@@ -1,11 +1,29 @@
 import type { ChatHistoryReplyPayload } from '../reply'
 
 import { describe, expect, it, vi } from 'vitest'
-import { shallowRef } from 'vue'
+import { nextTick, shallowRef } from 'vue'
 
+import { appendHearingDraft } from '../../../../services/hearing-drafts'
 import { useChatComposer } from './use-chat-composer'
 
 describe('useChatComposer', () => {
+  it('keeps each character session draft while another wake word adds speech', async () => {
+    const activeSessionId = shallowRef('character-a')
+    const composer = useChatComposer({ activeSessionId, send: vi.fn() })
+    composer.draft.value = 'Draft for A'
+
+    appendHearingDraft('character-b', 'Hello B')
+    await nextTick()
+    expect(composer.draft.value).toBe('Draft for A')
+
+    activeSessionId.value = 'character-b'
+    await nextTick()
+    expect(composer.draft.value).toBe('Hello B')
+
+    activeSessionId.value = 'character-a'
+    await nextTick()
+    expect(composer.draft.value).toBe('Draft for A')
+  })
   it('sends a native reply without changing the draft text', async () => {
     const activeSessionId = shallowRef('session-1')
     const send = vi.fn().mockResolvedValue(undefined)

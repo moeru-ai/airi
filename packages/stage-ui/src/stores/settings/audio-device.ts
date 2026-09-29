@@ -1,11 +1,14 @@
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 
 let microphonePermissionStatus: PermissionStatus
+
+/** Hearing modes control automatic listening; manual voice messages use their own microphone. */
+export type HearingInputMode = 'off' | 'push-to-talk' | 'wake-word' | 'always'
 
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const {
@@ -24,6 +27,11 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
   // Retain device failures after input is disabled so the Stage can explain them.
   const error = ref<string>()
+  const mode = useLocalStorageManualReset<HearingInputMode>('settings/audio/input/mode', audioInputEnabled.value ? 'always' : 'off')
+  const continuousInputEnabled = computed(() => audioInputEnabled.value && (mode.value === 'always' || mode.value === 'wake-word'))
+  const wakeWordSetupPrompted = useLocalStorageManualReset<boolean>('settings/audio/input/wake-setup-prompted', false)
+  const wakeWordPreparation = shallowRef<'idle' | 'preparing' | 'ready' | 'unconfigured' | 'error'>('idle')
+  const wakeWordPreparationError = shallowRef('')
   let audioInputStartGeneration = 0
   let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
   let stopPendingAudioInput = false
@@ -110,16 +118,46 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   function handleStartStreamError(generation: number, error: unknown, message: string) {
     console.error(message, error)
 
-    if (generation === audioInputStartGeneration)
+    if (generation === audioInputStartGeneration && continuousInputEnabled.value) {
       audioInputEnabled.value = false
+    }
   }
+
+  function setHearingMode(nextMode: HearingInputMode) {
+    if (nextMode !== 'wake-word') {
+      wakeWordSetupPrompted.value = false
+      wakeWordPreparation.value = 'idle'
+    }
+    mode.value = nextMode
+  }
+
+  function claimWakeWordSetupPrompt() {
+    if (mode.value !== 'wake-word' || wakeWordSetupPrompted.value)
+      return false
+    wakeWordSetupPrompted.value = true
+    return true
+  }
+
+  function setWakeWordPreparation(status: typeof wakeWordPreparation.value, error = '') {
+    wakeWordPreparation.value = status
+    wakeWordPreparationError.value = error
+    if (status === 'ready')
+      wakeWordSetupPrompted.value = false
+  }
+
+  watch(mode, (nextMode) => {
+    if (nextMode !== 'wake-word') {
+      wakeWordSetupPrompted.value = false
+      wakeWordPreparation.value = 'idle'
+    }
+  })
 
   watch(selectedAudioInputPersist, (newValue) => {
     selectedAudioInputNonPersist.value = newValue
   })
 
-  watch(audioInputEnabled, (val) => {
-    if (val) {
+  watch(continuousInputEnabled, (active) => {
+    if (active) {
       const generation = createAudioInputStartGeneration()
       startStreamForGeneration(generation).catch((error) => {
         handleStartStreamError(generation, error, 'Unable to start audio input stream:')
@@ -150,7 +188,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     if (hasSelectedInput)
       syncSelectedAudioInputToRuntime()
 
-    if (audioInputEnabled.value) {
+    if (continuousInputEnabled.value) {
       const generation = createAudioInputStartGeneration()
       startStreamForGeneration(generation).catch((error) => {
         handleStartStreamError(generation, error, 'Unable to initialize audio input stream:')
@@ -169,6 +207,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     selectedAudioInputPersist.reset()
     selectedAudioInputNonPersist.value = ''
     audioInputEnabled.reset()
+    setHearingMode('off')
     stopStream()
   }
 
@@ -180,6 +219,12 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     permissionGranted,
     selectedAudioInput: selectedAudioInputPersist,
     enabled: audioInputEnabled,
+    mode,
+    setHearingMode,
+    wakeWordPreparation,
+    wakeWordPreparationError,
+    setWakeWordPreparation,
+    claimWakeWordSetupPrompt,
 
     stream,
 
