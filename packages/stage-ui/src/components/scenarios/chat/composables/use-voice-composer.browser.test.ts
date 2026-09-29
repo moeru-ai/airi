@@ -1,6 +1,7 @@
 import type { VoiceComposerMode, VoiceComposerOptions } from './use-voice-composer'
 
 import en from '@proj-airi/i18n/locales/en'
+import zhHans from '@proj-airi/i18n/locales/zh-Hans'
 
 import { createPinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -52,7 +53,7 @@ function microphone() {
   return destination.stream
 }
 
-function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockResolvedValue(undefined), transcription = false, mode: VoiceComposerMode = transcription ? 'transcription' : 'audio') {
+function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockResolvedValue(undefined), transcription = false, mode: VoiceComposerMode = transcription ? 'transcription' : 'audio', locale = 'en') {
   let voice!: ReturnType<typeof useVoiceComposer>
   let audioContext!: AudioContext
   const session = shallowRef('session-1')
@@ -74,11 +75,20 @@ function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockRes
         },
       }, 'Record')
     },
-  }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale: 'en', messages: { en } })] } })
+  }), { global: { plugins: [createPinia(), createI18n({ legacy: false, locale, messages: { en, 'zh-Hans': zhHans } })] } })
   return { voice, audioContext, complete, errors, session, screen }
 }
 
 describe('manual voice recording lifecycle', () => {
+  it('reports microphone errors in the selected locale', async () => {
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockRejectedValue(new DOMException('Permission denied', 'NotAllowedError'))
+    const { voice, errors, screen } = mountVoice(undefined, false, 'audio', 'zh-Hans')
+
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => voice.phase.value).toBe('idle')
+    expect(errors).toHaveBeenCalledWith('无法开始录音。')
+  })
+
   it('finalizes a real WAV and releases microphone tracks before delivery', async () => {
     const stream = microphone()
     // The hardware boundary supplies real browser audio tracks. Recorder and analyser stay real.

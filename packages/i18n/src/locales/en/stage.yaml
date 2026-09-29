@@ -201,6 +201,11 @@ voice:
   send: Send voice message
   insert: Insert text
   failed: Voice input failed
+  microphone-unavailable: Microphone is unavailable.
+  start-failed: Could not start recording.
+  empty-recording: The recording is empty.
+  empty-transcription: Transcription returned no text.
+  finish-failed: Could not finish recording.
   configure-title: Configure transcription
   configure-description: Select a transcription provider and model in Hearing to use dictation or send audio to a text-only model.
   configure-action: Open Hearing

@@ -39,11 +39,18 @@ export const chatAudioRepo = {
     if (isChatAudioReference(data))
       data = await this.load(data)
     const reference = `${referencePrefix}${sessionId}/${nanoid()}`
-    await storage.setItemRaw(`local:chat/audio/${reference.slice(referencePrefix.length)}`, data)
-    await enqueueIndex(async () => {
-      const references = await storage.getItemRaw<string[]>(indexKey(sessionId)) ?? []
-      await storage.setItemRaw(indexKey(sessionId), [...references, reference])
-    })
+    const audioKey = `local:chat/audio/${reference.slice(referencePrefix.length)}`
+    await storage.setItemRaw(audioKey, data)
+    try {
+      await enqueueIndex(async () => {
+        const references = await storage.getItemRaw<string[]>(indexKey(sessionId)) ?? []
+        await storage.setItemRaw(indexKey(sessionId), [...references, reference])
+      })
+    }
+    catch (error) {
+      await storage.removeItem(audioKey)
+      throw error
+    }
     return reference
   },
 

@@ -1,10 +1,10 @@
 import type { ChatAttachment } from '@proj-airi/core-agent'
 import type { MaybeRefOrGetter } from 'vue'
 
-import { errorMessageFrom } from '@moeru/std'
 import { encodeBase64 } from '@moeru/std/base64'
 import { useUserMedia } from '@vueuse/core'
 import { computed, onScopeDispose, shallowRef, toValue, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useAudioAnalyzer } from '../../../../composables/audio/audio-analyzer'
 import { useAudioRecorder } from '../../../../composables/audio/audio-recorder'
@@ -15,6 +15,8 @@ import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device
 
 /** Limits in-memory WAV capture before encoding and storing the recording. */
 const MAX_MANUAL_RECORDING_DURATION_MS = 90_000
+
+class VoiceComposerFailure extends Error {}
 
 /** The active hold determines whether release sends audio or inserts text. */
 export type VoiceComposerMode = 'audio' | 'transcription'
@@ -37,6 +39,7 @@ export interface VoiceComposerOptions {
  * session changes, or disposal. Recorder finalization precedes track shutdown.
  */
 export function useVoiceComposer(options: VoiceComposerOptions) {
+  const { t } = useI18n()
   const phase = shallowRef<'idle' | 'starting' | 'recording' | 'processing'>('idle')
   const transcript = shallowRef('')
   const volume = shallowRef(0)
@@ -101,7 +104,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
           return
         }
         if (!stream)
-          throw new Error('Microphone is unavailable.')
+          throw new VoiceComposerFailure(t('stage.voice.microphone-unavailable'))
         const resumeCancellation = Promise.withResolvers<void>()
         const releaseResume = () => resumeCancellation.resolve()
         startupController.signal.addEventListener('abort', releaseResume, { once: true })
@@ -156,9 +159,9 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
             streamingStartupPending = false
           }
           if (startupController.signal.aborted)
-            throw new Error('Transcription did not start.')
+            throw new VoiceComposerFailure(t('stage.voice.start-failed'))
           if (pipeline.error.value)
-            throw new Error(pipeline.error.value)
+            throw new VoiceComposerFailure(t('stage.voice.start-failed'))
         }
       }
       catch (error) {
@@ -167,7 +170,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         stopMicrophone()
         if (ticket === generation) {
           phase.value = 'idle'
-          options.onError(errorMessageFrom(error) ?? 'Could not start recording.')
+          options.onError(error instanceof VoiceComposerFailure ? error.message : t('stage.voice.start-failed'))
         }
       }
       finally {
@@ -199,7 +202,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         if (streaming) {
           await pipeline.stopStreamingTranscription(false, undefined, abortController.signal)
           if (pipeline.error.value)
-            throw new Error(pipeline.error.value)
+            throw new VoiceComposerFailure(t('stage.voice.finish-failed'))
         }
         const recording = await recorder.stopRecord()
         pipeline.removeStreamingTranscriptionConsumer(consumerId)
@@ -207,15 +210,15 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
         if (ticket !== generation)
           return
         if (!recording?.size)
-          throw new Error('The recording is empty.')
+          throw new VoiceComposerFailure(t('stage.voice.empty-recording'))
         if (requiresTranscript && !streaming) {
           const text = await pipeline.transcribeForRecording(recording, abortController.signal)
           if (!text)
-            throw new Error(pipeline.error.value ?? 'Transcription returned no text.')
+            throw new VoiceComposerFailure(t('stage.voice.empty-transcription'))
           transcript.value = text
         }
         if (requiresTranscript && !transcript.value.trim())
-          throw new Error('Transcription returned no text.')
+          throw new VoiceComposerFailure(t('stage.voice.empty-transcription'))
         if (ticket !== generation)
           return
         if (activeMode === 'transcription') {
@@ -234,7 +237,7 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
       }
       catch (error) {
         if (ticket === generation)
-          options.onError(errorMessageFrom(error) ?? 'Could not finish recording.')
+          options.onError(error instanceof VoiceComposerFailure ? error.message : t('stage.voice.finish-failed'))
       }
       finally {
         if (processingAbortController === abortController)
