@@ -320,7 +320,7 @@ message Status {
   enum StatusCode {
     // The default status.
     STATUS_CODE_UNSET               = 0;
-    // The Span has been validated by an Application developer or Operator to 
+    // The Span has been validated by an Application developer or Operator to
     // have completed successfully.
     STATUS_CODE_OK                  = 1;
     // The Span contains an error.

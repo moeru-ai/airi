@@ -1,6 +1,6 @@
 # Vendored protocol sources
 
-The OTLP files are copied without changes from [opentelemetry-proto v1.11.1](https://github.com/open-telemetry/opentelemetry-proto/tree/b3f75588eb23c5fca62264edd05d382de49beb1a).
+The OTLP files come from [opentelemetry-proto v1.11.1](https://github.com/open-telemetry/opentelemetry-proto/tree/b3f75588eb23c5fca62264edd05d382de49beb1a). Only trailing whitespace is removed.
 The commit is `b3f75588eb23c5fca62264edd05d382de49beb1a`.
 The source files retain their upstream Apache-2.0 license notices.
 

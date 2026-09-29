@@ -101,7 +101,7 @@ message KeyValue {
 }
 
 // InstrumentationScope is a message representing the instrumentation scope information
-// such as the fully qualified name and version. 
+// such as the fully qualified name and version.
 message InstrumentationScope {
   // A name denoting the Instrumentation scope.
   // An empty instrumentation scope name means the name is unknown.
