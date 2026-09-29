@@ -39,16 +39,16 @@ function handleOpenChange(open: boolean) {
       />
       <DialogContent
         :class="[
-          'fixed left-1/2 top-1/2 z-9999 max-h-full max-w-2xl w-[92dvw]',
+          'fixed left-1/2 top-1/2 z-9999 max-h-full max-w-md w-[92dvw]',
           'flex flex-col items-start gap-4 overflow-y-scroll rounded-2xl bg-white p-6 shadow-xl outline-none',
           'backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 dark:bg-neutral-900',
           'data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow',
         ]"
       >
-        <DialogTitle :class="['m-0 text-lg font-semibold']">
+        <DialogTitle :class="['m-0 text-lg text-neutral-900 font-semibold dark:text-neutral-100']">
           {{ t('tamagotchi.settings.microphone-permission.prompt.title') }}
         </DialogTitle>
-        <DialogDescription>
+        <DialogDescription :class="['m-0 text-sm text-neutral-600 leading-relaxed dark:text-neutral-300']">
           {{ t('tamagotchi.settings.microphone-permission.prompt.description') }}
         </DialogDescription>
 

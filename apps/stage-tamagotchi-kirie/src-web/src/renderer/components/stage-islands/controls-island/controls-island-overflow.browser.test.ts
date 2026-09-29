@@ -36,13 +36,17 @@ const authState = vi.hoisted(() => ({
 }))
 
 vi.mock('@proj-airi/stage-host-context', () => ({
+  initializeHostContext: () => ({ runtime: 'kirie' }),
   useHostEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
   useHostAlwaysOnTop: () => vi.fn().mockResolvedValue(undefined),
   useHostAppQuit: () => vi.fn().mockResolvedValue(undefined),
   useHostAuth: () => ({ startLogin: vi.fn().mockResolvedValue(undefined) }),
   useHostChat: () => vi.fn().mockResolvedValue(undefined),
   useHostEventaInvoke: (event: unknown) => event === electronOpenSettings ? openSettings : vi.fn().mockResolvedValue(false),
-  useHostMediaAccessStatus: () => ref('granted'),
+  useHostMicrophonePermission: () => ({
+    refresh: vi.fn().mockResolvedValue('granted'),
+    reset: vi.fn().mockResolvedValue(undefined),
+  }),
   useHostMouseInElement: () => ({ isOutside }),
   useHostWindowMove: () => ({
     beginMove: vi.fn().mockResolvedValue(undefined),

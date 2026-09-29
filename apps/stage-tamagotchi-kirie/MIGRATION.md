@@ -7,7 +7,7 @@ This document owns the migration scope, capability matrix, open failures, and ac
 
 ## Current acceptance
 
-Windows has **21 passing items, three failing items, and five deferred items**.
+Windows has **23 passing items, one failing item, and five deferred items**.
 No matrix item remains partially tested or untested. A pass covers only the recorded checks.
 
 The original macOS migration accepted 24 items and deferred five.
@@ -31,7 +31,7 @@ These different baselines do not establish that every Windows failure is specifi
 `Fail` records a required behavior that failed.
 `Deferred` identifies work outside the current milestone.
 
-Five Windows passes rely on user review.
+Six Windows passes include user acceptance decisions.
 The user accepted native resize despite the unchanged cursor. That observation is not a tracked defect.
 The review does not imply unreported coverage of multiple displays or every onboarding and login branch.
 
@@ -52,7 +52,7 @@ The review does not imply unreported coverage of multiple displays or every onbo
 | GAP-013 | Settings window | Accepted | Pass | Settings opened, routed, closed through its native title bar, and reopened. |
 | GAP-014 | Chat window | Accepted | Pass | Chat closed through its native title bar and reopened. Two further open requests reused one minimal follower window. |
 | GAP-015 | Application exit | Accepted | Fail | Both native close and application quit ended with a CEF access violation. |
-| GAP-016 | Microphone permission state | Accepted | Fail | Permission state and reset RPCs worked. Reset also produced a renderer cleanup exception. |
+| GAP-016 | Microphone permission state | Accepted | Pass (user review) | Permission state and reset worked. The user accepted the result and excluded the renderer exception from migration failures. See Windows microphone permission evidence. |
 | GAP-017 | Microphone access policy | Accepted | Pass | Allow, deny, repeated requests, follower denial, grant persistence, and application-owned stream revocation passed. One capture after restart failed transiently. See the follow-up evidence. |
 | GAP-018 | Notice window | Accepted | Pass | Confirmation returned `true`. Native title-bar close and the cancel contract each returned `false`. Each operation closed the window. |
 | GAP-019 | Account sign-in | Accepted | Pass (user review) | The user confirmed Windows sign-in behavior. The automated session also displayed existing account state. Individual cancellation branches lack separate evidence. |
@@ -65,7 +65,7 @@ The review does not imply unreported coverage of multiple displays or every onbo
 | GAP-026 | Packaging and updates | Deferred | Deferred | Production packaging, installation, and updates remain outside this migration scope. |
 | GAP-027 | Inspector and Devtools | Accepted | Pass | Native devtools requests reused one page. A desktop capture showed the connected Inspector, the main renderer DOM, and its live preview. |
 | GAP-028 | Shared browser context | Accepted | Pass | Cookies, localStorage, BroadcastChannel, and Web Locks crossed windows. Persistent cookie and localStorage probes survived process restart. |
-| GAP-029 | Chat initialization and send | Accepted | Fail | Initialization and replies completed. Sending selected the previous conversation. This is a new selection defect, not a reproduced missing-permission-handler defect. |
+| GAP-029 | Chat initialization and send | Accepted | Pass | Initialization, two requests, and saved replies passed. The original missing-permission-handler failure did not recur. A session selection observation lacks a confirmed reproduction through normal user actions. See Windows Chat evidence. |
 
 ## Open Windows failures
 
@@ -88,34 +88,6 @@ See Microsoft's [access violation reference](https://learn.microsoft.com/en-us/s
 
 A later exit returned code `0` and reported two leaked ObjectDB instances.
 The crash does not occur on every exit. The successful attempt does not close this failure.
-
-### GAP-016: Permission reset throws
-
-The grant-to-reset transition logged `SyntaxError: Must be called at the top of a setup function` at 18:07:38.
-The stack reached `useI18n` through `useAnalytics`, `useAudioDevice`, and the audio device store.
-
-[src-web/src/renderer/app.vue](src-web/src/renderer/app.vue) constructs that store inside its permission watcher.
-This path can initialize the store outside component setup in a minimal window.
-The session did not establish which window produced the exception.
-
-A later main-window check stopped the application-owned audio track from `live` to `ended` and left audio input disabled.
-Grant persistence also passed after restart.
-Those successful checks close GAP-017's recorded flow, but do not remove the separate reset exception.
-
-### GAP-029: Chat selects the previous conversation
-
-The test used the real Chat UI and a temporary loopback OpenAI-compatible provider with a deterministic SSE reply.
-Two requests completed. Both user messages and replies remained in the test conversation.
-
-After a send, Chat selected the original conversation and hid the new reply.
-Selection of the test conversation displayed the saved reply again.
-
-The likely source is the index watcher in [session-store.ts](../../packages/stage-ui/src/stores/chat/session-store.ts).
-`setActiveSession` changes local selection, but `selectWindowSessionFromIndex` replaces it from the persisted index after an index update.
-This remains a source-based hypothesis.
-
-The original GAP-029 failure blocked Chat initialization because a window context lacked microphone-permission handlers.
-That defect did not reproduce in this Windows session. The new failure concerns conversation selection.
 
 ### Additional observations
 
@@ -267,6 +239,8 @@ Its `activeSessionId` remained empty, and send failed with `Failed to load the t
 
 `MicrophonePermissionService.Attach` now binds the required contexts, including Chat, onboarding, notice, and developer windows.
 Only the main renderer owns prompts.
+The microphone enable button resets a denied AIRI permission before the next request.
+This retry requires an explicit button click. Automatic requests retain the stored denial.
 An unhandled application invoke is a host integration error.
 The proposed upstream default rejection in [godot-kirie#87](https://github.com/moeru-ai/godot-kirie/pull/87) closed without merge.
 The AIRI handler attachment is the accepted fix.
@@ -393,6 +367,38 @@ A persistent cookie was present in Main and Chat before shutdown and remained pr
 The user confirmed displays, movement, onboarding, sign-in, and resize.
 The physical Ctrl+Shift+K test recorded two complete down/up pairs.
 The session then removed its temporary registration and observer.
+
+### Windows microphone permission evidence
+
+Permission state, reset, and grant persistence passed.
+The original acceptance run stopped the application-owned audio track from `live` to `ended` and left audio input disabled.
+
+A later interface check granted microphone access, opened Chat, and revoked access through Settings > Permission Management.
+The permission state changed to `not-determined`, and Settings displayed `Not set`.
+Chat logged ``Must be called at the top of a `setup` function`` through `useI18n`, `useAnalytics`, and the audio device store.
+The check did not establish a failure of permission revocation or Chat use.
+
+The user accepted GAP-016 and excluded this exception from migration failures.
+This record retains the observation without a repair requirement. No application code changed for this decision.
+
+### Windows Chat evidence
+
+The original GAP-029 failure blocked Chat initialization because its window context lacked microphone-permission handlers.
+The macOS fix attached `MicrophonePermissionService` to the affected window contexts.
+The current Windows branch includes that fix, and the initialization failure did not recur.
+
+The Windows test used the Chat UI and a temporary loopback OpenAI-compatible provider with a deterministic SSE reply.
+Initialization and two requests completed. Both user messages and replies remained in the test conversation.
+These results support a pass for the original initialization and send requirement.
+
+The same test recorded a switch to the original conversation after a send.
+The saved reply appeared again after selection of the test conversation.
+The records do not establish a reproduction through normal session creation and selection in the interface.
+They do not rule out effects from the test setup. The source audit did not establish a cause.
+
+This unconfirmed observation does not establish a Windows migration failure or a recurrence of the original GAP-029 defect.
+The macOS records contain no confirmed report or fix for this selection behavior.
+A separate defect requires a reproducible sequence of normal user actions and evidence that excludes test setup effects.
 
 ### Windows Spotlight correction
 

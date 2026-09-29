@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostMediaAccessStatus } from '@proj-airi/stage-host-context'
+import { initializeHostContext, useHostMicrophonePermission } from '@proj-airi/stage-host-context'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui/composables'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -14,7 +14,18 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { autoSendEnabled } = storeToRefs(hearingStore)
 const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
 
-const mediaAccessStatus = useHostMediaAccessStatus('microphone')
+const microphonePermission = initializeHostContext().runtime === 'kirie'
+  ? useHostMicrophonePermission()
+  : undefined
+
+async function prepareMicrophoneInput() {
+  if (!microphonePermission)
+    return
+
+  // Only an explicit enable action clears a refusal. Automatic requests retain the host decision.
+  if (await microphonePermission.refresh() === 'denied')
+    await microphonePermission.reset()
+}
 
 const { audioContext, initialize, dispose, pause } = useAudioContextFromStream(stream)
 const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
@@ -58,7 +69,7 @@ onUnmounted(async () => {
   <HearingConfigDialog
     v-model:show="show"
     v-model:auto-send="autoSendEnabled"
-    :granted="mediaAccessStatus !== 'denied' && mediaAccessStatus !== 'restricted'"
+    :before-enable="microphonePermission ? prepareMicrophoneInput : undefined"
     :volume-level="volumeLevel"
   >
     <slot />

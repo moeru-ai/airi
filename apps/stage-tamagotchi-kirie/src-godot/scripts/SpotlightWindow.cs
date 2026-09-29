@@ -120,8 +120,6 @@ public partial class SpotlightWindow : Window
         DesktopWindowSizing.MoveToSpotlightSlot(this);
         _userVisible = true;
 
-        // The scene sets the borderless, resize, and topmost flags.
-        // Repeated writes to these flags after Show() clear WS_VISIBLE on Windows (GAP-007).
         Show();
         ArmNativeTransparency();
         GrabFocus();
