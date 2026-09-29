@@ -9,6 +9,9 @@ import { createApp, effectScope, nextTick, shallowRef } from 'vue'
 
 import { useSharedLive2D, useSharedLive2DExpressionPreview } from './live2d'
 
+const target = { characterId: 'character-iru', avatarModelId: 'avatar-iru' }
+const otherAvatarTarget = { characterId: 'character-iru', avatarModelId: 'another-avatar' }
+
 const syncedContexts: Array<{
   pinia: ReturnType<typeof createPinia>
   runtime: SyncedPiniaRuntime
@@ -70,12 +73,13 @@ describe('shared Live2D expression previews', () => {
         followerActions += 1
     })
 
-    await followerStore.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
-    await followerStore.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await followerStore.startPreviewingExpression(target, 'happy', 'settings-window')
+    await followerStore.startPreviewingExpression(target, 'happy', 'settings-window')
 
     await vi.waitFor(() => {
       expect(followerStore.expressionPreview).toMatchObject({
         ownerId: 'settings-window',
+        characterId: 'character-iru',
         avatarModelId: 'avatar-iru',
         names: ['happy'],
       })
@@ -85,23 +89,24 @@ describe('shared Live2D expression previews', () => {
     expect(followerActions).toBe(0)
     expect(leaderMutations).toBe(1)
 
-    await followerStore.stopPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await followerStore.stopPreviewingExpression(target, 'happy', 'settings-window')
     await vi.waitFor(() => expect(followerStore.expressionPreview).toBeNull())
     expect(leaderStore.expressionPreview).toBeNull()
 
-    await followerStore.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
-    await followerStore.startPreviewingExpression('avatar-iru', 'sad', 'settings-window')
-    await followerStore.stopPreviewingAllExpressions('avatar-iru', 'settings-window')
+    await followerStore.startPreviewingExpression(target, 'happy', 'settings-window')
+    await followerStore.startPreviewingExpression(target, 'sad', 'settings-window')
+    await followerStore.stopPreviewingAllExpressions(target, 'settings-window')
     await vi.waitFor(() => expect(followerStore.expressionPreview).toBeNull())
     expect(leaderStore.expressionPreview).toBeNull()
     expect(localStorage.getItem('shared-live2d')).toBeNull()
   })
 
-  it('applies synchronized previews only to the matching Avatar Model', async () => {
+  it('applies synchronized previews only to the matching Character and Avatar Model', async () => {
     const pinia = createPinia()
     setActivePinia(pinia)
     const sharedLive2D = useSharedLive2D()
     const live2d = createLive2D()
+    const characterId = shallowRef('character-iru')
     const avatarModelId = shallowRef('avatar-iru')
     const scope = effectScope()
 
@@ -109,13 +114,24 @@ describe('shared Live2D expression previews', () => {
     live2d.expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
     })))
-    scope.run(() => useSharedLive2DExpressionPreview(live2d, avatarModelId))
+    scope.run(() => useSharedLive2DExpressionPreview(live2d, characterId, avatarModelId))
 
-    await sharedLive2D.startPreviewingExpression('another-avatar', 'happy', 'settings-window')
+    await sharedLive2D.startPreviewingExpression(otherAvatarTarget, 'happy', 'settings-window')
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(0)
 
-    await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await sharedLive2D.startPreviewingExpression(target, 'happy', 'settings-window')
+    await nextTick()
+    expect(renderedExpressionValue(live2d)).toBe(1)
+
+    const expiresAt = sharedLive2D.expressionPreview?.expiresAt
+    characterId.value = 'duplicate-character'
+    await nextTick()
+    expect(renderedExpressionValue(live2d)).toBe(0)
+    await sharedLive2D.renewExpressionPreview({ characterId: 'duplicate-character', avatarModelId: 'avatar-iru' }, 'settings-window')
+    expect(sharedLive2D.expressionPreview?.expiresAt).toBe(expiresAt)
+
+    characterId.value = 'character-iru'
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(1)
 
@@ -127,7 +143,7 @@ describe('shared Live2D expression previews', () => {
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(1)
 
-    await sharedLive2D.stopPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await sharedLive2D.stopPreviewingExpression(target, 'happy', 'settings-window')
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(0)
 
@@ -153,9 +169,9 @@ describe('shared Live2D expression previews', () => {
       live2d.expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
         Parameters: [{ Id: 'ParamEyeSmile', Value: 1, Blend: 'Add' }],
       })))
-      scope.run(() => useSharedLive2DExpressionPreview(live2d, 'avatar-iru'))
+      scope.run(() => useSharedLive2DExpressionPreview(live2d, 'character-iru', 'avatar-iru'))
 
-      await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+      await sharedLive2D.startPreviewingExpression(target, 'happy', 'settings-window')
       await nextTick()
       expect(renderedExpressionValue(live2d)).toBe(1)
 
@@ -177,9 +193,9 @@ describe('shared Live2D expression previews', () => {
     setActivePinia(pinia)
     const sharedLive2D = useSharedLive2D()
 
-    await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'first-window')
-    await sharedLive2D.startPreviewingExpression('avatar-iru', 'sad', 'second-window')
-    await sharedLive2D.stopPreviewingAllExpressions('avatar-iru', 'first-window')
+    await sharedLive2D.startPreviewingExpression(target, 'happy', 'first-window')
+    await sharedLive2D.startPreviewingExpression(target, 'sad', 'second-window')
+    await sharedLive2D.stopPreviewingAllExpressions(target, 'first-window')
     expect(sharedLive2D.expressionPreview).toMatchObject({
       ownerId: 'second-window',
       names: ['sad'],
@@ -202,9 +218,9 @@ describe('shared Live2D expression previews', () => {
     live2d.expressions.register(parseLive2DExpression('sad', 'sad.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: -1, Blend: 'Add' }],
     })))
-    scope.run(() => useSharedLive2DExpressionPreview(live2d, 'avatar-iru'))
+    scope.run(() => useSharedLive2DExpressionPreview(live2d, 'character-iru', 'avatar-iru'))
 
-    await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await sharedLive2D.startPreviewingExpression(target, 'happy', 'settings-window')
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(1)
     expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
@@ -214,11 +230,11 @@ describe('shared Live2D expression previews', () => {
     expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(-1)
     expect(renderedExpressionValue(live2d)).toBe(1)
 
-    await sharedLive2D.renewExpressionPreview('settings-window')
+    await sharedLive2D.renewExpressionPreview(target, 'settings-window')
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(1)
 
-    await sharedLive2D.stopPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await sharedLive2D.stopPreviewingExpression(target, 'happy', 'settings-window')
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(-1)
     expect(live2d.expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(-1)
@@ -247,14 +263,14 @@ describe('shared Live2D expression previews', () => {
     live2d.expressions.register(parseLive2DExpression('excited', 'excited.exp3.json', JSON.stringify({
       Parameters: [{ Id: 'ParamEyeSmile', Value: 2, Blend: 'Add' }],
     })))
-    scope.run(() => useSharedLive2DExpressionPreview(live2d, 'avatar-iru'))
+    scope.run(() => useSharedLive2DExpressionPreview(live2d, 'character-iru', 'avatar-iru'))
 
-    await sharedLive2D.startPreviewingExpression('avatar-iru', 'happy', 'settings-window')
-    await sharedLive2D.startPreviewingExpression('avatar-iru', 'excited', 'settings-window')
+    await sharedLive2D.startPreviewingExpression(target, 'happy', 'settings-window')
+    await sharedLive2D.startPreviewingExpression(target, 'excited', 'settings-window')
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(2)
 
-    await sharedLive2D.stopPreviewingExpression('avatar-iru', 'happy', 'settings-window')
+    await sharedLive2D.stopPreviewingExpression(target, 'happy', 'settings-window')
     await nextTick()
     expect(renderedExpressionValue(live2d)).toBe(2)
 
