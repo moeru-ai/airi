@@ -1,6 +1,6 @@
 import { mergeConfigs, presetWebFonts } from 'unocss'
 
-import { presetWebFontsFonts, sharedUnoConfig } from '../../uno.config'
+import { presetWdxlCdn, presetWebFontsFonts, sharedUnoConfig } from '../../uno.config'
 
 export default mergeConfigs([
   sharedUnoConfig(),
@@ -15,6 +15,7 @@ export default mergeConfigs([
           failure: 10000,
         },
       }),
+      presetWdxlCdn(),
     ],
     rules: [
       ['transition-colors-none', {

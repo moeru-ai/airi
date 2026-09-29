@@ -7,6 +7,8 @@ import StartupOverlay from './startup-overlay.vue'
 
 import { useStartupResourcesStore } from '../../../stores/startup-resources'
 
+import 'virtual:uno.css'
+
 const hosts: HTMLElement[] = []
 
 afterEach(() => {

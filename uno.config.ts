@@ -80,8 +80,46 @@ export function safelistSettingsEntryIcons(): string[] {
   ]
 }
 
+export function presetWdxlFonts(): Record<string, WebFontMeta> {
+  return {
+    'wdxl-sc': {
+      name: 'WDXL Lubrifont SC',
+      provider: 'none',
+    },
+    'wdxl-jp': {
+      name: 'WDXL Lubrifont JP N',
+      provider: 'none',
+    },
+  }
+}
+
+/** Loads the pinned Fontsource faces from CDN for the web app and UI previews. */
+export function presetWdxlCdn(): Preset {
+  return {
+    name: 'wdxl-cdn',
+    preflights: [{
+      getCSS: () => `
+@font-face {
+  font-family: "WDXL Lubrifont SC";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/wdxl-lubrifont-sc@5.3.0/files/wdxl-lubrifont-sc-chinese-simplified-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "WDXL Lubrifont JP N";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("https://cdn.jsdelivr.net/npm/@fontsource/wdxl-lubrifont-jp-n@5.3.0/files/wdxl-lubrifont-jp-n-japanese-400-normal.woff2") format("woff2");
+}`,
+    }],
+  }
+}
+
 export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
   return {
+    ...presetWdxlFonts(),
     'sans': {
       name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
       provider,
@@ -168,6 +206,8 @@ export function sharedUnoConfig() {
     ],
     safelist: [
       ...'prose prose-sm m-auto text-left'.split(' '),
+      'font-wdxl-sc',
+      'font-wdxl-jp',
       ...safelistAllPrimaryBackgrounds(),
       ...safelistSettingsEntryIcons(),
     ],

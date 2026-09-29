@@ -51,6 +51,8 @@
     "@fontsource/gugi": "catalog:",
     "@fontsource/kiwi-maru": "catalog:",
     "@fontsource/m-plus-rounded-1c": "catalog:",
+    "@fontsource/wdxl-lubrifont-jp-n": "catalog:",
+    "@fontsource/wdxl-lubrifont-sc": "catalog:",
     "@formkit/auto-animate": "catalog:",
     "@guiiai/logg": "catalog:",
     "@huggingface/transformers": "catalog:",

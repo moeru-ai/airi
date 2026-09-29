@@ -4,8 +4,6 @@ import { onClickOutside } from '@vueuse/core'
 import { shallowRef, useTemplateRef, watch } from 'vue'
 
 import '@fontsource-variable/comfortaa/wght.css'
-import '@fontsource/wdxl-lubrifont-jp-n/japanese-400.css'
-import '@fontsource/wdxl-lubrifont-sc/chinese-simplified-400.css'
 
 /** Shows startup progress and retains failures until the user retries. */
 const props = defineProps<{
@@ -41,7 +39,7 @@ watch(() => props.phase, (phase) => {
 <template>
   <Teleport to="body">
     <Transition name="startup-exit">
-      <section v-if="phase !== 'done'" class="startup-screen" :class="{ 'startup-screen-error': phase === 'error', 'startup-screen-japanese': locale.startsWith('ja') }">
+      <section v-if="phase !== 'done'" class="startup-screen" :class="{ 'startup-screen-error': phase === 'error' }">
         <div class="startup-brand">
           <img class="startup-logo" :src="logoSrc" alt="">
           <strong class="startup-name">AIRI</strong>
@@ -49,7 +47,7 @@ watch(() => props.phase, (phase) => {
         <div class="startup-status" :class="{ 'startup-status-error': phase === 'error' }" :role="phase === 'error' ? 'alert' : undefined">
           <span v-if="phase === 'loading'" class="startup-label">{{ label }}</span>
           <div v-if="phase === 'error'" class="startup-error">
-            <div class="startup-error-header">
+            <div class="startup-error-header" :class="locale.startsWith('ja') ? 'font-wdxl-jp' : 'font-wdxl-sc'">
               <span i-solar:danger-triangle-bold-duotone class="startup-error-symbol" aria-hidden="true" />
               <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
               <div v-if="errorMessage" ref="detailsElement" class="startup-error-details" @keydown.esc="detailsOpen = false">
@@ -262,15 +260,10 @@ watch(() => props.phase, (phase) => {
   border-bottom: 1px solid #ef444466;
   background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
   color: #dc2626;
-  font-family: "WDXL Lubrifont SC", "Comfortaa Variable", ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(18px, 2vw, 22px);
   font-weight: 400;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.startup-screen-japanese .startup-error-header {
-  font-family: "WDXL Lubrifont JP N", "Comfortaa Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 .startup-error {
