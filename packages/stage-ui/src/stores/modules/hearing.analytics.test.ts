@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useHearingStore } from './hearing'
+
 const analyticsMock = vi.hoisted(() => ({
   allowComposableCall: true,
   trackMicrophonePermissionDenied: vi.fn(),
@@ -58,7 +60,6 @@ describe('useHearingStore analytics lifecycle', () => {
    * await hearingStore.transcription(providerId, provider, model, file)
    */
   it('does not call analytics composables when a recording is transcribed later', async () => {
-    const { useHearingStore } = await import('./hearing')
     const hearingStore = useHearingStore()
     analyticsMock.allowComposableCall = false
 
@@ -88,7 +89,6 @@ describe('useHearingStore analytics lifecycle', () => {
    * await expect(hearingStore.transcription(providerId, provider, model, file)).rejects.toThrow()
    */
   it('normalizes microphone permission failures for analytics', async () => {
-    const { useHearingStore } = await import('./hearing')
     const hearingStore = useHearingStore()
     const permissionError = new DOMException('User denied microphone', 'NotAllowedError')
     transcriptionMock.generateTranscription.mockRejectedValueOnce(permissionError)
@@ -113,7 +113,6 @@ describe('useHearingStore analytics lifecycle', () => {
   }, 10000)
 
   it('passes cancellation to a recorded transcription request', async () => {
-    const { useHearingStore } = await import('./hearing')
     const hearingStore = useHearingStore()
     const controller = new AbortController()
     transcriptionMock.generateTranscription.mockImplementationOnce(options => new Promise<{ text: string }>((_resolve, reject) => {

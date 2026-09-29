@@ -76,7 +76,8 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
     const ticket = ++generation
     activeSession = toValue(options.sessionId)
     activeMode = mode
-    requiresTranscript = mode === 'transcription' || options.needsTranscription()
+    const streamingOnly = hearing.configured && pipeline.supportsStreamInput.value && !pipeline.supportsGenerateOutput.value
+    requiresTranscript = mode === 'transcription' || options.needsTranscription() || streamingOnly
     transcript.value = ''
     input.reset()
     phase.value = 'starting'

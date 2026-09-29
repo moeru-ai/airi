@@ -560,6 +560,29 @@ describe('chat store contract', () => {
     expect(secondPrompt.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'second recording' })
   })
 
+  it('cancels lazy transcription for stored audio when the chat turn stops', async () => {
+    transcriptionMocks.configured = true
+    let transcriptionSignal: AbortSignal | undefined
+    transcriptionMocks.transcribe.mockImplementation((_file: Blob, abortSignal?: AbortSignal) => new Promise<string>((_resolve, reject) => {
+      transcriptionSignal = abortSignal
+      abortSignal?.addEventListener('abort', () => reject(abortSignal.reason), { once: true })
+    }))
+    sessionMessages['session-1'].push({
+      role: 'user',
+      id: 'recorded-turn',
+      content: [{ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }],
+    })
+
+    const store = useChatStore()
+    const sending = store.send({ sessionId: 'session-1', text: 'Next turn' })
+    await vi.waitFor(() => expect(transcriptionSignal).toBeDefined())
+    await store.cancelPendingSends('session-1')
+    await sending
+
+    expect(transcriptionSignal?.aborted).toBe(true)
+    expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
   it('cancels vision preprocessing when its chat turn is cancelled', async () => {
     visionMocks.configured = true
     let visionSignal: AbortSignal | undefined

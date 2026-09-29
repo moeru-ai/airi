@@ -1,4 +1,4 @@
-import type { VoiceComposerOptions } from './use-voice-composer'
+import type { VoiceComposerMode, VoiceComposerOptions } from './use-voice-composer'
 
 import en from '@proj-airi/i18n/locales/en'
 
@@ -29,7 +29,7 @@ function microphone() {
   return destination.stream
 }
 
-function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockResolvedValue(undefined), transcription = false) {
+function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockResolvedValue(undefined), transcription = false, mode: VoiceComposerMode = transcription ? 'transcription' : 'audio') {
   let voice!: ReturnType<typeof useVoiceComposer>
   const session = shallowRef('session-1')
   const errors = vi.fn()
@@ -45,7 +45,7 @@ function mountVoice(complete = vi.fn<VoiceComposerOptions['complete']>().mockRes
         onClick: () => {
           for (const context of contexts)
             void context.resume()
-          void voice.start(transcription ? 'transcription' : 'audio')
+          void voice.start(mode)
         },
       }, 'Record')
     },
@@ -120,6 +120,31 @@ describe('manual voice recording lifecycle', () => {
     expect(errors).not.toHaveBeenCalled()
     expect(complete).toHaveBeenCalledOnce()
     expect(complete.mock.calls[0][0].text).toBe('你好世界')
+  })
+
+  it('saves a live transcript for native audio when file transcription is unavailable', async () => {
+    class Recognition {
+      onresult?: (event: { resultIndex: number, results: { isFinal: boolean, 0: { transcript: string } }[] }) => void
+      onend?: () => void
+      start() {}
+      stop() {
+        this.onresult?.({ resultIndex: 0, results: [{ isFinal: true, 0: { transcript: 'saved words' } }] })
+        this.onend?.()
+      }
+
+      abort() { this.onend?.() }
+    }
+    vi.stubGlobal('SpeechRecognition', Recognition)
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(microphone())
+    const { voice, complete, screen } = mountVoice(undefined, true, 'audio')
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => voice.phase.value).toBe('recording')
+
+    await voice.finish()
+
+    expect(complete).toHaveBeenCalledOnce()
+    expect(complete.mock.calls[0][0].mode).toBe('audio')
+    expect(complete.mock.calls[0][0].audio.transcript).toBe('saved words')
   })
 
   it('cancels a streaming stop when recognition never reports its final result', async () => {

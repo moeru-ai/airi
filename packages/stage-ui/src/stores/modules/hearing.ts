@@ -644,6 +644,7 @@ export function useTranscriptionSession() {
     stream: MediaStream
     providerId: string
     callbacks: StreamingTranscriptionCallbacks
+    stopSignal?: AbortSignal
     activeSegment?: VadSpeechSegment
   }>()
 
@@ -700,6 +701,11 @@ export function useTranscriptionSession() {
     }
 
     return providersStore.getTranscriptionFeatures(providerId).supportsStreamInput
+  })
+
+  const supportsGenerateOutput = computed(() => {
+    const providerId = activeTranscriptionProvider.value
+    return providerId ? providersStore.getTranscriptionFeatures(providerId).supportsGenerate : false
   })
 
   const DEFAULT_STREAM_IDLE_TIMEOUT = 15000
@@ -840,7 +846,7 @@ export function useTranscriptionSession() {
   }
 
   /** Finishes one VAD segment without aborting the Provider's final response. */
-  async function finishRealtimeTranscription() {
+  async function finishRealtimeTranscription(stopSignal?: AbortSignal) {
     const session = streamingSession.value
     if (!session)
       return
@@ -857,7 +863,7 @@ export function useTranscriptionSession() {
 
     finishingSession.value = session
     try {
-      return await session.result.text
+      return await waitForStreamingStop(session.result.text, session.abortController, stopSignal)
     }
     catch (err) {
       if (!isExpectedStreamStopError(err)) {
@@ -880,6 +886,7 @@ export function useTranscriptionSession() {
     const realtimeSession = streamingSession.value
     if (vadSession) {
       streamingVadSession.value = undefined
+      vadSession.stopSignal = stopSignal
       vadSession.vad.dispose()
       if (abort) {
         const text = await stopRealtimeTranscription(realtimeSession, true, disposeProviderId, stopSignal)
@@ -1055,7 +1062,7 @@ export function useTranscriptionSession() {
     const lifecycle = createVadStreamingSession<VadSpeechSegment>({
       start: async segment => await startVadRealtimeTranscription(providerId, options, vadSession, segment),
       stop: async () => {
-        await finishRealtimeTranscription()
+        await finishRealtimeTranscription(vadSession.stopSignal)
       },
       onError: (err) => {
         error.value = errorMessage(err)
@@ -1429,6 +1436,7 @@ export function useTranscriptionSession() {
     releaseStreamingTranscriptionConsumer,
     stopStreamingTranscription,
     supportsStreamInput,
+    supportsGenerateOutput,
   }
 }
 
