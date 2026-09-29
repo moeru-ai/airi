@@ -49,7 +49,7 @@ import { setupChatWindowManager } from './windows/chat'
 import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupEditorWindowManager } from './windows/editor'
-import { setupInlayWindowReusable } from './windows/inlay'
+import { setupInlayWindowReusable, setupVoiceIndicatorWindowReusable } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
@@ -253,8 +253,12 @@ app.whenReady().then(async () => {
     dependsOn: { autoUpdater, i18n, serverChannel },
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
   })
-  const inlayWindow = injeca.provide('windows:inlay', {
+  const indicatorWindow = injeca.provide('windows:voice-indicator', {
     dependsOn: { i18n, serverChannel },
+    build: ({ dependsOn }) => setupVoiceIndicatorWindowReusable(dependsOn),
+  })
+  const inlayWindow = injeca.provide('windows:inlay', {
+    dependsOn: { i18n, serverChannel, indicatorWindow },
     build: ({ dependsOn }) => setupInlayWindowReusable(dependsOn),
   })
 
@@ -295,7 +299,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, inlayWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, globalShortcut, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, inlayWindow, indicatorWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, globalShortcut, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {

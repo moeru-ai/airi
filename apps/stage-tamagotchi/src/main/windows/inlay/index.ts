@@ -12,18 +12,20 @@ import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs
 import { createReusableWindow } from '../../libs/electron/window-manager/reusable'
 import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
 import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
-import { registerVoiceInlayBounds } from './presentation'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
+
+export { setupVoiceIndicatorWindowReusable } from './indicator'
 
 export function setupInlayWindowReusable(params: {
   serverChannel: ServerChannel
   i18n: I18n
+  indicatorWindow: () => Promise<BrowserWindow>
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
       title: 'Inlay',
       width: 450,
-      height: 150,
+      height: 140,
       show: false,
       icon,
       webPreferences: {
@@ -49,11 +51,11 @@ export function setupInlayWindowReusable(params: {
       },
       { breakpoints: resolutionBreakpoints },
     )
-    const height = width / 4
+    const height = 140
 
     window.setBounds({
       width,
-      height: width / 4,
+      height,
       x: displayBounds.x + (displayBounds.width - width) / 2, // Center horizontally
       y: mapForBreakpoints(
         displayBounds.height,
@@ -67,8 +69,7 @@ export function setupInlayWindowReusable(params: {
 
     protectPrivilegedWindowNavigation(window)
 
-    registerVoiceInlayBounds(window, window.getBounds())
-    await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
+    await setupInlayWindowInvokes({ inlayWindow: window, indicatorWindow: params.indicatorWindow, serverChannel: params.serverChannel, i18n: params.i18n })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay', {
       query: { 'synced-leader': 'false' },

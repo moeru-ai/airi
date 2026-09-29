@@ -54,6 +54,7 @@ import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useVoiceInlay } from '../composables/use-voice-inlay'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { useVoiceInlayStore } from '../stores/voice-inlay'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 import { createVoiceInputInteractionLifecycle } from '../utils/voice-input-lifecycle'
@@ -376,6 +377,8 @@ const cardStore = useAiriCardStore()
 const { cards, wakeWordOwnership } = storeToRefs(cardStore)
 const speechOutput = useSpeechOutputControlStore()
 const voiceInlay = useVoiceInlay()
+const voiceInlayState = useVoiceInlayStore()
+let partialVoiceDraft: { sessionId: string, baseText: string, latestText: string } | undefined
 const pushToTalkEnabled = computed(() => mode.value === 'push-to-talk')
 let keywordListener: KeywordListener | undefined
 let keywordGeneration = 0
@@ -388,7 +391,11 @@ let manualCardId: string | undefined
 let streamingSessionId: string | undefined
 const segmentOwners: Array<{ sessionId: string, cardId: string, inputMode: 'always' | 'push-to-talk' | 'wake-word' }> = []
 const streamingTranscriptionUnavailable = ref(false)
-const shouldUseStreamInput = computed(() => mode.value === 'always' && supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
+const shouldUseStreamInput = computed(() => {
+  const supportsCurrentMode = mode.value === 'always'
+    || (mode.value === 'wake-word' && activeTranscriptionProvider.value === 'apple-speech-transcription')
+  return supportsCurrentMode && supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value
+})
 const voiceTranscriptBuffers = new Map<string, ReturnType<typeof createTranscriptBuffer>>()
 
 function bufferVoiceTranscript(text: string, sessionId: string | undefined) {
@@ -519,8 +526,8 @@ function inspectVoiceInputProviderRequestGate(generation: unknown) {
  * Captures whether live microphone audio can still leave the app for streaming ASR.
  */
 function inspectVoiceInputStreamingRequestGate() {
-  const audioEnabled = mode.value === 'always' && enabled.value
-  const suppressed = isVoiceInputSuppressed()
+  const audioEnabled = enabled.value && (mode.value === 'always' || (mode.value === 'wake-word' && !!wakeSessionId))
+  const suppressed = mode.value === 'always' && isVoiceInputSuppressed()
 
   return {
     enabled: audioEnabled,
@@ -642,6 +649,38 @@ async function sendVoiceInputTextToChat(text: string, sessionId: string | undefi
   }
 }
 
+async function showPartialVoiceDraft(text: string, sessionId: string, cardId: string) {
+  if (!text.trim() || autoSendEnabled.value)
+    return
+
+  if (partialVoiceDraft?.sessionId === sessionId) {
+    partialVoiceDraft.latestText = text
+    const { baseText } = partialVoiceDraft
+    voiceInlayState.editVoiceDraft(sessionId, baseText ? `${baseText}\n${text}` : text)
+    return
+  }
+
+  partialVoiceDraft = { sessionId, baseText: voiceInlayState.drafts[sessionId]?.text ?? '', latestText: text }
+  voiceInlayState.beginDraftTranscription(sessionId)
+  try {
+    await voiceInlay.queueVoiceDraft({ cardId, sessionId, text })
+  }
+  catch (error) {
+    reportVoiceInputFailure('show voice draft', error)
+  }
+}
+
+function finishPartialVoiceDraft(text: string, sessionId: string) {
+  if (partialVoiceDraft?.sessionId !== sessionId)
+    return false
+
+  const { baseText } = partialVoiceDraft
+  voiceInlayState.editVoiceDraft(sessionId, baseText ? `${baseText}\n${text}` : text)
+  voiceInlayState.finishDraftTranscription(sessionId)
+  partialVoiceDraft = undefined
+  return true
+}
+
 /** Sends each completed browser-recognition phrase. Other providers emit deltas here. */
 function handleStreamingSentenceEnd(delta: string) {
   if (isVoiceInputSuppressed())
@@ -659,29 +698,46 @@ function handleStreamingSentenceEnd(delta: string) {
 
 /** Replaces the caption with the provider's current volatile transcript. */
 function handleStreamingTranscriptionUpdate(text: string) {
-  if (isVoiceInputSuppressed())
+  if (mode.value === 'always' && isVoiceInputSuppressed())
     return
 
   replaceHearingInput(text)
   postSpeakerCaption(text, 'replace')
+  if (mode.value === 'wake-word' && wakeSessionId) {
+    const cardId = chatSession.sessionMetas[wakeSessionId]?.characterId ?? cardStore.activeCardId
+    void showPartialVoiceDraft(text, wakeSessionId, cardId)
+  }
 }
 
 /** Submits one complete non-browser streaming-ASR utterance. */
 function handleStreamingSpeechEnd(text: string) {
-  if (isVoiceInputSuppressed())
+  if (mode.value === 'always' && isVoiceInputSuppressed())
     return
   if (hearingStore.activeTranscriptionProvider === 'browser-web-speech-api')
     return
-  const finalText = text
-  if (!finalText.trim())
+  const sessionId = streamingSessionId
+  let finalText = text
+  if (!finalText.trim() && partialVoiceDraft && partialVoiceDraft.sessionId === sessionId)
+    finalText = partialVoiceDraft.latestText
+  if (!finalText.trim()) {
+    streamingSessionId = undefined
+    if (mode.value === 'wake-word')
+      void finishWakeInput()
     return
+  }
   const sourceId = currentHearingInputSourceId()
   replaceHearingInput(finalText)
   scheduleHearingInputClear(sourceId)
   activeHearingInputSourceId = undefined
   postSpeakerCaption(finalText, 'replace')
-  void sendVoiceInputTextToChat(finalText, streamingSessionId)
+  const draftShown = sessionId ? finishPartialVoiceDraft(finalText, sessionId) : false
   streamingSessionId = undefined
+  void (async () => {
+    if (!draftShown)
+      await sendVoiceInputTextToChat(finalText, sessionId)
+    if (mode.value === 'wake-word')
+      await finishWakeInput()
+  })().catch(error => reportVoiceInputFailure('finish streaming speech', error))
 }
 
 /** Reads the listening generation attached to recorder-backed transcription metadata. */
@@ -749,7 +805,17 @@ const voiceInputSession = useVoiceInputSession(stream, {
     if (mode.value === 'wake-word' && trigger !== 'manual')
       wakeSegmentComplete = true
   },
-  onTranscriptionResult: ({ text, metadata }) => {
+  onTranscriptionStart: () => {
+    partialVoiceDraft = undefined
+  },
+  onTranscriptionPartial: async ({ text, metadata }) => {
+    const sessionId = typeof metadata?.sessionId === 'string' ? metadata.sessionId : undefined
+    if (!sessionId || metadata?.inputMode === 'always')
+      return
+    const cardId = typeof metadata?.cardId === 'string' ? metadata.cardId : cardStore.activeCardId
+    await showPartialVoiceDraft(text, sessionId, cardId)
+  },
+  onTranscriptionResult: async ({ text, metadata }) => {
     postSpeakerCaption(text)
     toast(`Voice input transcribed: ${text}`)
     if (metadata?.inputMode === 'always') {
@@ -758,13 +824,17 @@ const voiceInputSession = useVoiceInputSession(stream, {
     else {
       const sessionId = typeof metadata?.sessionId === 'string' ? metadata.sessionId : undefined
       const cardId = typeof metadata?.cardId === 'string' ? metadata.cardId : cardStore.activeCardId
-      if (sessionId)
-        void sendVoiceInputTextToChat(text, sessionId, cardId)
+      if (sessionId && !finishPartialVoiceDraft(text, sessionId)) {
+        await sendVoiceInputTextToChat(text, sessionId, cardId)
+      }
       if (metadata?.inputMode === 'wake-word')
-        void finishWakeInput()
+        await finishWakeInput()
     }
   },
   onTranscriptionEmpty: () => {
+    if (partialVoiceDraft)
+      voiceInlayState.finishDraftTranscription(partialVoiceDraft.sessionId)
+    partialVoiceDraft = undefined
     if (mode.value === 'wake-word')
       void finishWakeInput()
     if (transcriptionError.value) {
@@ -775,6 +845,9 @@ const voiceInputSession = useVoiceInputSession(stream, {
     toast('Voice input transcribed no text.')
   },
   onTranscriptionError: ({ error }) => {
+    if (partialVoiceDraft)
+      voiceInlayState.finishDraftTranscription(partialVoiceDraft.sessionId)
+    partialVoiceDraft = undefined
     if (mode.value === 'wake-word')
       void finishWakeInput()
     reportVoiceInputFailure('transcribe speech', error)
@@ -804,7 +877,13 @@ async function startAudioInteractionConsumers() {
 
     await transcribeForMediaStream(currentStream, {
       consumerId: transcriptionConsumerId,
-      onSpeechStart: () => { streamingSessionId = chatSession.activeSessionId },
+      onSpeechStart: () => {
+        streamingSessionId = mode.value === 'wake-word' ? wakeSessionId : chatSession.activeSessionId
+        if (mode.value === 'wake-word' && wakeWindowTimer) {
+          clearTimeout(wakeWindowTimer)
+          wakeWindowTimer = undefined
+        }
+      },
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
       onTranscriptionUpdate: handleStreamingTranscriptionUpdate,
@@ -854,10 +933,15 @@ async function stopAudioInteractionConsumers(options: StopAudioInteractionOption
 async function finishWakeInput() {
   if (!wakeSessionId)
     return
+  if (partialVoiceDraft?.sessionId === wakeSessionId) {
+    voiceInlayState.finishDraftTranscription(wakeSessionId)
+    partialVoiceDraft = undefined
+  }
   if (wakeWindowTimer)
     clearTimeout(wakeWindowTimer)
   wakeWindowTimer = undefined
   wakeSessionId = undefined
+  streamingSessionId = undefined
   wakeSegmentComplete = false
   try {
     await voiceInputInteractionLifecycle.stop({ flushTranscript: false })

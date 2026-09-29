@@ -68,6 +68,7 @@ export interface VoiceInputSessionOptions {
   onRecordingReady?: (event: VoiceInputSessionEvent) => Record<string, unknown> | void | Promise<Record<string, unknown> | void>
   onRecordingSkipped?: (event: VoiceInputSessionEvent) => void | Promise<void>
   onTranscriptionStart?: (event: VoiceInputSessionEvent) => void | Promise<void>
+  onTranscriptionPartial?: (event: VoiceInputSessionEvent & { text: string }) => void | Promise<void>
   onTranscriptionResult?: (event: VoiceInputSessionEvent & { text: string }) => void | Promise<void>
   onTranscriptionEmpty?: (event: VoiceInputSessionEvent & { text: string }) => void | Promise<void>
   onTranscriptionError?: (event: VoiceInputSessionEvent & { error: unknown }) => void | Promise<void>
@@ -362,7 +363,12 @@ export function useVoiceInputSession(
       if (isStaleTranscriptionTicket(ticket, trigger, 'transcription-started'))
         return
 
-      text = await transcribeForRecording(recording) ?? ''
+      text = await transcribeForRecording(recording, options.onTranscriptionPartial
+        ? async (partial) => {
+          if (ticket.isCurrent())
+            await options.onTranscriptionPartial?.({ ...readyEvent, text: partial })
+        }
+        : undefined) ?? ''
     }
     catch (error) {
       if (isStaleTranscriptionTicket(ticket, trigger, 'transcription-error'))

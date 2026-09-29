@@ -1,36 +1,40 @@
-import type { BrowserWindow, Rectangle } from 'electron'
+import type { BrowserWindow } from 'electron'
 
 import type { VoiceInlayPresentation } from '../../../shared/eventa'
 
-const draftBounds = new WeakMap<BrowserWindow, Rectangle>()
+type VoiceWindow = Pick<BrowserWindow, 'getBounds' | 'setBounds' | 'hide' | 'show' | 'showInactive'>
 
-/** Keeps the editable inlay bounds so a listening capsule can return to them. */
-export function registerVoiceInlayBounds(window: BrowserWindow, bounds: Rectangle) {
-  draftBounds.set(window, bounds)
-}
-
-/** Resizes and shows the inlay for the active voice interaction. */
-export function presentVoiceInlay(window: BrowserWindow, presentation: VoiceInlayPresentation, focus: boolean) {
-  const bounds = draftBounds.get(window)
-  if (!bounds)
-    throw new Error('Voice inlay bounds are unavailable')
-
+/** Shows the listening indicator or the editable draft in its own window. */
+export function presentVoiceInlay(
+  inlayWindow: VoiceWindow,
+  indicatorWindow: VoiceWindow,
+  presentation: VoiceInlayPresentation,
+  focus: boolean,
+) {
   if (presentation === 'listening') {
+    const bounds = inlayWindow.getBounds()
     const width = Math.min(280, bounds.width)
     const height = 56
-    window.setBounds({
+    indicatorWindow.setBounds({
       x: Math.round(bounds.x + (bounds.width - width) / 2),
       y: Math.round(bounds.y + bounds.height - height),
       width,
       height,
     })
+    inlayWindow.hide()
+    indicatorWindow.showInactive()
+    return
   }
-  else {
-    window.setBounds(bounds)
-  }
-  window.setIgnoreMouseEvents(presentation === 'listening')
+
+  indicatorWindow.hide()
   if (focus)
-    window.show()
+    inlayWindow.show()
   else
-    window.showInactive()
+    inlayWindow.showInactive()
+}
+
+/** Hides both voice windows when no listening state or draft remains. */
+export function hideVoiceInlay(inlayWindow: VoiceWindow, indicatorWindow: VoiceWindow) {
+  indicatorWindow.hide()
+  inlayWindow.hide()
 }

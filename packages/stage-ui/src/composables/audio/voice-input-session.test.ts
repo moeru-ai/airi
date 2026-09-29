@@ -21,7 +21,7 @@ const vadMock = vi.hoisted(() => ({
 }))
 
 const hearingPipelineMock = vi.hoisted(() => ({
-  transcribeForRecording: vi.fn(async (_recording: Blob | null | undefined) => ''),
+  transcribeForRecording: vi.fn(async (_recording: Blob | null | undefined, _onPartial?: (text: string) => void | Promise<void>) => ''),
 }))
 
 vi.mock('../../workers/vad/process.worklet?worker&url', () => ({
@@ -162,7 +162,35 @@ describe('useVoiceInputSession', () => {
     await expect(session.stopSegment(trigger)).resolves.toBeUndefined()
     await vi.waitFor(() => expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledOnce())
 
-    expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledWith(recorderRecording)
+    expect(hearingPipelineMock.transcribeForRecording).toHaveBeenCalledWith(recorderRecording, undefined)
+  })
+
+  it('forwards partial text before the final recording result', async () => {
+    const { useVoiceInputSession } = await import('./voice-input-session')
+    const events: string[] = []
+    audioRecorderMock.startRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = true
+    })
+    audioRecorderMock.stopRecord.mockImplementation(async () => {
+      audioRecorderMock.isRecording.value = false
+      await audioRecorderMock.onStopRecordHook?.(new Blob(['speech'], { type: 'audio/wav' }))
+    })
+    hearingPipelineMock.transcribeForRecording.mockImplementationOnce(async (_recording, onPartial) => {
+      await onPartial?.('今')
+      await onPartial?.('今天')
+      return '今天天气怎么样'
+    })
+
+    const session = useVoiceInputSession(shallowRef(createMediaStream()), {
+      volumeFallback: { enabled: false },
+      onRecordingReady: () => ({ sessionId: 'session-a' }),
+      onTranscriptionPartial: ({ text, metadata }) => { events.push(`${metadata?.sessionId}:${text}`) },
+      onTranscriptionResult: ({ text }) => { events.push(`final:${text}`) },
+    })
+
+    await session.startSegment('manual')
+    await session.stopSegment('manual')
+    expect(events).toEqual(['session-a:今', 'session-a:今天', 'final:今天天气怎么样'])
   })
 
   it('discards a VAD recording when the detected speech is shorter than the minimum duration', async () => {

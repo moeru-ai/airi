@@ -47,6 +47,12 @@ describe('voice inlay cross-window state', () => {
 
     leaderStore.queueVoiceDraft({ cardId: 'a', sessionId: 'session-a', text: 'hello' })
     await vi.waitFor(() => expect(followerStore.activeDraft?.text).toBe('hello'))
+    leaderStore.beginDraftTranscription('session-a')
+    await vi.waitFor(() => expect(followerStore.transcribingSessionId).toBe('session-a'))
+    leaderStore.editVoiceDraft('session-a', 'hello world')
+    await vi.waitFor(() => expect(followerStore.activeDraft?.text).toBe('hello world'))
+    leaderStore.finishDraftTranscription('session-a')
+    await vi.waitFor(() => expect(followerStore.transcribingSessionId).toBeUndefined())
     const leaderMutationsAfterSync = leaderMutations
     await new Promise(resolve => setTimeout(resolve, 50))
 

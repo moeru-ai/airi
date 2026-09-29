@@ -1310,7 +1310,7 @@ export function useTranscriptionSession() {
     }
   }
 
-  async function transcribeForRecording(recording: Blob | null | undefined) {
+  async function transcribeForRecording(recording: Blob | null | undefined, onPartial?: (text: string) => void | Promise<void>) {
     const requestId = ++latestRecordingRequest
     error.value = undefined
 
@@ -1358,7 +1358,19 @@ export function useTranscriptionSession() {
         undefined,
         { providerOptions },
       )
-      const text = result.mode === 'stream' ? await result.text : result.text
+      let latestPartial = ''
+      const partials = result.mode === 'stream' && result.textStream && onPartial
+        ? (async () => {
+            for await (const partial of result.textStream) {
+              if (requestId !== latestRecordingRequest)
+                break
+              latestPartial = partial
+              await onPartial(partial)
+            }
+          })()
+        : Promise.resolve()
+      const [finalText] = await Promise.all([result.text, partials])
+      const text = finalText || latestPartial
       if (requestId !== latestRecordingRequest)
         return text
 

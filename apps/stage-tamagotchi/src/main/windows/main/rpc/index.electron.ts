@@ -35,7 +35,7 @@ import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
-import { presentVoiceInlay } from '../../inlay/presentation'
+import { hideVoiceInlay, presentVoiceInlay } from '../../inlay/presentation'
 import { centerWindowOnDisplay } from '../../shared/display'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
@@ -45,6 +45,7 @@ export async function setupMainWindowElectronInvokes(params: {
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
   inlayWindow: () => Promise<BrowserWindow>
+  indicatorWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
@@ -80,9 +81,12 @@ export async function setupMainWindowElectronInvokes(params: {
   const stopChatButtonState = params.chatWindow.onButtonStateChange(state => context.emit(electronChatButtonStateChanged, state))
   params.window.once('closed', stopChatButtonState)
   defineInvokeHandler(context, electronVoiceInlayShow, async ({ focus, presentation }) => {
-    const inlay = await params.inlayWindow()
-    presentVoiceInlay(inlay, presentation, focus)
+    const [inlay, indicator] = await Promise.all([params.inlayWindow(), params.indicatorWindow()])
+    presentVoiceInlay(inlay, indicator, presentation, focus)
   })
-  defineInvokeHandler(context, electronVoiceInlayHide, async () => (await params.inlayWindow()).hide())
+  defineInvokeHandler(context, electronVoiceInlayHide, async () => {
+    const [inlay, indicator] = await Promise.all([params.inlayWindow(), params.indicatorWindow()])
+    hideVoiceInlay(inlay, indicator)
+  })
   defineInvokeHandler(context, noticeWindowEventa.openWindow, payload => params.noticeWindow.open(payload))
 }

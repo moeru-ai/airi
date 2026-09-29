@@ -9,10 +9,11 @@ import { ipcMain } from 'electron'
 
 import { electronVoiceInlayHide, electronVoiceInlayShow } from '../../../../shared/eventa'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
-import { presentVoiceInlay } from '../presentation'
+import { hideVoiceInlay, presentVoiceInlay } from '../presentation'
 
 export async function setupInlayWindowInvokes(params: {
   inlayWindow: BrowserWindow
+  indicatorWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
 }) {
@@ -22,8 +23,8 @@ export async function setupInlayWindowInvokes(params: {
   ipcMain.setMaxListeners(0)
 
   const { context } = createContext(ipcMain, params.inlayWindow)
-  defineInvokeHandler(context, electronVoiceInlayHide, () => params.inlayWindow.hide())
-  defineInvokeHandler(context, electronVoiceInlayShow, ({ focus, presentation }) => presentVoiceInlay(params.inlayWindow, presentation, focus))
+  defineInvokeHandler(context, electronVoiceInlayHide, async () => hideVoiceInlay(params.inlayWindow, await params.indicatorWindow()))
+  defineInvokeHandler(context, electronVoiceInlayShow, async ({ focus, presentation }) => presentVoiceInlay(params.inlayWindow, await params.indicatorWindow(), presentation, focus))
 
   await setupBaseWindowElectronInvokes({
     context,

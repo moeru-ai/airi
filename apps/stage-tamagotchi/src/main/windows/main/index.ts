@@ -54,6 +54,7 @@ export async function setupMainWindow(params: {
   settingsWindow: SettingsWindowManager
   chatWindow: ChatWindowManager
   inlayWindow: () => Promise<BrowserWindow>
+  indicatorWindow: () => Promise<BrowserWindow>
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
@@ -181,6 +182,7 @@ export async function setupMainWindow(params: {
     settingsWindow: params.settingsWindow,
     chatWindow: params.chatWindow,
     inlayWindow: params.inlayWindow,
+    indicatorWindow: params.indicatorWindow,
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
     autoUpdater: params.autoUpdater,
