@@ -55,6 +55,13 @@ Existing `speech-noop` selections are preserved because they may represent
 intentional silence. Users can explicitly choose **Inherit global settings**
 in the editor; importing or saving an unrelated card field does not change it.
 
+## Character sessions
+
+Chat sends resolve the character from the target session metadata. The selected window does not own another session's provider or prompt.
+Sessions generate replies concurrently. Each session keeps its own ordered queue, stream state, and cancellation scope.
+`streamingMessagesBySession` supplies the visible stream for a selected session. Hooks carry `sessionId` through the context bridge and speech pipeline.
+Speech settings stay fixed for each turn. Model settings refresh before each request for that turn's character.
+
 ## Button analytics
 
 Register the shared plugin once in each Vue application:

@@ -245,6 +245,11 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return cards.value.get(id)
   }
 
+  /** Reads a card prompt without changing the selected character. */
+  function getSystemPromptForCard(id: string) {
+    return resolveSystemPrompt(cards.value.get(id))
+  }
+
   function updateActiveCardModules(patch: (extension: AiriExtension) => Partial<AiriExtension['modules']>) {
     const cardId = activeCardId.value
     const card = cards.value.get(cardId)
@@ -600,6 +605,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardSpeech,
     updateActiveCardVision,
     getCard,
+    getSystemPromptForCard,
     resetState,
     initialize,
     activateCard,

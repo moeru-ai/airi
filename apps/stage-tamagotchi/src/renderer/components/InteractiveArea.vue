@@ -89,7 +89,7 @@ const { enabled: microphoneEnabled, permissionGranted: microphonePermissionGrant
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
+const { activeSendSessionId, activeStreamingMessage, sending, streamingMessagesBySession } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
 const composer = useChatComposer<ChatImageAttachment>({
@@ -146,7 +146,8 @@ const latestImageEntries = computed(() => {
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
-  generating: computed(() => sending.value && activeSendSessionId.value === activeSessionId.value),
+  generating: computed(() => !!streamingMessagesBySession.value[activeSessionId.value]
+    || (sending.value && activeSendSessionId.value === activeSessionId.value)),
   hasSubmission,
   submit: async (hooks) => {
     await composer.submit({
@@ -213,10 +214,10 @@ watch(sendMode, () => {
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
-const isActiveSessionSending = computed(() => sending.value && activeSendSessionId.value === activeSessionId.value)
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const isActiveSessionSending = computed(() => !!streamingMessagesBySession.value[activeSessionId.value]
+  || (sending.value && activeSendSessionId.value === activeSessionId.value))
+const visibleStreamingMessage = computed(() => streamingMessagesBySession.value[activeSessionId.value]
+  ?? (activeSendSessionId.value === activeSessionId.value ? activeStreamingMessage.value : streamingMessage.value))
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload

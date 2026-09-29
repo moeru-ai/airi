@@ -861,6 +861,38 @@ describe('interactive area synchronized state', () => {
     expect(messageBehindComposer.textContent).toBe(targetText)
   })
 
+  it.each([
+    ['desktop', InteractiveArea],
+    ['web', SharedInteractiveArea],
+    ['mobile', MobileInteractiveArea],
+  ] as const)('shows the selected session when %s receives concurrent streams', async (_surface, component) => {
+    const { chat, screen } = await renderArea(component)
+    chat.$patch({
+      activeSendSessionId: 'session-a',
+      sending: true,
+      streamingMessagesBySession: {
+        'session-a': {
+          id: 'concurrent-a',
+          role: 'assistant',
+          content: 'Concurrent reply A',
+          slices: [{ type: 'text', text: 'Concurrent reply A' }],
+          tool_results: [],
+        },
+        'session-b': {
+          id: 'concurrent-b',
+          role: 'assistant',
+          content: 'Concurrent reply B',
+          slices: [{ type: 'text', text: 'Concurrent reply B' }],
+          tool_results: [],
+        },
+      },
+    })
+    await nextTick()
+
+    await expect.element(screen.getByText('Concurrent reply B')).toBeVisible()
+    await expect.element(screen.getByText('Concurrent reply A')).not.toBeInTheDocument()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743121861
   it('renders the active synchronized stream through the real chat history for Issue #2085', async () => {
     // ROOT CAUSE:

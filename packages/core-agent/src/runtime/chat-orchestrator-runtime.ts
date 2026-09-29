@@ -113,9 +113,9 @@ export type ChatAttachment
  */
 export interface ChatOrchestratorSendOptions {
   /** Provider model identifier used for the outbound LLM request. */
-  model: string
+  model?: string
   /** Concrete chat provider implementation selected by the caller. */
-  chatProvider: GenerationProvider
+  chatProvider?: GenerationProvider
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
   /** Media appended to the durable user message and the model request. */
@@ -134,6 +134,17 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /** Reads this session's current character settings when its queued send starts. */
+  resolveRequest?: () => Promise<{
+    model: string
+    chatProvider: GenerationProvider
+    providerId: string
+    supportsAudioInput?: boolean
+    temperature?: number
+    topP?: number
+  }>
+  /** Reads the same character before each model request. */
+  resolveStep?: StreamOptions['resolveStep']
 }
 
 interface QueuedSend {
@@ -229,6 +240,8 @@ export interface ChatOrchestratorRuntimeState {
   activeSendSessionId?: string
   /** Latest assistant stream snapshot owned by the active send session. */
   activeStreamingMessage?: StreamingAssistantMessage
+  /** Active assistant streams keyed by their owning chat session. */
+  streamingMessagesBySession: Record<string, StreamingAssistantMessage>
   /** Number of sends waiting behind the active one. */
   pendingQueuedSendCount: number
 }
@@ -376,11 +389,13 @@ export interface ChatOrchestratorRuntimeDeps {
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
   /** Called after assistant streaming and hook finalization. */
   onAssistantTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
@@ -437,6 +452,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   let sending = false
   let activeSendSessionId: string | undefined
   let activeStreamingMessage: StreamingAssistantMessage | undefined
+  const streamingMessages = new Map<string, StreamingAssistantMessage>()
   let pendingQueuedSends: QueuedSend[] = []
 
   function emitStateChange() {
@@ -444,6 +460,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       sending,
       activeSendSessionId,
       activeStreamingMessage,
+      streamingMessagesBySession: Object.fromEntries(streamingMessages),
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
   }
@@ -467,8 +484,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   function beginStream(sessionId: string, message: StreamingAssistantMessage) {
     sending = true
-    activeSendSessionId = sessionId
-    activeStreamingMessage = cloneStreamingMessage(message)
+    streamingMessages.set(sessionId, cloneStreamingMessage(message))
+    activeSendSessionId = isForegroundSession(sessionId) || !activeSendSessionId ? sessionId : activeSendSessionId
+    activeStreamingMessage = streamingMessages.get(activeSendSessionId)
     emitStateChange()
 
     if (isForegroundSession(sessionId))
@@ -476,10 +494,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function updateStream(sessionId: string, message: StreamingAssistantMessage) {
-    if (sessionId === activeSendSessionId) {
-      activeStreamingMessage = cloneStreamingMessage(message)
-      emitStateChange()
-    }
+    streamingMessages.set(sessionId, cloneStreamingMessage(message))
+    if (isForegroundSession(sessionId))
+      activeSendSessionId = sessionId
+    activeStreamingMessage = activeSendSessionId ? streamingMessages.get(activeSendSessionId) : undefined
+    emitStateChange()
 
     if (isForegroundSession(sessionId))
       deps.foregroundStream.patch(cloneStreamingMessage(message))
@@ -533,7 +552,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   async function performSend(
     sendingMessage: string,
-    options: ChatOrchestratorSendOptions,
+    options: ChatOrchestratorSendOptions & { model: string, chatProvider: GenerationProvider },
     generation: number,
     sessionId: string,
     abortSignal: AbortSignal,
@@ -569,6 +588,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const roundId = createId()
     const streamingMessageContext: ChatStreamEventContext = {
       turnId: roundId,
+      sessionId,
       message: {
         role: 'user',
         content: sendingMessage,
@@ -736,11 +756,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
+        sessionId,
         messageText: sendingMessage,
         sessionMessages: sessionMessagesForSend,
       })
 
-      const categorizer = createStreamingCategorizer(deps.getActiveProvider())
+      const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
 
       const parser = useLlmmarkerParser({
@@ -781,7 +802,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          const finalCategorization = categorizeResponse(fullText, activeProvider)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -876,7 +897,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
+        provider: activeProvider,
         hasVoice,
       })
 
@@ -884,6 +905,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         headers,
         providerId: activeProvider,
         supportsAudioInput: options.supportsAudioInput,
+        resolveStep: options.resolveStep,
         abortSignal,
         onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
         requestCorrelation: {
@@ -1042,6 +1064,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       deps.onAssistantTurnReady?.({
+        sessionId,
         messageText: fullText,
         sessionMessages: sessionMessagesForSend,
       })
@@ -1109,14 +1132,28 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
         resetForegroundStream(sessionId)
       }
-      setSending(false)
+      streamingMessages.delete(sessionId)
+      if (activeSendSessionId === sessionId) {
+        activeSendSessionId = streamingMessages.has(deps.getActiveSessionId())
+          ? deps.getActiveSessionId()
+          : streamingMessages.keys().next().value
+      }
+      activeStreamingMessage = activeSendSessionId ? streamingMessages.get(activeSendSessionId) : undefined
+      sending = streamingMessages.size > 0
+      emitStateChange()
       deps.onSendSettled?.({ sessionId })
     }
   }
 
-  const sendQueue = createQueue<QueuedSend>({
-    handlers: [
-      async ({ data }) => {
+  const sendQueues = new Map<string, ReturnType<typeof createQueue<QueuedSend>>>()
+
+  function getSendQueue(sessionId: string) {
+    const existing = sendQueues.get(sessionId)
+    if (existing)
+      return existing
+
+    const sendQueue = createQueue<QueuedSend>({
+      handlers: [async ({ data }) => {
         const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
 
         if (cancelled)
@@ -1130,7 +1167,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         const controller = new AbortController()
         activeSends.set(sessionId, controller)
         try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
+          const request = await options.resolveRequest?.()
+          const resolvedOptions = request ? { ...options, ...request } : options
+          if (!resolvedOptions.model || !resolvedOptions.chatProvider)
+            throw new Error('Chat request has no provider or model')
+          await performSend(sendingMessage, {
+            ...resolvedOptions,
+            model: resolvedOptions.model,
+            chatProvider: resolvedOptions.chatProvider,
+          }, generation, sessionId, controller.signal, request?.providerId ?? providerId)
           deferred.resolve()
         }
         catch (error) {
@@ -1139,19 +1184,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         finally {
           activeSends.delete(sessionId)
         }
-      },
-    ],
-  })
+      }],
+    })
 
-  sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.push(queuedSend)
-    emitStateChange()
-  })
+    sendQueue.on('enqueue', (queuedSend) => {
+      pendingQueuedSends.push(queuedSend)
+      emitStateChange()
+    })
 
-  sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
-    emitStateChange()
-  })
+    sendQueue.on('dequeue', (queuedSend) => {
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+      emitStateChange()
+    })
+    sendQueue.on('drain', () => {
+      if (sendQueues.get(sessionId) === sendQueue)
+        sendQueues.delete(sessionId)
+    })
+    sendQueues.set(sessionId, sendQueue)
+    return sendQueue
+  }
 
   function ingest(
     sendingMessage: string,
@@ -1162,7 +1213,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const generation = deps.session.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+      getSendQueue(sessionId).enqueue({
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
         options,

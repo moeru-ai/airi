@@ -85,6 +85,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const initializing = ref(false)
   let initializePromise: Promise<void> | null = null
   let ensureActivePromise: Promise<string> | null = null
+  let loadIndexPromise: Promise<void> | null = null
+  const ensureCharacterPromises = new Map<string, Promise<string>>()
   // Bumped by `clearInMemoryState` (user swap / teardown). The
   // `ensureActiveSessionForCharacter` IIFE captures this at call time and
   // bails after every await once it changes, so a stale hydrate from the
@@ -209,21 +211,29 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return generateInitialMessageFromPrompt(systemPrompt.value)
   }
 
-  function refreshActiveSessionSystemMessage() {
-    const sessionId = activeSessionId.value
+  function generateInitialMessageForSession(sessionId: string) {
+    const characterId = sessionMetas.value[sessionId]?.characterId
+    if (!characterId || characterId === getCurrentCharacterId())
+      return generateInitialMessage()
+
+    return generateInitialMessageFromPrompt(useAiriCardStore().getSystemPromptForCard(characterId))
+  }
+
+  /** Refreshes one loaded session with its own character's latest prompt. */
+  function refreshSessionSystemMessage(sessionId: string) {
     const meta = sessionMetas.value[sessionId]
 
     // A card switch updates `systemPrompt` before its character session has
     // necessarily finished loading. Never rewrite the previous character's
     // session or persist an empty in-memory placeholder over an IDB history
     // that is still being hydrated.
-    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId())
+    if (!sessionId || !loadedSessions.has(sessionId) || !meta)
       return
 
     const currentMessages = sessionMessages.value[sessionId] ?? []
     const systemMessageIndex = currentMessages.findIndex(message => message.role === 'system')
     const currentSystemMessage = currentMessages[systemMessageIndex]
-    const resolvedSystemMessage = generateInitialMessage()
+    const resolvedSystemMessage = generateInitialMessageForSession(sessionId)
 
     if (currentSystemMessage?.content === resolvedSystemMessage.content)
       return
@@ -242,29 +252,41 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     replaceSessionMessages(sessionId, [resolvedSystemMessage, ...currentMessages])
   }
 
+  function refreshActiveSessionSystemMessage() {
+    const sessionId = activeSessionId.value
+    if (sessionMetas.value[sessionId]?.characterId !== getCurrentCharacterId())
+      return
+    refreshSessionSystemMessage(sessionId)
+  }
+
   function ensureGeneration(sessionId: string) {
     if (sessionGenerations.value[sessionId] === undefined)
       sessionGenerations.value[sessionId] = 0
   }
 
   async function loadIndexForUser(currentUserId: string) {
-    const stored = await chatSessionsRepo.getIndex(currentUserId)
-    index.value = stored ?? {
-      userId: currentUserId,
-      characters: {},
-    }
-    // Hydrate `sessionMetas` from the index so consumers like the sessions
-    // drawer can list every owned session without having to `loadSession`
-    // each one (which would pull every messages payload from IndexedDB).
-    // Existing entries win to preserve any in-memory mutations the store
-    // performed before the index landed.
-    if (index.value) {
+    if (loadIndexPromise)
+      return loadIndexPromise
+    const epoch = ensureActiveEpoch
+    const task = (async () => {
+      const stored = await chatSessionsRepo.getIndex(currentUserId)
+      if (epoch !== ensureActiveEpoch)
+        return
+      index.value = stored ?? { userId: currentUserId, characters: {} }
       for (const character of Object.values(index.value.characters)) {
         for (const [sessionId, meta] of Object.entries(character.sessions)) {
           if (!sessionMetas.value[sessionId])
             sessionMetas.value[sessionId] = meta
         }
       }
+    })()
+    loadIndexPromise = task
+    try {
+      await task
+    }
+    finally {
+      if (loadIndexPromise === task)
+        loadIndexPromise = null
     }
   }
 
@@ -515,9 +537,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
-
     sessionMetas.value[sessionId] = meta
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessageForSession(sessionId)]
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
     loadedSessions.add(sessionId)
     ensureGeneration(sessionId)
@@ -530,7 +551,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       sessions: {},
     }
     characterIndex.sessions[sessionId] = meta
-    if (options?.setActive !== false)
+    if (options?.setActive !== false || !characterIndex.activeSessionId)
       characterIndex.activeSessionId = sessionId
     index.value.characters[characterId] = characterIndex
 
@@ -697,26 +718,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const myEpoch = ensureActiveEpoch
     const isStaleEpoch = () => myEpoch !== ensureActiveEpoch
     ensureActivePromise = (async () => {
-      const currentUserId = getCurrentUserId()
       const characterId = getCurrentCharacterId()
-
+      const currentUserId = getCurrentUserId()
       if (!index.value || index.value.userId !== currentUserId)
         await loadIndexForUser(currentUserId)
       if (isStaleEpoch())
         return ''
-
-      const characterIndex = getCharacterIndex(characterId)
-      if (!characterIndex)
-        return createSession(characterId)
-
-      if (!characterIndex.activeSessionId)
-        return createSession(characterId)
-
-      activeSessionId.value = characterIndex.activeSessionId
-      // Use the public action so follower hydration is routed to the elected
-      // leader instead of becoming a stale full-state proposal.
-      await useChatSessionStore().loadSession(characterIndex.activeSessionId)
-      return characterIndex.activeSessionId
+      const selectedSessionId = getCharacterIndex(characterId)?.activeSessionId
+      if (selectedSessionId)
+        activeSessionId.value = selectedSessionId
+      const sessionId = await ensureSessionForCharacter(characterId)
+      if (isStaleEpoch())
+        return ''
+      activeSessionId.value = sessionId
+      return sessionId
     })()
     try {
       return await ensureActivePromise
@@ -728,6 +743,39 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       // the new owner.
       if (myEpoch === ensureActiveEpoch)
         ensureActivePromise = null
+    }
+  }
+
+  /** Resolve a character's canonical session without changing the visible session. */
+  async function ensureSessionForCharacter(characterId: string): Promise<string> {
+    const pending = ensureCharacterPromises.get(characterId)
+    if (pending)
+      return pending
+    const epoch = ensureActiveEpoch
+    const task = (async () => {
+      const currentUserId = getCurrentUserId()
+      if (!index.value || index.value.userId !== currentUserId)
+        await loadIndexForUser(currentUserId)
+      if (epoch !== ensureActiveEpoch)
+        return ''
+      const characterIndex = getCharacterIndex(characterId)
+      if (!characterIndex?.activeSessionId) {
+        const sessionId = await createSession(characterId, { setActive: false })
+        if (epoch !== ensureActiveEpoch)
+          return ''
+        return sessionId
+      }
+      const sessionId = characterIndex.activeSessionId
+      await useChatSessionStore().loadSession(sessionId)
+      return epoch === ensureActiveEpoch ? sessionId : ''
+    })()
+    ensureCharacterPromises.set(characterId, task)
+    try {
+      return await task
+    }
+    finally {
+      if (ensureCharacterPromises.get(characterId) === task)
+        ensureCharacterPromises.delete(characterId)
     }
   }
 
@@ -932,7 +980,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage()]
+        sessionMessages.value[remote.id] = [generateInitialMessageForSession(remote.id)]
         ensureGeneration(remote.id)
 
         if (!index.value)
@@ -1076,6 +1124,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // for the new user.
     ensureActiveEpoch += 1
     ensureActivePromise = null
+    loadIndexPromise = null
+    ensureCharacterPromises.clear()
     sessionMessages.value = {}
     sessionMetas.value = {}
     sessionGenerations.value = {}
@@ -1388,7 +1438,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
+      replaceSessionMessages(sessionId, [generateInitialMessageForSession(sessionId)], { persist: false })
     }
   }
 
@@ -1476,7 +1526,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
     await chatAudioRepo.markSessionPrune(sessionId)
-    await setSessionMessages(sessionId, [generateInitialMessage()])
+    await setSessionMessages(sessionId, [generateInitialMessageForSession(sessionId)])
     await chatAudioRepo.retainSession(sessionId, chatAudioReferences(sessionMessages.value[sessionId] ?? []))
     await chatAudioRepo.clearSessionPrune(sessionId)
   }
@@ -1767,6 +1817,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     persistSessionMessages,
     getSessionMessages,
     getSessionMessagesIfLoaded,
+    refreshSessionSystemMessage,
     sessionMessages,
     sessionMetas,
     getSessionGeneration,
@@ -1784,6 +1835,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     deleteSession,
     activateCurrentUser,
     ensureCurrentSession,
+    ensureSessionForCharacter,
 
     cloudSyncReady,
     outboxPendingCount,
@@ -1798,6 +1850,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'deleteMessage',
       'deleteSession',
       'ensureCurrentSession',
+      'ensureSessionForCharacter',
       'exportSessions',
       'forkSession',
       'importSessions',
