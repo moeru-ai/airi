@@ -396,7 +396,7 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        配置此角色卡的模块。留空会继承全局设置。
+        配置此角色卡的模块。聊天、视觉和语音字段留空时继承全局设置。身体模型选择“无模型”时关闭渲染。
       sections:
         chat: 聊天
         vision: 视觉
@@ -405,6 +405,7 @@ pages:
       use_default: 使用默认
       use_default_not_configured: 使用默认（未配置）
       inherit_global_settings: 继承全局设置
+      no_model: 无模型
       fields_info:
         subtitle: >-
           您可以在这里填写有关您正在创建的角色的一些详细信息，解释他的背景和情境，以及应该如何回应您的互动。
