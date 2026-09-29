@@ -315,6 +315,38 @@ Return to one coordinated published version before acceptance.
 
 ## Acceptance evidence
 
+### Ablation 1: Spotlight CEF lookup (2026-09-29)
+
+The experiment removed `SpotlightWindow.FindCefControl` and its search through arbitrary child controls.
+The final fallback returned `KirieNode`, which cannot forward focus to the CEF document.
+
+The pinned [Kirie backend](addons/kirie/gd_kirie.gd) names the control `KirieCefWebView` and adds it before `WebViewReady`.
+The [Kirie node](addons/kirie/kirie_node.gd) supplies itself as the parent.
+[SpotlightWindow](src-godot/scripts/SpotlightWindow.cs) now reads `KirieNode/KirieCefWebView` directly after readiness.
+It retains `FocusMode` and `GrabFocus`. The source change removes 36 lines overall.
+
+The macOS experiment used Godot 4.7.2, Kirie 0.6.5, and Metal Forward+.
+The baseline and changed builds both focused the input on first open and received native text input without a click.
+After the change, Escape hid Spotlight. Reopening restored focus and accepted the native input `test`.
+Opening Settings moved focus away and changed Spotlight's native state to `visible=false` and `focused=false`.
+Two further open requests reused the same CEF page and restored both document and native focus.
+
+Open requests used the existing Eventa contract. This experiment does not establish global-shortcut or Windows acceptance.
+The direct lookup depends on the pinned addon node name. An addon upgrade requires another check of that name and readiness order.
+
+| Command | Result |
+| --- | --- |
+| `mise x -- dotnet build --no-restore` | Passed before and after the change, with no warnings or errors. |
+| `mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests --no-restore` | Passed. |
+| `mise x -- dotnet format --verify-no-changes --no-restore` | Exited 0. The comment-only rerun reported a workspace load warning. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed, 13 files and 42 tests. |
+| `mise x -- pnpm lint` | Failed with 1,715 errors and 701 warnings. All errors were in 23 Git-ignored artifact files. |
+| `git diff --check` | Passed. |
+
+The lint errors came from native addon artifacts, previous `.auv` captures, and generated C# output.
+This experiment retains the simpler lookup and does not change the capability matrix.
+
 ### Windows environment and checks
 
 The application commit was `fdc9161c8` on `doji/migrate-to-kirie`.

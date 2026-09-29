@@ -129,46 +129,10 @@ public partial class SpotlightWindow : Window
 
     private void FocusWebView()
     {
-        var cef = FindCefControl();
-        if (cef is null)
-        {
-            return;
-        }
+        var cef = GetNode<Control>("KirieNode/KirieCefWebView");
 
-        // CefTexture reports FOCUS_ENTER, which is the only path that reaches
-        // CEF's host.set_focus(true). GrabFocus on KirieNode never reaches it.
-        // Once the document has focus, the page focuses its own input.
-        //
-        // Under the OpenGL compatibility renderer this also needed a synthetic
-        // mouse click into the control and cross-frame retries. Forward+ with
-        // accelerated OSR does not: both were removed on 2026-09-21 after
-        // removing them and observing document.hasFocus() stay true.
         cef.FocusMode = Control.FocusModeEnum.All;
         cef.GrabFocus();
-    }
-
-    private Control? FindCefControl()
-    {
-        if (GetNodeOrNull<Control>("KirieNode/KirieCefWebView") is { } named)
-        {
-            return named;
-        }
-
-        var kirie = GetNodeOrNull<Control>("KirieNode");
-        if (kirie is null)
-        {
-            return null;
-        }
-
-        foreach (var child in kirie.GetChildren())
-        {
-            if (child is Control control)
-            {
-                return control;
-            }
-        }
-
-        return kirie;
     }
 
     private void ApplyTransparentSurface()
