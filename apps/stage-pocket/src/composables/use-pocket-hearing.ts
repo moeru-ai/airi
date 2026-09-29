@@ -104,10 +104,18 @@ export function usePocketHearing() {
     const sessionId = await target
     if (!sessionId)
       return
-    if (hearing.autoSendEnabled)
+    if (hearing.autoSendEnabled) {
+      const generation = interactionGeneration
+      const inputMode = mode.value
+      if (hearing.autoSendDelay > 0)
+        await new Promise(resolve => setTimeout(resolve, hearing.autoSendDelay))
+      if (generation !== interactionGeneration || mode.value !== inputMode || chatSession.activeSessionId !== sessionId)
+        return
       await chat.send({ sessionId, text: text.trim() })
-    else
+    }
+    else {
       appendHearingDraft(sessionId, text.trim())
+    }
   }
 
   function clearWakeWindow() {

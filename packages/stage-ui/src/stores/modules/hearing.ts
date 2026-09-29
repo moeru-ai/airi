@@ -603,6 +603,7 @@ export function useTranscriptionSession() {
   const providerStore = useProviderConfigStore()
   const streamingConsumers = new StreamingTranscriptionConsumers()
   const streamingCallbacks = {
+    onSpeechStart: () => streamingConsumers.emitSpeechStart(),
     onSentenceEnd: (delta: string) => {
       transcript.value = delta
       streamingConsumers.emitSentenceEnd(delta)
@@ -1005,6 +1006,7 @@ export function useTranscriptionSession() {
     let vadSession!: NonNullable<typeof streamingVadSession.value>
     const vad = useVAD(vadWorkletUrl, {
       onSpeechStart: () => {
+        streamingCallbacks.onSpeechStart()
         const segment: VadSpeechSegment = { audioChunks: [] }
         vadSession.activeSegment = segment
         vadSession.lifecycle.onSpeechStart(segment)
@@ -1182,6 +1184,7 @@ export function useTranscriptionSession() {
               error.value = 'No transcription result returned from the browser'
           },
           onSpeechStart: () => {
+            streamingCallbacks.onSpeechStart()
             error.value = undefined
             speechHasFinalResult = false
             if (finishingSession.value === abortController)

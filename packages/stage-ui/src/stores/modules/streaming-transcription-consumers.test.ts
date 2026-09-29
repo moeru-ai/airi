@@ -76,4 +76,19 @@ describe('streaming transcription consumers', () => {
     expect(onTranscriptionUpdate).toHaveBeenCalledWith('provider correction')
     expect(onSentenceEnd).not.toHaveBeenCalled()
   })
+
+  it('announces speech start before the final transcript', () => {
+    const consumers = new StreamingTranscriptionConsumers()
+    const events: string[] = []
+    consumers.register({
+      consumerId: 'input',
+      onSpeechStart: () => events.push('start'),
+      onSpeechEnd: () => events.push('end'),
+    })
+
+    consumers.emitSpeechStart()
+    consumers.emitSpeechEnd('hello')
+
+    expect(events).toEqual(['start', 'end'])
+  })
 })

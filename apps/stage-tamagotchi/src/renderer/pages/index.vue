@@ -365,7 +365,7 @@ const { stream, enabled, mode } = storeToRefs(settingsAudioDeviceStore)
 const { askPermission, startStream, stopStream } = settingsAudioDeviceStore
 const { nowSpeaking } = storeToRefs(useSpeakingStore())
 const hearingStore = useHearingStore()
-const { activeTranscriptionModel, activeTranscriptionProvider, autoSendEnabled } = storeToRefs(hearingStore)
+const { activeTranscriptionModel, activeTranscriptionProvider, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
 const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
@@ -385,13 +385,13 @@ let wakeSegmentComplete = false
 let wakeWindowTimer: ReturnType<typeof setTimeout> | undefined
 let manualSessionId: string | undefined
 let manualCardId: string | undefined
+let streamingSessionId: string | undefined
 const segmentOwners: Array<{ sessionId: string, cardId: string, inputMode: 'always' | 'push-to-talk' | 'wake-word' }> = []
 const streamingTranscriptionUnavailable = ref(false)
 const shouldUseStreamInput = computed(() => mode.value === 'always' && supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
 const voiceTranscriptBuffers = new Map<string, ReturnType<typeof createTranscriptBuffer>>()
 
-function bufferVoiceTranscript(text: string) {
-  const sessionId = chatSession.activeSessionId
+function bufferVoiceTranscript(text: string, sessionId: string | undefined) {
   if (!sessionId)
     return
   let buffer = voiceTranscriptBuffers.get(sessionId)
@@ -620,14 +620,22 @@ function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelE
 /**
  * Routes a transcription to its recorded character session.
  */
-async function sendVoiceInputTextToChat(text: string, sessionId = chatSession.activeSessionId, cardId = cardStore.activeCardId) {
+async function sendVoiceInputTextToChat(text: string, sessionId: string | undefined, cardId = sessionId ? chatSession.sessionMetas[sessionId]?.characterId : undefined) {
   if (!text.trim() || !sessionId)
     return
   try {
-    if (autoSendEnabled.value)
+    if (autoSendEnabled.value) {
+      const generation = voiceInputGeneration
+      const inputMode = mode.value
+      if (autoSendDelay.value > 0)
+        await new Promise(resolve => setTimeout(resolve, autoSendDelay.value))
+      if (generation !== voiceInputGeneration || mode.value !== inputMode || chatSession.activeSessionId !== sessionId)
+        return
       await chatStore.send({ sessionId, text })
-    else
-      await voiceInlay.queueVoiceDraft({ cardId, sessionId, text })
+    }
+    else {
+      await voiceInlay.queueVoiceDraft({ cardId: cardId ?? cardStore.activeCardId, sessionId, text })
+    }
   }
   catch (err) {
     reportVoiceInputFailure('send to chat', err)
@@ -646,7 +654,7 @@ function handleStreamingSentenceEnd(delta: string) {
   scheduleHearingInputClear(sourceId)
   activeHearingInputSourceId = undefined
   postSpeakerCaption(finalText, 'replace')
-  void sendVoiceInputTextToChat(finalText)
+  void sendVoiceInputTextToChat(finalText, streamingSessionId)
 }
 
 /** Replaces the caption with the provider's current volatile transcript. */
@@ -672,7 +680,8 @@ function handleStreamingSpeechEnd(text: string) {
   scheduleHearingInputClear(sourceId)
   activeHearingInputSourceId = undefined
   postSpeakerCaption(finalText, 'replace')
-  void sendVoiceInputTextToChat(finalText)
+  void sendVoiceInputTextToChat(finalText, streamingSessionId)
+  streamingSessionId = undefined
 }
 
 /** Reads the listening generation attached to recorder-backed transcription metadata. */
@@ -704,13 +713,30 @@ const voiceInputSession = useVoiceInputSession(stream, {
   inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
   onSegmentStarted: ({ trigger }) => {
-    const sessionId = trigger === 'manual' ? manualSessionId : wakeSessionId
+    let sessionId: string | undefined
+    let inputMode: 'always' | 'push-to-talk' | 'wake-word'
+    if (trigger === 'manual') {
+      sessionId = manualSessionId
+      inputMode = 'push-to-talk'
+    }
+    else if (mode.value === 'always') {
+      sessionId = chatSession.activeSessionId
+      inputMode = 'always'
+    }
+    else {
+      sessionId = wakeSessionId
+      inputMode = 'wake-word'
+    }
     if (sessionId && trigger !== 'manual' && wakeWindowTimer) {
       clearTimeout(wakeWindowTimer)
       wakeWindowTimer = undefined
     }
-    if (sessionId)
-      segmentOwners.push({ sessionId, cardId: trigger === 'manual' ? manualCardId ?? cardStore.activeCardId : cardStore.activeCardId, inputMode: trigger === 'manual' ? 'push-to-talk' : 'wake-word' })
+    if (sessionId) {
+      const cardId = inputMode === 'push-to-talk'
+        ? manualCardId ?? cardStore.activeCardId
+        : chatSession.sessionMetas[sessionId]?.characterId ?? cardStore.activeCardId
+      segmentOwners.push({ sessionId, cardId, inputMode })
+    }
   },
   onRecordingReady: () => ({ generation: voiceInputGeneration, ...segmentOwners.shift() }),
   onRecordingSkipped: ({ metadata }) => {
@@ -726,15 +752,15 @@ const voiceInputSession = useVoiceInputSession(stream, {
   onTranscriptionResult: ({ text, metadata }) => {
     postSpeakerCaption(text)
     toast(`Voice input transcribed: ${text}`)
-    if (!metadata?.inputMode || metadata.inputMode === 'always') {
-      bufferVoiceTranscript(text)
+    if (metadata?.inputMode === 'always') {
+      bufferVoiceTranscript(text, typeof metadata.sessionId === 'string' ? metadata.sessionId : undefined)
     }
     else {
       const sessionId = typeof metadata?.sessionId === 'string' ? metadata.sessionId : undefined
       const cardId = typeof metadata?.cardId === 'string' ? metadata.cardId : cardStore.activeCardId
       if (sessionId)
         void sendVoiceInputTextToChat(text, sessionId, cardId)
-      if (metadata.inputMode === 'wake-word')
+      if (metadata?.inputMode === 'wake-word')
         void finishWakeInput()
     }
   },
@@ -778,6 +804,7 @@ async function startAudioInteractionConsumers() {
 
     await transcribeForMediaStream(currentStream, {
       consumerId: transcriptionConsumerId,
+      onSpeechStart: () => { streamingSessionId = chatSession.activeSessionId },
       onSentenceEnd: handleStreamingSentenceEnd,
       onSpeechEnd: handleStreamingSpeechEnd,
       onTranscriptionUpdate: handleStreamingTranscriptionUpdate,

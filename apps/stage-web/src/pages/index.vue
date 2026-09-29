@@ -70,7 +70,7 @@ const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
 const cardStore = useAiriCardStore()
 const { cards, wakeWordOwnership } = storeToRefs(cardStore)
-const { autoSendEnabled, activeTranscriptionProvider } = storeToRefs(useHearingStore())
+const { autoSendEnabled, autoSendDelay, activeTranscriptionProvider } = storeToRefs(useHearingStore())
 const speechOutput = useSpeechOutputControlStore()
 let keywordListener: KeywordListener | undefined
 let wakeSessionId: string | undefined
@@ -80,6 +80,7 @@ let detectorGeneration = 0
 let browserFinalizedText = ''
 let browserVadEnded = false
 let browserSpeechActive = false
+let speechSessionId: string | undefined
 
 function deliverBrowserUtterance() {
   if (!browserVadEnded || !browserFinalizedText.trim())
@@ -87,7 +88,7 @@ function deliverBrowserUtterance() {
   const text = browserFinalizedText
   browserFinalizedText = ''
   browserVadEnded = false
-  void sendVoiceInputTextToChat(text)
+  void sendVoiceInputTextToChat(text, speechSessionId)
 }
 
 /** Identifies this page in the shared streaming transcription session. */
@@ -108,20 +109,29 @@ const {
 
 let stopOnStopRecord: (() => void) | undefined
 
-async function sendVoiceInputTextToChat(text: string | undefined) {
+async function sendVoiceInputTextToChat(text: string | undefined, targetSessionId: string | undefined) {
   if (!text?.trim())
     return
 
   try {
-    const sessionId = wakeSessionId ?? chatSession.activeSessionId
+    const sessionId = targetSessionId
     if (!sessionId)
       return
+    speechSessionId = undefined
     if (wakeSessionId)
       finishWakeInput()
-    if (autoSendEnabled.value)
+    if (autoSendEnabled.value) {
+      const inputMode = mode.value
+      const generation = detectorGeneration
+      if (autoSendDelay.value > 0)
+        await new Promise(resolve => setTimeout(resolve, autoSendDelay.value))
+      if (generation !== detectorGeneration || mode.value !== inputMode || chatSession.activeSessionId !== sessionId)
+        return
       await chatStore.send({ sessionId, text })
-    else
+    }
+    else {
       appendHearingDraft(sessionId, text)
+    }
   }
   catch (error) {
     console.error('Failed to send chat from voice:', error)
@@ -146,11 +156,22 @@ async function handleWake(label: string, targets: Map<string, { cardId: string }
     speechOutput.requestStopSpeaking('wake-word')
     await new Promise(resolve => setTimeout(resolve, 100))
   }
-  if (generation !== wakeGeneration || mode.value !== 'wake-word')
+  if (generation !== wakeGeneration || mode.value !== 'wake-word' || !enabled.value)
     return
   await cardStore.activateCard(target.cardId)
-  wakeSessionId = await chatSession.ensureCurrentSession()
+  if (generation !== wakeGeneration || mode.value !== 'wake-word' || !enabled.value)
+    return
+  const sessionId = await chatSession.ensureCurrentSession()
+  if (generation !== wakeGeneration || mode.value !== 'wake-word' || !enabled.value)
+    return
+  wakeSessionId = sessionId
   await startAudioInteraction()
+  if (generation !== wakeGeneration || mode.value !== 'wake-word' || !enabled.value) {
+    wakeSessionId = undefined
+    if (mode.value === 'wake-word' && !enabled.value)
+      stopAudioInteraction()
+    return
+  }
   wakeSpeechTimer = setTimeout(finishWakeInput, 15_000)
 }
 
@@ -201,6 +222,7 @@ async function startAudioInteraction() {
       const browserRecognition = activeTranscriptionProvider.value === 'browser-web-speech-api'
       await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
+        onSpeechStart: () => { speechSessionId = wakeSessionId ?? chatSession.activeSessionId },
         onSentenceEnd: (text) => {
           if (browserRecognition && (browserSpeechActive || browserVadEnded)) {
             browserFinalizedText += `${browserFinalizedText ? ' ' : ''}${text.trim()}`
@@ -209,7 +231,7 @@ async function startAudioInteraction() {
         },
         onSpeechEnd: (text) => {
           if (!browserRecognition)
-            void sendVoiceInputTextToChat(text)
+            void sendVoiceInputTextToChat(text, speechSessionId)
         },
       })
       return
@@ -217,7 +239,7 @@ async function startAudioInteraction() {
 
     stopOnStopRecord = onStopRecord(async (recording) => {
       const text = await transcribeForRecording(recording)
-      await sendVoiceInputTextToChat(text)
+      await sendVoiceInputTextToChat(text, speechSessionId)
     })
   }
   catch (error) {
@@ -226,6 +248,7 @@ async function startAudioInteraction() {
 }
 
 async function handleSpeechStart() {
+  speechSessionId = wakeSessionId ?? chatSession.activeSessionId
   if (wakeSpeechTimer) {
     clearTimeout(wakeSpeechTimer)
     wakeSpeechTimer = undefined
@@ -266,6 +289,7 @@ async function handleSpeechCancel() {
 
 function stopAudioInteraction() {
   try {
+    speechSessionId = undefined
     browserFinalizedText = ''
     browserVadEnded = false
     browserSpeechActive = false
