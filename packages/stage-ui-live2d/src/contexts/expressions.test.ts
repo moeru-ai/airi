@@ -80,8 +80,46 @@ describe('live2D expressions context', () => {
     expressions.setActive('happy', false)
     expressions.setActive('happy', false)
 
-    expect(expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0.25)
+    expect(expressions.parameters.value.get('ParamEyeSmile')?.currentValue).toBe(0)
     expect(expressions.parameters.value.get('ParamMouthForm')?.currentValue).toBe(0.5)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2458#discussion_r4132272685
+  // ROOT CAUSE:
+  // A model default is not the neutral value for Add or Multiply blending.
+  // Registered expressions must leave the model unchanged until activation.
+  it('keeps inactive blend values neutral when model defaults are nonzero', () => {
+    const expressions = createLive2DExpressionsContext({
+      getParameterDefault: parameterId => parameterId === 'ParamAdd' ? 0.25 : 0.5,
+      isEnabled: () => true,
+    })
+    expressions.beginModel('iru')
+    expressions.register(parseLive2DExpression('happy', 'happy.exp3.json', JSON.stringify({
+      Parameters: [
+        { Id: 'ParamAdd', Value: 0.8, Blend: 'Add' },
+        { Id: 'ParamMultiply', Value: 0.7, Blend: 'Multiply' },
+      ],
+    })))
+
+    expect(expressions.parameters.value.get('ParamAdd')).toMatchObject({ currentValue: 0, defaultValue: 0, modelDefault: 0.25 })
+    expect(expressions.parameters.value.get('ParamMultiply')).toMatchObject({ currentValue: 1, defaultValue: 1, modelDefault: 0.5 })
+
+    const setParameterValueById = vi.fn()
+    expressions.apply({
+      getParameterValueById: parameterId => parameterId === 'ParamAdd' ? 0.25 : 0.5,
+      setParameterValueById,
+    })
+    expect(setParameterValueById).not.toHaveBeenCalled()
+
+    expressions.setActive('happy', true)
+    expressions.setActive('happy', false)
+    expect(expressions.parameters.value.get('ParamAdd')?.currentValue).toBe(0)
+    expect(expressions.parameters.value.get('ParamMultiply')?.currentValue).toBe(1)
+
+    expressions.setActive('happy', true)
+    expressions.reset()
+    expect(expressions.parameters.value.get('ParamAdd')?.currentValue).toBe(0)
+    expect(expressions.parameters.value.get('ParamMultiply')?.currentValue).toBe(1)
   })
 
   it('resets an executed expression after its duration', async () => {

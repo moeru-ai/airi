@@ -159,6 +159,9 @@ export function createLive2DExpressionsContext(
       for (const parameter of definition.parameters) {
         const previous = previousParameters.get(parameter.parameterId)
         const modelDefault = previous?.modelDefault ?? options.getParameterDefault(parameter.parameterId)
+        const defaultValue = parameter.blend === 'Add'
+          ? 0
+          : parameter.blend === 'Multiply' ? 1 : modelDefault
         const existing = nextParameters.get(parameter.parameterId)
 
         if (existing) {
@@ -171,8 +174,8 @@ export function createLive2DExpressionsContext(
           name: parameter.parameterId,
           parameterId: parameter.parameterId,
           blend: parameter.blend,
-          currentValue: previous?.currentValue ?? modelDefault,
-          defaultValue: previous?.defaultValue ?? modelDefault,
+          currentValue: previous?.blend === parameter.blend ? previous.currentValue : defaultValue,
+          defaultValue,
           modelDefault,
           targetValue: parameter.value,
         })
@@ -337,7 +340,7 @@ export function createLive2DExpressionsContext(
     if (resolved.kind === 'parameter') {
       const value = active
         ? resolved.parameter.targetValue
-        : resolved.parameter.modelDefault
+        : resolved.parameter.defaultValue
       applyParameterValue(resolved.parameter, value, duration)
       return {
         success: true,
@@ -347,7 +350,7 @@ export function createLive2DExpressionsContext(
 
     return resultForDefinition(
       resolved.definition,
-      (definitionParameter, parameter) => active ? definitionParameter.value : parameter.modelDefault,
+      (definitionParameter, parameter) => active ? definitionParameter.value : parameter.defaultValue,
       duration,
     )
   }
@@ -363,7 +366,7 @@ export function createLive2DExpressionsContext(
     }
 
     const active = resolved.kind === 'parameter'
-      ? resolved.parameter.currentValue !== resolved.parameter.modelDefault
+      ? resolved.parameter.currentValue !== resolved.parameter.defaultValue
       : resolved.definition.parameters.some((definitionParameter) => {
           if (definitionParameter.value === 0)
             return false
@@ -400,7 +403,7 @@ export function createLive2DExpressionsContext(
     clearParameterResets()
     const states: Live2DExpressionState[] = []
     for (const parameter of parameters.value.values()) {
-      parameter.currentValue = parameter.modelDefault
+      parameter.currentValue = parameter.defaultValue
       states.push(stateFromParameter(parameter))
     }
     return { success: true, state: states }
@@ -446,13 +449,7 @@ export function createLive2DExpressionsContext(
     const activeThisFrame = new Set<string>()
 
     for (const parameter of parameters.value.values()) {
-      let isNoop = parameter.currentValue === parameter.modelDefault
-      if (parameter.blend === 'Add')
-        isNoop = parameter.currentValue === 0
-      else if (parameter.blend === 'Multiply')
-        isNoop = parameter.currentValue === 1
-
-      if (isNoop)
+      if (parameter.currentValue === parameter.defaultValue)
         continue
 
       let value = parameter.currentValue
