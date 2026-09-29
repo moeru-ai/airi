@@ -75,6 +75,22 @@ describe('manual voice recording lifecycle', () => {
     expect(voice.phase.value).toBe('idle')
   })
 
+  it('finishes a recording when its duration limit arrives', async () => {
+    const schedule = globalThis.setTimeout.bind(globalThis)
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation((handler, delay, ...args) =>
+      schedule(handler, delay === 90_000 ? 1500 : delay, ...args))
+    const stream = microphone()
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
+    const { voice, complete, errors, screen } = mountVoice()
+
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => voice.phase.value).toBe('recording')
+    await expect.poll(() => complete.mock.calls.length, { timeout: 5000 }).toBe(1)
+    expect(errors).not.toHaveBeenCalled()
+    expect(voice.phase.value).toBe('idle')
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+  })
+
   it('waits for Web Speech results delivered after release', async () => {
     // ROOT CAUSE:
     // Normal release aborted the recognition result before stop could deliver

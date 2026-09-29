@@ -149,6 +149,8 @@ excludes that bar while dimming the Stage, background, and chat.
 Release sends the voice message or inserts the transcript. Enter starts a locked
 recording. Escape cancels it. Locked recordings have explicit finish and cancel
 buttons.
+The composer finishes a recording after 90 seconds. The overlay closes when the
+recording enters chat, before the assistant reply ends.
 
 The composer owns its microphone stream and transcription session. It cancels
 pending input when its chat session changes or the component unmounts. It does
@@ -162,5 +164,5 @@ configured Hearing provider and model. Providers with streaming input show live
 text; providers with file input return text after release. No automatic send
 setting applies to dictation drafts.
 
-Cloud chat synchronization currently transfers text only. It does not transfer
-voice recordings, just as it does not transfer image attachments.
+Cloud chat synchronization transfers text only. It skips audio-only turns.
+Voice recordings and image attachments stay in local history.

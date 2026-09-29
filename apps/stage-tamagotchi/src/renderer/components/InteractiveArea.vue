@@ -423,7 +423,7 @@ defineExpose({ restoreDraft, snapshotDraft })
         <p v-if="pendingImages" role="status" :class="['px-2 text-sm text-neutral-500']">
           {{ t('stage.chat.images.reading') }}
         </p>
-        <div ref="voiceInput" :class="['w-full shrink-0 overflow-hidden bg-transparent']">
+        <div ref="voiceInput" :class="['relative w-full shrink-0 overflow-hidden bg-transparent']">
           <ChatReplyPreview
             :class="[voiceActive && 'invisible']"
             :target="replyTarget"

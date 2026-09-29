@@ -77,6 +77,7 @@ const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
+const audioCapability = vi.hoisted(() => ({ enabled: false }))
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
 
 const activeSessionIdRef = ref('session-1')
@@ -218,6 +219,7 @@ vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
+    get supportsAudioInput() { return audioCapability.enabled },
     providerModels: consciousnessModels.value,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
@@ -285,6 +287,7 @@ describe('chat store contract', () => {
       execute: vi.fn(),
     })))
     visionMocks.configured = false
+    audioCapability.enabled = false
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
     ioTracerMocks.activeTurnSpan.value = undefined
@@ -356,6 +359,37 @@ describe('chat store contract', () => {
       { type: 'text', text: 'What is this?' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
     ])
+  })
+
+  it('replays the recording and transcript when retrying a failed voice turn', async () => {
+    audioCapability.enabled = true
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: '' },
+          { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } },
+        ],
+        audioTranscripts: ['spoken words'],
+        id: 'user-voice',
+      },
+      { role: 'error', content: 'Provider failed' },
+    ]
+
+    const store = useChatStore()
+    await store.retry({ sessionId: 'session-1', index: 2 })
+
+    const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
+    expect(retried.content).toEqual([
+      { type: 'text', text: '' },
+      { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } },
+    ])
+    expect(retried.audioTranscripts).toEqual(['spoken words'])
+    expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenCalledWith(expect.objectContaining({ mode: 'voice', trigger_method: 'voice' }))
   })
 
   it('cancels vision preprocessing when its chat turn is cancelled', async () => {

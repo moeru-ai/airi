@@ -60,9 +60,9 @@ export function extractMessageText(message: ChatHistoryItem): string {
  * - The caller has already validated the message has an `id`.
  *
  * Returns:
- * - `true` when the message is a user or completed assistant turn. `tool`,
- *   `system`, `error`, and interrupted assistant messages stay local because
- *   the wire schema cannot preserve their runtime state.
+ * - `true` for user turns with text and completed assistant turns.
+ *   Audio-only turns stay local because the wire schema stores text only.
+ *   Tool, system, error, and interrupted assistant messages stay local.
  */
 export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'tool')
@@ -70,6 +70,8 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
   if (message.role === 'system')
     return false
   if (message.role === 'error')
+    return false
+  if (message.role === 'user' && !extractMessageText(message).trim())
     return false
   if (message.role === 'assistant' && message.interrupted)
     return false

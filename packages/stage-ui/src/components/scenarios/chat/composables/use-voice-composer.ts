@@ -13,6 +13,9 @@ import { useAudioContext } from '../../../../stores/audio'
 import { useHearingStore, useTranscriptionSession } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 
+/** Limits in-memory WAV capture before encoding and storing the recording. */
+const MAX_MANUAL_RECORDING_DURATION_MS = 90_000
+
 /** The active hold determines whether release sends audio or inserts text. */
 export type VoiceComposerMode = 'audio' | 'transcription'
 
@@ -53,9 +56,12 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
   let activeSession = ''
   let requiresTranscript = false
   let streaming = false
+  let recordingDeadline: ReturnType<typeof setTimeout> | undefined
   const consumerId = 'manual-composer'
 
   function stopMicrophone() {
+    clearTimeout(recordingDeadline)
+    recordingDeadline = undefined
     source?.disconnect()
     source = undefined
     analyzer.stopAnalyzer()
@@ -96,6 +102,9 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
           return
         startedAt.value = Date.now()
         phase.value = 'recording'
+        recordingDeadline = setTimeout(() => {
+          void finish()
+        }, MAX_MANUAL_RECORDING_DURATION_MS)
         streaming = requiresTranscript && pipeline.supportsStreamInput.value
         if (streaming) {
           const browserRecognition = hearing.activeTranscriptionProvider === 'browser-web-speech-api'
@@ -136,6 +145,8 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
   async function finish() {
     if (phase.value === 'idle' || finishing)
       return
+    clearTimeout(recordingDeadline)
+    recordingDeadline = undefined
     const ticket = generation
     phase.value = 'processing'
     finishing = (async () => {
@@ -199,6 +210,8 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
 
   async function cancel() {
     ++generation
+    clearTimeout(recordingDeadline)
+    recordingDeadline = undefined
     // Keep new presses blocked until an outstanding permission request settles.
     if (phase.value !== 'idle')
       phase.value = 'processing'

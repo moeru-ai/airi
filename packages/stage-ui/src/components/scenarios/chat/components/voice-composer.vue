@@ -2,6 +2,8 @@
 import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
+import { errorMessageFrom } from '@moeru/std'
+import { decodeBase64 } from '@moeru/std/base64'
 import { BasicButton } from '@proj-airi/ui'
 import { onLongPress, useElementBounding, useEventListener, useLocalStorage, useNow, useWindowSize } from '@vueuse/core'
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
@@ -53,13 +55,18 @@ const voice = useVoiceComposer({
       draft.value = [draft.value.trimEnd(), result.text].filter(Boolean).join(' ')
       return
     }
-    await chat.send({
+    // Chat send resolves after the model reply. The recording UI closes when delivery starts.
+    void chat.send({
       sessionId: result.sessionId,
       text: '',
       attachments: [result.audio],
+      input: {
+        type: 'input:voice',
+        data: { audio: new Uint8Array(decodeBase64(result.audio.data)).buffer },
+      },
       replyToMessageId,
       tools,
-    })
+    }).catch(error => toast.error(t('stage.voice.failed'), { description: errorMessageFrom(error) ?? t('stage.voice.failed') }))
     emit('sent')
   },
 })

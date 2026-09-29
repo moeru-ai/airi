@@ -112,7 +112,7 @@ function ownsProjectedTurn(message: ChatHistoryItem, turnId: string) {
   return message.id === turnId || `${message.id}-0` === turnId
 }
 
-function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'text'> | null {
+function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'input' | 'text'> | null {
   if (!message || message.role !== 'user')
     return null
 
@@ -135,15 +135,29 @@ function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPa
     return texts
   }, []).join('\n\n')
 
-  const attachments = message.content.flatMap((part) => {
-    if (part.type !== 'image_url')
-      return []
+  const attachments: NonNullable<ChatSendPayload['attachments']> = []
+  let audioIndex = 0
+  for (const part of message.content) {
+    if (part.type === 'input_audio' && part.input_audio.format === 'wav') {
+      attachments.push({
+        type: 'audio',
+        mimeType: 'audio/wav',
+        data: part.input_audio.data,
+        transcript: message.audioTranscripts?.[audioIndex++],
+      })
+    }
+    else if (part.type === 'image_url') {
+      const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
+      if (match)
+        attachments.push({ type: 'image', mimeType: match[1], data: match[2] })
+    }
+  }
 
-    const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
-    return match ? [{ type: 'image' as const, mimeType: match[1], data: match[2] }] : []
-  })
-
-  return text || attachments.length ? { text, attachments } : null
+  const audio = attachments.find(attachment => attachment.type === 'audio')
+  const input = audio
+    ? { type: 'input:voice' as const, data: { audio: new Uint8Array(decodeBase64(audio.data)).buffer } }
+    : undefined
+  return text || attachments.length ? { text, attachments, input } : null
 }
 
 function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): number {

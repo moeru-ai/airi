@@ -1243,6 +1243,37 @@ describe('chat history', () => {
     })
   })
 
+  it('allows a reply to an audio-only message', async () => {
+    const message: ChatHistoryItem = {
+      id: 'voice-reply-target',
+      role: 'user',
+      content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }],
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    expect(swipeSurface).not.toBeNull()
+    if (!swipeSurface)
+      throw new Error('Expected a voice message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40)
+
+    await vi.waitFor(() => {
+      expect(screen.emitted('replyMessage')).toEqual([[{ message, label: 'You' }]])
+    })
+  })
+
   // ROOT CAUSE:
   //
   // The touch recognizer discarded movement below its intent threshold. It also
