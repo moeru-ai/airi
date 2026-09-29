@@ -6,6 +6,7 @@ Shared core for stage
 
 `useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
 The apps register the complete resource list before work starts. Their startup flows report each module's result through the store.
+The app roots reset the store before registration. This also stops an old load from updating a new registration after hot reload.
 `StartupOverlay` reads the store and shows splash, progress, or an error with a retry action.
 `useStartupResourceTimeout` fails a resource that stays loading past its deadline. Web and Pocket apply it to character model loading.
 The optional Mods server connects outside the tracked startup work. Its connection does not block onboarding.

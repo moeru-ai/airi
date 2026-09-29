@@ -80,6 +80,7 @@ function registerAuthenticatedSetup() {
 
 const inferencePreload = useInferencePreload()
 const startup = useStartupResourcesStore()
+startup.reset()
 startup.register(['auth', 'modelIndex', 'card', 'chat', 'services', 'modelData', 'modelSelection', 'audio', 'route', 'model'])
 useStartupResourceTimeout('model', 120_000, () => i18n.t('stage.startup.model-timeout'))
 const startupOnboarding = ref(false)

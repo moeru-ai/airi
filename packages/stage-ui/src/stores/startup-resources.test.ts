@@ -58,4 +58,22 @@ describe('startup resources', () => {
     startup.register(['auth'])
     expect(() => startup.start('missing')).toThrow('Unknown')
   })
+
+  it('does not let an earlier startup run update a new registration', async () => {
+    const startup = useStartupResourcesStore()
+    startup.register(['auth'])
+    let finishLoad: (() => void) | undefined
+    const pending = startup.run('auth', () => new Promise<void>((resolve) => {
+      finishLoad = resolve
+    }))
+
+    startup.reset()
+    startup.register(['auth'])
+    startup.start('auth')
+    finishLoad?.()
+
+    await expect(pending).rejects.toThrow('reset')
+    expect(startup.resources[0]?.status).toBe('loading')
+    expect(startup.failed).toBeUndefined()
+  })
 })

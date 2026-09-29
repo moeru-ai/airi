@@ -13,6 +13,7 @@ export interface StartupResource {
 /** Owns one page load's resource states. Register the full list before work starts. */
 export const useStartupResourcesStore = defineStore('startup-resources', () => {
   const resources = ref<StartupResource[]>([])
+  let generation = 0
   const progress = computed(() => resources.value.length === 0
     ? 0
     : Math.round(resources.value.filter(resource => resource.status === 'ready' || resource.status === 'skipped').length / resources.value.length * 100))
@@ -25,6 +26,11 @@ export const useStartupResourcesStore = defineStore('startup-resources', () => {
     if (new Set(ids).size !== ids.length)
       throw new Error('Startup resource IDs must be unique')
     resources.value = ids.map(id => ({ id, status: 'queued' }))
+  }
+
+  function reset() {
+    generation += 1
+    resources.value = []
   }
 
   function resource(id: string) {
@@ -66,16 +72,20 @@ export const useStartupResourcesStore = defineStore('startup-resources', () => {
 
   /** Runs one resource and records a failure before the caller handles the rejection. */
   async function run(id: string, load: () => Promise<unknown> | unknown) {
+    const currentGeneration = generation
     start(id)
     try {
       await load()
+      if (currentGeneration !== generation)
+        throw new Error('Startup resources were reset during loading')
       complete(id)
     }
     catch (error) {
-      fail(id, error)
+      if (currentGeneration === generation)
+        fail(id, error)
       throw error
     }
   }
 
-  return { resources, progress, failed, ready, register, start, complete, fail, skip, run }
+  return { resources, progress, failed, ready, register, reset, start, complete, fail, skip, run }
 })
