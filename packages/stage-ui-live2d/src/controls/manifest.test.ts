@@ -157,4 +157,23 @@ describe('live2D model controls manifest', () => {
       ],
     })
   })
+
+  it('uses one ACT motion ID when a file belongs to several groups', async () => {
+    const zip = new JSZip()
+    zip.file('avatar/avatar.model3.json', JSON.stringify({
+      FileReferences: {
+        Motions: {
+          Idle: [{ File: 'motions/shared.motion3.json' }],
+          TapBody: [{ File: 'motions/shared.motion3.json' }],
+        },
+      },
+    }))
+    zip.file('avatar/motions/shared.motion3.json', '{}')
+
+    const archive = blobFromBytes(await zip.generateAsync({ type: 'uint8array' }))
+    await expect(inspectLive2DModelControls(archive)).resolves.toEqual({
+      expressions: [],
+      motions: [{ fileName: 'motions/shared.motion3.json', group: 'TapBody', index: 0 }],
+    })
+  })
 })
