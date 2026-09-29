@@ -4,14 +4,14 @@ This package provides loading screens for AIRI apps. [View the playground](https
 
 ## Use
 
-Import `StartupScreen` from `@proj-airi/ui-loading-screens/startup-screen`. Give it the phase, progress, logo URL, and translated labels.
+Import `StartupScreen` from `@proj-airi/ui-loading-screens/startup-screen`. Give it the phase, progress, locale, logo URL, and translated labels.
 
 ```vue
-<StartupScreen phase="loading" :progress="50" logo-src="/favicon.svg" :label="t('stage.operations.load-models-status.loading')" :error-title="t('stage.startup.failed')" :error-status-label="t('stage.startup.interrupted')" :error-hint="t('stage.startup.recover')" :error-details-label="t('stage.startup.details')" :retry-label="t('stage.startup.retry')" />
+<StartupScreen phase="loading" :progress="50" :locale="locale" logo-src="/favicon.svg" :label="t('stage.operations.load-models-status.loading')" :error-title="t('stage.startup.failed')" :error-status-label="t('stage.startup.interrupted')" :error-hint="t('stage.startup.recover')" :error-details-label="t('stage.startup.details')" :retry-label="t('stage.startup.retry')" />
 ```
 
 The `splash` phase shows the logo. The `loading` phase reveals a progress bar. The `error` phase shows a full-width warning band. Recovery actions stay near the bottom. Error details open in a small panel. The `done` phase removes the screen.
-The screen uses Comfortaa and the `Progress` component from `@proj-airi/ui`.
+The screen uses Comfortaa for the brand and content. Its error band uses WDXL Lubrifont SC for English and Chinese, and WDXL Lubrifont JP N for Japanese. The progress bar uses `Progress` from `@proj-airi/ui`.
 `StartupOverlay` reads the resource state and supplies the error text.
 The optional `alternative-label` adds a second action for a recoverable failure.
 

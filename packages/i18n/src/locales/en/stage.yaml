@@ -83,11 +83,11 @@ startup:
   failed: Startup failed
   failed-resource: Could not load {resource}
   interrupted: Load interrupted
-  recover: Restart AIRI to try again. If it still fails, open the error details below.
-  recover-model: Restart AIRI to try again. Or continue without a character and select another model later.
+  recover: Try again. If it fails again, select the information icon for details.
+  recover-model: Try again, or continue without a character. You can select another model later.
   details: Error details
-  retry: Restart AIRI
-  continue-without-model: Continue without a character
+  retry: Retry
+  continue-without-model: Continue Anyway
   resources:
     auth: account settings
     modelIndex: model list

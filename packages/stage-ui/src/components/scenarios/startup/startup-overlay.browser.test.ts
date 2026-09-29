@@ -22,6 +22,9 @@ function mountOverlay(onFinished: () => void) {
   const i18n = createI18n({
     legacy: false,
     locale: 'en',
+    fallbackLocale: 'en',
+    missingWarn: false,
+    fallbackWarn: false,
     messages: {
       en: {
         stage: {
@@ -30,27 +33,28 @@ function mountOverlay(onFinished: () => void) {
             'failed': 'Startup failed',
             'failed-resource': 'Could not load {resource}',
             'interrupted': 'Load interrupted',
-            'recover': 'Restart AIRI to try again.',
-            'recover-model': 'Restart AIRI to try again. Or continue without a character and select another model later.',
+            'recover': 'Try again. If it fails again, select the information icon for details.',
+            'recover-model': 'Try again, or continue without a character. You can select another model later.',
             'details': 'Error details',
-            'retry': 'Restart AIRI',
-            'continue-without-model': 'Continue without a character',
-            'resources': { model: 'character model' },
+            'retry': 'Retry',
+            'continue-without-model': 'Continue Anyway',
+            'resources': { auth: 'account settings', model: 'character model' },
           },
         },
       },
+      ja: {},
     },
   })
   const app = createApp({ render: () => h(StartupOverlay, { logoSrc: '/favicon.svg', onFinished }, { default: () => h('main', 'stage') }) })
   app.use(pinia)
   app.use(i18n)
   app.mount(host)
-  return { app, startup: useStartupResourcesStore(pinia) }
+  return { app, startup: useStartupResourcesStore(pinia), i18n }
 }
 
 it('keeps the startup screen and retry action visible after a resource fails', async () => {
   let finished = false
-  const { app, startup } = mountOverlay(() => {
+  const { app, startup, i18n } = mountOverlay(() => {
     finished = true
   })
   try {
@@ -63,14 +67,34 @@ it('keeps the startup screen and retry action visible after a resource fails', a
     expect(document.querySelector('.startup-screen-error .startup-brand')).not.toBeNull()
     expect(document.querySelector('.startup-error-hint')?.textContent).toContain('select another model later')
     expect(document.querySelector('.startup-status-error [role="progressbar"]')).not.toBeNull()
-    expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Continue without a character')
+    expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Retry')
+    expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Continue Anyway')
     expect(document.querySelector('.startup-error-details-content')).toBeNull()
     const detailsTrigger = document.querySelector<HTMLButtonElement>('.startup-error-details-trigger')
     detailsTrigger?.click()
     await expect.poll(() => document.querySelector('.startup-error-details-content')?.textContent).toContain('Download failed')
     await expect.poll(() => Math.round(document.querySelector('.startup-error-header')?.getBoundingClientRect().width ?? 0)).toBe(window.innerWidth)
     expect(window.innerHeight - document.querySelector('.startup-error-recovery')!.getBoundingClientRect().bottom).toBeLessThan(100)
+    expect(getComputedStyle(document.querySelector('.startup-error-header')!).fontFamily).toContain('WDXL Lubrifont SC')
+    i18n.global.locale.value = 'ja'
+    await expect.poll(() => getComputedStyle(document.querySelector('.startup-error-header')!).fontFamily).toContain('WDXL Lubrifont JP N')
     expect(finished).toBe(false)
+  }
+  finally {
+    app.unmount()
+  }
+})
+
+it('offers Retry without a continue action when a required resource fails', async () => {
+  const { app, startup } = mountOverlay(() => {})
+  try {
+    startup.register(['auth'])
+    startup.start('auth')
+    startup.fail('auth', new Error('Account setup failed'))
+
+    await expect.poll(() => document.querySelector('[role="alert"]')?.textContent).toContain('Could not load account settings')
+    expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Retry')
+    expect(document.querySelector('.startup-error-recovery')?.textContent).not.toContain('Continue Anyway')
   }
   finally {
     app.unmount()

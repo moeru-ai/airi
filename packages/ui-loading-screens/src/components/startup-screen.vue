@@ -4,11 +4,14 @@ import { onClickOutside } from '@vueuse/core'
 import { shallowRef, useTemplateRef, watch } from 'vue'
 
 import '@fontsource-variable/comfortaa/wght.css'
+import '@fontsource/wdxl-lubrifont-jp-n/japanese-400.css'
+import '@fontsource/wdxl-lubrifont-sc/chinese-simplified-400.css'
 
 /** Shows startup progress and retains failures until the user retries. */
 const props = defineProps<{
   phase: 'splash' | 'loading' | 'error' | 'done'
   progress: number
+  locale: string
   logoSrc: string
   label: string
   errorTitle: string
@@ -38,7 +41,7 @@ watch(() => props.phase, (phase) => {
 <template>
   <Teleport to="body">
     <Transition name="startup-exit">
-      <section v-if="phase !== 'done'" class="startup-screen" :class="{ 'startup-screen-error': phase === 'error' }">
+      <section v-if="phase !== 'done'" class="startup-screen" :class="{ 'startup-screen-error': phase === 'error', 'startup-screen-japanese': locale.startsWith('ja') }">
         <div class="startup-brand">
           <img class="startup-logo" :src="logoSrc" alt="">
           <strong class="startup-name">AIRI</strong>
@@ -48,25 +51,25 @@ watch(() => props.phase, (phase) => {
           <div v-if="phase === 'error'" class="startup-error">
             <div class="startup-error-header">
               <span i-solar:danger-triangle-bold-duotone class="startup-error-symbol" aria-hidden="true" />
-              <span>{{ errorStatusLabel }}</span>
-            </div>
-            <div v-if="errorMessage" ref="detailsElement" class="startup-error-details" @keydown.esc="detailsOpen = false">
-              <button
-                type="button"
-                class="startup-error-details-trigger"
-                :aria-label="errorDetailsLabel"
-                :aria-expanded="detailsOpen"
-                aria-controls="startup-error-details-content"
-                @click="detailsOpen = !detailsOpen"
-              >
-                <span i-solar:info-circle-linear aria-hidden="true" />
-              </button>
-              <div v-if="detailsOpen" id="startup-error-details-content" class="startup-error-details-content">
-                <div class="startup-error-details-heading">
-                  {{ errorDetailsLabel }}
-                </div>
-                <div class="startup-error-details-message">
-                  {{ errorMessage }}
+              <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
+              <div v-if="errorMessage" ref="detailsElement" class="startup-error-details" @keydown.esc="detailsOpen = false">
+                <button
+                  type="button"
+                  class="startup-error-details-trigger"
+                  :aria-label="errorDetailsLabel"
+                  :aria-expanded="detailsOpen"
+                  aria-controls="startup-error-details-content"
+                  @click="detailsOpen = !detailsOpen"
+                >
+                  <span i-solar:info-circle-linear aria-hidden="true" />
+                </button>
+                <div v-if="detailsOpen" id="startup-error-details-content" class="startup-error-details-content">
+                  <div class="startup-error-details-heading">
+                    {{ errorDetailsLabel }}
+                  </div>
+                  <div class="startup-error-details-message">
+                    {{ errorMessage }}
+                  </div>
                 </div>
               </div>
             </div>
@@ -221,8 +224,8 @@ watch(() => props.phase, (phase) => {
 }
 
 .startup-status-error .startup-track {
-  width: calc(100% - 96px);
-  margin: 8px 48px 0;
+  width: calc(100% - 48px);
+  margin: 8px 24px 0;
 }
 
 .startup-progress {
@@ -252,18 +255,22 @@ watch(() => props.phase, (phase) => {
 .startup-error-header {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   min-height: 56px;
-  padding: 0 48px;
+  padding: 8px 24px;
   border-top: 1px solid #ef4444;
   border-bottom: 1px solid #ef444466;
   background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
   color: #dc2626;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-family: "WDXL Lubrifont SC", "Comfortaa Variable", ui-sans-serif, system-ui, sans-serif;
+  font-size: clamp(18px, 2vw, 22px);
+  font-weight: 400;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.startup-screen-japanese .startup-error-header {
+  font-family: "WDXL Lubrifont JP N", "Comfortaa Variable", ui-sans-serif, system-ui, sans-serif;
 }
 
 .startup-error {
@@ -272,11 +279,15 @@ watch(() => props.phase, (phase) => {
 
 .startup-error-header::after {
   content: '';
+  flex: none;
   width: 90px;
   height: 10px;
-  margin-left: auto;
   background: repeating-linear-gradient(110deg, currentColor 0 7px, transparent 7px 14px);
   opacity: 0.52;
+}
+
+.startup-error-status-label {
+  min-width: 0;
 }
 
 .startup-error-symbol {
@@ -285,7 +296,7 @@ watch(() => props.phase, (phase) => {
 }
 
 .startup-error-title {
-  margin: 24px 48px 0;
+  margin: 24px 24px 0;
   font-size: clamp(20px, 4vw, 26px);
   font-weight: 700;
   line-height: 1.35;
@@ -293,7 +304,7 @@ watch(() => props.phase, (phase) => {
 
 .startup-error-hint {
   max-width: 560px;
-  margin: 10px 48px 0;
+  margin: 10px 24px 0;
   color: #737373;
   font-size: 13px;
   line-height: 1.6;
@@ -303,7 +314,7 @@ watch(() => props.phase, (phase) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin: 28px 48px 0;
+  margin: 28px 24px 0;
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -332,9 +343,9 @@ watch(() => props.phase, (phase) => {
 }
 
 .startup-error-details {
-  position: absolute;
-  top: 14px;
-  right: 150px;
+  position: relative;
+  flex: none;
+  margin-left: auto;
   z-index: 1;
 }
 
@@ -359,7 +370,7 @@ watch(() => props.phase, (phase) => {
 .startup-error-details-content {
   position: absolute;
   top: calc(100% + 12px);
-  right: 0;
+  right: -100px;
   z-index: 1;
   box-sizing: border-box;
   width: min(360px, calc(100vw - 48px));
@@ -370,6 +381,9 @@ watch(() => props.phase, (phase) => {
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 8px 24px #1717171a;
+  font-family: "Comfortaa Variable", "Comfortaa", ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: normal;
+  text-transform: none;
   overflow-wrap: anywhere;
 }
 
@@ -468,45 +482,42 @@ watch(() => props.phase, (phase) => {
 
 @media (max-width: 600px) {
   .startup-error-header {
-    padding: 0 24px;
+    padding: 8px 12px;
   }
 
   .startup-error-title {
-    margin-right: 24px;
-    margin-left: 24px;
+    margin-right: 16px;
+    margin-left: 16px;
   }
 
   .startup-error-hint {
-    margin-right: 24px;
-    margin-left: 24px;
+    margin-right: 16px;
+    margin-left: 16px;
   }
 
   .startup-error-progress-heading {
-    margin-right: 24px;
-    margin-left: 24px;
+    margin-right: 16px;
+    margin-left: 16px;
   }
 
   .startup-status-error .startup-track {
-    width: calc(100% - 48px);
-    margin-right: 24px;
-    margin-left: 24px;
+    width: calc(100% - 32px);
+    margin-right: 16px;
+    margin-left: 16px;
   }
 
   .startup-error-header::after {
-    width: 32px;
-  }
-
-  .startup-error-details {
-    right: 64px;
+    width: 24px;
   }
 
   .startup-error-details-content {
-    right: -40px;
+    right: -34px;
+    width: min(360px, calc(100vw - 24px));
   }
 
   .startup-error-recovery {
     display: grid;
-    width: calc(100% - 48px);
+    width: calc(100% - 32px);
   }
 
   .startup-error-action {

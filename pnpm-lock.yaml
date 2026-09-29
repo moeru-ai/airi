@@ -153,6 +153,12 @@ catalogs:
     '@fontsource/m-plus-rounded-1c':
       specifier: ^5.3.0
       version: 5.3.0
+    '@fontsource/wdxl-lubrifont-jp-n':
+      specifier: ^5.3.0
+      version: 5.3.0
+    '@fontsource/wdxl-lubrifont-sc':
+      specifier: ^5.3.0
+      version: 5.3.0
     '@formkit/auto-animate':
       specifier: ^0.10.0
       version: 0.10.0
@@ -5345,6 +5351,12 @@ importers:
       '@fontsource-variable/comfortaa':
         specifier: 'catalog:'
         version: 5.3.0
+      '@fontsource/wdxl-lubrifont-jp-n':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/wdxl-lubrifont-sc':
+        specifier: 'catalog:'
+        version: 5.3.0
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -8045,6 +8057,12 @@ packages:
 
   '@fontsource/m-plus-rounded-1c@5.3.0':
     resolution: {integrity: sha512-eB/JxJBRXLdfTsBDElsAZDMtHXM58Hf1tKkHoDVZAaUN7a+qYfwNKh4Q2f7Fk9YNg4xPFjTwooVlQyqbhi8CWQ==}
+
+  '@fontsource/wdxl-lubrifont-jp-n@5.3.0':
+    resolution: {integrity: sha512-0FXljSqaZwnjv6gkt54kjbMAZcBnpRVzFWfHhIYZQFz87htwa9d6/ypXybWW6tNLrdrfcfrGvMuODoBlTrne+w==}
+
+  '@fontsource/wdxl-lubrifont-sc@5.3.0':
+    resolution: {integrity: sha512-2kBoLPga9AA3TaMbqm9+WPYIeeMOqWmzdlvKUpthLRwS/FVsMLed1TLI/j/nsAupXz1LUO0JTrTNHqcvBnTvKw==}
 
   '@formkit/auto-animate@0.10.0':
     resolution: {integrity: sha512-KGomRttjUfORuPUaR/ZGQw+6xfMrTM+sxnILv7JAd9AmabU9rg9i6gF/iC0Ih+QpKCubJpCA/1DX9UHKE8cX+A==}
@@ -22726,6 +22744,10 @@ snapshots:
   '@fontsource/kiwi-maru@5.3.0': {}
 
   '@fontsource/m-plus-rounded-1c@5.3.0': {}
+
+  '@fontsource/wdxl-lubrifont-jp-n@5.3.0': {}
+
+  '@fontsource/wdxl-lubrifont-sc@5.3.0': {}
 
   '@formkit/auto-animate@0.10.0(vue@3.5.41(typescript@6.0.3))':
     dependencies:

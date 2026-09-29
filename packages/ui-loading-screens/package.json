@@ -29,6 +29,8 @@
   },
   "dependencies": {
     "@fontsource-variable/comfortaa": "catalog:",
+    "@fontsource/wdxl-lubrifont-jp-n": "catalog:",
+    "@fontsource/wdxl-lubrifont-sc": "catalog:",
     "@moeru/std": "catalog:",
     "@proj-airi/font-departure-mono": "workspace:^",
     "@proj-airi/ui": "workspace:^",
