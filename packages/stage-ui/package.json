@@ -79,6 +79,8 @@
     "@openpanel/web": "catalog:",
     "@opentelemetry/api": "catalog:",
     "@opentelemetry/core": "catalog:",
+    "@opentelemetry/exporter-trace-otlp-proto": "catalog:",
+    "@opentelemetry/resources": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@pinia/colada": "catalog:",
     "@proj-airi/audio": "workspace:^",

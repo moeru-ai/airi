@@ -1,0 +1,11 @@
+version: v2
+inputs:
+  - directory: packages/stage-shared/proto
+plugins:
+  - remote: buf.build/grpc-ecosystem/openapiv2:v2.27.7
+    out: packages/stage-shared/src/debug/generated
+    opt:
+      - allow_merge=true
+      - merge_file_name=debug
+      - output_format=json
+      - json_names_for_fields=true

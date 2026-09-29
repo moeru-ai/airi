@@ -1,0 +1,213 @@
+syntax = "proto3";
+
+package airi.debug.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option go_package = "github.com/moeru-ai/airi/packages/stage-shared/gen/airi/debug/v1;debugv1";
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "AIRI Local Debug API"
+    version: "1.0.0"
+  }
+  schemes: HTTP
+  host: "127.0.0.1:6122"
+  consumes: "application/json"
+  produces: "application/json"
+};
+
+service DebugService {
+  rpc ListSources(ListSourcesRequest) returns (ListSourcesResponse) {
+    option (google.api.http) = {get: "/api/debug/v1/sources"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      operation_id: "debug_list_sources"
+      summary: "List observed local sources."
+      tags: "Debug"
+    };
+  }
+
+  rpc ListTraces(ListTracesRequest) returns (ListTracesResponse) {
+    option (google.api.http) = {get: "/api/debug/v1/traces"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      operation_id: "debug_list_traces"
+      summary: "List observed traces."
+      tags: "Debug"
+    };
+  }
+
+  rpc GetTrace(GetTraceRequest) returns (GetTraceResponse) {
+    option (google.api.http) = {get: "/api/debug/v1/traces/{trace_id}"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      operation_id: "debug_get_trace"
+      summary: "Get one observed trace."
+      tags: "Debug"
+    };
+  }
+
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {
+    option (google.api.http) = {get: "/api/debug/v1/events"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      operation_id: "debug_list_events"
+      summary: "List persisted span and log records."
+      tags: "Debug"
+    };
+  }
+
+  rpc ExportRecords(ExportRecordsRequest) returns (ExportRecordsResponse) {
+    option (google.api.http) = {get: "/api/debug/v1/export"};
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      operation_id: "debug_export_records"
+      summary: "Export persisted records and sanitized batches."
+      tags: "Debug"
+    };
+  }
+}
+
+message ListSourcesRequest {
+  string after_cursor = 1 [(buf.validate.field).string.pattern = "^$|^[0-9]+$"];
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 200];
+}
+
+message ListSourcesResponse {
+  repeated Source sources = 1;
+  string first_cursor = 2;
+  string last_cursor = 3;
+  string next_cursor = 4;
+}
+
+message Source {
+  string source_id = 1;
+  string service_name = 2;
+  string first_seen_unix_nano = 3;
+  string last_seen_unix_nano = 4;
+  uint64 event_count = 5;
+  repeated string signals = 6;
+}
+
+message ListTracesRequest {
+  optional string source_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Exact source identifier filter."
+    max_length: 256
+  }];
+  optional string session_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Exact session identifier filter."
+    max_length: 256
+  }];
+  optional string started_after_unix_nano = 3 [(buf.validate.field).string.pattern = "^[0-9]+$"];
+  optional TraceState state = 4 [(buf.validate.field).enum.defined_only = true];
+  string after_cursor = 5 [(buf.validate.field).string.pattern = "^$|^[0-9]+$"];
+  uint32 page_size = 6 [(buf.validate.field).uint32.lte = 200];
+}
+
+message ListTracesResponse {
+  repeated TraceSummary traces = 1;
+  string next_cursor = 2;
+}
+
+message GetTraceRequest {
+  string trace_id = 1 [
+    (buf.validate.field).string.pattern = "^[0-9a-fA-F]{32}$",
+    (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+      description: "A 16-byte trace identifier as hexadecimal text."
+      pattern: "^[0-9a-fA-F]{32}$"
+    }
+  ];
+}
+
+message GetTraceResponse {
+  TraceSummary trace = 1;
+}
+
+enum TraceState {
+  TRACE_STATE_UNSPECIFIED = 0;
+  TRACE_STATE_INCOMPLETE = 1;
+  TRACE_STATE_COMPLETE = 2;
+  TRACE_STATE_ERROR = 3;
+}
+
+message TraceSummary {
+  string trace_id = 1;
+  string source_id = 2;
+  string session_id = 3;
+  string first_seen_unix_nano = 4;
+  string last_seen_unix_nano = 5;
+  TraceState state = 6;
+  uint64 span_count = 7;
+  uint64 log_count = 8;
+  string last_cursor = 9;
+}
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_SPAN = 1;
+  EVENT_KIND_LOG = 2;
+}
+
+message ListEventsRequest {
+  optional string trace_id = 1 [(buf.validate.field).string.pattern = "^[0-9a-fA-F]{32}$"];
+  optional string span_id = 2 [(buf.validate.field).string.pattern = "^[0-9a-fA-F]{16}$"];
+  optional string source_id = 3 [(buf.validate.field).string.max_len = 256];
+  optional string session_id = 4 [(buf.validate.field).string.max_len = 256];
+  optional EventKind kind = 5 [(buf.validate.field).enum.defined_only = true];
+  string after_cursor = 6 [(buf.validate.field).string.pattern = "^$|^[0-9]+$"];
+  uint32 page_size = 7 [(buf.validate.field).uint32.lte = 200];
+}
+
+message ListEventsResponse {
+  repeated EventRecord events = 1;
+  string next_cursor = 2;
+}
+
+message EventRecord {
+  string cursor = 1;
+  string trace_id = 2;
+  string span_id = 3;
+  string parent_span_id = 4;
+  string source_id = 5;
+  string session_id = 6;
+  string name = 7;
+  string time_unix_nano = 8;
+  string received_unix_nano = 9;
+  string raw_json = 10;
+  oneof payload {
+    SpanRecord span = 11;
+    LogRecord log = 12;
+  }
+  string resource_json = 13;
+  string scope_json = 14;
+  string resource_schema_url = 15;
+  string scope_schema_url = 16;
+}
+
+message SpanRecord {
+  string end_time_unix_nano = 1;
+  uint32 status_code = 2;
+}
+
+message LogRecord {
+  uint32 severity_number = 1;
+  string severity_text = 2;
+}
+
+message ExportRecordsRequest {
+  string after_cursor = 1 [(buf.validate.field).string.pattern = "^$|^[0-9]+$"];
+  uint32 page_size = 2 [(buf.validate.field).uint32.lte = 1000];
+}
+
+message ExportRecordsResponse {
+  string protocol_version = 1;
+  repeated EventRecord events = 2;
+  repeated IngestBatch batches = 3;
+  string next_cursor = 4;
+}
+
+message IngestBatch {
+  string cursor = 1;
+  EventKind kind = 2;
+  string content_type = 3;
+  string content_encoding = 4;
+  bytes body = 5;
+  string received_unix_nano = 6;
+}

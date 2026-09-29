@@ -1,0 +1,14 @@
+version: v2
+modules:
+  - path: packages/stage-shared/proto
+deps:
+  - buf.build/bufbuild/protovalidate
+  - buf.build/googleapis/googleapis
+  - buf.build/grpc-ecosystem/grpc-gateway
+  - buf.build/opentelemetry/opentelemetry
+lint:
+  use:
+    - STANDARD
+breaking:
+  use:
+    - FILE

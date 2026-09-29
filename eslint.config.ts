@@ -28,6 +28,7 @@ export default defineConfig({
     'apps/stage-pocket/ios/**',
     'apps/stage-pocket/android/**',
     '**/drizzle/**',
+    'packages/stage-shared/src/debug/generated/**',
     '**/.astro/**',
     'docs/superpowers/**',
     '.agents/**',

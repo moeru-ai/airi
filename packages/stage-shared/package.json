@@ -17,6 +17,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth/index.ts",
+    "./error-message": "./src/error-message.ts",
     "./analytics/openpanel": "./src/analytics/openpanel.ts",
     "./beat-sync": "./src/beat-sync/index.ts",
     "./global-shortcut": "./src/global-shortcut/index.ts",
@@ -30,9 +31,11 @@
     "./types/pinia-action-event": "./src/types/pinia-action-event.ts",
     "./electron-renderer": "./src/electron-renderer.d.ts",
     "./composables": "./src/composables/index.ts",
+    "./debug": "./src/debug/generated/client/index.ts",
     "./webgpu": "./src/webgpu/index.ts"
   },
   "scripts": {
+    "debug:generate": "cd ../.. && buf generate && pnpm exec openapi-ts -f packages/stage-shared/openapi-ts.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -45,6 +48,7 @@
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",
+    "@hey-api/openapi-ts": "catalog:",
     "@moeru/eventa": "catalog:",
     "@nekopaw/tempora": "catalog:",
     "@proj-airi/electron-screen-capture": "workspace:^",

@@ -1,0 +1,33 @@
+{
+  "name": "@proj-airi/debug-server",
+  "type": "module",
+  "private": true,
+  "description": "Local OTLP persistence and query service for AIRI development.",
+  "scripts": {
+    "dev": "tsx watch ./src/bin.ts",
+    "start": "tsx ./src/bin.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@duckdb/node-api": "catalog:",
+    "@hono/node-server": "catalog:",
+    "@proj-airi/stage-shared": "workspace:^",
+    "hono": "catalog:",
+    "lossless-json": "catalog:",
+    "protobufjs": "catalog:"
+  },
+  "devDependencies": {
+    "@opentelemetry/api": "catalog:",
+    "@opentelemetry/exporter-logs-otlp-proto": "catalog:",
+    "@opentelemetry/exporter-trace-otlp-proto": "catalog:",
+    "@opentelemetry/resources": "catalog:",
+    "@opentelemetry/sdk-logs": "catalog:",
+    "@opentelemetry/sdk-trace-base": "catalog:",
+    "@types/node": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:vitest"
+  }
+}

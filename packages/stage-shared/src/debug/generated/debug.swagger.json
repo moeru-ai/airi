@@ -1,0 +1,572 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "AIRI Local Debug API",
+    "version": "1.0.0"
+  },
+  "tags": [
+    {
+      "name": "DebugService"
+    }
+  ],
+  "host": "127.0.0.1:6122",
+  "schemes": [
+    "http"
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/debug/v1/events": {
+      "get": {
+        "summary": "List persisted span and log records.",
+        "operationId": "debug_list_events",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListEventsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "traceId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "spanId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sourceId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sessionId",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "EVENT_KIND_UNSPECIFIED",
+              "EVENT_KIND_SPAN",
+              "EVENT_KIND_LOG"
+            ],
+            "default": "EVENT_KIND_UNSPECIFIED"
+          },
+          {
+            "name": "afterCursor",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Debug"
+        ]
+      }
+    },
+    "/api/debug/v1/export": {
+      "get": {
+        "summary": "Export persisted records and sanitized batches.",
+        "operationId": "debug_export_records",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ExportRecordsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "afterCursor",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Debug"
+        ]
+      }
+    },
+    "/api/debug/v1/sources": {
+      "get": {
+        "summary": "List observed local sources.",
+        "operationId": "debug_list_sources",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListSourcesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "afterCursor",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Debug"
+        ]
+      }
+    },
+    "/api/debug/v1/traces": {
+      "get": {
+        "summary": "List observed traces.",
+        "operationId": "debug_list_traces",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListTracesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "sourceId",
+            "description": "Exact source identifier filter.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "sessionId",
+            "description": "Exact session identifier filter.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "startedAfterUnixNano",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "TRACE_STATE_UNSPECIFIED",
+              "TRACE_STATE_INCOMPLETE",
+              "TRACE_STATE_COMPLETE",
+              "TRACE_STATE_ERROR"
+            ],
+            "default": "TRACE_STATE_UNSPECIFIED"
+          },
+          {
+            "name": "afterCursor",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "tags": [
+          "Debug"
+        ]
+      }
+    },
+    "/api/debug/v1/traces/{traceId}": {
+      "get": {
+        "summary": "Get one observed trace.",
+        "operationId": "debug_get_trace",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetTraceResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "traceId",
+            "description": "A 16-byte trace identifier as hexadecimal text.",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "Debug"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1EventKind": {
+      "type": "string",
+      "enum": [
+        "EVENT_KIND_UNSPECIFIED",
+        "EVENT_KIND_SPAN",
+        "EVENT_KIND_LOG"
+      ],
+      "default": "EVENT_KIND_UNSPECIFIED"
+    },
+    "v1EventRecord": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "type": "string"
+        },
+        "traceId": {
+          "type": "string"
+        },
+        "spanId": {
+          "type": "string"
+        },
+        "parentSpanId": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "timeUnixNano": {
+          "type": "string"
+        },
+        "receivedUnixNano": {
+          "type": "string"
+        },
+        "rawJson": {
+          "type": "string"
+        },
+        "span": {
+          "$ref": "#/definitions/v1SpanRecord"
+        },
+        "log": {
+          "$ref": "#/definitions/v1LogRecord"
+        },
+        "resourceJson": {
+          "type": "string"
+        },
+        "scopeJson": {
+          "type": "string"
+        },
+        "resourceSchemaUrl": {
+          "type": "string"
+        },
+        "scopeSchemaUrl": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ExportRecordsResponse": {
+      "type": "object",
+      "properties": {
+        "protocolVersion": {
+          "type": "string"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1EventRecord"
+          }
+        },
+        "batches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1IngestBatch"
+          }
+        },
+        "nextCursor": {
+          "type": "string"
+        }
+      }
+    },
+    "v1GetTraceResponse": {
+      "type": "object",
+      "properties": {
+        "trace": {
+          "$ref": "#/definitions/v1TraceSummary"
+        }
+      }
+    },
+    "v1IngestBatch": {
+      "type": "object",
+      "properties": {
+        "cursor": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/v1EventKind"
+        },
+        "contentType": {
+          "type": "string"
+        },
+        "contentEncoding": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string",
+          "format": "byte"
+        },
+        "receivedUnixNano": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListEventsResponse": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1EventRecord"
+          }
+        },
+        "nextCursor": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListSourcesResponse": {
+      "type": "object",
+      "properties": {
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Source"
+          }
+        },
+        "firstCursor": {
+          "type": "string"
+        },
+        "lastCursor": {
+          "type": "string"
+        },
+        "nextCursor": {
+          "type": "string"
+        }
+      }
+    },
+    "v1ListTracesResponse": {
+      "type": "object",
+      "properties": {
+        "traces": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1TraceSummary"
+          }
+        },
+        "nextCursor": {
+          "type": "string"
+        }
+      }
+    },
+    "v1LogRecord": {
+      "type": "object",
+      "properties": {
+        "severityNumber": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "severityText": {
+          "type": "string"
+        }
+      }
+    },
+    "v1Source": {
+      "type": "object",
+      "properties": {
+        "sourceId": {
+          "type": "string"
+        },
+        "serviceName": {
+          "type": "string"
+        },
+        "firstSeenUnixNano": {
+          "type": "string"
+        },
+        "lastSeenUnixNano": {
+          "type": "string"
+        },
+        "eventCount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1SpanRecord": {
+      "type": "object",
+      "properties": {
+        "endTimeUnixNano": {
+          "type": "string"
+        },
+        "statusCode": {
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "v1TraceState": {
+      "type": "string",
+      "enum": [
+        "TRACE_STATE_UNSPECIFIED",
+        "TRACE_STATE_INCOMPLETE",
+        "TRACE_STATE_COMPLETE",
+        "TRACE_STATE_ERROR"
+      ],
+      "default": "TRACE_STATE_UNSPECIFIED"
+    },
+    "v1TraceSummary": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "type": "string"
+        },
+        "sourceId": {
+          "type": "string"
+        },
+        "sessionId": {
+          "type": "string"
+        },
+        "firstSeenUnixNano": {
+          "type": "string"
+        },
+        "lastSeenUnixNano": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/definitions/v1TraceState"
+        },
+        "spanCount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "logCount": {
+          "type": "string",
+          "format": "uint64"
+        },
+        "lastCursor": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

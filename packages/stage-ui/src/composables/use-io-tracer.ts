@@ -1,16 +1,21 @@
-import type { Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
-import type { ReadableSpan, SpanExporter } from '@opentelemetry/sdk-trace-base'
+import type { Attributes, Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
+import type { ReadableSpan, SpanExporter, SpanProcessor } from '@opentelemetry/sdk-trace-base'
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 
 import { context, trace } from '@opentelemetry/api'
 import { hrTimeToNanoseconds } from '@opentelemetry/core'
-import { BasicTracerProvider, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
+import { resourceFromAttributes } from '@opentelemetry/resources'
+import { BasicTracerProvider, BatchSpanProcessor, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base'
 import { shallowRef } from 'vue'
 
 export type { ReadableSpan } from '@opentelemetry/sdk-trace-base'
 
 const TRACER_NAME = 'ai.moeru.airi.io-tracer'
 const BROADCAST_CHANNEL = 'io-tracer-channel' // TODO: Use simple BroadcastChannel for now
+const SENSITIVE_ATTRIBUTE_PATTERN = /(?:^|[._-])(?:authorization|cookie|password|passwd|secret|api[._-]?key|access[._-]?token|refresh[._-]?token|bearer)(?:[._-]|$)/i
+const CONTENT_ATTRIBUTE_PATTERN = /content|prompt|completion|response|request|message|input|output|text|transcript|raw[._-]?token|parameter/i
+const SENSITIVE_QUERY_PATTERN = /credential|signature|secret|token|api.?key|authorization/i
 
 type SpanCallback = (span: ReadableSpan) => void
 
@@ -99,6 +104,94 @@ export function createCallbackSpanExporter(): SpanExporter {
   }
 }
 
+function filteredAttributes(attributes: Attributes, captureContent: boolean): Attributes {
+  const filtered: Attributes = {}
+  for (const [key, value] of Object.entries(attributes)) {
+    if (SENSITIVE_ATTRIBUTE_PATTERN.test(key) || (!captureContent && CONTENT_ATTRIBUTE_PATTERN.test(key)))
+      continue
+    if (typeof value === 'string') {
+      try {
+        const url = new URL(value)
+        for (const parameter of [...url.searchParams.keys()]) {
+          if (SENSITIVE_QUERY_PATTERN.test(parameter))
+            url.searchParams.set(parameter, '[redacted]')
+        }
+        filtered[key] = url.toString()
+        continue
+      }
+      catch {}
+    }
+    filtered[key] = value
+  }
+  return filtered
+}
+
+function filteredSpan(span: ReadableSpan, captureContent: boolean): ReadableSpan {
+  const attributes = filteredAttributes(span.attributes, captureContent)
+  const events = span.events.map(event => ({
+    ...event,
+    attributes: event.attributes ? filteredAttributes(event.attributes, captureContent) : undefined,
+  }))
+  const status = captureContent ? span.status : { code: span.status.code }
+  return new Proxy(span, {
+    get: (target, property) => {
+      if (property === 'attributes')
+        return attributes
+      if (property === 'events')
+        return events
+      if (property === 'status')
+        return status
+      const value = Reflect.get(target, property, target)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
+
+function createDebugSpanProcessor(): SpanProcessor | undefined {
+  if (!import.meta.env.DEV)
+    return undefined
+  const endpoint = import.meta.env.VITE_AIRI_DEBUG_OTLP_ENDPOINT?.trim()
+  const token = import.meta.env.VITE_AIRI_DEBUG_TOKEN?.trim()
+  if (!endpoint || !token)
+    return undefined
+
+  let endpointUrl: URL
+  try {
+    endpointUrl = new URL(endpoint)
+  }
+  catch (error) {
+    console.warn('[io-tracer] Ignoring invalid local debug OTLP endpoint', error)
+    return undefined
+  }
+  if (!['http:', 'https:'].includes(endpointUrl.protocol)
+    || endpointUrl.username
+    || endpointUrl.password
+    || endpointUrl.search
+    || endpointUrl.hash
+    || !['127.0.0.1', '[::1]', 'localhost'].includes(endpointUrl.hostname)) {
+    return undefined
+  }
+
+  const captureContent = import.meta.env.VITE_AIRI_DEBUG_CAPTURE_CONTENT === 'true'
+  if (!endpointUrl.pathname.endsWith('/v1/traces'))
+    endpointUrl.pathname = `${endpointUrl.pathname.replace(/\/$/, '')}/v1/traces`
+  const exporter = new OTLPTraceExporter({
+    headers: { Authorization: `Bearer ${token}` },
+    url: endpointUrl.toString(),
+  })
+  const filteringExporter: SpanExporter = {
+    export: (spans, resultCallback) => exporter.export(spans.map(span => filteredSpan(span, captureContent)), resultCallback),
+    forceFlush: () => exporter.forceFlush(),
+    shutdown: () => exporter.shutdown(),
+  }
+  return new BatchSpanProcessor(filteringExporter, {
+    exportTimeoutMillis: 5000,
+    maxExportBatchSize: 100,
+    maxQueueSize: 2048,
+    scheduledDelayMillis: 250,
+  })
+}
+
 export function getIOTracer() {
   if (provider)
     return provider.getTracer(TRACER_NAME)
@@ -112,8 +205,19 @@ export function initIOTracer() {
   if (provider)
     return
 
+  const spanProcessors: SpanProcessor[] = [new SimpleSpanProcessor(createCallbackSpanExporter())]
+  const debugSpanProcessor = createDebugSpanProcessor()
+  if (debugSpanProcessor)
+    spanProcessors.push(debugSpanProcessor)
+
   provider = new BasicTracerProvider({
-    spanProcessors: [new SimpleSpanProcessor(createCallbackSpanExporter())],
+    resource: debugSpanProcessor
+      ? resourceFromAttributes({
+          'service.instance.id': Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join(''),
+          'service.name': 'airi-stage-ui',
+        })
+      : undefined,
+    spanProcessors,
   })
   trace.setGlobalTracerProvider(provider)
 }
