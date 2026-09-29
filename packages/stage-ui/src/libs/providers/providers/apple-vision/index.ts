@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { defineProvider } from '../registry'
 
 export const APPLE_VISION_PROVIDER_ID = 'apple-vision'
+type AppleVisionProviderId = typeof APPLE_VISION_PROVIDER_ID
 
 const appleVisionConfigSchema = z.object({})
 
@@ -65,7 +66,7 @@ async function listAppleVisionModelCatalog(): Promise<ProviderModelCatalog> {
   }
 }
 
-export const providerAppleVision = defineProvider<AppleVisionConfig>({
+export const providerAppleVision = defineProvider<AppleVisionConfig, AppleVisionProviderId>({
   id: APPLE_VISION_PROVIDER_ID,
   name: 'Apple Vision',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.apple-vision.title'),
