@@ -16,7 +16,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider') {
+function createHarness(getActiveProvider: (sessionId: string) => string = () => 'mock-provider') {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -156,6 +156,26 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  it('keeps the target session provider for a turn after the visible character changes', async () => {
+    let selectedProvider = 'character-provider'
+    const resolveProvider = vi.fn((_sessionId: string) => selectedProvider)
+    const harness = createHarness(resolveProvider)
+    harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
+      selectedProvider = 'another-character-provider'
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'answer' })
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('hello', {
+      model: 'character-model',
+      chatProvider: provider,
+    }, 'session-1')
+
+    expect(resolveProvider).toHaveBeenCalledExactlyOnceWith('session-1')
+    expect(harness.stream.mock.calls[0]?.[3]?.providerId).toBe('character-provider')
+    expect(harness.telemetry.llmRequestStarted[0]).toMatchObject({ provider: 'character-provider' })
+  })
+
   // ROOT CAUSE:
   //
   // The marker parser buffered 24 literal characters plus its marker-safety tail.
@@ -430,6 +450,18 @@ describe('createChatOrchestratorRuntime', () => {
       role: 'assistant',
       content: 'The weather is sunny.',
     })
+  })
+
+  it('carries the target conversation through speech hooks and artistry callbacks for PR #2672', async () => {
+    const harness = createHarness()
+    const speechSessions: string[] = []
+    harness.runtime.hooks.onBeforeMessageComposed(async (_message, context) => {
+      speechSessions.push(context.sessionId)
+    })
+    await harness.runtime.ingest('from another role', { model: 'gpt-test', chatProvider: provider }, 'session-2')
+    expect(speechSessions).toEqual(['session-2'])
+    expect(harness.userTurns).toEqual([expect.objectContaining({ sessionId: 'session-2', messageText: 'from another role' })])
+    expect(harness.assistantTurns).toEqual([expect.objectContaining({ sessionId: 'session-2', messageText: 'assistant reply' })])
   })
 
   it('keeps hook order and appends context prompt to the latest user message', async () => {

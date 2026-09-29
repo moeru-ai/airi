@@ -1,6 +1,7 @@
 import type { Conversation } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 
+import type { AiriExtension } from '../../types/airiCard'
 import type { VisionWorkloadId } from './use-vision-workloads'
 
 import { storeToRefs } from 'pinia'
@@ -15,6 +16,8 @@ export interface VisionInferenceInput {
   imageDataUrl: string
   workloadId: VisionWorkloadId
   promptOverride?: string
+  /** Conversation-owned selection; omitted for window-local screen inference. */
+  selection?: AiriExtension['modules']['vision']
   /** Cancels this read when its owning chat turn ends. */
   abortSignal?: AbortSignal
 }
@@ -45,14 +48,16 @@ export function useVisionInference() {
   const lastText = ref('')
 
   async function runVisionInference(input: VisionInferenceInput) {
-    if (!activeProvider.value || !activeModel.value)
+    const providerId = input.selection?.provider ?? activeProvider.value
+    const modelId = input.selection?.model ?? activeModel.value
+    if (!providerId || !modelId)
       throw new Error('Vision provider/model not configured')
 
-    const provider = await providersStore.getChatProviderInstance(activeProvider.value)
+    const provider = await providersStore.getChatProviderInstance(providerId)
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
     const { url } = parseDataUrl(input.imageDataUrl)
-    const visionProvider: GenerationProvider = activeProvider.value === 'vision-ollama'
+    const visionProvider: GenerationProvider = providerId === 'vision-ollama'
       ? {
           generation(model) {
             const request = provider.generation(model)
@@ -76,7 +81,7 @@ export function useVisionInference() {
     }, VISION_INFERENCE_TIMEOUT_MS)
 
     try {
-      await llmStore.stream(activeModel.value, visionProvider, context, {
+      await llmStore.stream(modelId, visionProvider, context, {
         abortSignal: input.abortSignal ? AbortSignal.any([input.abortSignal, abortController.signal]) : abortController.signal,
         onStreamEvent: (event) => {
           if (event.type === 'text-delta') {

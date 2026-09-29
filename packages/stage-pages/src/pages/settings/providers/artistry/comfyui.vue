@@ -5,13 +5,13 @@ import { defineInvoke } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { artistryTestComfyUIConnection, isStageTamagotchi } from '@proj-airi/stage-shared'
-import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
+import { useArtistrySettingsStore } from '@proj-airi/stage-ui/stores/modules/artistry-settings'
 import { Button, FieldInput, GhostButton, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const artistryStore = useArtistryStore()
+const artistryStore = useArtistrySettingsStore()
 const { t } = useI18n()
 
 const {
@@ -89,7 +89,7 @@ const showUploadSection = ref(false)
 const uploadError = ref('')
 const parsedWorkflow = ref<{ nodes: Array<{ id: string, title: string, type: string, inputs: Record<string, any> }> } | null>(null)
 const pendingWorkflowName = ref('')
-const pendingWorkflowRaw = ref<Record<string, any> | null>(null)
+const pendingWorkflowRaw = ref<ComfyUIWorkflowTemplate['workflow'] | null>(null)
 const selectedFields = ref<Record<string, Set<string>>>({})
 
 function handleFileUpload(event: Event) {
@@ -161,7 +161,7 @@ const totalExposed = computed(() => {
   return count
 })
 
-function saveWorkflow() {
+async function saveWorkflow() {
   if (!pendingWorkflowRaw.value || !pendingWorkflowName.value.trim())
     return
 
@@ -183,15 +183,15 @@ function saveWorkflow() {
 
   const existing = comfyuiSavedWorkflows.value.findIndex(w => w.id === id)
   if (existing >= 0) {
-    comfyuiSavedWorkflows.value[existing] = template
+    await artistryStore.setComfyuiSavedWorkflows(comfyuiSavedWorkflows.value.map((workflow, index) => index === existing ? template : workflow))
   }
   else {
-    comfyuiSavedWorkflows.value = [...comfyuiSavedWorkflows.value, template]
+    await artistryStore.setComfyuiSavedWorkflows([...comfyuiSavedWorkflows.value, template])
   }
 
   // Auto-set as active if it's the first one
   if (!comfyuiActiveWorkflow.value) {
-    comfyuiActiveWorkflow.value = id
+    await artistryStore.setComfyuiActiveWorkflow(id)
   }
 
   // Reset upload state
@@ -202,10 +202,10 @@ function saveWorkflow() {
   pendingWorkflowName.value = ''
 }
 
-function removeWorkflow(id: string) {
-  comfyuiSavedWorkflows.value = comfyuiSavedWorkflows.value.filter(w => w.id !== id)
+async function removeWorkflow(id: string) {
+  await artistryStore.setComfyuiSavedWorkflows(comfyuiSavedWorkflows.value.filter(workflow => workflow.id !== id))
   if (comfyuiActiveWorkflow.value === id) {
-    comfyuiActiveWorkflow.value = comfyuiSavedWorkflows.value[0]?.id || ''
+    await artistryStore.setComfyuiActiveWorkflow(comfyuiSavedWorkflows.value[0]?.id ?? '')
   }
 }
 
@@ -291,10 +291,11 @@ function copyToClipboard(text: string) {
       <div class="flex items-end gap-3">
         <div class="flex-1">
           <FieldInput
-            v-model="comfyuiServerUrl"
+            :model-value="comfyuiServerUrl"
             :label="t('settings.pages.providers.provider.comfyui.settings.connection.server_url.label')"
             :description="t('settings.pages.providers.provider.comfyui.settings.connection.server_url.description')"
             :placeholder="t('settings.pages.providers.provider.comfyui.settings.connection.server_url.placeholder')"
+            @update:model-value="artistryStore.setComfyuiServerUrl($event ?? '')"
           />
         </div>
         <Button
@@ -369,7 +370,7 @@ function copyToClipboard(text: string) {
             :checked="comfyuiActiveWorkflow === wf.id"
             name="active-workflow"
             class="accent-indigo-500"
-            @change="comfyuiActiveWorkflow = wf.id"
+            @change="artistryStore.setComfyuiActiveWorkflow(wf.id)"
           >
           <div class="flex-1 cursor-pointer" @click="expandedWorkflow = (expandedWorkflow === wf.id ? null : wf.id)">
             <div class="flex items-center gap-2 text-sm text-neutral-800 font-medium dark:text-neutral-200">

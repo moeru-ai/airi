@@ -43,7 +43,7 @@ const isCreatingSession = ref(false)
 // Keep another account's sessions hidden while an account swap rehydrates.
 const ownedSessions = computed(() => {
   const effectiveUserId = userId.value || 'local'
-  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId)
+  return Object.values(sessionMetas.value).filter(meta => meta.userId === effectiveUserId && meta.characterId === activeCardId.value)
 })
 
 /**
@@ -130,12 +130,10 @@ async function startNewSession() {
   try {
     const characterId = activeCardId.value || 'default'
     const selectionBeforeCreation = activeSessionId.value
-    // Creation runs in the synchronized leader, while navigation belongs to
-    // this window. Activating inside createSession would navigate the leader.
     const sessionId = await chatSession.createSession(characterId, { setActive: false })
     // Rows remain interactive while creation is persisted in the leader. Do
     // not let that stale continuation replace a newer local user selection.
-    if (activeSessionId.value === selectionBeforeCreation)
+    if (activeSessionId.value === selectionBeforeCreation && activeCardId.value === characterId)
       await chatSession.setActiveSession(sessionId)
     // Store-created sessions also include restore and fork flows; only this
     // user action belongs in the retention denominator.
@@ -154,7 +152,7 @@ async function startNewSession() {
 // re-added to `loadedSessions` as a phantom entry.
 let openGeneration = 0
 
-watch(showDialog, async (open) => {
+watch([showDialog, activeCardId], async ([open]) => {
   if (!open)
     return
   openGeneration += 1

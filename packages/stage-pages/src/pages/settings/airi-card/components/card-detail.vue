@@ -9,30 +9,24 @@ import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-im
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button, Select } from '@proj-airi/ui'
+import { Button, IconButton, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import {
-  DialogContent,
-  DialogOverlay,
-  DialogPortal,
-  DialogRoot,
-  DialogTitle,
-} from 'reka-ui'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import CardModelPreview from './card-model-preview.vue'
 import DeleteCardDialog from './DeleteCardDialog.vue'
 
 interface Props {
-  modelValue: boolean
   cardId: string
   initialTab?: string
 }
 
 const props = defineProps<Props>()
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: boolean): void
+  (e: 'back'): void
+  (e: 'edit', cardId: string): void
 }>()
 
 const { t } = useI18n()
@@ -101,16 +95,21 @@ const characterSettings = computed(() => {
 // Check if card is active
 const isActive = computed(() => props.cardId === activeCardId.value)
 
-// Animation control for card activation
 const isActivating = ref(false)
 
-function handleActivate() {
+async function handleActivate() {
+  if (isActive.value || isActivating.value)
+    return
   isActivating.value = true
-  setTimeout(async () => {
+  try {
     await cardStore.activateCard(props.cardId)
+  }
+  finally {
     isActivating.value = false
-  }, 300)
+  }
 }
+
+onMounted(() => cardStore.initialize())
 
 async function handleExportCard() {
   if (!selectedCard.value)
@@ -143,7 +142,7 @@ const showDeleteConfirm = ref(false)
 async function handleDeleteConfirm() {
   if (selectedCard.value) {
     await removeCard(props.cardId)
-    emit('update:modelValue', false)
+    emit('back')
   }
   showDeleteConfirm.value = false
 }
@@ -237,8 +236,8 @@ const tabs = computed<Tab[]>(() => {
   return availableTabs
 })
 
-async function handleSetAsBackground(entry: any) {
-  activeBackgroundId.value = entry.id
+function handleSetAsBackground(id: string) {
+  activeBackgroundId.value = id
 }
 
 function requestDeleteConfirmation(message: string): boolean {
@@ -297,15 +296,9 @@ const activeTab = computed({
   },
 })
 
-// Reset active tab when dialog opens
-watch(() => props.modelValue, (isOpen) => {
-  if (isOpen) {
-    if (props.initialTab && tabs.value.some(tab => tab.id === props.initialTab))
-      activeTabId.value = props.initialTab
-    else
-      activeTabId.value = '' // Let computed handle default
-  }
-})
+watch(() => [props.cardId, props.initialTab], () => {
+  activeTabId.value = props.initialTab || ''
+}, { immediate: true })
 
 // Helper function to generate placeholder text for default values
 function getDefaultPlaceholder(): string {
@@ -319,72 +312,79 @@ function getModuleDisplayValue(value: string | undefined): string {
 </script>
 
 <template>
-  <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
-    <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
-        <div v-if="selectedCard" class="w-full flex flex-col gap-5">
-          <!-- Header with status indicator -->
-          <div flex="~ col" gap-3>
-            <div flex="~ row" items-center justify-between>
-              <div>
-                <div flex="~ row" items-center gap-2>
-                  <DialogTitle text-2xl font-normal class="from-primary-500 to-primary-400 bg-gradient-to-r bg-clip-text text-transparent">
-                    {{ selectedCard.name }}
-                  </DialogTitle>
-                  <div v-if="isActive" class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400">
-                    <div i-solar:check-circle-bold-duotone text-xs />
-                    {{ t('settings.pages.card.active_badge') }}
-                  </div>
-                </div>
-                <div mt-1 text-sm text-neutral-500 dark:text-neutral-400>
-                  v{{ selectedCard.version }}
-                  <template v-if="selectedCard.creator">
-                    · {{ t('settings.pages.card.created_by') }} <span font-medium>{{ selectedCard.creator }}</span>
-                  </template>
+  <div :class="['h-full min-h-0 w-full flex flex-col bg-white dark:bg-neutral-950']">
+    <div v-if="selectedCard" :class="['h-full min-h-0 w-full flex flex-col']">
+      <header :class="['shrink-0 border-b border-neutral-200/70 dark:border-neutral-800']">
+        <div :class="['mx-auto max-w-7xl flex flex-wrap items-center justify-between gap-3 px-4 py-3 lg:px-6']">
+          <div :class="['min-w-0 flex items-center gap-3']">
+            <IconButton icon="i-solar:alt-arrow-left-line-duotone" :class="['size-9']" :aria-label="t('settings.pages.card.back')" @click="emit('back')" />
+            <div :class="['min-w-0']">
+              <div :class="['flex flex-wrap items-center gap-2']">
+                <h1 :class="['break-words text-lg font-semibold']">
+                  {{ selectedCard.name }}
+                </h1>
+                <div v-if="isActive" class="flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-400">
+                  <div i-solar:check-circle-bold-duotone text-xs />
+                  {{ t('settings.pages.card.active_badge') }}
                 </div>
               </div>
-
-              <!-- Action buttons -->
-              <div flex="~ row" gap-2>
-                <Button
-
-                  icon="i-solar:download-minimalistic-bold-duotone"
-                  :label="t('settings.pages.card.export')"
-                  :disabled="isExportingCard"
-                  @click="handleExportCard"
-                />
-                <!-- Activation button -->
-                <Button
-
-                  :icon="isActive ? 'i-solar:check-circle-bold-duotone' : 'i-solar:play-circle-broken'"
-                  :label="isActive ? t('settings.pages.card.active') : t('settings.pages.card.activate')"
-                  :disabled="isActive"
-                  :class="{ 'animate-pulse': isActivating }"
-                  @click="handleActivate"
-                />
-                <Button
-
-                  icon="i-solar:close-circle-bold-duotone"
-                  :label="t('settings.pages.card.cancel')"
-                  @click="emit('update:modelValue', false)"
-                />
+              <div :class="['mt-1 text-sm text-neutral-500 dark:text-neutral-400']">
+                v{{ selectedCard.version }}
+                <template v-if="selectedCard.creator">
+                  · {{ t('settings.pages.card.created_by') }} <span font-medium>{{ selectedCard.creator }}</span>
+                </template>
               </div>
             </div>
-
+          </div>
+          <div :class="['flex items-center gap-2']">
+            <Button icon="i-solar:pen-2-linear" :label="t('settings.pages.card.edit_card')" @click="emit('edit', cardId)" />
+            <Button
+              :icon="isActive ? 'i-solar:check-circle-bold-duotone' : 'i-solar:play-circle-broken'"
+              :label="isActive ? t('settings.pages.card.active') : t('settings.pages.card.activate')"
+              color="primary"
+              :disabled="isActive || isActivating"
+              @click="handleActivate"
+            />
+          </div>
+        </div>
+      </header>
+      <div :class="['min-h-0 flex-1 overflow-y-auto']">
+        <div :class="['mx-auto max-w-7xl grid grid-cols-1 gap-6 p-4 lg:grid-cols-[24rem_minmax(0,1fr)] lg:gap-10 lg:p-6']">
+          <aside :class="['min-w-0 flex flex-col gap-4']">
+            <CardModelPreview :model-id="selectedCard.extensions.airi.modules.displayModelId" />
+            <div v-if="selectedCard.tags?.length" :class="['flex flex-wrap gap-1.5']">
+              <span v-for="tag in selectedCard.tags" :key="tag" :class="['rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300']">{{ tag }}</span>
+            </div>
+            <div :class="['grid grid-cols-2 gap-2']">
+              <Button
+                icon="i-solar:download-minimalistic-bold-duotone"
+                :label="t('settings.pages.card.export')"
+                :disabled="isExportingCard"
+                @click="handleExportCard"
+              />
+              <Button
+                v-if="cardId !== 'default'"
+                icon="i-solar:trash-bin-trash-linear"
+                :label="t('settings.pages.card.delete')"
+                @click="showDeleteConfirm = true"
+              />
+            </div>
+          </aside>
+          <div :class="['min-w-0 flex flex-col gap-4']">
             <!-- Card content tabs -->
-            <div class="mt-4">
+            <div :class="['min-w-0 overflow-x-auto']">
               <div class="border-b border-neutral-200 dark:border-neutral-700">
-                <div class="flex justify-center -mb-px sm:justify-start space-x-1">
+                <div :class="['flex flex-wrap gap-1']">
                   <button
                     v-for="tab in tabs"
                     :key="tab.id"
-                    class="px-4 py-2 text-sm font-medium"
                     :class="[
+                      'shrink-0 px-3 py-2.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
                       activeTab === tab.id
                         ? 'text-primary-600 dark:text-primary-400 border-b-2 border-primary-500 dark:border-primary-400'
                         : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300',
                     ]"
+                    :aria-pressed="activeTab === tab.id"
                     @click="activeTab = tab.id"
                   >
                     <div class="flex items-center gap-1">
@@ -568,7 +568,7 @@ function getModuleDisplayValue(value: string | undefined): string {
               <!-- Gallery Header / Preferred Background Selection -->
               <div
                 :class="[
-                  'mb-6 flex flex-row items-center justify-between gap-4',
+                  'mb-6 flex flex-wrap items-center justify-between gap-4',
                   'border-b border-neutral-100 pb-4 dark:border-neutral-700/50',
                 ]"
               >
@@ -598,7 +598,7 @@ function getModuleDisplayValue(value: string | undefined): string {
                     />
                   </button>
                 </div>
-                <div w-64>
+                <div :class="['w-full sm:w-64']">
                   <Select
                     v-model="activeBackgroundId"
                     :options="backgroundOptions"
@@ -637,7 +637,7 @@ function getModuleDisplayValue(value: string | undefined): string {
                     <button
                       class="flex items-center gap-1 rounded-full px-3 py-1.5 text-[10px] text-white font-bold backdrop-blur-md transition-all active:scale-95"
                       :class="activeBackgroundId === entry.id ? 'bg-primary-500 hover:bg-primary-600' : 'bg-white/20 hover:bg-white/30'"
-                      @click="handleSetAsBackground(entry)"
+                      @click="handleSetAsBackground(entry.id)"
                     >
                       <div :class="activeBackgroundId === entry.id ? 'i-solar:pin-bold' : 'i-solar:pin-linear'" />
                       {{ activeBackgroundId === entry.id ? 'ACTIVE BG' : 'SET AS BG' }}
@@ -670,19 +670,20 @@ function getModuleDisplayValue(value: string | undefined): string {
             </div>
           </div>
         </div>
-        <div
-          v-else
-          bg="neutral-50/50 dark:neutral-900/50"
-          rounded-xl p-8 text-center
-          border="~ neutral-200/50 dark:neutral-700/30"
-          shadow="sm"
-        >
-          <div i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400 />
-          {{ t('settings.pages.card.card_not_found') }}
-        </div>
-      </DialogContent>
-    </DialogPortal>
-  </DialogRoot>
+      </div>
+    </div>
+    <div
+      v-else
+      bg="neutral-50/50 dark:neutral-900/50"
+      rounded-xl p-8 text-center
+      border="~ neutral-200/50 dark:neutral-700/30"
+      shadow="sm"
+    >
+      <div i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400 />
+      <p>{{ t('settings.pages.card.card_not_found') }}</p>
+      <Button :label="t('settings.pages.card.back')" @click="emit('back')" />
+    </div>
+  </div>
 
   <!-- Delete confirmation dialog -->
   <DeleteCardDialog

@@ -1,8 +1,6 @@
-import type {} from 'pinia-plugin-synced'
-
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 
 import { useProviderStore } from '../providers/provider'
@@ -12,9 +10,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   const providersStore = useProviderStore()
   const settingsStore = useConsciousnessSettingsStore()
 
-  // Pinia synchronization owns live cross-window state. localStorage remains
-  // durable persistence, but storage events must not reflect state back into
-  // the store and publish another synchronized snapshot.
+  // Persist the startup choice without replicating this window's active character settings.
   const persistenceOptions = { listenToStorageChanges: false }
 
   // State
@@ -41,17 +37,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return providersStore.modelLoadError[activeProvider.value] || null
   })
 
-  const temperature = useLocalStorageManualReset<number>(
-    'settings/consciousness/active-temperature',
-    0.7,
-    persistenceOptions,
-  )
-
-  const topP = useLocalStorageManualReset<number>(
-    'settings/consciousness/active-top-p',
-    1.0,
-    persistenceOptions,
-  )
+  const { temperature, topP } = storeToRefs(settingsStore)
 
   // Saved slider values do not imply consent to override provider defaults.
   // All request paths consume these projections; disabled fields stay undefined.
@@ -126,8 +112,8 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   async function resetState() {
     activeProvider.reset()
     resetModelSelection()
-    temperature.reset()
-    topP.reset()
+    await settingsStore.setTemperature(0.7)
+    await settingsStore.setTopP(1)
     await settingsStore.setTemperatureEnabled(false)
     await settingsStore.setTopPEnabled(false)
   }
@@ -159,8 +145,4 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     getChatProviderInstance,
     resetState,
   }
-}, {
-  synced: {
-    state: true,
-  },
 })

@@ -107,7 +107,7 @@ export function useChatComposer<TAttachment = never>(options: UseChatComposerOpt
   }
 
   async function submit(submitOptions?: ChatComposerSubmitOptions<TAttachment>): Promise<ChatComposerSubmitResult> {
-    if (isComposing.value || (!draft.value.trim() && attachments.value.length === 0))
+    if (!options.activeSessionId.value || isComposing.value || (!draft.value.trim() && attachments.value.length === 0))
       return 'ignored'
 
     const submission: ChatComposerSubmission<TAttachment> = {

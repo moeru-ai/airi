@@ -15,6 +15,7 @@ import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useAiriCardStore } from './airi-card'
 import { useSpeechStore } from './speech'
+import { useSpeechSettingsStore } from './speech-settings'
 
 const syncedContexts: Array<{
   app: App
@@ -91,7 +92,7 @@ describe('speech synchronization', () => {
     await useProviderStore(leader.pinia).forceProviderConfigured(provider)
     await leader.speechStore.selectProviderModel(provider, 'model-a', 'old')
     await vi.waitFor(() => expect(leader.speechStore.availableVoices[provider]?.[0]?.id).toBe('old'))
-    await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('old'))
+    expect(follower.speechStore.activeSpeechVoice).toBeUndefined()
     const cards = useAiriCardStore(leader.pinia)
     await cards.initialize()
     const id = await cards.addCard({
@@ -109,8 +110,9 @@ describe('speech synchronization', () => {
         voices: [{ id: 'recommended', name: 'Recommended', languages: [] }, { id: 'saved', name: 'Saved', languages: [] }],
         recommended: { en: 'recommended' },
       }))
-      await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoice?.id).toBe('saved'))
-      expect(follower.speechStore.activeSpeechModel).toBe('model-b')
+      await vi.waitFor(() => expect(leader.speechStore.activeSpeechVoice?.id).toBe('saved'))
+      expect(leader.speechStore.activeSpeechModel).toBe('model-b')
+      expect(follower.speechStore.activeSpeechProvider).toBe('speech-noop')
       // Consecutive commands must not capture the first card's override as
       // an inherited default while its leader action yields.
       await cards.activateCard('default')
@@ -179,19 +181,19 @@ describe('speech synchronization', () => {
       }
       postMessage.call(this, message)
     })
-    follower.speechStore.pitch = 15
-    follower.speechStore.ssmlEnabled = true
-    await vi.waitFor(() => expect(delayed.length).toBeGreaterThan(0))
+    await useSpeechSettingsStore(follower.pinia).setPitch(15)
+    await useSpeechSettingsStore(follower.pinia).setSsmlEnabled(true)
+    expect(delayed).toHaveLength(0)
     vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
     await leader.speechStore.loadVoiceCatalog('microsoft-speech', 'model', {
       definitionId: 'microsoft-speech',
       config: { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' },
     })
-    await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh'))
+    expect(follower.speechStore.availableVoices['microsoft-speech']).toBeUndefined()
     traffic.mockRestore()
     for (const deliver of delayed)
       deliver()
-    await vi.waitFor(() => expect(leader.speechStore.pitch).toBe(15))
+    expect(leader.speechStore.pitch).toBe(15)
     expect(leader.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh')
     expect(leader.speechStore.voiceCatalogIdentities['microsoft-speech']?.model).toBe('model')
     expect(follower.speechStore.$state).not.toHaveProperty('availableVoices')
@@ -200,7 +202,7 @@ describe('speech synchronization', () => {
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3965793956
   // ROOT CAUSE: Reset canceled the caller and leader, but left a third
   // renderer waiting. Every renderer must observe the reset generation.
-  it('cancels waits in a third renderer when another follower resets', async () => {
+  it('resets only the requesting renderer and leaves another window loading', async () => {
     const namespace = `speech:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
@@ -219,6 +221,8 @@ describe('speech synchronization', () => {
     try {
       await vi.waitFor(() => expect(fetchCatalog).toHaveBeenCalledOnce())
       await caller.speechStore.resetState()
+      expect(other.speechStore.voiceCatalogStatus['microsoft-speech']?.loading).toBe(true)
+      await other.speechStore.resetState()
       await vi.waitFor(() => expect(other.speechStore.voiceCatalogStatus['microsoft-speech']).toBeUndefined(), { timeout: 400 })
       await expect(pending).resolves.toEqual([])
     }
@@ -230,7 +234,7 @@ describe('speech synchronization', () => {
 
   // ROOT CAUSE: A request can still be in the transport queue during reset.
   // The captured generation rejects it before the provider starts new IO.
-  it('rejects a pre-reset catalog RPC delivered after reset', async () => {
+  it('rejects an expired local catalog generation after reset', async () => {
     const namespace = `speech:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
@@ -245,25 +249,11 @@ describe('speech synchronization', () => {
     await new Promise(resolve => setTimeout(resolve, 100))
     const fetchCatalog = vi.fn<typeof fetch>(async () => Response.json({ voices: [] }))
     vi.stubGlobal('fetch', fetchCatalog)
-    const postMessage = BroadcastChannel.prototype.postMessage
-    const delayed: Array<() => void> = []
-    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
-      if (JSON.stringify(message).includes('loadVoiceCatalog')) {
-        const snapshot = structuredClone(message)
-        delayed.push(() => postMessage.call(this, snapshot))
-        return
-      }
-      postMessage.call(this, message)
-    })
-    const pending = follower.speechStore.loadVoicesForProvider('microsoft-speech')
-    await vi.waitFor(() => expect(delayed.length).toBeGreaterThan(0))
     await follower.speechStore.resetState()
-    traffic.mockRestore()
-    for (const deliver of delayed)
-      deliver()
-    await expect(pending).resolves.toEqual([])
-    // Await the same channel's next action so the delayed request has run.
-    await follower.speechStore.ensureActiveSpeechVoice()
+    await expect(follower.speechStore.loadVoiceCatalog('microsoft-speech', undefined, {
+      definitionId: 'microsoft-speech',
+      config: { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' },
+    }, 0)).resolves.toEqual([])
     expect(fetchCatalog).not.toHaveBeenCalled()
     expect(leader.speechStore.availableVoices['microsoft-speech']).toBeUndefined()
   })
@@ -317,7 +307,7 @@ describe('speech synchronization', () => {
   //
   // We fixed this by routing the action to the synchronization leader. The
   // leader publishes the result, and the follower only applies that snapshot.
-  it('routes voice catalog loading through the leader', async () => {
+  it('loads voice catalogs locally without follower proposals', async () => {
     const { leader: leaderContext, follower: followerContext } = await createSyncedPair()
     await new Promise(resolve => setTimeout(resolve, 50))
 
@@ -330,7 +320,7 @@ describe('speech synchronization', () => {
 
     await followerContext.speechStore.loadVoicesForProvider('speech-noop')
 
-    expect(leaderLoads).toBe(1)
+    expect(leaderLoads).toBe(0)
     const proposals = traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))
     expect(proposals).toHaveLength(0)
   })
@@ -340,12 +330,12 @@ describe('speech synchronization', () => {
   // The provider watcher called its setup-scope function, bypassing the public
   // action wrapper. A replicated provider change then published follower state.
   // Route watcher requests through the exposed action after store setup.
-  it('routes replicated provider watcher loading through the leader', async () => {
+  it('keeps provider watcher loading local to its window', async () => {
     const { leader: leaderContext, follower: followerContext } = await createSyncedPair()
     await new Promise(resolve => setTimeout(resolve, 50))
 
     leaderContext.speechStore.activeSpeechProvider = ''
-    await vi.waitFor(() => expect(followerContext.speechStore.activeSpeechProvider).toBe(''))
+    expect(followerContext.speechStore.activeSpeechProvider).toBe('speech-noop')
     await new Promise(resolve => setTimeout(resolve, 100))
     let leaderLoads = 0
     leaderContext.speechStore.$onAction(({ name }) => {
@@ -357,7 +347,7 @@ describe('speech synchronization', () => {
     leaderContext.speechStore.activeSpeechProvider = 'speech-noop'
     await vi.waitFor(() => expect(followerContext.speechStore.activeSpeechProvider).toBe('speech-noop'))
     // Both renderers observe the provider, but both requests execute in the leader.
-    await vi.waitFor(() => expect(leaderLoads).toBe(2))
+    await vi.waitFor(() => expect(leaderLoads).toBe(1))
     await new Promise(resolve => setTimeout(resolve, 100))
 
     const proposals = traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))
@@ -383,7 +373,7 @@ describe('speech synchronization', () => {
     await follower.speechStore.selectProviderModel('microsoft-speech', 'model-a')
     expect(follower.speechStore.activeSpeechModel).toBe('model-a')
     await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('fresh'))
-    expect(leader.speechStore.activeSpeechModel).toBe('model-a')
+    expect(leader.speechStore.activeSpeechModel).toBe('')
     await follower.speechStore.selectProviderModel('microsoft-speech', 'model-b')
     expect(follower.speechStore.activeSpeechModel).toBe('model-b')
     await vi.waitFor(() => expect(follower.speechStore.voiceCatalogIdentities['microsoft-speech']?.model).toBe('model-b'))
@@ -470,7 +460,7 @@ describe('speech synchronization', () => {
   })
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3960674493
   // ROOT CAUSE: A remote catalog triggered local auto-pick state proposals.
-  it('routes automatic voice selection to the leader without follower proposals', async () => {
+  it('selects voices locally without follower proposals', async () => {
     const namespace = `speech:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
@@ -501,14 +491,15 @@ describe('speech synchronization', () => {
     })
     await vi.waitFor(() => expect(useAuthStore(follower.pinia).isAuthenticated).toBe(true))
     await leader.speechStore.loadVoicesForProvider('official-provider-speech')
-    await vi.waitFor(() => expect(follower.speechStore.activeSpeechVoiceId).toBe('voice'))
+    await vi.waitFor(() => expect(leader.speechStore.activeSpeechVoiceId).toBe('voice'))
+    expect(follower.speechStore.activeSpeechVoiceId).toBe('')
     await new Promise(resolve => setTimeout(resolve, 100))
     expect(selections).toBeGreaterThan(0)
     expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
   })
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964170541
   // ROOT CAUSE: A replicated loading flag outlived the leader's request after tab closure.
-  it('recovers an interrupted catalog when the surviving renderer becomes leader', async () => {
+  it('keeps a local catalog request alive through leader failover', async () => {
     const namespace = `speech:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
@@ -526,18 +517,19 @@ describe('speech synchronization', () => {
     }))
     const survivor = createSyncedContext(namespace, 'follower-preferred')
     await vi.waitFor(() => expect(survivor.runtime.getLeaderId()).toBe(leader.runtime.participantId))
-    leader.speechStore.activeSpeechProvider = 'microsoft-speech'
+    survivor.speechStore.activeSpeechProvider = 'microsoft-speech'
     await vi.waitFor(() => expect(survivor.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('cached'))
     await vi.waitFor(() => expect(survivor.speechStore.isLoadingSpeechProviderVoices).toBe(false))
     pause = true
     const beforeRefresh = requests
-    const refresh = leader.speechStore.loadVoicesForProvider('microsoft-speech')
+    const refresh = survivor.speechStore.loadVoicesForProvider('microsoft-speech')
     try {
       await vi.waitFor(() => expect(requests).toBeGreaterThan(beforeRefresh))
       // Same-identity refreshes preserve the last successful catalog during IO.
       expect(survivor.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('cached')
       pause = false
       catalogVersion = 'recovered'
+      finishOld(Response.json({ voices: [{ id: catalogVersion, name: catalogVersion, languages: [] }] }))
       // Dispose the outgoing renderer's store scopes as closing a tab would.
       const outgoing = syncedContexts.find(context => context.runtime === leader.runtime)!
       outgoing.app.unmount()
@@ -559,7 +551,7 @@ describe('speech synchronization', () => {
   // A follower reset cleared only its local request map. The leader could then
   // accept a pending response and restore the catalog after the reset.
   // The reset must invalidate requests and clear settings in the same leader.
-  it('rejects a pending leader catalog after a follower resets speech settings', async () => {
+  it('does not cancel another window catalog when resetting local speech', async () => {
     const { leader, follower } = await createSyncedPair()
     await new Promise(resolve => setTimeout(resolve, 100))
 
@@ -572,12 +564,12 @@ describe('speech synchronization', () => {
     })
     try {
       await vi.waitFor(() => expect(fetchCatalog).toHaveBeenCalledOnce())
-      await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']).toEqual([]))
+      expect(follower.speechStore.availableVoices['microsoft-speech']).toBeUndefined()
       const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
       await follower.speechStore.resetState()
       finish(Response.json({ voices: [{ id: 'stale', name: 'Stale', languages: [] }] }))
-      await expect(pending).resolves.toEqual([])
-      expect(leader.speechStore.availableVoices['microsoft-speech']).toBeUndefined()
+      await pending
+      expect(leader.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('stale')
       await vi.waitFor(() => expect(follower.speechStore.availableVoices['microsoft-speech']).toBeUndefined())
       expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
     }
@@ -641,6 +633,7 @@ describe('speech synchronization', () => {
     })
     await vi.waitFor(() => expect(useAuthStore(follower.pinia).user?.id).toBe('owner'))
     await leader.speechStore.loadVoicesForProvider('official-provider-speech', 'model-a')
+    await follower.speechStore.loadVoicesForProvider('official-provider-speech', 'model-a')
     await vi.waitFor(() => expect(follower.speechStore.availableVoices['official-provider-speech']?.[0]?.id).toBe('previous-owner'))
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
     auth.$patch({ token: null, session: null, user: null })

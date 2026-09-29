@@ -24,6 +24,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, wat
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import CardModelPreview from './card-model-preview.vue'
 import CardCreationTabArtistry from './tabs/CardCreationTabArtistry.vue'
 
 interface Props {
@@ -334,6 +335,7 @@ const activeSectionId = ref('')
 const sections = computed<EditorSection[]>(() => [
   { id: 'identity', label: t('settings.pages.card.creation.identity'), icon: 'i-solar:emoji-funny-square-bold-duotone' },
   { id: 'behavior', label: t('settings.pages.card.creation.behavior'), icon: 'i-solar:chat-round-line-bold-duotone' },
+  { id: 'model', label: t('settings.pages.card.model'), icon: 'i-solar:ghost-bold-duotone' },
   { id: 'modules', label: t('settings.pages.card.modules'), icon: 'i-solar:widget-4-bold-duotone' },
   { id: 'artistry', label: t('settings.pages.modules.artistry.title'), icon: 'i-solar:gallery-bold-duotone' },
   { id: 'settings', label: t('settings.pages.card.creation.settings'), icon: 'i-solar:settings-bold-duotone' },
@@ -1016,8 +1018,8 @@ function handleBack() {
                   </div>
                 </div>
               </section>
-
-              <!-- Body -->
+            </div>
+            <div v-else-if="activeSection === 'model'" :class="['mx-auto w-full max-w-3xl']">
               <section :class="moduleSectionClasses">
                 <div :class="moduleSectionHeaderClasses">
                   <div i-solar:ghost-bold-duotone :class="['text-base text-primary-500 dark:text-primary-400']" />
@@ -1033,6 +1035,7 @@ function handleBack() {
                     :placeholder="getDefaultPlaceholder()"
                     class="w-full"
                   />
+                  <CardModelPreview :model-id="selectedDisplayModelId" />
                 </div>
               </section>
             </div>

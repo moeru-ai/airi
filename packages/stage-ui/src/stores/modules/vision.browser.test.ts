@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 import { createI18n } from 'vue-i18n'
 
+import { useVisionSettingsStore } from './vision/settings'
 import { useVisionStore } from './vision/store'
 
 vi.mock('../providers/provider', () => ({
@@ -56,14 +57,21 @@ describe('vision settings synchronization', () => {
 
     let leaderMutations = 0
     let followerMutations = 0
-    leaderStore.$subscribe(() => leaderMutations++, { flush: 'sync' })
-    followerStore.$subscribe(() => followerMutations++, { flush: 'sync' })
+    useVisionSettingsStore(leaderContext.pinia).$subscribe(() => leaderMutations++, { flush: 'sync' })
+    useVisionSettingsStore(followerContext.pinia).$subscribe(() => followerMutations++, { flush: 'sync' })
 
-    leaderStore.useForChat = false
+    leaderStore.activeProvider = 'ollama'
+    leaderStore.activeModel = 'leader-model'
+    followerStore.activeProvider = 'openai'
+    followerStore.activeModel = 'follower-model'
+    await useVisionSettingsStore(leaderContext.pinia).setUseForChat(false)
     await vi.waitFor(() => expect(followerStore.useForChat).toBe(false))
     await new Promise(resolve => setTimeout(resolve, 50))
 
     expect(leaderMutations).toBe(1)
     expect(followerMutations).toBe(1)
+    expect(leaderStore.activeModel).toBe('leader-model')
+    expect(followerStore.activeModel).toBe('follower-model')
+    expect(localStorage.getItem('settings/vision/use-for-chat')).toBe('false')
   })
 })

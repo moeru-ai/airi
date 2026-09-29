@@ -116,6 +116,8 @@ export interface ChatOrchestratorSendOptions {
   model: string
   /** Concrete chat provider implementation selected by the caller. */
   chatProvider: GenerationProvider
+  /** Captured provider identity. When omitted, resolve it from the target session on enqueue. */
+  providerId?: string
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
   /** Image attachments appended to the user message content parts. */
@@ -255,8 +257,8 @@ export interface ChatOrchestratorRuntimeDeps {
   llm: ChatOrchestratorLLMPort
   /** Returns the currently visible session ID. */
   getActiveSessionId: () => string
-  /** Returns the currently active provider ID for categorization policy. */
-  getActiveProvider: () => string | undefined
+  /** Resolves the conversation's provider when a turn enters the queue. */
+  getActiveProvider: (sessionId: string) => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
@@ -367,11 +369,13 @@ export interface ChatOrchestratorRuntimeDeps {
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
   /** Called after assistant streaming and hook finalization. */
   onAssistantTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
@@ -548,6 +552,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const assistantMessageId = createId()
     const roundId = createId()
     const streamingMessageContext: ChatStreamEventContext = {
+      sessionId,
       turnId: roundId,
       message: {
         role: 'user',
@@ -677,11 +682,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
+        sessionId,
         messageText: sendingMessage,
         sessionMessages: sessionMessagesForSend,
       })
 
-      const categorizer = createStreamingCategorizer(deps.getActiveProvider())
+      const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
 
       const parser = useLlmmarkerParser({
@@ -722,7 +728,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          const finalCategorization = categorizeResponse(fullText, activeProvider)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -807,7 +813,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
+        provider: activeProvider || 'unknown',
         hasVoice,
       })
 
@@ -971,6 +977,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       deps.onAssistantTurnReady?.({
+        sessionId,
         messageText: fullText,
         sessionMessages: sessionMessagesForSend,
       })
@@ -1092,7 +1099,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     return new Promise<void>((resolve, reject) => {
       sendQueue.enqueue({
-        providerId: deps.getActiveProvider?.() ?? '',
+        providerId: options.providerId ?? deps.getActiveProvider(sessionId) ?? '',
         sendingMessage,
         options,
         generation,

@@ -82,6 +82,7 @@ const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metada
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
+let characterSelection: { provider: string, model: string } | undefined
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
 let currentGeneration = 1
@@ -159,6 +160,8 @@ vi.mock('./chat/session-store', () => ({
   useChatSessionStore: () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
+    sessionMetas: { 'session-1': { characterId: 'default' }, 'session-2': { characterId: 'default' }, 'session-forked': { characterId: 'default' } },
+    refreshSessionSystemMessage: async () => {},
     ensureSession: (sessionId: string) => {
       ensureSessionMock(sessionId)
       sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
@@ -219,6 +222,7 @@ vi.mock('./modules/consciousness', () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
     providerModels: consciousnessModels.value,
+    getModelsForProvider: () => consciousnessModels.value,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
@@ -228,6 +232,12 @@ vi.mock('./modules/consciousness', () => ({
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: undefined,
+    resolveCharacter: () => ({
+      modules: {
+        consciousness: characterSelection ?? { provider: activeProviderRef.value, model: activeModelRef.value },
+        vision: visionMocks.configured ? { provider: 'vision-provider', model: 'vision-model' } : { provider: '', model: '' },
+      },
+    }),
   }),
 }))
 
@@ -292,6 +302,7 @@ describe('chat store contract', () => {
     ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
+    characterSelection = undefined
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -329,6 +340,22 @@ describe('chat store contract', () => {
       ['stage_widgets'],
       ['stage_widgets'],
     ])
+  })
+
+  it('sends with the conversation character rather than the leader window selection', async () => {
+    characterSelection = { provider: 'character-provider', model: 'character-model' }
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'character answer' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+
+    await store.send({ sessionId: 'session-1', text: 'hello' })
+
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('character-provider', { reasoning: 'disabled' })
+    expect(llmStreamMock.mock.calls[0]?.[0]).toBe('character-model')
+    expect(llmStreamMock.mock.calls[0]?.[3]?.providerId).toBe('character-provider')
+    expect(activeProviderRef.value).toBe('mock-provider')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {

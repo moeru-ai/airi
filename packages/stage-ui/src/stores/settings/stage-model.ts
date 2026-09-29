@@ -1,11 +1,9 @@
-import type {} from 'pinia-plugin-synced'
-
 import type { DisplayModel } from '../display-models'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset, useEventListener } from '@vueuse/core'
-import { defineStore, storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { defineStore, getActivePinia, storeToRefs } from 'pinia'
+import { computed, onScopeDispose, watch } from 'vue'
 
 import { DisplayModelFormat, useDisplayModelsStore } from '../display-models'
 
@@ -13,8 +11,7 @@ export type StageModelRenderer = 'live2d' | 'vrm' | 'spine' | 'tachie' | 'mmd' |
 type BuiltInStageModelRenderer = Exclude<StageModelRenderer, 'godot'>
 
 const useStageModelSelectionStore = defineStore('settings-stage-model-selection', () => {
-  // Pinia synchronization owns live cross-window state. localStorage only
-  // loads and saves the durable model selection.
+  // Persist the startup choice without replicating this window's active character settings.
   const selected = useLocalStorageManualReset<string>('settings/stage/model', 'preset-live2d-1', {
     listenToStorageChanges: false,
   })
@@ -27,17 +24,19 @@ const useStageModelSelectionStore = defineStore('settings-stage-model-selection'
     selected,
     resetState,
   }
-}, {
-  synced: {
-    state: true,
-  },
 })
 
 export const useSettingsStageModel = defineStore('settings-stage-model', () => {
+  const pinia = getActivePinia()
+  let disposed = false
   const displayModelsStore = useDisplayModelsStore()
   const stageModelSelectionStore = useStageModelSelectionStore()
   const { selected: stageModelSelectedState } = storeToRefs(stageModelSelectionStore)
   let stageModelUpdateSequence = 0
+  onScopeDispose(() => {
+    disposed = true
+    stageModelUpdateSequence += 1
+  })
   let legacyModelIdentityResetPromise: Promise<void> | undefined
   const defaultStageModelId = 'preset-live2d-1'
   const stageModelSelected = computed<string>({
@@ -95,8 +94,9 @@ export const useSettingsStageModel = defineStore('settings-stage-model', () => {
 
     // The Three.js store is browser-only. Load it only during browser startup so
     // Node consumers of the shared settings store do not evaluate rendering APIs.
-    legacyModelIdentityResetPromise ??= import('@proj-airi/stage-ui-three').then(({ useModelStore }) => {
-      useModelStore().resetLegacyModelIdentity()
+    legacyModelIdentityResetPromise ??= import('@proj-airi/stage-ui-three/stores/model').then(({ useModelStore }) => {
+      if (!disposed)
+        useModelStore(pinia).resetLegacyModelIdentity()
     })
 
     return legacyModelIdentityResetPromise

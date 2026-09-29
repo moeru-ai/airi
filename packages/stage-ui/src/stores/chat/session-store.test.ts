@@ -44,6 +44,13 @@ vi.mock('../modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCardId: activeCardIdRef,
     systemPrompt: systemPromptRef,
+    initialize: async () => {},
+    getCard: () => ({ name: 'Character' }),
+    resolveCharacter: () => ({ systemPrompt: systemPromptRef.value }),
+    activateCard: async (id: string) => {
+      activeCardIdRef.value = id
+      return true
+    },
   }),
 }))
 
@@ -352,7 +359,7 @@ describe('chat-session-store · deletion and hydration failures', () => {
 
     await store.deleteSession('session-b')
 
-    expect(store.activeSessionId).toBe('session-a')
+    await vi.waitFor(() => expect(store.activeSessionId).toBe('session-a'))
     expect(store.getSnapshot().index?.characters.default?.activeSessionId).toBe('session-a')
     expect(store.sessionMetas['session-b']).toBeUndefined()
     expect(saveIndexMock).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -757,7 +764,7 @@ describe('chat-session-store · synchronized data actions', () => {
 
     expect(store.sessionMessages['session-a'].map(message => message.id)).toEqual(messageIdsBeforeAuthHydration)
     expect(store.sessionMetas['session-a']).toEqual(metaBeforeAuthHydration)
-    expect(store.activeSessionId).toBe('session-a')
+    await vi.waitFor(() => expect(store.activeSessionId).toBe('session-a'))
     expect(store.index?.userId).toBe('cloud-user')
   })
 
@@ -982,7 +989,7 @@ describe('chat-session-store · synchronized data actions', () => {
     })
     await nextTick()
 
-    expect(store.activeSessionId).toBe('session-a')
+    await vi.waitFor(() => expect(store.activeSessionId).toBe('session-a'))
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743221033
@@ -1051,7 +1058,7 @@ describe('chat-session-store · synchronized data actions', () => {
     })
     await nextTick()
 
-    expect(store.activeSessionId).toBe('session-c')
+    await vi.waitFor(() => expect(store.activeSessionId).toBe('session-c'))
   })
 
   it('deletes a message by its stable id from the specified session', async () => {
@@ -1091,7 +1098,15 @@ describe('chat-session-store · synchronized data actions', () => {
       sessionMessages: {
         'window-local-session': [{ id: 'system', role: 'system', content: 'prompt' }],
       },
-      sessionMetas: {},
+      sessionMetas: {
+        'window-local-session': {
+          sessionId: 'window-local-session',
+          characterId: 'default',
+          userId: 'local',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
     })
 
     await store.setActiveSession('window-local-session')
