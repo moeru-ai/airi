@@ -435,6 +435,9 @@ catalogs:
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
+    '@sherpaw/kws':
+      specifier: 0.2.0
+      version: 0.2.0
     '@sherpaw/xsai-transcription':
       specifier: 0.2.1
       version: 0.2.1
@@ -4567,6 +4570,9 @@ importers:
       '@ricky0123/vad-web':
         specifier: 'catalog:'
         version: 0.0.30
+      '@sherpaw/kws':
+        specifier: 'catalog:'
+        version: 0.2.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
         version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)
@@ -8718,6 +8724,26 @@ packages:
       web-worker:
         optional: true
 
+  '@moeru/eventa@1.0.1':
+    resolution: {integrity: sha512-dDQcB/acJBhMiOFrleXMuCSTtbAGsIZWNSNkoEB31wWBIrg4VwDtaX/XtMq8dAjmD3ixPnjSPtb2/rMbwZBseQ==}
+    peerDependencies:
+      '@tauri-apps/api': '>=2'
+      electron: '>=39'
+      h3: '>=2.0.1-rc.22'
+      hono: 4.13.3
+      web-worker: ^1.5.0
+    peerDependenciesMeta:
+      '@tauri-apps/api':
+        optional: true
+      electron:
+        optional: true
+      h3:
+        optional: true
+      hono:
+        optional: true
+      web-worker:
+        optional: true
+
   '@moeru/eventa@1.0.2':
     resolution: {integrity: sha512-GlgLTPxVN9A/1lxlAktB/zyjPZc4i6YFYbd6YHY+0dsoOPAjofzV+hzqtKCAzIEZ90waZ5OgiVFlkqcA0lzdkg==}
     peerDependencies:
@@ -11233,6 +11259,9 @@ packages:
     peerDependenciesMeta:
       onnxruntime-web:
         optional: true
+
+  '@sherpaw/kws@0.2.0':
+    resolution: {integrity: sha512-fT07ybxoCM7n4CkkviJgPmMk/6RomCe7O0mpk/xmXs9hI5NZ8hapEm5+Ij86Oob2gbrX+48o8uiBDbnrcGGDiw==}
 
   '@sherpaw/preloader@0.2.1':
     resolution: {integrity: sha512-iKSfK2AyHKZTrbTtDRZo06sWrI56BH5C4o7eCS+UJzK9I8bLgXyUvy4TafXCeJVG/owAr28xXU7J1BAn02wq6Q==}
@@ -23468,6 +23497,14 @@ snapshots:
     optionalDependencies:
       electron: 43.4.1(supports-color@10.2.2)
 
+  '@moeru/eventa@1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)':
+    dependencies:
+      nanoid: 6.0.1
+      picomatch: 4.0.5
+    optionalDependencies:
+      electron: 43.4.1(supports-color@10.2.2)
+      hono: 4.13.3
+
   '@moeru/eventa@1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)':
     dependencies:
       nanoid: 6.0.1
@@ -25526,6 +25563,18 @@ snapshots:
   '@sherpaw/asr@0.2.1(onnxruntime-web@1.27.0)':
     optionalDependencies:
       onnxruntime-web: 1.27.0
+
+  '@sherpaw/kws@0.2.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)':
+    dependencies:
+      '@moeru/eventa': 1.0.1(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)
+      '@sherpaw/preloader': 0.2.1
+      '@sherpaw/shared': 0.2.1
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
 
   '@sherpaw/preloader@0.2.1': {}
 

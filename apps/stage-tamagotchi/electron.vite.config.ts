@@ -14,6 +14,7 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { KWS_MODEL } from '@proj-airi/stage-ui/libs/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
@@ -120,6 +121,7 @@ export default defineConfig({
     },
 
     optimizeDeps: {
+      include: ['@moeru/eventa/adapters/webworkers/worker'],
       exclude: [
         // Internal Packages
         '@proj-airi/stage-ui/*',
@@ -266,9 +268,9 @@ export default defineConfig({
       }),
 
       Sherpaw({
-        models: sherpawModels,
-        developmentModels: sherpawModels,
-        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? sherpawModels : [],
+        models: [...sherpawModels, KWS_MODEL],
+        developmentModels: [...sherpawModels, KWS_MODEL],
+        bundledModels: env.SHERPAW_BUNDLE_MODELS === 'true' ? [...sherpawModels, KWS_MODEL] : [KWS_MODEL],
         cacheDir: sharedCacheDir,
       }),
       DownloadLive2DSDK(),

@@ -1,18 +1,22 @@
-/** A pinned Sherpaw model and the artifacts required by its recognizer. */
-export interface SherpawModel {
+/** A pinned pair of Sherpaw preload artifacts shared by recognition runtimes. */
+export interface SherpawModelArtifacts {
   /** Stable ID used by persisted provider configuration and asset storage. */
   id: string
-  /** Recognizer family. Supported languages are rendered separately. */
-  name: string
   repository: string
   revision: string
+  /** Contains the published preload.data and preload.js.metadata pair. */
+  directory: string
+}
+
+/** A pinned Sherpaw model and the artifacts required by its recognizer. */
+export interface SherpawModel extends SherpawModelArtifacts {
+  /** Recognizer family. Supported languages are rendered separately. */
+  name: string
   supportedLanguages: readonly string[]
   /** Selects the recognizer architecture, independently of the supported languages. */
   recognizer: 'paraformer' | 'transducer'
   /** Token segmentation passed to the recognizer. Sherpaw's X-ASR setup uses an empty value. */
   modelingUnit: 'cjkchar' | ''
-  /** Contains the published preload.data and preload.js.metadata pair. */
-  directory: string
 }
 
 /** Quantized Chinese and English Paraformer distributed by Sherpaw. */
@@ -89,7 +93,7 @@ export function selectSherpawModel(
 }
 
 /** Returns the revision-scoped cache path for a model download. */
-export function sherpawModelPath(model: SherpawModel): string {
+export function sherpawModelPath(model: SherpawModelArtifacts): string {
   return `sherpaw/${model.id}/${model.revision}`
 }
 
@@ -101,7 +105,7 @@ export function sherpawModelPath(model: SherpawModel): string {
  * // => 'https://huggingface.co/moeru-ai/sherpaw-paraformer-zh-en/resolve/46701cc.../install/bin/wasm/preload.data'
  */
 export function sherpawModelArtifactUrl(
-  model: SherpawModel,
+  model: SherpawModelArtifacts,
   filename: 'preload.data' | 'preload.js.metadata',
 ): string {
   return `https://huggingface.co/${model.repository}/resolve/${model.revision}/${model.directory}/${filename}`

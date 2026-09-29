@@ -5,8 +5,11 @@ import type { Tool } from '@xsai/shared-chat'
 import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
 import { uniqBy } from 'es-toolkit'
 
+import { pinnedKwsVocabulary } from '../../../services/wake-words'
 import { createWebSearchTools, debug, mcp } from '../../../tools'
+import { createWakeWordTool } from '../../../tools/wake-words'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useAiriCardStore } from '../../modules/airi-card'
 import { useWebSearchStore } from '../../modules/web-search'
 import { useLlmToolsStore } from './tools'
 
@@ -61,6 +64,8 @@ export interface ResolveLlmToolsOptions {
    * @default useLlmToolsStore().activeTools
    */
   activeTools?: Tool[]
+  /** Replaces the built-in calling-word tools for hosts with their own configuration flow. */
+  wakeWordTools?: ToolSource
 }
 
 /**
@@ -132,6 +137,20 @@ async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[
   return createWebSearchTools({ apiKey: webSearchStore.apiKey.trim() })
 }
 
+async function resolveWakeWordTools(options: ResolveLlmToolsOptions): Promise<Tool[]> {
+  if (options.wakeWordTools != null)
+    return resolveToolSource(options.wakeWordTools)
+  if (!options.cardId)
+    return []
+
+  const cardStore = useAiriCardStore()
+  return [await createWakeWordTool({
+    cardId: options.cardId,
+    cardStore,
+    getVocabulary: async () => pinnedKwsVocabulary,
+  })]
+}
+
 /**
  * Resolves every tool visible to an LLM request.
  *
@@ -146,12 +165,14 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     debugTools,
     sparkCommandTools,
     webSearchTools,
+    wakeWordTools,
     customTools,
   ] = await Promise.all([
     resolveToolSource(options.builtInTools ?? mcp),
     resolveToolSource(options.debugTools ?? debug),
     resolveSparkCommandTools(options.sparkCommandTools),
     resolveWebSearchTools(options.webSearchTools),
+    resolveWakeWordTools(options),
     resolveCustomTools(options.customTools),
   ])
 
@@ -161,6 +182,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
       ...debugTools,
       ...sparkCommandTools,
       ...webSearchTools,
+      ...wakeWordTools,
       ...customTools,
       ...activeTools,
     ].toReversed(),
