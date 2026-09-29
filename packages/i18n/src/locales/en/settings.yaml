@@ -486,7 +486,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty fields inherit global settings.
+        Configure modules for this character card. Empty chat, vision, and speech fields inherit global settings. No Body Model disables the renderer.
       sections:
         chat: Chat
         vision: Vision
@@ -495,6 +495,7 @@ pages:
       use_default: Use default
       use_default_not_configured: Use default (not configured)
       inherit_global_settings: Inherit global settings
+      no_model: No model
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
