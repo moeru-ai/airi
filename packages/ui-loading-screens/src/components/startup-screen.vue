@@ -48,8 +48,14 @@ watch(() => props.phase, (phase) => {
           <span v-if="phase === 'loading'" class="startup-label">{{ label }}</span>
           <div v-if="phase === 'error'" class="startup-error">
             <div class="startup-error-header" :class="locale.startsWith('ja') ? 'font-wdxl-jp' : 'font-wdxl-sc'">
-              <span i-solar:danger-triangle-bold-duotone class="startup-error-symbol" aria-hidden="true" />
               <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
+              <span class="startup-error-header-spacer" />
+              <span i-solar:danger-triangle-linear class="startup-error-symbol" aria-hidden="true" />
+            </div>
+            <div class="startup-error-heading">
+              <h2 class="startup-error-title">
+                {{ errorTitle }}
+              </h2>
               <div v-if="errorMessage" ref="detailsElement" class="startup-error-details" @keydown.esc="detailsOpen = false">
                 <button
                   type="button"
@@ -71,14 +77,10 @@ watch(() => props.phase, (phase) => {
                 </div>
               </div>
             </div>
-            <h2 class="startup-error-title">
-              {{ errorTitle }}
-            </h2>
             <p class="startup-error-hint">
               {{ errorHint }}
             </p>
             <div class="startup-error-progress-heading" aria-hidden="true">
-              <span class="startup-error-mark">!</span>
               <span>{{ progress }}%</span>
             </div>
           </div>
@@ -199,7 +201,7 @@ watch(() => props.phase, (phase) => {
   top: max(calc(env(safe-area-inset-top) + 96px), 26vh);
   box-sizing: border-box;
   align-items: stretch;
-  width: 100%;
+  width: min(680px, calc(100% - 48px));
   height: auto;
   transform: translateX(-50%);
 }
@@ -251,18 +253,20 @@ watch(() => props.phase, (phase) => {
 }
 
 .startup-error-header {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 56px;
-  padding: 8px 24px;
-  border-top: 1px solid #ef4444;
-  border-bottom: 1px solid #ef444466;
-  background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
+  gap: 16px;
+  min-height: 72px;
+  padding: 8px 20px;
+  overflow: hidden;
+  border-top: 1px solid #ef444499;
+  border-bottom: 1px solid #ef44444d;
+  background: linear-gradient(90deg, #ef444410, #ef444404 60%, #ef444408);
   color: #dc2626;
-  font-size: clamp(18px, 2vw, 22px);
+  font-size: clamp(28px, 2.5vw, 32px);
   font-weight: 400;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
 }
 
@@ -270,27 +274,43 @@ watch(() => props.phase, (phase) => {
   position: relative;
 }
 
-.startup-error-header::after {
+.startup-error-header::before {
   content: '';
-  flex: none;
-  width: 90px;
-  height: 10px;
-  background: repeating-linear-gradient(110deg, currentColor 0 7px, transparent 7px 14px);
-  opacity: 0.52;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(110deg, transparent 0 18px, currentColor 18px 24px, transparent 24px 42px);
+  background-size: 42px 100%;
+  opacity: 0.05;
+  pointer-events: none;
+  animation: startup-warning-scroll 2s linear infinite;
 }
 
 .startup-error-status-label {
+  position: relative;
   min-width: 0;
 }
 
+.startup-error-header-spacer {
+  flex: 1;
+}
+
 .startup-error-symbol {
+  position: relative;
   flex: none;
-  font-size: 30px;
+  font-size: 32px;
+}
+
+.startup-error-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 24px 24px 0;
 }
 
 .startup-error-title {
-  margin: 24px 24px 0;
-  font-size: clamp(20px, 4vw, 26px);
+  min-width: 0;
+  margin: 0;
+  font-size: clamp(24px, 3vw, 32px);
   font-weight: 700;
   line-height: 1.35;
 }
@@ -306,33 +326,26 @@ watch(() => props.phase, (phase) => {
 .startup-error-progress-heading {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin: 28px 24px 0;
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
 }
 
-.startup-error-mark {
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1;
-}
-
 .startup-error-recovery {
   position: absolute;
-  bottom: calc(env(safe-area-inset-bottom) + clamp(48px, 8vh, 96px));
+  bottom: calc(max(env(safe-area-inset-bottom), 24px) + 8px);
   left: 50%;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  max-width: calc(100% - 48px);
+  gap: 12px;
+  width: min(680px, calc(100% - 48px));
   transform: translateX(-50%);
 }
 
 .startup-error-action {
-  min-width: 180px;
+  min-width: 0;
+  flex: 1;
 }
 
 .startup-error-details {
@@ -363,7 +376,7 @@ watch(() => props.phase, (phase) => {
 .startup-error-details-content {
   position: absolute;
   top: calc(100% + 12px);
-  right: -100px;
+  right: 0;
   z-index: 1;
   box-sizing: border-box;
   width: min(360px, calc(100vw - 48px));
@@ -400,9 +413,9 @@ watch(() => props.phase, (phase) => {
 }
 
 :global(html.dark .startup-error-header) {
-  border-color: #f87171;
-  border-bottom-color: #f8717159;
-  background: linear-gradient(90deg, #f8717124, #f8717108 72%, transparent);
+  border-color: #f8717199;
+  border-bottom-color: #f871714d;
+  background: linear-gradient(90deg, #f8717110, #f8717104 60%, #f8717108);
 }
 
 :global(html.dark .startup-error-hint) {
@@ -435,6 +448,10 @@ watch(() => props.phase, (phase) => {
 @keyframes startup-error-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+@keyframes startup-warning-scroll {
+  to { background-position: 42px 0; }
 }
 
 :global(html.dark .startup-label) {
@@ -474,11 +491,21 @@ watch(() => props.phase, (phase) => {
 }
 
 @media (max-width: 600px) {
-  .startup-error-header {
-    padding: 8px 12px;
+  .startup-status-error {
+    width: 100%;
   }
 
-  .startup-error-title {
+  .startup-error-header {
+    min-height: 64px;
+    padding: 8px 12px;
+    font-size: clamp(24px, 6vw, 28px);
+  }
+
+  .startup-error-symbol {
+    font-size: 28px;
+  }
+
+  .startup-error-heading {
     margin-right: 16px;
     margin-left: 16px;
   }
@@ -499,12 +526,7 @@ watch(() => props.phase, (phase) => {
     margin-left: 16px;
   }
 
-  .startup-error-header::after {
-    width: 24px;
-  }
-
   .startup-error-details-content {
-    right: -34px;
     width: min(360px, calc(100vw - 24px));
   }
 
@@ -532,6 +554,10 @@ watch(() => props.phase, (phase) => {
 
   .startup-error,
   .startup-error-recovery {
+    animation: none;
+  }
+
+  .startup-error-header::before {
     animation: none;
   }
 
