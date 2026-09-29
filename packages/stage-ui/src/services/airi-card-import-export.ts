@@ -10,6 +10,7 @@ import { exportToJSON } from '@proj-airi/ccc'
 import { array, literal, object, optional, parse, picklist, record, string, unknown as unknownSchema } from 'valibot'
 
 import { DisplayModelFormat } from '../stores/display-models'
+import { createAvatarModelReference } from './avatar-model'
 
 const FORMAT = 'airi-character-card'
 const VERSION = 1
@@ -79,7 +80,7 @@ export class AiriCardPackageError extends Error {
  */
 export async function exportAiriCardPackage({ card, displayModelsStore }: { card: AiriCard, displayModelsStore: DisplayModelsStore }): Promise<Blob> {
   const exportableCard = cardFromAiriCard(card)
-  const displayModel = await exportDisplayModel(exportableCard, displayModelsStore)
+  const displayModel = await exportDisplayModel(card, displayModelsStore)
   const manifest = {
     format: FORMAT,
     version: VERSION,
@@ -108,13 +109,14 @@ export async function importAiriCardPackage({ file, displayModelsStore }: { file
   const zip = await loadZip(file)
   const manifest = await readJsonFile(zip, MANIFEST_PATH, manifestSchema)
   const cardJson = await readJsonFile(zip, manifest.card.path, characterCardV3Schema)
-  const displayModelId = await importDisplayModel(zip, manifest, displayModelsStore)
+  const displayModel = await importDisplayModel(zip, manifest, displayModelsStore)
 
-  return exportToJSON(cardFromCharacterCard(cardJson, displayModelId))
+  return exportToJSON(cardFromCharacterCard(cardJson, displayModel))
 }
 
-async function exportDisplayModel(card: ShareableAiriCard, store: DisplayModelsStore) {
-  const displayModelId = card.extensions.airi.modules.displayModelId
+async function exportDisplayModel(card: AiriCard, store: DisplayModelsStore) {
+  const extension = card.extensions.airi
+  const displayModelId = extension.avatarModels.find(model => model.id === extension.defaultAvatarModelId)?.displayModelId
   if (!displayModelId)
     return
 
@@ -152,7 +154,7 @@ async function importDisplayModel(zip: JSZip, manifest: Manifest, store: Display
 
   try {
     const data = await file.async('arraybuffer')
-    return (await store.addDisplayModel(resource.format, new File([data], resource.name))).id
+    return await store.addDisplayModel(resource.format, new File([data], resource.name))
   }
   catch (cause) {
     throw error('invalid-file', 'Failed to import display model file', { cause })
@@ -197,7 +199,7 @@ function cardFromAiriCard(card: AiriCard): ShareableAiriCard {
   }
 }
 
-function cardFromCharacterCard(card: CharacterCardPackageJson, displayModelId?: string): ShareableAiriCard {
+function cardFromCharacterCard(card: CharacterCardPackageJson, displayModel?: DisplayModel): ShareableAiriCard {
   const data = card.data
   return {
     name: data.name,
@@ -210,19 +212,20 @@ function cardFromCharacterCard(card: CharacterCardPackageJson, displayModelId?: 
     notes: data.creator_notes,
     systemPrompt: data.system_prompt,
     postHistoryInstructions: data.post_history_instructions,
-    extensions: { airi: sanitizeAiri(data.extensions?.airi, displayModelId) },
+    extensions: { airi: sanitizeAiri(data.extensions?.airi, displayModel) },
   }
 }
 
-function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExtension {
+function sanitizeAiri(value: unknown, displayModel?: DisplayModel): AiriExtension {
   const source = isRecord(value) ? value : {}
   const modules = isRecord(source.modules) ? source.modules : {}
   const artistry = isRecord(modules.artistry) ? modules.artistry : {}
   const speech = isRecord(modules.speech) ? modules.speech : {}
-  const displayModelId = displayModelIdOverride ?? stringValue(modules.displayModelId)
+  const avatarModel = displayModel ? createAvatarModelReference(displayModel.id, displayModel.format) : undefined
 
   return {
-    avatarModels: [],
+    avatarModels: avatarModel ? [avatarModel] : [],
+    defaultAvatarModelId: avatarModel?.id,
     modules: {
       consciousness: providerModel(modules.consciousness),
       vision: providerModel(modules.vision),
@@ -230,7 +233,6 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
         ...providerModel(modules.speech),
         voice_id: stringValue(speech.voice_id),
       },
-      ...(displayModelId ? { displayModelId } : {}),
       artistry: {
         ...(typeof artistry.provider === 'string' ? { provider: artistry.provider } : {}),
         ...(typeof artistry.model === 'string' ? { model: artistry.model } : {}),

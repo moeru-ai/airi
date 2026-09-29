@@ -46,7 +46,8 @@ describe('airi card package import/export', () => {
     expect(airi.modules.artistry).not.toHaveProperty('workflowId')
     expect(airi.agents).toEqual({})
     expect(displayModelsStore.addDisplayModel).toHaveBeenCalledWith(DisplayModelFormat.VRM, expect.objectContaining({ name: 'AvatarSample_A.vrm' }))
-    expect(airiFrom(imported).modules.displayModelId).toBe('display-model-imported')
+    expect(airiFrom(imported).avatarModels[0]).toMatchObject({ displayModelId: 'display-model-imported', type: 'vrm' })
+    expect(airiFrom(imported).defaultAvatarModelId).toBe(airiFrom(imported).avatarModels[0].id)
   })
 
   it('applies the share-field whitelist to externally edited package JSON', async () => {
@@ -127,7 +128,8 @@ describe('airi card package import/export', () => {
       DisplayModelFormat.TachieZip,
       expect.objectContaining({ name: 'character.tachie.zip' }),
     )
-    expect(airiFrom(imported).modules.displayModelId).toBe('imported-tachie')
+    expect(airiFrom(imported).avatarModels[0]).toMatchObject({ displayModelId: 'imported-tachie', type: 'tachie' })
+    expect(airiFrom(imported).defaultAvatarModelId).toBe(airiFrom(imported).avatarModels[0].id)
   })
 })
 
@@ -153,12 +155,12 @@ function createCard(displayModelId = 'preset-vrm-1'): AiriCard {
     tags: ['hidden'],
     extensions: {
       airi: {
-        avatarModels: [],
+        avatarModels: [{ id: 'selected-avatar-model', displayModelId, type: displayModelId === 'tachie-model' ? 'tachie' : 'vrm', config: {} }],
+        defaultAvatarModelId: 'selected-avatar-model',
         modules: {
           consciousness: { provider: 'openai', model: 'gpt-4o' },
           vision: { provider: 'ollama', model: 'llava' },
           speech: { provider: 'elevenlabs', model: 'eleven', voice_id: 'alloy', pitch: 1 },
-          displayModelId,
           activeBackgroundId: 'background-secret',
           artistry: { provider: 'replicate', model: 'flux', workflowId: 'workflow-secret' },
         },

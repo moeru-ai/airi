@@ -50,8 +50,6 @@ export interface AiriExtension {
       url?: string
     }
 
-    /** ID from the display-models store. */
-    displayModelId?: string
     activeBackgroundId?: string
 
     artistry?: {
