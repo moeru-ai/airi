@@ -112,8 +112,8 @@ export function useVisionInference() {
     const startedAt = Date.now()
     // Every attempt counts, including a failure before the request, such as a
     // provider that cannot start.
-    function recordInference(result: { text: string } | { error: string }) {
-      activityStore.recordInference({
+    async function recordInference(result: { text: string } | { error: string }) {
+      await activityStore.recordInference({
         at: Date.now(),
         provider: providerId,
         model: modelId,
@@ -126,11 +126,11 @@ export function useVisionInference() {
       lastText.value = await describeImage(providerId, modelId, input)
     }
     catch (error) {
-      recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
+      await recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
       throw error
     }
 
-    recordInference({ text: lastText.value })
+    await recordInference({ text: lastText.value })
     return lastText.value
   }
 

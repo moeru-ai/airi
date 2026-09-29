@@ -20,9 +20,12 @@ export interface VisionInferenceRecord {
  * Summarizes vision activity for every window since the app started.
  *
  * The screen ticker runs in the devtools window, chat images are read in the
- * chat window, and the settings page reads this summary in its own window.
+ * leader, and the settings page reads this summary in its own window.
  * Per-window details, such as the timing history, stay in the unsynchronized
  * processing store.
+ *
+ * Every write is a leader action. A follower that wrote the state directly
+ * would propose its whole snapshot, and a concurrent write could lose a count.
  */
 export const useVisionActivityStore = defineStore('vision-activity', () => {
   const tickerRunning = ref(false)
@@ -35,28 +38,28 @@ export const useVisionActivityStore = defineStore('vision-activity', () => {
   const failedInferenceCount = ref(0)
   const lastInference = ref<VisionInferenceRecord | null>(null)
 
-  function setTickerRunning(running: boolean) {
+  async function setTickerRunning(running: boolean) {
     tickerRunning.value = running
   }
 
-  function recordCapture(capturedAt: number) {
+  async function recordCapture(capturedAt: number) {
     captureCount.value += 1
     lastCaptureAt.value = capturedAt
   }
 
-  function recordContextUpdates(count: number, updatedAt: number) {
+  async function recordContextUpdates(count: number, updatedAt: number) {
     contextUpdateCount.value += count
     lastContextUpdateAt.value = updatedAt
   }
 
-  function recordInference(record: VisionInferenceRecord) {
+  async function recordInference(record: VisionInferenceRecord) {
     inferenceCount.value += 1
     if (record.error !== undefined)
       failedInferenceCount.value += 1
     lastInference.value = record
   }
 
-  function resetCaptureMetrics() {
+  async function resetCaptureMetrics() {
     captureCount.value = 0
     lastCaptureAt.value = null
     contextUpdateCount.value = 0
@@ -80,6 +83,7 @@ export const useVisionActivityStore = defineStore('vision-activity', () => {
   }
 }, {
   synced: {
+    actions: ['recordCapture', 'recordContextUpdates', 'recordInference', 'resetCaptureMetrics', 'setTickerRunning'],
     state: true,
   },
 })

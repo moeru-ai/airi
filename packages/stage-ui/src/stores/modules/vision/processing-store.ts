@@ -75,20 +75,20 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     processingHistoryMs.value = [...processingHistoryMs.value, durationMs].slice(-PROCESSING_HISTORY_LIMIT)
   }
 
-  function recordCapture(capturedAt = Date.now()) {
-    activityStore.recordCapture(capturedAt)
+  async function recordCapture(capturedAt = Date.now()) {
     captureHistory.value.push(capturedAt)
     trimHistoryByAge(captureHistory.value, HISTORY_MAX_AGE_MS)
+    await activityStore.recordCapture(capturedAt)
   }
 
-  function recordContextUpdates(count = 1, updatedAt = Date.now()) {
+  async function recordContextUpdates(count = 1, updatedAt = Date.now()) {
     if (count <= 0)
       return
 
-    activityStore.recordContextUpdates(count, updatedAt)
     for (let index = 0; index < count; index += 1)
       contextUpdateHistory.value.push(updatedAt)
     trimHistoryByAge(contextUpdateHistory.value, HISTORY_MAX_AGE_MS)
+    await activityStore.recordContextUpdates(count, updatedAt)
   }
 
   async function runTick() {
@@ -110,9 +110,9 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
       lastError.value = null
 
       if (outcome?.capturedAt)
-        recordCapture(outcome.capturedAt)
+        await recordCapture(outcome.capturedAt)
       if (outcome?.contextUpdates)
-        recordContextUpdates(outcome.contextUpdates)
+        await recordContextUpdates(outcome.contextUpdates)
     }
     catch (error) {
       lastError.value = errorMessageFrom(error) || 'Unknown error'
@@ -123,13 +123,12 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     }
   }
 
-  function startTicker(handler: VisionTickHandler) {
+  async function startTicker(handler: VisionTickHandler) {
     tickHandler.value = handler
     if (isRunning.value)
       return
 
     isRunning.value = true
-    activityStore.setTickerRunning(true)
     if (intervalHandle)
       clearInterval(intervalHandle)
 
@@ -137,31 +136,33 @@ export const useVisionProcessingStore = defineStore('vision-processing', () => {
     intervalHandle = setInterval(() => {
       void runTick()
     }, captureIntervalMs.value)
+    await activityStore.setTickerRunning(true)
   }
 
-  function stopTicker() {
+  /** Stops the local interval at once, then reports the stop to the leader. */
+  async function stopTicker() {
     isRunning.value = false
-    activityStore.setTickerRunning(false)
     if (intervalHandle)
       clearInterval(intervalHandle)
     intervalHandle = null
+    await activityStore.setTickerRunning(false)
   }
 
-  function resetMetrics() {
+  async function resetMetrics() {
     tickCount.value = 0
     skippedTicks.value = 0
-    activityStore.resetCaptureMetrics()
     lastTickAt.value = null
     lastProcessingDurationMs.value = null
     lastError.value = null
     processingHistoryMs.value = []
     captureHistory.value = []
     contextUpdateHistory.value = []
+    await activityStore.resetCaptureMetrics()
   }
 
-  function resetState() {
-    stopTicker()
-    resetMetrics()
+  async function resetState() {
+    await stopTicker()
+    await resetMetrics()
     captureIntervalMs.reset()
   }
 

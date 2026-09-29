@@ -1,5 +1,7 @@
 import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { VisionInferenceRecord } from './activity'
+
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -20,6 +22,34 @@ function createWindow(namespace: string, leadership: LeadershipMode) {
   return { pinia, runtime }
 }
 
+/** Creates the stage window as leader, then the devtools and settings windows as followers. */
+async function createWindows() {
+  const namespace = `vision-activity-${Math.random().toString(36).slice(2)}`
+
+  const stageWindow = createWindow(namespace, 'leader-only')
+  await vi.waitFor(() => expect(stageWindow.runtime.isLeader()).toBe(true))
+  setActivePinia(stageWindow.pinia)
+  const stage = useVisionActivityStore()
+
+  const devtoolsWindow = createWindow(namespace, 'follower-only')
+  setActivePinia(devtoolsWindow.pinia)
+  const devtoolsProcessing = useVisionProcessingStore()
+  const devtools = useVisionActivityStore()
+
+  const settingsWindow = createWindow(namespace, 'follower-only')
+  setActivePinia(settingsWindow.pinia)
+  const settings = useVisionActivityStore()
+
+  for (const follower of [devtoolsWindow, settingsWindow])
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(stageWindow.runtime.participantId))
+
+  return { stage, devtools, devtoolsProcessing, settings }
+}
+
+function inference(at: number, error?: string): VisionInferenceRecord {
+  return { at, provider: 'apple-vision', model: 'system', durationMs: 900, ...(error ? { error } : { text: 'A red square.' }) }
+}
+
 afterEach(() => {
   for (const context of contexts.splice(0)) {
     context.runtime.dispose()
@@ -28,28 +58,17 @@ afterEach(() => {
 })
 
 describe('vision activity', () => {
-  it('shows the ticker and inferences of another window on the settings page', async () => {
+  it('shows the devtools ticker and the stage inferences on the settings page', async () => {
     // ROOT CAUSE:
     //
     // The settings page read the processing store of its own window. The ticker
     // runs in the devtools window, so the page always showed Idle and Never.
     //
     // We fixed this by keeping the counts in a synchronized store.
-    const namespace = `vision-activity-${Math.random().toString(36).slice(2)}`
+    const { stage, devtoolsProcessing, settings } = await createWindows()
 
-    const devtoolsWindow = createWindow(namespace, 'leader-only')
-    await vi.waitFor(() => expect(devtoolsWindow.runtime.isLeader()).toBe(true))
-    setActivePinia(devtoolsWindow.pinia)
-    const processing = useVisionProcessingStore()
-    const devtoolsActivity = useVisionActivityStore()
-
-    const settingsWindow = createWindow(namespace, 'follower-only')
-    setActivePinia(settingsWindow.pinia)
-    const settings = useVisionActivityStore()
-    await vi.waitFor(() => expect(settingsWindow.runtime.getLeaderId()).toBe(devtoolsWindow.runtime.participantId))
-
-    processing.startTicker(() => ({ capturedAt: 1_000, contextUpdates: 1 }))
-    devtoolsActivity.recordInference({ at: 2_000, provider: 'apple-vision', model: 'system', durationMs: 900, error: 'Model unavailable' })
+    await devtoolsProcessing.startTicker(() => ({ capturedAt: 1_000, contextUpdates: 1 }))
+    await stage.recordInference(inference(2_000, 'Model unavailable'))
 
     await vi.waitFor(() => expect(settings).toMatchObject({
       tickerRunning: true,
@@ -58,34 +77,46 @@ describe('vision activity', () => {
       inferenceCount: 1,
       failedInferenceCount: 1,
     }))
-    processing.stopTicker()
+    await devtoolsProcessing.stopTicker()
     await vi.waitFor(() => expect(settings.tickerRunning).toBe(false))
   })
 
+  it('keeps every count when the devtools and stage windows write at once', async () => {
+    // ROOT CAUSE:
+    //
+    // A follower wrote the store directly and proposed its whole snapshot. A
+    // snapshot taken before a concurrent leader write replaced the newer count.
+    //
+    // We fixed this by applying every write as a leader action.
+    const { stage, devtools, settings } = await createWindows()
+
+    await Promise.all([
+      ...Array.from({ length: 20 }, (_, index) => devtools.recordCapture(index)),
+      ...Array.from({ length: 20 }, (_, index) => stage.recordInference(inference(index, index % 2 ? 'Model unavailable' : undefined))),
+    ])
+
+    for (const window of [stage, devtools, settings]) {
+      await vi.waitFor(() => expect(window).toMatchObject({
+        captureCount: 20,
+        inferenceCount: 20,
+        failedInferenceCount: 10,
+      }))
+    }
+  })
+
   it('takes a leader snapshot without proposing one back', async () => {
-    const namespace = `vision-activity-${Math.random().toString(36).slice(2)}`
-
-    const devtoolsWindow = createWindow(namespace, 'leader-only')
-    await vi.waitFor(() => expect(devtoolsWindow.runtime.isLeader()).toBe(true))
-    setActivePinia(devtoolsWindow.pinia)
-    const devtools = useVisionActivityStore()
-
-    const settingsWindow = createWindow(namespace, 'follower-only')
-    setActivePinia(settingsWindow.pinia)
-    const settings = useVisionActivityStore()
-    await vi.waitFor(() => expect(settingsWindow.runtime.getLeaderId()).toBe(devtoolsWindow.runtime.participantId))
-
-    let devtoolsMutations = 0
+    const { stage, settings } = await createWindows()
+    let stageMutations = 0
     let settingsActions = 0
-    devtools.$subscribe(() => devtoolsMutations++, { flush: 'sync' })
+    stage.$subscribe(() => stageMutations++, { flush: 'sync' })
     settings.$onAction(() => settingsActions++)
 
-    devtools.recordCapture(1_000)
-    const localMutations = devtoolsMutations
+    await stage.recordCapture(1_000)
+    const localMutations = stageMutations
     await vi.waitFor(() => expect(settings.captureCount).toBe(1))
     await new Promise(resolve => setTimeout(resolve, 50))
 
-    expect(devtoolsMutations).toBe(localMutations)
+    expect(stageMutations).toBe(localMutations)
     expect(settingsActions).toBe(0)
   })
 })

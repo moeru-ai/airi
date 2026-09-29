@@ -215,11 +215,11 @@ async function startCaptureLoop() {
     return
   }
 
-  visionProcessingStore.startTicker(handleVisionTick)
+  await visionProcessingStore.startTicker(handleVisionTick)
 }
 
 async function stopCaptureLoop() {
-  visionProcessingStore.stopTicker()
+  await visionProcessingStore.stopTicker()
   stopStream()
   if (videoRef.value) {
     videoRef.value.pause()
@@ -257,7 +257,8 @@ function handlePermissionGranted() {
 }
 
 onBeforeUnmount(() => {
-  visionProcessingStore.stopTicker()
+  // The interval stops before the first await. Only the leader report is pending.
+  void visionProcessingStore.stopTicker()
   stopStream()
   cleanup()
 })
