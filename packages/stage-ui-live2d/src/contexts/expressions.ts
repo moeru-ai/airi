@@ -119,7 +119,7 @@ export function createLive2DExpressionsContext(
   const parameterResetTimes = new Map<string, number>()
   const activeLastFrame = new Set<string>()
   let previewExpressionNames: readonly string[] = []
-  let previewValues = new Map<string, number>()
+  let previewParameters = new Map<string, Live2DExpressionParameterDefinition>()
   let executor: Live2DExpressionExecutor | undefined
   let executionResetTimer: ReturnType<typeof setTimeout> | undefined
   let executionGeneration = 0
@@ -363,10 +363,10 @@ export function createLive2DExpressionsContext(
 
   function setPreviewExpressions(names: readonly string[]) {
     previewExpressionNames = [...names]
-    previewValues = new Map()
+    previewParameters = new Map()
     for (const name of names) {
       for (const parameter of definitions.value.get(name)?.parameters ?? [])
-        previewValues.set(parameter.parameterId, parameter.value)
+        previewParameters.set(parameter.parameterId, parameter)
     }
   }
 
@@ -464,14 +464,15 @@ export function createLive2DExpressionsContext(
     const activeThisFrame = new Set<string>()
 
     for (const parameter of parameters.value.values()) {
-      const previewValue = previewValues.get(parameter.parameterId)
-      if (previewValue === undefined && parameter.currentValue === parameter.defaultValue)
+      const preview = previewParameters.get(parameter.parameterId)
+      if (!preview && parameter.currentValue === parameter.defaultValue)
         continue
 
-      let value = previewValue ?? parameter.currentValue
-      if (parameter.blend === 'Add')
+      let value = preview?.value ?? parameter.currentValue
+      const blend = preview?.blend ?? parameter.blend
+      if (blend === 'Add')
         value = parameter.modelDefault + value
-      else if (parameter.blend === 'Multiply')
+      else if (blend === 'Multiply')
         value = coreModel.getParameterValueById(parameter.parameterId) * value
 
       coreModel.setParameterValueById(parameter.parameterId, value)
@@ -497,7 +498,7 @@ export function createLive2DExpressionsContext(
     clearParameterResets()
     activeLastFrame.clear()
     previewExpressionNames = []
-    previewValues = new Map()
+    previewParameters = new Map()
     executor = undefined
     modelId.value = ''
     definitions.value = new Map()
