@@ -36,9 +36,8 @@ const emit = defineEmits<{
           <span v-if="phase === 'loading'" class="startup-label">{{ label }}</span>
           <div v-if="phase === 'error'" class="startup-error">
             <div class="startup-error-header">
-              <span class="startup-error-indicator" aria-hidden="true" />
+              <span i-solar:danger-triangle-bold-duotone class="startup-error-symbol" aria-hidden="true" />
               <span>{{ errorStatusLabel }}</span>
-              <span class="startup-error-header-line" aria-hidden="true" />
             </div>
             <h2 class="startup-error-title">
               {{ errorTitle }}
@@ -64,10 +63,10 @@ const emit = defineEmits<{
           </div>
           <div v-if="phase === 'error'" class="startup-error-footer">
             <div class="startup-error-actions">
-              <Button color="primary" variant="primary" block @click="emit('retry')">
+              <Button class="startup-error-action" color="primary" variant="primary" @click="emit('retry')">
                 {{ retryLabel }}
               </Button>
-              <Button v-if="alternativeLabel" block @click="emit('alternative')">
+              <Button v-if="alternativeLabel" class="startup-error-action" @click="emit('alternative')">
                 {{ alternativeLabel }}
               </Button>
             </div>
@@ -174,24 +173,11 @@ const emit = defineEmits<{
   top: 50%;
   box-sizing: border-box;
   align-items: stretch;
-  width: min(440px, calc(100vw - 40px));
+  width: min(680px, calc(100vw - 48px));
   height: auto;
   max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 112px);
-  padding: 24px;
   overflow: auto;
-  border: 1px solid #e5e5e5;
-  border-top: 2px solid #ef4444;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 20px 60px #1717170d, 0 2px 8px #17171708;
   transform: translate(-50%, -50%);
-}
-
-:global(html.dark .startup-status-error) {
-  border-color: #404040;
-  border-top-color: #f87171;
-  background: #202020;
-  box-shadow: 0 20px 60px #0003;
 }
 
 .startup-track {
@@ -212,7 +198,7 @@ const emit = defineEmits<{
 }
 
 .startup-status-error .startup-track {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .startup-progress {
@@ -239,38 +225,44 @@ const emit = defineEmits<{
 .startup-error-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 16px;
+  border-top: 1px solid #ef4444;
+  border-bottom: 1px solid #ef444466;
+  background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.startup-error-indicator {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 0 4px #fee2e2;
+.startup-error-header::after {
+  content: '';
+  width: 90px;
+  height: 10px;
+  margin-left: auto;
+  background: repeating-linear-gradient(110deg, currentColor 0 7px, transparent 7px 14px);
+  opacity: 0.52;
 }
 
-.startup-error-header-line {
-  flex: 1;
-  height: 1px;
-  margin-left: 4px;
-  background: #e5e5e5;
+.startup-error-symbol {
+  flex: none;
+  font-size: 30px;
 }
 
 .startup-error-title {
-  margin: 28px 0 0;
-  font-size: clamp(18px, 4vw, 22px);
+  margin: 24px 0 0;
+  font-size: clamp(20px, 4vw, 26px);
   font-weight: 700;
   line-height: 1.35;
 }
 
 .startup-error-hint {
+  max-width: 560px;
   margin: 10px 0 0;
   color: #737373;
   font-size: 13px;
@@ -281,30 +273,44 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 32px;
+  margin-top: 28px;
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
 }
 
 .startup-error-mark {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  border: 1px solid currentColor;
-  border-radius: 5px;
-  font-size: 13px;
+  font-size: 20px;
   font-weight: 700;
+  line-height: 1;
 }
 
 .startup-error-footer {
-  padding-top: 32px;
+  position: relative;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid #ef44444d;
+}
+
+.startup-error-footer::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  right: 0;
+  width: 72px;
+  height: 5px;
+  background: repeating-linear-gradient(110deg, #ef4444 0 5px, transparent 5px 11px);
+  opacity: 0.5;
 }
 
 .startup-error-actions {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+}
+
+.startup-error-action {
+  min-width: 180px;
 }
 
 .startup-error-details {
@@ -331,12 +337,18 @@ const emit = defineEmits<{
   color: #f87171;
 }
 
-:global(html.dark .startup-error-indicator) {
-  box-shadow: 0 0 0 4px #7f1d1d;
+:global(html.dark .startup-error-header) {
+  border-color: #f87171;
+  border-bottom-color: #f8717159;
+  background: linear-gradient(90deg, #f8717124, #f8717108 72%, transparent);
 }
 
-:global(html.dark .startup-error-header-line) {
-  background: #404040;
+:global(html.dark .startup-error-footer) {
+  border-top-color: #f871714d;
+}
+
+:global(html.dark .startup-error-footer::before) {
+  background: repeating-linear-gradient(110deg, #f87171 0 5px, transparent 5px 11px);
 }
 
 :global(html.dark .startup-error-hint),
@@ -382,6 +394,20 @@ const emit = defineEmits<{
 
   .startup-status-error {
     top: calc(50% + 24px);
+  }
+}
+
+@media (max-width: 600px) {
+  .startup-error-header::after {
+    width: 48px;
+  }
+
+  .startup-error-actions {
+    display: grid;
+  }
+
+  .startup-error-action {
+    width: 100%;
   }
 }
 
