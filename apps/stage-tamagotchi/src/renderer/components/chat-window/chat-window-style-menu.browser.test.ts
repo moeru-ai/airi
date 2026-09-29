@@ -110,7 +110,7 @@ describe('chatWindowStyleMenu', () => {
     await expect.element(page.getByRole('menuitemcheckbox')).not.toBeInTheDocument()
   })
 
-  it('saves the message feed as its own placement and offers it the pin', async () => {
+  it('saves the message feed as its own placement without its own pin', async () => {
     mocks.getPreferences.mockResolvedValue({ mode: 'floating', placement: 'free', pinned: false })
     mocks.setPreferences.mockReset().mockResolvedValue()
     const screen = await render(ChatWindowStyleMenu, {
@@ -125,7 +125,7 @@ describe('chatWindowStyleMenu', () => {
     expect(mocks.setPreferences).toHaveBeenCalledWith({ mode: 'floating', placement: 'danmaku', pinned: false })
     await trigger.click()
     await expect.element(page.getByRole('menuitemradio', { name: 'tamagotchi.stage.chat-window.style.floating-danmaku' })).toHaveAttribute('aria-checked', 'true')
-    await expect.element(page.getByRole('menuitemcheckbox', { name: 'tamagotchi.stage.chat-window.style.pinned' })).toBeInTheDocument()
+    await expect.element(page.getByRole('menuitemcheckbox')).not.toBeInTheDocument()
   })
 
   it('shows the saved style again when a switch fails', async () => {

@@ -93,7 +93,7 @@ function gripDirection(layout: AttachedChatLayout): ResizeDirection {
 export function setupFloatingChatWindow(params: {
   getMainWindow: () => BrowserWindow | undefined
   getPlacement: () => ChatFloatingPlacement
-  /** Whether a chat that is not attached stays above other windows. */
+  /** Whether a `free` chat stays above other windows. */
   getPinned: () => boolean
   getBounds: () => FloatingChatBounds
   saveBounds: (bounds: FloatingChatBounds) => void
@@ -230,6 +230,14 @@ export function setupFloatingChatWindow(params: {
       moveToLayout(main, target)
   }
 
+  /** Keeps the chat's pin equal to the main window's. Returns the function that stops it. */
+  function followMainPin(main: BrowserWindow, target: BrowserWindow) {
+    const follow = (_: Electron.Event, isAlwaysOnTop: boolean) => target.setAlwaysOnTop(isAlwaysOnTop)
+    target.setAlwaysOnTop(main.isAlwaysOnTop())
+    main.on('always-on-top-changed', follow)
+    return () => main.off('always-on-top-changed', follow)
+  }
+
   /**
    * Keeps an attached chat beside the main window.
    *
@@ -258,7 +266,6 @@ export function setupFloatingChatWindow(params: {
       if (!folded)
         target.showInactive()
     }
-    const followAlwaysOnTop = (_: Electron.Event, isAlwaysOnTop: boolean) => target.setAlwaysOnTop(isAlwaysOnTop)
     const linkToMain = () => target.setParentWindow(main)
     // Leaving the parent does not restore the chat's own window level.
     const unlinkFromMain = () => {
@@ -269,7 +276,7 @@ export function setupFloatingChatWindow(params: {
     const mainBounds = main.getBounds()
     layout = chooseAttachedChatLayout(mainBounds, target.getBounds(), screen.getDisplayMatching(mainBounds).workArea, preferredAttachedChatLayout)
     moveToLayout(main, target)
-    target.setAlwaysOnTop(main.isAlwaysOnTop())
+    const stopFollowingPin = followMainPin(main, target)
     // NOTICE:
     // Only macOS moves a child window with its parent during a drag, so only
     // macOS links the chat. With this link, the attached chat on Windows
@@ -289,7 +296,6 @@ export function setupFloatingChatWindow(params: {
     target.on('restore', follow)
     main.on('hide', hideWithMain)
     main.on('show', showWithMain)
-    main.on('always-on-top-changed', followAlwaysOnTop)
 
     detachFromMain = () => {
       stopSlide()
@@ -297,7 +303,7 @@ export function setupFloatingChatWindow(params: {
       main.off('resize', follow)
       main.off('hide', hideWithMain)
       main.off('show', showWithMain)
-      main.off('always-on-top-changed', followAlwaysOnTop)
+      stopFollowingPin()
       if (!target.isDestroyed())
         target.off('restore', follow)
       if (linksToMain && !target.isDestroyed()) {
@@ -314,10 +320,14 @@ export function setupFloatingChatWindow(params: {
 
     // The chat pins with Electron's default level, never the shared
     // `setWindowAlwaysOnTop`: that level also covers the input method
-    // candidates, and the chat takes text. An attached chat takes the main
-    // window's pin state in attachToMain.
-    if (params.getPlacement() === 'attached')
+    // candidates, and the chat takes text. An attached or danmaku chat takes
+    // the main window's pin state.
+    const placement = params.getPlacement()
+    const main = params.getMainWindow()
+    if (placement === 'attached')
       attachToMain(target)
+    else if (placement === 'danmaku' && main && !main.isDestroyed())
+      detachFromMain = followMainPin(main, target)
     else
       target.setAlwaysOnTop(params.getPinned())
 

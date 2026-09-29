@@ -60,9 +60,9 @@ const currentStyleId = computed<ChatWindowStyleId | undefined>(() => {
   return preferences.value.mode === 'legacy' ? 'legacy' : `floating-${preferences.value.placement}`
 })
 
-// An attached chat follows the main window's pin, so only the other floating
-// styles offer their own.
-const pinnable = computed(() => currentStyleId.value === 'floating-free' || currentStyleId.value === 'floating-danmaku')
+// An attached or danmaku chat follows the main window's pin, so only a free
+// one offers its own.
+const pinnable = computed(() => currentStyleId.value === 'floating-free')
 
 /** Counts choices, so only the latest one decides what the menu shows. */
 let latestChoice = 0

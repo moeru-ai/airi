@@ -66,8 +66,8 @@ export interface ChatWindowPreferences {
   mode: ChatWindowMode
   placement: ChatFloatingPlacement
   /**
-   * Keeps a `free` or `danmaku` floating chat above other windows. An
-   * `attached` chat ignores it and follows the main window's pin state instead.
+   * Keeps a `free` floating chat above other windows. An `attached` or
+   * `danmaku` chat ignores it and follows the main window's pin state instead.
    */
   pinned: boolean
 }
@@ -95,8 +95,8 @@ export interface ChatFloatingState {
    */
   relocating: boolean
   /**
-   * Whether the chat window stays above other windows: the main window's pin
-   * when attached, the chat's own pin otherwise. The renderer passes clicks
+   * Whether the chat window stays above other windows: the chat's own pin
+   * when free, the main window's pin otherwise. The renderer passes clicks
    * through only while it is `true`, like the main window.
    */
   pinned: boolean
