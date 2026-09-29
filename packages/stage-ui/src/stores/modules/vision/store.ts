@@ -56,32 +56,10 @@ export const useVisionStore = defineStore('vision', () => {
     modelSearchQuery.reset()
   }
 
-  /**
-   * Selects the catalog default when the active model is not in the catalog.
-   *
-   * The active model can belong to another provider, such as `auto` of the
-   * official provider. Only a catalog with a default is complete, so a provider
-   * without one keeps a custom model name.
-   */
-  function ensureActiveModel() {
-    const defaultModel = providersStore.getDefaultModelForProvider(activeProvider.value)
-    if (!defaultModel)
-      return
-
-    const models = providersStore.getModelsForProvider(activeProvider.value)
-    if (models.some(model => model.id === activeModel.value))
-      return
-
-    activeModel.value = defaultModel
-    activeCustomModelName.reset()
-  }
-
   async function loadModelsForProvider(provider: string) {
     if (providersStore.supportsModelListing(provider)) {
       await providersStore.fetchModelsForProvider(provider)
     }
-    if (provider === activeProvider.value)
-      ensureActiveModel()
   }
 
   async function getModelsForProvider(provider: string) {
@@ -119,8 +97,6 @@ export const useVisionStore = defineStore('vision', () => {
   }
 }, {
   synced: {
-    // The leader loads the catalog and repairs the model once for all windows.
-    actions: ['loadModelsForProvider'],
     state: true,
   },
 })

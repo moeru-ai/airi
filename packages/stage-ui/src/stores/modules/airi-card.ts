@@ -15,6 +15,7 @@ import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
 import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
@@ -296,8 +297,9 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   /**
    * Selects a vision provider for the active card with its catalog default.
    *
-   * The vision store selects the default after the catalog loads. The card
-   * stores that model, so the next application does not restore an empty one.
+   * Only this explicit selection applies the default, and the card stores it,
+   * so the runtime and the card keep the same model. A provider without a
+   * default keeps an empty model until the user selects one.
    */
   async function selectActiveCardVisionProvider(provider: string) {
     await pendingAuthenticationSetup
@@ -305,7 +307,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     vision.activeProvider = provider
     vision.resetModelSelection()
     await vision.loadModelsForProvider(provider)
-    return await updateActiveCardVision({ provider, model: vision.activeModel })
+    const model = useProviderStore().getDefaultModelForProvider(provider) ?? ''
+    return await updateActiveCardVision({ provider, model })
   }
 
   async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {

@@ -3,6 +3,7 @@ import type { AiriCard } from './airi-card'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 import { useConsciousnessStore } from './consciousness'
@@ -76,12 +77,9 @@ vi.mock('./vision', async () => {
         resetModelSelection() {
           this.activeModel = ''
         },
-        // The real action loads the catalog and selects its default for a
-        // model outside it. Only the `apple-vision` catalog has a default.
-        async loadModelsForProvider(provider: string) {
-          if (provider === 'apple-vision' && this.activeModel !== 'system')
-            this.activeModel = 'system'
-        },
+        // The real action loads the catalog into the provider store. Each test
+        // writes that catalog state itself.
+        async loadModelsForProvider() {},
       },
     }),
   }
@@ -351,6 +349,9 @@ describe('airi-card store', () => {
   it('keeps the catalog default of a selected vision provider when the card applies again', async () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
+    useProviderStore().providerRuntimeState = {
+      'apple-vision': { models: [], defaultModel: 'system', modelStatus: 'ready', modelError: null },
+    }
 
     expect(await cardStore.selectActiveCardVisionProvider('apple-vision')).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({ provider: 'apple-vision', model: 'system' })
