@@ -9,10 +9,14 @@ import {
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { FieldCombobox } from '@proj-airi/ui'
 import { watchDebounced } from '@vueuse/core'
 import { cloneDeep } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
 
 const providerId = 'minimax-speech'
 const defaultModel = 'speech-2.8-hd'
@@ -28,6 +32,22 @@ const { configs: providers } = storeToRefs(providerStore)
 
 const apiKeyConfigured = computed(() => !!providers.value[providerId]?.apiKey)
 
+// The page offers both models the provider lists, and keeps the choice in the
+// provider config so the Speech module can read it.
+const model = computed({
+  get: () => providers.value[providerId]?.model as string | undefined || defaultModel,
+  set: (value: string) => {
+    if (!providers.value[providerId])
+      return
+    providers.value[providerId].model = value
+  },
+})
+
+const modelOptions = [
+  { value: 'speech-2.8-hd', label: 'Speech 2.8 HD' },
+  { value: 'speech-2.8-turbo', label: 'Speech 2.8 Turbo' },
+]
+
 // A stable empty list keeps the computed value stable when the provider has no
 // voice catalog yet. A new array on each read causes extra UI updates.
 const emptyVoices: VoiceInfo[] = []
@@ -40,16 +60,14 @@ const availableVoices = computed(() => {
 async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: boolean) {
   const provider = await providersStore.getProviderInstance(providerId) as SpeechProviderWithExtraOptions<string>
   if (!provider) {
-    throw new Error('Failed to initialize speech provider')
+    throw new Error(t('settings.pages.providers.provider.minimax-speech.errors.provider-initialization-failed'))
   }
 
   const providerConfig = providerStore.getProviderConfig(providerId)
 
-  const model = providerConfig.model as string | undefined || defaultModel
-
   return await speechStore.speech(
     provider,
-    model,
+    model.value,
     input,
     voiceId,
     {
@@ -89,12 +107,23 @@ watchDebounced([
     :default-model="defaultModel"
     :additional-settings="defaultVoiceSettings"
   >
+    <template #basic-settings>
+      <FieldCombobox
+        v-model="model"
+        :options="modelOptions"
+        :label="t('settings.pages.providers.provider.minimax-speech.fields.field.model.label')"
+        :description="t('settings.pages.providers.provider.minimax-speech.fields.field.model.description')"
+        :placeholder="t('settings.pages.providers.provider.minimax-speech.fields.field.model.placeholder')"
+        layout="horizontal"
+      />
+    </template>
+
     <template #playground>
       <SpeechPlayground
         :available-voices="availableVoices"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
-        default-text="Hello! This is a test of the MiniMax voice synthesis."
+        :default-text="t('settings.pages.providers.provider.minimax-speech.playground.default-text')"
       />
     </template>
   </SpeechProviderSettings>
