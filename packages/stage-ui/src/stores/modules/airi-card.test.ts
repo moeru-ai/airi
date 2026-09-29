@@ -72,6 +72,17 @@ vi.mock('./vision', async () => {
         activeProvider: 'mock-vision-provider',
         activeModel: 'mock-vision-model',
       }),
+      actions: {
+        resetModelSelection() {
+          this.activeModel = ''
+        },
+        // The real action loads the catalog and selects its default for a
+        // model outside it. Only the `apple-vision` catalog has a default.
+        async loadModelsForProvider(provider: string) {
+          if (provider === 'apple-vision' && this.activeModel !== 'system')
+            this.activeModel = 'system'
+        },
+      },
     }),
   }
 })
@@ -328,6 +339,25 @@ describe('airi-card store', () => {
       speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
     expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Selecting Apple Vision stored an empty model on the card before the catalog
+  // loaded. The catalog default changed only the runtime model, so applying the
+  // card again restored the empty model.
+  //
+  // We fixed this by storing the catalog default on the card.
+  it('keeps the catalog default of a selected vision provider when the card applies again', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    expect(await cardStore.selectActiveCardVisionProvider('apple-vision')).toBe(true)
+    expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({ provider: 'apple-vision', model: 'system' })
+
+    await cardStore.activateCard(cardStore.activeCardId)
+
+    expect(useVisionStore()).toMatchObject({ activeProvider: 'apple-vision', activeModel: 'system' })
   })
 
   // ROOT CAUSE:

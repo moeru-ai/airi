@@ -293,6 +293,21 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return updated
   }
 
+  /**
+   * Selects a vision provider for the active card with its catalog default.
+   *
+   * The vision store selects the default after the catalog loads. The card
+   * stores that model, so the next application does not restore an empty one.
+   */
+  async function selectActiveCardVisionProvider(provider: string) {
+    await pendingAuthenticationSetup
+    const vision = useVisionStore()
+    vision.activeProvider = provider
+    vision.resetModelSelection()
+    await vision.loadModelsForProvider(provider)
+    return await updateActiveCardVision({ provider, model: vision.activeModel })
+  }
+
   async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
     await pendingAuthenticationSetup
     const updated = updateActiveCardModules(({ modules }) => ({
@@ -599,6 +614,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardDisplayModel,
     updateActiveCardSpeech,
     updateActiveCardVision,
+    selectActiveCardVisionProvider,
     getCard,
     resetState,
     initialize,
@@ -647,6 +663,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'updateActiveCardDisplayModel',
       'updateActiveCardSpeech',
       'updateActiveCardVision',
+      'selectActiveCardVisionProvider',
       'updateCard',
     ],
     state: true,

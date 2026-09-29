@@ -54,9 +54,7 @@ watch(activeProvider, async (provider) => {
 }, { immediate: true })
 
 async function selectProvider(provider: string) {
-  activeProvider.value = provider
-  visionStore.resetModelSelection()
-  await persistSelection()
+  await airiCardStore.selectActiveCardVisionProvider(provider)
 }
 
 async function persistSelection() {
