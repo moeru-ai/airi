@@ -34,9 +34,6 @@ signIn:
     create:
       heading: アカウントを作成
       description: '{email} の新しいアカウントを作成します。'
-  email:
-    label: Email
-    placeholder: you{'@'}example.com
   password:
     label: パスワード
     placeholder: パスワード
@@ -86,9 +83,6 @@ verifyEmail:
 forgotPassword:
   title: パスワードをリセットする
   description: あなたのアカウントに関連付けられているメールアドレスを入力すると、リセットリンクが送信されます。
-  email:
-    label: Email
-    placeholder: you{'@'}example.com
   action:
     send: リセットリンクを送信
     backToSignIn: サインインに戻る

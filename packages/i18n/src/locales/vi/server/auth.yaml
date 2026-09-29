@@ -34,9 +34,6 @@ signIn:
     create:
       heading: Tạo tài khoản
       description: Chúng tôi sẽ tạo tài khoản mới cho {email}.
-  email:
-    label: Email
-    placeholder: you{'@'}example.com
   password:
     label: Mật khẩu
     placeholder: Mật khẩu của bạn
@@ -87,7 +84,6 @@ forgotPassword:
   title: Đặt lại mật khẩu
   description: Hãy nhập địa chỉ email đã được liên kết với tài khoản của bạn và chúng tôi sẽ gửi bạn link để thiết lập lại.
   email:
-    label: Email
     placeholder: bạn{'@'}example.com
   action:
     send: Gửi link đặt lại
@@ -132,7 +128,6 @@ profile:
     password: Mật khẩu
     linkedAccounts: Các tài khoản đã được liên kết
   field:
-    email: Email
     emailVerified: Trạng thái email
     createdAt: Đã tham gia
   label:

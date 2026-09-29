@@ -76,6 +76,16 @@ export type ProviderInstance
     | ModelProvider
     | ModelProviderWithExtraOptions
 
+/** A complete transcript snapshot that replaces earlier volatile text. */
+export interface StreamTranscriptionSnapshot {
+  durationMilliseconds: number
+  isFinal: boolean
+  locale: string
+  startMilliseconds: number
+  text: string
+  type: 'transcript.text.snapshot'
+}
+
 /** Validation lifecycle for one serializable provider configuration. */
 export type ProviderValidationStatus = 'unconfigured' | 'validating' | 'configured' | 'invalid' | 'bypassed'
 export type ProviderConfiguredBy = 'user' | 'authentication'

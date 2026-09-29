@@ -2,8 +2,9 @@
 import type { ChatHistoryItem, ErrorMessage } from '../../../../types/chat'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
-import { IconButton } from '@proj-airi/ui'
-import { computed } from 'vue'
+import { BasicButton, IconButton } from '@proj-airi/ui'
+import { computed, shallowRef } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
@@ -32,14 +33,22 @@ const emit = defineEmits<{
   (e: 'retry'): void
   (e: 'delete'): void
 }>()
+const { t } = useI18n()
+const detailsOpen = shallowRef(false)
+
+const summary = computed(() => {
+  const firstLine = props.message.content.trim().split(/\r?\n/u, 1)[0]
+  const payloadStart = firstLine.indexOf(': {')
+  const text = payloadStart >= 0 ? firstLine.slice(0, payloadStart) : firstLine
+  return text.length > 160 ? `${text.slice(0, 157)}…` : text
+})
+const hasDetails = computed(() => props.message.content.length > 240 || props.message.content.split(/\r?\n/u).length > 4)
 
 const boxClasses = computed(() => {
-  const spacing = ['min-w-0', 'max-w-full', props.variant === 'mobile' ? 'px-2 py-2 text-sm' : 'px-3 py-3']
   if (props.surface === 'opaque')
-    return [spacing, 'bg-violet-100 shadow-md dark:bg-violet-950']
+    return ['bg-violet-100 shadow-md dark:bg-violet-950']
 
   return [
-    spacing,
     props.variant === 'mobile'
       ? 'bg-violet-100/60 backdrop-blur-xl dark:bg-violet-950/60'
       : 'bg-violet-100/80 dark:bg-violet-950/80',
@@ -51,7 +60,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
 <template>
   <div
     :class="[
-      'flex flex-col',
+      'max-w-[min(28rem,calc(100vw-2rem))] flex flex-col',
       variant === 'mobile' ? 'mr-0' : 'mr-12',
       'font-cute',
     ]"
@@ -71,26 +80,58 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           :class="[
             'chat-message-item-container',
             boxClasses,
-            'relative',
-            'flex flex-col',
-            'min-w-20 rounded-xl',
+            'relative max-w-full overflow-hidden',
+            'min-w-20 flex flex-col rounded-xl',
             'h-unset <sm:h-fit',
             'shadow-sm shadow-violet-200/50 dark:shadow-none',
             (isStageWeb() || isStageCapacitor()) && props.variant === 'mobile' ? 'select-none sm:select-auto' : '',
           ]"
         >
-          <div flex="~ row" gap-2>
-            <div flex-1 class="inline <sm:hidden">
-              <span text-sm text="black/60 dark:white/65" font-normal>{{ label }}</span>
+          <div :class="[variant === 'mobile' ? 'px-2 py-2' : 'px-3 py-3']">
+            <div :class="['flex items-start justify-between gap-3']">
+              <span :class="['min-w-0 text-xs text-neutral-500 font-medium dark:text-neutral-400']">{{ label }}</span>
+              <span aria-hidden="true" :class="['i-solar:danger-triangle-bold-duotone size-4 shrink-0 text-violet-500']" />
             </div>
-            <div i-solar:danger-triangle-bold-duotone text-violet-500 />
+            <div v-if="showPlaceholder" :class="['i-eos-icons:three-dots-loading']" />
+            <MarkdownRenderer
+              v-else-if="!hasDetails"
+              :content="message.content"
+              class="break-words text-violet-500 dark:text-violet-300"
+            />
+            <template v-else>
+              <p :class="['mt-1 mb-0 break-words text-sm text-neutral-800 font-medium leading-relaxed dark:text-neutral-100']">
+                {{ summary }}
+              </p>
+              <pre
+                v-if="hasDetails && detailsOpen"
+                :class="[
+                  'mt-3 mb-0 max-h-48 max-w-full overflow-auto',
+                  'whitespace-pre-wrap break-all font-mono text-xs',
+                  'text-neutral-700 dark:text-neutral-200',
+                ]"
+              >{{ message.content }}</pre>
+            </template>
           </div>
-          <div v-if="showPlaceholder" i-eos-icons:three-dots-loading />
-          <MarkdownRenderer
-            v-else
-            :content="message.content"
-            class="whitespace-pre-wrap break-all text-violet-500 dark:text-violet-300"
-          />
+          <BasicButton
+            v-if="hasDetails && !showPlaceholder"
+            size="unset"
+            :aria-expanded="detailsOpen"
+            :class="[
+              'min-h-11 w-full px-3 py-2 text-xs text-violet-700',
+              'bg-violet-200/35 hover:bg-violet-200/65 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500',
+              'dark:bg-violet-900/40 dark:text-violet-200 dark:hover:bg-violet-800/50',
+            ]"
+            @click.stop="detailsOpen = !detailsOpen"
+          >
+            {{ t(detailsOpen ? 'stage.chat.error-details.hide' : 'stage.chat.error-details.show') }}
+            <span
+              aria-hidden="true"
+              :class="[
+                'i-solar:alt-arrow-down-linear size-3.5 shrink-0 transition-transform duration-200',
+                detailsOpen && 'rotate-180',
+              ]"
+            />
+          </BasicButton>
         </div>
       </template>
     </ChatActionMenu>
