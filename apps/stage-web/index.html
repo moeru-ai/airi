@@ -87,14 +87,24 @@
     </div>
     <script src="/assets/js/CubismSdkForWeb-5-r.3/Core/live2dcubismcore.min.js"></script>
     <script type="module" src="/src/main.ts"></script>
+    <script id="boot-splash-locales" type="application/json">__AIRI_STARTUP_LOCALES__</script>
     <script>
-      setTimeout(() => {
-        if (document.querySelector('#app:empty')) {
-          const splash = document.querySelector('#boot-splash')
-          splash?.classList.add('failed')
-          splash?.setAttribute('aria-busy', 'false')
-        }
-      }, 15000)
+      ;(function () {
+        const data = JSON.parse(document.querySelector('#boot-splash-locales').textContent)
+        const preferred = localStorage.getItem('settings/language') || navigator.language
+        const locale = data.localeRemap[preferred] || preferred
+        const labels = data.labels[locale] || data.labels.en
+        document.querySelector('#boot-splash .boot-error span').textContent = labels.failed
+        document.querySelector('#boot-splash .boot-error button').textContent = labels.retry
+
+        setTimeout(() => {
+          if (document.querySelector('#app:empty')) {
+            const splash = document.querySelector('#boot-splash')
+            splash?.classList.add('failed')
+            splash?.setAttribute('aria-busy', 'false')
+          }
+        }, 15000)
+      })()
     </script>
     <noscript> This website requires JavaScript to function properly. Please enable JavaScript to continue. </noscript>
   </body>

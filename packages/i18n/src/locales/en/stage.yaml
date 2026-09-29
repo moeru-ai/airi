@@ -88,6 +88,7 @@ startup:
   details: Error details
   retry: Retry
   continue-without-model: Continue Anyway
+  model-timeout: The character model took too long to load. Check your connection and retry.
   resources:
     auth: account settings
     modelIndex: model list

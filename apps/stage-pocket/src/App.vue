@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { OnboardingDialog, OnboardingStepAnalyticsNotice, StartupOverlay, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { useStartupResourceTimeout } from '@proj-airi/stage-ui/composables/use-startup-resource-timeout'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -46,6 +47,7 @@ const { isDark } = useTheme()
 const cardStore = useAiriCardStore()
 const startup = useStartupResourcesStore()
 startup.register(['auth', 'modelIndex', 'card', 'services', 'modelData', 'modelSelection', 'audio', 'route', 'model'])
+useStartupResourceTimeout('model', 120_000, () => i18n.t('stage.startup.model-timeout'))
 const startupOnboarding = ref(false)
 watch(showingSetup, (visible) => {
   if (!visible)
@@ -124,8 +126,8 @@ async function loadStartup() {
       if (!authStore.isAuthenticated)
         await removeAuthenticationProviderConfiguration()
     })
-    await startup.run('services', async () => {
-      await serverChannelStore.initialize({ possibleEvents: ['ui:configure'], connector: getHostWebSocketConnector })
+    await startup.run('services', () => {
+      void serverChannelStore.initialize({ possibleEvents: ['ui:configure'], connector: getHostWebSocketConnector }).catch(error => console.error('Mods server initialization failed:', error))
       contextBridgeStore.initialize()
       characterOrchestratorStore.initialize()
     })

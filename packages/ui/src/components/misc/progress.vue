@@ -31,6 +31,13 @@ defineProps<{
   will-change: transform, opacity;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .progress-shine-animation {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @keyframes progress-shine {
   0% {
     opacity: 0.4;

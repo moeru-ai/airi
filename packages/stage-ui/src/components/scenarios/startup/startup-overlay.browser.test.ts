@@ -45,7 +45,7 @@ function mountOverlay(onFinished: () => void) {
       ja: {},
     },
   })
-  const app = createApp({ render: () => h(StartupOverlay, { logoSrc: '/favicon.svg', onFinished }, { default: () => h('main', 'stage') }) })
+  const app = createApp({ render: () => h(StartupOverlay, { logoSrc: '/favicon.svg', onFinished }, { default: () => h('main', [h('button', { id: 'covered-action' }, 'Covered action')]) }) })
   app.use(pinia)
   app.use(i18n)
   app.mount(host)
@@ -64,6 +64,10 @@ it('keeps the startup screen and retry action visible after a resource fails', a
 
     await expect.poll(() => document.querySelector('[role="alert"]')?.textContent).toContain('Could not load character model')
     expect(document.querySelector('.startup-screen')).not.toBeNull()
+    expect(document.querySelector<HTMLElement>('.startup-covered-content')?.inert).toBe(true)
+    expect(document.querySelector('.startup-covered-content')?.getAttribute('aria-hidden')).toBe('true')
+    document.querySelector<HTMLButtonElement>('#covered-action')?.focus()
+    expect(document.activeElement?.id).not.toBe('covered-action')
     expect(document.querySelector('.startup-screen-error .startup-brand')).not.toBeNull()
     expect(document.querySelector('.startup-error-hint')?.textContent).toContain('select another model later')
     expect(document.querySelector('.startup-status-error [role="progressbar"]')).not.toBeNull()
@@ -116,6 +120,9 @@ it('finishes only after all resources complete', async () => {
     startup.start('model')
     startup.complete('model')
     await expect.poll(() => finished).toBe(true)
+    expect(document.querySelector<HTMLElement>('.startup-covered-content')?.inert).toBe(false)
+    document.querySelector<HTMLButtonElement>('#covered-action')?.focus()
+    expect(document.activeElement?.id).toBe('covered-action')
   }
   finally {
     app.unmount()

@@ -45,7 +45,9 @@ watch([ready, opened], async ([isReady, isOpen]) => {
 </script>
 
 <template>
-  <slot />
+  <div class="startup-covered-content" :inert="phase !== 'done'" :aria-hidden="phase !== 'done' ? 'true' : undefined">
+    <slot />
+  </div>
   <StartupScreen
     :phase="failed ? 'error' : phase"
     :progress="progress"
@@ -63,3 +65,9 @@ watch([ready, opened], async ([isReady, isOpen]) => {
     @alternative="emit('skipModel')"
   />
 </template>
+
+<style scoped>
+.startup-covered-content {
+  display: contents;
+}
+</style>
