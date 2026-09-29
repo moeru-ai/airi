@@ -1,4 +1,4 @@
-import type { ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
+import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../../types/chat-session'
 
 import { storage } from '../storage'
 
@@ -45,6 +45,13 @@ export const chatSessionsRepo = {
   async saveSession(sessionId: string, record: ChatSessionRecord) {
     const key = `local:chat/sessions/${sessionId}`
     await storage.setItemRaw(key, record)
+  },
+
+  /** Changes ownership metadata without replacing an unloaded history payload. The caller serializes writes. */
+  async saveSessionMeta(meta: ChatSessionMeta) {
+    const stored = await this.getSession(meta.sessionId)
+    if (stored)
+      await this.saveSession(meta.sessionId, { ...stored, meta })
   },
 
   // Cleanup

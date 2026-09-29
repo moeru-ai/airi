@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { Button } from '@proj-airi/ui'
 import {
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -15,9 +14,11 @@ import { useI18n } from 'vue-i18n'
 interface Props {
   modelValue: boolean
   cardName?: string
+  pending?: boolean
+  error?: string
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'confirm'): void
@@ -27,18 +28,20 @@ const emit = defineEmits<{
 const { t } = useI18n()
 
 function handleCancel() {
+  if (props.pending)
+    return
   emit('update:modelValue', false)
   emit('cancel')
 }
 
 function handleConfirm() {
-  emit('update:modelValue', false)
-  emit('confirm')
+  if (!props.pending)
+    emit('confirm')
 }
 </script>
 
 <template>
-  <AlertDialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
+  <AlertDialogRoot :open="modelValue" @update:open="!pending && emit('update:modelValue', $event)">
     <AlertDialogPortal>
       <AlertDialogOverlay class="fixed inset-0 z-100 bg-black/50 data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
       <AlertDialogContent
@@ -51,23 +54,25 @@ function handleConfirm() {
         <AlertDialogDescription class="mb-6">
           {{ t('settings.pages.card.delete_confirmation') }} <b>"{{ cardName || '' }}"</b>
         </AlertDialogDescription>
+        <p v-if="error" role="alert" :class="['mb-4 text-sm text-red-600 dark:text-red-400']">
+          {{ error }}
+        </p>
 
         <div class="flex flex-row justify-end gap-3">
           <AlertDialogCancel as-child>
             <Button
 
               :label="t('settings.pages.card.cancel')"
+              :disabled="pending"
               @click="handleCancel"
             />
           </AlertDialogCancel>
-          <AlertDialogAction as-child>
-            <Button
-
-              :label="t('settings.pages.card.delete')"
-              color="red"
-              variant="primary" @click="handleConfirm"
-            />
-          </AlertDialogAction>
+          <Button
+            :loading="pending"
+            :label="t('settings.pages.card.delete')"
+            color="red"
+            variant="primary" @click="handleConfirm"
+          />
         </div>
       </AlertDialogContent>
     </AlertDialogPortal>

@@ -56,6 +56,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: 'browser',
+          fileParallelism: false,
           include: ['src/**/*.browser.test.ts'],
           exclude: ['**/node_modules/**'],
           browser: {

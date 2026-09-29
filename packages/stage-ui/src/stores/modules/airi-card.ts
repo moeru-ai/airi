@@ -5,6 +5,7 @@ import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { cloneDeep } from 'es-toolkit'
 import { defineStore, getActivePinia, storeToRefs } from 'pinia'
 import { computed, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -188,7 +189,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * can't silently degrade creation attribution.
    */
   const addCard = async (card: AiriCard | Card | ccv3.CharacterCardV3, source: 'scratch' | 'import' | 'duplicate') => {
-    const newCardId = await catalog.addCard(newAiriCard(card))
+    const newCardId = await catalog.addCard(cloneDeep(newAiriCard(card)))
     captureAnalyticsEvent('card_created', { card_id: newCardId, source })
     return newCardId
   }
@@ -226,7 +227,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
 
     const card = newAiriCard(updatedCard)
-    await catalog.updateCard(id, card)
+    await catalog.updateCard(id, cloneDeep(card))
     if (id === activeCardId.value)
       await applyActiveCardSettings(card)
 
@@ -284,7 +285,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!card)
       return false
     await rememberInheritedSettings()
-    return catalog.updateModules(cardId, patch(resolveAiriExtension(card)))
+    return catalog.updateModules(cardId, cloneDeep(patch(resolveAiriExtension(card))))
   }
 
   /** Saves a card's model binding without selecting that card. Empty bindings inherit the global model. */

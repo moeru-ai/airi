@@ -5,13 +5,14 @@ import type { ControlsIslandDock } from './use-controls-island-placement'
 import en from '@proj-airi/i18n/locales/en'
 
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useAiriCardCatalog } from '@proj-airi/stage-ui/stores/modules/airi-card-catalog'
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision/store'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
-import { createPinia } from 'pinia'
+import { createPinia, disposePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
@@ -29,6 +30,7 @@ import 'virtual:uno.css'
 const isOutside = ref(false)
 const openSettings = vi.fn().mockResolvedValue(undefined)
 const authState = vi.hoisted(() => ({
+  get userId(): string { return this.user.value?.id ?? 'local' },
   credits: { value: 0 },
   isAuthenticated: { value: false },
   needsLogin: { value: false },
@@ -69,13 +71,14 @@ const sizes = ['small', 'large', 'auto'] as const
 
 function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number] = 'auto', dockRef = ref(dock), initializeProfile = false) {
   const pinia = createPinia()
+  let catalogReady = Promise.resolve()
   const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } })
   const component = initializeProfile
     ? defineComponent({
         setup() {
           // Seed the profile store without invoking the stage's asynchronous
           // runtime initialization. The profile form only needs an active card.
-          const cards = useAiriCardStore()
+          useAiriCardStore()
           // Create the stores that card duplication reads while Vue still has
           // a component setup context. The action itself can then reuse them.
           useArtistryStore()
@@ -97,7 +100,7 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
               },
             },
           } satisfies AiriCard
-          cards.cards.set('default', defaultCard)
+          catalogReady = useAiriCardCatalog().initialize(defaultCard, defaultCard.extensions.airi.modules)
           return () => h(ControlsIsland)
         },
       })
@@ -118,16 +121,20 @@ function mountControlsIsland(dock: ControlsIslandDock, size: typeof sizes[number
   })
   useSettings(pinia).controlsIslandIconSize = size
 
-  return { cards: useAiriCardStore(pinia), auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
+  return { cards: useAiriCardStore(pinia), catalogReady, auth: authState, dock: dockRef, i18n, screen, settings: useSettings(pinia) }
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  localStorage.clear()
   isOutside.value = false
   openSettings.mockClear()
   authState.credits.value = 0
   authState.isAuthenticated.value = false
   authState.needsLogin.value = false
   authState.user.value = null
+  const pinia = createPinia()
+  await useAiriCardCatalog(pinia).resetState()
+  disposePinia(pinia)
 })
 
 describe('controls Island overflow', () => {
@@ -454,7 +461,8 @@ it('keeps the profile creation form open for pointer interaction (PR #2474)', as
   // Closing the selector canceled creation, and the body portal counted as an
   // outside click. The selector and form must share one interaction lifecycle.
   await page.viewport(600, 300)
-  const { cards, i18n, screen } = mountControlsIsland('bottom-right', 'auto', ref('bottom-right'), true)
+  const { cards, catalogReady, i18n, screen } = mountControlsIsland('bottom-right', 'auto', ref('bottom-right'), true)
+  await catalogReady
   await screen.getByLabelText(i18n.global.t('tamagotchi.stage.controls-island.expand'), { exact: true }).click()
   await screen.getByRole('combobox').click()
   await page.getByRole('option', { name: i18n.global.t('stage.profile-switcher.save-as-new') }).click()

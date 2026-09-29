@@ -355,7 +355,7 @@ pages:
     cancel: 取消操作
     save: 保存更改
     save_and_activate: 保存并激活
-    card_not_found: 未找到角色卡
+    card_not_found: 未找到角色
     back: 返回
     character: 角色设定
     close: 关闭
@@ -369,14 +369,22 @@ pages:
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
-    delete_card: 删除角色卡
-    delete_confirmation: 确定要删除这张角色卡吗？
-    description: 使用 AIRI 角色卡预设
+    delete_card: 删除角色
+    delete_failed: 删除角色失败，请重试。
+    sync:
+      pending: 更改已保存在本机，正在等待云端同步，包括角色及关联聊天记录的删除。
+      conflict: '本机和云端都修改了 {name}。请选择要保留的版本，另一版本将被替换。'
+      keep-local: 保留本机版本
+      use-cloud: 使用云端版本
+      retry: 立即同步
+      failed: 同步失败，待同步的更改仍保存在本机。
+    delete_confirmation: 确定删除这个角色及其绑定的全部私聊记录吗？恢复同步后，云端副本也会一起删除。此操作无法撤销。
+    description: 管理角色及其设置
     description_label: 描述
     drop_here: 放开以上传文件
-    create_card: 创建新角色卡
-    edit_card: 卡片编辑
-    saved: 角色卡已保存
+    create_card: 创建角色
+    edit_card: 编辑角色
+    saved: 角色已保存
     unsaved:
       badge: 未保存
       title: 放弃更改？
@@ -400,7 +408,7 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        配置此角色卡的模块。留空会继承全局设置。
+        配置此角色的模块。留空会继承全局设置。
       sections:
         chat: 聊天
         vision: 视觉
@@ -448,7 +456,7 @@ pages:
     posthistoryinstructions: 历史提示指令
     recent: 最近添加
     scenario: 场景
-    search: 搜索角色卡...
+    search: 搜索角色...
     sort_by: 排序方式
     body-model: 身体 / 显示模型
     model: 模型
@@ -462,7 +470,7 @@ pages:
       model: 声音 / 模型
       voice: 声音 / 声线
     systemprompt: 系统提示词
-    title: AIRI 角色卡
+    title: 角色
     try_different_search: 尝试使用其他关键词搜索
     export: 导出
     exported: 卡片包已导出

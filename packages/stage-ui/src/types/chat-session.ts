@@ -3,7 +3,11 @@ import type { ChatHistoryItem } from './chat'
 export interface ChatSessionMeta {
   sessionId: string
   userId: string
-  characterId: string
+  /** Null means retained history with no verified local character binding. */
+  characterId: string | null
+  /** Server-owned direct-chat binding. Absent until the character has synchronized. */
+  contactId?: string
+  conversationType?: 'private' | 'bot' | 'group' | 'channel'
   title?: string
   createdAt: number
   updatedAt: number
@@ -37,6 +41,9 @@ export interface ChatSessionsIndex {
   userId: string
   characters: Record<string, ChatCharacterSessionsIndex>
 }
+
+/** Index bucket for unbound history, never a character identity or an inference target. */
+export const UNBOUND_SESSION_GROUP = '@unbound'
 
 export interface ChatSessionsExport {
   format: 'chat-sessions-index:v1'
