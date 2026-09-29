@@ -10,20 +10,17 @@ public partial class DeveloperWindow : Window
     private GdKiriePlatformHost? _platform;
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _microphonePermissionRegistration;
-    private Action? _onClosed;
     private OpenDevtoolsWindowPayload? _request;
     private Vector2I _defaultSize;
     private Vector2I _minimumSize;
     private bool _ready;
-    private bool _closing;
     private bool _showRequested;
 
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
         OpenDevtoolsWindowPayload request,
-        MicrophonePermissionService microphonePermissions,
-        Action onClosed)
+        MicrophonePermissionService microphonePermissions)
     {
         if (!IsInsideTree())
         {
@@ -36,7 +33,6 @@ public partial class DeveloperWindow : Window
         }
 
         _request = request;
-        _onClosed = onClosed;
         _defaultSize = Size;
         _minimumSize = MinSize;
         DesktopWindowSizing.ApplyInitialDisplayScale(this);
@@ -91,7 +87,6 @@ public partial class DeveloperWindow : Window
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
-        _onClosed?.Invoke();
     }
 
     private void OnWebViewReady()
@@ -136,12 +131,6 @@ public partial class DeveloperWindow : Window
 
     internal void RequestClose()
     {
-        if (_closing)
-        {
-            return;
-        }
-
-        _closing = true;
         _showRequested = false;
         Hide();
         QueueFree();

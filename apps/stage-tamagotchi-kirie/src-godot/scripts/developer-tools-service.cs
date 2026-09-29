@@ -101,14 +101,14 @@ internal sealed class DeveloperToolsService : IDisposable
             _windows[request.Key] = window;
             try
             {
+                window.TreeExiting += () => OnWindowClosed(request.Key, window);
                 _owner.AddChild(window);
                 window.CurrentScreen = _mainWindow.CurrentScreen;
                 window.Initialize(
                     _registry,
                     _rendererUrl,
                     request,
-                    _microphonePermissions,
-                    () => OnWindowClosed(request.Key, window));
+                    _microphonePermissions);
             }
             catch
             {

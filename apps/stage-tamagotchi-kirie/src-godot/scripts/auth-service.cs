@@ -15,7 +15,6 @@ internal sealed class AuthService : IDisposable
 
     private readonly NetHttpClient _http = new();
     private readonly ConcurrentQueue<AuthResult> _pending = new();
-    private readonly HashSet<AuthBinding> _bindings = [];
     private LoginAttempt? _attempt;
     private long _generation;
     private bool _disposed;
@@ -23,9 +22,7 @@ internal sealed class AuthService : IDisposable
     public IDisposable Attach(IEventContext context)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var binding = new AuthBinding(this, context);
-        _bindings.Add(binding);
-        return binding;
+        return new AuthBinding(this, context);
     }
 
     public void ProcessPending()
@@ -65,11 +62,6 @@ internal sealed class AuthService : IDisposable
         }
 
         _disposed = true;
-        foreach (var binding in _bindings.ToArray())
-        {
-            binding.Dispose();
-        }
-
         CancelCurrentAttempt();
         _http.Dispose();
     }
@@ -119,7 +111,6 @@ internal sealed class AuthService : IDisposable
 
     private void Detach(AuthBinding binding)
     {
-        _bindings.Remove(binding);
         if (_attempt?.Binding == binding)
         {
             CancelCurrentAttempt();

@@ -48,10 +48,12 @@ internal static class DesktopWindowSizing
     public static void MoveToSpotlightSlot(Window window)
     {
         var mouse = DisplayServer.MouseGetPosition();
-        var screen = ResolveScreenFromPoint(
-            mouse,
-            CollectScreenBounds(),
-            window.CurrentScreen);
+        var screen = DisplayServer.GetScreenFromRect(new Rect2(mouse, Vector2.One));
+        if (screen == DisplayServer.InvalidScreen)
+        {
+            screen = window.CurrentScreen;
+        }
+
         window.CurrentScreen = screen;
         var workArea = DisplayServer.ScreenGetUsableRect(screen);
         window.Position = ResolveSpotlightPosition(workArea, window.Size);
@@ -102,22 +104,6 @@ internal static class DesktopWindowSizing
             workArea.Position.Y + Mathf.RoundToInt(workArea.Size.Y * 0.22f));
     }
 
-    internal static int ResolveScreenFromPoint(
-        Vector2I point,
-        IReadOnlyList<Rect2I> screens,
-        int fallbackScreen)
-    {
-        for (var index = 0; index < screens.Count; index++)
-        {
-            if (screens[index].HasPoint(point))
-            {
-                return index;
-            }
-        }
-
-        return fallbackScreen;
-    }
-
     internal static Vector2I ResolveUsableCenter(
         Rect2I workArea,
         Vector2I decoratedSize,
@@ -148,18 +134,5 @@ internal static class DesktopWindowSizing
         return new Vector2I(
             Mathf.RoundToInt(size.X * displayScale),
             Mathf.RoundToInt(size.Y * displayScale));
-    }
-
-    private static Rect2I[] CollectScreenBounds()
-    {
-        var screens = new Rect2I[DisplayServer.GetScreenCount()];
-        for (var screen = 0; screen < screens.Length; screen++)
-        {
-            screens[screen] = new Rect2I(
-                DisplayServer.ScreenGetPosition(screen),
-                DisplayServer.ScreenGetSize(screen));
-        }
-
-        return screens;
     }
 }

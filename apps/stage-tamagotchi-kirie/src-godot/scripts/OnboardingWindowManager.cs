@@ -64,10 +64,11 @@ internal sealed class OnboardingWindowManager : IDisposable
             _window = window;
             try
             {
+                window.TreeExiting += () => OnWindowClosed(window);
                 _owner.AddChild(window);
                 window.CurrentScreen = _mainWindow.CurrentScreen;
                 DesktopWindowSizing.ApplyInitialDisplayScale(window);
-                window.Initialize(_registry, _rendererUrl, _auth, _microphonePermissions, () => OnWindowClosed(window));
+                window.Initialize(_registry, _rendererUrl, _auth, _microphonePermissions);
             }
             catch
             {

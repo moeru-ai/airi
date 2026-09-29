@@ -11,17 +11,14 @@ public partial class ChatWindow : Window
     private WebViewPermissionHandler? _permissions;
     private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _readyRegistration;
-    private Action? _onClosed;
     private bool _ready;
-    private bool _closing;
     private bool _showRequested;
     private bool _initialGeometryApplied;
 
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        MicrophonePermissionService microphonePermissions,
-        Action onClosed)
+        MicrophonePermissionService microphonePermissions)
     {
         if (!IsInsideTree())
         {
@@ -33,7 +30,6 @@ public partial class ChatWindow : Window
             throw new InvalidOperationException("The chat window is already initialized.");
         }
 
-        _onClosed = onClosed;
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
         {
@@ -83,7 +79,6 @@ public partial class ChatWindow : Window
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
-        _onClosed?.Invoke();
     }
 
     private void OnRendererReady()
@@ -116,12 +111,6 @@ public partial class ChatWindow : Window
 
     private void RequestClose()
     {
-        if (_closing)
-        {
-            return;
-        }
-
-        _closing = true;
         _showRequested = false;
         Hide();
         QueueFree();

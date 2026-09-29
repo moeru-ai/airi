@@ -14,12 +14,10 @@ public partial class SettingsWindow : Window
     private IDisposable? _developerToolsRegistration;
     private IDisposable? _spotlightShortcutRegistration;
     private IDisposable? _settingsReadyRegistration;
-    private Action? _onClosed;
     private string? _loadedRoute;
     private string? _route;
     private bool _ready;
     private bool _rendererReady;
-    private bool _closing;
     private bool _showRequested;
     private bool _initialGeometryApplied;
 
@@ -30,8 +28,7 @@ public partial class SettingsWindow : Window
         AuthService auth,
         MicrophonePermissionService microphonePermissions,
         DeveloperToolsService developerTools,
-        SpotlightHost spotlight,
-        Action onClosed)
+        SpotlightHost spotlight)
     {
         if (!IsInsideTree())
         {
@@ -43,7 +40,6 @@ public partial class SettingsWindow : Window
             throw new InvalidOperationException("The settings window is already initialized.");
         }
 
-        _onClosed = onClosed;
         _loadedRoute = initialRoute;
         _route = initialRoute;
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
@@ -112,7 +108,6 @@ public partial class SettingsWindow : Window
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
-        _onClosed?.Invoke();
     }
 
     private void OnWebViewReady()
@@ -162,12 +157,6 @@ public partial class SettingsWindow : Window
 
     private void RequestClose()
     {
-        if (_closing)
-        {
-            return;
-        }
-
-        _closing = true;
         _showRequested = false;
         Hide();
         QueueFree();

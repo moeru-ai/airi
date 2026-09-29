@@ -7,10 +7,6 @@ internal static class CefInspectorTarget
     /// <summary>
     /// Selects the DevTools frontend for the main AIRI page from the CEF target list.
     /// </summary>
-    /// <remarks>
-    /// The leader page is the main application window. The first page target is a
-    /// fallback for startup states that do not expose the leader query yet.
-    /// </remarks>
     public static Uri SelectMainInspectorUri(string targetsJson)
     {
         using var document = JsonDocument.Parse(targetsJson);
@@ -19,7 +15,6 @@ internal static class CefInspectorTarget
             throw new InvalidDataException("The CEF debugging target list must be a JSON array.");
         }
 
-        Uri? firstPageInspector = null;
         foreach (var target in document.RootElement.EnumerateArray())
         {
             if (!HasStringValue(target, "type", "page"))
@@ -33,15 +28,13 @@ internal static class CefInspectorTarget
                 continue;
             }
 
-            firstPageInspector ??= inspectorUri;
             if (TryReadString(target, "url", out var pageUrl) && IsLeaderPage(pageUrl))
             {
                 return inspectorUri;
             }
         }
 
-        return firstPageInspector
-            ?? throw new InvalidDataException("The CEF debugging target list has no page inspector.");
+        throw new InvalidDataException("The CEF debugging target list has no main page inspector.");
     }
 
     private static bool IsLeaderPage(string pageUrl)

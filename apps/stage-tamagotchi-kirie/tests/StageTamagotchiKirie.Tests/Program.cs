@@ -14,6 +14,7 @@ internal static class Program
             TestsOnboardingTitleBarDragRegion();
             TestsRendererUrlFollowerRuntime();
             TestsCefInspectorTargetSelection();
+            TestsCefInspectorRequiresLeader();
             TestsMicrophonePermissionPromptCoalescing();
             TestsMicrophonePermissionPersistencePolicy();
             TestsMicrophonePermissionPromptTimeout();
@@ -137,16 +138,6 @@ internal static class Program
                 new Rect2I(0, 25, 1200, 800),
                 new Vector2I(720, 100)),
             "spotlight slot");
-        AssertEqual(
-            1,
-            DesktopWindowSizing.ResolveScreenFromPoint(
-                new Vector2I(1300, 10),
-                [
-                    new Rect2I(0, 0, 1200, 800),
-                    new Rect2I(1200, 0, 800, 600),
-                ],
-                0),
-            "spotlight screen from cursor");
     }
 
     private static void TestsSpotlightShortcutPolicy()
@@ -167,10 +158,6 @@ internal static class Program
             false,
             SpotlightHost.IsSafe(new SpotlightAcceleratorPayload("", ["ctrl"])),
             "empty-key Spotlight shortcut");
-        AssertEqual(
-            "ctrl,shift",
-            SpotlightHost.FormatModifiers(["ctrl", "shift"]),
-            "Spotlight modifier format");
         AssertEqual(
             "KeyA",
             SpotlightHost.TryCreate("KeyA", "ctrl, shift")!.Key,
@@ -317,7 +304,7 @@ internal static class Program
               },
               {
                 "type": "worker",
-                "url": "",
+                "url": "http://127.0.0.1:5173/?synced-leader=true#/",
                 "devtoolsFrontendUrl": "https://devtools.example/inspector.html?ws=worker"
               },
               {
@@ -334,6 +321,30 @@ internal static class Program
             "https://devtools.example/inspector.html?ws=leader",
             inspectorUri.AbsoluteUri,
             "main CEF inspector URL");
+    }
+
+    private static void TestsCefInspectorRequiresLeader()
+    {
+        const string targetsJson = """
+            [
+              {
+                "type": "page",
+                "url": "http://127.0.0.1:5173/?synced-leader=false#/settings",
+                "devtoolsFrontendUrl": "https://devtools.example/inspector.html?ws=follower"
+              }
+            ]
+            """;
+
+        try
+        {
+            CefInspectorTarget.SelectMainInspectorUri(targetsJson);
+        }
+        catch (InvalidDataException)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException("Expected inspector selection to reject a follower-only target list.");
     }
 
     private static async Task ReturnsCodeForExpectedState()

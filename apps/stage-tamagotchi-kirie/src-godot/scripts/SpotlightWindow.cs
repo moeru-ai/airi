@@ -12,7 +12,6 @@ public partial class SpotlightWindow : Window
     private IDisposable? _microphonePermissionRegistration;
     private IDisposable? _chatOpenRegistration;
     private IDisposable? _hideRegistration;
-    private Action? _onClosed;
     private bool _ready;
     private bool _showRequested;
     private bool _nativeTransparentArmed;
@@ -27,8 +26,7 @@ public partial class SpotlightWindow : Window
         KirieEventaJsonRegistry registry,
         string rendererUrl,
         MicrophonePermissionService microphonePermissions,
-        ChatWindowManager chat,
-        Action onClosed)
+        ChatWindowManager chat)
     {
         if (!IsInsideTree())
         {
@@ -41,7 +39,6 @@ public partial class SpotlightWindow : Window
             throw new InvalidOperationException("The Spotlight window is already initialized.");
         }
 
-        _onClosed = onClosed;
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
         {
@@ -101,7 +98,6 @@ public partial class SpotlightWindow : Window
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
-        _onClosed?.Invoke();
     }
 
     private void OnWebViewReady()

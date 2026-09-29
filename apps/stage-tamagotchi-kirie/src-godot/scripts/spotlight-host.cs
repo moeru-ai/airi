@@ -79,11 +79,6 @@ internal sealed class SpotlightHost : IDisposable
         return false;
     }
 
-    internal static string FormatModifiers(IReadOnlyList<string> modifiers)
-    {
-        return string.Join(',', modifiers);
-    }
-
     internal static SpotlightAcceleratorPayload? TryCreate(string key, string modifiers)
     {
         if (string.IsNullOrWhiteSpace(key))
@@ -143,6 +138,13 @@ internal sealed class SpotlightHost : IDisposable
             _window = window;
             try
             {
+                window.TreeExiting += () =>
+                {
+                    if (_window == window)
+                    {
+                        _window = null;
+                    }
+                };
                 _owner.AddChild(window);
                 window.CurrentScreen = _mainWindow.CurrentScreen;
                 DesktopWindowSizing.ApplyInitialDisplayScale(window);
@@ -150,14 +152,7 @@ internal sealed class SpotlightHost : IDisposable
                     _registry,
                     _rendererUrl,
                     _microphonePermissions,
-                    _chat,
-                    () =>
-                    {
-                        if (_window == window)
-                        {
-                            _window = null;
-                        }
-                    });
+                    _chat);
             }
             catch
             {
@@ -181,7 +176,7 @@ internal sealed class SpotlightHost : IDisposable
 
         var config = new ConfigFile();
         config.SetValue(Section, "key", next.Key);
-        config.SetValue(Section, "modifiers", FormatModifiers(next.Modifiers));
+        config.SetValue(Section, "modifiers", string.Join(',', next.Modifiers));
         var saveError = config.Save(ConfigPath);
         if (saveError != Error.Ok)
         {

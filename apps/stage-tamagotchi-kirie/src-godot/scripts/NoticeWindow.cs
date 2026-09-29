@@ -13,7 +13,6 @@ public partial class NoticeWindow : Window
     private IDisposable? _actionRegistration;
     private IDisposable? _mountedRegistration;
     private IDisposable? _unmountedRegistration;
-    private Action? _onClosed;
     private string? _rendererUrl;
     private NoticePendingPayload? _pending;
     private TaskCompletionSource<bool>? _completion;
@@ -26,8 +25,7 @@ public partial class NoticeWindow : Window
     internal void Initialize(
         KirieEventaJsonRegistry registry,
         string rendererUrl,
-        MicrophonePermissionService microphonePermissions,
-        Action onClosed)
+        MicrophonePermissionService microphonePermissions)
     {
         if (!IsInsideTree())
         {
@@ -39,7 +37,6 @@ public partial class NoticeWindow : Window
             throw new InvalidOperationException("The notice window is already initialized.");
         }
 
-        _onClosed = onClosed;
         _rendererUrl = rendererUrl;
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
@@ -140,7 +137,6 @@ public partial class NoticeWindow : Window
         _kirie?.Dispose();
         _cancellationRegistration.Unregister();
         _completion?.TrySetResult(false);
-        _onClosed?.Invoke();
     }
 
     private NoticePendingPayload? Mounted(NoticePagePayload payload)

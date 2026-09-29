@@ -266,6 +266,7 @@ The application name `AIRI` selects its own data directory.
 ### Inspector, routes, and browser state
 
 AIRI selects the leader target from `/json/list` and opens its `devtoolsFrontendUrl`.
+If no leader target has a usable Inspector URL, AIRI reports an error instead of selecting another page.
 The bare debug-port page previously returned an empty body.
 Godot CEF allows the remote Inspector origin `https://chrome-devtools-frontend.appspot.com`.
 Production builds keep remote debugging disabled.
@@ -314,6 +315,115 @@ A reproduced API gap can justify temporary sibling-source work after the require
 Return to one coordinated published version before acceptance.
 
 ## Acceptance evidence
+
+### Ablation 10: Native screen selection (2026-09-30)
+
+Spotlight now uses `DisplayServer.GetScreenFromRect` with a one-pixel rectangle at the cursor. The current-screen fallback remains.
+This removes 27 production lines and ten test lines for the deleted selector. Scaling, decorations, and usable-area placement remain unchanged.
+Godot uses the same rectangle for cursor-screen lookup. Its [pinned implementation](https://github.com/godotengine/godot/blob/4.7.2-stable/servers/display/display_server.cpp) retains the first matching screen.
+
+A temporary native Godot probe compared both algorithms at 20 points on the available macOS display, with no mismatch.
+The points covered the center, boundaries, negative coordinates, and positions outside the display.
+Spotlight opened, hid, and reopened with the same CEF target at `(1034, 576, 1440, 200)`. Application quit returned code 0 with two ObjectDB leaks.
+The build, C# tests, both project format checks, typecheck, and 42 frontend tests passed with the commands listed under ablations 6 and 9.
+Root lint retained 1,715 errors and 701 warnings. These checks do not establish multiple-display, Windows, or Wayland runtime acceptance.
+
+This completes the confirmed C# candidates in this review, not an audit of all Kirie features.
+Broadcast registries, readiness state, cancellation guards, and native focus protection retain distinct requirements and remain unchanged.
+
+### Ablation 9: Shortcut formatting wrapper (2026-09-30)
+
+Shortcut persistence now calls `string.Join` directly. The single-use `FormatModifiers` wrapper added no application behavior.
+This removes five production lines and a four-line assertion of standard-library behavior. Shortcut parsing and policy tests remain.
+The build, C# tests, format checks, typecheck, and 42 frontend tests passed with the commands listed under ablation 6.
+The test project also passed `dotnet format --verify-no-changes --no-restore`. The temporary authentication probe passed again.
+Root lint retained 1,715 errors and 701 warnings. This change required no new native-window check or permanent test.
+
+### Ablation 8: Native window exit notifications (2026-09-30)
+
+Six window classes no longer accept, store, or invoke a manual close callback. This removes 21 production lines overall.
+Managers use `TreeExiting` and retain identity checks before clearing their current window.
+Godot emits this signal after each window's `_ExitTree`, before its parent exits.
+`TreeExited` runs later during shutdown and does not preserve this order. See the [pinned lifecycle implementation](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/node.cpp).
+
+On macOS, Chat, Settings, Onboarding, and Devtools closed and reopened. Notice close returned `false`, and confirmation returned `true` after recreation.
+Spotlight hid and reopened with the same CEF target. Application quit with all six window types present returned code 0 and reported 13 ObjectDB leaks.
+Existing deferred capability and disposed-renderer errors remained. These checks do not establish Windows acceptance or resolve those errors.
+The build, C# tests, format check, typecheck, and 42 frontend tests passed with the commands listed under ablation 6.
+Root lint retained 1,715 errors and 701 warnings. No permanent tests were added.
+
+### Ablation 7: Authentication registration ownership (2026-09-30)
+
+[AuthService](src-godot/scripts/auth-service.cs) no longer tracks caller-owned registrations. This removes nine production lines.
+Main, Settings, and Onboarding already dispose their registrations before the service or their Eventa context exits.
+Login cancellation on caller disposal, active-binding checks, and generation checks remain unchanged.
+
+A temporary real-Eventa probe passed before and after removal without browser, network, or account access.
+It covered queued errors, caller disposal, registration reuse, and logout invalidation. It does not establish active browser-login cancellation.
+The build, C# tests, format check, typecheck, and 42 frontend tests passed again with the commands listed under ablation 6.
+Root lint retained 1,715 errors and 701 warnings. No permanent tests were added.
+
+### Ablation 6: Duplicate window close state (2026-09-30)
+
+Chat, Settings, Onboarding, and Developer windows no longer store `_closing`. This removes 28 production lines.
+Their close methods clear `_showRequested`, hide the window, and queue deletion.
+Godot [ignores repeated hiding](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/window.cpp)
+and [supports repeated `queue_free()` calls](https://docs.godotengine.org/en/stable/classes/class_node.html#class-node-method-queue-free).
+Notice retains its guard because completion and cancellation callbacks can run before deletion.
+
+On macOS, all four windows closed and reopened. Application quit with Devtools open returned code 0 and reported nine leaked ObjectDB instances.
+Deferred capability errors remained in the log. No Windows acceptance or new permanent tests were added.
+
+| Command | Result |
+| --- | --- |
+| `mise x -- dotnet build --no-restore` | Passed, no warnings or errors. |
+| `mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests --no-restore` | Passed before and after removal. |
+| `mise x -- dotnet format StageTamagotchiKirie.csproj --verify-no-changes --no-restore` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed, 13 files and 42 tests. |
+| `mise x -- pnpm lint` | Failed with the existing 1,715 errors and 701 warnings. |
+
+### Ablation 5: Inspector target fallback (2026-09-30)
+
+The experiment removed the first-page fallback from [CefInspectorTarget](src-godot/scripts/cef-inspector-target.cs).
+The selector now requires a leader page with an HTTP or HTTPS Inspector URL.
+If that target is absent, it throws `InvalidDataException` instead of opening a follower's Inspector.
+The source change removes seven production lines overall and adds no replacement abstraction.
+
+The [CDP discovery endpoint](https://chromedevtools.github.io/devtools-protocol/index.html#http-endpoints) lists available targets.
+[RendererUrl.ForMain](src-godot/scripts/RendererUrl.cs) establishes `synced-leader=true` before Main creates its WebView.
+Auxiliary windows receive `synced-leader=false`. Target order does not identify the main window.
+The removed fallback had no supported startup caller before the main page loaded.
+
+Page-type filtering, query matching, and Inspector URL validation remain unchanged.
+The target page can still use `res://`. The HTTP or HTTPS requirement applies only to its Inspector URL.
+
+The original C# suite passed before the change.
+A new follower-only case failed against the old selector because it returned the follower's Inspector.
+The retained cases cover follower-only rejection, follower-before-leader ordering, and worker exclusion.
+The missing-leader case uses constructed JSON, not a reproduced native failure.
+
+The changed build ran on macOS with Godot 4.7.2, Kirie 0.6.5, and Metal Forward+.
+The live target list placed Chat and Settings before Main.
+Inspector requests from Settings and Main both opened the main renderer's target in Chrome.
+The Main request completed after a delayed CDP tab switch. This check does not establish connection latency.
+
+Native application quit returned process code 0 and reported three leaked ObjectDB instances.
+The log still contained requests for deferred migration capabilities. These checks do not establish Windows acceptance.
+
+| Command | Result |
+| --- | --- |
+| `mise x -- dotnet build --no-restore` | Passed before and after the change, with no warnings or errors. |
+| `mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests --no-restore` | Baseline passed. The new regression case failed before removal. The complete suite passed after removal. |
+| `mise x -- dotnet format StageTamagotchiKirie.csproj --verify-no-changes --no-restore` | Passed. |
+| `mise x -- dotnet format tests/StageTamagotchiKirie.Tests/StageTamagotchiKirie.Tests.csproj --verify-no-changes --no-restore` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed, 13 files and 42 tests. |
+| `mise x -- pnpm lint` | Failed with the same 1,715 errors and 701 warnings as ablation 4. |
+| `mise x -- pnpm exec moeru-lint apps/stage-tamagotchi-kirie/MIGRATION.md` | Passed. |
+| `git diff --check` | Passed. |
+
+This experiment retains explicit main-page selection and does not change the capability matrix.
 
 ### Ablation 4: Spotlight visibility state (2026-09-30)
 

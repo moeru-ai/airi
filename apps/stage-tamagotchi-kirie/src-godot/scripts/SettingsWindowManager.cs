@@ -72,6 +72,7 @@ internal sealed class SettingsWindowManager : IDisposable
             _window = window;
             try
             {
+                window.TreeExiting += () => OnWindowClosed(window);
                 _owner.AddChild(window);
                 window.CurrentScreen = _mainWindow.CurrentScreen;
                 DesktopWindowSizing.ApplyInitialDisplayScale(window);
@@ -82,8 +83,7 @@ internal sealed class SettingsWindowManager : IDisposable
                     _auth,
                     _microphonePermissions,
                     _developerTools,
-                    _spotlight,
-                    () => OnWindowClosed(window));
+                    _spotlight);
             }
             catch
             {
