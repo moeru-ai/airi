@@ -2,6 +2,12 @@ catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   # NOTICE:
+  # logg 1.2.12 preserves nested Error cause details in logs.
+  # pnpm blocks packages published within the last 72 hours.
+  # Source: https://github.com/guiiai/logg/pull/28
+  # Remove this exception after 2026-10-02 13:54 UTC.
+  - '@guiiai/logg@1.2.12'
+  # NOTICE:
   # electron-builder 26.16.1 fixes macOS signing on the current GitHub runner.
   # Remove these exact exceptions after the 72-hour release-age window expires.
   - app-builder-lib@26.16.1
@@ -111,7 +117,7 @@ catalog:
   '@fontsource/m-plus-rounded-1c': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
   '@grammyjs/files': ^1.2.0
-  '@guiiai/logg': ^1.2.11
+  '@guiiai/logg': ^1.2.12
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@hono/node-server': ^2.1.1
   '@hono/node-ws': ^1.3.1
