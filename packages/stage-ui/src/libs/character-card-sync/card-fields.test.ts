@@ -20,7 +20,6 @@ const card: AiriCard = {
         consciousness: { provider: 'openai', model: 'gpt' },
         vision: { provider: '', model: '' },
         speech: { provider: 'azure', model: 'neural', voice_id: 'aria', pitch: undefined },
-        displayModelId: 'display-model-1',
       },
       agents: {},
     },
@@ -43,7 +42,6 @@ describe('splitCard', () => {
       '/extensions/airi/modules/consciousness': { provider: 'openai', model: 'gpt' },
       '/extensions/airi/modules/vision': { provider: '', model: '' },
       '/extensions/airi/modules/speech': { provider: 'azure', model: 'neural', voice_id: 'aria' },
-      '/extensions/airi/modules/displayModelId': 'display-model-1',
     })
   })
 })

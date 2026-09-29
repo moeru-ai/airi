@@ -23,7 +23,6 @@ interface AiriCardEditorModules {
   consciousness: AiriExtension['modules']['consciousness']
   vision: AiriExtension['modules']['vision']
   speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>
-  displayModelId?: string
   artistry: Pick<
     NonNullable<AiriExtension['modules']['artistry']>,
     | 'provider'
@@ -44,8 +43,9 @@ interface AiriCardEditorModules {
  */
 export function getAiriCardEditorModuleSettings(
   card: Card | undefined,
-): Pick<AiriCardEditorModules, 'consciousness' | 'vision' | 'speech' | 'displayModelId'> {
-  const modules = getAiriCardModules(card?.extensions?.airi)
+): Pick<AiriCardEditorModules, 'consciousness' | 'vision' | 'speech'> & { displayModelId: string } {
+  const extension = isAiriExtension(card?.extensions?.airi) ? card.extensions.airi : undefined
+  const modules = getAiriCardModules(extension)
 
   return {
     consciousness: {
@@ -61,7 +61,7 @@ export function getAiriCardEditorModuleSettings(
       model: getModuleString(modules?.speech, 'model'),
       voice_id: getModuleString(modules?.speech, 'voice_id'),
     },
-    displayModelId: getModuleString(modules, 'displayModelId'),
+    displayModelId: extension?.avatarModels?.find(model => model.id === extension.defaultAvatarModelId)?.displayModelId ?? '',
   }
 }
 
@@ -156,6 +156,8 @@ export function applyAiriCardEditorModules(
   const existing = isAiriExtension(card.extensions?.airi)
     ? card.extensions.airi
     : undefined
+  const existingModules = { ...existing?.modules }
+  Reflect.deleteProperty(existingModules, 'displayModelId')
 
   return {
     ...card,
@@ -165,8 +167,9 @@ export function applyAiriCardEditorModules(
         ...existing,
         avatarModels: existing?.avatarModels ?? [],
         modules: {
-          ...existing?.modules,
-          ...edited,
+          ...existingModules,
+          consciousness: edited.consciousness,
+          vision: edited.vision,
           speech: {
             ...existing?.modules.speech,
             ...edited.speech,

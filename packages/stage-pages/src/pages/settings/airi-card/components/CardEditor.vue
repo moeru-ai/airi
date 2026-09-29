@@ -666,7 +666,6 @@ async function handleSave(activate: boolean) {
         model: selectedSpeechModel.value,
         voice_id: selectedSpeechVoiceId.value,
       },
-      displayModelId: selectedDisplayModelId.value,
       artistry: {
         provider: selectedArtistryProvider.value,
         model: selectedArtistryModel.value,
@@ -681,7 +680,7 @@ async function handleSave(activate: boolean) {
 
     let savedCardId: string
     if (isEditMode.value && props.cardId) {
-      if (!await cardStore.updateCard(props.cardId, cardWithModules)) {
+      if (!await cardStore.updateCard(props.cardId, cardWithModules, selectedDisplayModelId.value)) {
         showError.value = true
         errorMessage.value = t('settings.pages.card.card_not_found')
         return
@@ -690,7 +689,7 @@ async function handleSave(activate: boolean) {
       trackCardEdited({ card_id: props.cardId })
     }
     else {
-      savedCardId = await cardStore.addCard(cardWithModules, 'scratch')
+      savedCardId = await cardStore.addCard(cardWithModules, 'scratch', selectedDisplayModelId.value)
     }
 
     if (activate)

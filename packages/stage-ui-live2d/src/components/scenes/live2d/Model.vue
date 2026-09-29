@@ -599,7 +599,7 @@ async function performModelLoad() {
   finally {
     modelLoading.value = false
     componentState.value = 'mounted'
-    configureExpressions(internalModelRef.value)
+    configureExpressions(model.value?.internalModel)
   }
 }
 
