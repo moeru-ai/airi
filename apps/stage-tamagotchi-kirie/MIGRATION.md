@@ -1,174 +1,140 @@
-# Stage Tamagotchi Kirie Migration
+# Stage Tamagotchi Kirie migration
 
-Status: In progress.
+Status: In progress. Updated: 2026-09-29.
 
-Dependency and build evidence: 2026-09-29 on Kirie 0.6.5.
-The last main-window CEF startup evidence is from 2026-09-24 with Kirie 0.6.2.
-The last broader live CEF review was on 2026-09-21 with Kirie 0.4.2,
-Godot 4.7.2, and Godot CEF 1.16.1.
-The latest full renderer route audit is from 2026-09-18.
+This document owns the migration scope, capability matrix, open failures, and acceptance evidence.
+[README.md](README.md) owns setup, commands, and troubleshooting.
 
-The application targets the published Kirie 0.6.5 release.
+## Current acceptance
 
-## Document roles
+Windows has **21 passing items, three failing items, and five deferred items**.
+No matrix item remains partially tested or untested. A pass covers only the recorded checks.
 
-This file records the migration scope, current status, architecture, and
-acceptance requirements.
+The original macOS migration accepted 24 items and deferred five.
+Its broader runtime review used Kirie 0.4.2 on 2026-09-21.
+Windows used Kirie 0.6.5 on 2026-09-29.
+These different baselines do not establish that every Windows failure is specific to Windows.
 
-- [`README.md`](README.md) is the setup and operating guide.
-- [`API-GAPS.md`](API-GAPS.md) is the reproduced capability-gap ledger.
-- The Kirie architecture documents and package READMEs define producer
-  contracts. They do not define AIRI migration status.
+- [Capability matrix](#capability-matrix)
+- [Open Windows failures](#open-windows-failures)
+- [Scope and ownership](#scope-and-ownership)
+- [Deferred work](#deferred-work)
+- [Implementation constraints](#implementation-constraints)
+- [Dependency baseline](#dependency-baseline)
+- [Acceptance evidence](#acceptance-evidence)
 
-## Objective
+## Capability matrix
 
-Preserve the behavior of the Stage Tamagotchi renderer in a Kirie desktop
-host. Use a Kirie-specific adapter for desktop services and native windows.
+`Accepted` records the original macOS decision.
+`Pass` records successful Windows checks.
+`Pass (user review)` identifies the user's Windows acceptance.
+`Fail` records a required behavior that failed.
+`Deferred` identifies work outside the current milestone.
 
-The Electron application is the behavior reference. The Kirie application
-does not require source equality with the Electron host.
+Five Windows passes rely on user review.
+The user accepted native resize despite the unchanged cursor. That observation is not a tracked defect.
+The review does not imply unreported coverage of multiple displays or every onboarding and login branch.
 
-Use a reproduced AIRI runtime error to justify each new Kirie API. Do not add
-an API for a feature that has no current in-scope failure.
+| ID | Capability | Original macOS decision | Windows | Windows evidence |
+| --- | --- | --- | --- | --- |
+| GAP-001 | Window leadership | Accepted | Pass | Main used explicit leader state. Settings and Chat used follower state. |
+| GAP-002 | Native edge resize | Accepted | Pass (user review) | The user confirmed that native edge resize works and accepted the result. The unchanged cursor remains an observation, not a tracked defect. |
+| GAP-003 | Pointer state | Accepted | Pass | Native AUV movement changed the host pointer coordinates and inside state. |
+| GAP-004 | Display snapshot | Accepted | Pass (user review) | Display and bounds RPCs worked at 200% scaling. The user confirmed normal Windows behavior. No separate multi-display evidence exists. |
+| GAP-005 | Window movement and pinning | Accepted | Pass (user review) | Pin and unpin changed native z-order relative to Explorer. The user confirmed normal Windows behavior. |
+| GAP-006 | Window centering | Accepted | Pass | Center changed native coordinates to `(1150, 400)` for a 900 × 1200 window. |
+| GAP-007 | Spotlight | Accepted | Pass | After the window flag fix, direct open and native scan-code Ctrl+Shift+A displayed Spotlight. Repeated open and hide/reopen passed. Desktop capture showed the input and transparency. Earlier notification display and click-to-Chat passed. Physical keyboard and macOS regression checks remain pending. |
+| GAP-008 | Global shortcuts | Accepted | Pass | Register, list, duplicate rejection, and unregister passed. Physical Ctrl+Shift+K produced one down/up pair in the foreground and another in the background. |
+| GAP-009 | Window lifecycle | Accepted | Pass | Native actions produced minimize, restore, blur, and focus events. |
+| GAP-010 | Server channel | Deferred | Deferred | AIRI server configuration and lifecycle require the deferred sidecar work. |
+| GAP-011 | Locale | Accepted | Pass | Locale changes reached another window and survived process restart. The Chinese locale normalized to `zh-Hans`. English also survived the next restart. |
+| GAP-012 | Onboarding | Accepted | Pass (user review) | Window creation and reuse passed. The user reported that onboarding looked normal on Windows. |
+| GAP-013 | Settings window | Accepted | Pass | Settings opened, routed, closed through its native title bar, and reopened. |
+| GAP-014 | Chat window | Accepted | Pass | Chat closed through its native title bar and reopened. Two further open requests reused one minimal follower window. |
+| GAP-015 | Application exit | Accepted | Fail | Both native close and application quit ended with a CEF access violation. |
+| GAP-016 | Microphone permission state | Accepted | Fail | Permission state and reset RPCs worked. Reset also produced a renderer cleanup exception. |
+| GAP-017 | Microphone access policy | Accepted | Pass | Allow, deny, repeated requests, follower denial, grant persistence, and application-owned stream revocation passed. One capture after restart failed transiently. See the follow-up evidence. |
+| GAP-018 | Notice window | Accepted | Pass | Confirmation returned `true`. Native title-bar close and the cancel contract each returned `false`. Each operation closed the window. |
+| GAP-019 | Account sign-in | Accepted | Pass (user review) | The user confirmed Windows sign-in behavior. The automated session also displayed existing account state. Individual cancellation branches lack separate evidence. |
+| GAP-020 | Window transparency | Accepted | Pass | AUV desktop captures showed desktop and Explorer pixels around the character and controls, without an opaque window rectangle. |
+| GAP-021 | External links | Accepted | Pass | External URL RPC resolved. A later AUV desktop capture showed the requested GitHub page in Chrome. |
+| GAP-022 | Application data directory | Accepted | Pass | Data directory RPC returned the expected Godot user directory. A later AUV capture showed that directory in Explorer. |
+| GAP-023 | Plugin host | Deferred | Deferred | The Node.js plugin host and extension lifecycle require the deferred sidecar work. |
+| GAP-024 | Artistry | Deferred | Deferred | Artistry configuration and generation require the deferred sidecar work. |
+| GAP-025 | MCP | Deferred | Deferred | MCP configuration and stdio process management require the deferred sidecar work. |
+| GAP-026 | Packaging and updates | Deferred | Deferred | Production packaging, installation, and updates remain outside this migration scope. |
+| GAP-027 | Inspector and Devtools | Accepted | Pass | Native devtools requests reused one page. A desktop capture showed the connected Inspector, the main renderer DOM, and its live preview. |
+| GAP-028 | Shared browser context | Accepted | Pass | Cookies, localStorage, BroadcastChannel, and Web Locks crossed windows. Persistent cookie and localStorage probes survived process restart. |
+| GAP-029 | Chat initialization and send | Accepted | Fail | Initialization and replies completed. Sending selected the previous conversation. This is a new selection defect, not a reproduced missing-permission-handler defect. |
 
-## Current status
+## Open Windows failures
 
-`API-GAPS.md` contains 29 reproduced gaps:
+### GAP-015: Application exit can crash
 
-| Status | Count | Gaps |
-| --- | ---: | --- |
-| Accepted | 24 | GAP-001 through GAP-009, GAP-011 through GAP-022, GAP-027 through GAP-029 |
-| In progress | 0 | None |
-| Review pending | 0 | None |
-| Runtime verification pending | 0 | None |
-| Open | 0 | None |
-| Blocked | 0 | None |
-| Deferred | 5 | GAP-010, GAP-023 through GAP-026 |
+Native close reproduced a crash at 17:41:53.
+The quit adapter reproduced it at 18:10:52 with four WebViews open, and again at 19:11:48.
 
-The dependency files select Kirie 0.6.5 npm and NuGet packages.
-They do not use sibling-repository package links or project references.
+The host logged `destroy_webview`. Windows Application event 1000 reported:
 
-On 2026-09-29, the v3 feed omitted both NuGet 0.6.5 packages and restore
-failed with `NU1102`. The package pages and official v2 downloads were available.
-Restore through `https://www.nuget.org/api/v2/` installed both 0.6.5 packages.
-The C# contract tests and Kirie build passed. The C# build reported no
-warnings or errors. The repository retains its default NuGet source.
+| Field | Value |
+| --- | --- |
+| Application | `Godot_v4.7.2-stable_mono_win64.exe` |
+| Module | `libcef.dll_unloaded`, version `152.0.6.0` |
+| Exception | `0xc0000005` |
+| Offset | `0x000000000452217a` |
 
-Restore command from the application directory:
+This evidence locates the failure near shutdown. It does not establish the owner of the invalid memory access.
+See Microsoft's [access violation reference](https://learn.microsoft.com/en-us/shows/inside/c0000005).
 
-```sh
-mise x -- dotnet restore tests/StageTamagotchiKirie.Tests/StageTamagotchiKirie.Tests.csproj --source https://www.nuget.org/api/v2/ --no-http-cache
-```
+A later exit returned code `0` and reported two leaked ObjectDB instances.
+The crash does not occur on every exit. The successful attempt does not close this failure.
 
-The 2026-09-29 checks on Kirie 0.6.5 passed 36 Node tests and six browser
-tests. The full workspace typecheck also passed.
-The full workspace lint reported 32 formatting errors in local Godot CEF
-artifacts and generated NuGet files.
+### GAP-016: Permission reset throws
 
-The 2026-09-29 dependency verification on Kirie 0.6.4 passed the focused renderer tests,
-the C# contract tests, the C# build, the Kirie build, the full workspace
-typecheck, and a headless Godot editor import.
+The grant-to-reset transition logged `SyntaxError: Must be called at the top of a setup function` at 18:07:38.
+The stack reached `useI18n` through `useAnalytics`, `useAudioDevice`, and the audio device store.
 
-The 2026-09-24 dependency verification passed the focused renderer tests,
-the C# contract tests, the C# build, the Kirie build, the full workspace
-typecheck, and a headless Godot editor import. A live Godot/CEF session rendered
-the main AIRI window. The complete 0.6.5 desktop flow, including notification
-activation, remains unverified.
+[src-web/src/renderer/app.vue](src-web/src/renderer/app.vue) constructs that store inside its permission watcher.
+This path can initialize the store outside component setup in a minimal window.
+The session did not establish which window produced the exception.
 
-The 2026-09-20 published-package verification passed these operations:
+A later main-window check stopped the application-owned audio track from `live` to `ended` and left audio input disabled.
+Grant persistence also passed after restart.
+Those successful checks close GAP-017's recorded flow, but do not remove the separate reset exception.
 
-- Frozen-lockfile installation.
-- TypeScript type verification.
-- Eleven unit-test files with 31 passing tests.
-- C# build with no warnings or errors.
-- Kirie build.
+### GAP-029: Chat selects the previous conversation
 
-The 2026-09-21 published-package verification repeated those operations on
-Kirie 0.4.2 and Godot 4.7.2:
+The test used the real Chat UI and a temporary loopback OpenAI-compatible provider with a deterministic SSE reply.
+Two requests completed. Both user messages and replies remained in the test conversation.
 
-- Frozen-lockfile installation, which passes the supply-chain policy check.
-- TypeScript type verification.
-- Thirteen unit-test files with 41 passing tests.
-- C# build with no warnings or errors, for the application and the contract tests.
-- Kirie build.
-- `kirie doctor` reports Godot 4.7.2, Godot CEF 1.16.1, and the Godot 4.7.2
-  export templates.
+After a send, Chat selected the original conversation and hid the new reply.
+Selection of the test conversation displayed the saved reply again.
 
-The 2026-09-21 live session ran on Kirie 0.4.2, Godot 4.7.2, and Godot CEF
-1.16.1. The runtime loaded the published `GdKirie.EventaAdapter` 0.4.2 package.
-The session started the main renderer and the Controls Island, opened the
-Settings window through the host, reused that window on a second request
-instead of creating a duplicate, and rendered `#/settings`,
-`#/settings/connection`, `#/settings/modules/mcp`, and `#/settings/data`. It
-opened Chat at `stage-runtime=minimal` and rendered an existing conversation.
-The user verified the Spotlight shortcut, its window, and its notification, so
-GAP-007 is accepted.
+The likely source is the index watcher in [session-store.ts](../../packages/stage-ui/src/stores/chat/session-store.ts).
+`setActiveSession` changes local selection, but `selectWindowSessionFromIndex` replaces it from the persisted index after an index update.
+This remains a source-based hypothesis.
 
-The session repeated the GAP-028 shared-context checks. A cookie, a
-`localStorage` value, a BroadcastChannel message, and the held
-`tab-airi:stage:pinia` Web Lock crossed the WebViews. The Settings WebView
-correctly left its request for that lock pending.
+The original GAP-029 failure blocked Chat initialization because a window context lacked microphone-permission handlers.
+That defect did not reproduce in this Windows session. The new failure concerns conversation selection.
 
-Godot CEF 1.16.1 started on the Metal backend and reported
-`accelerated_osr_supported=true`. AIRI created each browser in accelerated
-rendering mode. Forward+ is what makes this available; the earlier OpenGL
-compatibility renderer had no accelerated OSR.
+### Additional observations
 
-The session reported only the documented deferred requests: GAP-010, GAP-023,
-GAP-024, GAP-025, and the excluded `godot-stage:get-status`. macOS also logged
-a duplicate Objective-C class warning for `ANGLESwapCGLLayer`, which the Godot
-binary and the Godot CEF framework both define. No failure reproduced, so it
-stays an observation and not a gap.
+- A child-window close logged an unhandled `AIRI host context disposed.` rejection at 18:34:04.
+  The stack reached `disposeHostContext` and `disposeRendererHost`. Close and reopen succeeded, but promise cleanup requires follow-up.
+- The first microphone request after one restart returned `AbortError: Failed due to shutdown`.
+  An immediate repeat returned a live audio track. The cause remains unknown.
+- Root lint reports 41 errors in CEF vendor JSON and generated C# output.
+  This is separate from the runtime failures.
 
-A 2026-09-21 review of the Spotlight implementation removed a synthetic mouse
-click, cross-frame focus retries, and an in-page focus script. The OpenGL
-compatibility renderer needed all three. Forward+ with accelerated OSR does
-not, and the window keeps document focus without them. `cef.FocusMode` and
-`cef.GrabFocus()` are the remaining load-bearing calls, and they still resolve
-the CEF control through the Kirie node name.
+## Scope and ownership
 
-The user also confirmed on 2026-09-21 that the Spotlight window adds no Dock or
-Mission Control entry. The Electron `skipTaskbar` option therefore needs no
-Godot counterpart.
+The objective is to preserve Stage Tamagotchi behavior in a Kirie desktop host.
+The Electron application remains the behavior reference and a supported target.
 
-The 2026-09-21 session did not repeat native close and reopen, external URL
-opening, or application data directory opening. Those remain verified on Kirie
-0.4.1 only.
-
-The Godot 4.7.2 upgrade makes older Godot 4.7.1 export templates stale. AIRI
-installed the matching Godot 4.7.2 templates. Export templates do not block
-development or the deferred GAP-026 packaging work.
-
-The 2026-09-20 live session started the main renderer on Kirie 0.4.1 and Godot
-CEF 1.16.1. It opened Settings and Chat, reused the Settings window, and
-navigated Settings to MCP and data pages. Native close removed Settings and
-Chat. A later open created each window again.
-
-The same session shared a cookie, a `localStorage` value, a BroadcastChannel
-message, and the held `tab-airi:stage:pinia` Web Lock across those WebViews.
-It also opened an external URL through `window.open()`. It opened the
-application data directory.
-
-The build reports non-blocking Vite, UnoCSS, browser-externalization, and
-large-chunk warnings.
-
-The latest live session reported these known requests:
-
-- `server-channel:get-config` maps to deferred GAP-010.
-- `plugins:tools:list-xsai` maps to deferred GAP-023.
-- `artistry:sync-config` maps to deferred GAP-024.
-- `mcp:get-runtime-status` and `mcp:read-config-text` map to deferred GAP-025.
-- The updater is disabled. Production packaging and updates are deferred for this migration.
-- `godot-stage:get-status` belongs to the excluded model-rendering scope.
-
-The 2026-09-18 route audit covered every unique static renderer path and
-representative values for all parameterized paths in real CEF. Route failures
-are isolated by a route-keyed error boundary, so navigation can recover without
-blanking the previous page.
-
-## Runtime path
-
-The application uses this path:
+The current milestone excludes model rendering, model assets, model packaging, and model-specific media behavior.
+This includes Live2D, VRM, and MMD.
+Linux desktop notifications remain outside the review.
+The [Kirie Platform documentation](https://github.com/moeru-ai/godot-kirie/blob/v0.6.4/packages/platform/README.md#desktop-notifications) lists macOS and Windows notification backends.
 
 ```text
 Stage Tamagotchi Vue renderer
@@ -179,294 +145,378 @@ Stage Tamagotchi Vue renderer
   -> Godot and operating-system APIs
 ```
 
-The production Web entry stays at `res://src-web/dist/index.html`.
+| Owner | Responsibility |
+| --- | --- |
+| AIRI Kirie application | Renderer integration, native application windows, authentication, permissions, and business services |
+| Kirie Core | WebView lifecycle and IPC transport |
+| Kirie Platform | General desktop capabilities through Godot and operating-system APIs |
+| Electron application | Supported application and behavior reference |
+| AIRI sidecar | Deferred Node.js services and their process lifecycle |
 
-The source reference is `apps/stage-tamagotchi/src/renderer/`. Shared renderer
-contracts come from `apps/stage-tamagotchi/src/shared/`.
+`apps/stage-tamagotchi-kirie/` remains the final Kirie application directory.
+The renderer reference is `apps/stage-tamagotchi/src/renderer/`, with contracts under its `src/shared/`.
+`engines/stage-tamagotchi-godot/` remains a separate runtime.
+The production Web entry is `res://src-web/dist/index.html`.
 
-Do not replace Stage Tamagotchi with `apps/stage-web`.
+The original phases 0 through 5 are complete: project setup, renderer adaptation, gap discovery, shared context ownership, and Platform integration.
+Phase 6 remains open because Windows acceptance contains reproduced failures.
 
-## Repository ownership
+### Rules for further changes
 
-- `apps/stage-tamagotchi-kirie/` owns the Kirie desktop application.
-- `apps/stage-tamagotchi/` owns the Electron behavior reference.
-- `engines/stage-tamagotchi-godot/` remains a separate AIRI Godot runtime.
-- The sibling `godot-kirie/` repository owns Kirie Core, Kirie Platform, the
-  CLI, and its public packages.
-
-Normal AIRI setup does not require a sibling `godot-kirie/` checkout. Use the
-sibling repository only when a reproduced gap requires a Kirie API change.
-
-## Design rules
-
-1. Keep Kirie Core limited to WebView lifecycle and IPC transport.
-2. Use Godot APIs when Godot supplies the required behavior.
-3. Put general desktop capabilities in Kirie Platform.
-4. Put AIRI business services in AIRI Godot handlers.
-5. Use platform-neutral names for public Kirie APIs.
-6. Do not add an Electron `BrowserWindow` compatibility facade.
-7. Do not add mock behavior that hides a missing capability.
-8. Keep one Eventa context owner in each renderer.
-9. Keep Godot window operations on the main thread.
-10. Add only APIs that a reproduced Stage Tamagotchi error requires.
-11. Keep model-related capabilities outside this migration milestone.
-12. Implement Spotlight with existing Kirie Platform APIs. Do not add a Kirie Core API for it.
-13. Do not make commits unless the user requests commits.
-
-## Godot-first decision order
-
-For each reproduced gap, use this order:
-
-1. Find the Godot API, node, signal, project setting, or lifecycle.
-2. If the capability is general, expose it through Kirie Platform.
-3. If the capability is AIRI-specific, implement it in an AIRI Godot handler.
-4. Add operating-system-specific code only when Godot cannot supply the behavior.
-5. Add a sidecar only when Godot and the current runtime cannot supply the behavior.
-
-Record the observed Godot limit in `API-GAPS.md` before native or sidecar work.
-Get user approval before you add a native dependency or sidecar.
-
-## Current scope exclusions
-
-The current milestone excludes these model areas:
-
-- Live2D rendering and runtime integration.
-- VRM rendering and runtime integration.
-- MMD rendering and runtime integration.
-- Model asset downloads and packaging.
-- Model-specific media permissions or capture behavior.
-
-Do not add model-related errors to `API-GAPS.md`. Do not add Kirie APIs for
-these errors.
-
-The current milestone implements Spotlight as AIRI window orchestration. The
-Godot host owns the window, shortcut persistence, and Eventa contracts. The
-main renderer registers the OS shortcut through Kirie Platform. The Spotlight
-renderer shows result notifications through Kirie Platform.
-
-Do not add a Kirie Core API for Spotlight.
-
-The current milestone targets macOS only. The [Kirie Platform 0.6.4 documentation](https://github.com/moeru-ai/godot-kirie/blob/v0.6.4/packages/platform/README.md#desktop-notifications)
-also lists Windows 10 version 1607 or later. Linux has no notification
-backend. `API-GAPS.md` records the unverified desktop platforms. Do not add
-notification fallbacks outside this milestone.
-
-## Dependency baseline
-
-The AIRI dependency files target the coordinated Kirie 0.6.5 release:
-
-- npm: `kirie`, `@gd-kirie/ipc`, `@gd-kirie/ipc-eventa`, and
-  `@gd-kirie/platform`.
-- NuGet: `GdKirie.EventaAdapter` and `GdKirie.Platform`.
-- Godot addon: the official `kirie-addon.zip` content from Kirie 0.6.5.
-- Godot CEF: version 1.16.1 with the checksum from its official release.
-- Godot: 4.7.2 with the matching `Godot.NET.Sdk`.
-
-Kirie 0.6.4 exports host-window and notification events as Eventa contracts.
-The renderer subscribes through its shared context. The addon also adds an
-Android export option for command-line arguments. Godot 4.7.2 and Godot CEF
-1.16.1 remain selected.
-
-Kirie 0.6.5 fixes Godot CEF installation on Windows. It uses the system
-`tar.exe` and retries transient rename failures. The release changes no IPC
-or Platform APIs. Source: [Kirie 0.6.4 to 0.6.5 changes](https://github.com/moeru-ai/godot-kirie/compare/v0.6.4...v0.6.5).
-
-The Kirie addon and AIRI configuration select the same Godot CEF release.
-Kirie installed Godot CEF 1.16.1 with the published SHA-256 digest, and the
-macOS framework passes strict code-signature verification.
-
-Source: [Kirie v0.6.5 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.5).
-The official addon archive has SHA-256
-`d07aeaadac2184f39f1cae8a72a26320ee6d21d4000afc5d575db76f2fb9ba7f`.
-
-AIRI has exact `minimumReleaseAgeExclude` entries for the Kirie npm packages.
-Later versions remain subject to the normal pnpm release-age rule. See the
-[pnpm dependency-resolution settings](https://pnpm.io/settings/dependency-resolution).
-
-Do not restore committed `link:` dependencies or `ProjectReference` entries.
-Do not copy Kirie Platform contracts or implementations into AIRI.
-
-If a new gap requires a Kirie change, use sibling packages only for that API
-batch. Return AIRI to one coordinated published version before acceptance.
-
-## Godot CEF state
-
-`addons/kirie/godot_cef.json` declares Godot CEF 1.16.1 and its published
-SHA-256 digest. Kirie installed that asset.
-The macOS framework passes strict code-signature verification.
-
-On 2026-09-19, official Godot CEF 1.16.0 shared a cookie, local storage, a
-BroadcastChannel message, and a held Web Lock between the leader and Settings
-WebViews. The probes removed their temporary state after verification.
-
-On 2026-09-20, the tracked Godot CEF 1.16.1 release repeated those shared-context
-checks during the Kirie 0.4.1 live session. GAP-028 is accepted.
-
-On 2026-09-21, the Kirie 0.4.2 live session repeated the same checks on Godot
-4.7.2. Godot CEF selected the Metal backend and created each browser in
-accelerated rendering mode. GAP-028 stays accepted.
-
-[Godot CEF 1.16.1](https://github.com/dsh0416/godot-cef/releases/tag/v1.16.1)
-keeps that shared request context and preserves AIRI scheme handlers.
-
-Kirie 0.4.2 resolves each WebView permission request through an application
-policy. It does not provide an operating-system prompt or persistent browser
-permission state. AIRI now owns the microphone decision in the Godot host and
-shows the prompt inside the main Renderer. The decision persists until the
-user resets it in Settings.
-
-The runtime verification covered Allow, a repeated request without a second
-prompt, reset, a new prompt after reset, and Deny. The granted request returned
-a live audio track, which the test stopped immediately. The permission dialog
-uses the screen-capture shade and blur with the rounded Stage boundary. The
-runtime verification and UI review are complete for GAP-016 and GAP-017.
-
-## Phase status
-
-| Phase | Status | Result |
-| --- | --- | --- |
-| Phase 0 | Complete | The repositories, worktrees, and protected paths were examined. |
-| Phase 1 | Complete | The Kirie project is at `apps/stage-tamagotchi-kirie/`. |
-| Phase 2 | Complete | The Stage Tamagotchi renderer and shared contracts were adapted. |
-| Phase 3 | Complete | `API-GAPS.md` records reproduced runtime gaps. |
-| Phase 4 | Complete | Each WebView uses one application-owned Eventa context. |
-| Phase 5 | Complete | Existing Kirie Platform APIs support the required control flows. |
-| Phase 6 | In progress | Every in-scope gap is accepted or deferred, and the application uses published Kirie 0.6.5 packages. The desktop smoke flow needs a repeat on this baseline. |
-
-Do not repeat a completed phase unless current evidence shows a regression.
-
-## Remaining work
-
-Onboarding was not available. Renderer storage has `onboarding/completed` set to
-true.
-
-The fade-on-hover notice window was not available. Fade-on-hover is already
-enabled in renderer storage.
-
-The 2026-09-21 session on Kirie 0.4.2 did not repeat three areas that the
-2026-09-20 session verified on Kirie 0.4.1:
-
-- Native close and reopen of Settings and Chat.
-- External URL opening through `window.open()`.
-- Application data directory opening.
-
-Repeating them and the other desktop flows on Kirie 0.6.5 closes the acceptance
-requirement that the published packages pass the full desktop smoke flow. The
-areas already completed are listed with the session evidence in Current status.
+1. Reproduce an in-scope runtime failure before adding a capability.
+2. Find the Godot API, node, setting, or lifecycle that owns the behavior.
+3. Keep general desktop capabilities in Kirie Platform and AIRI business services in AIRI.
+4. Keep one Eventa context owner per renderer and Godot window operations on the main thread.
+5. Record a proven Godot limit here before native integration or sidecar work.
+6. Get explicit approval before adding native dependencies, sidecars, or dependency workarounds.
+7. Preserve Electron transport paths and the Stage Tamagotchi renderer.
+8. Do not add an Electron `BrowserWindow` facade or mock behavior that conceals a missing capability.
+9. Keep model-related errors outside this milestone.
+10. Do not create commits unless the user requests them.
 
 ## Deferred work
 
-| Gap | Status | Reason | Reopen condition |
-| --- | --- | --- | --- |
-| GAP-010 | Deferred | The server channel requires an AIRI sidecar. | The user reopens sidecar work. |
-| GAP-023 | Deferred | The Node.js plugin host requires an AIRI sidecar. | The user reopens sidecar work. |
-| GAP-024 | Deferred | Artistry provider orchestration requires an AIRI sidecar. | The user reopens sidecar work. |
-| GAP-025 | Deferred | MCP configuration and stdio server processes require an AIRI sidecar. | The user reopens sidecar work. |
-| GAP-026 | Deferred | Production packaging and updates are outside the current migration scope. | The user reopens production packaging work. |
+These features remain AIRI responsibilities. Their missing APIs do not justify new Kirie Core or Platform services.
 
-The sidecar work belongs to AIRI, not Kirie Platform. It remains outside the
-current migration scope.
+| Gap | Observed request or behavior | Reopen condition |
+| --- | --- | --- |
+| GAP-010 | `server-channel:get-config` and `server-channel:get-qr-payload` | The user reopens sidecar work. AIRI defines a supported artifact and lifecycle, or accepts a user-managed external server. |
+| GAP-023 | `plugins:tools:list-xsai` and its timeout abort | The user reopens sidecar work. AIRI owns plugin discovery, workers, shutdown, and packaging. |
+| GAP-024 | `artistry:sync-config` | The user reopens sidecar work. AIRI owns persistence, provider lifecycle, connection tests, generation, and Widget updates. |
+| GAP-025 | `mcp:get-runtime-status` and `mcp:read-config-text` | The user reopens sidecar work. AIRI owns configuration, stdio processes, shutdown, and packaging. |
+| GAP-026 | Disabled About and updater controls | The user reopens production releases. AIRI defines versions, export presets, signed artifacts, manifests, installation, and relaunch. |
 
-## Untested surfaces
+`@proj-airi/server-runtime` requires Node.js listener and WebSocket APIs.
+The workspace Node.js command does not provide a production sidecar.
+The plugin host needs Node.js files, workers, and runtime module access.
+Artistry needs secure credentials, background jobs, callbacks, downloads, and Widget updates.
+MCP needs configuration ownership and child-process management.
 
-These surfaces were not part of the latest runtime session:
+Do not port the AIRI server protocol to C# as a workaround.
+Do not expose Artistry provider credentials in the renderer or depend on browser CORS for desktop provider access.
 
-- Widget flows.
-- Desktop-overlay startup and polling.
-- Devtools pages other than the developer launcher, Markdown Stress, IO Tracer,
-  and updater entry points.
-- Updater operations after route setup and MCP actions after initial status and
-  configuration reads.
+The packaging audit found no `export_presets.cfg`, Kirie release workflow, release version source, or update manifest.
+The application package version was `0.0.0`.
+A resource pack alone cannot update the C# assembly and native Godot CEF libraries.
+See Godot's [export guide](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_projects.html#exporting-from-the-command-line)
+and [resource-pack guide](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_pcks.html#opening-pck-or-zip-files-at-runtime).
 
-An untested surface is not an API gap. Add a gap only after an in-scope runtime
-error reproduces the missing behavior.
+Do not substitute an Electron installer or mark a downloaded artifact as installed.
+Before update acceptance, exercise download, integrity validation, installation, relaunch, and channel selection with versioned Kirie artifacts.
 
-## API batch workflow
+## Implementation constraints
 
-Use this workflow when a new in-scope gap requires implementation:
+These constraints preserve the reasons for earlier fixes. The capability matrix owns their current acceptance status.
 
-1. Reproduce one missing capability.
-2. Find the Godot API or lifecycle for the behavior.
-3. Record the input, current result, and required result.
-4. Select Kirie Core, Kirie Platform, or AIRI as the owner.
-5. Select one or two related APIs.
-6. Implement the complete browser and Godot path.
-7. Add tests that reproduce the original failure.
-8. Run the relevant verification commands.
-9. Run the affected Stage Tamagotchi flow through `kirie dev`.
-10. Inspect the CEF and Godot logs.
-11. Complete an independent review.
-12. Resolve all blocking findings.
+### Shared contexts and native windows
 
-## Acceptance requirements
+The main renderer receives `synced-leader=true` before Pinia initialization.
+Secondary windows receive `synced-leader=false`.
+Chat and Spotlight use `stage-runtime=minimal`.
 
-The migration milestone is accepted only when all statements are true:
+Pointer, display, window-action, and lifecycle adapters borrow the shared host context.
+Display placement uses one atomic current-display snapshot.
+Godot owns edge detection, native resize, movement, and close requests.
 
-- Every in-scope gap is accepted, blocked, or deferred.
-- No in-scope gap remains open.
-- The installed Godot CEF artifact matches the tracked shared-context dependency and passes signature verification.
-- The published packages pass the full desktop smoke flow.
-- TypeScript and C# contracts agree.
-- Required errors propagate to the caller.
-- Godot window work stays on the main thread.
-- AIRI uses one coordinated published Kirie version.
-- The Web entry remains `res://src-web/dist/index.html`.
+Onboarding, Settings, and Chat reuse their existing window on repeated requests.
+Settings also applies the latest requested route when requests arrive before its renderer is ready.
+Notice requests resolve `true` on confirmation and `false` on cancellation or close.
+The quit adapter preserves Electron's no-argument API and sends an explicit empty payload to Godot.
 
-Deferred gaps do not prevent milestone acceptance. Their reopen conditions
-must remain in this file and `API-GAPS.md`.
+Transparency requires the CEF background, root viewport, and native window to preserve alpha.
+Auxiliary transparent windows require their own settings.
+See [Godot Window](https://docs.godotengine.org/en/4.7/classes/class_window.html)
+and [transparency settings](https://docs.godotengine.org/en/4.7/classes/class_projectsettings.html#class-projectsettings-property-display-window-per-pixel-transparency-allowed).
 
-## Verification commands
+### Spotlight ownership and reload
 
-Run AIRI commands from `apps/stage-tamagotchi-kirie/`:
+AIRI owns the native window, shortcut persistence in `user://spotlight.cfg`, and Eventa contracts.
+The main renderer registers the OS shortcut through Kirie Platform, outside the renderer-owned GAP-008 registration map.
+Renderer `unregisterAll` must not release Spotlight.
+
+Spotlight reuses one borderless, always-on-top window. Close and blur hide it without destruction.
+Its renderer shows result notifications. Notification activation opens Chat.
+This orchestration does not require a Kirie Core API.
+
+The original reload defect left native registration callbacks attached to an unloaded page.
+CEF emitted `beforeunload`, but not `pagehide`, `unload`, or `visibilitychange`.
+The fix releases the registration on `beforeunload`.
+Four `Page.reload` calls and two `window.location.reload()` calls then avoided duplicate registration errors.
+
+The macOS Forward+ review removed synthetic mouse clicks, focus scripts, and cross-frame focus retries.
+`cef.FocusMode` and `cef.GrabFocus()` remained necessary.
+The user confirmed no extra Dock or Mission Control entry.
+These macOS observations do not establish Windows Spotlight behavior.
+
+### Microphone permissions and the original Chat stall
+
+AIRI stores `not-determined`, `granted`, or `denied` in `user://permissions.cfg`.
+Browser permission state can remain `prompt`; AIRI host state is authoritative.
+The exact origin of the main renderer is the only permitted audio requester.
+Other permission types, origins, and windows receive denial.
+
+Godot CEF uses the `Signal` permission policy.
+The host coalesces native request IDs behind one opaque renderer prompt ID.
+Denial, modal close, a two-minute timeout, and host shutdown deny pending requests.
+See the pinned [permission settings](https://github.com/dsh0416/godot-cef/blob/v1.16.1/crates/gdcef/src/settings.rs)
+and [grant/deny methods](https://github.com/dsh0416/godot-cef/blob/v1.16.1/docs/api/methods.md#permission-handling).
+
+Every window that awaits microphone state must register its AIRI handlers.
+Originally, Chat awaited an unhandled permission request before `chatStore.initialize()`.
+Its `activeSessionId` remained empty, and send failed with `Failed to load the target chat session`.
+
+`MicrophonePermissionService.Attach` now binds the required contexts, including Chat, onboarding, notice, and developer windows.
+Only the main renderer owns prompts.
+An unhandled application invoke is a host integration error.
+The proposed upstream default rejection in [godot-kirie#87](https://github.com/moeru-ai/godot-kirie/pull/87) closed without merge.
+The AIRI handler attachment is the accepted fix.
+
+### Authentication and external navigation
+
+AIRI owns OIDC sign-in independently of the server sidecar.
+It uses a system browser, PKCE, state validation, and a temporary `127.0.0.1` callback listener.
+The renderer supplies the server URL and client ID before login.
+Logout cancels an unfinished attempt.
+Tests cover forged-state rejection without listener consumption and callback CORS.
+See [RFC 8252](https://www.rfc-editor.org/rfc/rfc8252.html).
+
+External HTTP and HTTPS links use Kirie Platform `openExternalUrl()`.
+AIRI filters other schemes, and Platform validates the absolute URL before `OS.shell_open()`.
+Shutdown and hot reload restore `window.open` and remove the click handler.
+A live `file:` request failed at the host boundary.
+
+The data-directory API accepts no caller path.
+Godot selects `OS.get_user_data_dir()`, opens it, and propagates operating-system errors.
+The application name `AIRI` selects its own data directory.
+
+### Inspector, routes, and browser state
+
+AIRI selects the leader target from `/json/list` and opens its `devtoolsFrontendUrl`.
+The bare debug-port page previously returned an empty body.
+Godot CEF allows the remote Inspector origin `https://chrome-devtools-frontend.appspot.com`.
+Production builds keep remote debugging disabled.
+See the pinned [CEF properties](https://github.com/dsh0416/godot-cef/blob/v1.16.1/docs/api/properties.md)
+and [security baseline](https://github.com/dsh0416/godot-cef/blob/v1.16.1/docs/api/security-baseline.md).
+
+Standalone Devtools windows reuse validated routes and optional geometry.
+The empty Electron Editor shell remains excluded.
+A route-keyed error boundary isolates failures and permits later navigation.
+
+Official Godot CEF 1.16.0 introduced the shared request-context behavior that closed GAP-028.
+The tracked [1.16.1 release](https://github.com/dsh0416/godot-cef/releases/tag/v1.16.1) preserves that context and AIRI scheme handlers.
+Cookies, storage, BroadcastChannel, and Web Locks must cross application windows.
+The leader holds `tab-airi:stage:pinia`; a follower's request remains pending.
+
+## Dependency baseline
+
+The coordinated Kirie baseline is 0.6.5 for npm, NuGet, and the Godot addon.
+Godot and `Godot.NET.Sdk` use 4.7.2. Godot CEF uses 1.16.1.
+The [Kirie 0.6.5 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.5) supplies the official artifacts.
+
+The addon archive SHA-256 is
+`d07aeaadac2184f39f1cae8a72a26320ee6d21d4000afc5d575db76f2fb9ba7f`.
+`addons/kirie/godot_cef.json` supplies the CEF version and published digest.
+The macOS artifact passed strict signature verification.
+Windows used D3D12 Forward+ with accelerated OSR.
+
+On 2026-09-29, the NuGet v3 feed omitted both 0.6.5 packages and restore failed with `NU1102`.
+The official v2 feed supplied them. That session used this command:
 
 ```sh
-mise x -- pnpm typecheck
-mise x -- pnpm test:unit
-mise x -- dotnet build
-mise x -- pnpm build
-mise x -- pnpm kirie dev
+mise x -- dotnet restore tests/StageTamagotchiKirie.Tests/StageTamagotchiKirie.Tests.csproj --source https://www.nuget.org/api/v2/ --no-http-cache
 ```
 
-Run the frozen installation from the AIRI repository root:
+The repository retained its default NuGet source.
+Kirie 0.6.5 corrected Windows CEF installation through system `tar.exe` and rename retries.
+See the [0.6.4 to 0.6.5 changes](https://github.com/moeru-ai/godot-kirie/compare/v0.6.4...v0.6.5).
 
-```sh
-mise x -- pnpm install --frozen-lockfile
+The workspace has exact Kirie entries under `minimumReleaseAgeExclude`.
+Later versions remain subject to the standard release-age policy.
+See [pnpm dependency resolution](https://pnpm.io/settings/dependency-resolution).
+
+Use published packages for acceptance. Do not restore committed `link:` dependencies or `ProjectReference` entries.
+Do not copy Kirie implementations or contracts into AIRI.
+A reproduced API gap can justify temporary sibling-source work after the required dependency-boundary approval.
+Return to one coordinated published version before acceptance.
+
+## Acceptance evidence
+
+### Windows environment and checks
+
+The application commit was `fdc9161c8` on `doji/migrate-to-kirie`.
+The native session used Godot 4.7.2 Mono, Kirie 0.6.5, and Godot CEF 1.16.1.
+The machine had an NVIDIA RTX 4060 Laptop GPU and one 3200 × 2000 display at 200% scaling.
+
+| Check | Result |
+| --- | --- |
+| Desktop prerequisites | Passed. The absent Android SDK was outside scope. |
+| Application typecheck | Passed. |
+| Vitest | 13 files and 42 tests passed. |
+| C# contract tests | Passed. |
+| Web and C# build | Passed with no C# warnings or errors. |
+| Root typecheck | 53 tasks passed, including 52 cached tasks. |
+| Root lint | 41 errors in CEF vendor JSON and generated C# output. |
+| Documentation diff | `git diff --check` passed. |
+
+Repeated root checks returned the same results.
+The [README commands](README.md#checks-and-build) provide the normal verification sequence.
+
+The Windows route check covered these 12 paths:
+
+```text
+/settings
+/settings/account
+/settings/data
+/settings/connection
+/settings/system
+/settings/system/general
+/settings/system/permissions
+/settings/system/window-shortcuts
+/settings/system/developer
+/devtools/global-shortcut
+/devtools/use-electron-all-displays
+/devtools/use-window-mouse
 ```
 
-Only when Kirie source changes, run the upstream commands from the sibling
-`godot-kirie/` repository:
+The route check displayed the expected headings without a route error boundary.
+It did not repeat the complete historical macOS route audit.
 
-```sh
-mise run lint:biome
-mise run lint:csharp
-mise run test:unit
-mise run test:dotnet
-mise run typecheck
+Native screenshots established transparency, pin/unpin z-order, notifications, external URL access, and application directory access.
+Settings and Chat closed through their title bars and reopened.
+The Inspector screenshot showed the real DOM and live preview.
+
+Chinese locale selection normalized from `zh-CN` to `zh-Hans` and survived restart.
+The restored English locale survived the next restart.
+A new Chat window read the same locale, permission, and localStorage values.
+A persistent cookie was present in Main and Chat before shutdown and remained present in the next process.
+
+The user confirmed displays, movement, onboarding, sign-in, and resize.
+The physical Ctrl+Shift+K test recorded two complete down/up pairs.
+The session then removed its temporary registration and observer.
+
+### Windows Spotlight correction
+
+The first Windows review failed GAP-007: physical Ctrl+Shift+A did not display Spotlight.
+Direct open created its CEF target, but desktop captures showed no native window.
+The host still reported `visible: true` and `focused: true`.
+
+A later native probe reproduced the failure before the source change.
+The Spotlight HWND existed, but `IsWindowVisible` returned `false` and its style was `0x860B0000`.
+After the fix, the style was `0x960B0000` and `IsWindowVisible` returned `true`.
+The difference is `WS_VISIBLE`.
+
+Spotlight set its native borderless, topmost, and resize flags again after `Show()`.
+Godot 4.7.2 rewrites Windows styles for these operations.
+The topmost and resize paths omit `WS_VISIBLE` for a borderless subwindow.
+The repeated `Unfocusable = false` assignment can cause the same failure on an already visible window.
+Godot's internal visibility state stays `true`, so another `Show()` does not restore native visibility.
+See the [Windows display implementation](https://github.com/godotengine/godot/blob/4.7.2-stable/platform/windows/display_server_windows.cpp)
+and [Window visibility implementation](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/window.cpp).
+
+The fix removes those four repeated assignments. The scene retains the window flags and the default permits focus.
+The existing transparency sequence, native focus, and CEF focus remain in place.
+No Kirie or Godot dependency changed.
+
+Direct open, repeated open, and hide/reopen passed after the C# rebuild.
+Windows `SendInput` supplied Ctrl+Shift+A with scan codes, and the registered shortcut displayed Spotlight.
+The CEF document reported focus on its input.
+A native desktop capture showed the input and transparent surroundings at `(880, 419, 1440, 200)`.
+This automated check does not replace a physical keyboard check. The user owns the macOS regression check.
+
+C# build, C# contract tests, `dotnet format --verify-no-changes --no-restore`, and root typecheck passed.
+Root lint retained the same 41 artifact errors.
+Local probe scripts and the native capture remain under the temporary directory in `airi-gap007/`.
+
+### Historical macOS evidence
+
+| Date and baseline | Retained evidence |
+| --- | --- |
+| 2026-09-17, Kirie 0.3.0 and Godot 4.7.1 | Initial host adapters, window contracts, permission decisions, external navigation, and authentication review. |
+| 2026-09-18 | All 117 static routes and representative values for three parameterized routes rendered in real CEF. Connected Inspector and account state passed. |
+| 2026-09-19, official CEF 1.16.0 | Cookie, localStorage, BroadcastChannel, and Web Lock probes crossed WebViews. |
+| 2026-09-20, Kirie 0.4.1 and CEF 1.16.1 | Native close/reopen, external links, data-directory access, notice confirmation, shared context, and the repaired Chat send passed. |
+| 2026-09-21, Kirie 0.4.2 and Godot 4.7.2 | Metal Forward+ enabled accelerated OSR. Shared-context checks repeated. User review accepted Spotlight and notification behavior. |
+| 2026-09-24, Kirie 0.6.2 | Main-window startup and dependency/build checks passed. |
+| 2026-09-29, Kirie 0.6.5 dependency check | 36 Node tests and six browser tests passed. Earlier lint reported 32 artifact-format errors before the Windows run reported 41. |
+
+The earlier OpenGL compatibility renderer used software rendering.
+Forward+ removed the need for the old Spotlight focus workarounds.
+
+Widget flows, desktop-overlay startup, and the inlay window remain outside recorded runtime coverage.
+The inlay route still contains Electron-specific references, and Kirie does not create that application window.
+An untested surface becomes a gap only after an in-scope failure reproduces.
+`godot-stage:get-status` remains outside the model-free milestone.
+
+### AUV test method and limits
+
+The session installed unmodified AUV 0.0.22 from commit `2957b9ff`, replacing 0.0.20.
+The first Cargo checkout represented a proto symlink as a text file and lacked `health.proto`.
+A fresh clone with `core.symlinks=true` and a locked build succeeded without a dependency patch.
+See [Git's symlink setting](https://git-scm.com/docs/git-config#Documentation/git-config.txt-coresymlinks).
+
+The direct CLI path rejected Windows operations that succeeded through the daemon and an explicit Device.
+The successful probe used:
+
+```powershell
+mise x -- auv serve
+mise x -- auv devices list --json
+mise x -- auv --device-id <local-device-id> invoke window.list --json --no-overlay
+mise x -- auv --device-id <local-device-id> invoke display.list --json --no-overlay
+mise x -- auv --device-id <local-device-id> invoke display.capture --json --no-overlay
 ```
 
-After an IPC change, verify one real request and response through the desktop
-application. After a host change, run the scenario that required the change.
+See the upstream [Windows Runner guide](https://github.com/moeru-ai/auv/blob/2957b9ff/docs/ai/references/session-api/2026-08-16-windows-local-runner-ipc-handoff.md).
+At 200% scaling, captures and window bounds used physical pixels. Mouse input accepted logical coordinates.
+Input `(1111, 700)` placed the pointer near physical `(2223, 1401)`.
 
-## Application-owned capabilities
+`input.key` rejected Windows. `input.holdKeys` reached CEF, but the synthetic combinations produced no Kirie shortcut callbacks.
+AUV sets `KEYBDINPUT.wScan` to zero, while Kirie matches low-level scan codes.
+That is a hypothesis for the synthetic-input failure, not a proven cause.
+Physical Ctrl+Shift+K passed, so the automation result alone cannot reject global shortcuts.
 
-These capabilities stay in AIRI unless a separate decision makes them general:
+Sources: [AUV input](https://github.com/moeru-ai/auv/blob/2957b9ff/crates/auv-driver-windows/src/input.rs),
+[Kirie shortcut runtime](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/GdKirie.Platform/src/GlobalShortcuts/WindowsGlobalShortcutRuntime.cs),
+and [Windows shortcut decision](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/docs/decisions/0003-use-a-low-level-keyboard-hook-for-windows-global-shortcuts.md).
 
-- AIRI plugin host.
-- AIRI server and plugin-sidecar lifecycle.
-- MCP stdio services.
-- AIRI update policy.
-- AIRI server channel.
-- AIRI Artistry configuration.
-- AIRI authentication flow.
-- AIRI Spotlight shortcuts, windows, and notifications.
-- AIRI model and Stage protocols.
+### Local evidence and cleanup
 
-Register these handlers on the AIRI Eventa context above Kirie Platform.
+Native images remain under the local temporary directory in `airi-auv-windows-probe/artifacts/`.
+These run IDs identify the retained captures:
 
-## Final application boundary
+| Observation | Run ID |
+| --- | --- |
+| Main transparency | `e5504b71-d7fa-358e-ca33-fa2bffb327e4` |
+| Unpinned below Explorer | `8ff16637-69bc-ad8f-42d9-40f34b0ac8c6` |
+| Pinned above Explorer | `e3e0db76-81ba-7b79-aa08-a409bcc1afcf` |
+| Windows notification | `d93938bb-0e18-1328-b03d-631ace6e617b` |
+| Chat after notification click | `94cb6936-c17a-2426-585a-6f07a9c08d6c` |
+| Desktop after Spotlight open | `7bc8acd1-8697-796c-51df-aaf920ca1b04` |
+| Desktop after Spotlight state read | `b00e7676-3495-fbac-f4c7-5c164b525ec1` |
+| Connected Inspector | `36d18433-2ac1-0c3a-6495-351fc1b7a6ba` |
+| Notice window | `71d5ef3f-2d36-a232-9698-edfd96d92856` |
 
-`apps/stage-tamagotchi-kirie/` is the final Kirie application location. Do not
-merge it into `engines/stage-tamagotchi-godot/`.
+The temporary directory also contains `airi-kirie-windows-*.log`, `airi-kirie-windows-native-observations.json`,
+`airi-windows-acceptance-provider.log`, `airi-auv-install-symlinks.log`, and `airi-auv-acceptance-records-20260929/`.
+These local artifacts are not repository fixtures.
 
-The Electron application remains a supported AIRI target and the behavior
-reference. Do not remove its transport paths as part of this migration.
+The session removed temporary providers, conversations, cookies, storage probes, and shortcut registrations.
+It stopped the loopback provider and all temporary audio tracks.
+Each run restored its initial settings.
+The final persistence run restored English, granted microphone permission, and disabled audio input.
+The original acceptance session changed no application source or dependency files.
+The later GAP-007 correction changes `SpotlightWindow.cs`.
+
+## Completion requirements
+
+The milestone requires all of these conditions:
+
+- Every in-scope capability passes its required platform flow, or has an explicit blocked or deferred decision.
+- Published Kirie packages and the installed CEF artifact match the selected baseline and required platform signature checks.
+- TypeScript and C# contracts agree, errors propagate, and Godot window work stays on the main thread.
+- The complete desktop flow passes on each platform under acceptance.
+- Deferred items retain explicit ownership and reopen conditions.
+
+For each new failure, record the input, actual result, expected result, and owner here.
+Add a focused reproduction, run the relevant [README checks](README.md#checks-and-build), and exercise the real desktop flow.
+Complete an independent review and resolve blocking findings before acceptance.
+For an IPC change, include a real request/response check.

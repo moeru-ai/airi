@@ -119,7 +119,9 @@ public partial class SpotlightWindow : Window
         ApplyTransparentSurface();
         DesktopWindowSizing.MoveToSpotlightSlot(this);
         _userVisible = true;
-        Unfocusable = false;
+
+        // The scene sets the borderless, resize, and topmost flags.
+        // Repeated writes to these flags after Show() clear WS_VISIBLE on Windows (GAP-007).
         Show();
         ArmNativeTransparency();
         GrabFocus();
@@ -189,10 +191,6 @@ public partial class SpotlightWindow : Window
         {
             return;
         }
-
-        DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.Borderless, true, windowId);
-        DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.AlwaysOnTop, true, windowId);
-        DisplayServer.WindowSetFlag(DisplayServer.WindowFlags.ResizeDisabled, true, windowId);
 
         // Non-embedded Window nodes can keep an opaque black swapchain when
         // WINDOW_FLAG_TRANSPARENT is set only at creation. Cycling the flag
