@@ -5,6 +5,7 @@ import type { CompletionStep, Tool } from '@xsai/shared-chat'
 import type { ProjectionEntry } from '../messages/turns'
 import type { Citation, Conversation, InputSegment, MessageSegment } from '../messages/types'
 import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ResolvedStep } from './request-context'
 
 import { responses } from '@xsai-ext/responses'
 import { stepCountAtLeast } from '@xsai/shared-chat'
@@ -12,8 +13,8 @@ import { stepCountAtLeast } from '@xsai/shared-chat'
 import { renderSegmentText } from '../messages/render-context'
 import { projectInput, projectRound } from '../messages/turns'
 import { createGeneration } from './generation'
-import { ProtocolSwitch } from './protocol-switch'
-import { createContinuationScope, mergeRequestHeaders, supportsTools } from './request-context'
+import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsTools } from './request-context'
+import { RequestSwitch } from './request-switch'
 import { toAiriStreamEvent } from './xsai-events'
 
 type InputContent = Exclude<Extract<ItemParam, { role: 'user' }>['content'], string>
@@ -169,6 +170,7 @@ export function streamResponses(input: {
   scope: string
   options?: StreamOptions
   tools?: Tool[]
+  initialStep?: ResolvedStep
   onEvent: (event: StreamEvent) => Promise<void>
 }) {
   const items = renderConversation(input.conversation, input.scope)
@@ -181,6 +183,7 @@ export function streamResponses(input: {
     continuation: (data: ItemParam[], index) => ({ protocol: 'responses' as const, scope: scopes[index] ?? input.scope, data }),
     project: item => readOutput([item]),
   })
+  let providerConfigKeys = Object.keys(input.config)
   const requestOptions: ResponsesOptions = {
     ...input.config,
     prepareStep: ({ input: current, steps }: { input: ItemParam[], steps: CompletionStep[] }) => {
@@ -190,21 +193,26 @@ export function streamResponses(input: {
         return generation.prepareStep({ input: current })
       }
       return (async () => {
-        const next = await resolveStep()
+        const firstStep = scopes.length === 0 && input.initialStep
+        const next = firstStep || await resolveStep()
 
-        const nextRequest = next.chatProvider.generation(next.model)
-        if (nextRequest.protocol !== 'responses') {
+        const nextRequest = firstStep
+          ? { protocol: 'responses' as const, config: input.config, webSearch: input.webSearch ?? false }
+          : next.chatProvider.generation(next.model)
+        const nextScope = createContinuationScope(nextRequest.config, { ...input.options, providerId: next.providerId })
+        if (nextRequest.protocol !== 'responses' || nextScope !== input.scope) {
           const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
-          throw new ProtocolSwitch(next, partialTurn)
+          throw new RequestSwitch(next, partialTurn)
         }
 
         // NOTICE:
-        // xsAI prepareStep can return only input/model/toolChoice. Its 0.5 Responses
-        // adapter reads the mutable options after prepareStep for each request.
-        // Update provider settings and tools here until xsAI offers a typed step config.
-        // Source: @xsai-ext/responses 0.5 dist/index.js createReader. Remove then.
+        // xsAI 0.5 prepareStep returns only input, model, and toolChoice.
+        // It reads other options afterward but snapshots toolChoice beforehand.
+        // Source: @xsai-ext/responses 0.5 createReader and @xsai/shared-chat resolvePrepareStep.
+        // Remove this mutation when xsAI supports typed provider options for each step.
         const toolsSupported = supportsTools(next.model, nextRequest, input.options)
-        Object.assign(requestOptions, nextRequest.config, {
+        providerConfigKeys = replaceProviderConfig(requestOptions, providerConfigKeys, nextRequest.config)
+        Object.assign(requestOptions, {
           apiKey: nextRequest.config.apiKey,
           fetch: nextRequest.config.fetch,
           reasoning: nextRequest.config.reasoning,
@@ -214,10 +222,10 @@ export function streamResponses(input: {
           tools: toolsSupported
             ? nextRequest.webSearch ? [...(next.tools ?? []), { type: 'web_search' as const }] : next.tools
             : undefined,
-          toolChoice: toolsSupported ? toolChoice(input.options?.toolChoice) : undefined,
+          toolChoice: undefined,
         })
         generation.prepareStep({ input: current, model: next.model })
-        scopes.push(createContinuationScope(nextRequest.config, { ...input.options, providerId: next.providerId }))
+        scopes.push(nextScope)
         const systemIndex = current.findIndex(item => item.type === 'message' && item.role === 'system')
         const systemMessage = current[systemIndex]
         if (systemMessage?.type === 'message' && systemMessage.role === 'system')
@@ -225,7 +233,7 @@ export function streamResponses(input: {
         else if (next.systemPrompt)
           current.unshift({ type: 'message', role: 'system', content: next.systemPrompt })
 
-        return { input: current, model: next.model }
+        return { input: current, model: next.model, toolChoice: toolsSupported ? toolChoice(input.options?.toolChoice) : undefined }
       })()
     },
     input: items,
@@ -236,7 +244,7 @@ export function streamResponses(input: {
     topP: input.options?.topP,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
-    toolChoice: toolChoice(input.options?.toolChoice),
+    toolChoice: input.options?.resolveStep ? undefined : toolChoice(input.options?.toolChoice),
     stopWhen: stepCountAtLeast(10),
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)

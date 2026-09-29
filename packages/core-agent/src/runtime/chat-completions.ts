@@ -3,14 +3,15 @@ import type { CompletionStep, Message, Tool } from '@xsai/shared-chat'
 
 import type { Conversation } from '../messages/types'
 import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ResolvedStep } from './request-context'
 
 import { stepCountAtLeast } from '@xsai/shared-chat'
 import { streamText } from '@xsai/stream-text'
 
-import { chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
+import { chatContentToString, chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
 import { createGeneration } from './generation'
-import { ProtocolSwitch } from './protocol-switch'
-import { createContinuationScope, mergeRequestHeaders, supportsContentArray, supportsTools } from './request-context'
+import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsContentArray, supportsTools } from './request-context'
+import { RequestSwitch } from './request-switch'
 import { toAiriStreamEvent } from './xsai-events'
 
 /** Projects one context snapshot and returns only the newly generated turn. */
@@ -21,6 +22,7 @@ export function streamChatCompletions(input: {
   supportsContentArray: boolean
   options?: StreamOptions
   tools?: Tool[]
+  initialStep?: ResolvedStep
   onEvent: (event: StreamEvent) => Promise<void>
 }) {
   const messages = conversationToChatMessages(input.conversation, input.supportsContentArray, input.scope)
@@ -33,6 +35,7 @@ export function streamChatCompletions(input: {
     continuation: (data: Message[], index) => ({ protocol: 'chat-completions' as const, scope: scopes[index] ?? input.scope, data }),
     project: item => chatMessagesToProjectionEntries([item]),
   })
+  let providerConfigKeys = Object.keys(input.config)
   const requestOptions: Parameters<typeof streamText>[0] = {
     ...input.config,
     prepareStep: ({ input: current, steps }: { input: Message[], steps: CompletionStep[] }) => {
@@ -42,38 +45,44 @@ export function streamChatCompletions(input: {
         return generation.prepareStep({ input: current })
       }
       return (async () => {
-        const next = await resolveStep()
+        const firstStep = scopes.length === 0 && input.initialStep
+        const next = firstStep || await resolveStep()
 
-        const nextRequest = next.chatProvider.generation(next.model)
-        if (nextRequest.protocol !== 'chat-completions') {
+        const nextRequest = firstStep
+          ? { protocol: 'chat-completions' as const, config: input.config }
+          : next.chatProvider.generation(next.model)
+        const nextScope = createContinuationScope(nextRequest.config, { ...input.options, providerId: next.providerId })
+        if (nextRequest.protocol !== 'chat-completions' || nextScope !== input.scope) {
           const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
-          throw new ProtocolSwitch(next, partialTurn)
+          throw new RequestSwitch(next, partialTurn)
         }
 
         // NOTICE:
-        // xsAI prepareStep can return only input/model/toolChoice. Its 0.5 streamText
-        // implementation reads the mutable options after prepareStep for each request.
-        // Update provider settings and tools here until xsAI offers a typed step config.
-        // Source: @xsai/stream-text 0.5 dist/index.js doStream. Remove then.
+        // xsAI 0.5 prepareStep returns only input, model, and toolChoice.
+        // It reads other options afterward but snapshots toolChoice beforehand.
+        // Source: @xsai/stream-text 0.5 doStream and @xsai/shared-chat resolvePrepareStep.
+        // Remove this mutation when xsAI supports typed provider options for each step.
         const toolsSupported = supportsTools(next.model, nextRequest, input.options)
-        Object.assign(requestOptions, nextRequest.config, {
+        providerConfigKeys = replaceProviderConfig(requestOptions, providerConfigKeys, nextRequest.config)
+        Object.assign(requestOptions, {
           apiKey: nextRequest.config.apiKey,
           fetch: nextRequest.config.fetch,
           temperature: next.temperature,
           topP: next.topP,
           headers: mergeRequestHeaders(nextRequest.config.headers, next.headers),
           tools: toolsSupported && next.tools?.length ? next.tools : undefined,
-          toolChoice: toolsSupported ? input.options?.toolChoice : undefined,
+          toolChoice: undefined,
         })
         generation.prepareStep({ input: current, model: next.model })
-        scopes.push(createContinuationScope(nextRequest.config, { ...input.options, providerId: next.providerId }))
-        if (!supportsContentArray(next.model, nextRequest, input.options)) {
+        const contentArraySupported = supportsContentArray(next.model, nextRequest, input.options)
+        scopes.push(nextScope)
+        if (!contentArraySupported) {
           for (const [index, message] of current.entries()) {
             if (!Array.isArray(message.content))
               continue
             current[index] = {
               ...message,
-              content: message.content.map(part => part.type === 'text' ? part.text : part.type === 'refusal' ? part.refusal : '').join(''),
+              content: chatContentToString(message.content),
             } as Message
           }
         }
@@ -84,7 +93,7 @@ export function streamChatCompletions(input: {
         else if (next.systemPrompt)
           current.unshift({ role: 'system', content: next.systemPrompt })
 
-        return { input: current, model: next.model }
+        return { input: current, model: next.model, toolChoice: toolsSupported ? input.options?.toolChoice : undefined }
       })()
     },
     abortSignal: input.options?.abortSignal,
@@ -95,7 +104,7 @@ export function streamChatCompletions(input: {
     streamOptions: { includeUsage: true },
     stopWhen: stepCountAtLeast(10),
     tools: input.tools,
-    toolChoice: input.options?.toolChoice,
+    toolChoice: input.options?.resolveStep ? undefined : input.options?.toolChoice,
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)
       if (mapped)

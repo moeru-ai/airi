@@ -29,11 +29,12 @@ function provider(fetch: typeof globalThis.fetch): GenerationProvider {
 
 it('refreshes Responses settings after a tool changes the character configuration', async () => {
   const live = { model: 'first-model', prompt: 'First prompt', baseURL: 'https://first.example/v1/', toolName: 'rename' }
+  const reasoning: ItemParam = { type: 'reasoning', id: 'private-1', summary: [], encrypted_content: 'first-provider-state' }
   const requests: Array<{ url: string, body: { model?: string, input?: ItemParam[], tools?: Array<{ name?: string }> } }> = []
   const fetch: typeof globalThis.fetch = async (url, init) => {
     requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
     return sse(completed(requests.length === 1
-      ? [{ type: 'function_call', call_id: 'rename-1', name: 'rename', arguments: '{}' }]
+      ? [reasoning, { type: 'function_call', call_id: 'rename-1', name: 'rename', arguments: '{}' }]
       : []))
   }
   const liveProvider: GenerationProvider = {
@@ -73,12 +74,13 @@ it('refreshes Responses settings after a tool changes the character configuratio
   expect(requests[1].url).toContain('second.example')
   expect(requests[1].body.model).toBe('second-model')
   expect(requests[1].body.input?.find(item => item.type === 'message' && item.role === 'system')?.content).toBe('Edited prompt')
+  expect(requests[1].body.input?.some(item => item.type === 'reasoning')).toBe(false)
   expect(requests[1].body.tools?.[0]?.name).toBe('new_tool')
 })
 
 it('removes local and hosted tools for a newly incompatible Responses model', async () => {
   const live = { model: 'first', baseURL: 'https://first.test/v1/' }
-  const requests: Array<{ tools?: unknown }> = []
+  const requests: Array<{ tools?: unknown, tool_choice?: string }> = []
   const fetch: typeof globalThis.fetch = async (_url, init) => {
     requests.push(JSON.parse(String(init?.body)))
     return sse(completed(requests.length === 1
@@ -94,6 +96,7 @@ it('removes local and hosted tools for a newly incompatible Responses model', as
     conversation: { turns: [] },
     options: {
       toolsCompatibility: new Map([['responses:https://second.test/v1/-second', false]]),
+      toolChoice: 'required',
       resolveStep: async () => ({
         model: live.model,
         chatProvider,
@@ -109,7 +112,9 @@ it('removes local and hosted tools for a newly incompatible Responses model', as
   })
   expect(requests).toHaveLength(2)
   expect(requests[0].tools).toHaveLength(2)
+  expect(requests[0].tool_choice).toBe('required')
   expect(requests[1].tools).toBeUndefined()
+  expect(requests[1].tool_choice).toBeUndefined()
 })
 
 it('continues one assistant turn in Chat Completions after a Responses tool switches protocol', async () => {

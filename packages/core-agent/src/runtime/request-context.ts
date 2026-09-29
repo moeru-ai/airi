@@ -2,6 +2,19 @@ import type { GenerationRequest } from '@proj-airi/provider-inference'
 
 import type { StreamOptions } from '../types/llm'
 
+/** Settings for one model request. */
+export type ResolvedStep = Awaited<ReturnType<NonNullable<StreamOptions['resolveStep']>>>
+
+/** Removes provider fields that the next request no longer defines. */
+export function replaceProviderConfig(target: object, previousKeys: readonly string[], next: object): string[] {
+  for (const key of previousKeys) {
+    if (!Object.hasOwn(next, key))
+      Reflect.deleteProperty(target, key)
+  }
+  Object.assign(target, next)
+  return Object.keys(next)
+}
+
 /** Builds a compatibility-cache key from the same configuration used by the request. */
 export function modelKey(model: string, { protocol, config }: GenerationRequest): string {
   return `${protocol === 'responses' ? 'responses:' : ''}${config.baseURL}-${model}`

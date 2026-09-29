@@ -50,7 +50,7 @@ it('reads edited model, prompt, provider and tools before a tool continuation re
     { finishReason: 'stop', toolCalls: [], toolResults: [] },
   ]
 
-  streamTextMock.mockImplementationOnce((options: {
+  streamTextMock.mockImplementation((options: {
     model: string
     baseURL: string
     messages: Message[]
@@ -58,6 +58,7 @@ it('reads edited model, prompt, provider and tools before a tool continuation re
     tools?: Tool[]
     prepareStep: (step: { input: Message[], model: string, stepNumber: number, steps: CompletionStep[] }) => Promise<{ input?: Message[], model?: string }>
   }) => {
+    const firstRequest = snapshots.length === 0
     const completion = (async () => {
       const first = await options.prepareStep({ input: structuredClone(options.messages), model: options.model, stepNumber: 0, steps: [] })
       snapshots.push({
@@ -68,25 +69,21 @@ it('reads edited model, prompt, provider and tools before a tool continuation re
         temperature: options.temperature,
       })
 
+      if (!firstRequest)
+        return [steps[1]]
+
       live.model = 'model-b'
       live.prompt = 'Edited prompt'
       live.baseURL = 'https://second.example/'
       live.toolName = 'second_tool'
       live.temperature = 0.7
 
-      const second = await options.prepareStep({ input: finalMessages.slice(0, -1), model: options.model, stepNumber: 1, steps: steps.slice(0, 1) })
-      snapshots.push({
-        model: second.model ?? options.model,
-        prompt: String(second.input?.find(message => message.role === 'system')?.content),
-        baseURL: options.baseURL,
-        toolName: options.tools?.[0]?.function.name,
-        temperature: options.temperature,
-      })
-      return steps
+      await options.prepareStep({ input: finalMessages.slice(0, -1), model: options.model, stepNumber: 1, steps: steps.slice(0, 1) })
+      return [steps[0]]
     })()
     return {
       steps: completion,
-      messages: completion.then(() => finalMessages),
+      messages: completion.then(() => firstRequest ? finalMessages : [...options.messages, { role: 'assistant' as const, content: 'Finished' }]),
       usage: Promise.resolve(undefined),
       totalUsage: Promise.resolve(undefined),
     }
@@ -134,18 +131,20 @@ it('clears provider credentials and request transport after a tool switches prov
     }),
   }
   const requests: Array<{ apiKey?: string, fetch?: typeof globalThis.fetch, headers?: HeadersInit }> = []
-  streamTextMock.mockImplementationOnce((options: {
+  streamTextMock.mockImplementation((options: {
     apiKey?: string
     fetch?: typeof globalThis.fetch
     headers?: HeadersInit
     prepareStep: (step: { input: Message[], steps: CompletionStep[] }) => Promise<unknown>
   }) => {
+    const firstRequest = requests.length === 0
     const steps = (async () => {
       await options.prepareStep({ input: [{ role: 'user', content: 'test' }], steps: [] })
       requests.push({ apiKey: options.apiKey, fetch: options.fetch, headers: options.headers })
-      useFirstProvider = false
-      await options.prepareStep({ input: [{ role: 'user', content: 'test' }], steps: [] })
-      requests.push({ apiKey: options.apiKey, fetch: options.fetch, headers: options.headers })
+      if (firstRequest) {
+        useFirstProvider = false
+        await options.prepareStep({ input: [{ role: 'user', content: 'test' }], steps: [] })
+      }
       return []
     })()
     return {
