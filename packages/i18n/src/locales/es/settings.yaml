@@ -754,7 +754,7 @@ pages:
         empty: No hay nada aquí todavía. ¡Añade una abajo!
       add:
         title: Nuevo
-        description: "Completa un nuevo servidor y luego haz clic en \"Guardar y reiniciar\"; pasará a \"Configurados\" arriba."
+        description: 'Completa un nuevo servidor y luego haz clic en "Guardar y reiniciar"; pasará a "Configurados" arriba.'
         pending-badge: Sin guardar
       status:
         unknown: no se ha cargado
