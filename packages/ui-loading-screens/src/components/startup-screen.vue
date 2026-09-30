@@ -184,7 +184,7 @@ const emit = defineEmits<{
   box-sizing: border-box;
   align-items: stretch;
   justify-content: flex-end;
-  width: 100%;
+  width: calc(100% - 32px);
 }
 
 .startup-error-info {
@@ -310,7 +310,7 @@ const emit = defineEmits<{
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin: 0 24px 8px;
+  margin: 0 0 8px;
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -400,7 +400,6 @@ const emit = defineEmits<{
 
   .startup-status-error {
     top: calc(70% - 14px);
-    width: calc(100% - 32px);
   }
 
   .startup-error-info {
@@ -429,11 +428,6 @@ const emit = defineEmits<{
   .startup-error-hint {
     margin-right: 16px;
     margin-left: 16px;
-  }
-
-  .startup-error-progress-heading {
-    margin-right: 0;
-    margin-left: 0;
   }
 
   .startup-error-recovery {
