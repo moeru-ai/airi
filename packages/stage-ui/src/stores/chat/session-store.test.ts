@@ -54,7 +54,11 @@ vi.mock('../../database/repos/chat-audio.repo', async (importOriginal) => {
     chatAudioRepo: {
       ...actual.chatAudioRepo,
       markSessionRemoval: vi.fn().mockResolvedValue(undefined),
+      markSessionPrune: vi.fn().mockResolvedValue(undefined),
       pendingSessionRemovals: vi.fn().mockResolvedValue([]),
+      pendingSessionPrunes: vi.fn().mockResolvedValue([]),
+      clearSessionRemoval: vi.fn().mockResolvedValue(undefined),
+      clearSessionPrune: vi.fn().mockResolvedValue(undefined),
       remove: vi.fn().mockResolvedValue(undefined),
       removeSession: vi.fn().mockResolvedValue(undefined),
     },

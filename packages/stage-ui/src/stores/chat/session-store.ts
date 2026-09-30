@@ -603,9 +603,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // Old behavior: await mapper.deleteChat → mutate → persist; the
     // overlapping persistSession races us and wins.
     //
-    // We fixed this by performing every in-memory and IDB mutation
-    // synchronously up front, then firing the cloud DELETE as
-    // fire-and-forget. Persistence races now read the post-deletion state.
+    // We remove the in-memory entry before waiting for storage or cloud work.
+    // Later persistence tasks then read the post-deletion index.
     delete sessionMetas.value[sessionId]
     delete sessionMessages.value[sessionId]
     loadedSessions.delete(sessionId)
@@ -623,13 +622,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
-    await chatAudioRepo.removeSession(sessionId)
+    await persistIndex()
     // Drop any pending outbox sends for this session — pushing messages
     // to a deleted chat is wasted work and may surface as a server-side
     // 404/410 next time we drain.
     if (isCloudUser)
       await enqueuePersist(() => chatSessionsRepo.dropOutboxForSession(currentUserId, sessionId))
-    await persistIndex()
     await refreshOutboxPendingCount()
 
     if (isCloudUser) {
@@ -653,6 +651,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         )
       }
     }
+
+    await chatAudioRepo.removeSession(sessionId)
 
     const characterIndex = index.value?.characters[characterId]
     const fallbackId = characterIndex
@@ -1345,11 +1345,31 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
       for (const removedSessionId of await chatAudioRepo.pendingSessionRemovals()) {
         try {
-          if (!await chatSessionsRepo.getSession(removedSessionId))
+          const record = await chatSessionsRepo.getSession(removedSessionId)
+          if (record) {
+            await chatAudioRepo.retainSession(removedSessionId, chatAudioReferences(record.messages))
+            await chatAudioRepo.clearSessionRemoval(removedSessionId)
+          }
+          else {
             await chatAudioRepo.removeSession(removedSessionId)
+          }
         }
         catch (error) {
           console.warn('[chat-session] Failed to retry audio cleanup for', removedSessionId, errorMessageFrom(error))
+        }
+      }
+
+      for (const prunedSessionId of await chatAudioRepo.pendingSessionPrunes()) {
+        try {
+          const record = await chatSessionsRepo.getSession(prunedSessionId)
+          if (record)
+            await chatAudioRepo.retainSession(prunedSessionId, chatAudioReferences(record.messages))
+          else
+            await chatAudioRepo.removeSession(prunedSessionId)
+          await chatAudioRepo.clearSessionPrune(prunedSessionId)
+        }
+        catch (error) {
+          console.warn('[chat-session] Failed to retry audio cleanup for', prunedSessionId, errorMessageFrom(error))
         }
       }
 
@@ -1452,10 +1472,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
   }
 
-  function cleanupMessages(sessionId = activeSessionId.value) {
+  async function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    await chatAudioRepo.markSessionPrune(sessionId)
+    await setSessionMessages(sessionId, [generateInitialMessage()])
+    await chatAudioRepo.retainSession(sessionId, chatAudioReferences(sessionMessages.value[sessionId] ?? []))
+    await chatAudioRepo.clearSessionPrune(sessionId)
   }
 
   function getAllSessions() {
@@ -1770,6 +1793,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
+      'cleanupMessages',
       'createSession',
       'deleteMessage',
       'deleteSession',
