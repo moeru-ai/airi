@@ -867,6 +867,9 @@ pages:
     vision:
       description: Vision
       title: Vision
+      tool-images:
+        label: Use the vision model for tool images
+        description: The vision model reads the images that tools return, such as screenshots from Use computer, before your chat model replies. A chat model that sees images gets them directly. A description has no pixel positions.
       capture:
         title: Vision capture cadence
         description: Tune how often the vision ticker captures a frame.

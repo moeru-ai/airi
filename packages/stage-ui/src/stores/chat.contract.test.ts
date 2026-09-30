@@ -3,6 +3,8 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { LlmStreamOptions } from './ai/chat-llm/llm'
+
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
@@ -76,7 +78,7 @@ const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
-const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn() }))
+const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn(), useForToolImages: true }))
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
 
 const activeSessionIdRef = ref('session-1')
@@ -158,6 +160,9 @@ vi.mock('./modules/vision', () => ({
       return visionMocks.model
     },
     useForChat: true,
+    get useForToolImages() {
+      return visionMocks.useForToolImages
+    },
   }),
 }))
 
@@ -296,6 +301,7 @@ describe('chat store contract', () => {
     })))
     visionMocks.configured = false
     visionMocks.model = 'system'
+    visionMocks.useForToolImages = true
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
     ioTracerMocks.activeTurnSpan.value = undefined
@@ -607,6 +613,50 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-2', text: 'Hello' })
 
     expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads tool images with the vision model only for a chat model that cannot see them', async () => {
+    visionMocks.configured = true
+    visionMocks.runInference.mockResolvedValue('A settings window.')
+    const toolImageReaders: Array<LlmStreamOptions['describeToolImage']> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: LlmStreamOptions) => {
+      toolImageReaders.push(options.describeToolImage)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Look at my screen' })
+
+    expect(await toolImageReaders[0]?.('data:image/png;base64,aW1hZ2U=')).toBe('A settings window.')
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'screen:ocr' }))
+  })
+
+  it('leaves tool images alone when the tool image setting is off', async () => {
+    visionMocks.configured = true
+    visionMocks.useForToolImages = false
+    const toolImageReaders: Array<LlmStreamOptions['describeToolImage']> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: LlmStreamOptions) => {
+      toolImageReaders.push(options.describeToolImage)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Look at my screen' })
+
+    expect(toolImageReaders).toEqual([undefined])
+  })
+
+  it('leaves tool images to a chat model that supports vision', async () => {
+    visionMocks.configured = true
+    consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: true } } }]
+    const toolImageReaders: Array<LlmStreamOptions['describeToolImage']> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: LlmStreamOptions) => {
+      toolImageReaders.push(options.describeToolImage)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Look at my screen' })
+
+    expect(toolImageReaders).toEqual([undefined])
   })
 
   it('sends images directly when the selected chat model supports vision', async () => {

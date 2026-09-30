@@ -21,6 +21,7 @@ const { configuredProviders } = storeToRefs(providerStore)
 const { moduleVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
   useForChat,
+  useForToolImages,
   activeProvider,
   activeModel,
   customModelName,
@@ -103,6 +104,11 @@ function formatRelativeTime(timestamp: number | null) {
       v-model="useForChat"
       :label="t('stage.chat.images.use-vision')"
       :description="t('stage.chat.images.use-vision-description')"
+    />
+    <FieldCheckbox
+      v-model="useForToolImages"
+      :label="t('settings.pages.modules.vision.tool-images.label')"
+      :description="t('settings.pages.modules.vision.tool-images.description')"
     />
 
     <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">

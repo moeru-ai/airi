@@ -815,6 +815,9 @@ pages:
     vision:
       description: 视觉
       title: 视觉
+      tool-images:
+        label: 使用视觉模型理解工具图片
+        description: 工具返回的图片（例如“使用电脑”的截图）会先由视觉模型读取，再由当前聊天模型回复。聊天模型能看图时直接交给它。文字描述不包含像素坐标。
       capture:
         title: 视觉捕获频率
         description: 调整视觉定时器捕获画面的频率。
