@@ -6,6 +6,7 @@ export type {
   AudioInputLLMMessage,
   AudioInputLLMOutputChunk,
   AudioInputObservations,
+  AudioInputPipeline,
   AudioInputPreflightCallback,
   AudioInputPreflightContext,
   AudioInputSession,

@@ -7,6 +7,9 @@ export const audioInputTargets = ['web', 'electron'] as const
 
 export type AudioInputTarget = (typeof audioInputTargets)[number]
 
+/** Audio pipelines that need case-specific runner preparation. */
+export type AudioInputPipeline = 'kws'
+
 /** Values available when one case resolves its preflight callbacks. */
 export interface AudioInputPreflightContext {
   /** Environment variables loaded for this case. */
@@ -21,7 +24,13 @@ export interface AudioInputPreflightContext {
 export type AudioInputPreflightCallback = AudioTestPreflightCallback<AudioInputPreflightContext>
 
 /** One AIRI audio-input test definition. */
-export type AudioInputTestCase = AudioTestCase<AudioInputPreflightContext>
+export interface AudioInputTestCase extends AudioTestCase<AudioInputPreflightContext> {
+  /**
+   * Selects pipelines that need runner preparation.
+   * @default []
+   */
+  pipelines?: readonly AudioInputPipeline[]
+}
 
 /** Snapshot of the observable AIRI audio pipeline state. */
 export interface AudioInputSnapshot {

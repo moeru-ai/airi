@@ -1,3 +1,5 @@
+export { configureCallingWord } from './calling-word'
+export type { CallingWordConfiguration } from './calling-word'
 export { loadCaseEnvironment } from './environment'
 export { configureModuleConsciousness } from './module-consciousness'
 export type { ConsciousnessModuleConfiguration } from './module-consciousness'
