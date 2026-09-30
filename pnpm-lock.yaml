@@ -1290,7 +1290,7 @@ importers:
     devDependencies:
       '@alint-js/cli':
         specifier: 'catalog:'
-        version: 0.6.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(crossws@0.4.12(srvx@0.12.7))(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(supports-color@10.2.2)(typescript@6.0.3)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.6.0(crossws@0.4.12(srvx@0.12.7))(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(supports-color@10.2.2)(typescript@6.0.3)(zod@4.4.3)
       '@alint-js/plugin-js':
         specifier: 'catalog:'
         version: 0.6.0
@@ -12673,9 +12673,6 @@ packages:
   '@xsai-ext/providers@0.5.1':
     resolution: {integrity: sha512-OmyPnJDFh/P6Lt4t75zwZA6w1iTWxDuG4Gg/wQHVyKvB9CYCCIiOXXKDc9c89v/WgYtSHgGBzThG/EGkNtlKLQ==}
 
-  '@xsai-ext/responses@0.5.0':
-    resolution: {integrity: sha512-b49cuZS/pt68xCgPmasis0cHM47kFXTrvhOT0IYFm++ehngqCYGGNOg5JGkEvCJo/lP6aAnHOnDFyi8akqUb5Q==}
-
   '@xsai-ext/responses@0.5.1':
     resolution: {integrity: sha512-HD+ZrbTydbEHVDOMN8xuiM2LIW6FNGNT8lIlt6J38jb3KdWUw2bPul8hXwwB4Q422l2J84QeQYqphjh9eSaO4g==}
 
@@ -12711,9 +12708,6 @@ packages:
   '@xsai/generate-speech@0.5.1':
     resolution: {integrity: sha512-LTUxzRwwEPqDLCV3ocDjIAPxGU3RtLZLjJ+pYvvfmlnVSBova0ySFbmgJJQPJoL3EIcDrcWVG6ft80yum7bkgQ==}
 
-  '@xsai/generate-text@0.5.0':
-    resolution: {integrity: sha512-VONNlaayHgijhovG6cv8FGe0fpwRu+vB35IR4hhLKUQqBUHUrLczf6Mc9PyfbRniyKFwYO8icD0YbYCgGKa2Yg==}
-
   '@xsai/generate-text@0.5.0-beta.6':
     resolution: {integrity: sha512-UVxruh9192qcYdkR4dxiWefBM2+Tp4+5fw3eR2DHTgXohnPKRZ5sJwQBNvJpZOUE648KsyvbU42Dwhwnacb/Pg==}
 
@@ -12732,26 +12726,17 @@ packages:
   '@xsai/model@0.5.1':
     resolution: {integrity: sha512-KTVFwevD2s9XAzPK4y0IJ9SCld1bxL39xMXeVNG1UxX+TTe7ZagUVYsdEEhyRkpR+jSMsMLfzrpPkWjLTtGb3A==}
 
-  '@xsai/shared-chat@0.5.0':
-    resolution: {integrity: sha512-y3hr0vqul6BHPNmwnGEbIgC/P7eVyRgik+srdGYDJc+IsCBlD0Aw2QhmxJtQd89XrJkv0XN9GG7/5HoDLpYeOw==}
-
   '@xsai/shared-chat@0.5.0-beta.6':
     resolution: {integrity: sha512-0j9/UfYlpjU0ngXjHIEpFfj+nQFIezHivj3VWgf85kn+0RsVNMCX48QKF1nk2VmPDM1LEYXv0fCAftRyP44wFQ==}
 
   '@xsai/shared-chat@0.5.1':
     resolution: {integrity: sha512-BUGPc9JBgY+72AklrXG/6BTd9mX1tbn/Xbmjm3a83fXAA1ooAYhevfmCO8yUudeeuhPNHNYzOGwPVc27BJgc3w==}
 
-  '@xsai/shared-stream@0.5.0':
-    resolution: {integrity: sha512-SYCrnjD63Uc2JaxuN+nLKNq24Csspz/+fqHIXFVMQXwoNUuNZzPUd1fverPYJmQ2IGCvdQD6+Jue7rm6OQTJZA==}
-
   '@xsai/shared-stream@0.5.1':
     resolution: {integrity: sha512-+yOgmQgFFJsUVAqoU44cunraSTEJWyONHBkidW+tHvA3vGRxE5R17lIaf3uJ7vNuvBf3mlUVRkUEuMJ9AE+gUg==}
 
   '@xsai/shared@0.4.4':
     resolution: {integrity: sha512-ZrOeRJ0fqV8YRDwyQbYJx1N8Fe2UTl2psjV7ucYJ+gMr3oWzrmNfTX9zrpV9zwzBMUe6VvqhK/iJzz8p4jYlsw==}
-
-  '@xsai/shared@0.5.0':
-    resolution: {integrity: sha512-o8arA7Lew9pedOG2bmbLLpmjLU9DyYqW6ByvHK1pxQdhLDRRngyDA8PeEFHwn1SZ0shuedNhI5vYfYIGaUvJ5w==}
 
   '@xsai/shared@0.5.0-beta.6':
     resolution: {integrity: sha512-fE3+vEzDe+NftOIYbxdjFtnTAaHpYBCQ2Bsa/9vfQ03l9Mz9KeC83bOdiz/pvndrBlARtVhZC26h4wnRK3/A0A==}
@@ -12762,17 +12747,11 @@ packages:
   '@xsai/shared@0.5.1':
     resolution: {integrity: sha512-Zj27Q46a85zTwWgLz8e+l+/Ajja70LYdLu4FHlwMTaY9OzcAAnpFTgtvpEAmqpnJjW92QmwiYOJg/mEBP3gfNA==}
 
-  '@xsai/stream-text@0.5.0':
-    resolution: {integrity: sha512-JmWQl9kiobGyWEjU3N68aFsiN6u+0okm6eT/G6n4/C/XznF0nAgj8BhEAxfFE+Jq+YA9Gl4iukUdbt/JzBGtmw==}
-
   '@xsai/stream-text@0.5.1':
     resolution: {integrity: sha512-wNPYnIl4V88mkos80JoaZHmOElFGz7NnEz4R/OiJ6bHEko9qXXLvXHWk5DSGs6B/fjDvlNg+hEqCnYNtrqGShg==}
 
   '@xsai/stream-transcription@0.5.1':
     resolution: {integrity: sha512-Jj9ecfD+INCRfYLT1HL9cJCZTjdQ1Q0LboOiDV7gWyEC9bSETPazR91/lV0eg516+JspXmzwFXs04WYhw7WKsw==}
-
-  '@xsai/tool@0.5.0':
-    resolution: {integrity: sha512-Wg70lQ5bAvnATYV3W32kbGpivaKbvMoFNA4ZcFk66Ttfjjf6HSI0KrtZS+VR2FlCSbP1Nc9zYc6qtd6rE9P27w==}
 
   '@xsai/tool@0.5.1':
     resolution: {integrity: sha512-+n68DvQRS9Q+Oya+vwcx5QKfjqXCYluQqb3M2OdNzsW2qxvzs9mYSLiIHaTqaoU/fxD3rfKuH9JC19PLQlPPGw==}
@@ -20193,29 +20172,6 @@ packages:
   xsai-chromium-prompt@0.2.2:
     resolution: {integrity: sha512-XL7s/L9WhxRMUl3DOCq1F+WkL2QanfgT8N3A/8g1/5E1wsL8vmOWnBCOW6p7gpwDLHZ+/kNT7SXenk6ILwCNNw==}
 
-  xsschema@0.5.0:
-    resolution: {integrity: sha512-7hZNbGQmZTL5qVg8VwA8Ad/r9fFPFNdCoWQRfisN/3p/+riicAZSspLi0/wAz3KJ2v8lhZMyl2BkEMSGfsF2HA==}
-    peerDependencies:
-      '@valibot/to-json-schema': ^1.0.0
-      arktype: ^2.1.20
-      effect: ^3.16.0
-      sury: ^10.0.0 || ^11.0.0-alpha
-      zod: ^3.25.0 || ^4.0.0
-      zod-to-json-schema: ^3.25.0
-    peerDependenciesMeta:
-      '@valibot/to-json-schema':
-        optional: true
-      arktype:
-        optional: true
-      effect:
-        optional: true
-      sury:
-        optional: true
-      zod:
-        optional: true
-      zod-to-json-schema:
-        optional: true
-
   xsschema@0.5.1:
     resolution: {integrity: sha512-nbBaA90Z2mKhD6CiVUH2B2shrRih3f7qHk49pdV/jvkiR2JgMzYq4vJ0jOWCRoZQtoyHRqN0BDK48kFKdWp1HA==}
     peerDependencies:
@@ -20372,10 +20328,10 @@ snapshots:
 
   '@alexanderolsen/libsamplerate-js@2.1.2': {}
 
-  '@alint-js/cli@0.6.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(crossws@0.4.12(srvx@0.12.7))(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(supports-color@10.2.2)(typescript@6.0.3)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@alint-js/cli@0.6.0(crossws@0.4.12(srvx@0.12.7))(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(supports-color@10.2.2)(typescript@6.0.3)(zod@4.4.3)':
     dependencies:
-      '@alint-js/config': 0.6.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(typescript@6.0.3)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@alint-js/core': 0.6.0(typescript@6.0.3)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@alint-js/config': 0.6.0(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(typescript@6.0.3)(zod@4.4.3)
+      '@alint-js/core': 0.6.0(typescript@6.0.3)(zod@4.4.3)
       '@alint-js/model-adapter-acp': 0.6.0(crossws@0.4.12(srvx@0.12.7))(supports-color@10.2.2)(typescript@6.0.3)
       '@alint-js/utils': 0.6.0
       '@clack/prompts': 1.7.0
@@ -20411,14 +20367,14 @@ snapshots:
       - zod
       - zod-to-json-schema
 
-  '@alint-js/config@0.6.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(typescript@6.0.3)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@alint-js/config@0.6.0(dotenv@17.4.2)(giget@3.3.1)(magicast@0.5.4)(typescript@6.0.3)(zod@4.4.3)':
     dependencies:
-      '@alint-js/core': 0.6.0(typescript@6.0.3)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@alint-js/core': 0.6.0(typescript@6.0.3)(zod@4.4.3)
       '@alint-js/tools-fs': 0.6.0
       '@alint-js/utils': 0.6.0
       '@moeru/std': 0.1.0-beta.20
       '@package-json/types': 0.0.13
-      apeira: 0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      apeira: 0.0.7(zod@4.4.3)
       c12: 4.0.0-beta.5(chokidar@5.0.0)(dotenv@17.4.2)(giget@3.3.1)(jiti@2.7.0)(magicast@0.5.4)
       chokidar: 5.0.0
       es-toolkit: 1.51.0
@@ -20446,15 +20402,15 @@ snapshots:
       - zod
       - zod-to-json-schema
 
-  '@alint-js/core@0.6.0(typescript@6.0.3)(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@alint-js/core@0.6.0(typescript@6.0.3)(zod@4.4.3)':
     dependencies:
       '@alint-js/utils': 0.6.0
       '@moeru/std': 0.1.0-beta.20
       '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
-      '@xsai/generate-text': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/stream-text': 0.5.0
-      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/generate-text': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/stream-text': 0.5.1
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       es-toolkit: 1.51.0
       minimatch: 10.2.6
       oxc-parser: 0.142.0
@@ -20592,13 +20548,13 @@ snapshots:
       '@anthropic-ai/claude-code-win32-arm64': 2.1.241
       '@anthropic-ai/claude-code-win32-x64': 2.1.241
 
-  '@apeira/core@0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@apeira/core@0.0.7(zod@4.4.3)':
     dependencies:
-      '@xsai-ext/responses': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/stream-text': 0.5.0
-      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai-ext/responses': 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/stream-text': 0.5.1
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       yocto-queue: 1.2.2
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
@@ -20608,13 +20564,13 @@ snapshots:
       - zod
       - zod-to-json-schema
 
-  '@apeira/session@0.0.7(@apeira/core@0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3))':
+  '@apeira/session@0.0.7(@apeira/core@0.0.7(zod@4.4.3))':
     dependencies:
-      '@apeira/core': 0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@apeira/core': 0.0.7(zod@4.4.3)
 
-  '@apeira/storage@0.0.7(@apeira/core@0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3))':
+  '@apeira/storage@0.0.7(@apeira/core@0.0.7(zod@4.4.3))':
     dependencies:
-      '@apeira/core': 0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@apeira/core': 0.0.7(zod@4.4.3)
 
   '@apideck/better-ajv-errors@0.3.7(ajv@8.20.0)':
     dependencies:
@@ -27424,20 +27380,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.1
 
-  '@xsai-ext/responses@0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
-    dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/shared-stream': 0.5.0
-      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-    transitivePeerDependencies:
-      - '@valibot/to-json-schema'
-      - arktype
-      - effect
-      - sury
-      - zod
-      - zod-to-json-schema
-
   '@xsai-ext/responses@0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
     dependencies:
       '@xsai/shared': 0.5.1
@@ -27510,11 +27452,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.1
 
-  '@xsai/generate-text@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-
   '@xsai/generate-text@0.5.0-beta.6':
     dependencies:
       '@xsai/shared': 0.5.0-beta.6
@@ -27541,10 +27478,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.1
 
-  '@xsai/shared-chat@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
-
   '@xsai/shared-chat@0.5.0-beta.6':
     dependencies:
       '@xsai/shared': 0.5.0-beta.6
@@ -27553,29 +27486,17 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.1
 
-  '@xsai/shared-stream@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
-
   '@xsai/shared-stream@0.5.1':
     dependencies:
       '@xsai/shared': 0.5.1
 
   '@xsai/shared@0.4.4': {}
 
-  '@xsai/shared@0.5.0': {}
-
   '@xsai/shared@0.5.0-beta.6': {}
 
   '@xsai/shared@0.5.0-beta.8': {}
 
   '@xsai/shared@0.5.1': {}
-
-  '@xsai/stream-text@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/shared-stream': 0.5.0
 
   '@xsai/stream-text@0.5.1':
     dependencies:
@@ -27587,19 +27508,6 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.5.1
       '@xsai/shared-stream': 0.5.1
-
-  '@xsai/tool@0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
-    dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      xsschema: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-    transitivePeerDependencies:
-      - '@valibot/to-json-schema'
-      - arktype
-      - effect
-      - sury
-      - zod
-      - zod-to-json-schema
 
   '@xsai/tool@0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
     dependencies:
@@ -27797,11 +27705,11 @@ snapshots:
       json-with-bigint: 3.5.12
       tslib: 2.8.1
 
-  apeira@0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
+  apeira@0.0.7(zod@4.4.3):
     dependencies:
-      '@apeira/core': 0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@apeira/session': 0.0.7(@apeira/core@0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3))
-      '@apeira/storage': 0.0.7(@apeira/core@0.0.7(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3))
+      '@apeira/core': 0.0.7(zod@4.4.3)
+      '@apeira/session': 0.0.7(@apeira/core@0.0.7(zod@4.4.3))
+      '@apeira/storage': 0.0.7(@apeira/core@0.0.7(zod@4.4.3))
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -36128,16 +36036,10 @@ snapshots:
   xsai-chromium-prompt@0.2.2:
     dependencies:
       '@xsai-ext/providers': 0.5.1
-      '@xsai/generate-text': 0.5.0
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/stream-text': 0.5.0
-
-  xsschema@0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
-    optionalDependencies:
-      '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
+      '@xsai/generate-text': 0.5.1
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/stream-text': 0.5.1
 
   xsschema@0.5.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
     optionalDependencies:
