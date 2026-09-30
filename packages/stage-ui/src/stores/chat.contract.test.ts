@@ -19,6 +19,7 @@ import { useChatStore } from './chat'
 import { useVoiceSendStore } from './chat/voice-send'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
+import { useProviderStore } from './providers/provider'
 
 vi.hoisted(() => {
   ;(globalThis as any).window = {
@@ -91,6 +92,7 @@ const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 const sessionMessages: Record<string, any[]> = {}
+const sessionMetas: Record<string, { characterId: string }> = {}
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
@@ -178,6 +180,8 @@ vi.mock('./chat/session-store', () => ({
   useChatSessionStore: () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
+    sessionMetas,
+    refreshSessionSystemMessage: vi.fn(),
     ensureSession: (sessionId: string) => {
       ensureSessionMock(sessionId)
       sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
@@ -241,6 +245,7 @@ vi.mock('./modules/consciousness', () => ({
     activeProvider: activeProviderRef,
     get supportsAudioInput() { return audioCapability.enabled },
     providerModels: consciousnessModels.value,
+    modelSupportsAudioInput: () => audioCapability.enabled,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
@@ -255,6 +260,11 @@ vi.mock('./modules/hearing', () => ({
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: undefined,
+    activeCardId: 'default',
+    moduleDefaults: { consciousness: { provider: 'mock-provider', model: 'gpt-test' } },
+    getCard: (id: string) => id === 'default' || id === 'character-b'
+      ? { extensions: { airi: { modules: { consciousness: id === 'character-b' ? { provider: 'provider-b', model: 'model-b' } : { provider: 'mock-provider', model: 'gpt-test' } } } } }
+      : undefined,
   }),
 }))
 
@@ -334,6 +344,9 @@ describe('chat store contract', () => {
       delete sessionMessages[key]
     }
 
+    for (const key of Object.keys(sessionMetas))
+      delete sessionMetas[key]
+    sessionMetas['session-1'] = { characterId: 'default' }
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
   })
 
@@ -456,7 +469,7 @@ describe('chat store contract', () => {
     expect(pushMessageToCloudMock).toHaveBeenCalledWith('session-1', expect.objectContaining({ role: 'assistant', content: 'Reply' }))
   })
 
-  it('keeps queued voice audio when the selected model changes', async () => {
+  it('transcribes queued audio for the latest model and retains its recording', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
       await new Promise<void>((resolve) => {
@@ -480,13 +493,38 @@ describe('chat store contract', () => {
     })
     await vi.waitFor(() => expect(store.pendingQueuedSendCount).toBe(1))
     audioCapability.enabled = false
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
     releaseFirstSend?.()
     await firstSend
     await voiceSend
 
     const voiceContext = llmStreamMock.mock.calls[1][2] as Conversation
-    expect(voiceContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
-    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+    expect(voiceContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledOnce()
+    expect(sessionMessages['session-1'].findLast(message => message.role === 'user')?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'airi-chat-audio:0', format: 'wav' } })
+  })
+
+  it('keeps a background character provider and prompt when another session is selected', async () => {
+    sessionMetas['session-2'] = { characterId: 'character-b' }
+    sessionMessages['session-2'] = [{ role: 'system', content: 'Character B prompt', id: 'system-b' }]
+    llmStreamMock.mockImplementation(async (model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      expect(options.cardId).toBe('character-b')
+      expect(model).toBe('model-b')
+      expect(options.providerId).toBe('provider-b')
+      activeModelRef.value = 'another-foreground-model'
+      const step = await options.resolveStep?.()
+      expect(step?.model).toBe('model-b')
+      expect(step?.providerId).toBe('provider-b')
+      expect(step?.systemPrompt).toContain('Character B prompt')
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-2', text: 'Hello B' })
+
+    expect(activeSessionIdRef.value).toBe('session-1')
+    expect(sessionMessages['session-1']).toHaveLength(1)
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('provider-b', expect.anything())
   })
 
   it('transcribes audio when the resolved provider uses the Responses protocol', async () => {
@@ -544,8 +582,10 @@ describe('chat store contract', () => {
     expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
-  it('captures audio capability with the selected model before loading the session', async () => {
+  it('reads model and audio capability together after the session loads', async () => {
     audioCapability.enabled = true
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
     loadSessionMock.mockImplementationOnce(async () => {
       activeModelRef.value = 'text-model'
       audioCapability.enabled = false
@@ -562,10 +602,10 @@ describe('chat store contract', () => {
       attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
     })
 
-    expect(llmStreamMock.mock.calls[0][0]).toBe('gpt-test')
+    expect(llmStreamMock.mock.calls[0][0]).toBe('text-model')
     const context = llmStreamMock.mock.calls[0][2] as Conversation
-    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
-    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledOnce()
   })
 
   it('uses a stored transcript when native audio falls back to string content', async () => {
@@ -783,6 +823,8 @@ describe('chat store contract', () => {
         text: 'keep generating',
       })
       await vi.waitFor(() => expect(leaderSignal).toBeDefined())
+      await vi.waitFor(() => expect(followerStore.streamingMessagesBySession['session-1']?.role).toBe('assistant'))
+      expect(llmStreamMock).toHaveBeenCalledOnce()
 
       await followerStore.cancelPendingSends('session-1')
       await sending
@@ -867,7 +909,12 @@ describe('chat store contract', () => {
 
   it('sends images directly when the selected chat model supports vision', async () => {
     visionMocks.configured = true
-    consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: true } } }]
+    useProviderStore().providerRuntimeState['mock-provider'] = {
+      models: [{ id: 'gpt-test', name: 'GPT test', provider: 'mock-provider', metadata: { abilities: { vision: true } } }],
+      defaultModel: 'gpt-test',
+      modelStatus: 'ready',
+      modelError: null,
+    }
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions) => {
       expect(context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'image'))).toBe(true)
       await options.onStreamEvent?.({ type: 'finish' })
@@ -999,6 +1046,7 @@ describe('chat store contract', () => {
     // A synchronized follower could target a session known only by metadata.
     // Reading through getSessionMessages before hydration created a fresh
     // system-only history that could overwrite the persisted conversation.
+    sessionMetas['session-2'] = { characterId: 'default' }
     delete sessionMessages['session-2']
     loadSessionMock.mockImplementationOnce(async () => {
       sessionMessages['session-2'] = [
@@ -1023,6 +1071,7 @@ describe('chat store contract', () => {
 
   // https://github.com/moeru-ai/airi/issues/2085
   it('does not create fallback history when target hydration fails for Issue #2085', async () => {
+    sessionMetas['session-2'] = { characterId: 'default' }
     delete sessionMessages['session-2']
     loadSessionMock.mockResolvedValueOnce(false)
 

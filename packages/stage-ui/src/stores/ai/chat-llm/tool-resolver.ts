@@ -19,6 +19,8 @@ type ToolSource = Tool[] | (() => Promise<Tool[]>)
  * every source to exercise merge and precedence policy without real stores.
  */
 export interface ResolveLlmToolsOptions {
+  /** Character identity pinned by the owning session for character-scoped tools. */
+  cardId?: string
   /**
    * MCP-backed built-in tools.
    *

@@ -89,6 +89,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
 export interface ChatStreamEventContext {
   /** Stable correlation id shared by every hook emitted for one user turn. */
   turnId: string
+  /** Chat session that owns this turn, independent of the selected window. */
+  sessionId: string
   message: ChatHistoryItem
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>

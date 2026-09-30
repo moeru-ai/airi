@@ -22,7 +22,7 @@ const useTestAuthStore = defineStore('auth', () => {
 const useTestAiriCardStore = defineStore('airi-card', () => {
   const activeCardId = ref('default')
   const systemPrompt = ref('')
-  return { activeCardId, systemPrompt }
+  return { activeCardId, systemPrompt, getSystemPromptForCard: () => systemPrompt.value }
 })
 
 vi.doMock('../auth', () => {
@@ -388,6 +388,36 @@ describe('chat session synchronization', () => {
     expect(store.sessionMetas[forkId]).toBeUndefined()
     await expect(chatAudioRepo.load(copiedReference)).rejects.toThrow('Stored chat audio is unavailable')
     expect(await chatAudioRepo.pendingSessionRemovals()).not.toContain(forkId)
+  })
+
+  it('routes concurrent explicit character resolution to one authority without changing either selection', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
+    const leaderStore = useChatSessionStore()
+    await leaderStore.initialize()
+    const leaderSelection = leaderStore.activeSessionId
+
+    const follower = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(follower.pinia)
+    const followerStore = useChatSessionStore()
+    await followerStore.initialize()
+    const followerSelection = followerStore.activeSessionId
+    vi.mocked(chatSessionsRepo.saveSession).mockClear()
+
+    const sessions = await Promise.all([
+      followerStore.ensureSessionForCharacter('background'),
+      followerStore.ensureSessionForCharacter('background'),
+    ])
+
+    expect(sessions[0]).toBe(sessions[1])
+    expect(chatSessionsRepo.saveSession).toHaveBeenCalledOnce()
+    await vi.waitFor(() => expect(followerStore.sessionMetas[sessions[0]]?.characterId).toBe('background'))
+    expect(leaderStore.activeSessionId).toBe(leaderSelection)
+    expect(followerStore.activeSessionId).toBe(followerSelection)
+    expect(await followerStore.ensureSessionForCharacter('background')).toBe(sessions[0])
+    expect(chatSessionsRepo.saveSession).toHaveBeenCalledOnce()
   })
 
   it('clears removed message audio and waits for all audio deletion', async () => {

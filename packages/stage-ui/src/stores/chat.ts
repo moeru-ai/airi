@@ -28,6 +28,7 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
+import { resolveModuleSelection } from '../services/airi-card-modules'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -46,6 +47,7 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { useHearingSpeechInputPipeline, useHearingStore } from './modules/hearing'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useProviderStore } from './providers/provider'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -204,6 +206,7 @@ export const useChatStore = defineStore('chat', () => {
   // without its paired prompt-injection defense.
   useWebSearchStore()
   const consciousnessStore = useConsciousnessStore()
+  const providersStore = useProviderStore()
   const artistryAutonomousStore = useAutonomousArtistryStore()
   const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
@@ -217,8 +220,9 @@ export const useChatStore = defineStore('chat', () => {
   const sending = shallowRef(false)
   const activeSendSessionId = shallowRef<string>()
   const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
+  const streamingMessagesBySession = shallowRef<Record<string, StreamingAssistantMessage>>({})
   const pendingQueuedSendCount = shallowRef(0)
-  let ownedActiveTurnSpan: typeof activeTurnSpan.value
+  const ownedTurnSpans = new Map<string, NonNullable<typeof activeTurnSpan.value>>()
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
     getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId),
@@ -277,14 +281,16 @@ export const useChatStore = defineStore('chat', () => {
     }
     const headers = requestHeaders(options?.providerId)
 
-    const hadExistingTurn = !!activeTurnSpan.value
-    if (!hadExistingTurn) {
-      const turnSpan = startSpan(IOSpanNames.InteractionTurn)
+    const sessionId = options?.requestCorrelation?.conversationId
+    let turnSpan = activeTurnSpan.value
+    if (!turnSpan || (sessionId && ownedTurnSpans.size > 0 && !ownedTurnSpans.has(sessionId))) {
+      turnSpan = startSpan(IOSpanNames.InteractionTurn)
       activeTurnSpan.value = turnSpan
-      ownedActiveTurnSpan = turnSpan
+      if (sessionId)
+        ownedTurnSpans.set(sessionId, turnSpan)
     }
 
-    const selectedModel = consciousnessStore.providerModels.find(candidate => candidate.id === model)
+    const selectedModel = providersStore.getModelsForProvider(options?.providerId ?? activeProvider.value).find(candidate => candidate.id === model)
     const supportsNativeVision = selectedModel?.metadata?.abilities?.vision === true
     let providerContext = context
     const hasImages = context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'image'))
@@ -416,17 +422,19 @@ export const useChatStore = defineStore('chat', () => {
     sending.value = state.sending
     activeSendSessionId.value = state.activeSendSessionId
     activeStreamingMessage.value = state.activeStreamingMessage
+    streamingMessagesBySession.value = state.streamingMessagesBySession
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
-  function settleOwnedActiveTurnSpan() {
-    if (!ownedActiveTurnSpan)
+  function settleOwnedActiveTurnSpan(event: { sessionId: string }) {
+    const ownedTurnSpan = ownedTurnSpans.get(event.sessionId)
+    if (!ownedTurnSpan)
       return
 
-    ownedActiveTurnSpan.end()
-    if (activeTurnSpan.value === ownedActiveTurnSpan)
+    ownedTurnSpan.end()
+    if (activeTurnSpan.value === ownedTurnSpan)
       activeTurnSpan.value = undefined
-    ownedActiveTurnSpan = undefined
+    ownedTurnSpans.delete(event.sessionId)
   }
 
   function getImageDescription(sessionId: string, turnId: string, imageIndex: number) {
@@ -574,16 +582,18 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
-      const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
+    onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      const characterId = chatSession.sessionMetas[sessionId]?.characterId
+      const autonomousTarget = characterId ? cardStore.getCard(characterId)?.extensions?.airi?.modules?.artistry?.autonomousTarget ?? 'user' : 'user'
       if (autonomousTarget === 'user') {
         const transcripts = sessionMessages.findLast(message => message.role === 'user')?.audioTranscripts ?? []
         const inputText = [messageText, ...transcripts].filter(text => !!text?.trim()).join(' ')
         void artistryAutonomousStore.runArtistTask(inputText, toProviderHistory(sessionMessages))
       }
     },
-    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
-      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
+    onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      const characterId = chatSession.sessionMetas[sessionId]?.characterId
+      const artistry = characterId ? cardStore.getCard(characterId)?.extensions?.airi?.modules?.artistry : undefined
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
@@ -629,30 +639,74 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
-    const providerId = activeProvider.value
-    const modelId = activeModel.value
-    const modelSupportsAudioInput = consciousnessStore.supportsAudioInput
-    if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
-      throw new Error('No active chat provider or model configured')
-
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
-    const messageCount = chatSession.getSessionMessages(payload.sessionId).length
-    const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
-    if (!chatProvider)
-      throw new Error(`Failed to resolve chat provider "${providerId}"`)
+    const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
+    if (!characterId)
+      throw new Error('Chat session has no character owner')
+
+    let messageCount = 0
+    async function readCharacterRequest() {
+      const card = cardStore.getCard(characterId)
+      if (!card)
+        throw new Error('Chat character was removed before its request started')
+
+      let selection: { provider: string, model: string }
+      if (characterId === cardStore.activeCardId) {
+        selection = { provider: activeProvider.value, model: activeModel.value }
+      }
+      else {
+        const defaults = cardStore.moduleDefaults?.consciousness
+        if (!defaults)
+          throw new Error('Character module defaults are unavailable')
+        selection = resolveModuleSelection(card.extensions.airi.modules.consciousness, defaults)
+      }
+      const { provider: providerId, model: modelId } = selection
+      if ((!providerId || !modelId) && providerId !== 'prompt-api')
+        throw new Error('No chat provider or model configured for this character')
+
+      const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
+      if (!chatProvider)
+        throw new Error(`Failed to resolve chat provider "${providerId}"`)
+
+      return {
+        providerId,
+        model: modelId,
+        chatProvider,
+        supportsAudioInput: consciousnessStore.modelSupportsAudioInput(providerId, modelId) && chatProvider.generation(modelId).protocol === 'chat-completions',
+        temperature: payload.temperature ?? consciousnessStore.activeTemperature,
+        topP: payload.topP ?? consciousnessStore.activeTopP,
+      }
+    }
+
+    async function resolveRequest() {
+      const request = await readCharacterRequest()
+      chatSession.refreshSessionSystemMessage(payload.sessionId)
+      messageCount = chatSession.getSessionMessages(payload.sessionId).length
+      return request
+    }
+
+    async function resolveStep() {
+      const request = await readCharacterRequest()
+      chatSession.refreshSessionSystemMessage(payload.sessionId)
+      const systemMessage = chatSession.getSessionMessages(payload.sessionId).find(message => message.role === 'system')
+      const systemPrompt = typeof systemMessage?.content === 'string' ? systemMessage.content : ''
+      const supplement = llmToolsetPromptsStore.activeToolsetPrompt.trim()
+      return {
+        ...request,
+        systemPrompt: supplement ? `${systemPrompt}\n\n${supplement}` : systemPrompt,
+      }
+    }
 
     await runtime.ingest(payload.text, {
-      model: modelId,
-      chatProvider,
+      cardId: characterId,
+      resolveRequest,
+      resolveStep,
       attachments: payload.attachments,
-      supportsAudioInput: modelSupportsAudioInput && chatProvider.generation(modelId).protocol === 'chat-completions',
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
-      temperature: payload.temperature ?? consciousnessStore.activeTemperature,
-      topP: payload.topP ?? consciousnessStore.activeTopP,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
@@ -779,6 +833,7 @@ export const useChatStore = defineStore('chat', () => {
     sending,
     activeSendSessionId,
     activeStreamingMessage,
+    streamingMessagesBySession,
     pendingQueuedSendCount,
 
     initialize,
