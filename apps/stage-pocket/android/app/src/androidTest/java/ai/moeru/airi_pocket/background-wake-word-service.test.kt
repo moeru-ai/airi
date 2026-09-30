@@ -25,6 +25,8 @@ class BackgroundWakeWordServiceTest {
         val context = instrumentation.targetContext
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val preferences = context.getSharedPreferences(BackgroundWakeWordService.PREFERENCES, 0)
+        manager.cancel(BackgroundWakeWordService.MATCH_NOTIFICATION_ID)
+        manager.cancel(BackgroundWakeWordService.ERROR_NOTIFICATION_ID)
         preferences.edit().clear().commit()
         for (permission in listOf("android.permission.RECORD_AUDIO", "android.permission.POST_NOTIFICATIONS")) {
             instrumentation.uiAutomation.executeShellCommand("pm grant ${context.packageName} $permission").close()
@@ -35,6 +37,7 @@ class BackgroundWakeWordServiceTest {
         }
         ActivityScenario.launch<MainActivity>(launchIntent).use { scenario ->
             preferences.edit().clear().commit()
+            var originalFailure: Throwable? = null
             try {
                 scenario.onActivity { activity ->
                     activity.startForegroundService(Intent(activity, BackgroundWakeWordService::class.java).apply {
@@ -95,15 +98,24 @@ class BackgroundWakeWordServiceTest {
 
                 val notification = manager.activeNotifications.single { it.id == BackgroundWakeWordService.MATCH_NOTIFICATION_ID }
                 notification.notification.contentIntent.send()
-                awaitCondition { preferences.getBoolean(BackgroundWakeWordService.NOTIFICATION_TAPPED, false) }
+                awaitCondition { preferences.getBoolean(BackgroundWakeWordService.NOTIFICATION_TAPPED, false) && MainActivity.isVisible }
                 assertTrue(MainActivity.isVisible)
+            } catch (failure: Throwable) {
+                originalFailure = failure
+                throw failure
             } finally {
-                awaitHandoff(active = true)
-                context.stopService(Intent(context, BackgroundWakeWordService::class.java))
-                manager.cancel(BackgroundWakeWordService.MATCH_NOTIFICATION_ID)
-                manager.cancel(BackgroundWakeWordService.ERROR_NOTIFICATION_ID)
-                preferences.edit().clear().commit()
-                instrumentation.uiAutomation.executeShellCommand("cmd statusbar collapse").close()
+                try {
+                    awaitHandoff(active = true)
+                } catch (cleanup: Throwable) {
+                    if (originalFailure == null) throw cleanup
+                    originalFailure.addSuppressed(cleanup)
+                } finally {
+                    context.stopService(Intent(context, BackgroundWakeWordService::class.java))
+                    manager.cancel(BackgroundWakeWordService.MATCH_NOTIFICATION_ID)
+                    manager.cancel(BackgroundWakeWordService.ERROR_NOTIFICATION_ID)
+                    preferences.edit().clear().commit()
+                    instrumentation.uiAutomation.executeShellCommand("cmd statusbar collapse").close()
+                }
             }
         }
     }
