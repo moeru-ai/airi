@@ -773,7 +773,7 @@ pages:
         empty: Chưa có cái nào ở đây hết. Thêm một cái vào bên dưới đi!
       add:
         title: Mới
-        description: "Điền thông tin máy chủ mới, sau đó nhấp \"Lưu và khởi động lại\". Máy chủ sẽ được chuyển lên mục \"Đã cấu hình\" ở trên."
+        description: 'Điền thông tin máy chủ mới, sau đó nhấp "Lưu và khởi động lại". Máy chủ sẽ được chuyển lên mục "Đã cấu hình" ở trên.'
         pending-badge: Chưa được lưu
       status:
         unknown: chưa tải
