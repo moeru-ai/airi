@@ -10,9 +10,9 @@ Import `StartupScreen` from `@proj-airi/ui-loading-screens/startup-screen`. Give
 <StartupScreen phase="loading" :progress="50" :locale="locale" logo-src="/favicon.svg" :label="t('stage.operations.load-models-status.loading')" :error-title="t('stage.startup.failed')" :error-status-label="t('stage.startup.interrupted')" :error-hint="t('stage.startup.recover')" :error-details-label="t('stage.startup.details')" :error-details-close-label="t('stage.startup.close-details')" :retry-label="t('stage.startup.retry')" />
 ```
 
-The `splash` phase shows the logo. The `loading` phase centers progress in the fifth screen area.
-The `error` phase shows a rounded, moving warning band above progress. Desktop places progress 16 pixels from the viewport sides and bottom.
-Desktop shows recovery actions below the warning content. Mobile hides the logo and moves progress above the bottom actions, aligned to their edges.
+The `splash` phase shows the logo. The `loading` phase shows progress near the lower edge.
+The `error` phase shows a rounded, moving warning band with a thicker border. Desktop makes the warning band as wide as the progress bar.
+Mobile hides the logo. The warning band, progress bar, and bottom actions form one group with short gaps. Error progress has no percentage label.
 The small details button opens a desktop tooltip or a mobile bottom drawer. The `done` phase removes the screen.
 
 The screen uses Comfortaa for the brand and content. The error band uses WDXL Lubrifont SC for English and Chinese.
