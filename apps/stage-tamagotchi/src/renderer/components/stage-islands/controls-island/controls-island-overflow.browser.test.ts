@@ -553,7 +553,7 @@ for (const dock of docks) {
     const main = screen.getByTestId('main-controls').element() as HTMLElement
     const menu = screen.getByTestId('controls-menu').element() as HTMLElement
     const toggle = main.querySelector<HTMLButtonElement>('[aria-controls]')!
-    const icon = toggle.querySelector<HTMLElement>('[i-solar\\:alt-arrow-up-line-duotone]')!
+    const icon = toggle.querySelector<HTMLElement>('[class~="i-solar:alt-arrow-up-line-duotone"]')!
     const isTop = dock.startsWith('top')
     const isLeft = dock.endsWith('left')
     await expect.poll(() => island.offsetHeight === main.offsetHeight).toBe(true)
