@@ -59,6 +59,7 @@ watch([ready, opened], async ([isReady, isOpen]) => {
     :error-hint="t(failed?.id === 'model' ? 'stage.startup.recover-model' : 'stage.startup.recover')"
     :error-message="failed?.error"
     :error-details-label="t('stage.startup.details')"
+    :error-details-close-label="t('stage.startup.close-details')"
     :retry-label="t('stage.startup.retry')"
     :alternative-label="failed?.id === 'model' ? t('stage.startup.continue-without-model') : undefined"
     @retry="retry"

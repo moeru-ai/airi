@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { Button, Progress } from '@proj-airi/ui'
-import { onClickOutside } from '@vueuse/core'
-import { shallowRef, useTemplateRef, watch } from 'vue'
+
+import StartupErrorDetails from './startup-error-details.vue'
 
 import '@fontsource-variable/comfortaa/wght.css'
 
 /** Shows startup progress and retains failures until the user retries. */
-const props = defineProps<{
+defineProps<{
   phase: 'splash' | 'loading' | 'error' | 'done'
   progress: number
   locale: string
@@ -17,23 +17,14 @@ const props = defineProps<{
   errorHint: string
   errorMessage?: string
   errorDetailsLabel: string
+  errorDetailsCloseLabel: string
   retryLabel: string
   alternativeLabel?: string
 }>()
-
 const emit = defineEmits<{
   (e: 'retry'): void
   (e: 'alternative'): void
 }>()
-
-const detailsOpen = shallowRef(false)
-const detailsElement = useTemplateRef('detailsElement')
-
-onClickOutside(detailsElement, () => detailsOpen.value = false)
-watch(() => props.phase, (phase) => {
-  if (phase !== 'error')
-    detailsOpen.value = false
-})
 </script>
 
 <template>
@@ -44,45 +35,37 @@ watch(() => props.phase, (phase) => {
           <img class="startup-logo" :src="logoSrc" alt="">
           <strong class="startup-name">AIRI</strong>
         </div>
-        <div class="startup-status" :class="{ 'startup-status-error': phase === 'error' }" :role="phase === 'error' ? 'alert' : undefined">
+        <div v-if="phase === 'error'" class="startup-error-info" role="alert">
+          <div class="startup-error-header" :class="locale.startsWith('ja') ? 'font-wdxl-jp' : 'font-wdxl-sc'">
+            <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
+            <span class="startup-error-header-spacer" />
+            <span i-solar:danger-triangle-linear class="startup-error-symbol" aria-hidden="true" />
+          </div>
+          <div class="startup-error-heading">
+            <h2 class="startup-error-title">
+              {{ errorTitle }}
+            </h2>
+          </div>
+          <p class="startup-error-hint">
+            {{ errorHint }}
+          </p>
+          <StartupErrorDetails
+            v-if="errorMessage"
+            :label="errorDetailsLabel"
+            :close-label="errorDetailsCloseLabel"
+            :message="errorMessage"
+          />
+        </div>
+        <div
+          class="startup-status"
+          :class="{
+            'startup-status-error': phase === 'error',
+            'startup-status-single-action': phase === 'error' && !alternativeLabel,
+          }"
+        >
           <span v-if="phase === 'loading'" class="startup-label">{{ label }}</span>
-          <div v-if="phase === 'error'" class="startup-error">
-            <div class="startup-error-header" :class="locale.startsWith('ja') ? 'font-wdxl-jp' : 'font-wdxl-sc'">
-              <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
-              <span class="startup-error-header-spacer" />
-              <span i-solar:danger-triangle-linear class="startup-error-symbol" aria-hidden="true" />
-            </div>
-            <div class="startup-error-heading">
-              <h2 class="startup-error-title">
-                {{ errorTitle }}
-              </h2>
-              <div v-if="errorMessage" ref="detailsElement" class="startup-error-details" @keydown.esc="detailsOpen = false">
-                <button
-                  type="button"
-                  class="startup-error-details-trigger"
-                  :aria-label="errorDetailsLabel"
-                  :aria-expanded="detailsOpen"
-                  aria-controls="startup-error-details-content"
-                  @click="detailsOpen = !detailsOpen"
-                >
-                  <span i-solar:info-circle-linear aria-hidden="true" />
-                </button>
-                <div v-if="detailsOpen" id="startup-error-details-content" class="startup-error-details-content">
-                  <div class="startup-error-details-heading">
-                    {{ errorDetailsLabel }}
-                  </div>
-                  <div class="startup-error-details-message">
-                    {{ errorMessage }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <p class="startup-error-hint">
-              {{ errorHint }}
-            </p>
-            <div class="startup-error-progress-heading" aria-hidden="true">
-              <span>{{ progress }}%</span>
-            </div>
+          <div v-if="phase === 'error'" class="startup-error-progress-heading" aria-hidden="true">
+            <span>{{ progress }}%</span>
           </div>
           <div
             class="startup-track"
@@ -185,7 +168,7 @@ watch(() => props.phase, (phase) => {
 
 .startup-status {
   position: absolute;
-  top: calc(100% - env(safe-area-inset-bottom) - clamp(48px, 8vh, 96px) - 44px);
+  top: calc(90% - 14px);
   left: 50%;
   display: flex;
   flex-direction: column;
@@ -193,17 +176,28 @@ watch(() => props.phase, (phase) => {
   flex-shrink: 0;
   width: min(220px, 60vw);
   height: 44px;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   transition: top 500ms cubic-bezier(0.22, 1, 0.36, 1), width 500ms cubic-bezier(0.22, 1, 0.36, 1), transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .startup-status-error {
-  top: max(calc(env(safe-area-inset-top) + 96px), 26vh);
+  top: calc(70% - 12px);
   box-sizing: border-box;
   align-items: stretch;
   width: min(680px, calc(100% - 48px));
-  height: auto;
+}
+
+.startup-status-single-action {
+  top: calc(80% - 24px);
+}
+
+.startup-error-info {
+  position: absolute;
+  top: max(calc(env(safe-area-inset-top) + 96px), 26%);
+  left: 50%;
+  width: min(680px, calc(100% - 48px));
   transform: translateX(-50%);
+  animation: startup-error-enter 400ms 100ms both;
 }
 
 .startup-track {
@@ -225,7 +219,7 @@ watch(() => props.phase, (phase) => {
 
 .startup-status-error .startup-track {
   width: calc(100% - 48px);
-  margin: 8px 24px 0;
+  margin: 0 24px;
 }
 
 .startup-progress {
@@ -242,10 +236,6 @@ watch(() => props.phase, (phase) => {
   font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.startup-error {
-  animation: startup-error-enter 400ms 100ms both;
 }
 
 .startup-error-recovery {
@@ -270,15 +260,11 @@ watch(() => props.phase, (phase) => {
   text-transform: uppercase;
 }
 
-.startup-error {
-  position: relative;
-}
-
 .startup-error-header::before {
   content: '';
   position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(110deg, transparent 0 17px, currentColor 17px 28px, transparent 28px 42px);
+  background: repeating-linear-gradient(110deg, transparent 0 12px, currentColor 12px 32px, transparent 32px 42px);
   background-size: 42px 100%;
   opacity: 0.09;
   pointer-events: none;
@@ -288,6 +274,7 @@ watch(() => props.phase, (phase) => {
 .startup-error-status-label {
   position: relative;
   min-width: 0;
+  text-shadow: 0 1px 3px #ef444480, 0 0 14px #ef444466;
 }
 
 .startup-error-header-spacer {
@@ -327,7 +314,7 @@ watch(() => props.phase, (phase) => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  margin: 28px 24px 0;
+  margin: 0 24px 8px;
   color: #dc2626;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
@@ -348,65 +335,6 @@ watch(() => props.phase, (phase) => {
   flex: 1;
 }
 
-.startup-error-details {
-  position: relative;
-  flex: none;
-  margin-left: auto;
-  z-index: 1;
-}
-
-.startup-error-details-trigger {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  background: transparent;
-  color: #dc2626;
-  cursor: pointer;
-  font-size: 20px;
-}
-
-.startup-error-details-trigger:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 4px;
-}
-
-.startup-error-details-content {
-  position: absolute;
-  top: calc(100% + 12px);
-  right: 0;
-  z-index: 1;
-  box-sizing: border-box;
-  width: min(360px, calc(100vw - 48px));
-  max-height: 40dvh;
-  padding: 14px 16px;
-  overflow: auto;
-  border: 1px solid #ef444466;
-  border-radius: 8px;
-  background: #fff;
-  box-shadow: 0 8px 24px #1717171a;
-  font-family: "Comfortaa Variable", "Comfortaa", ui-sans-serif, system-ui, sans-serif;
-  letter-spacing: normal;
-  text-transform: none;
-  overflow-wrap: anywhere;
-}
-
-.startup-error-details-heading {
-  margin-bottom: 8px;
-  color: #dc2626;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.startup-error-details-message {
-  color: #525252;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 :global(html.dark .startup-error-header),
 :global(html.dark .startup-error-progress-heading) {
   color: #f87171;
@@ -422,27 +350,9 @@ watch(() => props.phase, (phase) => {
   color: #a3a3a3;
 }
 
-:global(html.dark .startup-error-details-trigger) {
-  color: #f87171;
-}
-
-:global(html.dark .startup-error-details-content) {
-  border-color: #f8717159;
-  background: #262626;
-  box-shadow: 0 8px 24px #0006;
-}
-
-:global(html.dark .startup-error-details-heading) {
-  color: #f87171;
-}
-
-:global(html.dark .startup-error-details-message) {
-  color: #d4d4d4;
-}
-
 @keyframes startup-error-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 @keyframes startup-error-fade-in {
@@ -485,12 +395,13 @@ watch(() => props.phase, (phase) => {
     left: 38px;
   }
 
-  .startup-status-error {
+  .startup-error-info {
     top: max(calc(env(safe-area-inset-top) + 88px), 17vh);
   }
 }
 
 @media (max-width: 600px) {
+  .startup-error-info,
   .startup-status-error {
     width: 100%;
   }
@@ -526,13 +437,10 @@ watch(() => props.phase, (phase) => {
     margin-left: 16px;
   }
 
-  .startup-error-details-content {
-    width: min(360px, calc(100vw - 24px));
-  }
-
   .startup-error-recovery {
     display: grid;
     width: calc(100% - 32px);
+    bottom: max(env(safe-area-inset-bottom), 24px);
   }
 
   .startup-error-action {
@@ -552,7 +460,7 @@ watch(() => props.phase, (phase) => {
     transition: none;
   }
 
-  .startup-error,
+  .startup-error-info,
   .startup-error-recovery {
     animation: none;
   }

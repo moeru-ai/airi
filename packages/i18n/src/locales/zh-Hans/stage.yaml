@@ -82,9 +82,10 @@ startup:
   failed: 启动失败
   failed-resource: 无法加载{resource}
   interrupted: 加载中断
-  recover: 重新启动 AIRI 再试一次。如果仍然失败，请查看下方的错误详情。
+  recover: 请重试。如果仍然失败，请查看下方的错误详情。
   recover-model: 重新启动 AIRI 再试一次，或暂不加载角色，稍后选择其他模型。
-  details: 错误详情
+  details: 发生了什么？
+  close-details: 关闭详情
   retry: 重新启动 AIRI
   continue-without-model: 暂不加载角色
   resources:

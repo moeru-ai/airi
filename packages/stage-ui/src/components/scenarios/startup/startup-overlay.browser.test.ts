@@ -36,9 +36,10 @@ function mountOverlay(onFinished: () => void) {
             'failed': 'Startup failed',
             'failed-resource': 'Could not load {resource}',
             'interrupted': 'Load interrupted',
-            'recover': 'Try again. If it fails again, select the information icon for details.',
+            'recover': 'Try again. If it fails again, open the details below.',
             'recover-model': 'Try again, or continue without a character. You can select another model later.',
-            'details': 'Error details',
+            'details': 'What happened?',
+            'close-details': 'Close details',
             'retry': 'Retry',
             'continue-without-model': 'Continue Anyway',
             'resources': { auth: 'account settings', model: 'character model' },
@@ -64,6 +65,10 @@ it('keeps the startup screen and retry action visible after a resource fails', a
   try {
     startup.register(['model'])
     startup.start('model')
+    await expect.poll(() => {
+      const rect = document.querySelector('.startup-track')?.getBoundingClientRect()
+      return rect ? Math.round(rect.top + rect.height / 2) : 0
+    }).toBe(810)
     startup.fail('model', new Error('Download failed'))
 
     await expect.poll(() => document.querySelector('[role="alert"]')?.textContent).toContain('Could not load character model')
@@ -77,14 +82,25 @@ it('keeps the startup screen and retry action visible after a resource fails', a
     expect(document.querySelector('.startup-status-error [role="progressbar"]')).not.toBeNull()
     expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Retry')
     expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Continue Anyway')
-    expect(document.querySelector('.startup-error-details-content')).toBeNull()
+    expect(document.querySelector('.startup-error-details-tooltip')).toBeNull()
     const detailsTrigger = document.querySelector<HTMLButtonElement>('.startup-error-details-trigger')
+    expect(detailsTrigger?.textContent).toContain('What happened?')
+    expect(detailsTrigger!.getBoundingClientRect().width).toBeLessThan(200)
+    expect(detailsTrigger!.getBoundingClientRect().top).toBeGreaterThan(document.querySelector('.startup-error-hint')!.getBoundingClientRect().bottom)
     detailsTrigger?.click()
-    await expect.poll(() => document.querySelector('.startup-error-details-content')?.textContent).toContain('Download failed')
+    await expect.poll(() => document.querySelector('[role="tooltip"]')?.textContent).toContain('Download failed')
+    expect(detailsTrigger?.getAttribute('aria-describedby')).toBe('startup-error-details-tooltip')
     const header = document.querySelector('.startup-error-header')!
     const headerRect = header.getBoundingClientRect()
     const recoveryRect = document.querySelector('.startup-error-recovery')!.getBoundingClientRect()
+    await expect.poll(() => {
+      const rect = document.querySelector('.startup-track')!.getBoundingClientRect()
+      return Math.abs(rect.top + rect.height / 2 - window.innerHeight * 0.7)
+    }).toBeLessThanOrEqual(6)
+    const progressRect = document.querySelector('.startup-track')!.getBoundingClientRect()
     const actions = document.querySelectorAll('.startup-error-action')
+    expect(progressRect.bottom).toBeLessThan(recoveryRect.top)
+    expect(recoveryRect.top).toBeGreaterThanOrEqual(window.innerHeight * 0.8)
     expect(Math.round(headerRect.width)).toBe(680)
     expect(Math.round(headerRect.left)).toBe(Math.round((window.innerWidth - headerRect.width) / 2))
     expect(Math.round(recoveryRect.width)).toBe(680)
@@ -96,6 +112,8 @@ it('keeps the startup screen and retry action visible after a resource fails', a
     expect(getComputedStyle(header, '::before').animationName).toContain('startup-warning-scroll')
     expect(getComputedStyle(header, '::after').content).toBe('none')
     expect(getComputedStyle(document.querySelector('.startup-error-header')!).fontFamily).toContain('WDXL Lubrifont SC')
+    document.querySelector<HTMLElement>('.startup-error-title')?.click()
+    await expect.poll(() => document.querySelector('[role="tooltip"]')).toBeNull()
     i18n.global.locale.value = 'ja'
     await expect.poll(() => getComputedStyle(document.querySelector('.startup-error-header')!).fontFamily).toContain('WDXL Lubrifont JP N')
     expect(finished).toBe(false)
@@ -123,11 +141,24 @@ it('fills narrow screens with the warning band and bottom actions', async () => 
     expect(actions).toHaveLength(2)
     expect(actions[0].getBoundingClientRect().width).toBe(window.innerWidth - 32)
     await page.viewport(320, 568)
+    await expect.poll(() => {
+      const rect = document.querySelector('.startup-track')!.getBoundingClientRect()
+      return Math.abs(rect.top + rect.height / 2 - window.innerHeight * 0.7)
+    }).toBeLessThanOrEqual(6)
+    const infoRect = document.querySelector('.startup-error-info')!.getBoundingClientRect()
+    const progressRect = document.querySelector('.startup-track')!.getBoundingClientRect()
+    const compactRecoveryRect = document.querySelector('.startup-error-recovery')!.getBoundingClientRect()
+    expect(infoRect.bottom).toBeLessThan(progressRect.top)
+    expect(progressRect.bottom).toBeLessThan(compactRecoveryRect.top)
+    expect(compactRecoveryRect.top).toBeGreaterThanOrEqual(window.innerHeight * 0.8)
     document.querySelector<HTMLButtonElement>('.startup-error-details-trigger')?.click()
-    await expect.poll(() => document.querySelector('.startup-error-details-content')).not.toBeNull()
-    const detailsRect = document.querySelector('.startup-error-details-content')!.getBoundingClientRect()
-    expect(detailsRect.left).toBeGreaterThanOrEqual(0)
-    expect(detailsRect.right).toBeLessThanOrEqual(window.innerWidth)
+    await expect.poll(() => document.querySelector('.startup-error-details-drawer')?.textContent).toContain('Download failed')
+    const detailsRect = document.querySelector('.startup-error-details-drawer')!.getBoundingClientRect()
+    expect(detailsRect.left).toBe(0)
+    expect(detailsRect.right).toBe(window.innerWidth)
+    await expect.poll(() => Math.round(document.querySelector('.startup-error-details-drawer')!.getBoundingClientRect().bottom)).toBe(window.innerHeight)
+    document.querySelector<HTMLButtonElement>('.startup-error-details-close')?.click()
+    await expect.poll(() => document.querySelector('.startup-error-details-drawer')).toBeNull()
   }
   finally {
     app.unmount()
@@ -145,6 +176,13 @@ it('offers Retry without a continue action when a required resource fails', asyn
     await expect.poll(() => document.querySelector('[role="alert"]')?.textContent).toContain('Could not load account settings')
     expect(document.querySelector('.startup-error-recovery')?.textContent).toContain('Retry')
     expect(document.querySelector('.startup-error-recovery')?.textContent).not.toContain('Continue Anyway')
+    await expect.poll(() => {
+      return Math.round(document.querySelector('.startup-track')!.getBoundingClientRect().bottom)
+    }).toBeLessThanOrEqual(720)
+    const progressRect = document.querySelector('.startup-track')!.getBoundingClientRect()
+    expect(progressRect.bottom).toBeGreaterThan(696)
+    expect(progressRect.bottom).toBeLessThanOrEqual(window.innerHeight * 0.8)
+    expect(document.querySelector('.startup-error-recovery')!.getBoundingClientRect().top).toBeGreaterThanOrEqual(window.innerHeight * 0.8)
   }
   finally {
     app.unmount()

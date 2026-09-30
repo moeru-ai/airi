@@ -35,6 +35,7 @@
     "@rive-app/canvas-lite": "catalog:",
     "@vueuse/core": "catalog:",
     "@vueuse/motion": "catalog:",
+    "vaul-vue": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {

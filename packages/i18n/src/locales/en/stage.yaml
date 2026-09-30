@@ -83,9 +83,10 @@ startup:
   failed: Startup failed
   failed-resource: Could not load {resource}
   interrupted: Load interrupted
-  recover: Try again. If it fails again, select the information icon for details.
+  recover: Try again. If it fails again, open the details below.
   recover-model: Try again, or continue without a character. You can select another model later.
-  details: Error details
+  details: What happened?
+  close-details: Close details
   retry: Retry
   continue-without-model: Continue Anyway
   model-timeout: The character model took too long to load. Check your connection and retry.
