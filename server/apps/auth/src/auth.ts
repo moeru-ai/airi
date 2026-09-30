@@ -536,8 +536,18 @@ export function createAuth(
       // detects the new session via polling and resumes the OIDC handoff.
       // Source: node_modules/better-auth/dist/api/routes/email-verification.mjs L268+
       autoSignInAfterVerification: true,
+      /** Selects the product result page when callers leave the verification destination unspecified. */
       async sendVerificationEmail({ user, url }) {
-        await requireEmailService(email).sendVerification({ to: user.email, url })
+        const verificationUrl = new URL(url)
+        const callback = verificationUrl.searchParams.get('callbackURL')
+        // Better Auth uses `/` for omitted callbacks. The API root has no verification result UI.
+        if (!callback || callback === '/') {
+          verificationUrl.searchParams.set(
+            'callbackURL',
+            new URL('/auth/verify-email?verified=true', env.PUBLIC_URL).toString(),
+          )
+        }
+        await requireEmailService(email).sendVerification({ to: user.email, url: verificationUrl.toString() })
       },
     },
 
