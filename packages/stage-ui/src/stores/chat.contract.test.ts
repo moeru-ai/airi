@@ -481,6 +481,25 @@ describe('chat store contract', () => {
     expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: message })
   })
 
+  it('keeps the original voice turn when a pending Retry stops before replacement storage', async () => {
+    const reference = 'airi-chat-audio:source'
+    storedAudio.set(reference, 'YXVkaW8=')
+    audioCapability.enabled = true
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'user', id: 'source-voice', content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }] },
+    ]
+    const store = useChatStore()
+    store.onBeforeMessageComposed(async () => {
+      currentGeneration += 1
+    })
+
+    await store.retry({ sessionId: 'session-1', index: 1 })
+
+    expect(sessionMessages['session-1']).toContainEqual(expect.objectContaining({ id: 'source-voice' }))
+    expect(storedAudio.get(reference)).toBe('YXVkaW8=')
+  })
+
   it('keeps an audio-only turn and its assistant reply out of text-only cloud sync', async () => {
     audioCapability.enabled = true
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {

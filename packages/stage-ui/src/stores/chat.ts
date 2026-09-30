@@ -686,12 +686,16 @@ export const useChatStore = defineStore('chat', () => {
     await chatSession.stageRetryMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
 
     try {
-      return await executeSend({
+      const result = await executeSend({
         sessionId: payload.sessionId,
         ...retryContent,
         replyToMessageId: sourceMessage?.replyToMessageId,
         tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
       })
+      const latestMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
+      if (latestMessages && !latestMessages.slice(sourceIndex).some(message => message.role === 'user'))
+        chatSession.restoreRetryMessages(payload.sessionId, currentMessages)
+      return result
     }
     catch (error) {
       const latestMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
