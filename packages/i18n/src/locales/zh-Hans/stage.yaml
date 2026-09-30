@@ -181,3 +181,4 @@ voice:
   empty-recording: 录音为空。
   empty-transcription: 未识别到文字。
   finish-failed: 无法完成录音。
+  push-to-talk: 按住说话

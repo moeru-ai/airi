@@ -1,9 +1,12 @@
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
+
+/** Automatic capture is separate from manual recording, which owns its microphone. */
+export type HearingInputMode = 'off' | 'push-to-talk' | 'always'
 
 let microphonePermissionStatus: PermissionStatus
 
@@ -24,6 +27,8 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   const audioInputEnabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
   // Retain device failures after input is disabled so the Stage can explain them.
   const error = ref<string>()
+  const mode = useLocalStorageManualReset<HearingInputMode>('settings/audio/input/mode', 'always')
+  const continuousInputEnabled = computed(() => audioInputEnabled.value && mode.value === 'always')
   let audioInputStartGeneration = 0
   let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
   let stopPendingAudioInput = false
@@ -118,7 +123,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     selectedAudioInputNonPersist.value = newValue
   })
 
-  watch(audioInputEnabled, (val) => {
+  watch(continuousInputEnabled, (val) => {
     if (val) {
       const generation = createAudioInputStartGeneration()
       startStreamForGeneration(generation).catch((error) => {
@@ -150,7 +155,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     if (hasSelectedInput)
       syncSelectedAudioInputToRuntime()
 
-    if (audioInputEnabled.value) {
+    if (continuousInputEnabled.value) {
       const generation = createAudioInputStartGeneration()
       startStreamForGeneration(generation).catch((error) => {
         handleStartStreamError(generation, error, 'Unable to initialize audio input stream:')
@@ -169,6 +174,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     selectedAudioInputPersist.reset()
     selectedAudioInputNonPersist.value = ''
     audioInputEnabled.reset()
+    mode.value = 'off'
     stopStream()
   }
 
@@ -180,6 +186,8 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     permissionGranted,
     selectedAudioInput: selectedAudioInputPersist,
     enabled: audioInputEnabled,
+    mode,
+    continuousInputEnabled,
 
     stream,
 

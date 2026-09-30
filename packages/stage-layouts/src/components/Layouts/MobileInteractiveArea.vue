@@ -5,7 +5,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, HearingPushToTalk, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -72,7 +72,9 @@ const {
 } = composer
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
-const voiceActive = shallowRef(false)
+const manualVoiceActive = shallowRef(false)
+const pushToTalkActive = shallowRef(false)
+const voiceActive = computed(() => manualVoiceActive.value || pushToTalkActive.value)
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
@@ -502,9 +504,10 @@ onUnmounted(() => {
               :input-element="inputBubble"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
-              @recording-change="voiceActive = $event"
+              @recording-change="manualVoiceActive = $event"
               @sent="composer.clearReply()"
             />
+            <HearingPushToTalk :session-id="activeSessionId" size="large" @recording-change="pushToTalkActive = $event" />
           </div>
         </div>
       </div>

@@ -769,6 +769,18 @@ pages:
     hearing:
       description: Configure how speech recognition works
       title: Hearing
+      input-mode:
+        label: Hearing input
+        description: Choose when AIRI listens. Voice messages remain available in every mode.
+        off: Off
+        push-to-talk: Push to Talk
+        always: Always on
+      push-to-talk-shortcut:
+        label: Push to Talk shortcut
+        description: Hold this shortcut to speak from any app.
+        placeholder: Press a key combination
+        reset: Reset to default
+        registration-failed: This shortcut could not be registered. Use the on-screen button or choose another shortcut.
       sections:
         section:
           provider-selection:

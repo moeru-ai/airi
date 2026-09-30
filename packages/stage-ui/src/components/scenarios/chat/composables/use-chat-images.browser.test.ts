@@ -1,12 +1,20 @@
 import type { ChatImageAttachment } from './use-chat-images'
 
-import { describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { defineComponent, h, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import { useChatComposer } from './use-chat-composer'
 import { useChatImages } from './use-chat-images'
+
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
 
 describe('chat image drafts', () => {
   it('reads actual files and restores attachments after failure', async () => {
@@ -20,7 +28,7 @@ describe('chat image drafts', () => {
         images = useChatImages(composer, () => activeSessionId.value)
         return () => h('div')
       },
-    }), { global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
+    }), { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
     const file = new File(['image bytes'], 'image.png', { type: 'image/png' })
     await images.addFiles([file])
     expect(composer.attachments.value[0].data).toBe(btoa('image bytes'))
@@ -43,7 +51,7 @@ describe('chat image drafts', () => {
         images = useChatImages(composer, () => activeSessionId.value)
         return () => h('div')
       },
-    }), { global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
+    }), { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
     const reading = images.addFiles([new File(['image'], 'image.png', { type: 'image/png' })])
     activeSessionId.value = 'second'
     expect(images.pending.value).toBe(0)
@@ -66,7 +74,7 @@ describe('chat image drafts', () => {
         images = useChatImages(composer, () => activeSessionId.value)
         return () => h('div')
       },
-    }), { global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
+    }), { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
 
     const files = Array.from({ length: 5 }, (_, index) => new File(['image'], `${index}.png`, { type: 'image/png' }))
     await images.addFiles(files)
@@ -95,7 +103,7 @@ describe('chat image drafts', () => {
         images = useChatImages(composer, () => activeSessionId.value)
         return () => h('div')
       },
-    }), { global: { plugins: [createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
+    }), { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
 
     // ROOT CAUSE:
     //

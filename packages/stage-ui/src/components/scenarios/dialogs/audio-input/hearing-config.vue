@@ -1,7 +1,10 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
+import type { HearingInputMode } from '../../../../stores/settings/audio-device'
+
+import { Callout, FieldCheckbox, FieldCombobox, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { useAudioAnalyzer } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
@@ -12,9 +15,15 @@ const props = withDefaults(defineProps<{
   granted: false,
 })
 
+const { t } = useI18n()
 const deviceStore = useSettingsAudioDevice()
+const modeOptions = computed<{ label: string, value: HearingInputMode }[]>(() => [
+  { label: t('settings.pages.modules.hearing.input-mode.off'), value: 'off' },
+  { label: t('settings.pages.modules.hearing.input-mode.push-to-talk'), value: 'push-to-talk' },
+  { label: t('settings.pages.modules.hearing.input-mode.always'), value: 'always' },
+])
 const { askPermission } = deviceStore
-const { audioInputOptions, enabled, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
+const { audioInputOptions, enabled, mode, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
 const { volumeLevel } = useAudioAnalyzer()
 
 const autoSend = defineModel<boolean | undefined>('autoSend')
@@ -50,6 +59,8 @@ const ringEnabledClass = computed(() => enabled.value
 )
 
 function toggleHearingEnabled() {
+  if (mode.value === 'off')
+    mode.value = 'always'
   if (enabled.value)
     return enabled.value = false
   if (selectedAudioInput.value !== '' && permissionGranted.value)
@@ -60,9 +71,16 @@ function toggleHearingEnabled() {
 </script>
 
 <template>
-  <div class="space-y-2">
+  <div :class="['space-y-2']">
+    <FieldSelect
+      v-model="mode"
+      :label="t('settings.pages.modules.hearing.input-mode.label')"
+      :description="t('settings.pages.modules.hearing.input-mode.description')"
+      :options="modeOptions"
+      layout="vertical"
+    />
     <!-- Minimal mic control with animated rings -->
-    <div class="flex flex-col items-center justify-center py-2">
+    <div v-if="mode !== 'push-to-talk'" :class="['flex flex-col items-center justify-center py-2']">
       <div class="relative h-28 w-28 select-none">
         <!-- Rings (scale + opacity follow volume) -->
         <div
