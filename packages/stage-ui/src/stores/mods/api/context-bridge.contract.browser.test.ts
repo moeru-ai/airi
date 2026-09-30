@@ -543,6 +543,27 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('keeps voice audio out of per-token broadcast contexts', async () => {
+    const postedStreams = collectChannelMessages<ChatStreamEvent>(CHAT_STREAM_CHANNEL_NAME)
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    const context: ChatStreamEventContext = {
+      turnId: 'voice-turn',
+      message: { role: 'user', content: 'voice message' },
+      contexts: {},
+      composedMessage: [],
+      input: { type: 'input:voice', data: { audio: new ArrayBuffer(1024) } },
+    }
+
+    await emitHooks(tokenLiteralHooks, 'hello', context)
+    await emitHooks(tokenSpecialHooks, 'done', context)
+    await vi.waitFor(() => expect(postedStreams).toHaveLength(2))
+
+    expect(postedStreams.map(event => event.context.input)).toEqual([undefined, undefined])
+    expect(context.input).toMatchObject({ type: 'input:voice', data: { audio: expect.any(ArrayBuffer) } })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743366445
   it('keeps a remote stream visible locally without publishing chat authority state for Issue #2085', async () => {
     // ROOT CAUSE:

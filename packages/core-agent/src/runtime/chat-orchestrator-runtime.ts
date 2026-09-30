@@ -45,16 +45,12 @@ function prependTextToContent<T extends { content?: unknown }>(msg: T, text: str
 }
 
 function getMessageText(message: ChatHistoryItem): string {
-  if (typeof message.content === 'string')
-    return message.content
-
-  if (!Array.isArray(message.content))
-    return ''
-
-  return message.content
-    .filter(part => part.type === 'text')
-    .map(part => part.text)
-    .join('\n')
+  const text = typeof message.content === 'string'
+    ? message.content
+    : Array.isArray(message.content)
+      ? message.content.filter(part => part.type === 'text').map(part => part.text).join('\n')
+      : ''
+  return [text, ...(message.audioTranscripts ?? [])].filter(Boolean).join('\n')
 }
 
 /**
@@ -107,6 +103,10 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
     || (message.citations?.length ?? 0) > 0
     || !!message.categorization?.reasoning.trim()
 }
+/** Send attachments carry base64 data. The session adapter stores audio by reference. */
+export type ChatAttachment
+  = | { type: 'image', data: string, mimeType: string }
+    | { type: 'audio', data: string, mimeType: 'audio/wav', transcript?: string }
 
 /**
  * Options accepted by the chat orchestrator runtime for one user send.
@@ -118,8 +118,10 @@ export interface ChatOrchestratorSendOptions {
   chatProvider: GenerationProvider
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
-  /** Image attachments appended to the user message content parts. */
-  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Media appended to the durable user message and the model request. */
+  attachments?: ChatAttachment[]
+  /** False projects available audio transcripts into text without changing history. @default true */
+  supportsAudioInput?: boolean
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
   /** Serializable tool names stored with the user message for later requests. */
@@ -174,8 +176,8 @@ export interface ChatOrchestratorSessionPort {
   ensureSession: (sessionId: string) => void
   /** Returns chronological chat history for a session. */
   getSessionMessages: (sessionId: string) => ChatHistoryItem[]
-  /** Appends a finalized user/assistant/tool history item. */
-  appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void
+  /** Resolves after the history item is stored. */
+  appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void | Promise<void>
   /** Returns a monotonic generation used to reject stale queued sends. */
   getSessionGeneration: (sessionId: string) => number
 }
@@ -269,6 +271,12 @@ export interface ChatOrchestratorRuntimeDeps {
   createId?: () => string
   /** Optional adapter for removing framework proxies before provider composition. */
   unwrapMessage?: <T>(message: T) => T
+  /** Stores audio outside synchronized chat history and returns its reference. */
+  storeAudioData?: (sessionId: string, data: string) => Promise<string>
+  /** Resolves a stored audio reference before the provider reads history. */
+  resolveAudioData?: (data: string) => Promise<string>
+  /** Removes audio that a stopped send stored before its user turn was appended. */
+  discardStoredAudioData?: (sessionId: string, reference: string) => Promise<void>
   /** Called whenever writable runtime state changes. */
   onStateChange?: (state: ChatOrchestratorRuntimeState) => void
   /** Called after a runtime-owned send completes or fails and `sending` has been cleared. */
@@ -364,6 +372,7 @@ export interface ChatOrchestratorRuntimeDeps {
     sessionId: string
     message: StreamingAssistantMessage
     messageText: string
+    roundId: string
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
@@ -497,15 +506,26 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildContext(history: ChatHistoryItem[]): Conversation {
+  function buildContext(history: ChatHistoryItem[], supportsAudioInput: boolean): Conversation {
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
     const turns = history.flatMap((message, historyIndex): Turn[] => {
       if (message.role === 'assistant' && message.generationTranscript)
         return [structuredClone(unwrapMessage(message.generationTranscript))]
+      const rawMessage = { ...unwrapMessage(message) }
+      if (!supportsAudioInput && rawMessage.role === 'user' && Array.isArray(rawMessage.content)) {
+        let audioIndex = 0
+        rawMessage.content = rawMessage.content.map((part) => {
+          if (part.type !== 'input_audio')
+            return part
+          const transcript = message.audioTranscripts?.[audioIndex++]
+          // Audio without a stored transcript reaches the stage ASR adapter.
+          return transcript ? { type: 'text' as const, text: transcript } : part
+        })
+      }
       const source = message.role === 'user'
-        ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
-        : unwrapMessage(message)
+        ? prependTextToContent(rawMessage, `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
+        : rawMessage
       return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
     })
     return { turns }
@@ -619,7 +639,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (options.attachments) {
         for (const attachment of options.attachments) {
-          if (attachment.type === 'image') {
+          if (attachment.type === 'audio') {
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.data, format: 'wav' } })
+          }
+          else if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
@@ -631,6 +654,33 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+      const storedAudioReferences: string[] = []
+      const discardStoredAudio = async () => {
+        if (!deps.discardStoredAudioData)
+          return
+        for (const reference of storedAudioReferences)
+          await deps.discardStoredAudioData(sessionId, reference)
+      }
+      let storedContent = finalContent
+      if (deps.storeAudioData && contentParts.length > 1) {
+        const storedParts: CommonContentPart[] = []
+        try {
+          for (const part of contentParts) {
+            if (part.type !== 'input_audio') {
+              storedParts.push(part)
+              continue
+            }
+            const reference = await deps.storeAudioData(sessionId, part.input_audio.data)
+            storedAudioReferences.push(reference)
+            storedParts.push({ ...part, input_audio: { ...part.input_audio, data: reference } })
+          }
+        }
+        catch (error) {
+          await discardStoredAudio()
+          throw error
+        }
+        storedContent = storedParts
+      }
       if (!streamingMessageContext.input) {
         streamingMessageContext.input = {
           type: 'input:text',
@@ -640,8 +690,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         }
       }
 
-      if (shouldAbort())
+      if (shouldAbort()) {
+        await discardStoredAudio()
         return
+      }
 
       replyToMessageId = resolveReplyTargetId(
         options.replyToMessageId,
@@ -654,13 +706,20 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const userMessage = {
         role: 'user' as const,
-        content: finalContent,
+        content: storedContent,
+        audioTranscripts: options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript),
         createdAt: sendingCreatedAt,
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
       }
-      deps.session.appendSessionMessage(sessionId, userMessage)
+      try {
+        await deps.session.appendSessionMessage(sessionId, userMessage)
+      }
+      catch (error) {
+        await discardStoredAudio()
+        throw error
+      }
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.
@@ -755,7 +814,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      const context = buildContext(sessionMessagesForSend, options.supportsAudioInput ?? true)
+      if (deps.resolveAudioData) {
+        for (const turn of context.turns) {
+          if (turn.type !== 'user')
+            continue
+          for (const part of turn.content) {
+            if (part.type === 'audio')
+              part.data = await deps.resolveAudioData(part.data)
+          }
+        }
+      }
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
@@ -814,6 +883,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
+        supportsAudioInput: options.supportsAudioInput,
         abortSignal,
         onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
         requestCorrelation: {
@@ -944,6 +1014,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           sessionId,
           message: finalAssistant,
           messageText: fullText,
+          roundId,
         })
       }
 

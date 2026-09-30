@@ -1,6 +1,8 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useHearingStore } from './hearing'
+
 const analyticsMock = vi.hoisted(() => ({
   allowComposableCall: true,
   trackMicrophonePermissionDenied: vi.fn(),
@@ -11,7 +13,7 @@ const analyticsMock = vi.hoisted(() => ({
 }))
 
 const transcriptionMock = vi.hoisted(() => ({
-  generateTranscription: vi.fn(async () => ({ text: 'hello' })),
+  generateTranscription: vi.fn(async (_options?: { abortSignal?: AbortSignal }) => ({ text: 'hello' })),
 }))
 
 vi.mock('../../composables/use-analytics', () => ({
@@ -58,7 +60,6 @@ describe('useHearingStore analytics lifecycle', () => {
    * await hearingStore.transcription(providerId, provider, model, file)
    */
   it('does not call analytics composables when a recording is transcribed later', async () => {
-    const { useHearingStore } = await import('./hearing')
     const hearingStore = useHearingStore()
     analyticsMock.allowComposableCall = false
 
@@ -88,7 +89,6 @@ describe('useHearingStore analytics lifecycle', () => {
    * await expect(hearingStore.transcription(providerId, provider, model, file)).rejects.toThrow()
    */
   it('normalizes microphone permission failures for analytics', async () => {
-    const { useHearingStore } = await import('./hearing')
     const hearingStore = useHearingStore()
     const permissionError = new DOMException('User denied microphone', 'NotAllowedError')
     transcriptionMock.generateTranscription.mockRejectedValueOnce(permissionError)
@@ -111,4 +111,28 @@ describe('useHearingStore analytics lifecycle', () => {
       error_code: 'permission_denied',
     })
   }, 10000)
+
+  it('passes cancellation to a recorded transcription request', async () => {
+    const hearingStore = useHearingStore()
+    const controller = new AbortController()
+    transcriptionMock.generateTranscription.mockImplementationOnce(options => new Promise<{ text: string }>((_resolve, reject) => {
+      const abortSignal = options?.abortSignal
+      abortSignal?.addEventListener('abort', () => reject(abortSignal.reason), { once: true })
+    }))
+
+    const pending = hearingStore.transcription(
+      'openai-compatible-audio-transcription',
+      { transcription: (model: string) => ({ baseURL: 'https://example.com', model }) },
+      'FunAudioLLM/SenseVoiceSmall',
+      new File(['hello'], 'recording.wav', { type: 'audio/wav' }),
+      undefined,
+      { abortSignal: controller.signal },
+    )
+    await vi.waitFor(() => expect(transcriptionMock.generateTranscription).toHaveBeenCalledOnce())
+    expect(transcriptionMock.generateTranscription).toHaveBeenCalledWith(expect.objectContaining({ abortSignal: controller.signal }))
+
+    controller.abort()
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' })
+    expect(analyticsMock.trackSttFailed).not.toHaveBeenCalled()
+  })
 })

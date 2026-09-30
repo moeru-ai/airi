@@ -40,6 +40,7 @@ import ControlsIsland from '../components/stage-islands/controls-island/index.vu
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
 import { electronAppIsWayland, electronOpenOnboarding } from '../../shared/eventa'
+import { createManualRecordingChannel, manualRecordingHeartbeatMs, ManualRecordingLeaseTracker, manualRecordingStateChanged } from '../../shared/manual-recording'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
@@ -397,6 +398,28 @@ const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<Stop
   start: startAudioInteractionConsumers,
   stop: stopAudioInteractionConsumers,
 })
+const manualRecordingActive = shallowRef(false)
+const manualRecordingLeases = new ManualRecordingLeaseTracker()
+const manualRecordingChannel = createManualRecordingChannel()
+const stopManualRecordingEvents = manualRecordingChannel.context.on(manualRecordingStateChanged, ({ body }) => {
+  if (!body)
+    return
+  manualRecordingLeases.apply(body)
+  manualRecordingActive.value = manualRecordingLeases.active
+})
+const manualRecordingExpiryTimer = setInterval(() => {
+  manualRecordingLeases.expire()
+  manualRecordingActive.value = manualRecordingLeases.active
+}, manualRecordingHeartbeatMs)
+watch(manualRecordingActive, (active) => {
+  if (active) {
+    clearAssistantSpeechResumeTimer()
+    void voiceInputInteractionLifecycle.stop({ flushTranscript: false }).catch(error => reportVoiceInputFailure('pause for manual recording', error))
+  }
+  else if (enabled.value) {
+    void voiceInputInteractionLifecycle.start().catch(error => reportVoiceInputFailure('resume after manual recording', error))
+  }
+}, { flush: 'sync' })
 
 // Caption overlay broadcast channel
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
@@ -460,6 +483,7 @@ function isVoiceInputSuppressed(now = Date.now()) {
   return shouldSuppressVoiceInput({
     assistantSpeaking: nowSpeaking.value,
     suppressedUntil: assistantSpeechSuppressedUntil.value,
+    manualRecordingActive: manualRecordingActive.value,
   }, now)
 }
 
@@ -476,7 +500,7 @@ function inspectVoiceInputProviderRequestGate(generation: unknown) {
   else if (!audioEnabled)
     reason = 'Skipped voice input segment because audio input is disabled'
   else if (suppressed)
-    reason = 'Skipped voice input segment while assistant speech is active or cooling down'
+    reason = 'Skipped voice input segment while manual recording or assistant speech is active'
 
   return {
     generation,
@@ -520,7 +544,7 @@ function clearAssistantSpeechResumeTimer() {
 function scheduleAssistantSpeechResume() {
   clearAssistantSpeechResumeTimer()
 
-  if (!enabled.value)
+  if (!enabled.value || manualRecordingActive.value)
     return
 
   const remainingCooldownMs = Math.max(
@@ -588,6 +612,8 @@ function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelE
  * Sends buffered voice input text to the active chat session.
  */
 async function sendVoiceInputTextToChat(text: string) {
+  if (manualRecordingActive.value)
+    return
   try {
     await chatStore.send({
       sessionId: chatSession.activeSessionId,
@@ -676,12 +702,17 @@ const voiceInputSession = useVoiceInputSession(stream, {
 
 /** Starts the active streaming or recorder-backed voice-input consumers. */
 async function startAudioInteractionConsumers() {
+  if (manualRecordingActive.value)
+    return
   if (isVoiceInputSuppressed()) {
     scheduleAssistantSpeechResume()
     return
   }
 
   if (!await ensureLiveAudioInputStream())
+    return
+
+  if (manualRecordingActive.value)
     return
 
   if (shouldUseStreamInput.value) {
@@ -792,6 +823,9 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  clearInterval(manualRecordingExpiryTimer)
+  stopManualRecordingEvents()
+  manualRecordingChannel.dispose()
   removeStreamingTranscriptionConsumer(transcriptionConsumerId)
   for (const [timer, sourceId] of hearingInputClearTimers) {
     clearTimeout(timer)

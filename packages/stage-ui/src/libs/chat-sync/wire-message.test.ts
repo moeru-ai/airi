@@ -75,6 +75,7 @@ describe('isCloudSyncableMessage', () => {
     expect(isCloudSyncableMessage({ role: 'system', content: 'x' })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'error', content: 'x' })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'assistant', interrupted: true, content: 'partial', slices: [], tool_results: [] })).toBe(false)
+    expect(isCloudSyncableMessage({ role: 'user', content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }] })).toBe(false)
     expect(isCloudSyncableMessage({ role: 'user', content: 'x' })).toBe(true)
     expect(isCloudSyncableMessage({ role: 'assistant', content: 'x', slices: [], tool_results: [] })).toBe(true)
   })

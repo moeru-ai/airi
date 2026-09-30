@@ -39,6 +39,10 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
   }
 }
 
+function snapshotTokenContext(context: ChatStreamEventContext): ChatStreamEventContext {
+  return structuredClone(normalizeContextSnapshot({ ...context, input: undefined }))
+}
+
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const consumerRegistrationEvents = [
     'input:text',
@@ -813,13 +817,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: snapshotTokenContext(context) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: snapshotTokenContext(context) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)

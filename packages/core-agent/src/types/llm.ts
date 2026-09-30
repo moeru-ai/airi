@@ -50,6 +50,8 @@ export interface StreamOptions {
   abortSignal?: AbortSignal
   headers?: Record<string, string>
   onStreamEvent?: (event: StreamEvent) => void | Promise<void>
+  /** Audio capability captured with the queued chat request. */
+  supportsAudioInput?: boolean
   /** Called once after the full stream, including tool rounds, has settled. */
   onUsage?: (usage: LlmUsage) => void | Promise<void>
   /** Internal correlation kept out of the provider request body. */

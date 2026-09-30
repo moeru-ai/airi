@@ -3,6 +3,8 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { ChatHistoryItem } from '../types/chat'
+
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
@@ -16,6 +18,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
+import { useVoiceSendStore } from './chat/voice-send'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
@@ -67,6 +70,8 @@ const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
 const createUserAccountContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
+const cleanupMessagesMock = vi.fn()
+const pushMessageToCloudMock = vi.hoisted(() => vi.fn())
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
@@ -77,7 +82,12 @@ const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
+const audioCapability = vi.hoisted(() => ({ enabled: false }))
+const transcriptionMocks = vi.hoisted(() => ({ configured: false, transcribe: vi.fn() }))
+const storedAudio = vi.hoisted(() => new Map<string, string>())
+const audioStorageMocks = vi.hoisted(() => ({ saveError: undefined as Error | undefined }))
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
+const runArtistTaskMock = vi.hoisted(() => vi.fn())
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
@@ -96,6 +106,19 @@ vi.mock('pinia', async () => {
 
 vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
+}))
+
+vi.mock('../database/repos/chat-audio.repo', () => ({
+  chatAudioRepo: {
+    save: async (_sessionId: string, data: string) => {
+      if (audioStorageMocks.saveError)
+        throw audioStorageMocks.saveError
+      const reference = `airi-chat-audio:${storedAudio.size}`
+      storedAudio.set(reference, data)
+      return reference
+    },
+    load: async (data: string) => storedAudio.get(data) ?? data,
+  },
 }))
 
 vi.mock('../libs/product-signals', () => ({
@@ -144,6 +167,7 @@ vi.mock('./chat/context-store', () => ({
   useChatContextStore: () => ({
     ingestContextMessage: ingestContextMessageMock,
     getContextsSnapshot: getContextsSnapshotMock,
+    resetContexts: vi.fn(),
   }),
 }))
 
@@ -169,6 +193,7 @@ vi.mock('./chat/session-store', () => ({
     },
     cleanupMessages: (sessionId: string) => {
       sessionMessages[sessionId] = []
+      return cleanupMessagesMock(sessionId)
     },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
@@ -182,16 +207,25 @@ vi.mock('./chat/session-store', () => ({
     setSessionMessages: (sessionId: string, messages: any[]) => {
       sessionMessages[sessionId] = messages
     },
+    stageRetryMessages: (sessionId: string, messages: ChatHistoryItem[]) => {
+      sessionMessages[sessionId] = messages
+      return Promise.resolve()
+    },
+    restoreRetryMessages: (sessionId: string, messages: ChatHistoryItem[]) => {
+      sessionMessages[sessionId] = messages
+    },
+    finishRetryMessages: vi.fn().mockResolvedValue(undefined),
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
-    pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
+    pushMessageToCloud: pushMessageToCloudMock,
   }),
 }))
 
 vi.mock('./chat/stream-store', () => ({
   useChatStreamStore: () => ({
     streamingMessage: streamingMessageRef,
+    resetStream: vi.fn(),
   }),
 }))
 
@@ -218,11 +252,17 @@ vi.mock('./modules/consciousness', () => ({
   useConsciousnessStore: () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
+    get supportsAudioInput() { return audioCapability.enabled },
     providerModels: consciousnessModels.value,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
   }),
+}))
+
+vi.mock('./modules/hearing', () => ({
+  useHearingStore: () => ({ get configured() { return transcriptionMocks.configured } }),
+  useHearingSpeechInputPipeline: () => ({ transcribeForRecording: transcriptionMocks.transcribe }),
 }))
 
 vi.mock('./modules/airi-card', () => ({
@@ -233,7 +273,7 @@ vi.mock('./modules/airi-card', () => ({
 
 vi.mock('./modules/artistry-autonomous', () => ({
   useAutonomousArtistryStore: () => ({
-    runArtistTask: vi.fn(),
+    runArtistTask: runArtistTaskMock,
   }),
 }))
 
@@ -250,6 +290,8 @@ const provider: GenerationProvider = {
 
 describe('chat store contract', () => {
   beforeEach(() => {
+    storedAudio.clear()
+    audioStorageMocks.saveError = undefined
     setActivePinia(createPinia())
     llmStreamMock.mockReset()
     trackFirstMessageMock.mockReset()
@@ -268,6 +310,8 @@ describe('chat store contract', () => {
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
+    cleanupMessagesMock.mockReset().mockResolvedValue(undefined)
+    pushMessageToCloudMock.mockReset().mockResolvedValue(undefined)
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
@@ -285,13 +329,18 @@ describe('chat store contract', () => {
       execute: vi.fn(),
     })))
     visionMocks.configured = false
+    audioCapability.enabled = false
+    transcriptionMocks.configured = false
+    transcriptionMocks.transcribe.mockReset()
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
+    runArtistTaskMock.mockReset()
     ioTracerMocks.activeTurnSpan.value = undefined
     ioTracerMocks.spans.length = 0
     ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
+    activeModelRef.value = 'gpt-test'
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -300,6 +349,17 @@ describe('chat store contract', () => {
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4141167002
+  // ROOT CAUSE:
+  // Chat cleanup discarded the session cleanup promise.
+  // It now reports storage failures to its caller.
+  it('waits for message cleanup and reports audio removal failures', async () => {
+    cleanupMessagesMock.mockRejectedValueOnce(new Error('Audio cleanup failed'))
+
+    await expect(useChatStore().cleanup('session-1')).rejects.toThrow('Audio cleanup failed')
+    expect(cleanupMessagesMock).toHaveBeenCalledWith('session-1')
   })
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {
@@ -356,6 +416,357 @@ describe('chat store contract', () => {
       { type: 'text', text: 'What is this?' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
     ])
+  })
+
+  it('replays the recording and transcript when retrying a failed voice turn', async () => {
+    audioCapability.enabled = true
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: '' },
+          { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } },
+        ],
+        audioTranscripts: ['spoken words'],
+        id: 'user-voice',
+      },
+      { role: 'error', content: 'Provider failed' },
+    ]
+
+    const store = useChatStore()
+    await store.retry({ sessionId: 'session-1', index: 2 })
+
+    const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
+    expect(retried.content).toEqual([
+      { type: 'text', text: '' },
+      { type: 'input_audio', input_audio: { data: 'airi-chat-audio:0', format: 'wav' } },
+    ])
+    expect(retried.audioTranscripts).toEqual(['spoken words'])
+    expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenCalledWith(expect.objectContaining({ mode: 'voice', trigger_method: 'voice' }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4141324355
+  // ROOT CAUSE:
+  // Retry persisted truncated history before it stored the replacement turn.
+  // The store now keeps the truncation in memory and restores the source after an early failure.
+  it.each([
+    { failure: 'provider', message: 'Provider unavailable' },
+    { failure: 'audio', message: 'Audio storage failed' },
+  ])('keeps the original voice turn when Retry fails before replacement storage: $failure', async ({ failure, message }) => {
+    const reference = 'airi-chat-audio:source'
+    storedAudio.set(reference, 'YXVkaW8=')
+    audioCapability.enabled = true
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }],
+        id: 'source-voice',
+      },
+      { role: 'error', content: 'Earlier failure' },
+    ]
+    if (failure === 'provider')
+      getChatProviderInstanceMock.mockRejectedValueOnce(new Error(message))
+    else
+      audioStorageMocks.saveError = new Error(message)
+
+    await expect(useChatStore().retry({ sessionId: 'session-1', index: 2 })).rejects.toThrow(message)
+
+    expect(sessionMessages['session-1']).toContainEqual(expect.objectContaining({ id: 'source-voice' }))
+    expect(storedAudio.get(reference)).toBe('YXVkaW8=')
+    expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: message })
+  })
+
+  it('keeps the original voice turn when a pending Retry stops before replacement storage', async () => {
+    const reference = 'airi-chat-audio:source'
+    storedAudio.set(reference, 'YXVkaW8=')
+    audioCapability.enabled = true
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'user', id: 'source-voice', content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }] },
+    ]
+    const store = useChatStore()
+    store.onBeforeMessageComposed(async () => {
+      currentGeneration += 1
+    })
+
+    await store.retry({ sessionId: 'session-1', index: 1 })
+
+    expect(sessionMessages['session-1']).toContainEqual(expect.objectContaining({ id: 'source-voice' }))
+    expect(storedAudio.get(reference)).toBe('YXVkaW8=')
+  })
+
+  it('keeps an audio-only turn and its assistant reply out of text-only cloud sync', async () => {
+    audioCapability.enabled = true
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'Reply' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+    expect(pushMessageToCloudMock).not.toHaveBeenCalled()
+
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+    expect(pushMessageToCloudMock).toHaveBeenCalledTimes(2)
+    expect(pushMessageToCloudMock).toHaveBeenCalledWith('session-1', expect.objectContaining({ role: 'user', content: 'Hello' }))
+    expect(pushMessageToCloudMock).toHaveBeenCalledWith('session-1', expect.objectContaining({ role: 'assistant', content: 'Reply' }))
+  })
+
+  it('keeps queued voice audio when the selected model changes', async () => {
+    let releaseFirstSend: (() => void) | undefined
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await new Promise<void>((resolve) => {
+        releaseFirstSend = resolve
+      })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    llmStreamMock.mockImplementationOnce(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    const firstSend = store.send({ sessionId: 'session-1', text: 'Hold queue' })
+    await vi.waitFor(() => expect(llmStreamMock).toHaveBeenCalledTimes(1))
+
+    audioCapability.enabled = true
+    const voiceSend = store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+    await vi.waitFor(() => expect(store.pendingQueuedSendCount).toBe(1))
+    audioCapability.enabled = false
+    releaseFirstSend?.()
+    await firstSend
+    await voiceSend
+
+    const voiceContext = llmStreamMock.mock.calls[1][2] as Conversation
+    expect(voiceContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+  })
+
+  it('transcribes audio when the resolved provider uses the Responses protocol', async () => {
+    audioCapability.enabled = true
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    getChatProviderInstanceMock.mockResolvedValue({
+      generation: (model: string) => ({
+        protocol: 'responses',
+        config: { model, baseURL: 'https://example.com/' },
+        webSearch: false,
+      }),
+    } satisfies GenerationProvider)
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+
+    const context = llmStreamMock.mock.calls[0][2] as Conversation
+    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).not.toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+  })
+
+  it('shows the translated Hearing setup error when a text model needs transcription', async () => {
+    await expect(useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })).rejects.toThrow('stage.voice.configure-description')
+
+    expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: 'stage.voice.configure-description' })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4138591537
+  // ROOT CAUSE:
+  // The empty transcription path used an English fallback in chat history.
+  // It now uses the existing translated voice error.
+  it('stores the translated error when transcription returns no text', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('')
+
+    await expect(useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })).rejects.toThrow('stage.voice.empty-transcription')
+
+    expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: 'stage.voice.empty-transcription' })
+    expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
+  it('captures audio capability with the selected model before loading the session', async () => {
+    audioCapability.enabled = true
+    loadSessionMock.mockImplementationOnce(async () => {
+      activeModelRef.value = 'text-model'
+      audioCapability.enabled = false
+      return true
+    })
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+
+    expect(llmStreamMock.mock.calls[0][0]).toBe('gpt-test')
+    const context = llmStreamMock.mock.calls[0][2] as Conversation
+    expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+  })
+
+  it('uses a stored transcript when native audio falls back to string content', async () => {
+    audioCapability.enabled = true
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions & { prepareStringContent: () => Promise<Conversation> }) => {
+      expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+      const textContext = await options.prepareStringContent()
+      expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+      expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=', transcript: 'spoken words' }],
+    })
+
+    expect(transcriptionMocks.transcribe).not.toHaveBeenCalled()
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'airi-chat-audio:0', format: 'wav' } })
+  })
+
+  it('transcribes native audio before retrying string-only content', async () => {
+    audioCapability.enabled = true
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions & { prepareStringContent: () => Promise<Conversation> }) => {
+      const textContext = await options.prepareStringContent()
+      expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })
+
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledOnce()
+    expect(sessionMessages['session-1'][1].audioTranscripts).toEqual(['spoken words'])
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'airi-chat-audio:0', format: 'wav' } })
+  })
+
+  it('passes stored voice transcripts to autonomous artistry without repeating them in the chat prompt', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=', transcript: 'spoken words' }],
+    })
+
+    expect(runArtistTaskMock).toHaveBeenCalledWith('spoken words', expect.any(Array))
+    const context = llmStreamMock.mock.calls[0][2] as Conversation
+    const userParts = context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])
+    expect(userParts.filter(part => part.type === 'text' && part.text === 'spoken words')).toHaveLength(1)
+    expect(userParts).not.toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
+  })
+
+  it('stores a historical recording transcript after its first text-only request', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('spoken words')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'].push({
+      role: 'user',
+      id: 'recorded-turn',
+      content: [
+        { type: 'text', text: '' },
+        { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } },
+      ],
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'First request' })
+    await store.send({ sessionId: 'session-1', text: 'Second request' })
+
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledTimes(1)
+    expect(sessionMessages['session-1'][1].audioTranscripts).toEqual(['spoken words'])
+    expect(sessionMessages['session-1'][1].content).toContainEqual({ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } })
+    expect(llmStreamMock.mock.calls[1][2].turns.flatMap((turn: Turn) => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
+  })
+
+  it('keeps original audio indexes when only a later recording needs transcription', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('second recording')
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'].push({
+      role: 'user',
+      id: 'recorded-turn',
+      content: [
+        { type: 'input_audio', input_audio: { data: 'Zmlyc3Q=', format: 'wav' } },
+        { type: 'input_audio', input_audio: { data: 'c2Vjb25k', format: 'wav' } },
+      ],
+      audioTranscripts: ['first recording', undefined],
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'First request' })
+    await store.send({ sessionId: 'session-1', text: 'Second request' })
+
+    expect(transcriptionMocks.transcribe).toHaveBeenCalledTimes(1)
+    expect(sessionMessages['session-1'][1].audioTranscripts).toEqual(['first recording', 'second recording'])
+    const secondPrompt = llmStreamMock.mock.calls[1][2] as Conversation
+    expect(secondPrompt.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: expect.stringContaining('first recording') })
+    expect(secondPrompt.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'second recording' })
+  })
+
+  it('cancels lazy transcription for stored audio when the chat turn stops', async () => {
+    transcriptionMocks.configured = true
+    let transcriptionSignal: AbortSignal | undefined
+    transcriptionMocks.transcribe.mockImplementation((_file: Blob, abortSignal?: AbortSignal) => new Promise<string>((_resolve, reject) => {
+      transcriptionSignal = abortSignal
+      abortSignal?.addEventListener('abort', () => reject(abortSignal.reason), { once: true })
+    }))
+    sessionMessages['session-1'].push({
+      role: 'user',
+      id: 'recorded-turn',
+      content: [{ type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }],
+    })
+
+    const store = useChatStore()
+    const sending = store.send({ sessionId: 'session-1', text: 'Next turn' })
+    await vi.waitFor(() => expect(transcriptionSignal).toBeDefined())
+    await store.cancelPendingSends('session-1')
+    await sending
+
+    expect(transcriptionSignal?.aborted).toBe(true)
+    expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
   it('cancels vision preprocessing when its chat turn is cancelled', async () => {
@@ -1236,6 +1647,11 @@ describe('chat store contract', () => {
     })
 
     const store = useChatStore()
+    const voiceSends = useVoiceSendStore()
+    voiceSends.pendingSends = {
+      'session-1': { sessionId: 'session-1', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
+      'session-2': { sessionId: 'session-2', audio: { type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }, existingMessageIds: [], status: 'failed' },
+    }
     const firstSend = store.send({
       sessionId: 'session-1',
       text: 'active turn',
@@ -1262,6 +1678,8 @@ describe('chat store contract', () => {
     await store.deleteSession('session-1')
 
     expect(deleteSessionMock).toHaveBeenCalledWith('session-1')
+    expect(voiceSends.pendingSends['session-1']).toBeUndefined()
+    expect(voiceSends.pendingSends['session-2']).toBeDefined()
     expect(await queuedOutcome).toBe('Chat session was reset before send could start')
     expect(sessionMessages['session-1']).toBeUndefined()
 

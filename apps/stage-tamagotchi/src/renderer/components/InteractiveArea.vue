@@ -8,7 +8,7 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -22,12 +22,13 @@ import { BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
-import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.vue'
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
+import { createManualRecordingChannel, manualRecordingHeartbeatMs, manualRecordingStateChanged } from '../../shared/manual-recording'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
 import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
@@ -49,6 +50,33 @@ const lastEnterTime = ref(0)
 // Each request captures this composer selection, including retries and tool reruns.
 const computerUseEnabled = ref(true)
 const hearingDialogOpen = shallowRef(false)
+const voiceActive = ref(false)
+const manualRecordingChannel = createManualRecordingChannel()
+const manualRecordingSourceId = crypto.randomUUID()
+let manualRecordingHeartbeat: ReturnType<typeof setInterval> | undefined
+function publishManualRecordingState(active: boolean) {
+  return manualRecordingChannel.context.emit(manualRecordingStateChanged, { sourceId: manualRecordingSourceId, active })
+}
+watch(voiceActive, (active) => {
+  if (manualRecordingHeartbeat)
+    clearInterval(manualRecordingHeartbeat)
+  void publishManualRecordingState(active)
+    .catch(error => console.warn('[Interactive Area] Failed to publish manual recording state:', error))
+  if (active) {
+    manualRecordingHeartbeat = setInterval(() => {
+      void publishManualRecordingState(true)
+        .catch(error => console.warn('[Interactive Area] Failed to renew manual recording state:', error))
+    }, manualRecordingHeartbeatMs)
+  }
+}, { flush: 'sync' })
+onUnmounted(() => {
+  if (manualRecordingHeartbeat)
+    clearInterval(manualRecordingHeartbeat)
+  void publishManualRecordingState(false)
+    .catch(error => console.warn('[Interactive Area] Failed to clear manual recording state:', error))
+    .finally(() => manualRecordingChannel.dispose())
+})
+const voiceInput = useTemplateRef<HTMLElement>('voiceInput')
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -421,8 +449,9 @@ defineExpose({ restoreDraft, snapshotDraft })
         <p v-if="pendingImages" role="status" :class="['px-2 text-sm text-neutral-500']">
           {{ t('stage.chat.images.reading') }}
         </p>
-        <div :class="['w-full shrink-0 overflow-hidden bg-transparent']">
+        <div ref="voiceInput" :class="['relative w-full shrink-0 overflow-hidden bg-transparent']">
           <ChatReplyPreview
+            :class="[voiceActive && 'invisible']"
             :target="replyTarget"
             @cancel="handleCancelReply"
           />
@@ -436,6 +465,7 @@ defineExpose({ restoreDraft, snapshotDraft })
               props.floating ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
               'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
+              voiceActive && 'invisible',
             ]"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
@@ -479,6 +509,15 @@ defineExpose({ restoreDraft, snapshotDraft })
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
           </GhostButton>
           <span aria-hidden="true" :class="['mx-1 h-5 w-px bg-neutral-300/70 dark:bg-neutral-700/70']" />
+          <VoiceComposer
+            v-model="messageInput"
+            :input-element="voiceInput"
+            :session-id="activeSessionId"
+            :reply-to-message-id="replyTarget?.message.id"
+            :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
+            @recording-change="voiceActive = $event"
+            @sent="composer.clearReply()"
+          />
           <DropdownMenuRoot>
             <DropdownMenuTrigger as-child>
               <GhostButton

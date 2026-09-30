@@ -2,13 +2,14 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import ChatHistory from './history.vue'
 
+import { chatAudioRepo } from '../../../../database/repos/chat-audio.repo'
 import { getChatHistoryItemKey } from '../utils'
 
 const triggerHaptic = vi.fn()
@@ -130,6 +131,10 @@ function dispatchTouchEvent(
 describe('chat history', () => {
   beforeEach(() => {
     triggerHaptic.mockClear()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('renders a stored reply relation inside the message bubble', async () => {
@@ -1241,6 +1246,92 @@ describe('chat history', () => {
         },
       ]])
     })
+  })
+
+  it('allows a reply to a voice message with a transcript', async () => {
+    const message: ChatHistoryItem = {
+      id: 'voice-reply-target',
+      role: 'user',
+      content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }],
+      audioTranscripts: ['Spoken words'],
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    expect(swipeSurface).not.toBeNull()
+    if (!swipeSurface)
+      throw new Error('Expected a voice message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40)
+
+    await vi.waitFor(() => {
+      expect(screen.emitted('replyMessage')).toEqual([[{ message, label: 'You' }]])
+    })
+  })
+
+  it('loads voice recording bytes only after playback input', async () => {
+    const recording = Promise.withResolvers<string>()
+    const loadAudio = vi.spyOn(chatAudioRepo, 'load').mockReturnValue(recording.promise)
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'voice-on-demand', role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'airi-chat-audio:session/id', format: 'wav' } }] }],
+        variant: 'mobile',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await vi.waitFor(() => expect(screen.container.querySelector('audio')).not.toBeNull())
+    const player = screen.container.querySelector('audio')
+    if (!player)
+      throw new Error('Expected a voice player.')
+
+    expect(loadAudio).not.toHaveBeenCalled()
+    expect(player.getAttribute('src')).toBeNull()
+
+    const play = vi.spyOn(player, 'play').mockResolvedValue()
+    player.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+    await vi.waitFor(() => expect(loadAudio).toHaveBeenCalledWith('airi-chat-audio:session/id'))
+    expect(play).toHaveBeenCalledOnce()
+    expect(player.getAttribute('src')).toBeNull()
+    recording.resolve('YXVkaW8=')
+    await vi.waitFor(() => expect(player.src).toMatch(/^blob:/))
+  })
+
+  it('does not offer reply for a voice message without text', async () => {
+    const message: ChatHistoryItem = {
+      id: 'voice-without-transcript',
+      role: 'user',
+      content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'YXVkaW8=', format: 'wav' } }],
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await vi.waitFor(() => expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull())
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a voice message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40)
+
+    expect(screen.emitted('replyMessage')).toBeUndefined()
+    expect(screen.container.querySelector('.i-solar\\:reply-bold-duotone')).toBeNull()
   })
 
   // ROOT CAUSE:

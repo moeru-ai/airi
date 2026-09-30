@@ -16,7 +16,11 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider') {
+function createHarness(getActiveProvider = () => 'mock-provider', audioAdapters?: {
+  storeAudioData: (sessionId: string, data: string) => Promise<string>
+  resolveAudioData: (data: string) => Promise<string>
+  discardStoredAudioData?: (sessionId: string, reference: string) => Promise<void>
+}) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -59,6 +63,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   let monotonicNowValues = [1000]
   let generation = 1
   let assistantResponseRenderedError: Error | undefined
+  let appendUserMessageError: Error | undefined
 
   const runtime = createChatOrchestratorRuntime({
     session: {
@@ -67,6 +72,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
       },
       getSessionMessages: sessionId => sessionMessages[sessionId] ?? [],
       appendSessionMessage: (sessionId, message) => {
+        if (message.role === 'user' && appendUserMessageError)
+          return Promise.reject(appendUserMessageError)
         sessionMessages[sessionId] ??= []
         sessionMessages[sessionId].push(message)
       },
@@ -85,6 +92,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
+    ...audioAdapters,
     getSystemPromptSupplement: () => systemPromptSupplement,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
@@ -113,6 +121,11 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   })
 
   return {
+    appendUserMessageError: {
+      set: (error: Error | undefined) => {
+        appendUserMessageError = error
+      },
+    },
     assistantAppended,
     assistantResponseRenderedError: {
       set: (error: Error | undefined) => {
@@ -332,6 +345,29 @@ describe('createChatOrchestratorRuntime', () => {
     expect(providerUserMessage).toMatchObject({
       role: 'user',
       content: `[2026-04-25 18:47] [Replying to: ${'a'.repeat(479)}…]\nMy follow-up`,
+    })
+  })
+
+  it('uses a stored voice transcript to identify the replied message', async () => {
+    const harness = createHarness()
+    harness.sessionMessages['session-1']?.push({
+      role: 'user',
+      id: 'voice-earlier',
+      content: [{ type: 'text', text: '' }, { type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }],
+      audioTranscripts: ['Turn on the light.'],
+    })
+
+    await harness.runtime.ingest('Why?', {
+      model: 'text-model',
+      chatProvider: provider,
+      supportsAudioInput: false,
+      replyToMessageId: 'voice-earlier',
+    })
+
+    const providerMessages = conversationToChatMessages(harness.stream.mock.calls[0]![2])
+    expect(providerMessages.at(-1)).toMatchObject({
+      role: 'user',
+      content: '[2026-04-25 18:47] [Replying to: Turn on the light.]\nWhy?',
     })
   })
 
@@ -1213,6 +1249,116 @@ describe('createChatOrchestratorRuntime', () => {
 
     await expect(secondSend).rejects.toThrow('Chat session was reset before send could start')
     await firstSend
+  })
+
+  it('keeps audio-only turns in history and sends native audio to capable models', async () => {
+    const harness = createHarness()
+    await harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+    const sent = harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')
+    expect(sent?.content).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
+    expect(sent).not.toHaveProperty('audioTranscripts')
+  })
+
+  it('stores audio references in history and resolves bytes for later provider turns', async () => {
+    const storedAudio = new Map([['audio-ref', 'UklGRg==']])
+    const harness = createHarness(undefined, {
+      storeAudioData: async () => 'audio-ref',
+      resolveAudioData: async data => storedAudio.get(data) ?? data,
+    })
+    await harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')
+
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'audio-ref', format: 'wav' } })
+    expect(harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')?.content).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
+
+    await harness.runtime.ingest('Next turn', { model: 'audio-model', chatProvider: provider }, 'session-1')
+    expect(harness.stream.mock.calls[1][2].turns.filter(turn => turn.type === 'user').flatMap(turn => turn.content)).toContainEqual({ type: 'audio', data: 'UklGRg==', format: 'wav' })
+  })
+
+  it('removes audio stored before a stopped turn reaches history', async () => {
+    let finishStorage: (() => void) | undefined
+    const storageStarted = Promise.withResolvers<void>()
+    const discardStoredAudioData = vi.fn().mockResolvedValue(undefined)
+    const harness = createHarness(undefined, {
+      storeAudioData: async () => {
+        storageStarted.resolve()
+        await new Promise<void>((resolve) => {
+          finishStorage = resolve
+        })
+        return 'audio-ref'
+      },
+      resolveAudioData: async data => data,
+      discardStoredAudioData,
+    })
+    const send = harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')
+
+    await storageStarted.promise
+    harness.generation.set(2)
+    finishStorage?.()
+    await send
+
+    expect(discardStoredAudioData).toHaveBeenCalledWith('session-1', 'audio-ref')
+    expect(harness.sessionMessages['session-1']).not.toContainEqual(expect.objectContaining({ role: 'user' }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4138591531
+  // ROOT CAUSE:
+  // The runtime did not await the session write after it stored audio.
+  // A failed write left the audio reference without a durable message.
+  // The runtime now waits for the write and removes the audio after a failure.
+  it('removes stored audio when the user turn cannot be persisted', async () => {
+    const discardStoredAudioData = vi.fn().mockResolvedValue(undefined)
+    const harness = createHarness(undefined, {
+      storeAudioData: async () => 'audio-ref',
+      resolveAudioData: async data => data,
+      discardStoredAudioData,
+    })
+    harness.appendUserMessageError.set(new Error('QuotaExceededError'))
+
+    await expect(harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')).rejects.toThrow('QuotaExceededError')
+
+    expect(discardStoredAudioData).toHaveBeenCalledWith('session-1', 'audio-ref')
+    expect(harness.stream).not.toHaveBeenCalled()
+    expect(harness.sessionMessages['session-1']).not.toContainEqual(expect.objectContaining({ role: 'user' }))
+  })
+
+  it('projects transcripts for text-only models while retaining playable recordings', async () => {
+    const harness = createHarness()
+    await harness.runtime.ingest('', {
+      model: 'text-model',
+      chatProvider: provider,
+      supportsAudioInput: false,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav', transcript: 'Turn on the light.' }],
+    }, 'session-1')
+    const stored = harness.sessionMessages['session-1'].find(message => message.role === 'user')
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
+    expect(stored?.audioTranscripts).toEqual(['Turn on the light.'])
+    const sent = harness.stream.mock.calls[0][2].turns.find(turn => turn.type === 'user')
+    expect(sent?.content).toContainEqual({ type: 'text', text: 'Turn on the light.' })
+    expect(harness.stream.mock.calls[0][3]?.supportsAudioInput).toBe(false)
+    expect(sent?.content).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
+    expect(sent).not.toHaveProperty('audioTranscripts')
+    await harness.runtime.ingest('Thanks', { model: 'text-model', chatProvider: provider, supportsAudioInput: false }, 'session-1')
+    expect(harness.stream.mock.calls[1][2].turns.filter(turn => turn.type === 'user').flatMap(turn => turn.content)).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
+    expect(stored?.content).toContainEqual({ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } })
   })
 
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {

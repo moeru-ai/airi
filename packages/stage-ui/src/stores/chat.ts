@@ -8,6 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
+import { decodeBase64 } from '@moeru/std/base64'
 import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
@@ -19,6 +20,7 @@ import { getConversationAnalyticsSurface } from '../composables'
 import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
+import { chatAudioRepo } from '../database/repos/chat-audio.repo'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -36,10 +38,12 @@ import { useChatContextStore } from './chat/context-store'
 import { describeChatImages } from './chat/image-projection'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
+import { useVoiceSendStore } from './chat/voice-send'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useHearingSpeechInputPipeline, useHearingStore } from './modules/hearing'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
@@ -53,8 +57,8 @@ interface ForkOptions {
 
 /** A serializable chat request that any application context can send to the leader. */
 export interface ChatSendPayload {
-  /** Image attachments for the new user message. */
-  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Media for the new user message, using the core chat contract. */
+  attachments?: ChatOrchestratorSendOptions['attachments']
   /** Original input metadata for chat hooks and telemetry. */
   input?: WebSocketEventInputs
   /** Session that owns the new turn. */
@@ -110,7 +114,7 @@ function ownsProjectedTurn(message: ChatHistoryItem, turnId: string) {
   return message.id === turnId || `${message.id}-0` === turnId
 }
 
-function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'text'> | null {
+async function retryContentFrom(message: ChatHistoryItem | undefined): Promise<Pick<ChatSendPayload, 'attachments' | 'input' | 'text'> | null> {
   if (!message || message.role !== 'user')
     return null
 
@@ -133,15 +137,34 @@ function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPa
     return texts
   }, []).join('\n\n')
 
-  const attachments = message.content.flatMap((part) => {
-    if (part.type !== 'image_url')
-      return []
+  const attachments: NonNullable<ChatSendPayload['attachments']> = []
+  let audioIndex = 0
+  for (const part of message.content) {
+    if (part.type === 'input_audio' && part.input_audio.format === 'wav') {
+      attachments.push({
+        type: 'audio',
+        mimeType: 'audio/wav',
+        data: part.input_audio.data,
+        transcript: message.audioTranscripts?.[audioIndex++],
+      })
+    }
+    else if (part.type === 'image_url') {
+      const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
+      if (match)
+        attachments.push({ type: 'image', mimeType: match[1], data: match[2] })
+    }
+  }
 
-    const match = /^data:([^;,]+);base64,(.+)$/.exec(part.image_url.url)
-    return match ? [{ type: 'image' as const, mimeType: match[1], data: match[2] }] : []
-  })
+  for (const attachment of attachments) {
+    if (attachment.type === 'audio')
+      attachment.data = await chatAudioRepo.load(attachment.data)
+  }
 
-  return text || attachments.length ? { text, attachments } : null
+  const audio = attachments.find(attachment => attachment.type === 'audio')
+  const input = audio
+    ? { type: 'input:voice' as const, data: { audio: new Uint8Array(decodeBase64(audio.data)).buffer } }
+    : undefined
+  return text || attachments.length ? { text, attachments, input } : null
 }
 
 function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): number {
@@ -227,6 +250,13 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.dispose()
   }
 
+  /**
+   * Projects media before streaming a queued chat request.
+   *
+   * Triggering workflow:
+   * {@link createChatOrchestratorRuntime} -> `llm.stream`
+   * -> `streamWithStageAdapters` -> `llmStore.stream`.
+   */
   async function streamWithStageAdapters(
     model: string,
     chatProvider: GenerationProvider,
@@ -280,6 +310,47 @@ export const useChatStore = defineStore('chat', () => {
     }
     options?.abortSignal?.throwIfAborted()
 
+    const prepareTextOnlyAudioContext = async (source: Conversation, useStoredTranscripts: boolean) => {
+      if (!source.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'audio')))
+        return source
+
+      // Convert a request copy so durable history keeps the original recordings.
+      const textContext = structuredClone(source)
+      const sessionId = options?.requestCorrelation?.conversationId
+      for (const turn of textContext.turns) {
+        if (turn.type !== 'user')
+          continue
+        const missingAudioIndexes = sessionId && !useStoredTranscripts ? getMissingAudioIndexes(sessionId, turn.id) : []
+        let remainingAudioIndex = 0
+        for (const [index, part] of turn.content.entries()) {
+          if (part.type !== 'audio')
+            continue
+          const sourceAudioIndex = useStoredTranscripts ? remainingAudioIndex++ : missingAudioIndexes[remainingAudioIndex++]
+          const storedTranscript = sessionId && useStoredTranscripts && sourceAudioIndex !== undefined
+            ? getAudioTranscript(sessionId, turn.id, sourceAudioIndex)
+            : undefined
+          if (storedTranscript) {
+            turn.content[index] = { type: 'text', text: storedTranscript }
+            continue
+          }
+          if (!useHearingStore().configured)
+            throw new Error(t('stage.voice.configure-description'))
+          const pipeline = useHearingSpeechInputPipeline()
+          const text = await pipeline.transcribeForRecording(new Blob([new Uint8Array(decodeBase64(part.data))], { type: `audio/${part.format}` }), options?.abortSignal)
+          options?.abortSignal?.throwIfAborted()
+          if (!text)
+            throw new Error(pipeline.error ?? t('stage.voice.empty-transcription'))
+          turn.content[index] = { type: 'text', text }
+          if (sessionId && sourceAudioIndex !== undefined)
+            saveAudioTranscript(sessionId, turn.id, sourceAudioIndex, text)
+        }
+      }
+      return textContext
+    }
+
+    if (!options?.supportsAudioInput)
+      providerContext = await prepareTextOnlyAudioContext(providerContext, false)
+
     const providerMessages = renderConversationPreview(providerContext)
     if (options?.requestCorrelation?.conversationId)
       contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, providerMessages)
@@ -299,6 +370,7 @@ export const useChatStore = defineStore('chat', () => {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
         headers,
+        prepareStringContent: () => prepareTextOnlyAudioContext(providerContext, true),
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
             llmOutputChunkCount += 1
@@ -365,6 +437,43 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.setSessionMessages(sessionId, nextMessages)
   }
 
+  function getMissingAudioIndexes(sessionId: string, turnId: string): number[] {
+    const message = chatSession.getSessionMessages(sessionId)
+      .find(item => item.role === 'user' && ownsProjectedTurn(item, turnId))
+    if (message?.role !== 'user' || !Array.isArray(message.content))
+      return []
+
+    let audioIndex = 0
+    return message.content.flatMap((part) => {
+      if (part.type !== 'input_audio')
+        return []
+      const index = audioIndex++
+      return message.audioTranscripts?.[index] ? [] : [index]
+    })
+  }
+
+  function getAudioTranscript(sessionId: string, turnId: string, audioIndex: number): string | undefined {
+    return chatSession.getSessionMessages(sessionId)
+      .find(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+      ?.audioTranscripts?.[audioIndex]
+  }
+
+  function saveAudioTranscript(sessionId: string, turnId: string, audioIndex: number, transcript: string) {
+    const messages = chatSession.getSessionMessages(sessionId)
+    const messageIndex = messages.findIndex(message => message.role === 'user' && ownsProjectedTurn(message, turnId))
+    if (messageIndex < 0)
+      return
+
+    const message = messages[messageIndex]
+    if (message.role !== 'user')
+      return
+    const audioTranscripts = [...(message.audioTranscripts ?? [])]
+    audioTranscripts[audioIndex] = transcript
+    const nextMessages = [...messages]
+    nextMessages[messageIndex] = { ...message, audioTranscripts }
+    chatSession.setSessionMessages(sessionId, nextMessages)
+  }
+
   const runtime = createChatOrchestratorRuntime({
     session: {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
@@ -404,6 +513,9 @@ export const useChatStore = defineStore('chat', () => {
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
+    storeAudioData: (sessionId, data) => chatAudioRepo.save(sessionId, data),
+    resolveAudioData: data => chatAudioRepo.load(data),
+    discardStoredAudioData: (sessionId, reference) => chatAudioRepo.remove(sessionId, reference),
     onStateChange: syncRuntimeState,
     onSendSettled: settleOwnedActiveTurnSpan,
     ...analyticsHooks,
@@ -429,8 +541,16 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onAssistantMessageAppended: ({ sessionId, message }) => {
-      if (isCloudSyncableMessage(message) && message.id) {
+    /**
+     * Syncs a reply only when its user turn reached cloud sync.
+     *
+     * Triggering workflow:
+     * {@link createChatOrchestratorRuntime} -> `onAssistantMessageAppended`
+     * -> `chatSession.pushMessageToCloud`.
+     */
+    onAssistantMessageAppended: ({ sessionId, message, roundId }) => {
+      const sourceMessage = chatSession.getSessionMessages(sessionId).find(item => item.role === 'user' && item.id === roundId)
+      if (sourceMessage && isCloudSyncableMessage(sourceMessage) && isCloudSyncableMessage(message) && message.id) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'assistant',
@@ -440,8 +560,11 @@ export const useChatStore = defineStore('chat', () => {
     },
     onUserTurnReady: ({ messageText, sessionMessages }) => {
       const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
-      if (autonomousTarget === 'user')
-        void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
+      if (autonomousTarget === 'user') {
+        const transcripts = sessionMessages.findLast(message => message.role === 'user')?.audioTranscripts ?? []
+        const inputText = [messageText, ...transcripts].filter(text => !!text?.trim()).join(' ')
+        void artistryAutonomousStore.runArtistTask(inputText, toProviderHistory(sessionMessages))
+      }
     },
     onAssistantTurnReady: ({ messageText, sessionMessages }) => {
       const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
@@ -492,6 +615,7 @@ export const useChatStore = defineStore('chat', () => {
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
+    const modelSupportsAudioInput = consciousnessStore.supportsAudioInput
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
       throw new Error('No active chat provider or model configured')
 
@@ -507,6 +631,7 @@ export const useChatStore = defineStore('chat', () => {
       model: modelId,
       chatProvider,
       attachments: payload.attachments,
+      supportsAudioInput: modelSupportsAudioInput && chatProvider.generation(modelId).protocol === 'chat-completions',
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
@@ -554,23 +679,38 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error('Retry target has no retriable source message')
 
     const sourceMessage = currentMessages[sourceIndex]
-    const retryContent = retryContentFrom(sourceMessage)
+    const retryContent = await retryContentFrom(sourceMessage)
     if (!retryContent)
       throw new Error('Retry target has no retriable user message')
 
-    chatSession.setSessionMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
+    await chatSession.stageRetryMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
 
     try {
-      return await executeSend({
+      const result = await executeSend({
         sessionId: payload.sessionId,
         ...retryContent,
         replyToMessageId: sourceMessage?.replyToMessageId,
         tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
       })
+      const latestMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
+      if (latestMessages && !latestMessages.slice(sourceIndex).some(message => message.role === 'user'))
+        chatSession.restoreRetryMessages(payload.sessionId, currentMessages)
+      return result
     }
     catch (error) {
+      const latestMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
+      if (latestMessages && !latestMessages.slice(sourceIndex).some(message => message.role === 'user'))
+        chatSession.restoreRetryMessages(payload.sessionId, currentMessages)
       appendSendError(payload.sessionId, error)
       throw error
+    }
+    finally {
+      try {
+        await chatSession.finishRetryMessages(payload.sessionId)
+      }
+      catch (error) {
+        console.warn('[chat] Failed to finish Retry audio cleanup:', errorMessageFrom(error))
+      }
     }
   }
 
@@ -594,15 +734,17 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Clears one session and stops runtime work that still belongs to it. */
   function cleanup(sessionId: string) {
-    chatSession.cleanupMessages(sessionId)
-    chatContext.resetContexts()
     runtime.cancelPendingSends(sessionId)
+    const cleaned = chatSession.cleanupMessages(sessionId)
+    chatContext.resetContexts()
     chatStream.resetStream()
+    return cleaned
   }
 
   /** Cancels queued work before permanently removing its owning session. */
   function deleteSession(sessionId: string): Promise<void> {
     runtime.cancelPendingSends(sessionId)
+    useVoiceSendStore().discardSession(sessionId)
     return chatSession.deleteSession(sessionId)
   }
 

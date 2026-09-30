@@ -1,3 +1,4 @@
+import type { Conversation } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 
@@ -140,6 +141,24 @@ describe('isToolRelatedError', () => {
 
     expect(onStreamEvent).toHaveBeenCalledTimes(1)
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  it('prepares text before retrying a string-only endpoint and reuses that mode', async () => {
+    const store = useLLM()
+    const audio: Conversation = { turns: [{ id: 'voice', type: 'user', content: [{ type: 'audio', data: 'UklGRg==', format: 'wav' }] }] }
+    const text: Conversation = { turns: [{ id: 'voice', type: 'user', content: [{ type: 'text', text: 'spoken words' }] }] }
+    const prepareStringContent = vi.fn(async () => text)
+    streamTextMock.mockImplementationOnce(() => {
+      throw new Error('messages[0]: invalid type: sequence, expected a string')
+    }).mockImplementation(() => createMockStreamResult())
+
+    await store.stream('model-a', provider, audio, { prepareStringContent })
+    await store.stream('model-a', provider, audio, { prepareStringContent })
+
+    expect(prepareStringContent).toHaveBeenCalledTimes(2)
+    expect(streamTextMock.mock.calls[0][0].messages).toContainEqual({ role: 'user', content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }] })
+    expect(streamTextMock.mock.calls[1][0].messages).toContainEqual({ role: 'user', content: 'spoken words' })
+    expect(streamTextMock.mock.calls[2][0].messages).toContainEqual({ role: 'user', content: 'spoken words' })
   })
 
   it('ignores later error events after steps have resolved', async () => {

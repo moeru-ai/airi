@@ -11,19 +11,25 @@ import { resolveLlmTools } from './tool-resolver'
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
 
+interface LlmStreamOptions extends StreamOptions {
+  prepareStringContent?: () => Promise<Conversation>
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
-  async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: StreamOptions) {
+  async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
     const key = modelKey(model, chatProvider.generation(model))
-    const { tools: customTools, ...streamOptions } = options ?? {}
+    const { tools: customTools, prepareStringContent, ...streamOptions } = options ?? {}
     const builtinToolsResolver = () => resolveLlmTools({ customTools })
 
-    const runStream = () => coreStreamFrom({
+    const runStream = async () => coreStreamFrom({
       model,
       chatProvider,
-      conversation: context,
+      conversation: contentArrayCompatibility.value.get(key) === false && prepareStringContent
+        ? await prepareStringContent()
+        : context,
       options: {
         ...streamOptions,
         toolsCompatibility: toolsCompatibility.value,

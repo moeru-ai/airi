@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { until } from '@vueuse/core'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
@@ -32,6 +32,7 @@ function createMockPipeline() {
     }),
     stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
     supportsStreamInput: ref(true),
+    error: undefined as string | undefined,
   }
 }
 
@@ -121,6 +122,7 @@ describe('useTranscriptions', () => {
     messageInputRef: ref(''),
     sendMessage: vi.fn(),
     isStageTamagotchi: ref(isTamagotchi),
+    manualRecordingActive: ref(false),
   })
 
   describe('initialization', () => {
@@ -366,6 +368,79 @@ describe('useTranscriptions', () => {
       vi.advanceTimersByTime(1000)
 
       expect(mockSendMessage).not.toHaveBeenCalled()
+    })
+
+    it('pauses ambient dictation and auto-send during manual recording, then resumes', async () => {
+      const options = createOptions()
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.transcribeForMediaStream.mockResolvedValue(undefined)
+      const { startStreamingTranscription, isListening } = useTranscriptions(options)
+
+      await startStreamingTranscription()
+      expect(isListening.value).toBe(true)
+      const ambientCallbacks = mockHearingPipeline.transcribeForMediaStream.mock.calls[0][1]
+
+      options.manualRecordingActive.value = true
+      ambientCallbacks.onSentenceEnd('manual words')
+      expect(options.messageInputRef.value).toBe('')
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
+      vi.advanceTimersByTime(3000)
+      expect(options.sendMessage).not.toHaveBeenCalled()
+
+      options.manualRecordingActive.value = false
+      await vi.waitFor(() => {
+        expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledTimes(2)
+        expect(isListening.value).toBe(true)
+      })
+    })
+
+    it('resumes ambient dictation when its first startup was still pending', async () => {
+      const options = createOptions()
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      const startup = Promise.withResolvers<void>()
+      mockHearingPipeline.transcribeForMediaStream.mockReturnValueOnce(startup.promise).mockResolvedValueOnce(undefined)
+      const { startStreamingTranscription, isListening } = useTranscriptions(options)
+
+      const starting = startStreamingTranscription()
+      await vi.waitFor(() => expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledOnce())
+      expect(isListening.value).toBe(false)
+
+      options.manualRecordingActive.value = true
+      startup.resolve()
+      await starting
+      options.manualRecordingActive.value = false
+
+      await vi.waitFor(() => {
+        expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledTimes(2)
+        expect(isListening.value).toBe(true)
+      })
+    })
+
+    it('clears ambient resume intent when the microphone is disabled during manual recording', async () => {
+      const options = createOptions()
+      mockHearingStore.configured.value = true
+      mockAudioDevice.stream.value = { id: 'stream-1' } as any
+      mockAudioDevice.enabled.value = true
+      mockHearingPipeline.transcribeForMediaStream.mockResolvedValue(undefined)
+      const { startStreamingTranscription, isListening } = useTranscriptions(options)
+
+      await startStreamingTranscription()
+      expect(isListening.value).toBe(true)
+      options.manualRecordingActive.value = true
+      mockAudioDevice.enabled.value = false
+      await nextTick()
+      options.manualRecordingActive.value = false
+      mockAudioDevice.enabled.value = true
+      options.manualRecordingActive.value = true
+      options.manualRecordingActive.value = false
+      await flushPromises()
+
+      expect(isListening.value).toBe(false)
+      expect(mockHearingPipeline.transcribeForMediaStream).toHaveBeenCalledOnce()
     })
   })
 

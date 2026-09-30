@@ -174,3 +174,10 @@ status:
   sign-in-unconfirmed: 未能确认登录会话，请重新登录。
   dismiss: 关闭提示
   configure-hearing: 请先在设置中选择并配置听觉服务。
+
+voice:
+  microphone-unavailable: 无法使用麦克风。
+  start-failed: 无法开始录音。
+  empty-recording: 录音为空。
+  empty-transcription: 未识别到文字。
+  finish-failed: 无法完成录音。

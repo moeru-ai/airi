@@ -51,7 +51,8 @@ export function getChatHistoryItemCopyText(message: ChatHistoryItem): string {
     return message.content
 
   if (Array.isArray(message.content)) {
-    return getTextFromContentParts(message.content)
+    const text = getTextFromContentParts(message.content)
+    return text || message.audioTranscripts?.filter(Boolean).join('\n\n') || ''
   }
 
   return ''

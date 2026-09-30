@@ -9,6 +9,7 @@ import { useModelStore } from '@proj-airi/stage-ui-three'
 import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
 import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
+import { useVoiceSendStore } from '../stores/chat/voice-send'
 import { useDisplayModelsStore } from '../stores/display-models'
 import { useMcpStore } from '../stores/mcp'
 import { useAiriCardStore } from '../stores/modules/airi-card'
@@ -28,6 +29,7 @@ import { useSettings, useSettingsAudioDevice } from '../stores/settings'
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
   const chatOrchestrator = useChatStore()
+  const voiceSends = useVoiceSendStore()
   const displayModelsStore = useDisplayModelsStore()
   const providersStore = useProviderStore()
   const settingsStore = useSettings()
@@ -82,6 +84,7 @@ export function useDataMaintenance() {
 
   async function deleteAllChatSessions() {
     await chatOrchestrator.cancelPendingSends()
+    voiceSends.discardAll()
     await chatStore.resetAllSessions()
   }
 

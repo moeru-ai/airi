@@ -3,6 +3,7 @@ export const DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS = 800
 export interface VoiceInputSuppressionOptions {
   assistantSpeaking: boolean
   suppressedUntil: number
+  manualRecordingActive: boolean
 }
 
 /**
@@ -11,6 +12,7 @@ export interface VoiceInputSuppressionOptions {
  * Use when:
  * - The assistant is actively playing TTS.
  * - The assistant just stopped speaking and speaker echo may still be captured.
+ * - A chat window is recording a manual voice message.
  *
  * Expects:
  * - `suppressedUntil` is a timestamp in milliseconds.
@@ -19,7 +21,7 @@ export interface VoiceInputSuppressionOptions {
  * - `true` when capture, transcription, and ingestion should be skipped.
  */
 export function shouldSuppressVoiceInput(options: VoiceInputSuppressionOptions, now = Date.now()) {
-  return options.assistantSpeaking || now < options.suppressedUntil
+  return options.manualRecordingActive || options.assistantSpeaking || now < options.suppressedUntil
 }
 
 /**
