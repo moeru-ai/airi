@@ -15,6 +15,34 @@ The home page reports when its character model is ready or fails. A failed model
 If the model fails, the user can retry the app or continue without a character.
 The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
 
+## Voice integration
+
+The audio host owns one VoiceController and shared microphone leases.
+Other windows send Eventa commands and render snapshots. They do not create competing capture or playback runtimes.
+
+- `useVoiceStore` owns application routing, drafts, responses, and host command registration.
+- `useVoiceController` binds public controller state to Vue and borrows the selected audio connection.
+- `useVoiceInput` maps hold and release controls to host commands.
+- `useVoiceMessagesStore` owns independent recording previews and explicit attachment submission.
+- Hearing selects providers and adapts media to transcript events. It does not acquire the microphone.
+- Speech preserves existing chunked synthesis and bidirectional provider output.
+
+Recording completion never sends an attachment. Failed submission retains its preview and stable message identity.
+Native audio requires declared model support and Chat Completions. Other models use a configured file transcription provider.
+Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
+
+### External wake-word adapters
+
+`useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
+Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
+`setWords` returns conflicts for tools or settings to present. It does not invent a model or a keyword-management UI.
+
+An external KWS adapter supplies `detectWakeWord` to `voice.startListening`.
+After catalog matching, it calls `voice.resolveWakeTarget(characterId, signal)` to select a session without navigating the chat window.
+The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
+The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
+Model selection, acoustic echo classification, and enrollment remain external integrations.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off

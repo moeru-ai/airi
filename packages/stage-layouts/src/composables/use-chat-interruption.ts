@@ -1,7 +1,6 @@
 import type { Ref } from 'vue'
 
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
+import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
 import { computed, ref } from 'vue'
 
 import { useStopSpeakingButton } from './useStopSpeakingButton'
@@ -31,42 +30,25 @@ interface ChatInterruptionSubmissionHooks {
  * cancels the active response before it submits the next turn.
  */
 export function useChatInterruption(options: ChatInterruptionOptions) {
-  const chatStore = useChatStore()
-  const contextBridgeStore = useContextBridgeStore()
+  const speech = useSpeechOutputControlStore()
   const {
     interruptSpeakingFromChat,
-    showStopSpeakingButton,
     stopSpeakingFromChat,
   } = useStopSpeakingButton()
   const preparingReplacement = ref(false)
-  const replacementSessionId = ref<string>()
-  const replacementSendStarted = ref(false)
 
-  const responseActive = computed(() => options.generating.value || showStopSpeakingButton.value)
+  const responseActive = computed(() => options.generating.value || speech.activeTurns.some(turn => turn.sessionId === options.sessionId.value))
   const showStopAction = computed(() => responseActive.value && !options.hasSubmission.value && !preparingReplacement.value)
-  const responseSessionId = computed(() => (replacementSendStarted.value ? replacementSessionId.value : undefined)
-    ?? contextBridgeStore.remoteStreamSessionId
-    ?? chatStore.activeSendSessionId
-    ?? options.sessionId.value)
-
-  async function cancelGeneration(sessionId: string) {
-    await Promise.all([
-      contextBridgeStore.cancelRemoteStream(sessionId),
-      chatStore.cancelPendingSends(sessionId),
-    ])
-  }
-
   async function stopActiveResponse() {
-    const sessionId = responseSessionId.value
-    stopSpeakingFromChat()
-    await cancelGeneration(sessionId)
+    const receipt = await stopSpeakingFromChat(options.sessionId.value)
+    if (receipt.status === 'failed')
+      throw new Error('Response interruption failed')
   }
 
   async function interruptBeforeSend(sessionId: string) {
-    const interruptedSessionId = responseSessionId.value
-    replacementSessionId.value = sessionId
-    interruptSpeakingFromChat()
-    await cancelGeneration(interruptedSessionId)
+    const receipt = await interruptSpeakingFromChat(sessionId)
+    if (receipt.status === 'failed')
+      throw new Error('Response interruption failed')
   }
 
   async function submitInterruptingResponse() {
@@ -82,17 +64,11 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
     try {
       await options.submit({
         beforeSend: interruptBeforeSend,
-        afterSendStarted: (sessionId) => {
-          replacementSessionId.value = sessionId
-          replacementSendStarted.value = true
-          preparingReplacement.value = false
-        },
+        afterSendStarted: () => { preparingReplacement.value = false },
       })
     }
     finally {
       preparingReplacement.value = false
-      replacementSessionId.value = undefined
-      replacementSendStarted.value = false
     }
   }
 

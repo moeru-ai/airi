@@ -8,11 +8,13 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
+import { array, parse } from 'valibot'
 import { computed, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
+import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -387,6 +389,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // Fill known fields without discarding settings owned by imported extensions.
     return {
       ...existingExtension,
+      ...(existingExtension.wakeWords === undefined ? {} : { wakeWords: parse(array(wakeWordSchema), existingExtension.wakeWords) }),
       modules: {
         ...existingExtension.modules,
         consciousness: {
@@ -535,24 +538,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  async function applyActiveCardSettings(newCard = activeCard.value) {
-    rememberInheritedSettings()
-    const artistry = useArtistryStore()
-
-    artistry.resetToGlobal()
-
-    if (!newCard)
-      return
-
-    // TODO: Minecraft Agent, etc
-    const extension = resolveAiriExtension(newCard)
-    if (!extension)
-      return
-
+  /** Resolve the named character without changing the character selected by any window. */
+  function getModules(characterId: string): CardModuleDefaults {
+    const card = cards.value.get(characterId)
+    if (!card)
+      throw new Error('The session character is unavailable')
     const defaults = moduleDefaults.value
     if (!defaults)
-      return
-    const modules = extension.modules
+      throw new Error('Character defaults are not initialized')
+    return resolveModules(card.extensions.airi.modules, defaults)
+  }
+
+  function resolveModules(modules: AiriExtension['modules'], defaults: CardModuleDefaults): CardModuleDefaults {
     const speechSelection = resolveModuleSelection(modules.speech, defaults.speech)
     const resolved: CardModuleDefaults = {
       consciousness: resolveModuleSelection(modules.consciousness, defaults.consciousness),
@@ -578,6 +575,32 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           resolved.speech.voice_id = ''
       }
     }
+    return resolved
+  }
+
+  function getSystemPrompt(characterId: string) {
+    return resolveSystemPrompt(cards.value.get(characterId))
+  }
+
+  async function applyActiveCardSettings(newCard = activeCard.value) {
+    rememberInheritedSettings()
+    const artistry = useArtistryStore()
+
+    artistry.resetToGlobal()
+
+    if (!newCard)
+      return
+
+    // TODO: Minecraft Agent, etc
+    const extension = resolveAiriExtension(newCard)
+    if (!extension)
+      return
+
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return
+    const modules = extension.modules
+    const resolved = resolveModules(modules, defaults)
     await writeRuntimeModules(resolved)
     appliedModules = modules
 
@@ -619,6 +642,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardVision,
     selectActiveCardVisionProvider,
     getCard,
+    getModules,
+    getSystemPrompt,
     resetState,
     initialize,
     activateCard,
