@@ -188,3 +188,26 @@ uses the existing voice-draft discard event.
 The `always` input mode retains the separate microphone enabled setting.
 `off` and `push-to-talk` stop continuous capture. Manual voice messages keep their
 own microphone lifecycle in all modes.
+
+## Character calling words
+
+Character cards store calling words in `extensions.airi.modules.wakeWords`.
+Each name contains one or more complete model-token sequences. Optional score and threshold values customize keyword detection.
+Use `updateCardWakeWords` to validate and replace a character's complete list.
+
+Imported unsupported pronunciations remain on the card and appear in `wakeWordValidationIssues`.
+Shared pronunciations require a device-local owner through `assignWakeWordOwner`. Card exports exclude ownership choices.
+The synchronization leader owns these commands. Remote state snapshots only update their projections.
+
+`createWakeWordTool` fixes the target character when the tool is created.
+Pass the conversation owner's `cardId` to `resolveLlmTools` to expose the configuration tool for that character.
+The tool replaces the complete list. An empty list clears it.
+
+`KeywordListener` owns keyword detection, its Worker, and its Web Audio graph.
+The caller supplies and retains the microphone stream. A detection pauses listening until the caller invokes `resume()`.
+Call `stop()` to release the listener. Use the existing transcription pipeline for speech after a detection.
+
+Hosts expose the pinned model through `@proj-airi/vite-plugin-sherpaw`.
+These primitives do not enable automatic input or change chat audio storage.
+Use them when adding a calling-word input flow. Use transcription providers for full speech recognition.
+See [the calling-word ADR](../../docs/ai/adr/2026-09-30-character-calling-words.md) for ownership and model boundaries.

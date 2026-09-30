@@ -7,6 +7,8 @@ Status: accepted
 Sherpaw model metadata and recognition logic live in `provider-inference/src/providers/local/sherpaw-transcription`. The catalogue owns stable IDs, supported languages, recognizer architecture, pinned revisions, and artifact locations. The provider owns each Worker session. The host supplies model URLs, caching, and the Worker URL.
 
 The Vite plugin exposes every configured model to the runtime. A model can use a pinned remote URL or a local URL.
+The plugin also exposes the pinned KWS pack from `stage-ui/src/libs/kws-model-info.ts`.
+`@sherpaw/kws` owns keyword recognition.
 `developmentModels` selects local development files. `bundledModels` selects production build files. Both lists are subsets of `models`.
 
 Web builds expose remote models and download the selected model when recognition starts.
@@ -15,6 +17,8 @@ Desktop release workflows set `SHERPAW_BUNDLE_MODELS=true` and package all three
 Vite rewrites bundled model URLs to `airi-sherpaw://assets/` in Electron builds.
 The main process serves only model files from the renderer package through this protocol.
 Renderer `fetch()` cannot read the same files through `file://`.
+Desktop and Pocket include the KWS pack in production builds and use cached KWS files during development.
+Web exposes its remote URL and downloads it when calling-word recognition starts.
 
 The UI derives its model options from the assets exposed by the host. It renders localized language names from `supportedLanguages`. It must not duplicate language lists in translation files or offer a model that the host did not expose.
 
@@ -57,7 +61,15 @@ The service will publish download and activation progress through the shared inf
 | Desktop release | None | All three models in the application package |
 | Unit tests | Fixture metadata only | None |
 
-CI jobs that do not package a desktop release do not download production model artifacts.
+CI jobs outside desktop releases keep transcription models remote.
+Desktop and Pocket builds still include KWS assets.
+The profile table above describes transcription assets. KWS follows these profiles:
+
+| Host | Development | Production |
+| --- | --- | --- |
+| Web | Pinned remote URL | Pinned remote URL |
+| Desktop | Repository cache | Application package |
+| Pocket | Repository cache | Application package |
 Development and release downloads use the model ID and pinned revision as the cache key.
 The Paraformer, multilingual Zipformer, and X-ASR INT8 model pairs total about 745 MB before packaging.
 

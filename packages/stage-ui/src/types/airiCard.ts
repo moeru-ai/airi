@@ -1,5 +1,25 @@
 import type { Card } from '@proj-airi/ccc'
 
+/** A pronunciation that the selected KWS model can recognize. */
+export interface WakeWordMatch {
+  tokens: string[]
+  score?: number
+  threshold?: number
+}
+
+/** A spoken name and every pronunciation that can trigger the character. */
+export interface WakeWordKeyword {
+  label: string
+  matches: WakeWordMatch[]
+  score?: number
+  threshold?: number
+}
+
+/** Wake words travel with the character card; conflict ownership does not. */
+export interface WakeWordsConfig {
+  keywords: WakeWordKeyword[]
+}
+
 /**
  * AIRI-specific runtime configuration embedded in a character card.
  *
@@ -45,6 +65,8 @@ export interface AiriExtension {
     /** ID from the display-models store. */
     displayModelId?: string
     activeBackgroundId?: string
+
+    wakeWords?: WakeWordsConfig
 
     artistry?: {
       enabled?: boolean

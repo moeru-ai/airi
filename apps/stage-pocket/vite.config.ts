@@ -21,6 +21,7 @@ import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
 import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { KWS_MODEL } from '@proj-airi/stage-ui/libs/kws-model-info'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
@@ -39,6 +40,7 @@ const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 
 export default defineConfig({
   optimizeDeps: {
+    include: ['@moeru/eventa/adapters/webworkers/worker'],
     exclude: [
       // Internal Packages
       '@proj-airi/stage-ui/*',
@@ -117,7 +119,12 @@ export default defineConfig({
         })())],
 
     Info(),
-    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8], cacheDir: sharedCacheDir }),
+    Sherpaw({
+      models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8, KWS_MODEL],
+      developmentModels: [KWS_MODEL],
+      bundledModels: [KWS_MODEL],
+      cacheDir: sharedCacheDir,
+    }),
 
     Yaml(),
 

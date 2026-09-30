@@ -109,4 +109,28 @@ describe('persisted and replicated card defaults', () => {
     expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
     expect(onError).not.toHaveBeenCalled()
   })
+
+  it('replicates calling-word ownership without proposing a follower snapshot', async () => {
+    const namespace = `card-calling-words-${crypto.randomUUID()}`
+    const onError = vi.fn()
+    const leaderRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'leader-only', onError })
+    const leader = createContext(leaderRuntime)
+    await expect.poll(() => leaderRuntime.isLeader()).toBe(true)
+    await leader.cards.initialize()
+    const keywords = [{ label: 'Hello', matches: [{ tokens: ['AA0'] }] }]
+    await leader.cards.updateCardWakeWords('default', keywords, ['AA0'])
+    const imported = await leader.cards.addCard({ ...leader.cards.activeCard!, name: 'Other character' }, 'import')
+
+    const followerRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'follower-only', onError })
+    const follower = createContext(followerRuntime)
+    await expect.poll(() => follower.cards.wakeWordConflicts.length).toBe(1)
+    const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
+    expect(await follower.cards.assignWakeWordOwner('AA0', imported)).toBe(true)
+    await expect.poll(() => leader.cards.wakeWordOwnership.AA0).toBe(imported)
+    await expect.poll(() => follower.cards.wakeWordOwnership.AA0).toBe(imported)
+    expect(follower.cards.wakeWordValidationIssues.size).toBe(0)
+    await nextTick()
+    expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+    expect(onError).not.toHaveBeenCalled()
+  })
 })
