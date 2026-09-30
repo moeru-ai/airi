@@ -7,7 +7,7 @@ export default mergeConfigs([
   histoireUnoConfig(),
   defineConfig({
     presets: [
-      presetWebFonts({ fonts: presetWdxlFonts() }),
+      presetWebFonts({ fonts: presetWdxlFonts('fontsource') }),
     ],
   }),
 ])

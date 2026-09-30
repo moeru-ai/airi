@@ -16,8 +16,8 @@ Desktop shows recovery actions below the warning content. Mobile hides the logo 
 The small details button opens a desktop tooltip or a mobile bottom drawer. The `done` phase removes the screen.
 
 The screen uses Comfortaa for the brand and content. The error band uses WDXL Lubrifont SC for English and Chinese.
-Japanese uses WDXL Lubrifont JP N. Web hosts and UI previews import `@proj-airi/ui-loading-screens/fontsource-cdn.css`.
-This import loads pinned Fontsource CDN stylesheets. Pocket and Electron bundle the Fontsource package assets.
+Japanese uses WDXL Lubrifont JP N. UnoCSS loads both fonts from Fontsource for Web and UI previews.
+Pocket and Electron import the installed Fontsource packages and bundle their font assets.
 The progress bar uses `Progress` from `@proj-airi/ui`.
 `StartupOverlay` reads the resource state and supplies the error text.
 The optional `alternative-label` adds a second action for a recoverable failure.

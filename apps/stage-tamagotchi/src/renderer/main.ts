@@ -40,7 +40,9 @@ import '@fontsource/gugi/index.css'
 import '@fontsource/kiwi-maru/index.css'
 import '@fontsource/m-plus-rounded-1c/index.css'
 import '@fontsource/wdxl-lubrifont-jp-n/japanese-400.css'
+import '@fontsource/wdxl-lubrifont-jp-n/latin-400.css'
 import '@fontsource/wdxl-lubrifont-sc/chinese-simplified-400.css'
+import '@fontsource/wdxl-lubrifont-sc/latin-400.css'
 import '@fontsource-variable/nunito/index.css'
 
 configureAnalyticsAdapter(async (options) => {

@@ -80,22 +80,26 @@ export function safelistSettingsEntryIcons(): string[] {
   ]
 }
 
-export function presetWdxlFonts(): Record<string, WebFontMeta> {
+export function presetWdxlFonts(provider: 'fontsource' | 'none'): Record<string, WebFontMeta> {
   return {
     'wdxl-sc': {
       name: 'WDXL Lubrifont SC',
-      provider: 'none',
+      provider,
+      weights: ['400'],
+      subsets: ['chinese-simplified', 'latin'],
     },
     'wdxl-jp': {
       name: 'WDXL Lubrifont JP N',
-      provider: 'none',
+      provider,
+      weights: ['400'],
+      subsets: ['japanese', 'latin'],
     },
   }
 }
 
 export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
   return {
-    ...presetWdxlFonts(),
+    ...presetWdxlFonts(provider),
     'sans': {
       name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
       provider,

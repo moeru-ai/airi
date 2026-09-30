@@ -26,7 +26,7 @@ export default defineConfig({
     Vue(),
     UnoCSS(mergeConfigs([sharedUnoConfig(), {
       // Browser tests use product styles, not Histoire's hover-preview variants.
-      presets: [presetWebFonts({ fonts: presetWdxlFonts() })],
+      presets: [presetWebFonts({ fonts: presetWdxlFonts('none') })],
       configFile: false,
       // Vitest loads components after the stylesheet. Scan their source before
       // the initial CSS response instead of relying on Vite's HMR updates.
