@@ -42,14 +42,6 @@ pnpm dev:backend
 stay on its private network. The internal `/internal/*` boundary has no
 application token, and Caddy rejects that path at the public edge.
 
-## Email verification
-
-Registration and resend emails use the Auth result page when the callback is omitted, empty, or `/`.
-The service sets `/auth/verify-email?verified=true` under `PUBLIC_URL` before delivery.
-The existing `/auth/*` route redirects to the configured account UI and preserves verification errors.
-Explicit non-root callbacks retain Better Auth origin validation.
-Previously delivered emails retain their original links. This change requires an Auth service deployment.
-
 ## Native Google sign-in
 
 Set `AUTH_GOOGLE_NATIVE_CLIENT_IDS` to a comma-separated list of additional Google OAuth client IDs.

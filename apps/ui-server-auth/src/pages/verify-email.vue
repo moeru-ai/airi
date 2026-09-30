@@ -28,7 +28,8 @@ const error = computed(() => {
   return typeof value === 'string' ? value : null
 })
 
-const verified = computed(() => route.query.verified === 'true')
+// Better Auth retains verified=true on failed callbacks. Errors must suppress success side effects.
+const verified = computed(() => !error.value && route.query.verified === 'true')
 
 // Captured at mount time on the original tab (the one that just submitted the
 // sign-up form) so that, when the verification tab signals success, we know
@@ -83,13 +84,7 @@ async function resumeIfSessionReady(): Promise<boolean> {
   }
 }
 
-// Failed callbacks retain the success flag. Handle errors before analytics or cross-tab notification.
 onMounted(async () => {
-  if (error.value) {
-    trackEmailVerificationFailed()
-    return
-  }
-
   // Verification-success tab: announce to any sibling pending tab that the
   // session cookie has been written, then stay put so the user sees the
   // success message. The pending tab does the OIDC continuation.
@@ -97,6 +92,11 @@ onMounted(async () => {
     trackEmailVerificationCompleted()
     if (isSupported.value)
       post('verified')
+    return
+  }
+
+  if (error.value) {
+    trackEmailVerificationFailed()
     return
   }
 
