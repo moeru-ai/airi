@@ -16,13 +16,14 @@ const pages = computed(() => [
 
 <template>
   <div :class="['flex flex-col gap-6']">
-    <FieldCheckbox
-      v-model="autoSendEnabled"
-      :label="t('settings.pages.modules.hearing.auto-send.label')"
-      :description="t('settings.pages.modules.hearing.auto-send.description')"
-    />
-    <div v-if="autoSendEnabled" :class="['rounded-xl bg-neutral-50 p-4 dark:bg-[rgba(0,0,0,0.3)]']">
+    <div :class="['flex flex-col gap-4 rounded-xl bg-neutral-50 p-4 dark:bg-[rgba(0,0,0,0.3)]']">
+      <FieldCheckbox
+        v-model="autoSendEnabled"
+        :label="t('settings.pages.modules.hearing.auto-send.label')"
+        :description="t('settings.pages.modules.hearing.auto-send.description')"
+      />
       <FieldRange
+        v-if="autoSendEnabled"
         v-model="autoSendDelay"
         :label="t('settings.pages.modules.hearing.auto-send.delay-label')"
         :description="t('settings.pages.modules.hearing.auto-send.delay-description')"
