@@ -79,7 +79,9 @@ const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn(), useForToolImages: true }))
-const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
+/** A catalog model can omit its abilities, as most provider catalogs do. */
+interface CatalogModel { id: string, metadata: { abilities?: { vision: boolean } } }
+const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] as CatalogModel[] }))
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
@@ -262,6 +264,29 @@ vi.mock('./modules/web-search', () => ({
 
 const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
+}
+
+/** An assistant message whose stored tool result holds an original screenshot. */
+function storedToolImageMessage() {
+  return {
+    role: 'assistant',
+    id: 'assistant-1',
+    content: '',
+    createdAt: 3,
+    slices: [],
+    tool_results: [],
+    generationTranscript: {
+      type: 'assistant',
+      id: 'assistant-1',
+      status: 'completed',
+      rounds: [{
+        id: 'round-1',
+        content: [{ type: 'tool', invocationId: 'invocation-1' }],
+        projectionIssues: [],
+        toolInvocations: [{ id: 'invocation-1', callId: 'call-1', name: 'computer_use_read_image', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'image', url: 'data:image/png;base64,aW1hZ2U=' }] } }],
+      }],
+    },
+  }
 }
 
 describe('chat store contract', () => {
@@ -670,39 +695,43 @@ describe('chat store contract', () => {
     expect(stored).toContain('A settings window.')
   })
 
-  it('sends a note in place of a stored tool image to a chat model that cannot see images', async () => {
+  it('sends a note in place of a stored tool image while the vision model reads tool images', async () => {
+    visionMocks.configured = true
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })
     })
     sessionMessages['session-1'] = [
       { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
       { role: 'user', content: 'Look at my screen', createdAt: 2, id: 'user-1' },
-      {
-        role: 'assistant',
-        id: 'assistant-1',
-        content: '',
-        createdAt: 3,
-        slices: [],
-        tool_results: [],
-        generationTranscript: {
-          type: 'assistant',
-          id: 'assistant-1',
-          status: 'completed',
-          rounds: [{
-            id: 'round-1',
-            content: [{ type: 'tool', invocationId: 'invocation-1' }],
-            projectionIssues: [],
-            toolInvocations: [{ id: 'invocation-1', callId: 'call-1', name: 'computer_use_read_image', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'image', url: 'data:image/png;base64,aW1hZ2U=' }] } }],
-          }],
-        },
-      },
+      storedToolImageMessage(),
     ]
 
     await useChatStore().send({ sessionId: 'session-1', text: 'What did you see?' })
 
     const prompt = JSON.stringify(useContextObservabilityStore().lastPromptProjection?.composedMessage)
     expect(prompt).not.toContain('data:image')
-    expect(prompt).toContain('the image is left out')
+    expect(prompt).toContain('A tool image was left out of the history.')
+  })
+
+  it('replays a stored tool image when no vision model reads tool images', async () => {
+    // ROOT CAUSE:
+    //
+    // The note replaced stored tool images for each model without a declared
+    // vision ability. Most catalogs omit it, so a model that sees images lost
+    // its earlier screenshots and read that it could not see images.
+    consciousnessModels.value = [{ id: 'gpt-test', metadata: {} }]
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'user', content: 'Look at my screen', createdAt: 2, id: 'user-1' },
+      storedToolImageMessage(),
+    ]
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'What did you see?' })
+
+    expect(JSON.stringify(useContextObservabilityStore().lastPromptProjection?.composedMessage)).not.toContain('left out')
   })
 
   it('leaves tool images alone when the tool image setting is off', async () => {

@@ -100,6 +100,8 @@ export const providerAppleVision = defineProvider<AppleVisionConfig, AppleVision
   // serves the vision module only.
   tasks: ['vision', 'image-understanding'],
   isAvailableBy: canLoadAppleVision,
+  // The on-device model answers one request at a time.
+  capabilities: { vision: { concurrentReads: 1 } },
 
   createProviderConfig: () => appleVisionConfigSchema,
   createProvider: createRendererAppleVisionProvider,

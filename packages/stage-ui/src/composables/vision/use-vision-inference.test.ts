@@ -91,24 +91,36 @@ describe('useVisionInference', () => {
     expect(activity.lastInference).toMatchObject({ provider: 'openai', model: 'mock-model', error: 'Provider unavailable' })
   })
 
-  it('reads one image at a time and starts each timeout when its read starts', async () => {
-    // ROOT CAUSE:
-    //
-    // Concurrent reads waited inside the on-device model while their timeouts
-    // ran, so a queued read timed out before it started.
-    //
-    // We fixed this with one queue for every read. A timeout starts after the
-    // read leaves the queue.
+  /** Apple Vision declares one read at a time in its provider definition. */
+  function useSingleReadProvider() {
+    useVisionStore().activeProvider = 'apple-vision'
+  }
+
+  function holdEachRead() {
     const releases: Array<() => void> = []
     stream.mockImplementation(async (_model, _provider, _messages, options) => {
       await new Promise<void>(resolve => releases.push(resolve))
       await options?.onStreamEvent?.({ type: 'text-delta', text: `read ${releases.length}` })
     })
-    const { runVisionInference } = useVisionInference()
-    const input = { imageDataUrl: 'data:image/png;base64,Zm9v', workloadId: 'tool:image' as const }
+    return releases
+  }
 
-    const first = runVisionInference(input)
-    const second = runVisionInference(input)
+  const toolImage = { imageDataUrl: 'data:image/png;base64,Zm9v', workloadId: 'tool:image' as const }
+
+  it('reads one image at a time for a provider that answers one read at a time', async () => {
+    // ROOT CAUSE:
+    //
+    // Concurrent reads waited inside the on-device model while their timeouts
+    // ran, so a queued read timed out before it started.
+    //
+    // We fixed this with a queue for each provider. A timeout starts after the
+    // read leaves the queue.
+    useSingleReadProvider()
+    const releases = holdEachRead()
+    const { runVisionInference } = useVisionInference()
+
+    const first = runVisionInference(toolImage)
+    const second = runVisionInference(toolImage)
     await vi.advanceTimersByTimeAsync(50_000)
     expect(stream).toHaveBeenCalledOnce()
 
@@ -118,6 +130,41 @@ describe('useVisionInference', () => {
     expect(stream).toHaveBeenCalledTimes(2)
     releases[1]()
     await expect(second).resolves.toBe('read 2')
+  })
+
+  it('starts reads together for a provider without a declared limit', async () => {
+    const releases = holdEachRead()
+    const { runVisionInference } = useVisionInference()
+
+    const reads = [runVisionInference(toolImage), runVisionInference(toolImage), runVisionInference(toolImage)]
+    await vi.advanceTimersByTimeAsync(0)
+    expect(stream).toHaveBeenCalledTimes(3)
+
+    for (const release of releases)
+      release()
+    await Promise.all(reads)
+  })
+
+  it('leaves the queue at once when a queued read is cancelled', async () => {
+    useSingleReadProvider()
+    const releases = holdEachRead()
+    const { runVisionInference } = useVisionInference()
+    const controller = new AbortController()
+
+    const first = runVisionInference(toolImage)
+    const cancelled = runVisionInference({ ...toolImage, abortSignal: controller.signal })
+    const expectation = expect(cancelled).rejects.toThrow('Stopped')
+    controller.abort(new Error('Stopped'))
+    await expectation
+
+    releases[0]()
+    await first
+    // The cancelled read passed its slot on, so the next read starts.
+    const next = runVisionInference(toolImage)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(stream).toHaveBeenCalledTimes(2)
+    releases[1]()
+    await expect(next).resolves.toBe('read 2')
   })
 
   it('aborts vision inference when the stream never settles', async () => {

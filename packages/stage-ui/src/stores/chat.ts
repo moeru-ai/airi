@@ -168,8 +168,8 @@ function retrySourceIndexFrom(messages: ChatHistoryItem[], index: number): numbe
 
 export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
-/** Stands in for an image in a stored tool result, for a chat model that cannot see images. */
-const STORED_TOOL_IMAGE = 'A tool returned an image here. The chat model cannot see images, so the image is left out.'
+/** Stands in for an image in a stored tool result while the vision model reads tool images. */
+const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. It could not be read.'
@@ -267,9 +267,11 @@ export const useChatStore = defineStore('chat', () => {
     // `resolveStep` (#2709) can change the model between steps, and no stage-ui
     // caller uses it yet. Decide for each step when one does.
     const describeToolImage = chatVision.toolImageReader(model, options?.abortSignal)
-    let providerContext = chatVision.canSeeImages(model)
-      ? context
-      : replaceToolResultImages(context, STORED_TOOL_IMAGE)
+    // The vision model reads new tool images, so stored ones follow the same
+    // decision. Without a reader, stored tool images replay as they are.
+    let providerContext = describeToolImage
+      ? replaceToolResultImages(context, STORED_TOOL_IMAGE)
+      : context
     const hasImages = context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'image'))
     if (hasImages) {
       if (chatVision.readsAttachedImages(model)) {

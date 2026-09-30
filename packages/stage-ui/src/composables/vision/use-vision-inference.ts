@@ -24,12 +24,45 @@ export interface VisionInferenceInput {
 // TODO: this should be configurable
 const VISION_INFERENCE_TIMEOUT_MS = 60_000
 
+const DEFAULT_CONCURRENT_VISION_READS = 4
+
 /**
- * Reads one image at a time in this window, for attachments, tool images, and
- * the screen ticker. An on-device model answers one request at a time, so a
- * queued read would otherwise spend its timeout waiting.
+ * Queues the image reads of this window for each vision provider, for
+ * attachments, tool images, and the screen ticker. A provider declares its
+ * limit, and a read beyond it waits here instead of inside the provider,
+ * where its timeout would run.
+ *
+ * NOTICE:
+ * Each window has its own queues. The screen ticker in the devtools window
+ * and the chat in the stage window can still reach one provider at once.
  */
-const visionReadSlots = new Semaphore(1)
+const visionReadSlots = new Map<string, Semaphore>()
+
+/** Waits for a read slot. A cancelled read leaves the queue at once. */
+async function acquireReadSlot(slots: Semaphore, abortSignal?: AbortSignal) {
+  abortSignal?.throwIfAborted()
+  const acquired = slots.acquire()
+  if (!abortSignal)
+    return await acquired
+
+  let rejectAborted: (reason: unknown) => void = () => {}
+  const aborted = new Promise<never>((_resolve, reject) => {
+    rejectAborted = reject
+  })
+  const onAbort = () => rejectAborted(abortSignal.reason)
+  abortSignal.addEventListener('abort', onAbort, { once: true })
+  try {
+    await Promise.race([acquired, aborted])
+  }
+  catch (error) {
+    // The slot still arrives later. Pass it on to the next read.
+    void acquired.then(() => slots.release())
+    throw error
+  }
+  finally {
+    abortSignal.removeEventListener('abort', onAbort)
+  }
+}
 
 function parseDataUrl(dataUrl: string) {
   if (!dataUrl.startsWith('data:'))
@@ -118,7 +151,13 @@ export function useVisionInference() {
     const providerId = activeProvider.value
     const modelId = activeModel.value
 
-    await visionReadSlots.acquire()
+    let slots = visionReadSlots.get(providerId)
+    if (!slots) {
+      const concurrentReads = providersStore.findProviderDefinition(providerId)?.capabilities?.vision?.concurrentReads
+      slots = new Semaphore(concurrentReads ?? DEFAULT_CONCURRENT_VISION_READS)
+      visionReadSlots.set(providerId, slots)
+    }
+    await acquireReadSlot(slots, input.abortSignal)
     const startedAt = Date.now()
     // Every attempt counts, including a failure before the request, such as a
     // provider that cannot start. The report does not delay or fail the read.
@@ -133,8 +172,6 @@ export function useVisionInference() {
     }
 
     try {
-      // A read cancelled while it waited never starts.
-      input.abortSignal?.throwIfAborted()
       lastText.value = await describeImage(providerId, modelId, input)
     }
     catch (error) {
@@ -143,7 +180,7 @@ export function useVisionInference() {
       throw error
     }
     finally {
-      visionReadSlots.release()
+      slots.release()
     }
 
     recordInference({ text: lastText.value })

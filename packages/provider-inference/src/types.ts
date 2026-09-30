@@ -324,6 +324,15 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
       generation?: GenerationCapabilities
       reasoning?: ChatReasoningCapability
     }
+    vision?: {
+      /**
+       * How many image reads the provider answers at once. Stage queues the
+       * other reads of each window, so a queued read does not spend its timeout.
+       *
+       * @default 4
+       */
+      concurrentReads: number
+    }
     transcription?: {
       protocol: 'websocket' | 'http' | 'native'
       generateOutput: boolean

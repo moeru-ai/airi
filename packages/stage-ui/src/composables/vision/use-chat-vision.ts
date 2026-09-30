@@ -19,7 +19,10 @@ export function useChatVision() {
   const visionStore = useVisionStore()
   const { runVisionInference } = useVisionInference()
 
-  /** Whether the catalog of the chat provider declares that the model sees images. */
+  /**
+   * Whether the catalog of the chat provider declares that the model sees images.
+   * Most catalogs omit the declaration, so `false` does not prove the model is blind.
+   */
   function canSeeImages(model: string) {
     return consciousnessStore.providerModels.find(candidate => candidate.id === model)?.metadata?.abilities?.vision === true
   }
@@ -45,7 +48,6 @@ export function useChatVision() {
   }
 
   return {
-    canSeeImages,
     readsAttachedImages,
     toolImageReader,
   }
