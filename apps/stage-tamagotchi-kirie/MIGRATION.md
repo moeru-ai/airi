@@ -1,6 +1,6 @@
 # Stage Tamagotchi Kirie migration
 
-Status: In progress. Updated: 2026-09-29.
+Status: In progress. Updated: 2026-09-30.
 
 This document owns the migration scope, capability matrix, open failures, and acceptance evidence.
 [README.md](README.md) owns setup, commands, and troubleshooting.
@@ -14,6 +14,7 @@ The original macOS migration accepted 24 items and deferred five.
 Its broader runtime review used Kirie 0.4.2 on 2026-09-21.
 Windows used Kirie 0.6.5 on 2026-09-29.
 These different baselines do not establish that every Windows failure is specific to Windows.
+The later ablation checks do not extend the platform acceptance matrix.
 
 - [Capability matrix](#capability-matrix)
 - [Open Windows failures](#open-windows-failures)
@@ -153,7 +154,7 @@ These features remain AIRI responsibilities. Their missing APIs do not justify n
 | Gap | Observed request or behavior | Reopen condition |
 | --- | --- | --- |
 | GAP-010 | `server-channel:get-config` and `server-channel:get-qr-payload` | The user reopens sidecar work. AIRI defines a supported artifact and lifecycle, or accepts a user-managed external server. |
-| GAP-023 | `plugins:tools:list-xsai` and its timeout abort | The user reopens sidecar work. AIRI owns plugin discovery, workers, shutdown, and packaging. |
+| GAP-023 | `plugins:tools:list-xsai` and its timeout abort, plus [unsupported directory import](#plugin-directory-import) | The user reopens sidecar work. AIRI owns plugin discovery, workers, shutdown, and packaging. |
 | GAP-024 | `artistry:sync-config` | The user reopens sidecar work. AIRI owns persistence, provider lifecycle, connection tests, generation, and Widget updates. |
 | GAP-025 | `mcp:get-runtime-status` and `mcp:read-config-text` | The user reopens sidecar work. AIRI owns configuration, stdio processes, shutdown, and packaging. |
 | GAP-026 | Disabled About and updater controls | The user reopens production releases. AIRI defines versions, export presets, signed artifacts, manifests, installation, and relaunch. |
@@ -175,6 +176,21 @@ and [resource-pack guide](https://docs.godotengine.org/en/4.7/tutorials/export/e
 
 Do not substitute an Electron installer or mark a downloaded artifact as installed.
 Before update acceptance, exercise download, integrity validation, installation, relaunch, and channel selection with versioned Kirie artifacts.
+
+### Plugin directory import
+
+The shared [plugin inspector bridge](../../packages/stage-ui/src/stores/devtools/plugin-host-debug.ts) requires three directory import methods.
+`prepareDirectoryImport` returns a plan for user review.
+`commitDirectoryImport` imports the selected plan, and `cancelDirectoryImport` discards it.
+
+Kirie's [renderer bridge](src-web/src/renderer/App.vue) rejects all three methods with `Extension directory import is not available in the Kirie host.`
+These handlers satisfy the shared interface but leave GAP-023 deferred.
+They create no import plan and write no plugin files.
+
+The shared [plugin management page](../../packages/stage-pages/src/pages/devtools/plugin-host.vue) still displays the import button.
+Kirie does not hide or disable it based on host capability.
+An import request fails immediately, and the page displays the error.
+Full support requires the deferred plugin host and its directory operations.
 
 ## Implementation constraints
 
@@ -244,6 +260,20 @@ This retry requires an explicit button click. Automatic requests retain the stor
 An unhandled application invoke is a host integration error.
 The proposed upstream default rejection in [godot-kirie#87](https://github.com/moeru-ai/godot-kirie/pull/87) closed without merge.
 The AIRI handler attachment is the accepted fix.
+
+### Tool call reruns
+
+A provider can reuse a `toolCallId` across generation rounds within one assistant message.
+AIRI's `invocationId` identifies the specific invocation selected in the chat history.
+
+Kirie's [chat handler](src-web/src/renderer/components/InteractiveArea.vue) uses the shared `ChatToolCallRerunEvent` type and forwards `invocationId` to the chat store.
+The earlier handler declared its own event shape and omitted this field from the forwarded request.
+The optional field let the old handler pass typecheck, but repeated call IDs caused an ambiguous-target error during a rerun.
+
+The shared [rerun implementation](../../packages/stage-ui/src/stores/tool-call-rerun.ts) rejects ambiguous targets before tool execution.
+With the invocation ID, it reruns the selected call and updates only that call's results.
+It also invalidates native continuation state for that round and later rounds because they depend on the previous result.
+The [regression tests](../../packages/stage-ui/src/stores/tool-call-rerun.test.ts) cover repeated call IDs, target selection, and result replacement.
 
 ### Authentication and external navigation
 
@@ -337,7 +367,8 @@ Shortcut persistence now calls `string.Join` directly. The single-use `FormatMod
 This removes five production lines and a four-line assertion of standard-library behavior. Shortcut parsing and policy tests remain.
 The build, C# tests, format checks, typecheck, and 42 frontend tests passed with the commands listed under ablation 6.
 The test project also passed `dotnet format --verify-no-changes --no-restore`. The temporary authentication probe passed again.
-Root lint retained 1,715 errors and 701 warnings. This change required no new native-window check or permanent test.
+Root lint retained 1,715 errors and 701 warnings. No permanent test was added.
+The shortcut persistence flow was not repeated through the UI.
 
 ### Ablation 8: Native window exit notifications (2026-09-30)
 
@@ -571,6 +602,18 @@ The direct lookup depends on the pinned addon node name. An addon upgrade requir
 
 The lint errors came from native addon artifacts, previous `.auv` captures, and generated C# output.
 This experiment retains the simpler lookup and does not change the capability matrix.
+
+### Main merge integration checks (2026-09-29)
+
+Merge `f65867e29` incorporated `origin/main` at `b40e3e87b`.
+The recorded macOS checks covered builds and automated behavior. They did not repeat native UI acceptance.
+
+Root typecheck passed all 54 tasks. The Web and C# build and C# contract tests passed.
+Vitest passed 107 tests: 42 Kirie, 45 provider unit, six provider browser, four microphone browser, and ten tool-rerun tests.
+Root lint reported errors in Git-ignored native and generated files. The merge's staged-source lint passed.
+
+These results describe the merge baseline. They do not establish coverage for later ablations.
+These checks do not change the platform acceptance matrix or close the deferred plugin-host work.
 
 ### Windows environment and checks
 
