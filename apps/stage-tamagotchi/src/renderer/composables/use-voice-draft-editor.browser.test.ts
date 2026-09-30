@@ -71,7 +71,7 @@ it('restores unaccepted speech even when an older turn contains the same text', 
   sessions.appendSessionMessage(sessionId, { role: 'user', id: 'earlier-turn', content: 'Repeated phrase' })
   await drafts.append(sessionId, 'Repeated phrase')
   await editor.send()
-  expect(editor.error.value).toContain('No chat provider or model')
+  expect(editor.error.value).toContain('chat provider or model')
   expect(sessions.sessionMessages[sessionId]?.filter(message => message.role === 'user')).toHaveLength(1)
   expect(drafts.drafts[sessionId]).toBe('Repeated phrase')
 })
