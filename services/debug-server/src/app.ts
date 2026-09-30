@@ -14,7 +14,7 @@ import type { Context } from 'hono'
 
 import type { DebugServerConfig } from './config'
 import type { Signal } from './protocol'
-import type { DebugStorage, StoredEvent } from './storage'
+import type { DebugStorage, StoredEvent, StoredSource, StoredTrace } from './storage'
 
 import { Buffer } from 'node:buffer'
 import { gunzipSync } from 'node:zlib'
@@ -29,7 +29,7 @@ import { isValiError, parse } from 'valibot'
 
 import { decodeOtlp, encodeOtlpResponse, encodeStatus } from './protocol'
 import { eventQuery, exportQuery, sourceQuery, traceParams, traceQuery } from './query'
-import { CursorExpiredError, storageRow } from './storage'
+import { CursorExpiredError } from './storage'
 
 const log = useLogg('debug-server:http').useGlobalConfig()
 
@@ -88,37 +88,36 @@ function eventJson(event: StoredEvent): V1EventRecord {
   }
 }
 
-function traceJson(row: Record<string, unknown>): V1TraceSummary {
-  const state = storageRow.number(row, 'state')
-  const stateName = traceStateNames[state]
+function traceJson(row: StoredTrace): V1TraceSummary {
+  const stateName = traceStateNames[row.state]
   if (stateName === undefined)
-    throw new Error(`Unknown stored trace state ${state}`)
+    throw new Error(`Unknown stored trace state ${row.state}`)
   return {
-    firstSeenUnixNano: storageRow.bigint(row, 'first_seen_unix_nano').toString(),
-    lastCursor: storageRow.bigint(row, 'last_event_cursor').toString(),
-    lastSeenUnixNano: storageRow.bigint(row, 'last_seen_unix_nano').toString(),
-    logCount: storageRow.bigint(row, 'log_count').toString(),
-    sessionId: storageRow.string(row, 'session_id'),
-    sourceId: storageRow.string(row, 'source_id'),
-    spanCount: storageRow.bigint(row, 'span_count').toString(),
+    firstSeenUnixNano: row.firstSeenUnixNano.toString(),
+    lastCursor: row.lastEventCursor.toString(),
+    lastSeenUnixNano: row.lastSeenUnixNano.toString(),
+    logCount: row.logCount.toString(),
+    sessionId: row.sessionId,
+    sourceId: row.sourceId,
+    spanCount: row.spanCount.toString(),
     state: stateName,
-    traceId: storageRow.string(row, 'trace_id'),
+    traceId: row.traceId,
   }
 }
 
-function sourceJson(row: Record<string, unknown>): V1Source {
+function sourceJson(row: StoredSource): V1Source {
   const signals: string[] = []
-  if (row.saw_spans === true)
+  if (row.sawSpans)
     signals.push('traces')
-  if (row.saw_logs === true)
+  if (row.sawLogs)
     signals.push('logs')
   return {
-    eventCount: storageRow.bigint(row, 'event_count').toString(),
-    firstSeenUnixNano: storageRow.bigint(row, 'first_seen_unix_nano').toString(),
-    lastSeenUnixNano: storageRow.bigint(row, 'last_seen_unix_nano').toString(),
-    serviceName: storageRow.string(row, 'service_name'),
+    eventCount: row.eventCount.toString(),
+    firstSeenUnixNano: row.firstSeenUnixNano.toString(),
+    lastSeenUnixNano: row.lastSeenUnixNano.toString(),
+    serviceName: row.serviceName,
     signals,
-    sourceId: storageRow.string(row, 'source_id'),
+    sourceId: row.sourceId,
   }
 }
 
@@ -129,14 +128,6 @@ function batchKind(signal: string): V1EventKind {
     return 'EVENT_KIND_LOG'
   throw new Error(`Unknown stored signal ${signal}`)
 }
-
-function batchBody(row: Record<string, unknown>): string {
-  const value = row.body
-  if (!(value instanceof Uint8Array))
-    throw new Error('DuckDB column body is not binary data')
-  return Buffer.from(value).toString('base64')
-}
-
 function responseBody(payload: Uint8Array | string): BodyInit {
   return typeof payload === 'string' ? payload : Uint8Array.from(payload).buffer
 }
@@ -332,12 +323,12 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
     const page = await storage.exportRecords(query.afterCursor, query.pageSize)
     const body: V1ExportRecordsResponse = {
       batches: page.batches.map(row => ({
-        body: batchBody(row),
-        contentEncoding: storageRow.string(row, 'content_encoding'),
-        contentType: storageRow.string(row, 'content_type'),
-        cursor: storageRow.bigint(row, 'cursor').toString(),
-        kind: batchKind(storageRow.string(row, 'signal')),
-        receivedUnixNano: storageRow.bigint(row, 'received_unix_nano').toString(),
+        body: Buffer.from(row.body).toString('base64'),
+        contentEncoding: row.contentEncoding,
+        contentType: row.contentType,
+        cursor: row.cursor.toString(),
+        kind: batchKind(row.signal),
+        receivedUnixNano: row.receivedUnixNano.toString(),
       })),
       events: page.events.map(eventJson),
       nextCursor: page.nextCursor,

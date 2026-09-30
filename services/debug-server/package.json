@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@duckdb/node-api": "catalog:",
+    "@duckdbfan/drizzle-duckdb": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",

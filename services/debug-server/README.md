@@ -134,12 +134,12 @@ Its local visibility target is p95 below 500 ms across those five samples. This 
 
 ## Storage choice and boundaries
 
-This service uses `@duckdb/node-api` with parameterized SQL and a local database file.
-Drizzle owns the table schema in `src/schema.ts`. Drizzle Kit generates the table migrations in `drizzle/`.
+This service uses Drizzle ORM through `@duckdbfan/drizzle-duckdb`, backed by `@duckdb/node-api` and a local database file.
+Drizzle owns runtime queries, transactions, and the table schema in `src/schema.ts`. Drizzle Kit generates migrations in `drizzle/`.
 Run `pnpm -F @proj-airi/debug-server db:generate` after a schema change. Commit the SQL, snapshot, and journal together.
 The PostgreSQL dialect supplies the schema builder, as in AIRI's WASM adapter. This is not a PostgreSQL database.
 DuckDB-specific types use `customType`; indexes use ART. A custom migration creates DuckDB sequences.
-Startup applies pending migrations transactionally through the native connection and checks recorded hashes.
+Startup applies pending migrations through a Drizzle transaction and checks recorded hashes.
 Run the service tests against DuckDB after generation. Do not assume all PostgreSQL DDL works in DuckDB.
 
 The existing Drizzle/WASM adapter **can** persist data in Node. It is not browser-only.
@@ -148,10 +148,11 @@ File creation, `db.transaction` commit and rollback, and connection reopen passe
 The probe used `storage: { type: 'node-fs', path, accessMode: DuckDBAccessMode.READ_WRITE }`.
 No comparative latency or memory benchmark was run.
 However, ORM inserts rejected BigInt parameters. Typed selects returned database column names instead of mapped property names, and BLOB reads returned strings.
-The native adapter `@duckdbfan/drizzle-duckdb@1.5.4-15` passed basic transaction probes, but interpreted the valid string `{}` as an array.
-That conversion broke OTLP ingestion. Neither tested adapter met this service's data-preservation requirements.
-This change keeps the tested native query path. Drizzle manages schema and migrations, not runtime queries or transactions.
-No new ORM driver or protocol workspace is added.
+The native adapter `@duckdbfan/drizzle-duckdb@1.5.4-15` passed transaction, typed query, BigInt, and BLOB probes.
+Its compatibility conversion interpreted the valid string `{}` as a PostgreSQL array literal and broke OTLP ingestion.
+A pnpm patch removes that implicit string conversion. Array callers must pass native arrays or the adapter's DuckDB array types.
+The driver regression test preserves `{}` as text. Storage tests cover ORM commit, rollback, typed reads, retention, and restart.
+No new ORM or protocol workspace is added.
 
 Files created before this PR added migrations are not auto-adopted.
 Keep the old file and select a new `AIRI_DEBUG_DB_PATH`. Startup fails rather than changing an unversioned store.

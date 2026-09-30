@@ -90,6 +90,9 @@ catalogs:
     '@duckdb/node-api':
       specifier: 1.5.5-r.5
       version: 1.5.5-r.5
+    '@duckdbfan/drizzle-duckdb':
+      specifier: 1.5.4-15
+      version: 1.5.4-15
     '@electric-sql/pglite':
       specifier: ^0.5.6
       version: 0.5.6
@@ -1289,6 +1292,7 @@ overrides:
 packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
 patchedDependencies:
+  '@duckdbfan/drizzle-duckdb@1.5.4-15': c27d47cfa4af0ed19e47d825958b88a5f725ca6ee9c3c0209ef4c885c9aa85f6
   '@xsai-ext/responses@0.5.0': 58f91d94e326cbd7359ae644b6c86dad09128ffc8fd0a7eceef2b90117d44ef5
   mineflayer-pathfinder: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
   pixi-live2d-display: 7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d
@@ -6020,6 +6024,9 @@ importers:
       '@duckdb/node-api':
         specifier: 'catalog:'
         version: 1.5.5-r.5
+      '@duckdbfan/drizzle-duckdb':
+        specifier: 'catalog:'
+        version: 1.5.4-15(patch_hash=c27d47cfa4af0ed19e47d825958b88a5f725ca6ee9c3c0209ef4c885c9aa85f6)(@duckdb/node-api@1.5.5-r.5)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))
       '@guiiai/logg':
         specifier: 'catalog:'
         version: 1.2.12
@@ -7411,6 +7418,17 @@ packages:
 
   '@duckdb/node-bindings@1.5.5-r.5':
     resolution: {integrity: sha512-sR7x91TfBunLqLbdvrcdiPCU+VGEQFPicxh1STZM402fuHW2ituPTAo2bY3IlntsvJShltrKF4R6B+JYPlAPZg==}
+
+  '@duckdbfan/drizzle-duckdb@1.5.4-15':
+    resolution: {integrity: sha512-ZHsZlQfcJXl7HiOcR7pxwgASpaj4/yfMBDKbkyRWbSJE2HgYg7yZY1e1w5Fj+EYMI+QVGzbvbW5lDDYvYYzg2Q==}
+    engines: {node: '>=18.17'}
+    hasBin: true
+    peerDependencies:
+      '@duckdb/node-api': '>=1.4.4 <1.6.0 || >=1.4.4-r.1 <1.4.5 || >=1.4.5-r.1 <1.4.6 || >=1.5.0-r.1 <1.5.1 || >=1.5.1-r.1 <1.5.2 || >=1.5.2-r.1 <1.5.3 || >=1.5.3-r.1 <1.5.4 || >=1.5.4-r.1 <1.5.5 || >=1.5.5-r.1 <1.5.6'
+      drizzle-orm: '>=0.40.1 <0.46.0'
+    peerDependenciesMeta:
+      '@duckdb/node-api':
+        optional: true
 
   '@e18e/eslint-plugin@0.3.0':
     resolution: {integrity: sha512-hHgfpxsrZ2UYHcicA+tGZnmk19uJTaye9VH79O+XS8R4ona2Hx3xjhXghclNW58uXMk3xXlbYEOMr8thsoBmWg==}
@@ -12040,6 +12058,9 @@ packages:
   '@types/parse-path@7.1.0':
     resolution: {integrity: sha512-EULJ8LApcVEPbrfND0cRQqutIOdiIgJ1Mgrhpy755r14xMohPTEpkV/k28SJvuOs9bHRFW8x+KeDAEPiGQPB9Q==}
     deprecated: This is a stub types definition. parse-path provides its own type definitions, so you do not need this installed.
+
+  '@types/pegjs@0.10.6':
+    resolution: {integrity: sha512-eLYXDbZWXh2uxf+w8sXS8d6KSoXTswfps6fvCUuVAGN8eRpfe7h9eSRydxiSJvo9Bf+GzifsDOr9TMQlmJdmkw==}
 
   '@types/pg-pool@2.0.7':
     resolution: {integrity: sha512-U4CwmGVQcbEuqpyju8/ptOKg6gEC+Tqsvj2xS9o1g71bUh8twxnC6ZL5rZKCsGN0iyH0CwgUyc9VR5owNQF9Ng==}
@@ -17290,6 +17311,10 @@ packages:
   node-rsa@0.4.2:
     resolution: {integrity: sha512-Bvso6Zi9LY4otIZefYrscsUpo2mUpiAVIEmSZV2q41sP8tHZoert3Yu6zv4f/RXJqMNZQKCtnhDugIuCma23YA==}
 
+  node-sql-parser@5.4.0:
+    resolution: {integrity: sha512-jVe6Z61gPcPjCElPZ6j8llB3wnqGcuQzefim1ERsqIakxnEy5JlzV7XKdO1KmacRG5TKwPc4vJTgSRQ0LfkbFw==}
+    engines: {node: '>=8'}
+
   node-vibrant@4.0.4:
     resolution: {integrity: sha512-hA/pUXBE9TJ41G9FlTkzeqD5JdxgvvPGYZb/HNpdkaxxXUEnP36imSolZ644JuPun+lTd+FpWWtBpTYdp2noQA==}
 
@@ -22351,6 +22376,13 @@ snapshots:
       '@duckdb/node-bindings-win32-arm64': 1.5.5-r.5
       '@duckdb/node-bindings-win32-x64': 1.5.5-r.5
 
+  '@duckdbfan/drizzle-duckdb@1.5.4-15(patch_hash=c27d47cfa4af0ed19e47d825958b88a5f725ca6ee9c3c0209ef4c885c9aa85f6)(@duckdb/node-api@1.5.5-r.5)(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))':
+    dependencies:
+      drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
+      node-sql-parser: 5.4.0
+    optionalDependencies:
+      '@duckdb/node-api': 1.5.5-r.5
+
   '@e18e/eslint-plugin@0.3.0(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(oxlint@1.79.0)':
     dependencies:
       eslint-plugin-depend: 1.5.0(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))
@@ -26493,6 +26525,8 @@ snapshots:
   '@types/parse-path@7.1.0':
     dependencies:
       parse-path: 7.1.0
+
+  '@types/pegjs@0.10.6': {}
 
   '@types/pg-pool@2.0.7':
     dependencies:
@@ -32696,6 +32730,11 @@ snapshots:
   node-rsa@0.4.2:
     dependencies:
       asn1: 0.2.3
+
+  node-sql-parser@5.4.0:
+    dependencies:
+      '@types/pegjs': 0.10.6
+      big-integer: 1.6.52
 
   node-vibrant@4.0.4:
     dependencies:

@@ -1,8 +1,10 @@
+import type { Buffer } from 'node:buffer'
+
+import { duckDbBlob } from '@duckdbfan/drizzle-duckdb'
 import { sql } from 'drizzle-orm'
 import { bigint, boolean, customType, index, integer, pgTable, unique, varchar } from 'drizzle-orm/pg-core'
 
 const hugeint = customType<{ data: bigint }>({ dataType: () => 'HUGEINT' })
-const blob = customType<{ data: Uint8Array }>({ dataType: () => 'BLOB' })
 
 export const metadata = pgTable('metadata', {
   key: varchar().primaryKey(),
@@ -14,7 +16,7 @@ export const ingestBatches = pgTable('ingest_batches', {
   signal: varchar().notNull(),
   contentType: varchar('content_type').notNull(),
   contentEncoding: varchar('content_encoding').notNull(),
-  body: blob().notNull(),
+  body: duckDbBlob('body').$type<Buffer>().notNull(),
   receivedUnixNano: hugeint('received_unix_nano').notNull(),
 })
 

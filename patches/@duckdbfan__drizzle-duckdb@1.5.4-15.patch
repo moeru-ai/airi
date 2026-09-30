@@ -1,0 +1,89 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 7edfd6eb51c0262fc6b2c4d702cddb8642fed8aa..0142f239446dcd0a7d1f2fa8bbe9d6727ffd64e6 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -617,29 +617,7 @@ async function* withConnectionStream(client, callback) {
+   }
+ }
+ function prepareParams(params, options = {}) {
+-  let preparedParams = params;
+-  for (let index = 0;index < params.length; index += 1) {
+-    const param = params[index];
+-    if (typeof param === "string" && param.length > 0) {
+-      const trimmed = param.trim();
+-      if (trimmed && isPgArrayLiteral(trimmed)) {
+-        if (options.rejectStringArrayLiterals) {
+-          throw new Error("Stringified array literals are not supported. Use duckDbList()/duckDbArray() or pass native arrays.");
+-        }
+-        if (options.warnOnStringArrayLiteral) {
+-          options.warnOnStringArrayLiteral();
+-        }
+-        const nextValue = parsePgArrayLiteral(trimmed);
+-        if (nextValue !== param) {
+-          if (preparedParams === params) {
+-            preparedParams = params.slice();
+-          }
+-          preparedParams[index] = nextValue;
+-        }
+-      }
+-    }
+-  }
+-  return preparedParams;
++  return params;
+ }
+ function toNodeApiValue(value) {
+   if (value == null)
+diff --git a/src/client.ts b/src/client.ts
+index 68ce1bfeff5646f321b644a928781a497bee7524..b548831237290ddd14482e335588e3ebc44e3fc6 100644
+--- a/src/client.ts
++++ b/src/client.ts
+@@ -14,7 +14,6 @@ import {
+   normalizePositiveInteger,
+   type PreparedStatementCacheConfig,
+ } from './options.ts';
+-import { isPgArrayLiteral, parsePgArrayLiteral } from './array-literals.ts';
+ import type { PgDuckClient, PgDuckField, PgDuckQueryResult } from './pgduck.ts';
+ import {
+   bindPreparedStatement,
+@@ -149,37 +148,9 @@ async function* withConnectionStream<T>(
+-
++
+ export function prepareParams(
+   params: unknown[],
+-  options: PrepareParamsOptions = {}
++  _options: PrepareParamsOptions = {}
+ ): unknown[] {
+-  let preparedParams = params;
+-
+-  for (let index = 0; index < params.length; index += 1) {
+-    const param = params[index];
+-    if (typeof param === 'string' && param.length > 0) {
+-      const trimmed = param.trim();
+-
+-      if (trimmed && isPgArrayLiteral(trimmed)) {
+-        if (options.rejectStringArrayLiterals) {
+-          throw new Error(
+-            'Stringified array literals are not supported. Use duckDbList()/duckDbArray() or pass native arrays.'
+-          );
+-        }
+-
+-        if (options.warnOnStringArrayLiteral) {
+-          options.warnOnStringArrayLiteral();
+-        }
+-        const nextValue = parsePgArrayLiteral(trimmed);
+-        if (nextValue !== param) {
+-          if (preparedParams === params) {
+-            preparedParams = params.slice();
+-          }
+-          preparedParams[index] = nextValue;
+-        }
+-      }
+-    }
+-  }
+-
+-  return preparedParams;
++  return params;
+ }
+-
++
+ /**

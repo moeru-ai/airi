@@ -59,6 +59,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
+  '@duckdbfan/drizzle-duckdb@1.5.4-15': patches/@duckdbfan__drizzle-duckdb@1.5.4-15.patch
   '@xsai-ext/responses@0.5.0': patches/@xsai-ext__responses@0.5.0.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
@@ -94,6 +95,7 @@ catalog:
   '@discordjs/voice': ^0.19.2
   '@dotenvx/dotenvx': ^2.21.0
   '@duckdb/node-api': 1.5.5-r.5
+  '@duckdbfan/drizzle-duckdb': 1.5.4-15
   '@electric-sql/pglite': ^0.5.6
   '@electric-sql/pglite-pgvector': 0.0.7
   '@electron-toolkit/eslint-config-ts': ^3.1.0
