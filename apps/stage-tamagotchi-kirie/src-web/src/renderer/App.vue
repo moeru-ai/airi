@@ -64,7 +64,7 @@ import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
-import { getHostPlatform, initializeHostContext, startHostOwnedSpotlightShortcut, useHostMicrophonePermission } from './host-context'
+import { initializeHostContext, startHostOwnedSpotlightShortcut, useHostMicrophonePermission } from './host-context'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -80,6 +80,7 @@ const { language, themeColorsHue, themeColorsHueDynamic } = storeToRefs(settings
 const router = useRouter()
 const route = useRoute()
 const context = useHostEventaContext()
+const hostContext = initializeHostContext()
 const locale = useHostLocale()
 const getMainLocale = locale.get
 const setLocale = locale.set
@@ -94,7 +95,7 @@ const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.st
 const isChatWindow = initialRoutePath === '/chat'
 const isSpotlightWindow = initialRoutePath === '/spotlight'
 const isMainRenderer = windowContext.leadership === 'leader-only'
-const microphonePermission = initializeHostContext().runtime === 'kirie'
+const microphonePermission = hostContext.runtime === 'kirie'
   ? useHostMicrophonePermission()
   : undefined
 const microphonePermissionPrompt = microphonePermission?.prompt
@@ -401,11 +402,11 @@ onMounted(async () => {
   // https://github.com/moeru-ai/airi/issues/1658
   await restoreLocale()
 
-  if (isMainRenderer && initializeHostContext().runtime === 'kirie') {
+  if (isMainRenderer && hostContext.runtime === 'kirie') {
     stopSpotlightShortcut = startHostOwnedSpotlightShortcut({
       onRegistrationFailed(error) {
         console.warn('[App] Failed to register the Spotlight shortcut:', error)
-        void getHostPlatform()?.notifications.show({
+        hostContext.platform!.notifications.show({
           body: t('tamagotchi.settings.spotlight.errors.shortcutRegistrationFailed'),
           id: 'spotlight-shortcut-failed',
           title: 'AIRI',

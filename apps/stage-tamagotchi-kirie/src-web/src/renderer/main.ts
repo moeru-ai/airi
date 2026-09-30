@@ -18,7 +18,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 
 import App from './App.vue'
 
-import { disposeHostContext, getHostPlatform, initializeHostContext, installExternalNavigation } from './host-context'
+import { disposeHostContext, initializeHostContext, installExternalNavigation } from './host-context'
 import { i18n } from './modules/i18n'
 import { resolveRendererWindowContext } from './window-context'
 
@@ -60,7 +60,7 @@ if (import.meta.hot)
   import.meta.hot.dispose(disposeRendererHost)
 
 if (import.meta.env.DEV && hostContext.runtime === 'kirie') {
-  getHostPlatform()?.hostWindow.getBounds().then(bounds => console.info('[host-context] Kirie Eventa round trip succeeded.', JSON.stringify(bounds))).catch(error => console.error('[host-context] Kirie Eventa round trip failed.', error))
+  hostContext.platform!.hostWindow.getBounds().then(bounds => console.info('[host-context] Kirie Eventa round trip succeeded.', JSON.stringify(bounds))).catch(error => console.error('[host-context] Kirie Eventa round trip failed.', error))
 }
 
 const pinia = createPinia()

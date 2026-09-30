@@ -194,16 +194,10 @@ export function useHostMouseInElement(target?: MaybeElementRef) {
 }
 
 export function useHostMouseInWindow() {
-  const mouse = useHostRelativeMouse()
-  const { width, height } = useHostWindowBounds()
-  const isOutside = computed(() => !pointerInsideWindow.value
-    || mouse.x.value < 0
-    || mouse.y.value < 0
-    || mouse.x.value > width.value
-    || mouse.y.value > height.value)
+  startTracking()
 
   return {
-    isOutside,
+    isOutside: computed(() => !pointerInsideWindow.value),
   }
 }
 

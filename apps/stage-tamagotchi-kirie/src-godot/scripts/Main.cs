@@ -131,6 +131,11 @@ public partial class Main : Node
         _kirie.CreateWebView(initialUrl);
     }
 
+    public override void _Input(InputEvent inputEvent)
+    {
+        _nativeResize?.HandleInput(inputEvent);
+    }
+
     public override void _ExitTree()
     {
         _nativeResize?.Dispose();

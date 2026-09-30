@@ -7,34 +7,16 @@ import { initializeHostContext } from './owner'
 
 export function useHostAlwaysOnTop() {
   const host = initializeHostContext()
-  const setElectronAlwaysOnTop = host.runtime === 'electron'
-    ? defineInvoke(host.context, electronWindowSetAlwaysOnTop)
-    : undefined
-
-  return async (enabled: boolean) => {
-    if (host.runtime === 'kirie') {
-      await host.platform!.hostWindow.setAlwaysOnTop(enabled)
-      return
-    }
-
-    await setElectronAlwaysOnTop!(enabled)
-  }
+  return host.runtime === 'kirie'
+    ? host.platform!.hostWindow.setAlwaysOnTop
+    : defineInvoke(host.context, electronWindowSetAlwaysOnTop)
 }
 
 export function useHostWindowCenter() {
   const host = initializeHostContext()
-  const centerElectronWindow = host.runtime === 'electron'
-    ? defineInvoke(host.context, electronCenterMainWindow)
-    : undefined
-
-  return async () => {
-    if (host.runtime === 'kirie') {
-      await host.platform!.hostWindow.centerOnCurrentDisplay()
-      return
-    }
-
-    await centerElectronWindow!()
-  }
+  return host.runtime === 'kirie'
+    ? host.platform!.hostWindow.centerOnCurrentDisplay
+    : defineInvoke(host.context, electronCenterMainWindow)
 }
 
 export function useHostWindowMove() {

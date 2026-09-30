@@ -18,7 +18,6 @@ internal sealed class NativeWindowResizeController : IDisposable
         _window = window;
         RefreshHitTargets();
         _window.DpiChanged += RefreshHitTargets;
-        _window.WindowInput += OnWindowInput;
         _window.MouseExited += RestoreCursor;
     }
 
@@ -31,7 +30,6 @@ internal sealed class NativeWindowResizeController : IDisposable
 
         _disposed = true;
         _window.DpiChanged -= RefreshHitTargets;
-        _window.WindowInput -= OnWindowInput;
         _window.MouseExited -= RestoreCursor;
         RestoreCursor();
     }
@@ -104,7 +102,7 @@ internal sealed class NativeWindowResizeController : IDisposable
         return null;
     }
 
-    private void OnWindowInput(InputEvent inputEvent)
+    public void HandleInput(InputEvent inputEvent)
     {
         if (_window.Unresizable || _window.Mode != Window.ModeEnum.Windowed)
         {
@@ -114,11 +112,17 @@ internal sealed class NativeWindowResizeController : IDisposable
 
         if (inputEvent is InputEventMouseMotion mouseMotion)
         {
-            SetCursor(ResolveResizeEdge(
+            var resizeEdge = ResolveResizeEdge(
                 mouseMotion.Position,
                 _window.Size,
                 _edgeThickness,
-                _cornerSize));
+                _cornerSize);
+            SetCursor(resizeEdge);
+            if (resizeEdge is not null)
+            {
+                _window.SetInputAsHandled();
+            }
+
             return;
         }
 

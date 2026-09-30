@@ -33,13 +33,14 @@ The later ablation checks do not extend the platform acceptance matrix.
 `Deferred` identifies work outside the current milestone.
 
 Six Windows passes include user acceptance decisions.
-The user accepted native resize despite the unchanged cursor. That observation is not a tracked defect.
+The user accepted native resize despite the unchanged cursor during the Windows review.
+On 2026-09-30, the user requested resize cursor indicators. See [resize cursor indicators](#resize-cursor-indicators-2026-09-30).
 The review does not imply unreported coverage of multiple displays or every onboarding and login branch.
 
 | ID | Capability | Original macOS decision | Windows | Windows evidence |
 | --- | --- | --- | --- | --- |
 | GAP-001 | Window leadership | Accepted | Pass | Main used explicit leader state. Settings and Chat used follower state. |
-| GAP-002 | Native edge resize | Accepted | Pass (user review) | The user confirmed that native edge resize works and accepted the result. The unchanged cursor remains an observation, not a tracked defect. |
+| GAP-002 | Native edge resize | Accepted | Pass (user review) | The user confirmed that native edge resize works. The later cursor indicator change has separate macOS evidence below. |
 | GAP-003 | Pointer state | Accepted | Pass | Native AUV movement changed the host pointer coordinates and inside state. |
 | GAP-004 | Display snapshot | Accepted | Pass (user review) | Display and bounds RPCs worked at 200% scaling. The user confirmed normal Windows behavior. No separate multi-display evidence exists. |
 | GAP-005 | Window movement and pinning | Accepted | Pass (user review) | Pin and unpin changed native z-order relative to Explorer. The user confirmed normal Windows behavior. |
@@ -205,6 +206,7 @@ Chat and Spotlight use `stage-runtime=minimal`.
 Pointer, display, window-action, and lifecycle adapters borrow the shared host context.
 Display placement uses one atomic current-display snapshot.
 Godot owns edge detection, native resize, movement, and close requests.
+Kirie supplies the authoritative pointer-inside result. Cached renderer bounds do not override it because they can lag after a resize.
 
 Onboarding, Settings, and Chat reuse their existing window on repeated requests.
 Settings also applies the latest requested route when requests arrive before its renderer is ready.
@@ -345,6 +347,72 @@ A reproduced API gap can justify temporary sibling-source work after the require
 Return to one coordinated published version before acceptance.
 
 ## Acceptance evidence
+
+Migration ablation removes designs that add no required behavior.
+Use temporary probes and existing checks to compare behavior. Do not add permanent tests by default for this migration review.
+Retain a change only when it simplifies the final design.
+
+### Resize cursor indicators (2026-09-30)
+
+Main forwards input through `Node._Input` to the existing native resize controller.
+The controller consumes edge motion after setting the horizontal, vertical, or diagonal resize cursor.
+Interior motion remains available to the WebView, which selects its normal hand or text cursor.
+The controller retains its existing edge detection, DPI scaling, native resize calls, and cursor cleanup.
+
+The previous `WindowInput` callback set the cursor before Godot processed GUI input.
+The hovered Control then replaced that cursor during the same event.
+See Godot's [window input dispatch](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/window.cpp#L2020)
+and [viewport input processing](https://github.com/godotengine/godot/blob/4.7.2-stable/scene/main/viewport.cpp#L3502).
+
+A temporary macOS Godot probe loaded the actual main scene and added a Control with hand and text cursors.
+All eight resize directions retained the expected cursor through the next frame.
+Interior motion, window exit, and disabled resizing restored the expected Control cursor. All 28 cursor assertions passed.
+No permanent test was added. Windows cursor review remains pending.
+
+Checks: `mise x -- dotnet build StageTamagotchiKirie.csproj`,
+`mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests`,
+and `mise x -- dotnet format StageTamagotchiKirie.csproj --verify-no-changes --no-restore` passed.
+The first build used `--no-restore` and found stale GodotSharp 4.7.1 assets. Normal restore resolved them without dependency changes.
+The native probe exited with code 0 and reported two leaked ObjectDB instances.
+Root `mise x -- pnpm lint` retained the existing 1,715 errors and 701 warnings.
+
+### Ablation 14: Duplicate pointer-inside geometry (2026-09-30)
+
+The composable now uses the existing inside-window state. This removes six production lines.
+Electron already computes this state. Kirie's [native host](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/GdKirie.Platform/src/GdKiriePlatformHost.cs) uses the current window size.
+A temporary browser reproduction establishes cached width 800, then receives x=900 with `inside=true` on the next pointer poll.
+The original implementation failed this assertion. The simpler implementation passes and also handles a subsequent `inside=false` response.
+The review removed the temporary test after verification. No permanent regression test was added for this migration change.
+
+### Ablation 13: Platform getter (2026-09-30)
+
+Entry points now read Platform from their existing owner. Removing the forwarding getter saves three production lines overall.
+Delayed notification callbacks retain that owner instead of initializing another owner after disposal.
+
+### Ablation 12: Native pointer observation, withdrawn (2026-09-30)
+
+The event experiment reduced stationary pointer requests from 41 per second to zero, but added 26 production lines and more lifecycle state.
+The review withdrew it because it did not simplify the design. The application retains its original polling, retry, and DPI behavior.
+The event-specific tests and DPR configuration were also removed. The zero-request result does not describe the current implementation.
+
+### Ablation 11: Window action forwarding wrappers (2026-09-30)
+
+Always-on-top and centering return their selected host functions directly. This removes 18 production lines.
+The [Platform implementation](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/platform/src/index.ts) captures its invokes without `this`.
+Existing window-action tests remain. Additional forwarding-only tests were removed because the change adds no behavior.
+
+### Review verification (2026-09-30)
+
+The retained changes remove 27 production lines and add no permanent tests.
+The native development session exited with code 0 and one reported ObjectDB leak before the event experiment was withdrawn.
+These checks do not extend physical pointer, click-through, mixed-DPI, or Windows acceptance.
+
+| Command | Result |
+| --- | --- |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed, 13 files and 42 existing tests. |
+| `mise x -- pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `mise x -- pnpm typecheck` | Passed, 54 tasks. |
+| `mise x -- pnpm lint` | Failed with the existing 1,715 errors and 701 warnings. |
 
 ### Ablation 10: Native screen selection (2026-09-30)
 

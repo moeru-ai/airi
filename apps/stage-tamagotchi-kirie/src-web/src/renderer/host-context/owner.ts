@@ -60,10 +60,6 @@ export function useHostEventaInvoke<Res, Req = undefined, ResErr = Error, ReqErr
   return defineInvoke(context ?? getHostEventaContext(), invoke)
 }
 
-export function getHostPlatform(): PlatformClient | undefined {
-  return initializeHostContext().platform
-}
-
 export function disposeHostContext() {
   if (!owner)
     return
