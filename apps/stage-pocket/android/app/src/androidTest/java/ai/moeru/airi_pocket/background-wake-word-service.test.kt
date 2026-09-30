@@ -29,7 +29,10 @@ class BackgroundWakeWordServiceTest {
         manager.cancel(BackgroundWakeWordService.ERROR_NOTIFICATION_ID)
         preferences.edit().clear().commit()
         for (permission in listOf("android.permission.RECORD_AUDIO", "android.permission.POST_NOTIFICATIONS")) {
-            instrumentation.uiAutomation.executeShellCommand("pm grant ${context.packageName} $permission").close()
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                instrumentation.uiAutomation.executeShellCommand("pm grant ${context.packageName} $permission")
+            ).use { it.readBytes() }
+            assertEquals(android.content.pm.PackageManager.PERMISSION_GRANTED, context.checkSelfPermission(permission))
         }
 
         val launchIntent = Intent(context, MainActivity::class.java).apply {
