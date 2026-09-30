@@ -7,6 +7,7 @@ import { electron } from '@proj-airi/electron-eventa'
 import {
   useElectronEventaInvoke,
   useElectronMouseAroundWindowBorder,
+  useElectronMouseInElement,
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
@@ -14,7 +15,7 @@ import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
 import { hearingInputChannelName } from '@proj-airi/stage-shared'
 import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HoloCoupon } from '@proj-airi/stage-ui/components'
+import { HearingStatus, HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -33,11 +34,12 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
+import AuthStatusIsland from '../components/stage-islands/auth-status-island.vue'
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronOpenOnboarding } from '../../shared/eventa'
+import { electronAppIsWayland, electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
@@ -52,6 +54,10 @@ import {
   shouldSuppressVoiceInput,
 } from '../utils/voice-input-suppression'
 
+const hearingStatusElement = ref<HTMLElement>()
+const authStatusElement = ref<HTMLElement>()
+const { isOutside: outsideHearingStatus } = useElectronMouseInElement(hearingStatusElement)
+const { isOutside: outsideAuthStatus } = useElectronMouseInElement(authStatusElement)
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -171,6 +177,16 @@ const isTransparentForMouseEvents = computed(() => {
 
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
+
+// The controls Island hides while the cursor is away from the window. The edge
+// band counts as the window, because a resize holds the cursor there. On
+// Wayland the cursor signal can stick outside (#2521), so the Island stays.
+const isWayland = ref(true)
+// A failed probe keeps `true`, so the Island stays shown as before this feature.
+useElectronEventaInvoke(electronAppIsWayland)()
+  .then(value => isWayland.value = value)
+  .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
+const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
@@ -295,7 +311,7 @@ function handleFadeOnHoverInteractionChange() {
     return
   }
 
-  if (controlsOverlayActive.value) {
+  if (controlsOverlayActive.value || !outsideHearingStatus.value || !outsideAuthStatus.value) {
     // Portaled controls must receive clicks even outside the Island's bounds.
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
@@ -331,7 +347,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -821,6 +837,12 @@ const cursorPosition = computed(() => ({
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
   >
+    <div v-show="!settingsStore.streamerMode" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
+      <HearingStatus align="center" />
+    </div>
+    <div v-show="!settingsStore.streamerMode" ref="authStatusElement" :class="['absolute left-1/2 top-3 z-40 w-fit -translate-x-1/2']">
+      <AuthStatusIsland />
+    </div>
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
       :class="[
@@ -859,6 +881,7 @@ const cursorPosition = computed(() => ({
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"
+            :cursor-away="cursorAwayFromWindow"
             :[stageOpaqueAttribute]="true"
             @interaction-change="controlsIslandInteractionActive = $event"
           />

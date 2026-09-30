@@ -115,3 +115,20 @@ It requires Workers and WebAssembly. Web and Pocket load the selected model from
 Desktop development uses cached local files. Desktop releases bundle all three models.
 Use a remote Provider when model download size or local memory makes that unsuitable.
 The existing VAD pipeline has separate model and runtime downloads.
+
+### Compact Stage status
+
+`HearingStatus` shows the shared, always-on microphone session. Place it above a
+mobile composer or at the bottom of a desktop Stage. It reads local request
+activity, microphone amplitude, the last transcript, and device or provider
+errors.
+
+`StatusCapsule` owns the capsule surface and expandable details. Its indicator
+slot receives business content: Hearing owns the audio bars, while sign-in owns
+its waiting and result icons. The shell has no request or microphone state. Its details
+stay inside its layout bounds so Electron can include them in mouse hit testing.
+`HearingStatus` uses the details slot to match chat error cards without adding
+microphone failures to chat history.
+The component supports reduced motion. Desktop users can enable Streamer mode in
+General settings to hide these overlays without stopping microphone input or sign-in.
+Streamer mode is off by default.

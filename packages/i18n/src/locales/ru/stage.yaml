@@ -20,29 +20,12 @@ mobile-tools:
   close-view: Сохранить и закрыть управление видом
   hearing: Слух
 chat:
-  voice-input: Voice input
-  images:
-    empty: Share a thought or a picture.
-    use-vision: Use the vision model for chat images
-    use-vision-description: Choose a provider and model below. It reads attached images before your chat model replies. Without a vision model, images go directly to the chat model.
-    attach: 'Attach images'
-    remove: 'Remove {name}'
-    unsupported: 'Use PNG, JPEG, WebP, or GIF images.'
-    too-large: 'Each image must be 3 MB or smaller.'
-    too-many: 'Attach up to {count} images at a time.'
-    total-too-large: 'All attached images together must be 3 MB or smaller.'
-    read-failed: 'Could not read this image. Try again.'
-    no-description: 'The vision model returned no image description. Check Settings → Modules → Vision and try again.'
-    reading: 'Reading images…'
-    description: 'Image attachment'
   actions:
     reply: Ответить
     retry: Повторить
     send: Отправить сообщение
-    stop: Stop response
   message:
     character-name:
-      airi: AIRI
       core-system: Core система
       you: Ты
   reply:
@@ -50,16 +33,7 @@ chat:
     message: Сообщение
     replying-to: Ответить на {name}
   reasoning: Причина
-  swipe-demo:
-    show-label: Show labels
-    delete: Delete
-    archive: Archive
-    pin: Pin
-    actions: Show actions
-    row: 'Conversation {n}'
   sessions:
-    delete-short: Delete
-    confirm-delete-short: Confirm delete
     title: Диалоги
     new: + Новый
     current: Текущая
@@ -79,8 +53,6 @@ render-error:
 message: Спроси что-нибудь
 send-mode:
   title: Отправить ключ
-  enter: Enter
-  ctrl-enter: Ctrl + Enter
   double-enter: Двойной Enter
 speech-output:
   mute: Отключить озвучивание
@@ -122,7 +94,6 @@ promo-banner:
       fallbackLabel: Лунный подарок
       title: 7-дневный вход
       eventName: Войдите, чтобы получить звездную пыль, рамки аватара и подарки к запуску.
-      date: 03/28 - 04/10
       reward: До 120 звёздной пыли
       cta: Войти
     build:
@@ -130,7 +101,6 @@ promo-banner:
       fallbackLabel: Бонус сборки
       title: Бонус от ящика с припасами
       eventName: Выполняйте строительные задания, чтобы получать бонусные ваучеры и двойные материалы.
-      date: 03/30 - 04/12
       reward: 5 ваучеров на припасы + улучшающие материалы
       cta: Просмотреть задания
     spring:
@@ -138,7 +108,6 @@ promo-banner:
       fallbackLabel: Весенний розыгрыш
       title: Карнавал капсул
       eventName: Участвуйте в весеннем розыгрыше, чтобы открывать пузырьки, подвески и тематическую мебель.
-      date: 04/01 - 04/18
       reward: Первое привлечение за полцены + редкая подвеска
       cta: Участвовать сейчас
     coupon:
@@ -146,7 +115,6 @@ promo-banner:
       fallbackLabel: Купон
       title: Купон пополнения
       eventName: Выполняйте чат взаимодействия, чтобы получать купоны на наборы расширения и голосовые пакеты.
-      date: 04/02 - 04/20
       reward: Экономьте 6 на 30 / Экономьте 15 на 68
       cta: Подтвердить промокод
     home:
@@ -154,7 +122,6 @@ promo-banner:
       fallbackLabel: Тема комнаты
       title: Весеннее тематическое обновление
       eventName: Открывайте темы для окна, стола и ночника, чтобы обновить свою комнату.
-      date: 04/05 - 04/22
       reward: Бесплатный билет на тематический розыгрыш при входе
       cta: Просмотр тем
 waiting: Ожидание
@@ -162,6 +129,3 @@ websocket-status:
   connected: Подключено
   disconnected: Нет подключения
   open-settings: Открыть настройки подключения
-computer-use:
-  label: Use computer
-  description: Allow this chat window to inspect and control native apps on this computer.
