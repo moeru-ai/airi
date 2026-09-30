@@ -29,6 +29,9 @@ interface ChatInterruptionSubmissionHooks {
  * The stop action appears only when a response is active and the composer is
  * empty. A new draft replaces the stop action with send. Sending that draft
  * cancels the active response before it submits the next turn.
+ *
+ * A response owned by another session counts as active. Switching the visible
+ * chat keeps cancellation available for the response that is still running.
  */
 export function useChatInterruption(options: ChatInterruptionOptions) {
   const chatStore = useChatStore()
@@ -42,12 +45,23 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
   const replacementSessionId = ref<string>()
   const replacementSendStarted = ref(false)
 
-  const responseActive = computed(() => options.generating.value || showStopSpeakingButton.value)
-  const showStopAction = computed(() => responseActive.value && !options.hasSubmission.value && !preparingReplacement.value)
   const responseSessionId = computed(() => (replacementSendStarted.value ? replacementSessionId.value : undefined)
     ?? contextBridgeStore.remoteStreamSessionId
     ?? chatStore.activeSendSessionId
     ?? options.sessionId.value)
+  // A response owned by another session stays cancellable from this composer.
+  // `generating` only covers the visible session, and `nowSpeaking` drops to false
+  // in the gap between two speech segments. Both conditions then read false while
+  // the owner is still generating text or still has speech pending, which hid the
+  // stop action. A known owner on another session proves a response is still live.
+  const responseOwnedByAnotherSession = computed(() => {
+    const owner = contextBridgeStore.remoteStreamSessionId ?? chatStore.activeSendSessionId
+    return !!owner && owner !== options.sessionId.value
+  })
+  const responseActive = computed(() => options.generating.value
+    || showStopSpeakingButton.value
+    || responseOwnedByAnotherSession.value)
+  const showStopAction = computed(() => responseActive.value && !options.hasSubmission.value && !preparingReplacement.value)
 
   async function cancelGeneration(sessionId: string) {
     await Promise.all([

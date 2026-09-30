@@ -109,6 +109,72 @@ describe('useChatInterruption', () => {
     expect(mocks.cancelRemoteStream).toHaveBeenCalledWith('session-1')
   })
 
+  it('keeps stop available between speech segments of another session', () => {
+    mocks.activeSendSessionId = 'session-1'
+    const controls = useChatInterruption({
+      sessionId: ref('session-2'),
+      generating: ref(false),
+      hasSubmission: ref(false),
+      submit: vi.fn(),
+    })
+
+    // Gap between two segments: the visible session never generated and nothing
+    // is audible, while session-1 is still waiting for its next speech segment.
+    expect(mocks.showStopSpeakingButton.value).toBe(false)
+    expect(controls.showStopAction.value).toBe(true)
+  })
+
+  it('stops the other session during the gap between its speech segments', async () => {
+    mocks.activeSendSessionId = 'session-1'
+    const controls = useChatInterruption({
+      sessionId: ref('session-2'),
+      generating: ref(false),
+      hasSubmission: ref(false),
+      submit: vi.fn(),
+    })
+
+    await controls.stopActiveResponse()
+
+    expect(mocks.stopSpeakingFromChat).toHaveBeenCalledTimes(1)
+    expect(mocks.cancelPendingSends).toHaveBeenCalledWith('session-1')
+    expect(mocks.cancelRemoteStream).toHaveBeenCalledWith('session-1')
+  })
+
+  it('keeps stop available for a mirrored response owned by another session', () => {
+    mocks.remoteStreamSessionId = 'session-1'
+    const controls = useChatInterruption({
+      sessionId: ref('session-2'),
+      generating: ref(false),
+      hasSubmission: ref(false),
+      submit: vi.fn(),
+    })
+
+    expect(controls.showStopAction.value).toBe(true)
+  })
+
+  it('hides stop once the response owner has settled', () => {
+    const controls = useChatInterruption({
+      sessionId: ref('session-1'),
+      generating: ref(false),
+      hasSubmission: ref(false),
+      submit: vi.fn(),
+    })
+
+    expect(controls.showStopAction.value).toBe(false)
+  })
+
+  it('hides stop when the visible session has a pending submission', () => {
+    mocks.activeSendSessionId = 'session-1'
+    const controls = useChatInterruption({
+      sessionId: ref('session-2'),
+      generating: ref(false),
+      hasSubmission: ref(true),
+      submit: vi.fn(),
+    })
+
+    expect(controls.showStopAction.value).toBe(false)
+  })
+
   it('cancels the active response before it submits an interrupting message', async () => {
     const events: string[] = []
     mocks.cancelPendingSends.mockImplementationOnce(async () => {
