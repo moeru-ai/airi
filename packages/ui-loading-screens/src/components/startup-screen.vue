@@ -55,12 +55,19 @@ const emit = defineEmits<{
             :close-label="errorDetailsCloseLabel"
             :message="errorMessage"
           />
+          <div class="startup-error-recovery">
+            <Button class="startup-error-action" color="primary" variant="primary" @click="emit('retry')">
+              {{ retryLabel }}
+            </Button>
+            <Button v-if="alternativeLabel" class="startup-error-action" @click="emit('alternative')">
+              {{ alternativeLabel }}
+            </Button>
+          </div>
         </div>
         <div
           class="startup-status"
           :class="{
             'startup-status-error': phase === 'error',
-            'startup-status-single-action': phase === 'error' && !alternativeLabel,
           }"
         >
           <span v-if="phase === 'loading'" class="startup-label">{{ label }}</span>
@@ -78,14 +85,6 @@ const emit = defineEmits<{
           >
             <Progress v-if="phase === 'loading' || phase === 'error'" :progress="progress" :bar-class="phase === 'error' ? 'bg-red-500 dark:bg-red-400' : undefined" class="startup-progress" />
           </div>
-        </div>
-        <div v-if="phase === 'error'" class="startup-error-recovery">
-          <Button class="startup-error-action" color="primary" variant="primary" @click="emit('retry')">
-            {{ retryLabel }}
-          </Button>
-          <Button v-if="alternativeLabel" class="startup-error-action" @click="emit('alternative')">
-            {{ alternativeLabel }}
-          </Button>
         </div>
       </section>
     </Transition>
@@ -181,14 +180,11 @@ const emit = defineEmits<{
 }
 
 .startup-status-error {
-  top: calc(70% - 12px);
+  top: calc(100% - 22px);
   box-sizing: border-box;
   align-items: stretch;
-  width: min(680px, calc(100% - 48px));
-}
-
-.startup-status-single-action {
-  top: calc(80% - 24px);
+  justify-content: flex-end;
+  width: 100%;
 }
 
 .startup-error-info {
@@ -218,8 +214,8 @@ const emit = defineEmits<{
 }
 
 .startup-status-error .startup-track {
-  width: calc(100% - 48px);
-  margin: 0 24px;
+  width: 100%;
+  margin: 0;
 }
 
 .startup-progress {
@@ -321,13 +317,10 @@ const emit = defineEmits<{
 }
 
 .startup-error-recovery {
-  position: absolute;
-  bottom: calc(max(env(safe-area-inset-bottom), 24px) + 8px);
-  left: 50%;
   display: flex;
   gap: 12px;
-  width: min(680px, calc(100% - 48px));
-  transform: translateX(-50%);
+  width: 100%;
+  margin-top: 36px;
 }
 
 .startup-error-action {
@@ -401,8 +394,15 @@ const emit = defineEmits<{
 }
 
 @media (max-width: 600px) {
-  .startup-error-info,
-  .startup-status-error {
+  .startup-screen-error .startup-brand {
+    display: none;
+  }
+
+  .startup-error-info {
+    top: max(env(safe-area-inset-top), 16px);
+    bottom: calc(max(env(safe-area-inset-bottom), 16px) + 44px);
+    display: flex;
+    flex-direction: column;
     width: 100%;
   }
 
@@ -431,16 +431,10 @@ const emit = defineEmits<{
     margin-left: 16px;
   }
 
-  .startup-status-error .startup-track {
-    width: calc(100% - 32px);
-    margin-right: 16px;
-    margin-left: 16px;
-  }
-
   .startup-error-recovery {
     display: grid;
     width: calc(100% - 32px);
-    bottom: max(env(safe-area-inset-bottom), 24px);
+    margin: auto 16px 0;
   }
 
   .startup-error-action {

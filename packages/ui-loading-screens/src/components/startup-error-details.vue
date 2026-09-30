@@ -94,13 +94,12 @@ watch(isDesktop, () => open.value = false)
 }
 
 .startup-error-details-tooltip {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+  position: relative;
   z-index: 2;
   box-sizing: border-box;
   width: max-content;
   max-width: min(320px, calc(100vw - 48px));
+  margin-top: 8px;
   padding: 12px;
   border-radius: 8px;
   background: #171717;
