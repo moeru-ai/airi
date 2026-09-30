@@ -5,8 +5,9 @@ import { createApp, nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
-import { loadAnalyticsAdapter } from '../modules/analytics'
 import VerifyEmail from './verify-email.vue'
+
+import { loadAnalyticsAdapter } from '../modules/analytics'
 
 const capture = vi.fn()
 

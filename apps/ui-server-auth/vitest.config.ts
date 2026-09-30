@@ -2,9 +2,9 @@ import { join } from 'node:path'
 import { cwd } from 'node:process'
 
 import Vue from '@vitejs/plugin-vue'
-import { playwright } from '@vitest/browser-playwright'
 import VueRouter from 'vue-router/vite'
 
+import { playwright } from '@vitest/browser-playwright'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
