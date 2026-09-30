@@ -7,11 +7,8 @@ const props = withDefaults(defineProps<{
   title: string
   /** Sets the minimum drawer height while content can still expand to the shared maximum. @default 'content' */
   minimumHeight?: 'content' | 'half'
-  /** Sets the overlay and drawer layer above the owning screen. @default 9999 */
-  layer?: number
 }>(), {
   minimumHeight: 'content',
-  layer: 9999,
 })
 
 const emit = defineEmits<{
@@ -45,12 +42,11 @@ function finishAnimation(value: boolean) {
       <slot name="trigger" />
     </DrawerTrigger>
     <DrawerPortal>
-      <DrawerOverlay :class="['fixed inset-0 bg-black/35']" :style="{ zIndex: props.layer }" />
+      <DrawerOverlay :class="['fixed inset-0 z-[9999] bg-black/35']" />
       <DrawerContent
         :aria-describedby="undefined"
-        :style="{ zIndex: props.layer }"
         :class="[
-          'pointer-events-auto fixed inset-x-0 bottom-0 mx-auto max-w-lg',
+          'pointer-events-auto fixed inset-x-0 bottom-0 z-[9999] mx-auto max-w-lg',
           'max-h-[90dvh] flex flex-col rounded-t-[32px] outline-none shadow-xl',
           'bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100',
           'pb-[max(1rem,env(safe-area-inset-bottom))]',
@@ -61,11 +57,10 @@ function finishAnimation(value: boolean) {
       >
         <div :class="['shrink-0 px-5 pt-4']">
           <DrawerHandle :class="['mb-3 bg-neutral-300 dark:bg-neutral-600']" />
-          <div :class="['mb-5 flex items-center justify-between gap-3 pt-2']">
-            <DrawerTitle :class="['min-w-0 flex-1 text-xl font-semibold tracking-tight']">
+          <div :class="['mb-5 pt-2']">
+            <DrawerTitle :class="['text-xl font-semibold tracking-tight']">
               {{ props.title }}
             </DrawerTitle>
-            <slot name="header-action" />
           </div>
         </div>
         <!--
