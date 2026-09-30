@@ -25,11 +25,13 @@ const props = withDefaults(defineProps<{
   placeholder?: string
   disabled?: boolean
   openOnClick?: boolean
+  side?: 'top' | 'bottom'
   contentMinWidth?: string | number
   contentWidth?: string | number
 }>(), {
   disabled: false,
   openOnClick: true,
+  side: 'bottom',
 })
 
 const modelValue = defineModel<T>({ required: false })
@@ -108,24 +110,18 @@ function toCssSize(value?: string | number): string | undefined {
       />
       <ComboboxTrigger>
         <div
-          i-solar:alt-arrow-down-linear
-          :class="[
+          :class="['i-solar:alt-arrow-down-linear', [
             'h-4 w-4',
             'text-neutral-700 dark:text-neutral-200',
             'transition-colors duration-200 ease-in-out',
-          ]"
+          ]]"
         />
       </ComboboxTrigger>
     </ComboboxAnchor>
 
     <ComboboxPortal>
       <ComboboxContent
-        position="popper"
-        side="bottom"
-        align="start"
-        :side-offset="4"
-        :avoid-collisions="true"
-        :class="[
+        :class="['position-popper', [
           // NOTICE: DialogContent/DialogOverlay use z-[9999], and DrawerContent uses z-[1000].
           // ComboboxContent must render above these layers so that dropdowns inside
           // Dialog/Drawer are not hidden behind the overlay or dismissed unexpectedly.
@@ -135,7 +131,13 @@ function toCssSize(value?: string | number): string | undefined {
           'data-[side=top]:animate-slideDownAndFade data-[side=right]:animate-slideLeftAndFade data-[side=bottom]:animate-slideUpAndFade data-[side=left]:animate-slideRightAndFade',
           'bg-white dark:bg-neutral-900',
           'border-neutral-200 dark:border-neutral-800 border-solid border-2 focus:border-neutral-300 dark:focus:border-neutral-600',
-        ]"
+        ]]"
+
+        :side="props.side"
+        align="start"
+        :side-offset="4"
+        :avoid-collisions="true"
+
         :style="{
           width: toCssSize(props.contentWidth) ?? 'var(--reka-combobox-trigger-width)',
           minWidth: toCssSize(props.contentMinWidth) ?? '160px',
@@ -196,7 +198,7 @@ function toCssSize(value?: string | number): string | undefined {
                     'text-current',
                   ]"
                 >
-                  <div i-solar:alt-arrow-right-outline class="size-4" />
+                  <div :class="['i-solar:alt-arrow-right-outline size-4']" />
                 </ComboboxItemIndicator>
 
                 <div :class="['col-start-2', 'min-w-0', 'flex', 'items-center', 'gap-2', 'py-1']">

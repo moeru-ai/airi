@@ -9,6 +9,8 @@ docs:
       appearance:
         title: Appearance
 'controls-island':
+  'enable-microphone': Enable microphone
+  'disable-microphone': Disable microphone
   'fade-on-hover':
     enable: Auto hide
     disable: Always show

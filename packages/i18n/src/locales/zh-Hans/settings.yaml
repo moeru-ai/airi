@@ -344,6 +344,18 @@ pages:
         error:
           fallback: 无法开始删除操作，请稍后重试。
   card:
+    wake-word-validation:
+      invalid: '{name}的唤醒词无法使用：{reason}'
+      review: 查看角色卡片
+    wake-word-conflict:
+      close: 关闭
+      title: 选择响应的角色
+      description: 这些角色使用了相同的唤醒读法。请为每条冲突读法选择一个角色；两张卡片都会保留配置。
+      review: 查看唤醒词冲突
+      pronunciation: '相同读法：{tokens}'
+      choose: '选择{name}'
+      active: '由{name}响应'
+      unresolved: '{count} 条唤醒词冲突尚未指定角色'
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
@@ -726,6 +738,32 @@ pages:
     hearing:
       description: 语音识别
       title: 听觉
+      auto-send:
+        label: 自动发送
+        description: 自动把转写文字发送到聊天。关闭后可以先检查草稿。
+        delay-label: 发送延迟
+        delay-description: 转写完成后等待一段时间再发送。
+        immediate: 立即
+      transcriber:
+        title: 转写器
+        description: 配置语音识别并测试麦克风。
+      wake-words:
+        title: 唤醒词
+        description: 查看每个角色的唤醒称呼和发音。
+        empty: 这个角色还没有设置唤醒词。
+        configure: 在聊天中请角色设置你用来呼唤它的词语。
+        open-chat: 打开聊天
+        review-conflicts: 选择重复发音由哪个角色响应
+        active: 生效中
+        paused: 在此设备上暂停
+      input-device:
+        label: 输入设备
+        description: 选择使用的麦克风。
+        placeholder: 选择麦克风
+      permission-required: 需要麦克风权限。
+      microphone:
+        label: 麦克风
+        description: 允许听觉使用麦克风。实际何时监听由听觉输入模式决定。
       input-mode:
         label: 听觉输入
         description: 选择 AIRI 何时聆听。所有模式都支持手动语音消息。
