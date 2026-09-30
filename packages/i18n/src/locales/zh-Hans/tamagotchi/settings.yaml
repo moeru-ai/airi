@@ -47,6 +47,8 @@ pages:
 devtools:
   title: 开发者选项
   pages:
+    context-flow:
+      title: 上下文流
     presence-bubble:
       title: 状态气泡
       description: 从这里驱动角色头顶的气泡，效果显示在主窗口
