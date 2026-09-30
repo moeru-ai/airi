@@ -1,13 +1,14 @@
 import { defineConfig } from 'vitest/config'
 
+import { createAuthUiProjects } from './apps/ui-server-auth/vitest.config'
 import { providerInferenceProjects } from './packages/provider-inference/vitest.config'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   test: {
     projects: [
       'server/apps/auth',
       'server/apps/api',
-      'apps/ui-server-auth',
+      ...createAuthUiProjects(mode),
       'apps/stage-tamagotchi/vitest.node.config.ts',
       'packages/cap-vite',
       'packages/ccc',
@@ -39,4 +40,4 @@ export default defineConfig({
       },
     ],
   },
-})
+}))
