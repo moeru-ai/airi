@@ -6,6 +6,7 @@ import { storage } from '../storage'
 
 const referencePrefix = 'airi-chat-audio:'
 const removalIndexKey = 'local:chat/audio-removal-index'
+const pruneIndexKey = 'local:chat/audio-prune-index'
 let indexQueue = Promise.resolve()
 
 function indexKey(sessionId: string) {
@@ -103,8 +104,42 @@ export const chatAudioRepo = {
     })
   },
 
+  async clearSessionRemoval(sessionId: string) {
+    await enqueueIndex(async () => {
+      const pending = await storage.getItemRaw<string[]>(removalIndexKey) ?? []
+      const remaining = pending.filter(id => id !== sessionId)
+      if (remaining.length)
+        await storage.setItemRaw(removalIndexKey, remaining)
+      else
+        await storage.removeItem(removalIndexKey)
+    })
+  },
+
   async pendingSessionRemovals() {
     return await storage.getItemRaw<string[]>(removalIndexKey) ?? []
+  },
+
+  async markSessionPrune(sessionId: string) {
+    await enqueueIndex(async () => {
+      const pending = await storage.getItemRaw<string[]>(pruneIndexKey) ?? []
+      if (!pending.includes(sessionId))
+        await storage.setItemRaw(pruneIndexKey, [...pending, sessionId])
+    })
+  },
+
+  async clearSessionPrune(sessionId: string) {
+    await enqueueIndex(async () => {
+      const pending = await storage.getItemRaw<string[]>(pruneIndexKey) ?? []
+      const remaining = pending.filter(id => id !== sessionId)
+      if (remaining.length)
+        await storage.setItemRaw(pruneIndexKey, remaining)
+      else
+        await storage.removeItem(pruneIndexKey)
+    })
+  },
+
+  async pendingSessionPrunes() {
+    return await storage.getItemRaw<string[]>(pruneIndexKey) ?? []
   },
 
   async retainSession(sessionId: string, retained: Set<string>) {

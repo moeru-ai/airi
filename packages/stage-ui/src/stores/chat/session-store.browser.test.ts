@@ -129,6 +129,10 @@ afterEach(() => {
 })
 
 describe('chat session synchronization', () => {
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4141166996
+  // ROOT CAUSE:
+  // Audio cleanup could fail before the updated session index reached storage.
+  // The store now saves the index before it starts audio cleanup.
   it('keeps failed audio cleanup available after session deletion', async () => {
     const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
     await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
@@ -151,6 +155,8 @@ describe('chat session synchronization', () => {
 
     await expect(store.deleteSession(sessionId)).rejects.toThrow('Audio cleanup failed')
     expect(await chatAudioRepo.pendingSessionRemovals()).toContain(sessionId)
+    const persistedIndex = vi.mocked(chatSessionsRepo.saveIndex).mock.lastCall?.[0]
+    expect(persistedIndex?.characters.default.sessions).not.toHaveProperty(sessionId)
     failingRemove.mockRestore()
 
     const retryContext = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
@@ -174,16 +180,110 @@ describe('chat session synchronization', () => {
       throw new Error('Expected an active session.')
     await chatAudioRepo.markSessionRemoval(sessionId)
 
-    const getSession = vi.spyOn(chatSessionsRepo, 'getSession').mockImplementation(async id => id === sessionId ? { meta, messages: [] } : null)
+    const getSession = vi.spyOn(chatSessionsRepo, 'getSession').mockImplementation(async id => id === sessionId
+      ? { meta, messages: [{ role: 'user', id: 'voice', content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }] }] }
+      : null)
     const retryContext = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
     await vi.waitFor(() => expect(retryContext.runtime.isLeader()).toBe(true))
     setActivePinia(retryContext.pinia)
     await useChatSessionStore().initialize()
 
     expect(await chatAudioRepo.load(reference)).toBe('YXVkaW8=')
-    expect(await chatAudioRepo.pendingSessionRemovals()).toContain(sessionId)
+    expect(await chatAudioRepo.pendingSessionRemovals()).not.toContain(sessionId)
     getSession.mockRestore()
     await chatAudioRepo.removeSession(sessionId)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4141167002
+  // ROOT CAUSE:
+  // Clearing history returned before storage removed the voice recording.
+  // The store now waits for cleanup and keeps a durable retry marker on failure.
+  it('retries failed audio removal after clearing message history', async () => {
+    const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = store.activeSessionId
+    const reference = await chatAudioRepo.save(sessionId, 'YXVkaW8=')
+    await store.setSessionMessages(sessionId, [
+      { role: 'user', id: 'voice', content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }] },
+    ])
+
+    const removeItem = storage.removeItem.bind(storage)
+    const audioKey = `local:chat/audio/${reference.slice('airi-chat-audio:'.length)}`
+    const failingRemove = vi.spyOn(storage, 'removeItem').mockImplementation(async (key) => {
+      if (key === audioKey)
+        throw new Error('Audio cleanup failed')
+      return await removeItem(key)
+    })
+
+    await expect(store.cleanupMessages(sessionId)).rejects.toThrow('Audio cleanup failed')
+    expect(await chatAudioRepo.pendingSessionPrunes()).toContain(sessionId)
+    const savedRecord = vi.mocked(chatSessionsRepo.saveSession).mock.lastCall?.[1]
+    expect(savedRecord?.messages).not.toContainEqual(expect.objectContaining({ id: 'voice' }))
+    failingRemove.mockRestore()
+
+    const getSession = vi.spyOn(chatSessionsRepo, 'getSession').mockImplementation(async id => id === sessionId ? savedRecord ?? null : null)
+    const retryContext = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(retryContext.runtime.isLeader()).toBe(true))
+    setActivePinia(retryContext.pinia)
+    await useChatSessionStore().initialize()
+
+    expect(await chatAudioRepo.pendingSessionPrunes()).not.toContain(sessionId)
+    await expect(chatAudioRepo.load(reference)).rejects.toThrow('Stored chat audio is unavailable')
+    getSession.mockRestore()
+  })
+
+  it('keeps referenced audio when cleanup stops before the session write', async () => {
+    const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = store.activeSessionId
+    const reference = await chatAudioRepo.save(sessionId, 'YXVkaW8=')
+    const meta = store.sessionMetas[sessionId]
+    if (!meta)
+      throw new Error('Expected an active session.')
+    await chatAudioRepo.markSessionPrune(sessionId)
+
+    const getSession = vi.spyOn(chatSessionsRepo, 'getSession').mockImplementation(async id => id === sessionId
+      ? { meta, messages: [{ role: 'user', id: 'voice', content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }] }] }
+      : null)
+    const retryContext = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(retryContext.runtime.isLeader()).toBe(true))
+    setActivePinia(retryContext.pinia)
+    await useChatSessionStore().initialize()
+
+    expect(await chatAudioRepo.load(reference)).toBe('YXVkaW8=')
+    expect(await chatAudioRepo.pendingSessionPrunes()).not.toContain(sessionId)
+    getSession.mockRestore()
+    await chatAudioRepo.removeSession(sessionId)
+  })
+
+  it('clears voice history through the leader when a follower requests cleanup', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    setActivePinia(leaderContext.pinia)
+    const leaderStore = useChatSessionStore()
+    await leaderStore.initialize()
+    const sessionId = leaderStore.activeSessionId
+    const reference = await chatAudioRepo.save(sessionId, 'YXVkaW8=')
+    await leaderStore.setSessionMessages(sessionId, [
+      { role: 'user', id: 'voice', content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }] },
+    ])
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerStore = useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await followerStore.cleanupMessages(sessionId)
+
+    expect(leaderStore.getSessionMessages(sessionId)).not.toContainEqual(expect.objectContaining({ id: 'voice' }))
+    expect(await chatAudioRepo.pendingSessionPrunes()).not.toContain(sessionId)
+    await expect(chatAudioRepo.load(reference)).rejects.toThrow('Stored chat audio is unavailable')
   })
 
   it('retries failed audio cleanup after deleting all sessions', async () => {

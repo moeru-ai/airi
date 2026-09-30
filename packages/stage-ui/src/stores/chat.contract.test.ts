@@ -68,6 +68,7 @@ const createRuntimePromptContextMock = vi.fn()
 const createMinecraftContextMock = vi.fn()
 const createUserAccountContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
+const cleanupMessagesMock = vi.fn()
 const pushMessageToCloudMock = vi.hoisted(() => vi.fn())
 const forkSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
@@ -161,6 +162,7 @@ vi.mock('./chat/context-store', () => ({
   useChatContextStore: () => ({
     ingestContextMessage: ingestContextMessageMock,
     getContextsSnapshot: getContextsSnapshotMock,
+    resetContexts: vi.fn(),
   }),
 }))
 
@@ -186,6 +188,7 @@ vi.mock('./chat/session-store', () => ({
     },
     cleanupMessages: (sessionId: string) => {
       sessionMessages[sessionId] = []
+      return cleanupMessagesMock(sessionId)
     },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
@@ -209,6 +212,7 @@ vi.mock('./chat/session-store', () => ({
 vi.mock('./chat/stream-store', () => ({
   useChatStreamStore: () => ({
     streamingMessage: streamingMessageRef,
+    resetStream: vi.fn(),
   }),
 }))
 
@@ -292,6 +296,7 @@ describe('chat store contract', () => {
     createMinecraftContextMock.mockReset()
     createMinecraftContextMock.mockReturnValue(undefined)
     persistSessionMessagesMock.mockReset()
+    cleanupMessagesMock.mockReset().mockResolvedValue(undefined)
     pushMessageToCloudMock.mockReset().mockResolvedValue(undefined)
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
@@ -330,6 +335,17 @@ describe('chat store contract', () => {
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4141167002
+  // ROOT CAUSE:
+  // Chat cleanup discarded the session cleanup promise.
+  // It now reports storage failures to its caller.
+  it('waits for message cleanup and reports audio removal failures', async () => {
+    cleanupMessagesMock.mockRejectedValueOnce(new Error('Audio cleanup failed'))
+
+    await expect(useChatStore().cleanup('session-1')).rejects.toThrow('Audio cleanup failed')
+    expect(cleanupMessagesMock).toHaveBeenCalledWith('session-1')
   })
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {

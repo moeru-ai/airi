@@ -735,10 +735,11 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Clears one session and stops runtime work that still belongs to it. */
   function cleanup(sessionId: string) {
-    chatSession.cleanupMessages(sessionId)
-    chatContext.resetContexts()
     runtime.cancelPendingSends(sessionId)
+    const cleaned = chatSession.cleanupMessages(sessionId)
+    chatContext.resetContexts()
     chatStream.resetStream()
+    return cleaned
   }
 
   /** Cancels queued work before permanently removing its owning session. */
