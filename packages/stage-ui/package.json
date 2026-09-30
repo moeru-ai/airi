@@ -116,6 +116,7 @@
     "@vueuse/shared": "catalog:",
     "@xsai-apple-speech/transcription": "catalog:",
     "@xsai-apple-speech/transcription-electron-plugin": "catalog:",
+    "@xsai-apple-vision/vision-electron-plugin": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-transformers/embed": "catalog:",
     "@xsai-transformers/shared": "catalog:",

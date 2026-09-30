@@ -815,6 +815,32 @@ pages:
     vision:
       description: 视觉
       title: 视觉
+      tool-images:
+        label: 使用视觉模型理解工具图片
+        description: 工具返回的图片（例如“使用电脑”的截图）会先由视觉模型读取，再由当前聊天模型回复。聊天模型的服务来源声明支持图片输入时，直接交给它。文字描述不包含像素坐标。
+      capture:
+        title: 视觉捕获频率
+        description: 调整视觉定时器捕获画面的频率。
+        interval:
+          label: 捕获间隔
+          description: 数值越小，捕获越频繁，占用的资源也越多。
+      stats:
+        captures: 捕获次数
+        context-updates: 上下文更新
+        inferences: 图像识别调用
+        inferences-description: 视觉模型的每一次调用，包括聊天图片
+        failed-inferences: 失败次数
+        last-inference: 上次调用
+        error: 错误：
+        last-update: 上次更新 {time}
+        since-start: 自应用启动以来
+        never: 从未
+      ollama:
+        title: 提供商请求开关
+        description: 控制视觉推理请求中提供商特有的参数。
+        thinking:
+          label: 思考（Ollama）
+          description: '开启时，通过 Ollama 发送的视觉请求带有 `think: true`；关闭时带有 `think: false`。'
     x:
       description: X / Twitter 的浏览和使用
       enable: 启用X / Twitter集成
@@ -1022,6 +1048,9 @@ pages:
               title: 能够列出模型
             check-supports-chat-completion:
               title: 能够处理 Chat Completion（聊天补全）请求
+          apple-vision:
+            check-availability:
+              title: 可用性
           prompt-api:
             check-availability:
               title: 可用性
@@ -1122,6 +1151,9 @@ pages:
         model:
           label: 模型
           description: 选择可用模型，自动识别模型支持的语言。更改后会重新启动当前识别会话。
+      apple-vision:
+        title: Apple 视觉理解
+        description: 使用 macOS 27 或更高版本的设备端 Apple 基础模型理解图片，无需 API 密钥。
       apple-speech-transcription:
         title: Apple 语音识别
         description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。

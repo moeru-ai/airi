@@ -591,6 +591,15 @@ catalogs:
     '@xsai-apple-speech/transcription-native-darwin-x64':
       specifier: 0.1.3
       version: 0.1.3
+    '@xsai-apple-vision/vision-electron-plugin':
+      specifier: 0.1.0
+      version: 0.1.0
+    '@xsai-apple-vision/vision-native':
+      specifier: 0.1.0
+      version: 0.1.0
+    '@xsai-apple-vision/vision-native-darwin-arm64':
+      specifier: 0.1.0
+      version: 0.1.0
     '@xsai-ext/providers':
       specifier: 0.5.1
       version: 0.5.1
@@ -2040,6 +2049,12 @@ importers:
       '@xsai-apple-speech/transcription-native':
         specifier: 'catalog:'
         version: 0.1.3(@xsai/generate-transcription@0.5.1)
+      '@xsai-apple-vision/vision-electron-plugin':
+        specifier: 'catalog:'
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+      '@xsai-apple-vision/vision-native':
+        specifier: 'catalog:'
+        version: 0.1.0
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.1
@@ -2423,6 +2438,9 @@ importers:
       '@xsai-apple-speech/transcription-native-darwin-x64':
         specifier: 'catalog:'
         version: 0.1.3
+      '@xsai-apple-vision/vision-native-darwin-arm64':
+        specifier: 'catalog:'
+        version: 0.1.0
 
   apps/stage-web:
     dependencies:
@@ -4591,6 +4609,9 @@ importers:
       '@xsai-apple-speech/transcription-electron-plugin':
         specifier: 'catalog:'
         version: 0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+      '@xsai-apple-vision/vision-electron-plugin':
+        specifier: 'catalog:'
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
       '@xsai-ext/providers':
         specifier: 'catalog:'
         version: 0.5.1
@@ -12663,6 +12684,25 @@ packages:
     resolution: {integrity: sha512-QHFZJcqgP53Lpo4wrtiTzL/FKmuVAlkXqZYV/Ml8x4L+03SKnCETcoi+CH2j4Xmp5IibY7zUjPUC6uZiloc2Mg==}
     peerDependencies:
       '@xsai/generate-transcription': '>=0.5.0-beta.8 <0.6.0'
+
+  '@xsai-apple-vision/vision-electron-plugin@0.1.0':
+    resolution: {integrity: sha512-9vWu4wJqk4znsZ6100d0icKLAQz5vJRsDYnc301ARWpdtpBOI9GPHEXQV7zzokIr4zgcMydfhKt22WXFAJTqjQ==}
+    peerDependencies:
+      electron: '>=39'
+    peerDependenciesMeta:
+      electron:
+        optional: true
+
+  '@xsai-apple-vision/vision-native-darwin-arm64@0.1.0':
+    resolution: {integrity: sha512-VQ+/wAaWpuc8l8LCRhn8YROfuFX4aj/KQ7pfvTD8spMfxWnvt1KqB8HC2W5NaSKZKCFYFzArjKzav8Q4FOiqVg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@xsai-apple-vision/vision-native@0.1.0':
+    resolution: {integrity: sha512-HwbgzRbV/GEvZUHGidzzJjk2ytYThMf9h+D/QV2kfuCAAJAlnQl6cuWPEjb1e+TSsUiGJrzuUlxsphMNMzHmFQ==}
+
+  '@xsai-apple-vision/vision@0.1.0':
+    resolution: {integrity: sha512-Q3XxBy3pqTtgpxuN7LzWHtwvpp8os4xKx54rRjmbOPkZUJ+5o0sJ6uK+XbwZuSpo+9LtDPfT/oP1vltFhwShgQ==}
 
   '@xsai-ext/providers@0.4.4':
     resolution: {integrity: sha512-PVk3IFOPzPyvss9zY6IO6pJ890F5B6LWGWuhU6DzofWMTnqcUzm0hR2Ml/Qo8kZa3Qy/DZkUT0O1T+5g/fZkWw==}
@@ -27366,6 +27406,31 @@ snapshots:
   '@xsai-apple-speech/transcription@0.1.3(@xsai/generate-transcription@0.5.1)':
     dependencies:
       '@xsai/generate-transcription': 0.5.1
+      '@xsai/shared': 0.5.0-beta.8
+
+  '@xsai-apple-vision/vision-electron-plugin@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)':
+    dependencies:
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+      '@xsai-apple-vision/vision': 0.1.0
+    optionalDependencies:
+      electron: 43.4.1(supports-color@10.2.2)
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - h3
+      - hono
+      - web-worker
+
+  '@xsai-apple-vision/vision-native-darwin-arm64@0.1.0':
+    optional: true
+
+  '@xsai-apple-vision/vision-native@0.1.0':
+    dependencies:
+      '@xsai-apple-vision/vision': 0.1.0
+    optionalDependencies:
+      '@xsai-apple-vision/vision-native-darwin-arm64': 0.1.0
+
+  '@xsai-apple-vision/vision@0.1.0':
+    dependencies:
       '@xsai/shared': 0.5.0-beta.8
 
   '@xsai-ext/providers@0.4.4':

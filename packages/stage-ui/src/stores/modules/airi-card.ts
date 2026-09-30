@@ -15,6 +15,7 @@ import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
 import { useProviderConfigStore } from '../providers/config'
+import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useArtistryStore } from './artistry'
 import { useConsciousnessStore } from './consciousness'
@@ -291,6 +292,23 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (updated)
       await applyActiveCardSettings()
     return updated
+  }
+
+  /**
+   * Selects a vision provider for the active card with its catalog default.
+   *
+   * Only this explicit selection applies the default, and the card stores it,
+   * so the runtime and the card keep the same model. A provider without a
+   * default keeps an empty model until the user selects one.
+   */
+  async function selectActiveCardVisionProvider(provider: string) {
+    await pendingAuthenticationSetup
+    const vision = useVisionStore()
+    vision.activeProvider = provider
+    vision.resetModelSelection()
+    await vision.loadModelsForProvider(provider)
+    const model = useProviderStore().getDefaultModelForProvider(provider) ?? ''
+    return await updateActiveCardVision({ provider, model })
   }
 
   async function updateActiveCardSpeech(speech: Pick<AiriExtension['modules']['speech'], 'provider' | 'model' | 'voice_id'>) {
@@ -599,6 +617,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardDisplayModel,
     updateActiveCardSpeech,
     updateActiveCardVision,
+    selectActiveCardVisionProvider,
     getCard,
     resetState,
     initialize,
@@ -647,6 +666,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'updateActiveCardDisplayModel',
       'updateActiveCardSpeech',
       'updateActiveCardVision',
+      'selectActiveCardVisionProvider',
       'updateCard',
     ],
     state: true,
