@@ -105,24 +105,6 @@ function decodeHexId(value: unknown, bytes: number, field: string, optional = fa
   return Buffer.from(value, 'hex')
 }
 
-function normalizeJsonValue(value: unknown): unknown {
-  if (isLosslessNumber(value)) {
-    if (!isInteger(value.toString()))
-      return value.valueOf()
-    const parsed = Number(value.toString())
-    return Number.isSafeInteger(parsed) ? parsed : value.toString()
-  }
-  if (Array.isArray(value))
-    return value.map(item => normalizeJsonValue(item))
-  if (!isObject(value))
-    return value
-
-  const normalized: Record<string, unknown> = {}
-  for (const [childKey, childValue] of Object.entries(value))
-    normalized[childKey] = normalizeJsonValue(childValue)
-  return normalized
-}
-
 function setKnownId(object: Record<string, unknown>, key: string, bytes: number, field: string, optional = false): void {
   if (object[key] !== undefined)
     object[key] = decodeHexId(object[key], bytes, field, optional)
@@ -151,11 +133,7 @@ function validateAttributes(value: unknown, field: string): void {
     validateAnyValue(asObject(entryValue).value, `${field}[${index}].value`)
 }
 
-function normalizeKnownJson(signal: Signal, root: Record<string, unknown>): Record<string, unknown> {
-  const normalized = normalizeJsonValue(root)
-  if (!isObject(normalized))
-    throw new Error('OTLP JSON body must be an object')
-
+function normalizeKnownJson(signal: Signal, normalized: Record<string, unknown>): Record<string, unknown> {
   if (signal === 'span') {
     for (const resourceSpanValue of asArray(normalized.resourceSpans)) {
       validateAttributes(asObject(asObject(resourceSpanValue).resource).attributes, 'resource.attributes')
@@ -231,7 +209,14 @@ function decodeRequest(signal: Signal, type: Type, body: Uint8Array, contentType
     message = type.decode(body)
   }
   else {
-    const parsed = parse(Buffer.from(body).toString('utf8'))
+    const parsed = parse(Buffer.from(body).toString('utf8'), (_key, value) => {
+      if (!isLosslessNumber(value))
+        return value
+      if (!isInteger(value.toString()))
+        return value.valueOf()
+      const number = Number(value.toString())
+      return Number.isSafeInteger(number) ? number : value.toString()
+    })
     if (!isObject(parsed))
       throw new Error('OTLP JSON body must be an object')
     validateJsonEnums(parsed)

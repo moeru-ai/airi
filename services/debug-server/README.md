@@ -143,15 +143,21 @@ Startup applies pending migrations transactionally through the native connection
 Run the service tests against DuckDB after generation. Do not assume all PostgreSQL DDL works in DuckDB.
 
 The existing Drizzle/WASM adapter **can** persist data in Node. It is not browser-only.
-A local probe of version 0.6.0, Drizzle 0.45.2, and web-worker 1.5.0 passed file creation, transaction commit, and connection reopen.
+A local probe used version 0.6.0, Drizzle 0.45.2, and web-worker 1.5.0.
+File creation, `db.transaction` commit and rollback, and connection reopen passed.
 The probe used `storage: { type: 'node-fs', path, accessMode: DuckDBAccessMode.READ_WRITE }`.
 No comparative latency or memory benchmark was run.
-This change keeps the tested native query path; it does not add a Drizzle runtime driver or replace queries with ORM calls.
+However, ORM inserts rejected BigInt parameters. Typed selects returned database column names instead of mapped property names, and BLOB reads returned strings.
+The native adapter `@duckdbfan/drizzle-duckdb@1.5.4-15` passed basic transaction probes, but interpreted the valid string `{}` as an array.
+That conversion broke OTLP ingestion. Neither tested adapter met this service's data-preservation requirements.
+This change keeps the tested native query path. Drizzle manages schema and migrations, not runtime queries or transactions.
 No new ORM driver or protocol workspace is added.
 
 Files created before this PR added migrations are not auto-adopted.
 Keep the old file and select a new `AIRI_DEBUG_DB_PATH`. Startup fails rather than changing an unversioned store.
 Configuration uses Valibot and inferred types. Operational logs use logg.
+HTTP errors and Bearer authentication use Hono. Query validation uses Valibot through Hono's validator middleware.
+Lossless JSON parsing uses a reviver to preserve large integers without a second recursive traversal.
 An automatically generated token is printed once to stderr for local setup, outside structured logs. Treat that output as a secret.
 
 This change does not add agent, tool, ASR, or TTS instrumentation or repair existing span lifecycles.

@@ -5,7 +5,7 @@ import process from 'node:process'
 import { randomBytes } from 'node:crypto'
 import { resolve } from 'node:path'
 
-import { maxValue, minLength, minValue, number, object, optional, parse, picklist, pipe, safeInteger, string, transform } from 'valibot'
+import { maxValue, minLength, minValue, number, object, optional, parse, picklist, pipe, regex, safeInteger, string, transform } from 'valibot'
 
 function positiveInteger(fallback: number, name: string) {
   const message = `${name} must be a positive integer`
@@ -14,7 +14,7 @@ function positiveInteger(fallback: number, name: string) {
 
 const environmentSchema = pipe(object({
   AIRI_DEBUG_HOST: optional(picklist(['127.0.0.1', '::1', 'localhost'], 'AIRI_DEBUG_HOST must be a loopback host'), '127.0.0.1'),
-  AIRI_DEBUG_TOKEN: optional(pipe(string(), minLength(1, 'AIRI_DEBUG_TOKEN must not be empty'))),
+  AIRI_DEBUG_TOKEN: optional(pipe(string(), minLength(1, 'AIRI_DEBUG_TOKEN must not be empty'), regex(/^[\w.~+/-]+=*$/, 'AIRI_DEBUG_TOKEN must be a valid Bearer token'))),
   AIRI_DEBUG_ALLOWED_ORIGINS: optional(string(), 'http://localhost:5173,http://127.0.0.1:5173'),
   AIRI_DEBUG_DB_PATH: optional(string(), '.airi/debug.duckdb'),
   AIRI_DEBUG_MAX_REQUEST_BYTES: positiveInteger(1024 * 1024, 'AIRI_DEBUG_MAX_REQUEST_BYTES'),

@@ -49,4 +49,8 @@ describe('loadConfig', () => {
   it('rejects an empty explicit token', () => {
     expect(() => loadConfig({ AIRI_DEBUG_TOKEN: '' })).toThrow('AIRI_DEBUG_TOKEN must not be empty')
   })
+
+  it('rejects configured tokens that the Bearer middleware cannot accept', () => {
+    expect(() => loadConfig({ AIRI_DEBUG_TOKEN: 'contains spaces' })).toThrow('valid Bearer token')
+  })
 })

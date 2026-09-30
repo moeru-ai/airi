@@ -76,6 +76,26 @@ afterEach(async () => {
 })
 
 describe('debug server OTLP ingestion', () => {
+  it.each([
+    '/events?afterCursor=not-a-number',
+    '/events?afterCursor=9223372036854775808',
+    '/events?pageSize=1.5',
+    '/events?pageSize=201',
+    '/events?kind=unknown',
+    '/events?traceId=invalid',
+    '/events?spanId=invalid',
+    '/traces?state=toString',
+    '/traces?startedAfterUnixNano=18446744073709551616',
+    '/traces?startedAfterUnixNano=invalid',
+    '/traces/invalid',
+    '/export?pageSize=1001',
+  ])('rejects invalid query parameters with an OTLP error: %s', async (route) => {
+    const { app } = await setup()
+    const response = await app.request(`/api/debug/v1${route}`, { headers: requestHeaders() })
+    expect(response.status).toBe(400)
+    await expect(response.json()).resolves.toMatchObject({ code: 3 })
+  })
+
   it('rejects missing span identities and conflicting AnyValue variants', async () => {
     const { app } = await setup()
     for (const [route, payload] of [
@@ -245,6 +265,14 @@ describe('debug server OTLP ingestion', () => {
     const { app } = await setup()
     const unauthorized = await app.request('/api/debug/v1/events', { headers: { host: 'localhost' } })
     expect(unauthorized.status).toBe(401)
+    expect(unauthorized.headers.get('www-authenticate')).toContain('Bearer')
+    await expect(unauthorized.json()).resolves.toMatchObject({ code: 16 })
+
+    const wrongToken = await app.request('/api/debug/v1/events', {
+      headers: requestHeaders({ authorization: 'Bearer wrong-token' }),
+    })
+    expect(wrongToken.status).toBe(401)
+    await expect(wrongToken.json()).resolves.toMatchObject({ code: 16 })
 
     const forbidden = await app.request('/api/debug/v1/events', {
       headers: requestHeaders({ origin: 'https://example.com' }),

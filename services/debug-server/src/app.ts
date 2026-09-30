@@ -17,27 +17,21 @@ import type { Signal } from './protocol'
 import type { DebugStorage, StoredEvent } from './storage'
 
 import { Buffer } from 'node:buffer'
-import { timingSafeEqual } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
 
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFromUnknown } from '@proj-airi/stage-shared/error-message'
 import { Hono } from 'hono'
+import { bearerAuth } from 'hono/bearer-auth'
+import { HTTPException } from 'hono/http-exception'
+import { validator } from 'hono/validator'
+import { isValiError, parse } from 'valibot'
 
 import { decodeOtlp, encodeOtlpResponse, encodeStatus } from './protocol'
+import { eventQuery, exportQuery, sourceQuery, traceParams, traceQuery } from './query'
 import { CursorExpiredError, storageRow } from './storage'
 
 const log = useLogg('debug-server:http').useGlobalConfig()
-
-class HttpError extends Error {
-  constructor(
-    public readonly status: 400 | 401 | 403 | 404 | 410 | 413 | 415 | 503,
-    public readonly rpcCode: number,
-    message: string,
-  ) {
-    super(message)
-  }
-}
 
 function contentType(value: string | undefined): string {
   return value?.split(';', 1)[0].trim().toLowerCase() ?? 'application/json'
@@ -47,72 +41,19 @@ function acceptedOtlpContentType(value: string): value is 'application/json' | '
   return value === 'application/json' || value === 'application/x-protobuf'
 }
 
-function authorized(header: string | undefined, token: string): boolean {
-  if (!header?.startsWith('Bearer '))
-    return false
-  const supplied = Buffer.from(header.slice(7))
-  const expected = Buffer.from(token)
-  return supplied.length === expected.length && timingSafeEqual(supplied, expected)
-}
-
 function assertHost(c: Context): void {
   const rawHost = c.req.header('host') ?? ''
   const hostname = rawHost.startsWith('[')
     ? rawHost.slice(1, rawHost.indexOf(']'))
     : rawHost.split(':', 1)[0]
   if (hostname !== 'localhost' && hostname !== '127.0.0.1' && hostname !== '::1')
-    throw new HttpError(403, 7, 'Host must resolve to the loopback interface')
+    throw new HTTPException(403, { message: 'Host must resolve to the loopback interface' })
 }
 
 function assertOrigin(c: Context, allowedOrigins: Set<string>): void {
   const origin = c.req.header('origin')
   if (origin !== undefined && !allowedOrigins.has(origin))
-    throw new HttpError(403, 7, 'Origin is not allowed')
-}
-
-function exactUnsigned(value: string | undefined, name: string): string {
-  if (value === undefined || value === '')
-    return ''
-  if (!/^\d+$/.test(value))
-    throw new HttpError(400, 3, `${name} must be an unsigned integer`)
-  const maximum = name === 'afterCursor' ? 9_223_372_036_854_775_807n : 18_446_744_073_709_551_615n
-  if (BigInt(value) > maximum)
-    throw new HttpError(400, 3, `${name} is outside its supported range`)
-  return value
-}
-
-function pageSize(value: string | undefined, maximum: number, fallback = 50): number {
-  if (value === undefined || value === '')
-    return fallback
-  const parsed = Number(value)
-  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > maximum)
-    throw new HttpError(400, 3, `pageSize must be between 1 and ${maximum}`)
-  return parsed
-}
-
-function optionalId(value: string | undefined, bytes: number, name: string): string | undefined {
-  if (value === undefined)
-    return undefined
-  if (!new RegExp(`^[0-9a-fA-F]{${bytes * 2}}$`).test(value))
-    throw new HttpError(400, 3, `${name} must be ${bytes} bytes of hexadecimal text`)
-  return value.toLowerCase()
-}
-
-function queryKind(value: string | undefined): Signal | undefined {
-  if (value === undefined || value === 'EVENT_KIND_UNSPECIFIED')
-    return undefined
-  if (value === 'EVENT_KIND_SPAN')
-    return 'span'
-  if (value === 'EVENT_KIND_LOG')
-    return 'log'
-  throw new HttpError(400, 3, 'kind is not a defined EventKind value')
-}
-
-const traceStateNumbers: Record<V1TraceState, number> = {
-  TRACE_STATE_UNSPECIFIED: 0,
-  TRACE_STATE_INCOMPLETE: 1,
-  TRACE_STATE_COMPLETE: 2,
-  TRACE_STATE_ERROR: 3,
+    throw new HTTPException(403, { message: 'Origin is not allowed' })
 }
 
 const traceStateNames: Record<number, V1TraceState> = {
@@ -120,14 +61,6 @@ const traceStateNames: Record<number, V1TraceState> = {
   1: 'TRACE_STATE_INCOMPLETE',
   2: 'TRACE_STATE_COMPLETE',
   3: 'TRACE_STATE_ERROR',
-}
-
-function queryState(value: string | undefined): number | undefined {
-  if (value === undefined || value === 'TRACE_STATE_UNSPECIFIED')
-    return undefined
-  if (!(value in traceStateNumbers))
-    throw new HttpError(400, 3, 'state is not a defined TraceState value')
-  return traceStateNumbers[value as V1TraceState]
 }
 
 function eventJson(event: StoredEvent): V1EventRecord {
@@ -213,13 +146,15 @@ function writeEncoded(payload: Uint8Array | string, responseContentType: string,
   return new Response(responseBody(payload), { headers, status })
 }
 
-function errorResponse(c: Context, error: HttpError): Response {
+async function errorResponse(c: Context, error: HTTPException): Promise<Response> {
   const requestType = contentType(c.req.header('content-type'))
   const responseType = acceptedOtlpContentType(requestType) && (c.req.path === '/v1/traces' || c.req.path === '/v1/logs')
     ? requestType
     : 'application/json'
-  const body = encodeStatus(responseType, error.rpcCode, error.message)
-  const headers = new Headers({ 'content-type': responseType })
+  const rpcCodes: Record<number, number> = { 400: 3, 401: 16, 403: 7, 404: 5, 410: 11, 413: 8, 415: 3, 503: 14 }
+  const body = encodeStatus(responseType, rpcCodes[error.status] ?? 13, error.message || await error.getResponse().text())
+  const headers = new Headers(error.res?.headers)
+  headers.set('content-type', responseType)
   if (error.status === 503)
     headers.set('retry-after', '1')
   return new Response(responseBody(body), { headers, status: error.status })
@@ -239,7 +174,7 @@ async function readLimitedBody(request: Request, maximumBytes: number): Promise<
     length += result.value.byteLength
     if (length > maximumBytes) {
       await reader.cancel()
-      throw new HttpError(413, 8, 'OTLP request exceeds the configured size limit')
+      throw new HTTPException(413, { message: 'OTLP request exceeds the configured size limit' })
     }
     chunks.push(result.value)
   }
@@ -258,12 +193,14 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
   let activeIngests = 0
 
   app.onError((error, c) => {
-    if (error instanceof HttpError)
+    if (error instanceof HTTPException)
       return errorResponse(c, error)
+    if (isValiError(error))
+      return errorResponse(c, new HTTPException(400, { message: error.message }))
     if (error instanceof CursorExpiredError)
-      return errorResponse(c, new HttpError(410, 11, error.message))
+      return errorResponse(c, new HTTPException(410, { message: error.message }))
     log.withError(error).error('Request failed')
-    return errorResponse(c, new HttpError(503, 14, 'The debug store is unavailable'))
+    return errorResponse(c, new HTTPException(503, { message: 'The debug store is unavailable' }))
   })
 
   app.get('/health', (c) => {
@@ -287,27 +224,27 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
       c.header('access-control-max-age', '600')
       return c.body(null, 204)
     }
-    if (!authorized(c.req.header('authorization'), config.token))
-      throw new HttpError(401, 16, 'A valid Bearer token is required')
     await next()
     const origin = c.req.header('origin')
     if (origin)
       c.header('access-control-allow-origin', origin)
   })
 
+  app.use('*', bearerAuth({ token: config.token }))
+
   async function ingest(c: Context, signal: Signal): Promise<Response> {
     const requestContentType = contentType(c.req.header('content-type'))
     if (!acceptedOtlpContentType(requestContentType))
-      throw new HttpError(415, 3, 'Content-Type must be application/json or application/x-protobuf')
+      throw new HTTPException(415, { message: 'Content-Type must be application/json or application/x-protobuf' })
 
     const declaredLength = Number(c.req.header('content-length') ?? '0')
     if (Number.isFinite(declaredLength) && declaredLength > config.maxRequestBytes)
-      throw new HttpError(413, 8, 'OTLP request exceeds the configured size limit')
+      throw new HTTPException(413, { message: 'OTLP request exceeds the configured size limit' })
 
     const originalBody = await readLimitedBody(c.req.raw, config.maxRequestBytes)
     const encoding = (c.req.header('content-encoding') ?? '').toLowerCase()
     if (encoding && encoding !== 'gzip')
-      throw new HttpError(415, 3, 'Content-Encoding must be gzip or empty')
+      throw new HTTPException(415, { message: 'Content-Encoding must be gzip or empty' })
 
     let decodedBody: Uint8Array
     try {
@@ -317,11 +254,11 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
     }
     catch (error) {
       if (error instanceof Error && error.message.includes('Cannot create a Buffer larger than'))
-        throw new HttpError(413, 8, 'Decompressed OTLP request exceeds the configured size limit')
-      throw new HttpError(400, 3, 'OTLP gzip body is invalid')
+        throw new HTTPException(413, { message: 'Decompressed OTLP request exceeds the configured size limit' })
+      throw new HTTPException(400, { message: 'OTLP gzip body is invalid' })
     }
     if (decodedBody.byteLength > config.maxRequestBytes)
-      throw new HttpError(413, 8, 'Decompressed OTLP request exceeds the configured size limit')
+      throw new HTTPException(413, { message: 'Decompressed OTLP request exceeds the configured size limit' })
 
     const receivedUnixNano = (BigInt(Date.now()) * 1_000_000n).toString()
     let decoded
@@ -330,7 +267,7 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
     }
     catch (error) {
       const message = errorMessageFromUnknown(error, 'OTLP body is invalid')
-      throw new HttpError(400, 3, message)
+      throw new HTTPException(400, { message })
     }
 
     const result = await storage.ingest({
@@ -347,7 +284,7 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
 
   async function ingestWithCapacity(c: Context, signal: Signal): Promise<Response> {
     if (activeIngests >= config.maxConcurrentIngests)
-      throw new HttpError(503, 14, 'The local ingest queue is full')
+      throw new HTTPException(503, { message: 'The local ingest queue is full' })
     activeIngests++
     try {
       return await ingest(c, signal)
@@ -359,11 +296,8 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
   app.post('/v1/traces', c => ingestWithCapacity(c, 'span'))
   app.post('/v1/logs', c => ingestWithCapacity(c, 'log'))
 
-  app.get('/api/debug/v1/sources', async (c) => {
-    const page = await storage.listSources({
-      afterCursor: exactUnsigned(c.req.query('afterCursor'), 'afterCursor'),
-      pageSize: pageSize(c.req.query('pageSize'), 200),
-    })
+  app.get('/api/debug/v1/sources', validator('query', value => parse(sourceQuery, value)), async (c) => {
+    const page = await storage.listSources(c.req.valid('query'))
     const body: V1ListSourcesResponse = {
       firstCursor: page.firstCursor,
       lastCursor: page.lastCursor,
@@ -373,49 +307,29 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
     return c.json(body)
   })
 
-  app.get('/api/debug/v1/traces', async (c) => {
-    const page = await storage.listTraces({
-      afterCursor: exactUnsigned(c.req.query('afterCursor'), 'afterCursor'),
-      pageSize: pageSize(c.req.query('pageSize'), 200),
-      sessionId: c.req.query('sessionId'),
-      sourceId: c.req.query('sourceId'),
-      startedAfterUnixNano: exactUnsigned(c.req.query('startedAfterUnixNano'), 'startedAfterUnixNano') || undefined,
-      state: queryState(c.req.query('state')),
-    })
+  app.get('/api/debug/v1/traces', validator('query', value => parse(traceQuery, value)), async (c) => {
+    const page = await storage.listTraces(c.req.valid('query'))
     const body: V1ListTracesResponse = { nextCursor: page.nextCursor, traces: page.traces.map(traceJson) }
     return c.json(body)
   })
 
-  app.get('/api/debug/v1/traces/:traceId', async (c) => {
-    const traceId = optionalId(c.req.param('traceId'), 16, 'traceId')
-    if (traceId === undefined)
-      throw new HttpError(400, 3, 'traceId is required')
-    const row = await storage.getTrace(traceId)
+  app.get('/api/debug/v1/traces/:traceId', validator('param', value => parse(traceParams, value)), async (c) => {
+    const row = await storage.getTrace(c.req.valid('param').traceId)
     if (row === undefined)
-      throw new HttpError(404, 5, 'Trace was not found')
+      throw new HTTPException(404, { message: 'Trace was not found' })
     const body: V1GetTraceResponse = { trace: traceJson(row) }
     return c.json(body)
   })
 
-  app.get('/api/debug/v1/events', async (c) => {
-    const page = await storage.listEvents({
-      afterCursor: exactUnsigned(c.req.query('afterCursor'), 'afterCursor'),
-      kind: queryKind(c.req.query('kind')),
-      pageSize: pageSize(c.req.query('pageSize'), 200),
-      sessionId: c.req.query('sessionId'),
-      sourceId: c.req.query('sourceId'),
-      spanId: optionalId(c.req.query('spanId'), 8, 'spanId'),
-      traceId: optionalId(c.req.query('traceId'), 16, 'traceId'),
-    })
+  app.get('/api/debug/v1/events', validator('query', value => parse(eventQuery, value)), async (c) => {
+    const page = await storage.listEvents(c.req.valid('query'))
     const body: V1ListEventsResponse = { events: page.events.map(eventJson), nextCursor: page.nextCursor }
     return c.json(body)
   })
 
-  app.get('/api/debug/v1/export', async (c) => {
-    const page = await storage.exportRecords(
-      exactUnsigned(c.req.query('afterCursor'), 'afterCursor'),
-      pageSize(c.req.query('pageSize'), 1000, 200),
-    )
+  app.get('/api/debug/v1/export', validator('query', value => parse(exportQuery, value)), async (c) => {
+    const query = c.req.valid('query')
+    const page = await storage.exportRecords(query.afterCursor, query.pageSize)
     const body: V1ExportRecordsResponse = {
       batches: page.batches.map(row => ({
         body: batchBody(row),
@@ -432,6 +346,6 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
     return c.json(body)
   })
 
-  app.notFound(c => errorResponse(c, new HttpError(404, 5, 'Route was not found')))
+  app.notFound(c => errorResponse(c, new HTTPException(404, { message: 'Route was not found' })))
   return app
 }
