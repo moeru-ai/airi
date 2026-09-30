@@ -210,3 +210,13 @@ voice:
   configure-title: Configure transcription
   configure-description: Select a transcription provider and model in Hearing to use dictation or send audio to a text-only model.
   configure-action: Open Hearing
+
+background-calling:
+  listening-channel: Calling word listening
+  match-channel: Calling word detected
+  listening-title: AIRI is listening for calling words
+  listening-body: Tap to open AIRI
+  match-title: AIRI heard a calling word
+  match-body: Tap to speak
+  error-title: AIRI calling word listening stopped
+  error-body: Open Pocket to restart it

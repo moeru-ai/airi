@@ -182,3 +182,13 @@ voice:
   empty-transcription: 未识别到文字。
   finish-failed: 无法完成录音。
   push-to-talk: 按住说话
+
+background-calling:
+  listening-channel: 称呼监听
+  match-channel: 检测到称呼
+  listening-title: AIRI 正在监听称呼
+  listening-body: 点击打开 AIRI
+  match-title: AIRI 听到了称呼
+  match-body: 点击开始说话
+  error-title: AIRI 已停止监听称呼
+  error-body: 打开 Pocket 重新启动监听

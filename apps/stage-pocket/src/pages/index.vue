@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { BackgroundWakeKeyword } from '../modules/background-wake-word'
+
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
 import InteractiveArea from '@proj-airi/stage-layouts/components/Layouts/InteractiveArea.vue'
 import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
@@ -8,14 +10,19 @@ import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/th
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useSettings } from '@proj-airi/stage-ui/stores/settings'
+import { pinnedKwsVocabulary, resolveWakeWordKeywords, supportedWakeWordKeywords } from '@proj-airi/stage-ui/services/wake-words'
+import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, shallowRef, useTemplateRef } from 'vue'
 
 import WebSocketStatusButton from '../components/websocket-status-button.vue'
 
+import { useBackgroundCallingWords } from '../composables/use-background-calling-words'
 import { usePocketHearing } from '../composables/use-pocket-hearing'
+import { backgroundCaptureHandoff } from '../modules/background-wake-word'
 
 const paused = ref(false)
 
@@ -45,7 +52,31 @@ const { stageModelRenderer } = storeToRefs(useSettings())
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
 
-usePocketHearing()
+const pocketHearing = usePocketHearing(backgroundCaptureHandoff)
+const cardStore = useAiriCardStore()
+const hearingSettings = useHearingStore()
+const audioDevice = useSettingsAudioDevice()
+const backgroundKeywords = computed<BackgroundWakeKeyword[]>(() => {
+  const resolved = resolveWakeWordKeywords(cardStore.cards, cardStore.wakeWordOwnership)
+  return supportedWakeWordKeywords(resolved.keywords, pinnedKwsVocabulary).flatMap((keyword) => {
+    const owner = resolved.targets.get(keyword.label)
+    if (!owner)
+      return []
+    return keyword.matches.map(match => ({
+      characterId: owner.cardId,
+      tokens: match.tokens,
+      score: match.score ?? keyword.score,
+      threshold: match.threshold ?? keyword.threshold,
+    }))
+  })
+})
+useBackgroundCallingWords({
+  active: pocketHearing.ready,
+  enabled: () => audioDevice.mode === 'wake-word' && audioDevice.enabled && hearingSettings.configured,
+  keywords: backgroundKeywords,
+  onWake: pocketHearing.armWake,
+  onError: error => console.error('Android background calling words failed:', error),
+})
 </script>
 
 <template>
