@@ -28,7 +28,7 @@ const error = computed(() => {
   return typeof value === 'string' ? value : null
 })
 
-const verified = computed(() => route.query.verified === 'true')
+const verified = computed(() => !error.value && route.query.verified === 'true')
 
 // Captured at mount time on the original tab (the one that just submitted the
 // sign-up form) so that, when the verification tab signals success, we know
@@ -84,13 +84,11 @@ async function resumeIfSessionReady(): Promise<boolean> {
 }
 
 onMounted(async () => {
-  // Verification-success tab: announce to any sibling pending tab that the
-  // session cookie has been written, then stay put so the user sees the
-  // success message. The pending tab does the OIDC continuation.
   if (verified.value) {
     trackEmailVerificationCompleted()
     if (isSupported.value)
       post('verified')
+    window.location.replace('https://airi.moeru.ai/')
     return
   }
 
