@@ -58,7 +58,10 @@ describe('verification email landing', () => {
     const { auth, email } = createFixture()
     const address = `verify-${crypto.randomUUID()}@example.com`
     const response = await post(auth, 'sign-up/email', {
-      name: 'Verification test', email: address, password: 'test-password-123', callbackURL,
+      name: 'Verification test',
+      email: address,
+      password: 'test-password-123',
+      callbackURL,
     })
     expect(response.status).toBe(200)
     const initial = vi.mocked(email.sendVerification).mock.calls[0][0]
@@ -89,7 +92,10 @@ describe('verification email landing', () => {
     const { auth, email } = createFixture()
     const callbackURL = `${origin}/custom-result?flow=signup`
     const response = await post(auth, 'sign-up/email', {
-      name: 'Verification test', email: `explicit-${crypto.randomUUID()}@example.com`, password: 'test-password-123', callbackURL,
+      name: 'Verification test',
+      email: `explicit-${crypto.randomUUID()}@example.com`,
+      password: 'test-password-123',
+      callbackURL,
     })
     expect(response.status).toBe(200)
     const link = vi.mocked(email.sendVerification).mock.calls[0][0].url
