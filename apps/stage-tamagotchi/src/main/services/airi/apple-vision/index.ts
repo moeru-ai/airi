@@ -17,7 +17,11 @@ import { isMacOS } from 'std-env'
  * The first OCR call compiles the OCR models for this app, which takes about a
  * minute. The service prepares them in the background after the first check
  * that finds the model available, so a Mac that cannot run the model never
- * loads the addon for it.
+ * compiles them.
+ *
+ * The preparation runs once for each app start. A failed preparation logs a
+ * warning, and the first OCR call then compiles the models. Dispose does not
+ * cancel a preparation in progress, because the addon cannot cancel it.
  *
  * Call stack:
  *

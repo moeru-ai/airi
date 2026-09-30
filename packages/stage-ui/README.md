@@ -20,15 +20,24 @@ Previews own their Object URLs. Session changes discard pending image reads.
 Failed sends restore the draft through the shared composer.
 
 Choose a provider and model in **Settings → Modules → Vision** and enable
-**Use the vision model for chat images** for a text-only chat model.
-The vision model describes images before the selected chat model replies.
+**Use the vision model for chat images**. The vision model describes images before
+the selected chat model replies. This flow runs when the chat provider does not
+report image input for the selected model. Most providers do not report it.
 Local history keeps the images. Provider prompts replace images with descriptions,
-including images from earlier turns and retries. Earlier images can require another
-vision request on later turns. Cloud history currently stores only message text.
+including images from earlier turns and retries. Cloud history currently stores only message text.
+A failed read of an image in the current turn fails the send. The leader keeps a
+failed read of an earlier image in memory for its session and vision selection,
+so later turns do not read that image again.
 
-Disable this option to send images directly to a chat model that supports them.
+**Use the vision model for tool images** applies the same flow to images that tools
+return, such as `computer_use_read_image` screenshots and MCP image content. The
+vision model reads each image when the tool runs, and a tool rerun reads it too.
+While the vision model reads tool images, provider prompts replace stored tool
+images with a short note. Stored history keeps the images.
+
+Disable these options to send images directly to a chat model that supports them.
 Without a configured vision model, images also go directly to the chat model.
-Use this flow for chat attachments, not periodic screen capture.
+Use this flow for chat attachments and tool images, not periodic screen capture.
 
 ## Character-card module settings
 
@@ -45,7 +54,8 @@ save cards from watchers: authentication and remote snapshots also trigger them.
 The synchronization leader owns these commands; followers receive snapshots.
 
 Models inherit only within the same provider. Voices also require the same
-model. A different provider without a model stays unconfigured rather than
+model. Selecting a vision provider on the vision page stores the catalog default
+model of that provider on the active card. A different provider without a model stays unconfigured rather than
 receiving an unrelated model id. The editor requires a model for an explicit
 chat or vision provider unless that model can be inherited safely.
 

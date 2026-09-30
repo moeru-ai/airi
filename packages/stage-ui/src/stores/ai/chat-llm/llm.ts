@@ -13,7 +13,7 @@ import { resolveLlmTools } from './tool-resolver'
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
 
-/** Stream options of stage-ui. */
+/** Core stream options plus the stage-ui reader of images in tool results. */
 export interface LlmStreamOptions extends StreamOptions {
   /** Reads the images in tool results as text. See {@link resolveLlmTools}. */
   describeToolImage?: DescribeToolImage

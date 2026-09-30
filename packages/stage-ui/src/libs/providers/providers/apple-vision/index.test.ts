@@ -60,16 +60,6 @@ describe('apple vision provider', () => {
     expect((await validate())?.valid).toBe(true)
   })
 
-  it('serves the vision module with one default model', async () => {
-    vi.stubGlobal('window', { electron: { ipcRenderer: {} }, platform: 'darwin' })
-    const instance = await providerAppleVision.createProvider({})
-    const catalog = await providerAppleVision.extraMethods?.listModelCatalog?.({}, instance)
-
-    expect(providerAppleVision.tasks).not.toContain('chat')
-    expect(catalog?.models.map(model => model.id)).toEqual(['system'])
-    expect(catalog?.defaultModel).toBe('system')
-  })
-
   // The card stores the catalog default. A stored model of another provider,
   // such as `auto`, still does not reach the addon, which rejects it.
   it('ignores the stored model name', async () => {

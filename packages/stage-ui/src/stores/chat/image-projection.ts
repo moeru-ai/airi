@@ -46,8 +46,8 @@ export async function describeChatImages(
 /**
  * Replaces the images in stored tool results with a note, only in the provider
  * prompt. A stored tool result can hold an original image, for example from a
- * turn with a model that sees images, or from a turn before tool images were
- * read. A chat model that cannot see images then receives the note instead.
+ * turn before the vision model read tool images. The chat store applies this
+ * while the vision model reads tool images, so the prompt holds no raw image.
  */
 export function replaceToolResultImages(conversation: Conversation, note: string): Conversation {
   return {

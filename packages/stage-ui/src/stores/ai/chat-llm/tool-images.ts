@@ -2,7 +2,7 @@ import type { Tool, ToolExecuteResult } from '@xsai/shared-chat'
 
 import * as v from 'valibot'
 
-/** Reads one image for a chat model that cannot see images, and returns a text description. */
+/** Reads one image with the vision model and returns its text description for the chat model. */
 export type DescribeToolImage = (imageUrl: string) => Promise<string>
 
 const imageUrlPartSchema = v.object({
@@ -22,12 +22,12 @@ const mcpResultSchema = v.looseObject({
 
 /** Replaces one image part with its description. A text part replaces an unreadable image. */
 async function describePart(part: unknown, describe: DescribeToolImage, abortSignal?: AbortSignal): Promise<unknown> {
-  const imageUrl = v.is(imageUrlPartSchema, part)
-    ? part.image_url.url
-    : v.is(mcpImageSchema, part)
-      ? `data:${part.mimeType};base64,${part.data}`
-      : undefined
-  if (imageUrl === undefined)
+  let imageUrl: string
+  if (v.is(imageUrlPartSchema, part))
+    imageUrl = part.image_url.url
+  else if (v.is(mcpImageSchema, part))
+    imageUrl = `data:${part.mimeType};base64,${part.data}`
+  else
     return part
 
   let description: string
@@ -36,7 +36,7 @@ async function describePart(part: unknown, describe: DescribeToolImage, abortSig
   }
   catch (error) {
     abortSignal?.throwIfAborted()
-    console.warn('[llm] The vision model could not read a tool image:', error)
+    console.warn('[llm] The vision model failed to read a tool image:', error)
     description = ''
   }
 
@@ -44,7 +44,7 @@ async function describePart(part: unknown, describe: DescribeToolImage, abortSig
     type: 'text',
     text: description
       ? `[Image description from the vision model]\n${description}\n[End image description]`
-      : 'The vision model could not read this image.',
+      : 'The vision model failed to read this image.',
   }
 }
 
@@ -65,7 +65,7 @@ async function describeResultImages(result: ToolExecuteResult, describe: Describ
  * Replaces the images in the results of a tool with text descriptions.
  *
  * Use when:
- * - The chat model cannot see images, and a vision model reads them.
+ * - The chat provider does not report image input, and a vision model reads the images.
  *
  * Covers xsAI `image_url` parts, such as a computer-use screenshot, and MCP
  * `image` content. A description keeps the text and the layout of an image,

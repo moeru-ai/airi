@@ -3,7 +3,7 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
-import { useVisionActivityStore } from './activity'
+import { reportActivity, useVisionActivityStore } from './activity'
 
 export interface VisionTickOutcome {
   capturedAt?: number
@@ -31,11 +31,6 @@ function countInWindow(history: number[], windowMs: number) {
     count += 1
   }
   return count
-}
-
-/** Logs a failed activity report. A report never stops the ticker. */
-function reportActivity(write: Promise<void>) {
-  write.catch(error => console.warn('[vision] Failed to report activity:', error))
 }
 
 /**

@@ -869,7 +869,7 @@ pages:
       title: Vision
       tool-images:
         label: Use the vision model for tool images
-        description: The vision model reads the images that tools return, such as screenshots from Use computer, before your chat model replies. A chat model that sees images gets them directly. A description has no pixel positions.
+        description: The vision model reads the images that tools return, such as screenshots from Use computer, before your chat model replies. The chat model gets them directly when its provider reports image input. A description has no pixel positions.
       capture:
         title: Vision capture cadence
         description: Tune how often the vision ticker captures a frame.
@@ -883,6 +883,7 @@ pages:
         inferences-description: Every call to the vision model, chat images included
         failed-inferences: Failed calls
         last-inference: Last call
+        error: 'Error:'
         last-update: Last update {time}
         since-start: Since the app started
         never: Never

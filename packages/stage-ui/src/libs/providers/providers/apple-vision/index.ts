@@ -3,35 +3,35 @@ import type { ProviderModelCatalog } from '../../types'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { errorMessageFrom } from '@moeru/std'
 import { isElectronWindow, isStageTamagotchi } from '@proj-airi/stage-shared'
-import { APPLE_VISION_MODEL, createAppleVisionProvider as createElectronAppleVisionProvider } from '@xsai-apple-vision/vision-electron-plugin'
+import { APPLE_VISION_MODEL, createAppleVisionProvider as createElectronProvider } from '@xsai-apple-vision/vision-electron-plugin'
 import { z } from 'zod'
 
 import { defineProvider } from '../registry'
 
-export const APPLE_VISION_PROVIDER_ID = 'apple-vision'
-type AppleVisionProviderId = typeof APPLE_VISION_PROVIDER_ID
+const PROVIDER_ID = 'apple-vision'
+type ProviderId = typeof PROVIDER_ID
 
-const appleVisionConfigSchema = z.object({})
+const configSchema = z.object({})
 
-type AppleVisionConfig = z.input<typeof appleVisionConfigSchema>
+type Config = z.input<typeof configSchema>
 
 /** Returns the window when it is the macOS desktop app, where the main process owns the native addon. */
-function appleVisionHostWindow() {
+function findHostWindow() {
   if (!isStageTamagotchi() || typeof window === 'undefined' || !isElectronWindow(window) || window.platform !== 'darwin')
     return undefined
   return window
 }
 
-function requireAppleVisionHostWindow() {
-  const hostWindow = appleVisionHostWindow()
+function requireHostWindow() {
+  const hostWindow = findHostWindow()
   if (!hostWindow)
     throw new Error('Apple Vision requires the macOS desktop app.')
   return hostWindow
 }
 
-function createRendererAppleVisionProvider() {
-  const eventa = createContext(requireAppleVisionHostWindow().electron.ipcRenderer)
-  const provider = createElectronAppleVisionProvider({ context: eventa.context })
+function createRendererProvider() {
+  const eventa = createContext(requireHostWindow().electron.ipcRenderer)
+  const provider = createElectronProvider({ context: eventa.context })
   return {
     // Apple Foundation Models has one on-device model. The addon rejects any
     // other name, so a stored model name never reaches it.
@@ -48,14 +48,14 @@ function createRendererAppleVisionProvider() {
  * an availability check starts the OCR preparation in the main process. The
  * validator reports the availability after the user adds the provider.
  */
-async function canLoadAppleVision() {
-  const hostWindow = appleVisionHostWindow()
+async function canLoadAddon() {
+  const hostWindow = findHostWindow()
   if (!hostWindow)
     return false
 
   const { context, dispose } = createContext(hostWindow.electron.ipcRenderer)
   try {
-    await createElectronAppleVisionProvider({ context }).supportedLanguages()
+    await createElectronProvider({ context }).supportedLanguages()
     return true
   }
   catch {
@@ -67,10 +67,10 @@ async function canLoadAppleVision() {
 }
 
 /** Reads the availability reason from the main-process Provider. See xsai-apple-vision ADR-0004. */
-async function checkAppleVisionAvailability() {
-  const { context, dispose } = createContext(requireAppleVisionHostWindow().electron.ipcRenderer)
+async function checkAvailability() {
+  const { context, dispose } = createContext(requireHostWindow().electron.ipcRenderer)
   try {
-    return await createElectronAppleVisionProvider({ context }).isAvailable()
+    return await createElectronProvider({ context }).isAvailable()
   }
   finally {
     dispose()
@@ -78,20 +78,20 @@ async function checkAppleVisionAvailability() {
 }
 
 /** Apple Foundation Models exposes one on-device model, so the catalog is fixed. */
-async function listAppleVisionModelCatalog(): Promise<ProviderModelCatalog> {
+async function listModelCatalog(): Promise<ProviderModelCatalog> {
   return {
     models: [{
       id: APPLE_VISION_MODEL,
       name: 'Apple Foundation Model',
-      provider: APPLE_VISION_PROVIDER_ID,
+      provider: PROVIDER_ID,
       description: 'The on-device model of Apple Foundation Models',
     }],
     defaultModel: APPLE_VISION_MODEL,
   }
 }
 
-export const providerAppleVision = defineProvider<AppleVisionConfig, AppleVisionProviderId>({
-  id: APPLE_VISION_PROVIDER_ID,
+export const providerAppleVision = defineProvider<Config, ProviderId>({
+  id: PROVIDER_ID,
   name: 'Apple Vision',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.apple-vision.title'),
   description: 'On-device image understanding with Apple Foundation Models on macOS 27 or later. No API key is required.',
@@ -99,12 +99,12 @@ export const providerAppleVision = defineProvider<AppleVisionConfig, AppleVision
   // The on-device model has a small context window and no tool calls, so it
   // serves the vision module only.
   tasks: ['vision', 'image-understanding'],
-  isAvailableBy: canLoadAppleVision,
+  isAvailableBy: canLoadAddon,
   // The on-device model answers one request at a time.
   capabilities: { vision: { concurrentReads: 1 } },
 
-  createProviderConfig: () => appleVisionConfigSchema,
-  createProvider: createRendererAppleVisionProvider,
+  createProviderConfig: () => configSchema,
+  createProvider: createRendererProvider,
 
   validationRequiredWhen: () => true,
   validators: {
@@ -119,7 +119,7 @@ export const providerAppleVision = defineProvider<AppleVisionConfig, AppleVision
         validator: async () => {
           let reason = ''
           try {
-            const availability = await checkAppleVisionAvailability()
+            const availability = await checkAvailability()
             if (!availability.available)
               reason = availability.reason.message
           }
@@ -138,6 +138,6 @@ export const providerAppleVision = defineProvider<AppleVisionConfig, AppleVision
   },
 
   extraMethods: {
-    listModelCatalog: listAppleVisionModelCatalog,
+    listModelCatalog,
   },
 })

@@ -4,14 +4,15 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { VisionWorkloadId } from './use-vision-workloads'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Semaphore } from 'es-toolkit'
+import { DEFAULT_CONCURRENT_VISION_READS } from '@proj-airi/provider-inference'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
 import { useLLM } from '../../stores/ai/chat-llm/llm'
-import { useVisionActivityStore, useVisionStore } from '../../stores/modules/vision'
+import { reportActivity, useVisionActivityStore, useVisionStore } from '../../stores/modules/vision'
 import { useProviderStore } from '../../stores/providers/provider'
 import { getVisionWorkload } from './use-vision-workloads'
+import { VisionReadQueue } from './vision-read-queue'
 
 export interface VisionInferenceInput {
   imageDataUrl: string
@@ -24,45 +25,8 @@ export interface VisionInferenceInput {
 // TODO: this should be configurable
 const VISION_INFERENCE_TIMEOUT_MS = 60_000
 
-const DEFAULT_CONCURRENT_VISION_READS = 4
-
-/**
- * Queues the image reads of this window for each vision provider, for
- * attachments, tool images, and the screen ticker. A provider declares its
- * limit, and a read beyond it waits here instead of inside the provider,
- * where its timeout would run.
- *
- * NOTICE:
- * Each window has its own queues. The screen ticker in the devtools window
- * and the chat in the stage window can still reach one provider at once.
- */
-const visionReadSlots = new Map<string, Semaphore>()
-
-/** Waits for a read slot. A cancelled read leaves the queue at once. */
-async function acquireReadSlot(slots: Semaphore, abortSignal?: AbortSignal) {
-  abortSignal?.throwIfAborted()
-  const acquired = slots.acquire()
-  if (!abortSignal)
-    return await acquired
-
-  let rejectAborted: (reason: unknown) => void = () => {}
-  const aborted = new Promise<never>((_resolve, reject) => {
-    rejectAborted = reject
-  })
-  const onAbort = () => rejectAborted(abortSignal.reason)
-  abortSignal.addEventListener('abort', onAbort, { once: true })
-  try {
-    await Promise.race([acquired, aborted])
-  }
-  catch (error) {
-    // The slot still arrives later. Pass it on to the next read.
-    void acquired.then(() => slots.release())
-    throw error
-  }
-  finally {
-    abortSignal.removeEventListener('abort', onAbort)
-  }
-}
+/** The read queue of this window, shared by attachments, tool images, and the screen ticker. */
+const visionReadQueue = new VisionReadQueue()
 
 function parseDataUrl(dataUrl: string) {
   if (!dataUrl.startsWith('data:'))
@@ -151,24 +115,19 @@ export function useVisionInference() {
     const providerId = activeProvider.value
     const modelId = activeModel.value
 
-    let slots = visionReadSlots.get(providerId)
-    if (!slots) {
-      const concurrentReads = providersStore.findProviderDefinition(providerId)?.capabilities?.vision?.concurrentReads
-      slots = new Semaphore(concurrentReads ?? DEFAULT_CONCURRENT_VISION_READS)
-      visionReadSlots.set(providerId, slots)
-    }
-    await acquireReadSlot(slots, input.abortSignal)
+    const concurrentReads = providersStore.findProviderDefinition(providerId)?.capabilities?.vision?.concurrentReads
+    const release = await visionReadQueue.acquire(providerId, concurrentReads ?? DEFAULT_CONCURRENT_VISION_READS, input.abortSignal)
     const startedAt = Date.now()
-    // Every attempt counts, including a failure before the request, such as a
-    // provider that cannot start. The report does not delay or fail the read.
+    // Every started read counts, including a failure before the request, such
+    // as a provider that cannot start. A read that its caller cancels does not.
     function recordInference(result: { text: string } | { error: string }) {
-      activityStore.recordInference({
+      reportActivity(activityStore.recordInference({
         at: Date.now(),
         provider: providerId,
         model: modelId,
         durationMs: Date.now() - startedAt,
         ...result,
-      }).catch(error => console.warn('[vision] Failed to report an inference:', error))
+      }))
     }
 
     try {
@@ -180,7 +139,7 @@ export function useVisionInference() {
       throw error
     }
     finally {
-      slots.release()
+      release()
     }
 
     recordInference({ text: lastText.value })

@@ -817,7 +817,7 @@ pages:
       title: 视觉
       tool-images:
         label: 使用视觉模型理解工具图片
-        description: 工具返回的图片（例如“使用电脑”的截图）会先由视觉模型读取，再由当前聊天模型回复。聊天模型能看图时直接交给它。文字描述不包含像素坐标。
+        description: 工具返回的图片（例如“使用电脑”的截图）会先由视觉模型读取，再由当前聊天模型回复。聊天模型的服务来源声明支持图片输入时，直接交给它。文字描述不包含像素坐标。
       capture:
         title: 视觉捕获频率
         description: 调整视觉定时器捕获画面的频率。
@@ -831,6 +831,7 @@ pages:
         inferences-description: 视觉模型的每一次调用，包括聊天图片
         failed-inferences: 失败次数
         last-inference: 上次调用
+        error: 错误：
         last-update: 上次更新 {time}
         since-start: 自应用启动以来
         never: 从未

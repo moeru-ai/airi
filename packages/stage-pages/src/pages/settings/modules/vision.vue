@@ -72,6 +72,9 @@ async function handleDeleteProvider(providerId: string) {
 
 const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
 const formattedLastContextUpdate = computed(() => formatRelativeTime(lastContextUpdateAt.value))
+const formattedLastInferenceDuration = computed(() => lastInference.value
+  ? new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'millisecond', unitDisplay: 'short' }).format(lastInference.value.durationMs)
+  : '')
 const formattedLastInference = computed(() => formatRelativeTime(lastInference.value?.at ?? null))
 const lastInferenceProviderName = computed(() => {
   const providerId = lastInference.value?.provider
@@ -439,13 +442,23 @@ function formatRelativeTime(timestamp: number | null) {
               {{ formattedLastInference }}
             </div>
             <div v-if="lastInference" :class="['text-xs', 'text-neutral-400']">
-              {{ lastInferenceProviderName }} / {{ lastInference.model }} · {{ lastInference.durationMs }} ms
+              {{ lastInferenceProviderName }} / {{ lastInference.model }} · {{ formattedLastInferenceDuration }}
             </div>
             <div
-              v-if="lastInference"
-              :class="['mt-1', 'max-h-40', 'overflow-y-auto', 'whitespace-pre-wrap', 'text-xs', lastInference.error ? 'text-red-500' : 'text-neutral-500']"
+              v-if="lastInference?.error"
+              :class="['mt-1', 'flex', 'items-start', 'gap-1', 'text-xs', 'text-red-500']"
             >
-              {{ lastInference.error ?? lastInference.text }}
+              <div :class="['mt-0.5', 'shrink-0', 'i-solar:danger-triangle-bold-duotone']" />
+              <span :class="['max-h-40', 'overflow-y-auto', 'whitespace-pre-wrap']">
+                <span :class="['font-medium']">{{ t('settings.pages.modules.vision.stats.error') }}</span>
+                {{ lastInference.error }}
+              </span>
+            </div>
+            <div
+              v-else-if="lastInference"
+              :class="['mt-1', 'max-h-40', 'overflow-y-auto', 'whitespace-pre-wrap', 'text-xs', 'text-neutral-500']"
+            >
+              {{ lastInference.text }}
             </div>
           </div>
         </div>

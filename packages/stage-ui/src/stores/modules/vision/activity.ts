@@ -10,10 +10,33 @@ export interface VisionInferenceRecord {
   provider: string
   model: string
   durationMs: number
-  /** The description, when the inference succeeds. */
+  /** The start of the description, when the inference succeeds. See {@link INFERENCE_TEXT_PREVIEW_LENGTH}. */
   text?: string
   /** The error message, when the inference fails. */
   error?: string
+}
+
+/**
+ * Characters of a description that the activity keeps. Each leader change sends
+ * the whole store to every window, and a full description is long.
+ */
+export const INFERENCE_TEXT_PREVIEW_LENGTH = 280
+
+/**
+ * Sends one activity write to the leader without waiting for it.
+ *
+ * NOTICE:
+ * The skill for synchronized stores requires callers to await a leader action.
+ * A leader call can wait up to five minutes (`callTimeout` in
+ * `libs/pinia/setup-synced.ts`), and an activity count must not delay a screen
+ * capture or an image read. Root cause: pinia-plugin-synced has no call without
+ * a reply and no timeout for one action. The leader still applies each write in
+ * order. Source: review of https://github.com/moeru-ai/airi/pull/2734.
+ * Remove this helper when the plugin can send an action without waiting for its
+ * result, or can time out one action.
+ */
+export function reportActivity(write: Promise<void>) {
+  write.catch(error => console.warn('[vision] Failed to report activity:', error))
 }
 
 /**
@@ -24,10 +47,8 @@ export interface VisionInferenceRecord {
  * Per-window details, such as the timing history, stay in the unsynchronized
  * processing store.
  *
- * Every write is a leader action. A follower that wrote the state directly
- * would propose its whole snapshot, and a concurrent write could lose a count.
- * Callers do not wait for a write, so a slow leader never delays a capture or
- * an inference.
+ * Every write is a leader action. A follower that writes the state directly
+ * proposes its whole snapshot, and a concurrent write then loses a count.
  */
 export const useVisionActivityStore = defineStore('vision-activity', () => {
   const captureCount = ref(0)
@@ -53,7 +74,7 @@ export const useVisionActivityStore = defineStore('vision-activity', () => {
     inferenceCount.value += 1
     if (record.error !== undefined)
       failedInferenceCount.value += 1
-    lastInference.value = record
+    lastInference.value = { ...record, text: record.text?.slice(0, INFERENCE_TEXT_PREVIEW_LENGTH) }
   }
 
   async function resetCaptureMetrics() {

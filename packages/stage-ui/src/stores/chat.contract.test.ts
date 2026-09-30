@@ -604,7 +604,7 @@ describe('chat store contract', () => {
 
     expect(visionMocks.runInference).toHaveBeenCalledOnce()
     expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
-      expect.objectContaining({ role: 'user', content: expect.stringContaining('It could not be read.') }),
+      expect.objectContaining({ role: 'user', content: expect.stringContaining('The vision model failed to read it.') }),
     ]))
 
     visionMocks.model = 'another-model'
@@ -614,6 +614,24 @@ describe('chat store contract', () => {
     expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
     expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions)
       .toEqual([{ description: 'A red square.', imageIndex: 0 }])
+  })
+
+  it('forgets the failed reads of a deleted session', async () => {
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const imageMessage = { role: 'user', content: [{ type: 'text', text: 'Read this' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }], createdAt: 2 }
+    const store = useChatStore()
+    sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }, { ...imageMessage }]
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+
+    await store.deleteSession('session-1')
+    sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }, { ...imageMessage }]
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+
+    expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
   })
 
   it('keeps a failed earlier read inside its session', async () => {
@@ -718,7 +736,7 @@ describe('chat store contract', () => {
     //
     // The note replaced stored tool images for each model without a declared
     // vision ability. Most catalogs omit it, so a model that sees images lost
-    // its earlier screenshots and read that it could not see images.
+    // its earlier screenshots and was told that it cannot see images.
     consciousnessModels.value = [{ id: 'gpt-test', metadata: {} }]
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })

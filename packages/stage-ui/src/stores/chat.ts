@@ -172,7 +172,7 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
 
 /** Stands in for an earlier image whose read failed with the current vision selection. */
-const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. It could not be read.'
+const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
 
 export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n()
@@ -235,8 +235,21 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.dispose()
   }
 
-  /** Failed image reads of this leader, keyed by session, vision provider, model, turn, and image. */
-  const failedImageReads = new Set<string>()
+  /**
+   * Failed image reads of this leader, grouped by session. Each key holds the
+   * vision provider, model, turn, and image index. The cache lives in memory
+   * until the leader ends, and clearing or deleting a session removes its group.
+   */
+  const failedImageReads = new Map<string, Set<string>>()
+
+  function failedImageReadsOf(sessionId: string) {
+    let reads = failedImageReads.get(sessionId)
+    if (!reads) {
+      reads = new Set()
+      failedImageReads.set(sessionId, reads)
+    }
+    return reads
+  }
 
   async function streamWithStageAdapters(
     model: string,
@@ -289,9 +302,10 @@ export const useChatStore = defineStore('chat', () => {
           // each later turn does not read it again. The current turn reports it.
           const isCurrentTurn = turnId === currentTurnId
           // A stored message without an id gets a turn id from its position, so
-          // the session keeps two sessions apart.
-          const readKey = JSON.stringify([sessionId, visionStore.activeProvider, visionStore.activeModel, turnId, imageIndex])
-          if (!isCurrentTurn && failedImageReads.has(readKey))
+          // each session keeps its own failed reads.
+          const sessionFailedReads = failedImageReadsOf(sessionId ?? '')
+          const readKey = JSON.stringify([visionStore.activeProvider, visionStore.activeModel, turnId, imageIndex])
+          if (!isCurrentTurn && sessionFailedReads.has(readKey))
             return UNREADABLE_EARLIER_IMAGE
 
           let description: string
@@ -305,7 +319,7 @@ export const useChatStore = defineStore('chat', () => {
           }
           catch (error) {
             options?.abortSignal?.throwIfAborted()
-            failedImageReads.add(readKey)
+            sessionFailedReads.add(readKey)
             if (isCurrentTurn)
               throw error
             return UNREADABLE_EARLIER_IMAGE
@@ -316,7 +330,7 @@ export const useChatStore = defineStore('chat', () => {
               saveImageDescription(sessionId, turnId, imageIndex, description)
             return description
           }
-          failedImageReads.add(readKey)
+          sessionFailedReads.add(readKey)
           // An empty description of the current image reports the no-description error.
           return isCurrentTurn ? description : UNREADABLE_EARLIER_IMAGE
         }, t('stage.chat.images.no-description'))
@@ -643,6 +657,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Clears one session and stops runtime work that still belongs to it. */
   function cleanup(sessionId: string) {
+    failedImageReads.delete(sessionId)
     chatSession.cleanupMessages(sessionId)
     chatContext.resetContexts()
     runtime.cancelPendingSends(sessionId)
@@ -651,6 +666,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Cancels queued work before permanently removing its owning session. */
   function deleteSession(sessionId: string): Promise<void> {
+    failedImageReads.delete(sessionId)
     runtime.cancelPendingSends(sessionId)
     return chatSession.deleteSession(sessionId)
   }

@@ -60,7 +60,7 @@ describe('withDescribedImages', () => {
     })
     vi.spyOn(console, 'warn').mockImplementation(() => {})
 
-    expect(await run(tool)).toEqual([{ type: 'text', text: 'The vision model could not read this image.' }])
+    expect(await run(tool)).toEqual([{ type: 'text', text: 'The vision model failed to read this image.' }])
   })
 
   it('stops when the send is cancelled', async () => {
