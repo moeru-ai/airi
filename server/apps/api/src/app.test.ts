@@ -92,9 +92,9 @@ describe('business API app', () => {
     expect(response.headers.get('vary')).toBe('Accept')
   })
 
-  it('keeps JSON clients at the API root', async () => {
+  it.each(['application/json', 'text/html;q=0, application/json', 'application/json;profile="text/html"'])('keeps JSON clients at the API root with Accept %s', async (accept) => {
     const { app } = await buildApp(createTestDeps())
-    const response = await app.request('/', { headers: { Accept: 'application/json' } })
+    const response = await app.request('/', { headers: { Accept: accept } })
 
     expect(response.status).toBe(200)
     expect(response.headers.get('location')).toBeNull()

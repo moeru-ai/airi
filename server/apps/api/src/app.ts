@@ -33,6 +33,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
+import { parseAccept } from 'hono/utils/accept'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
@@ -373,7 +374,8 @@ export async function buildApp(deps: AppDeps) {
 
     .on('GET', '/', (context) => {
       context.header('Vary', 'Accept')
-      if (context.req.header('Accept')?.includes('text/html'))
+      const accept = context.req.header('Accept')
+      if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
         return context.redirect('https://airi.moeru.ai/', 302)
 
       return context.json({

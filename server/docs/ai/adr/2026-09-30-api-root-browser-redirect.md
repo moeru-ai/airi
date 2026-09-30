@@ -5,7 +5,7 @@ Status: accepted
 ## Decision
 
 Browser GET and HEAD requests to the API root redirect to `https://airi.moeru.ai/` with status 302.
-The request must explicitly accept `text/html`. Other clients retain the JSON service identity.
+The request must explicitly accept `text/html` with positive quality. Hono parses the media ranges; other clients retain the JSON service identity.
 The response varies by `Accept`. The existing no-store policy remains active.
 The target is fixed. Request queries are not forwarded.
 
