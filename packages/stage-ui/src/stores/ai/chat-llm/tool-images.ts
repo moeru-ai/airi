@@ -49,11 +49,8 @@ async function describePart(part: unknown, describe: DescribeToolImage, abortSig
 }
 
 async function describeParts(parts: unknown[], describe: DescribeToolImage, abortSignal?: AbortSignal) {
-  // One image at a time, because an on-device vision model reads one request at a time.
-  const described: unknown[] = []
-  for (const part of parts)
-    described.push(await describePart(part, describe, abortSignal))
-  return described
+  // The vision inference queue limits how many images are read at once.
+  return await Promise.all(parts.map(part => describePart(part, describe, abortSignal)))
 }
 
 async function describeResultImages(result: ToolExecuteResult, describe: DescribeToolImage, abortSignal?: AbortSignal): Promise<ToolExecuteResult> {

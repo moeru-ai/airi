@@ -91,6 +91,35 @@ describe('useVisionInference', () => {
     expect(activity.lastInference).toMatchObject({ provider: 'openai', model: 'mock-model', error: 'Provider unavailable' })
   })
 
+  it('reads one image at a time and starts each timeout when its read starts', async () => {
+    // ROOT CAUSE:
+    //
+    // Concurrent reads waited inside the on-device model while their timeouts
+    // ran, so a queued read timed out before it started.
+    //
+    // We fixed this with one queue for every read. A timeout starts after the
+    // read leaves the queue.
+    const releases: Array<() => void> = []
+    stream.mockImplementation(async (_model, _provider, _messages, options) => {
+      await new Promise<void>(resolve => releases.push(resolve))
+      await options?.onStreamEvent?.({ type: 'text-delta', text: `read ${releases.length}` })
+    })
+    const { runVisionInference } = useVisionInference()
+    const input = { imageDataUrl: 'data:image/png;base64,Zm9v', workloadId: 'tool:image' as const }
+
+    const first = runVisionInference(input)
+    const second = runVisionInference(input)
+    await vi.advanceTimersByTimeAsync(50_000)
+    expect(stream).toHaveBeenCalledOnce()
+
+    releases[0]()
+    await expect(first).resolves.toBe('read 1')
+    await vi.advanceTimersByTimeAsync(50_000)
+    expect(stream).toHaveBeenCalledTimes(2)
+    releases[1]()
+    await expect(second).resolves.toBe('read 2')
+  })
+
   it('aborts vision inference when the stream never settles', async () => {
     stream.mockImplementation((_model, _provider, _messages, options) => new Promise((_, reject) => {
       options?.abortSignal?.addEventListener('abort', () => {

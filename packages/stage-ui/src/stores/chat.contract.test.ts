@@ -218,6 +218,7 @@ vi.mock('./ai/chat-llm/llm', () => ({
 
 vi.mock('./ai/chat-llm/tools', () => ({
   useLlmToolsStore: () => ({
+    activeTools: [],
     getToolsByNames: (...names: string[]) => getToolsByNamesMock(names),
     tools: [{ function: { name: 'computer_use' }, requiresExplicitSelection: true }],
   }),
@@ -628,7 +629,80 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-1', text: 'Look at my screen' })
 
     expect(await toolImageReaders[0]?.('data:image/png;base64,aW1hZ2U=')).toBe('A settings window.')
-    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'screen:ocr' }))
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image' }))
+  })
+
+  it('stores the description of an image that a rerun tool returns', async () => {
+    // ROOT CAUSE:
+    //
+    // The rerun entry points resolved tools without the image reader. A rerun
+    // stored the original screenshot, and the next turn sent it again.
+    visionMocks.configured = true
+    visionMocks.runInference.mockResolvedValue('A settings window.')
+    getToolsByNamesMock.mockImplementation(() => [{
+      type: 'function',
+      function: { name: 'computer_use_read_image', parameters: {} },
+      execute: async () => [{ type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }],
+    }])
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'assistant',
+        id: 'assistant-1',
+        content: '',
+        createdAt: 2,
+        slices: [{ type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'computer_use_read_image', args: '{}' } }],
+        tool_results: [],
+      },
+    ]
+
+    await useChatStore().rerunToolCall({
+      sessionId: 'session-1',
+      messageId: 'assistant-1',
+      toolCallId: 'call-1',
+      toolName: 'computer_use_read_image',
+      args: '{}',
+      tools: [{ name: 'computer_use_read_image' }],
+    })
+
+    const stored = JSON.stringify(sessionMessages['session-1'][1])
+    expect(stored).not.toContain('data:image')
+    expect(stored).toContain('A settings window.')
+  })
+
+  it('sends a note in place of a stored tool image to a chat model that cannot see images', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'user', content: 'Look at my screen', createdAt: 2, id: 'user-1' },
+      {
+        role: 'assistant',
+        id: 'assistant-1',
+        content: '',
+        createdAt: 3,
+        slices: [],
+        tool_results: [],
+        generationTranscript: {
+          type: 'assistant',
+          id: 'assistant-1',
+          status: 'completed',
+          rounds: [{
+            id: 'round-1',
+            content: [{ type: 'tool', invocationId: 'invocation-1' }],
+            projectionIssues: [],
+            toolInvocations: [{ id: 'invocation-1', callId: 'call-1', name: 'computer_use_read_image', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'image', url: 'data:image/png;base64,aW1hZ2U=' }] } }],
+          }],
+        },
+      },
+    ]
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'What did you see?' })
+
+    const prompt = JSON.stringify(useContextObservabilityStore().lastPromptProjection?.composedMessage)
+    expect(prompt).not.toContain('data:image')
+    expect(prompt).toContain('the image is left out')
   })
 
   it('leaves tool images alone when the tool image setting is off', async () => {

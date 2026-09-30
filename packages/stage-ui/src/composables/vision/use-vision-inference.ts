@@ -4,6 +4,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { VisionWorkloadId } from './use-vision-workloads'
 
 import { errorMessageFrom } from '@moeru/std'
+import { Semaphore } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
 
@@ -22,6 +23,13 @@ export interface VisionInferenceInput {
 
 // TODO: this should be configurable
 const VISION_INFERENCE_TIMEOUT_MS = 60_000
+
+/**
+ * Reads one image at a time in this window, for attachments, tool images, and
+ * the screen ticker. An on-device model answers one request at a time, so a
+ * queued read would otherwise spend its timeout waiting.
+ */
+const visionReadSlots = new Semaphore(1)
 
 function parseDataUrl(dataUrl: string) {
   if (!dataUrl.startsWith('data:'))
@@ -109,6 +117,8 @@ export function useVisionInference() {
 
     const providerId = activeProvider.value
     const modelId = activeModel.value
+
+    await visionReadSlots.acquire()
     const startedAt = Date.now()
     // Every attempt counts, including a failure before the request, such as a
     // provider that cannot start. The report does not delay or fail the read.
@@ -123,11 +133,17 @@ export function useVisionInference() {
     }
 
     try {
+      // A read cancelled while it waited never starts.
+      input.abortSignal?.throwIfAborted()
       lastText.value = await describeImage(providerId, modelId, input)
     }
     catch (error) {
-      recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
+      if (!input.abortSignal?.aborted)
+        recordInference({ error: errorMessageFrom(error) ?? 'Unknown error' })
       throw error
+    }
+    finally {
+      visionReadSlots.release()
     }
 
     recordInference({ text: lastText.value })
