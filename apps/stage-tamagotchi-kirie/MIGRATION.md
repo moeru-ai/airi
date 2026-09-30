@@ -178,7 +178,7 @@ Godot and Godot.NET.Sdk use 4.7.2. Godot CEF uses 1.16.1.
 The [0.6.5 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.5) supplies official artifacts.
 
 The addon SHA-256 is `d07aeaadac2184f39f1cae8a72a26320ee6d21d4000afc5d575db76f2fb9ba7f`.
-[godot_cef.json](addons/kirie/godot_cef.json) supplies the CEF digest.
+The installed `addons/kirie/godot_cef.json` supplies the CEF digest.
 The macOS artifact passed strict signatures. Windows used D3D12 Forward+ with accelerated OSR.
 
 On 2026-09-29, the NuGet v3 feed omitted both 0.6.5 packages and restore failed with `NU1102`.

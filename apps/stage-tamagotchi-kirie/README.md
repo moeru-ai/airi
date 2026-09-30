@@ -31,10 +31,28 @@ mise install
 mise x -- pnpm install
 cd apps/stage-tamagotchi-kirie
 mise install
-mise x -- pnpm kirie doctor
 ```
 
 Run all remaining application commands from this directory.
+Dependency installation creates `node_modules/.gdignore` so Godot skips the dependency directory. Git ignores the entire directory.
+
+Install the Kirie addon from the [0.6.5 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.5):
+
+1. Download `kirie-addon.zip`.
+2. Verify its SHA-256 against the [dependency baseline](MIGRATION.md#dependency-baseline).
+3. Extract the archive into this application directory.
+
+The archive supplies `addons/kirie/`. Git ignores this installed dependency.
+After a Kirie version change, repeat installation with the matching release.
+The [CLI initializer](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/init.ts) installs addons only when it creates a project.
+The doctor does not install the Kirie addon.
+
+Inspect the installed environment:
+
+```sh
+mise x -- pnpm kirie doctor
+```
+
 The doctor does not inspect .NET. Missing Android SDK or export templates alone do not block desktop development.
 Exports require matching Godot export templates. Android work also requires the Android SDK.
 
@@ -44,7 +62,7 @@ If CEF is absent or stale, install the configured backend:
 mise x -- pnpm kirie doctor --fix godot-cef
 ```
 
-The [installer](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/godot-cef.ts) checks the archive against [godot_cef.json](addons/kirie/godot_cef.json).
+The [installer](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/godot-cef.ts) checks the archive against the installed `addons/kirie/godot_cef.json`.
 The [doctor](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/index.ts) checks presence and a checksum marker.
 It does not hash installed native files or inspect macOS signatures.
 

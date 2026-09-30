@@ -3,10 +3,9 @@
 .godot/
 .import/
 .mono/
-!node_modules/
-node_modules/*
-!node_modules/.gdignore
+node_modules/
 addons/godot_cef/
+addons/kirie/
 src-web/dist/
 dist/
 build/
