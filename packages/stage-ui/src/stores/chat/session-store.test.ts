@@ -157,6 +157,44 @@ async function flushMicrotasks(rounds = 8) {
     await Promise.resolve()
 }
 
+describe('chat-session-store · message persistence', () => {
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4138591531
+  // ROOT CAUSE:
+  // The store ignored a failed session write and kept the message in memory.
+  // It now removes the failed message so the runtime can remove its audio.
+  it('rolls back a message when the session record cannot be saved', async () => {
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = store.activeSessionId
+    const message = { role: 'user' as const, content: 'Voice turn', id: 'voice-turn' }
+    saveSessionMock.mockRejectedValueOnce(new Error('QuotaExceededError'))
+
+    await expect(store.appendSessionMessage(sessionId, message)).rejects.toThrow('QuotaExceededError')
+    expect(store.getSessionMessages(sessionId)).not.toContainEqual(expect.objectContaining({ id: 'voice-turn' }))
+
+    await expect(store.appendSessionMessage(sessionId, message)).resolves.toBeUndefined()
+    expect(store.getSessionMessages(sessionId)).toContainEqual(expect.objectContaining({ id: 'voice-turn' }))
+  })
+
+  it('retains the message when the record is saved but the index write fails', async () => {
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = store.activeSessionId
+    saveIndexMock.mockRejectedValueOnce(new Error('Index write failed'))
+
+    await expect(store.appendSessionMessage(sessionId, {
+      role: 'user',
+      content: 'Voice turn',
+      id: 'voice-turn',
+    })).resolves.toBeUndefined()
+
+    expect(saveSessionMock).toHaveBeenCalledWith(sessionId, expect.objectContaining({
+      messages: expect.arrayContaining([expect.objectContaining({ id: 'voice-turn' })]),
+    }))
+    expect(store.getSessionMessages(sessionId)).toContainEqual(expect.objectContaining({ id: 'voice-turn' }))
+  })
+})
+
 describe('chat-session-store · user swap during in-flight ensureActiveSessionForCharacter', () => {
   // ROOT CAUSE:
   //

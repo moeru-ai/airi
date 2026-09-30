@@ -176,8 +176,8 @@ export interface ChatOrchestratorSessionPort {
   ensureSession: (sessionId: string) => void
   /** Returns chronological chat history for a session. */
   getSessionMessages: (sessionId: string) => ChatHistoryItem[]
-  /** Appends a finalized user/assistant/tool history item. */
-  appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void
+  /** Resolves after the history item is stored. */
+  appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void | Promise<void>
   /** Returns a monotonic generation used to reject stale queued sends. */
   getSessionGeneration: (sessionId: string) => number
 }
@@ -713,7 +713,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
       }
-      deps.session.appendSessionMessage(sessionId, userMessage)
+      try {
+        await deps.session.appendSessionMessage(sessionId, userMessage)
+      }
+      catch (error) {
+        await discardStoredAudio()
+        throw error
+      }
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.

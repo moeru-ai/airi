@@ -10,7 +10,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 
 import { chatAudioReferences, chatAudioRepo, mapChatAudio } from '../../database/repos/chat-audio.repo'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
@@ -281,7 +281,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
   }
 
-  async function persistSession(sessionId: string) {
+  async function persistSession(sessionId: string, onRecordSaved?: () => void) {
     await enqueuePersist(async () => {
       const meta = sessionMetas.value[sessionId]
       if (!meta)
@@ -305,6 +305,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
 
       await chatSessionsRepo.saveSession(sessionId, record)
+      onRecordSaved?.()
 
       if (index.value) {
         const snapshot = cloneDeep(index.value)
@@ -317,7 +318,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     void persistSession(sessionId)
   }
 
-  function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
+  function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean, onRecordSaved?: () => void }) {
     const previousReferences = chatAudioReferences(sessionMessages.value[sessionId] ?? [])
     const nextReferences = chatAudioReferences(next)
     sessionMessages.value[sessionId] = next
@@ -325,7 +326,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (options?.persist === false)
       return Promise.resolve()
 
-    const persisted = persistSession(sessionId).then(async () => {
+    const persisted = persistSession(sessionId, options?.onRecordSaved).then(async () => {
       const retainedReferences = chatAudioReferences(sessionMessages.value[sessionId] ?? [])
       for (const reference of previousReferences) {
         if (!nextReferences.has(reference) && !retainedReferences.has(reference))
@@ -342,10 +343,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function appendSessionMessage(sessionId: string, message: ChatHistoryItem) {
     ensureSession(sessionId)
-    replaceSessionMessages(sessionId, [
+    let recordSaved = false
+    const persisted = replaceSessionMessages(sessionId, [
       ...(sessionMessages.value[sessionId] ?? []),
       message,
-    ])
+    ], { onRecordSaved: () => recordSaved = true })
+    const appended = persisted.catch((error) => {
+      // The saved record owns the audio even if the later index write fails.
+      if (recordSaved)
+        return
+      const current = sessionMessages.value[sessionId]
+      if (current) {
+        sessionMessages.value[sessionId] = current.filter(candidate =>
+          message.id ? candidate.id !== message.id : toRaw(candidate) !== message)
+      }
+      throw error
+    })
+    // Some callers append without waiting. The persistence queue already reports failures.
+    void appended.catch(() => undefined)
+    return appended
   }
 
   /** Removes one message by stable id or by its current history index. */

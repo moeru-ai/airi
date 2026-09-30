@@ -63,6 +63,7 @@ function createHarness(getActiveProvider = () => 'mock-provider', audioAdapters?
   let monotonicNowValues = [1000]
   let generation = 1
   let assistantResponseRenderedError: Error | undefined
+  let appendUserMessageError: Error | undefined
 
   const runtime = createChatOrchestratorRuntime({
     session: {
@@ -71,6 +72,8 @@ function createHarness(getActiveProvider = () => 'mock-provider', audioAdapters?
       },
       getSessionMessages: sessionId => sessionMessages[sessionId] ?? [],
       appendSessionMessage: (sessionId, message) => {
+        if (message.role === 'user' && appendUserMessageError)
+          return Promise.reject(appendUserMessageError)
         sessionMessages[sessionId] ??= []
         sessionMessages[sessionId].push(message)
       },
@@ -118,6 +121,11 @@ function createHarness(getActiveProvider = () => 'mock-provider', audioAdapters?
   })
 
   return {
+    appendUserMessageError: {
+      set: (error: Error | undefined) => {
+        appendUserMessageError = error
+      },
+    },
     assistantAppended,
     assistantResponseRenderedError: {
       set: (error: Error | undefined) => {
@@ -1304,6 +1312,31 @@ describe('createChatOrchestratorRuntime', () => {
     await send
 
     expect(discardStoredAudioData).toHaveBeenCalledWith('session-1', 'audio-ref')
+    expect(harness.sessionMessages['session-1']).not.toContainEqual(expect.objectContaining({ role: 'user' }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4138591531
+  // ROOT CAUSE:
+  // The runtime did not await the session write after it stored audio.
+  // A failed write left the audio reference without a durable message.
+  // The runtime now waits for the write and removes the audio after a failure.
+  it('removes stored audio when the user turn cannot be persisted', async () => {
+    const discardStoredAudioData = vi.fn().mockResolvedValue(undefined)
+    const harness = createHarness(undefined, {
+      storeAudioData: async () => 'audio-ref',
+      resolveAudioData: async data => data,
+      discardStoredAudioData,
+    })
+    harness.appendUserMessageError.set(new Error('QuotaExceededError'))
+
+    await expect(harness.runtime.ingest('', {
+      model: 'audio-model',
+      chatProvider: provider,
+      attachments: [{ type: 'audio', data: 'UklGRg==', mimeType: 'audio/wav' }],
+    }, 'session-1')).rejects.toThrow('QuotaExceededError')
+
+    expect(discardStoredAudioData).toHaveBeenCalledWith('session-1', 'audio-ref')
+    expect(harness.stream).not.toHaveBeenCalled()
     expect(harness.sessionMessages['session-1']).not.toContainEqual(expect.objectContaining({ role: 'user' }))
   })
 

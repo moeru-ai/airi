@@ -339,7 +339,7 @@ export const useChatStore = defineStore('chat', () => {
           const text = await pipeline.transcribeForRecording(new Blob([new Uint8Array(decodeBase64(part.data))], { type: `audio/${part.format}` }), options?.abortSignal)
           options?.abortSignal?.throwIfAborted()
           if (!text)
-            throw new Error(pipeline.error ?? 'Audio transcription returned no text.')
+            throw new Error(pipeline.error ?? t('stage.voice.empty-transcription'))
           turn.content[index] = { type: 'text', text }
           if (sessionId && sourceAudioIndex !== undefined)
             saveAudioTranscript(sessionId, turn.id, sourceAudioIndex, text)
