@@ -8,6 +8,7 @@ import { decodeJwt, decodeProtectedHeader, importSPKI, jwtVerify } from 'jose'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createAuth, ensureDynamicFirstPartyRedirectUri, seedTrustedClients } from '../auth'
+import { parseAuthEnv } from '../env'
 
 function createMockDb(existingRowsByCall: unknown[][] = []) {
   const limit = vi.fn()
@@ -40,6 +41,42 @@ describe('createAuth', () => {
   const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
   const applePrivateKey = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
   const applePublicKey = publicKey.export({ type: 'spki', format: 'pem' }).toString()
+
+  // https://github.com/moeru-ai/airi/pull/2723
+  // ROOT CAUSE: Default callbacks returned API JSON. Both registration and resend use this delivery hook.
+  it.each([undefined, '', '/', 'https://accounts.airi.build/ui/verify-email?verified=true'])(
+    'sets a result destination for callback %j without changing the verification token',
+    async (callback) => {
+      const sendVerification = vi.fn()
+      const auth = createAuth(createMockDb().db as unknown as AuthDatabase, parseAuthEnv({
+        PUBLIC_URL: 'https://api.airi.build',
+        DATABASE_URL: 'postgres://unused',
+        REDIS_URL: 'redis://unused',
+        BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+        AUTH_GOOGLE_CLIENT_ID: 'google-client',
+        AUTH_GOOGLE_CLIENT_SECRET: 'google-secret',
+        AUTH_GITHUB_CLIENT_ID: 'github-client',
+        AUTH_GITHUB_CLIENT_SECRET: 'github-secret',
+      }), {
+        send: vi.fn(),
+        sendVerification,
+        sendPasswordReset: vi.fn(),
+        sendMagicLink: vi.fn(),
+        sendChangeEmailConfirmation: vi.fn(),
+        sendDeleteAccountVerification: vi.fn(),
+      })
+      const url = new URL('https://api.airi.build/api/auth/verify-email?token=test-token')
+      if (callback !== undefined)
+        url.searchParams.set('callbackURL', callback)
+      const user = { id: 'test-user', name: 'Test', email: 'test@example.com', emailVerified: false, createdAt: new Date(), updatedAt: new Date() }
+      const send = auth.options.emailVerification?.sendVerificationEmail
+      expect(send).toBeDefined()
+      await send!({ user, url: url.toString(), token: 'test-token' })
+      const expected = new URL(url)
+      expected.searchParams.set('callbackURL', callback && callback !== '/' ? callback : 'https://api.airi.build/auth/verify-email?verified=true')
+      expect(sendVerification).toHaveBeenCalledExactlyOnceWith({ to: user.email, url: expected.toString() })
+    },
+  )
 
   it('allows signed-in users to link OAuth accounts that use a different email', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {

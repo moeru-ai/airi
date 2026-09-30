@@ -2,39 +2,30 @@
 
 Status: accepted
 
-## Decision and scope
+## Decision
 
-Better Auth defaults registration and resend callbacks to `/`, which displays API JSON after verification.
-Before email delivery, replace missing, empty, and root callbacks with `/auth/verify-email?verified=true` under `PUBLIC_URL`.
-The existing Auth route redirects to the configured account UI. Explicit non-root callbacks remain unchanged.
-The UI treats verification as successful only when no error is present, preventing false analytics and cross-tab notifications.
-This default is supported policy. Tokens, sessions, database schema, and previously delivered emails remain unchanged.
-Deploy Auth and the Auth UI to apply both fixes.
+Registration and resend emails replace missing, empty, or `/` callbacks with `/auth/verify-email?verified=true` under `PUBLIC_URL`.
+Explicit destinations and tokens remain unchanged. The result page suppresses success events when an error is present.
+This is supported default policy. Existing emails and database schema remain unchanged. Deploy Auth and Auth UI together.
 
 ## Dependencies and affected files
 
 ```mermaid
 flowchart LR
-  Auth[auth.ts] --> Email[email.ts]
-  Routes[routes.ts] --> UI[verify-email.vue]
+  A[auth.ts] --> E[email.ts]
+  R[routes.ts] --> U[verify-email.vue]
 ```
 
-Changed files: `server/apps/auth/src/auth.ts`, `apps/ui-server-auth/src/pages/verify-email.vue`,
-`server/apps/auth/src/tests/email-verification.test.ts`, and this ADR.
+Changes: `server/apps/auth/src/{auth.ts,tests/auth.test.ts}`, `apps/ui-server-auth/src/pages/verify-email.vue`, and this ADR.
 
-## Verification flow
+## Flow and validation
 
 ```mermaid
 sequenceDiagram
-  Client->>Auth: Register or resend
-  Auth->>Mail: Verification link with result callback
-  Browser->>Auth: Open verification link
-  Auth->>Browser: Redirect with success or error query
-  Browser->>UI: Follow existing Auth UI redirect
+  Auth->>Email: Send link with result destination
+  Browser->>Auth: Verify token
+  Auth->>UI: Redirect through existing Auth UI route
 ```
 
-## Validation
-
-Exercise registration, resend, successful verification, invalid tokens, and explicit callbacks through real Auth handlers with PGlite.
-Run existing Auth and Auth UI tests, workspace typechecks, and repository lint.
-The result page must suppress success analytics and broadcasts when `verified=true` accompanies an error.
+Test the shared email hook for omitted, empty, root, and explicit callbacks, including token preservation.
+Run existing Auth and Auth UI tests, typechecks, and lint. Check that error results emit no success events.
