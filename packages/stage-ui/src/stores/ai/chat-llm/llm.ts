@@ -25,6 +25,7 @@ export const useLLM = defineStore('llm', () => {
 
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
     const key = modelKey(model, chatProvider.generation(model))
+    let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
     const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage })
 
@@ -34,6 +35,11 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        onStreamEvent: async (event) => {
+          if (event.type === 'tool-call')
+            toolExecutionStarted = true
+          await streamOptions.onStreamEvent?.(event)
+        },
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
       },
@@ -57,6 +63,9 @@ export const useLLM = defineStore('llm', () => {
       if (isContentArrayRelatedError(err) && contentArrayCompatibility.value.get(key) !== false) {
         console.warn(`[llm] Auto-disabling content-part arrays for "${key}" and retrying once`)
         contentArrayCompatibility.value.set(key, false)
+        // A completed tool can have external effects. A full retry must not repeat it.
+        if (toolExecutionStarted)
+          throw err
         await runStream()
         return
       }

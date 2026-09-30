@@ -142,6 +142,20 @@ describe('isToolRelatedError', () => {
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
   })
 
+  it('does not replay a turn after a tool starts and a later request rejects content arrays', async () => {
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      const steps = (async () => {
+        await options.onEvent({ type: 'tool-call.done', toolCallId: 'call-1', toolName: 'write', args: {} })
+        throw new Error('messages[0]: invalid type: sequence, expected a string')
+      })()
+      return { ...createMockStreamResult(), steps }
+    })
+
+    await expect(useLLM().stream('model-a', provider, { turns: [] })).rejects.toThrow('expected a string')
+
+    expect(streamTextMock).toHaveBeenCalledOnce()
+  })
+
   it('ignores later error events after steps have resolved', async () => {
     let onEvent: ((event: unknown) => Promise<void>) | undefined
     let resolveSteps: ((steps: unknown[]) => void) | undefined
