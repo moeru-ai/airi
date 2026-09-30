@@ -252,7 +252,7 @@ const emit = defineEmits<{
   overflow: hidden;
   border-top: 1px solid #ef444499;
   border-bottom: 1px solid #ef44441f;
-  background: linear-gradient(90deg, #ef444410, #ef444404 60%, #ef444408);
+  background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
   color: #dc2626;
   font-size: clamp(28px, 2.5vw, 32px);
   font-weight: 400;
@@ -274,7 +274,7 @@ const emit = defineEmits<{
 .startup-error-status-label {
   position: relative;
   min-width: 0;
-  text-shadow: 0 1px 3px #ef444480, 0 0 14px #ef444466;
+  text-shadow: 0 1px 2px #ef44444d, 0 0 8px #ef444429;
 }
 
 .startup-error-header-spacer {
@@ -343,7 +343,7 @@ const emit = defineEmits<{
 :global(html.dark .startup-error-header) {
   border-color: #f8717199;
   border-bottom-color: #f871711f;
-  background: linear-gradient(90deg, #f8717110, #f8717104 60%, #f8717108);
+  background: linear-gradient(90deg, #f8717124, #f8717108 72%, transparent);
 }
 
 :global(html.dark .startup-error-hint) {
