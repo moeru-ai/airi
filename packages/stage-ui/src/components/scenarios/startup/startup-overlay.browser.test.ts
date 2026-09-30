@@ -130,6 +130,8 @@ it('fills narrow screens with the warning band and bottom actions', async () => 
   try {
     startup.register(['model'])
     startup.start('model')
+    await expect.poll(() => document.querySelector('.startup-track')?.getBoundingClientRect().width).toBeGreaterThan(200)
+    const loadingProgressCenter = document.querySelector('.startup-track')!.getBoundingClientRect().y + 8
     startup.fail('model', new Error('Download failed'))
 
     await expect.poll(() => document.querySelector('.startup-error-header')).not.toBeNull()
@@ -142,18 +144,24 @@ it('fills narrow screens with the warning band and bottom actions', async () => 
     expect(getComputedStyle(document.querySelector('.startup-screen-error .startup-brand')!).display).toBe('none')
     expect(actions).toHaveLength(2)
     expect(actions[0].getBoundingClientRect().width).toBe(window.innerWidth - 32)
+    await expect.poll(() => {
+      const rect = document.querySelector('.startup-track')!.getBoundingClientRect()
+      return Math.abs(rect.y + rect.height / 2 - window.innerHeight * 0.7)
+    }).toBeLessThanOrEqual(1)
+    const errorProgressRect = document.querySelector('.startup-track')!.getBoundingClientRect()
+    expect(loadingProgressCenter - errorProgressRect.y - errorProgressRect.height / 2).toBeGreaterThan(100)
+    expect(errorProgressRect.bottom).toBeLessThan(recoveryRect.top)
     await page.viewport(320, 568)
     await expect.poll(() => {
       const rect = document.querySelector('.startup-track')!.getBoundingClientRect()
-      return Math.abs(rect.bottom - window.innerHeight) + Math.abs(rect.width - window.innerWidth)
+      return Math.abs(rect.y + rect.height / 2 - window.innerHeight * 0.7) + Math.abs(rect.width - window.innerWidth)
     }).toBeLessThanOrEqual(1)
-    const infoRect = document.querySelector('.startup-error-info')!.getBoundingClientRect()
     const progressRect = document.querySelector('.startup-track')!.getBoundingClientRect()
     const compactRecoveryRect = document.querySelector('.startup-error-recovery')!.getBoundingClientRect()
-    expect(progressRect.width).toBe(window.innerWidth)
-    expect(infoRect.bottom).toBeLessThan(progressRect.top)
+    expect(Math.abs(progressRect.width - window.innerWidth)).toBeLessThanOrEqual(1)
+    expect(document.querySelector('.startup-error-details-trigger')!.getBoundingClientRect().bottom).toBeLessThan(progressRect.top)
     expect(compactRecoveryRect.top).toBeGreaterThan(document.querySelector('.startup-error-details-trigger')!.getBoundingClientRect().bottom)
-    expect(compactRecoveryRect.bottom).toBeLessThan(progressRect.top)
+    expect(progressRect.bottom).toBeLessThan(compactRecoveryRect.top)
     document.querySelector<HTMLButtonElement>('.startup-error-details-trigger')?.click()
     await expect.poll(() => document.querySelector('.startup-error-details-drawer')?.textContent).toContain('Download failed')
     const detailsRect = document.querySelector('.startup-error-details-drawer')!.getBoundingClientRect()

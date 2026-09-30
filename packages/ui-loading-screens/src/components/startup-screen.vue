@@ -398,6 +398,10 @@ const emit = defineEmits<{
     display: none;
   }
 
+  .startup-status-error {
+    top: calc(70% - 14px);
+  }
+
   .startup-error-info {
     top: max(env(safe-area-inset-top), 16px);
     bottom: calc(max(env(safe-area-inset-bottom), 16px) + 44px);

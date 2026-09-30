@@ -11,8 +11,8 @@ Import `StartupScreen` from `@proj-airi/ui-loading-screens/startup-screen`. Give
 ```
 
 The `splash` phase shows the logo. The `loading` phase centers progress in the fifth screen area.
-The `error` phase shows a moving warning band and places progress at the viewport bottom.
-Desktop shows recovery actions below the warning content. Mobile hides the logo and places actions above the progress bar.
+The `error` phase shows a moving warning band. Desktop places progress at the viewport bottom.
+Desktop shows recovery actions below the warning content. Mobile hides the logo and moves progress above the bottom actions.
 The small details button opens a desktop tooltip or a mobile bottom drawer. The `done` phase removes the screen.
 
 The screen uses Comfortaa for the brand and content. The error band uses WDXL Lubrifont SC for English and Chinese.
