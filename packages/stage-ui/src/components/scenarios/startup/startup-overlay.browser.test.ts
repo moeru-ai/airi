@@ -89,7 +89,10 @@ it('keeps the startup screen and retry action visible after a resource fails', a
     expect(detailsTrigger!.getBoundingClientRect().top).toBeGreaterThan(document.querySelector('.startup-error-hint')!.getBoundingClientRect().bottom)
     detailsTrigger?.click()
     await expect.poll(() => document.querySelector('[role="tooltip"]')?.textContent).toContain('Download failed')
-    expect(detailsTrigger?.getAttribute('aria-describedby')).toBe('startup-error-details-tooltip')
+    const tooltip = document.querySelector<HTMLElement>('.startup-error-details-tooltip')!
+    expect(detailsTrigger?.getAttribute('aria-describedby')).toBe(tooltip.querySelector('[role="tooltip"]')?.id)
+    expect(tooltip.getBoundingClientRect().width).toBeLessThanOrEqual(320)
+    expect(Number(getComputedStyle(tooltip).zIndex)).toBeGreaterThan(Number(getComputedStyle(document.querySelector('.startup-screen')!).zIndex))
     const header = document.querySelector('.startup-error-header')!
     const headerRect = header.getBoundingClientRect()
     const recoveryRect = document.querySelector('.startup-error-recovery')!.getBoundingClientRect()
@@ -112,7 +115,7 @@ it('keeps the startup screen and retry action visible after a resource fails', a
     expect(getComputedStyle(header, '::before').animationName).toContain('startup-warning-scroll')
     expect(getComputedStyle(header, '::after').content).toBe('none')
     expect(getComputedStyle(document.querySelector('.startup-error-header')!).fontFamily).toContain('WDXL Lubrifont SC')
-    document.querySelector<HTMLElement>('.startup-error-title')?.click()
+    await page.getByRole('heading', { name: 'Could not load character model' }).click()
     await expect.poll(() => document.querySelector('[role="tooltip"]')).toBeNull()
     i18n.global.locale.value = 'ja'
     await expect.poll(() => getComputedStyle(document.querySelector('.startup-error-header')!).fontFamily).toContain('WDXL Lubrifont JP N')
@@ -152,13 +155,15 @@ it('fills narrow screens with the warning band and bottom actions', async () => 
     expect(progressRect.bottom).toBeLessThan(compactRecoveryRect.top)
     expect(compactRecoveryRect.top).toBeGreaterThanOrEqual(window.innerHeight * 0.8)
     document.querySelector<HTMLButtonElement>('.startup-error-details-trigger')?.click()
-    await expect.poll(() => document.querySelector('.startup-error-details-drawer')?.textContent).toContain('Download failed')
-    const detailsRect = document.querySelector('.startup-error-details-drawer')!.getBoundingClientRect()
+    await expect.poll(() => document.querySelector('[role="dialog"]')?.textContent).toContain('Download failed')
+    const drawer = document.querySelector<HTMLElement>('[role="dialog"]')!
+    const detailsRect = drawer.getBoundingClientRect()
+    expect(Number(getComputedStyle(drawer).zIndex)).toBeGreaterThan(Number(getComputedStyle(document.querySelector('.startup-screen')!).zIndex))
     expect(detailsRect.left).toBe(0)
     expect(detailsRect.right).toBe(window.innerWidth)
-    await expect.poll(() => Math.round(document.querySelector('.startup-error-details-drawer')!.getBoundingClientRect().bottom)).toBe(window.innerHeight)
+    await expect.poll(() => Math.round(document.querySelector('[role="dialog"]')!.getBoundingClientRect().bottom)).toBe(window.innerHeight)
     document.querySelector<HTMLButtonElement>('.startup-error-details-close')?.click()
-    await expect.poll(() => document.querySelector('.startup-error-details-drawer')).toBeNull()
+    await expect.poll(() => document.querySelector('[role="dialog"]')).toBeNull()
   }
   finally {
     app.unmount()

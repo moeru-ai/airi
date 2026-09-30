@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onClickOutside, useMediaQuery } from '@vueuse/core'
-import { DrawerContent, DrawerDescription, DrawerHandle, DrawerOverlay, DrawerPortal, DrawerRoot, DrawerTitle } from 'vaul-vue'
-import { shallowRef, useTemplateRef, watch } from 'vue'
+import { BasicButton, BottomDrawer } from '@proj-airi/ui'
+import { useMediaQuery } from '@vueuse/core'
+import { TooltipArrow, TooltipContent, TooltipPortal, TooltipProvider, TooltipRoot, TooltipTrigger } from 'reka-ui'
+import { shallowRef, watch } from 'vue'
 
 defineProps<{
   label: string
@@ -11,59 +12,55 @@ defineProps<{
 
 const isDesktop = useMediaQuery('(min-width: 768px)')
 const open = shallowRef(false)
-const rootElement = useTemplateRef('rootElement')
 
-onClickOutside(rootElement, () => {
-  if (isDesktop.value)
-    open.value = false
-})
 watch(isDesktop, () => open.value = false)
 </script>
 
 <template>
-  <div ref="rootElement" class="startup-error-details">
-    <button
-      type="button"
-      class="startup-error-details-trigger"
-      :aria-expanded="open"
-      :aria-controls="isDesktop ? 'startup-error-details-tooltip' : 'startup-error-details-drawer'"
-      :aria-describedby="isDesktop && open ? 'startup-error-details-tooltip' : undefined"
-      :aria-haspopup="isDesktop ? undefined : 'dialog'"
-      @click="open = !open"
-      @keydown.esc="open = false"
-    >
-      <span i-solar:question-circle-linear aria-hidden="true" />
-      {{ label }}
-    </button>
-    <div v-if="isDesktop && open" id="startup-error-details-tooltip" role="tooltip" class="startup-error-details-tooltip">
-      {{ message }}
-    </div>
-  </div>
-
-  <DrawerRoot v-if="!isDesktop" v-model:open="open" handle-only>
-    <DrawerPortal>
-      <DrawerOverlay class="startup-error-details-overlay" />
-      <DrawerContent id="startup-error-details-drawer" class="startup-error-details-drawer">
-        <DrawerHandle class="startup-error-details-handle" />
-        <div class="startup-error-details-drawer-heading">
-          <DrawerTitle class="startup-error-details-drawer-title">
+  <div class="startup-error-details">
+    <TooltipProvider v-if="isDesktop" :delay-duration="250">
+      <TooltipRoot v-model:open="open" disable-closing-trigger>
+        <TooltipTrigger as-child>
+          <BasicButton size="unset" class="startup-error-details-trigger" @click="open = true">
+            <span i-solar:question-circle-linear aria-hidden="true" />
             {{ label }}
-          </DrawerTitle>
-          <button type="button" class="startup-error-details-close" :aria-label="closeLabel" @click="open = false">
-            <span i-solar:close-circle-linear aria-hidden="true" />
-          </button>
-        </div>
-        <DrawerDescription class="startup-error-details-message">
-          {{ message }}
-        </DrawerDescription>
-      </DrawerContent>
-    </DrawerPortal>
-  </DrawerRoot>
+          </BasicButton>
+        </TooltipTrigger>
+        <TooltipPortal>
+          <TooltipContent class="startup-error-details-tooltip" side="bottom" align="start" :side-offset="8">
+            {{ message }}
+            <TooltipArrow class="startup-error-details-tooltip-arrow" />
+          </TooltipContent>
+        </TooltipPortal>
+      </TooltipRoot>
+    </TooltipProvider>
+
+    <BottomDrawer v-else v-model="open" :title="label" :layer="10001">
+      <template #trigger>
+        <BasicButton size="unset" class="startup-error-details-trigger">
+          <span i-solar:question-circle-linear aria-hidden="true" />
+          {{ label }}
+        </BasicButton>
+      </template>
+      <template #header-action>
+        <BasicButton
+          size="unset"
+          class="startup-error-details-close"
+          :aria-label="closeLabel"
+          @click="open = false"
+        >
+          <span i-solar:close-circle-linear aria-hidden="true" />
+        </BasicButton>
+      </template>
+      <p class="startup-error-details-message">
+        {{ message }}
+      </p>
+    </BottomDrawer>
+  </div>
 </template>
 
 <style scoped>
 .startup-error-details {
-  position: relative;
   width: fit-content;
   margin: 12px 24px 0;
 }
@@ -88,11 +85,8 @@ watch(isDesktop, () => open.value = false)
   outline-offset: 3px;
 }
 
-.startup-error-details-tooltip {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 2;
+:global(.startup-error-details-tooltip) {
+  z-index: 10001;
   box-sizing: border-box;
   width: max-content;
   max-width: min(320px, calc(100vw - 48px));
@@ -107,72 +101,29 @@ watch(isDesktop, () => open.value = false)
   overflow-wrap: anywhere;
 }
 
-.startup-error-details-tooltip::before {
-  content: '';
-  position: absolute;
-  bottom: 100%;
-  left: 12px;
-  border-right: 6px solid transparent;
-  border-bottom: 6px solid #171717;
-  border-left: 6px solid transparent;
+:global(.startup-error-details-tooltip-arrow) {
+  fill: #171717;
 }
 
-.startup-error-details-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 10001;
-  background: #0006;
+:global(html.dark .startup-error-details-tooltip) {
+  border: 1px solid #ffffff24;
+  background: #262626;
 }
 
-.startup-error-details-drawer {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 10002;
-  box-sizing: border-box;
-  max-height: 70dvh;
-  padding: 12px 20px max(24px, env(safe-area-inset-bottom));
-  overflow-y: auto;
-  border-radius: 20px 20px 0 0;
-  background: #fafafa;
-  box-shadow: 0 -8px 24px #0002;
-  color: #262626;
-  outline: none;
-}
-
-.startup-error-details-handle {
-  margin-bottom: 16px;
-  background: #d4d4d4;
-}
-
-.startup-error-details-drawer-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.startup-error-details-drawer-title {
-  font-size: 18px;
-  font-weight: 700;
+:global(html.dark .startup-error-details-tooltip-arrow) {
+  fill: #262626;
 }
 
 .startup-error-details-close {
-  display: grid;
   width: 32px;
   height: 32px;
-  padding: 0;
-  place-items: center;
-  border: 0;
-  background: transparent;
+  border-radius: 50%;
   color: #737373;
-  cursor: pointer;
   font-size: 22px;
 }
 
 .startup-error-details-message {
-  margin: 16px 0 0;
+  margin: 0;
   color: #525252;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
@@ -184,15 +135,6 @@ watch(isDesktop, () => open.value = false)
   border-color: #f8717159;
   background: #f8717114;
   color: #f87171;
-}
-
-:global(html.dark .startup-error-details-drawer) {
-  background: #262626;
-  color: #f5f5f5;
-}
-
-:global(html.dark .startup-error-details-handle) {
-  background: #525252;
 }
 
 :global(html.dark .startup-error-details-message) {

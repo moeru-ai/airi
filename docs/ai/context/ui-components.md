@@ -128,12 +128,13 @@ starts only on the handle, so action buttons and scrolling do not dismiss it.
 |------|------|---------|-------------|
 | `title` | `string` | required | Visible and accessible title |
 | `minimumHeight` | `'content' \| 'half'` | `'content'` | Uses content height or at least half of the viewport height |
+| `layer` | `number` | `9999` | Sets the overlay and drawer stacking level |
 
-Dismiss with the handle, overlay, or Escape. There is no close button.
+Dismiss with the handle, overlay, or Escape. Add a close action through the `header-action` slot when needed.
 
 **v-model**: `boolean`, defaults to `false`.
 
-**Slots**: `trigger` (one button), `default` (drawer content).
+**Slots**: `trigger` (one button), `header-action` (optional action beside the title), `default` (drawer content).
 
 **Emits**: `afterClose()` after the dismissal animation;
 `closeAutoFocus(event)` to prevent focus restoration when another modal opens.
