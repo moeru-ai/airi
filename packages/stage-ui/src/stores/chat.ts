@@ -683,7 +683,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!retryContent)
       throw new Error('Retry target has no retriable user message')
 
-    await chatSession.setSessionMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
+    await chatSession.stageRetryMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
 
     try {
       return await executeSend({
@@ -694,8 +694,19 @@ export const useChatStore = defineStore('chat', () => {
       })
     }
     catch (error) {
+      const latestMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
+      if (latestMessages && !latestMessages.slice(sourceIndex).some(message => message.role === 'user'))
+        chatSession.restoreRetryMessages(payload.sessionId, currentMessages)
       appendSendError(payload.sessionId, error)
       throw error
+    }
+    finally {
+      try {
+        await chatSession.finishRetryMessages(payload.sessionId)
+      }
+      catch (error) {
+        console.warn('[chat] Failed to finish Retry audio cleanup:', errorMessageFrom(error))
+      }
     }
   }
 

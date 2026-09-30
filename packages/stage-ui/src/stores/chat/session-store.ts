@@ -341,6 +341,21 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return replaceSessionMessages(sessionId, next)
   }
 
+  /** Keeps Retry history temporary until a replacement user turn reaches storage. */
+  async function stageRetryMessages(sessionId: string, next: ChatHistoryItem[]) {
+    await chatAudioRepo.markSessionPrune(sessionId)
+    replaceSessionMessages(sessionId, next, { persist: false })
+  }
+
+  function restoreRetryMessages(sessionId: string, original: ChatHistoryItem[]) {
+    replaceSessionMessages(sessionId, original, { persist: false })
+  }
+
+  async function finishRetryMessages(sessionId: string) {
+    await chatAudioRepo.retainSession(sessionId, chatAudioReferences(sessionMessages.value[sessionId] ?? []))
+    await chatAudioRepo.clearSessionPrune(sessionId)
+  }
+
   function appendSessionMessage(sessionId: string, message: ChatHistoryItem) {
     ensureSession(sessionId)
     let recordSaved = false
@@ -1500,7 +1515,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     for (const sessionId of sessionIds) {
       await chatAudioRepo.markSessionRemoval(sessionId)
       await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
-      await chatAudioRepo.removeSession(sessionId)
     }
 
     sessionMessages.value = {}
@@ -1515,6 +1529,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       userId: currentUserId,
       characters: {},
     }
+
+    await persistIndex()
+    for (const sessionId of sessionIds)
+      await chatAudioRepo.removeSession(sessionId)
 
     await createSession(characterId)
   }
@@ -1763,6 +1781,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureSession,
     deleteMessage,
     setSessionMessages,
+    stageRetryMessages,
+    restoreRetryMessages,
+    finishRetryMessages,
     appendSessionMessage,
     persistSessionMessages,
     getSessionMessages,

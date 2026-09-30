@@ -32,6 +32,7 @@ function createMockPipeline() {
     }),
     stopStreamingTranscription: vi.fn().mockResolvedValue(undefined),
     supportsStreamInput: ref(true),
+    error: undefined as string | undefined,
   }
 }
 

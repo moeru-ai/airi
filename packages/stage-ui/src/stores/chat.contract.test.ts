@@ -3,6 +3,8 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { ChatHistoryItem } from '../types/chat'
+
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
@@ -83,6 +85,7 @@ const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn()
 const audioCapability = vi.hoisted(() => ({ enabled: false }))
 const transcriptionMocks = vi.hoisted(() => ({ configured: false, transcribe: vi.fn() }))
 const storedAudio = vi.hoisted(() => new Map<string, string>())
+const audioStorageMocks = vi.hoisted(() => ({ saveError: undefined as Error | undefined }))
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
 const runArtistTaskMock = vi.hoisted(() => vi.fn())
 
@@ -108,6 +111,8 @@ vi.mock('../composables', () => ({
 vi.mock('../database/repos/chat-audio.repo', () => ({
   chatAudioRepo: {
     save: async (_sessionId: string, data: string) => {
+      if (audioStorageMocks.saveError)
+        throw audioStorageMocks.saveError
       const reference = `airi-chat-audio:${storedAudio.size}`
       storedAudio.set(reference, data)
       return reference
@@ -202,6 +207,14 @@ vi.mock('./chat/session-store', () => ({
     setSessionMessages: (sessionId: string, messages: any[]) => {
       sessionMessages[sessionId] = messages
     },
+    stageRetryMessages: (sessionId: string, messages: ChatHistoryItem[]) => {
+      sessionMessages[sessionId] = messages
+      return Promise.resolve()
+    },
+    restoreRetryMessages: (sessionId: string, messages: ChatHistoryItem[]) => {
+      sessionMessages[sessionId] = messages
+    },
+    finishRetryMessages: vi.fn().mockResolvedValue(undefined),
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
@@ -278,6 +291,7 @@ const provider: GenerationProvider = {
 describe('chat store contract', () => {
   beforeEach(() => {
     storedAudio.clear()
+    audioStorageMocks.saveError = undefined
     setActivePinia(createPinia())
     llmStreamMock.mockReset()
     trackFirstMessageMock.mockReset()
@@ -433,6 +447,38 @@ describe('chat store contract', () => {
     ])
     expect(retried.audioTranscripts).toEqual(['spoken words'])
     expect(chatAnalyticsMocks.trackMessageSent).toHaveBeenCalledWith(expect.objectContaining({ mode: 'voice', trigger_method: 'voice' }))
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4141324355
+  // ROOT CAUSE:
+  // Retry persisted truncated history before it stored the replacement turn.
+  // The store now keeps the truncation in memory and restores the source after an early failure.
+  it.each([
+    { failure: 'provider', message: 'Provider unavailable' },
+    { failure: 'audio', message: 'Audio storage failed' },
+  ])('keeps the original voice turn when Retry fails before replacement storage: $failure', async ({ failure, message }) => {
+    const reference = 'airi-chat-audio:source'
+    storedAudio.set(reference, 'YXVkaW8=')
+    audioCapability.enabled = true
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'user',
+        content: [{ type: 'input_audio', input_audio: { data: reference, format: 'wav' } }],
+        id: 'source-voice',
+      },
+      { role: 'error', content: 'Earlier failure' },
+    ]
+    if (failure === 'provider')
+      getChatProviderInstanceMock.mockRejectedValueOnce(new Error(message))
+    else
+      audioStorageMocks.saveError = new Error(message)
+
+    await expect(useChatStore().retry({ sessionId: 'session-1', index: 2 })).rejects.toThrow(message)
+
+    expect(sessionMessages['session-1']).toContainEqual(expect.objectContaining({ id: 'source-voice' }))
+    expect(storedAudio.get(reference)).toBe('YXVkaW8=')
+    expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: message })
   })
 
   it('keeps an audio-only turn and its assistant reply out of text-only cloud sync', async () => {
