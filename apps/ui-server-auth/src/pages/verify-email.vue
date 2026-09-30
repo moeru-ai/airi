@@ -83,7 +83,13 @@ async function resumeIfSessionReady(): Promise<boolean> {
   }
 }
 
+// Failed callbacks retain the success flag. Handle errors before analytics or cross-tab notification.
 onMounted(async () => {
+  if (error.value) {
+    trackEmailVerificationFailed()
+    return
+  }
+
   // Verification-success tab: announce to any sibling pending tab that the
   // session cookie has been written, then stay put so the user sees the
   // success message. The pending tab does the OIDC continuation.
@@ -91,11 +97,6 @@ onMounted(async () => {
     trackEmailVerificationCompleted()
     if (isSupported.value)
       post('verified')
-    return
-  }
-
-  if (error.value) {
-    trackEmailVerificationFailed()
     return
   }
 

@@ -21,6 +21,13 @@ pnpm -F @proj-airi/ui-server-auth typecheck
 pnpm -F @proj-airi/ui-server-auth build
 ```
 
+## Email verification results
+
+Verification errors take precedence over `verified=true` in both page content and side effects.
+Failed callbacks record failure analytics and never broadcast verification success to other tabs.
+
+Run component regressions in Chromium with `pnpm -F @proj-airi/ui-server-auth exec vitest run --project browser`.
+
 ## Deployment
 
 `pnpm -F @proj-airi/ui-server-auth build` writes to `apps/ui-server-auth/dist`. Vue Router owns `/ui/*`, while Vite assets are served from root `/assets-v2/*` so Cloudflare Pages can serve static files without rewriting nested asset paths. The versioned namespace moves existing clients away from previously poisoned `/assets/*` browser cache entries. Both namespaces use `Cache-Control: public, no-cache`, allowing browsers to retain files only when Pages revalidates them. `public/_redirects` scopes the SPA rewrite to `/ui/*`, and the top-level `public/404.html` keeps missing assets and other unknown paths as HTTP 404 responses.
