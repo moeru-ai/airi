@@ -456,6 +456,8 @@ export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindow
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+/** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
+export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
 
 export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 
@@ -585,7 +587,16 @@ export interface ElectronAuthTokens {
   expiresIn: number
 }
 export const electronAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:electron:auth:start-login')
-export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:event:electron:auth:callback')
+/** Transient sign-in feedback shared with all windows; contains no credentials. */
+export interface ElectronAuthStatus {
+  attemptId: string
+  state: 'waiting' | 'confirming' | 'success' | 'error'
+  error?: string
+}
+export const electronAuthStatus = defineEventa<ElectronAuthStatus>('eventa:event:electron:auth:status')
+export const electronAuthGetStatus = defineInvokeEventa<ElectronAuthStatus | undefined>('eventa:invoke:electron:auth:get-status')
+export const electronAuthComplete = defineInvokeEventa<void, Pick<ElectronAuthStatus, 'attemptId' | 'error'>>('eventa:invoke:electron:auth:complete')
+export const electronAuthCallback = defineEventa<ElectronAuthTokens & { attemptId: string }>('eventa:event:electron:auth:callback')
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 

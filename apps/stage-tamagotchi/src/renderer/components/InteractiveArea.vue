@@ -405,12 +405,11 @@ defineExpose({
           props.composerFoldable ? 'chat-composer-foldable mb-4' : '',
           props.composerFoldable && composerFolded ? 'chat-composer-folded' : '',
           // The composer layer clips overflow, which would cut a ring or a
-          // shadow; a border stays inside the box. The floating composer is
-          // its own island, so it keeps tighter padding than the windowed one.
+          // shadow; a border stays inside the box.
           props.floating
             ? 'border border-neutral-200 bg-white p-2 dark:border-neutral-800 dark:bg-neutral-900'
             : [
-              'bg-neutral-100/70 p-3 backdrop-blur-xl dark:bg-neutral-900/65',
+              'bg-neutral-100/70 p-2 backdrop-blur-xl dark:bg-neutral-900/65',
               'transition-colors duration-200 ease-out focus-within:bg-neutral-100 dark:focus-within:bg-neutral-900 motion-reduce:transition-none',
             ],
         ]"
@@ -481,8 +480,9 @@ defineExpose({
             :submit-on-enter="false"
             :placeholder="t('stage.message')"
             :class="[
-              'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent p-2 font-medium outline-none [scrollbar-gutter:stable]',
-              'max-h-[10lh] min-h-[2lh]',
+              'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent px-2 font-medium outline-none [scrollbar-gutter:stable]',
+              'max-h-[10lh]',
+              props.floating ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
               'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
             ]"

@@ -45,7 +45,6 @@ notice:
     toggle: '{controls}にカーソルを合わせて、もう一度 {icon} をクリックすることでオフに切り替えることができます。'
     controls-label: コントロールアイランド
     icon-label: eye-slash アイコン
-    value: '0'
     targets: キャラクターとUI
     confirm: 了解
     dont-show-again: 次回から表示しない

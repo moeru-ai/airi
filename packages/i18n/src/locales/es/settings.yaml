@@ -106,7 +106,7 @@ model-select:
   panel-callout:
     support-status-header: Soportamos tanto modelos 2D como 3D
     support-status: >
-      Haz clic en {select-button} para seleccionar o importar modelos. Actualmente, se admiten los formatos {zip} (para modelos Live2D y Spine) y {vrm} (para modelos VRM).
+      Haz clic en {select-button} para seleccionar o importar modelos. Actualmente, se admiten los formatos {zip} (para modelos Live2D y Spine), {vrm} (para modelos VRM) y {mmd} (para modelos MMD, comprimidos junto con sus texturas).
     model-type-example: >
       Neuro-sama utiliza un modelo 2D basado en el marco de trabajo desarrollado por Live2D Inc, mientras que Grok Ani (en Grok Companion) utiliza un modelo 3D basado en los formatos abiertos VRM y MMD.
   select-model:
