@@ -1,34 +1,26 @@
-import type { SourcesOptions } from 'electron'
+import type { ScreenCaptureSetSourceRequest, SerializableDesktopCapturerSource } from '@proj-airi/electron-screen-capture'
+import type { SourcesOptions, systemPreferences } from 'electron'
 import type { MaybeRefOrGetter } from 'vue'
 
-import { useElectronScreenCapture } from '@proj-airi/electron-screen-capture/vue'
-
-import { initializeHostContext } from './owner'
-
 /**
- * Exposes Electron screen capture only when the active host provides its
- * preload API. Kirie callers can render an unsupported state without failing
- * during component setup.
+ * Reports screen capture as unsupported until Kirie provides the capability.
  */
-export function useHostScreenCapture(sourcesOptions: MaybeRefOrGetter<SourcesOptions>) {
-  if (initializeHostContext().runtime === 'electron') {
-    return {
-      ...useElectronScreenCapture(window.electron.ipcRenderer, sourcesOptions),
-      isSupported: true,
-    }
-  }
-
+export function useHostScreenCapture(_sourcesOptions: MaybeRefOrGetter<SourcesOptions>) {
   const unavailable = () => {
     throw new Error('Screen capture is not available in the Kirie host.')
   }
 
   return {
     isSupported: false,
-    getSources: async () => [],
-    setSource: async () => unavailable(),
-    resetSource: async () => {},
-    selectWithSource: async <R>(): Promise<R> => unavailable(),
-    checkMacOSPermission: async () => 'denied' as const,
+    getSources: async (): Promise<SerializableDesktopCapturerSource[]> => [],
+    setSource: async (_request: ScreenCaptureSetSourceRequest): Promise<string> => unavailable(),
+    resetSource: async (_handle: string): Promise<void> => {},
+    selectWithSource: async <R>(
+      _select: (sources: SerializableDesktopCapturerSource[]) => string,
+      _use: () => Promise<R>,
+      _request?: Omit<ScreenCaptureSetSourceRequest, 'options' | 'sourceId'>,
+    ): Promise<R> => unavailable(),
+    checkMacOSPermission: async (): Promise<ReturnType<typeof systemPreferences.getMediaAccessStatus>> => 'denied',
     requestMacOSPermission: async () => {},
   }
 }

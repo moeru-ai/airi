@@ -17,7 +17,6 @@ vi.mock('@moeru/eventa', async (importOriginal) => {
 vi.mock('./owner', () => ({
   initializeHostContext: () => ({
     context: {},
-    runtime: 'kirie',
   }),
 }))
 

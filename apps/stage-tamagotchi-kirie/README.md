@@ -1,118 +1,73 @@
 # Stage Tamagotchi Kirie
 
-Stage Tamagotchi Kirie runs the Stage Tamagotchi Vue renderer in a Godot desktop host.
-Kirie supplies the WebView and IPC transport. AIRI supplies application services and native windows.
+This application runs the Stage Tamagotchi Vue renderer in a Godot desktop host.
+Kirie supplies the WebView and IPC transport. AIRI owns application services and native windows.
 
-Use this application for development of the Kirie desktop host.
-Use the Electron application as the behavior reference.
-Do not treat this application as a production desktop package.
+Use this application for Kirie desktop development.
+The Electron application remains supported and supplies the behavior reference.
+Production packaging remains deferred. Windows CEF shutdown still fails.
 
 ## Documentation
 
-| Document | Purpose |
+| Document | Owns |
 | --- | --- |
-| This README | Setup, development, checks, and troubleshooting |
-| [Migration status](MIGRATION.md) | Scope, all 29 capabilities, open failures, deferred work, dependency baseline, and completion requirements |
-| [Host architecture](docs/host-architecture.md) | Runtime ownership, source map, and implementation constraints |
-| [Platform verification](docs/verification.md) | Dated platform results, acceptance evidence, and automation limits |
-| [Ablation review](docs/ablation-review.md) | Simplification experiments, resize cursor checks, and coverage limits |
+| This README | Setup, commands, and environment failures |
+| [Migration status](MIGRATION.md) | The 29 capabilities, platform decisions, blockers, dependencies, and deferred work |
+| [Host architecture](docs/host-architecture.md) | Runtime boundaries, ownership, and implementation requirements |
+| [Platform verification](docs/verification.md) | Dated acceptance evidence and automation limits |
+| [Ablation review](docs/ablation-review.md) | Whole-framework decisions, compact experiment evidence, and review limits |
 
-Windows exit still has a reproduced CEF crash. Later macOS checks do not establish Windows acceptance.
-The [migration status](MIGRATION.md#remaining-acceptance-work) records remaining work.
-
-## Prerequisites
+## Setup and development
 
 Install [mise](https://mise.jdx.dev/getting-started.html).
 The root [.tool-versions](../../.tool-versions) selects Node.js, pnpm, and .NET.
 The local [mise.toml](mise.toml) selects Godot Mono.
-The [C# project](StageTamagotchiKirie.csproj) requires .NET 10 and Godot.NET.Sdk 4.7.2.
+[StageTamagotchiKirie.csproj](StageTamagotchiKirie.csproj) requires .NET 10 and Godot.NET.Sdk 4.7.2.
 
-Desktop development also requires the configured Godot CEF artifact.
-Export templates are necessary for Godot exports. The Android SDK is necessary only for Android work.
-
-## Setup
-
-Install the workspace tools from the repository root:
+From the repository root, install the workspace tools and dependencies:
 
 ```sh
 mise install
-```
-
-Install workspace dependencies:
-
-```sh
 mise x -- pnpm install
-```
-
-Change to the application directory:
-
-```sh
 cd apps/stage-tamagotchi-kirie
-```
-
-Run all remaining application commands from this directory.
-
-Commands from another directory can use a different Godot installation or find no installation.
-
-Install the application tools:
-
-```sh
 mise install
-```
-
-Inspect the local environment:
-
-```sh
 mise x -- pnpm kirie doctor
 ```
 
-The doctor also reports Android SDK and export-template failures. These failures alone do not block desktop development.
-The doctor does not inspect .NET.
+Run all remaining application commands from this directory.
+The doctor does not inspect .NET. Missing Android SDK or export templates alone do not block desktop development.
+Exports require matching Godot export templates. Android work also requires the Android SDK.
 
-If Godot CEF is absent or stale, install the configured backend:
+If CEF is absent or stale, install the configured backend:
 
 ```sh
 mise x -- pnpm kirie doctor --fix godot-cef
 ```
 
-The installer checks the downloaded archive against the SHA-256 digest in [godot_cef.json](addons/kirie/godot_cef.json).
-The doctor checks extension presence and a stored checksum marker. It does not inspect macOS signatures or hash installed native files.
-See the pinned [CEF installer](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/godot-cef.ts)
-and [doctor checks](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/index.ts).
+The [installer](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/godot-cef.ts) checks the archive against [godot_cef.json](addons/kirie/godot_cef.json).
+The [doctor](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/index.ts) checks presence and a checksum marker.
+It does not hash installed native files or inspect macOS signatures.
 
-After a CEF version change, repeat the installation command.
-Before an acceptance run, make sure that the installed artifact matches the configured release.
-On macOS, also make sure that the framework passes strict code-signature verification.
+After a CEF version change, repeat installation.
+Before acceptance, make sure that the installed artifact matches the release.
+On macOS, also make sure that the framework passes strict signature verification.
+If installation or signatures fail, record the exact upstream failure before a dependency workaround.
 
-If an upstream artifact fails installation or signature verification, record the exact failure before any dependency workaround.
-
-## Development
-
-Before the first development session, build the C# project.
-Then start the development session:
+Build C# before the first development session:
 
 ```sh
 mise x -- dotnet build
 mise x -- pnpm kirie dev
 ```
 
-`kirie dev` starts Vite, Godot, and the CEF renderers.
-The application owns separate native windows for its desktop flows.
-The Spotlight window opens through its global shortcut and has no in-app entry point.
-
-The pinned [desktop dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/dev.ts) reuses the last C# build.
-A new session can therefore run an older assembly after a C# source change.
-
-After a change under `src-godot/`, build the C# project before the next development session:
-
-```sh
-mise x -- dotnet build
-mise x -- pnpm kirie dev
-```
+`kirie dev` starts Vite, Godot, and CEF renderers.
+The [dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/dev.ts) reuses the last C# build.
+After a C# change, repeat both commands.
+Spotlight opens through its global shortcut and has no in-app entry point.
 
 ## Checks and build
 
-Run the application checks from this directory:
+From this application directory, run:
 
 ```sh
 mise x -- pnpm typecheck
@@ -121,30 +76,26 @@ mise x -- dotnet run --project tests/StageTamagotchiKirie.Tests
 mise x -- pnpm build
 ```
 
-`pnpm build` runs `kirie build`.
-It builds the Web assets in `src-web/dist` and the Godot C# project.
-It does not export or package a desktop application.
+`pnpm build` runs `kirie build` for Web assets and C#.
+It does not export or package the application.
 
-Run the workspace checks from the repository root:
+From the repository root, run:
 
 ```sh
 mise x -- pnpm typecheck
 mise x -- pnpm lint
 ```
 
-Build success does not establish native runtime acceptance.
-The migration document records the latest platform results and the scope of each accepted item.
+Build success does not establish native acceptance.
+[Verification](docs/verification.md) and [ablation evidence](docs/ablation-review.md) record historical command results.
 
-## Troubleshooting
+## Environment failures
 
-| Symptom | Meaning | Action |
-| --- | --- | --- |
-| Godot is not found | The command did not load the application `mise.toml`. | Run the command from `apps/stage-tamagotchi-kirie`. |
-| `kirie doctor` reports missing export templates | The Godot installation cannot export the application. | Install templates that match Godot before an export. |
-| `kirie doctor` reports a missing Android SDK | Android development is unavailable. | If Android work is required, configure the Android SDK. |
-| Godot CEF is missing or its checksum marker is stale | The doctor cannot accept the configured installation. | Run `mise x -- pnpm kirie doctor --fix godot-cef`. |
-| The macOS CEF framework fails signature verification | The current native artifact lacks a valid signature. If its checksum marker matches, the installer can skip it. | Record the exact signature failure and report the dependency failure. |
-| A C# change has no effect | The session uses the previous assembly. | Run `mise x -- dotnet build` before the next session. |
-| Godot CEF reports `Accelerated OSR unavailable` | The active renderer and graphics backend do not provide accelerated OSR. | Make sure that desktop uses Forward+ with Metal, Direct3D 12, or Vulkan. |
-| NuGet restore reports a missing pinned version | Package feed metadata can differ from published artifacts. | Compare the failure with the dependency evidence in [MIGRATION.md](MIGRATION.md). |
-| An IPC request fails or native behavior differs from Electron | The flow needs comparison with the accepted scope and platform evidence. | Find the related item in [MIGRATION.md](MIGRATION.md). |
+| Symptom | Action |
+| --- | --- |
+| Godot is absent or a C# change has no effect | Use the application directory and rebuild C# before development. |
+| CEF is absent or its marker is stale | Run the CEF installation command. |
+| CEF signature verification fails | Record the exact failure. A matching marker can cause the installer to skip an invalid framework. |
+| `Accelerated OSR unavailable` | Make sure that desktop uses Forward+ with Metal, Direct3D 12, or Vulkan. |
+| NuGet reports a missing pinned release | Compare feed metadata with the [dependency evidence](MIGRATION.md#dependency-baseline). |
+| Native or IPC behavior fails | Find its capability and accepted scope in [MIGRATION.md](MIGRATION.md). |

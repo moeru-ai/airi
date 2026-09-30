@@ -28,7 +28,6 @@ vi.mock('./owner', () => ({
         return () => eventHandlers.delete(event)
       },
     },
-    runtime: 'kirie',
   }),
 }))
 

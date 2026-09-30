@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useHostOnboarding } from './onboarding'
 
-const runtime = vi.hoisted(() => ({ value: 'kirie' as 'electron' | 'kirie' }))
 const invoke = vi.hoisted(() => vi.fn())
 
 vi.mock('@moeru/eventa', async (importOriginal) => {
@@ -18,13 +17,11 @@ vi.mock('@moeru/eventa', async (importOriginal) => {
 vi.mock('./owner', () => ({
   initializeHostContext: () => ({
     context: {},
-    runtime: runtime.value,
   }),
 }))
 
 describe('host onboarding', () => {
   beforeEach(() => {
-    runtime.value = 'kirie'
     invoke.mockReset().mockResolvedValue({})
   })
 
@@ -36,16 +33,5 @@ describe('host onboarding', () => {
 
     expect(invoke).toHaveBeenNthCalledWith(1, 'eventa:invoke:electron:windows:onboarding:open-send', {})
     expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:electron:windows:onboarding:close-send', {})
-  })
-
-  it('preserves the parameterless Electron invokes', async () => {
-    runtime.value = 'electron'
-    const onboarding = useHostOnboarding()
-
-    await onboarding.open()
-    await onboarding.close()
-
-    expect(invoke).toHaveBeenNthCalledWith(1, 'eventa:invoke:electron:windows:onboarding:open-send')
-    expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:electron:windows:onboarding:close-send')
   })
 })

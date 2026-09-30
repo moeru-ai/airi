@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import type { AiriMicrophonePermissionState } from '../../../../shared/eventa'
-
 import { Button } from '@proj-airi/ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { initializeHostContext, useHostMicrophonePermission } from '../../../host-context'
+import { useHostMicrophonePermission } from '../../../host-context'
 
 const { t } = useI18n()
-const isKirie = initializeHostContext().runtime === 'kirie'
-const permission = isKirie ? useHostMicrophonePermission() : undefined
-const busy = ref(false)
-const status = computed<AiriMicrophonePermissionState>(() => permission?.status.value ?? 'not-determined')
+const permission = useHostMicrophonePermission()
+const busy = shallowRef(false)
+const status = permission.status
 const statusLabel = computed(() => t(`tamagotchi.settings.microphone-permission.states.${status.value}`))
 const actionLabel = computed(() => status.value === 'granted'
   ? t('tamagotchi.settings.microphone-permission.settings.revoke')
@@ -25,7 +22,7 @@ const statusClasses = computed(() => {
 })
 
 async function resetPermission() {
-  if (!permission || status.value === 'not-determined' || busy.value)
+  if (status.value === 'not-determined' || busy.value)
     return
 
   busy.value = true
@@ -41,7 +38,7 @@ async function resetPermission() {
 }
 
 onMounted(() => {
-  void permission?.refresh().catch((error) => {
+  permission.refresh().catch((error) => {
     console.warn('[permissions] Failed to load microphone permission state:', error)
   })
 })
@@ -87,7 +84,7 @@ onMounted(() => {
 
       <div :class="['flex justify-end']">
         <Button
-          :disabled="!isKirie || status === 'not-determined' || busy"
+          :disabled="status === 'not-determined' || busy"
           :loading="busy"
           :label="actionLabel"
           :color="status === 'granted' ? 'red' : 'neutral'"

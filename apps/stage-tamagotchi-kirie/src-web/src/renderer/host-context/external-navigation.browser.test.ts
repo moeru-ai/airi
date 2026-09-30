@@ -11,7 +11,6 @@ vi.mock('./owner', () => ({
     platform: {
       openExternalUrl: mocks.openExternalUrl,
     },
-    runtime: 'kirie',
   }),
 }))
 

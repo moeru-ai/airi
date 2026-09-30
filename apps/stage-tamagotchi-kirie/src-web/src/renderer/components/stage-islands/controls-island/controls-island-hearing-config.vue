@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { initializeHostContext, useHostMicrophonePermission } from '@proj-airi/stage-host-context'
+import { useHostMicrophonePermission } from '@proj-airi/stage-host-context'
 import { HearingConfigDialog } from '@proj-airi/stage-ui/components'
 import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui/composables'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -14,14 +14,9 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { autoSendEnabled } = storeToRefs(hearingStore)
 const { enabled, stream } = storeToRefs(settingsAudioDeviceStore)
 
-const microphonePermission = initializeHostContext().runtime === 'kirie'
-  ? useHostMicrophonePermission()
-  : undefined
+const microphonePermission = useHostMicrophonePermission()
 
 async function prepareMicrophoneInput() {
-  if (!microphonePermission)
-    return
-
   // Only an explicit enable action clears a refusal. Automatic requests retain the host decision.
   if (await microphonePermission.refresh() === 'denied')
     await microphonePermission.reset()
@@ -30,16 +25,8 @@ async function prepareMicrophoneInput() {
 const { audioContext, initialize, dispose, pause } = useAudioContextFromStream(stream)
 const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 
-// NOTICE: Do not call `startStream()` / `stopStream()` from this component.
-//
-// `useSettingsAudioDevice()` already owns the mic stream lifecycle via the persisted `enabled` state.
-// We previously toggled the stream here as well, which introduced a second lifecycle controller: the
-// dialog could recreate the MediaStream while the page-level transcription pipeline still believed
-// the old session was active.
-//
-// That produced the "VAD still works, but no transcript arrives" failure after retoggling the mic.
-//
-// This component should only react to the current stream to drive analyzer UI state.
+// useSettingsAudioDevice owns the microphone stream. A second stream owner interrupted transcription after microphone toggles.
+// This component observes that stream and owns only the analyzer lifecycle.
 watch([enabled, stream], ([isEnabled, currentStream]) => {
   if (isEnabled && currentStream) {
     initialize().then(() => {
@@ -69,7 +56,7 @@ onUnmounted(async () => {
   <HearingConfigDialog
     v-model:show="show"
     v-model:auto-send="autoSendEnabled"
-    :before-enable="microphonePermission ? prepareMicrophoneInput : undefined"
+    :before-enable="prepareMicrophoneInput"
     :volume-level="volumeLevel"
   >
     <slot />

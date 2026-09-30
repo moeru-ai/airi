@@ -43,7 +43,6 @@ vi.mock('./owner', () => ({
       globalShortcuts: platformShortcuts,
       notifications,
     },
-    runtime: 'kirie',
   }),
 }))
 

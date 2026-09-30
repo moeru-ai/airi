@@ -18,7 +18,6 @@ vi.mock('./owner', () => ({
       },
     },
     platform: { hostWindow: platform },
-    runtime: 'kirie',
   }),
 }))
 

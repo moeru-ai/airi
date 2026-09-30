@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useHostAuth } from './auth'
 
-const runtime = vi.hoisted(() => ({ value: 'kirie' as 'electron' | 'kirie' }))
 const invoke = vi.hoisted(() => vi.fn())
 
 vi.mock('@moeru/eventa', async (importOriginal) => {
@@ -18,7 +17,6 @@ vi.mock('@moeru/eventa', async (importOriginal) => {
 vi.mock('./owner', () => ({
   initializeHostContext: () => ({
     context: {},
-    runtime: runtime.value,
   }),
 }))
 
@@ -31,7 +29,6 @@ vi.mock('../../shared/auth-config', () => ({
 
 describe('host auth', () => {
   beforeEach(() => {
-    runtime.value = 'kirie'
     invoke.mockReset().mockResolvedValue({})
   })
 
@@ -47,16 +44,5 @@ describe('host auth', () => {
     })
     expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:electron:auth:start-login-send', {})
     expect(invoke).toHaveBeenNthCalledWith(3, 'eventa:invoke:electron:auth:logout-send', {})
-  })
-
-  it('preserves the parameterless Electron invokes', async () => {
-    runtime.value = 'electron'
-    const auth = useHostAuth()
-
-    await auth.startLogin()
-    await auth.logout()
-
-    expect(invoke).toHaveBeenNthCalledWith(1, 'eventa:invoke:electron:auth:start-login-send')
-    expect(invoke).toHaveBeenNthCalledWith(2, 'eventa:invoke:electron:auth:logout-send')
   })
 })

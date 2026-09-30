@@ -91,9 +91,6 @@ let microphonePermissionContext: KirieEventaContext | undefined
 /** Returns the renderer bridge for AIRI-owned Kirie microphone permission state. */
 export function useHostMicrophonePermission(): HostMicrophonePermission {
   const host = initializeHostContext()
-  if (host.runtime !== 'kirie')
-    throw new Error('AIRI-owned microphone permissions are only available in Kirie.')
-
   if (!microphonePermission || microphonePermissionContext !== host.context) {
     microphonePermission = createHostMicrophonePermission(host.context)
     microphonePermissionContext = host.context

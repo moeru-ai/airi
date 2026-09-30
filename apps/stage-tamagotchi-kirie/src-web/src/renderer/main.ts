@@ -59,8 +59,8 @@ window.addEventListener('pagehide', disposeRendererHost, { once: true })
 if (import.meta.hot)
   import.meta.hot.dispose(disposeRendererHost)
 
-if (import.meta.env.DEV && hostContext.runtime === 'kirie') {
-  hostContext.platform!.hostWindow.getBounds().then(bounds => console.info('[host-context] Kirie Eventa round trip succeeded.', JSON.stringify(bounds))).catch(error => console.error('[host-context] Kirie Eventa round trip failed.', error))
+if (import.meta.env.DEV) {
+  hostContext.platform.hostWindow.getBounds().then(bounds => console.info('[host-context] Kirie Eventa round trip succeeded.', JSON.stringify(bounds))).catch(error => console.error('[host-context] Kirie Eventa round trip failed.', error))
 }
 
 const pinia = createPinia()

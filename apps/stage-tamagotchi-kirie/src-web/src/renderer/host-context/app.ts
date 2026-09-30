@@ -12,9 +12,6 @@ const kirieAppQuit = defineInvokeEventa<EmptyPayload, EmptyPayload>(
 
 export function useHostAppQuit(): () => Promise<void> {
   const host = initializeHostContext()
-  if (host.runtime === 'electron')
-    return defineInvoke(host.context, electronAppQuit)
-
   const quit = defineInvoke(host.context, kirieAppQuit)
   return async () => {
     await quit({})

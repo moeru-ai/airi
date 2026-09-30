@@ -19,16 +19,9 @@ export interface HostAuth {
   startLogin: () => Promise<void>
 }
 
-/** Configures the Kirie authentication host before login. Electron invokes remain parameterless. */
+/** Configures the authentication host before login. */
 export function useHostAuth(): HostAuth {
   const host = initializeHostContext()
-  if (host.runtime === 'electron') {
-    return {
-      logout: defineInvoke(host.context, electronAuthLogout),
-      startLogin: defineInvoke(host.context, electronAuthStartLogin),
-    }
-  }
-
   const logout = defineInvoke(host.context, kirieLogout)
   const startLogin = defineInvoke(host.context, kirieStartLogin)
   const configure = defineInvoke(host.context, airiAuthConfigure)

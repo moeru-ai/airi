@@ -20,19 +20,6 @@ export interface HostOnboarding {
 
 export function useHostOnboarding(): HostOnboarding {
   const host = initializeHostContext()
-  if (host.runtime === 'electron') {
-    const close = defineInvoke(host.context, electronOnboardingClose)
-    const open = defineInvoke(host.context, electronOpenOnboarding)
-    return {
-      async close() {
-        await close()
-      },
-      async open() {
-        await open()
-      },
-    }
-  }
-
   const close = defineInvoke(host.context, kirieCloseOnboarding)
   const open = defineInvoke(host.context, kirieOpenOnboarding)
   return {

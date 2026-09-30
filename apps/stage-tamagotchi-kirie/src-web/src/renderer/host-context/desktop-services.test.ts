@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
     platform: {
       openApplicationDataDirectory: vi.fn(),
     },
-    runtime: 'kirie' as 'electron' | 'kirie',
   },
 }))
 
@@ -18,7 +17,6 @@ vi.mock('./owner', () => ({
 
 describe('host desktop services', () => {
   beforeEach(() => {
-    mocks.host.runtime = 'kirie'
     mocks.host.platform.openApplicationDataDirectory.mockReset()
   })
 

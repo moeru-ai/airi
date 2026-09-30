@@ -12,7 +12,6 @@ vi.mock('./owner', () => ({
   initializeHostContext: () => ({
     context: {},
     platform: { hostWindow: platform },
-    runtime: 'kirie',
   }),
 }))
 

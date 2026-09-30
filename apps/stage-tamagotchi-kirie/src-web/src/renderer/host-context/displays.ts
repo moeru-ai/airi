@@ -2,7 +2,6 @@ import type { AiriDesktopDisplayBounds, AiriDesktopDisplaySnapshot } from '../..
 import type { DisplayArea } from '../../shared/utils/electron/display'
 
 import { defineInvoke } from '@moeru/eventa'
-import { electron } from '@proj-airi/electron-eventa'
 import { shallowRef } from 'vue'
 
 import { airiGetCurrentDisplaySnapshot } from '../../shared/eventa'
@@ -22,13 +21,8 @@ async function refreshDisplays() {
   const host = initializeHostContext()
 
   try {
-    if (host.runtime === 'kirie') {
-      const snapshot = await defineInvoke(host.context, airiGetCurrentDisplaySnapshot)({})
-      displays.value = [toDisplayArea(snapshot)]
-    }
-    else {
-      displays.value = await defineInvoke(host.context, electron.screen.getAllDisplays)()
-    }
+    const snapshot = await defineInvoke(host.context, airiGetCurrentDisplaySnapshot)({})
+    displays.value = [toDisplayArea(snapshot)]
 
     reportedRefreshError = false
   }

@@ -3,10 +3,7 @@ import { IconItem } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { initializeHostContext } from '../../../host-context'
-
 const { t } = useI18n()
-const isKirie = initializeHostContext().runtime === 'kirie'
 
 const settings = computed(() => [
   {
@@ -27,14 +24,12 @@ const settings = computed(() => [
     icon: 'i-solar:keyboard-bold-duotone',
     to: '/settings/system/window-shortcuts',
   },
-  ...(isKirie
-    ? [{
-        title: t('settings.pages.system.permissions.title'),
-        description: t('settings.pages.system.permissions.description'),
-        icon: 'i-solar:shield-check-bold-duotone',
-        to: '/settings/system/permissions',
-      }]
-    : []),
+  {
+    title: t('settings.pages.system.permissions.title'),
+    description: t('settings.pages.system.permissions.description'),
+    icon: 'i-solar:shield-check-bold-duotone',
+    to: '/settings/system/permissions',
+  },
   {
     title: t('settings.pages.system.developer.title'),
     description: t('settings.pages.system.developer.description'),
@@ -45,9 +40,9 @@ const settings = computed(() => [
 </script>
 
 <template>
-  <div flex="~ col gap-4" font-normal>
+  <div :class="['flex flex-col gap-4', 'font-normal']">
     <div />
-    <div flex="~ col gap-4">
+    <div :class="['flex flex-col gap-4']">
       <IconItem
         v-for="(setting, index) in settings"
         :key="setting.to"
@@ -66,15 +61,16 @@ const settings = computed(() => [
     </div>
     <div
       v-motion
-      text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-      fixed top="[calc(100dvh-12rem)]" bottom-0 right--10 z--1
+      :class="[
+        'text-neutral-200/50 dark:text-neutral-600/20 pointer-events-none',
+        'fixed top-[calc(100dvh-12rem)] bottom-0 right--10 z--1',
+        'size-60 flex items-center justify-center',
+      ]"
       :initial="{ scale: 0.9, opacity: 0, rotate: 180 }"
       :enter="{ scale: 1, opacity: 1, rotate: 0 }"
       :duration="500"
-      size-60
-      flex items-center justify-center
     >
-      <div v-motion text="60" i-solar:settings-bold-duotone />
+      <div v-motion :class="['text-60 i-solar:settings-bold-duotone']" />
     </div>
   </div>
 </template>

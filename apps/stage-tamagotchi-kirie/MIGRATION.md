@@ -2,28 +2,21 @@
 
 Status: In progress. Updated: 2026-09-30.
 
-This document owns migration scope, platform acceptance decisions, open failures, dependency baseline, and completion requirements.
-[README.md](README.md) owns setup, commands, and troubleshooting.
+This document owns capability decisions, blockers, deferred work, and dependencies.
+[README](README.md) owns commands. [Architecture](docs/host-architecture.md) owns runtime requirements.
+[Ablation review](docs/ablation-review.md) analyzes the whole migrated framework.
 
 ## Current acceptance
 
-Windows has **23 passing items, one failing item, and five deferred items**.
-No matrix item remains partially tested or untested. A pass covers only the recorded checks.
+Windows records **23 passing items, one failing item, and five deferred items**.
+The original macOS review accepted 24 items and deferred five.
+No matrix item remains partially tested or untested. Each pass covers only its recorded flow.
 
-The original macOS migration accepted 24 items and deferred five.
-Its broader runtime review used Kirie 0.4.2 on 2026-09-21.
+The original macOS runtime review used Kirie 0.4.2 on 2026-09-21.
 Windows used Kirie 0.6.5 on 2026-09-29.
-These different baselines do not establish that every Windows failure is specific to Windows.
-The later ablation checks do not extend the platform acceptance matrix.
-
-- [Capability matrix](#capability-matrix)
-- [Open Windows failures](#open-windows-failures)
-- [Remaining acceptance work](#remaining-acceptance-work)
-- [Scope and ownership](#scope-and-ownership)
-- [Deferred work](#deferred-work)
-- [Host architecture and implementation constraints](docs/host-architecture.md)
-- [Dependency baseline](#dependency-baseline)
-- [Acceptance evidence](#acceptance-evidence)
+Different baselines do not establish that every Windows failure is platform-specific.
+Later simplifications do not extend either platform decision.
+The single-host adapter and deferred-bootstrap changes require their own checks after implementation.
 
 ## Capability matrix
 
@@ -75,8 +68,7 @@ The review does not imply unreported coverage of multiple displays or every onbo
 ### GAP-015: Application exit can crash
 
 Native close reproduced a crash at 17:41:53.
-The quit adapter reproduced it at 18:10:52 with four WebViews open, and again at 19:11:48.
-
+Application quit reproduced it at 18:10:52 with four WebViews, and again at 19:11:48.
 The host logged `destroy_webview`. Windows Application event 1000 reported:
 
 | Field | Value |
@@ -86,160 +78,137 @@ The host logged `destroy_webview`. Windows Application event 1000 reported:
 | Exception | `0xc0000005` |
 | Offset | `0x000000000452217a` |
 
-This evidence locates the failure near shutdown. It does not establish the owner of the invalid memory access.
+The failure occurs near shutdown. The evidence does not identify the owner of the invalid memory access.
 See Microsoft's [access violation reference](https://learn.microsoft.com/en-us/shows/inside/c0000005).
-
-A later exit returned code `0` and reported two leaked ObjectDB instances.
-The crash does not occur on every exit. The successful attempt does not close this failure.
+A later exit returned code 0 with two ObjectDB leaks. This intermittent success does not close GAP-015.
 
 ### Additional observations
 
-- A child-window close logged an unhandled `AIRI host context disposed.` rejection at 18:34:04.
-  The stack reached `disposeHostContext` and `disposeRendererHost`. Close and reopen succeeded, but promise cleanup requires follow-up.
-- The first microphone request after one restart returned `AbortError: Failed due to shutdown`.
-  An immediate repeat returned a live audio track. The cause remains unknown.
-- Historical root lint failures differ by checkout artifacts. Windows recorded 41 errors, and the later macOS review recorded 1,715 errors and 701 warnings.
-  See the [platform record](docs/verification.md) and [ablation checks](docs/ablation-review.md). These results are separate from runtime failures.
+- Child close logged `AIRI host context disposed.` at 18:34:04 through `disposeHostContext` and `disposeRendererHost`.
+  Close and reopen succeeded. Promise cleanup remains unresolved.
+- One microphone request after restart returned `AbortError: Failed due to shutdown`. An immediate repeat returned a live track.
+- Root lint failures differed by checkout artifacts: Windows recorded 41 errors. The later macOS review recorded 1,715 errors and 701 warnings.
 
 ## Remaining acceptance work
 
 | Item | Required follow-up |
 | --- | --- |
-| GAP-015 | Reproduce and resolve the Windows CEF shutdown crash, then repeat native close and application quit. |
-| GAP-002 | Review the new resize cursor indicators on Windows. The original resize acceptance remains recorded separately. |
-| GAP-007 | Repeat the physical Windows Spotlight shortcut check and the macOS regression check for the Windows visibility correction. |
-| Lifecycle observations | Investigate disposed-context rejections and reported ObjectDB leaks. Successful process exit does not resolve these observations. |
-| Platform coverage | Repeat relevant native flows after later source changes. The macOS ablation checks do not establish Windows acceptance. |
+| GAP-015 | Resolve CEF shutdown, then repeat native close and application quit on Windows. |
+| GAP-002 | Review the new resize cursor indicators on Windows. Original resize acceptance remains separate. |
+| GAP-007 | Repeat the physical Windows shortcut and macOS regression checks for the visibility correction. |
+| Lifecycle | Investigate disposed-context rejections and ObjectDB leaks. Exit code 0 does not resolve them. |
+| Later source changes | Repeat relevant native flows. Historical passes do not cover the current simplifications. |
+| Coverage | Preserve the [limits](docs/ablation-review.md#coverage-and-blockers) for physical input, multiple displays, mixed DPI, and authentication. |
 
-The [ablation review](docs/ablation-review.md) records further limits for multiple displays, mixed DPI, authentication, and shortcut checks.
-The five deferred capabilities retain their [reopen conditions](#deferred-work).
-
-## Scope and ownership
+## Scope and change rules
 
 The objective is to preserve Stage Tamagotchi behavior in a Kirie desktop host.
-The Electron application remains the behavior reference and a supported target.
+Electron remains supported and supplies the behavior reference.
+The original setup, renderer adaptation, gap discovery, context ownership, and Platform integration phases are complete.
+Platform acceptance remains open.
 
-The current milestone excludes model rendering, model assets, model packaging, and model-specific media behavior.
-This includes Live2D, VRM, and MMD.
-Linux desktop notifications remain outside the review.
-The [Kirie Platform documentation](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/platform/README.md#desktop-notifications) lists macOS and Windows notification backends.
+The milestone excludes model rendering, assets, packaging, and model-specific media for Live2D, VRM, and MMD.
+Linux notifications remain outside the review.
+[Kirie Platform](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/platform/README.md#desktop-notifications) lists macOS and Windows notification backends.
 
-The [host architecture](docs/host-architecture.md) defines runtime ownership, source locations, and implementation constraints.
-
-The original phases 0 through 5 are complete: project setup, renderer adaptation, gap discovery, shared context ownership, and Platform integration.
-Phase 6 remains open because Windows acceptance contains reproduced failures.
-
-### Rules for further changes
-
-1. Reproduce an in-scope runtime failure before adding a capability.
-2. Find the Godot API, node, setting, or lifecycle that owns the behavior.
-3. Keep general desktop capabilities in Kirie Platform and AIRI business services in AIRI.
-4. Keep one Eventa context owner per renderer and Godot window operations on the main thread.
-5. Record a proven Godot limit here before native integration or sidecar work.
-6. Get explicit approval before adding native dependencies, sidecars, or dependency workarounds.
-7. Preserve Electron transport paths and the Stage Tamagotchi renderer.
-8. Do not add an Electron `BrowserWindow` facade or mock behavior that conceals a missing capability.
-9. Keep model-related errors outside this milestone.
+1. Reproduce an in-scope failure before adding a capability.
+2. Use the Godot API or lifecycle that owns the behavior.
+3. Keep general desktop capabilities in Platform and AIRI services in AIRI.
+4. Keep one Eventa context per renderer and Godot window operations on the main thread.
+5. Record a proven Godot limit before native integration or sidecar work.
+6. Get explicit approval for native dependencies, sidecars, and dependency workarounds.
+7. Preserve the original Electron application and separate Godot runtime.
+8. Do not add a `BrowserWindow` facade or mock a missing capability.
+9. Keep model errors outside this milestone.
 10. Do not create commits unless the user requests them.
 
 ## Deferred work
 
-These features remain AIRI responsibilities. Their missing APIs do not justify new Kirie Core or Platform services.
-
-| Gap | Observed request or behavior | Reopen condition |
+| Gap | Missing behavior | Reopen condition |
 | --- | --- | --- |
-| GAP-010 | `server-channel:get-config` and `server-channel:get-qr-payload` | The user reopens sidecar work. AIRI defines a supported artifact and lifecycle, or accepts a user-managed external server. |
-| GAP-023 | `plugins:tools:list-xsai` and its timeout abort, plus [unsupported directory import](#plugin-directory-import) | The user reopens sidecar work. AIRI owns plugin discovery, workers, shutdown, and packaging. |
-| GAP-024 | `artistry:sync-config` | The user reopens sidecar work. AIRI owns persistence, provider lifecycle, connection tests, generation, and Widget updates. |
-| GAP-025 | `mcp:get-runtime-status` and `mcp:read-config-text` | The user reopens sidecar work. AIRI owns configuration, stdio processes, shutdown, and packaging. |
-| GAP-026 | Disabled About and updater controls | The user reopens production releases. AIRI defines versions, export presets, signed artifacts, manifests, installation, and relaunch. |
+| GAP-010 | Server configuration, QR payload, listener, and WebSocket lifecycle | The user reopens sidecar work. AIRI defines an artifact and lifecycle, or accepts an external server. |
+| GAP-023 | Plugin discovery, workers, directory import, and extension lifecycle | The user reopens sidecar work. AIRI owns files, runtime modules, shutdown, and packaging. |
+| GAP-024 | Artistry configuration and generation | The user reopens sidecar work. AIRI owns credentials, persistence, providers, jobs, downloads, and Widget updates. |
+| GAP-025 | MCP configuration and stdio processes | The user reopens sidecar work. AIRI owns configuration, process shutdown, and packaging. |
+| GAP-026 | Production installation and updates | The user reopens releases. AIRI defines versions, exports, signatures, manifests, installation, and relaunch. |
 
-`@proj-airi/server-runtime` requires Node.js listener and WebSocket APIs.
-The workspace Node.js command does not provide a production sidecar.
-The plugin host needs Node.js files, workers, and runtime module access.
-Artistry needs secure credentials, background jobs, callbacks, downloads, and Widget updates.
-MCP needs configuration ownership and child-process management.
+The workspace Node.js command is not a production sidecar.
+Do not port the server protocol to C# as a workaround.
+Do not expose Artistry credentials in the renderer or depend on browser CORS for desktop provider access.
 
-Do not port the AIRI server protocol to C# as a workaround.
-Do not expose Artistry provider credentials in the renderer or depend on browser CORS for desktop provider access.
+### Deferred startup reference
 
-The packaging audit found no `export_presets.cfg`, Kirie release workflow, release version source, or update manifest.
-The application package version was `0.0.0`.
-A resource pack alone cannot update the C# assembly and native Godot CEF libraries.
-See Godot's [export guide](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_projects.html#exporting-from-the-command-line)
-and [resource-pack guide](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_pcks.html#opening-pck-or-zip-files-at-runtime).
+The Kirie bootstrap no longer connects these deferred services. Their stores, contracts, and Electron implementations remain as migration references.
+Removing startup calls does not remove indirect store creation or every page entry.
+The [original Kirie App.vue](https://github.com/BeanDz/airi/blob/ef7eb50e5a76265f2675e9072a7430d2dc46f09c/apps/stage-tamagotchi-kirie/src-web/src/renderer/App.vue#L136-L361) preserves the removed startup order and subscriptions.
 
-Do not substitute an Electron installer or mark a downloaded artifact as installed.
-Before update acceptance, exercise download, integrity validation, installation, relaunch, and channel selection with versioned Kirie artifacts.
+| Gap | Retained implementation | Removed startup connection |
+| --- | --- | --- |
+| GAP-010 | [Channel settings](src-web/src/renderer/stores/settings/server-channel.ts), [channel store](../../packages/stage-ui/src/stores/mods/api/channel-server.ts), and [Electron service](../stage-tamagotchi/src/main/services/airi/channel-server/index.ts) | Fetch host configuration, apply it, and initialize the channel. |
+| GAP-010 | [Context bridge](../../packages/stage-ui/src/stores/mods/api/context-bridge.ts) and [character orchestrator](../../packages/stage-ui/src/stores/character/orchestrator/store.ts) | Set the Spark host role, initialize both stores, and dispose the context bridge. These depend on the channel. |
+| GAP-023 | [Plugin tools](src-web/src/renderer/stores/tools/plugins.ts), [inspector](../../packages/stage-ui/src/stores/devtools/plugin-host-debug.ts), and [Electron host](../stage-tamagotchi/src/main/services/airi/plugins/host/index.ts) | Install the inspector bridge, discover tools, subscribe to changes, register provider queries, and publish capabilities. |
+| GAP-024 | [Artistry store](../../packages/stage-ui/src/stores/modules/artistry.ts) and [Electron bridge](../stage-tamagotchi/src/main/services/airi/widgets/artistry-bridge.ts) | Observe configuration, deduplicate snapshots, and send configuration to the host. |
+| GAP-025 | [MCP tools](src-web/src/renderer/stores/tools/mcp.ts) and [Electron service](../stage-tamagotchi/src/main/services/airi/mcp-servers/index.ts) | Discover MCP tools when the main renderer becomes leader. |
+| Model rendering scope | [Electron Godot sidecar](../stage-tamagotchi/src/main/services/airi/godot-stage/index.ts) | Query sidecar status, subscribe to changes, and select the Godot renderer. |
+
+When a gap reopens, implement its host handlers and runtime ownership before restoring its startup connection.
+For GAP-010, initialize the channel before the context bridge and character orchestrator. Keep their setup and cleanup responsibilities explicit.
+Tool discovery and capability publication belong to the main renderer. Restore inspector availability only with working host operations.
+Deferred startup must not block local inference preload. The old Electron cursor request remains replaced by the [Kirie pointer implementation](src-web/src/renderer/host-context/pointer.ts).
 
 ### Plugin directory import
 
-The shared [plugin inspector bridge](../../packages/stage-ui/src/stores/devtools/plugin-host-debug.ts) requires three directory import methods.
-`prepareDirectoryImport` returns a plan for user review.
-`commitDirectoryImport` imports the selected plan, and `cancelDirectoryImport` discards it.
+The shared [plugin inspector](../../packages/stage-ui/src/stores/devtools/plugin-host-debug.ts) requires prepare, commit, and cancel methods.
+Kirie supplies no inspector bridge, so shared `isAvailable` is false.
+The shared store retains explicit unsupported-operation errors. It creates no plan and writes no files.
+The shared [page](../../packages/stage-pages/src/pages/devtools/plugin-host.vue) retains its unavailable state.
+The interface remains unsupported until GAP-023 reopens.
 
-Kirie's [renderer bridge](src-web/src/renderer/App.vue) rejects all three methods with `Extension directory import is not available in the Kirie host.`
-These handlers satisfy the shared interface but leave GAP-023 deferred.
-They create no import plan and write no plugin files.
-
-The shared [plugin management page](../../packages/stage-pages/src/pages/devtools/plugin-host.vue) still displays the import button.
-Kirie does not hide or disable it based on host capability.
-An import request fails immediately, and the page displays the error.
-Full support requires the deferred plugin host and its directory operations.
+The packaging audit found no export presets, release workflow, version source, or update manifest. The package version was `0.0.0`.
+A resource pack cannot update C# assemblies or native CEF libraries.
+See Godot's [export guide](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_projects.html#exporting-from-the-command-line)
+and [resource-pack guide](https://docs.godotengine.org/en/4.7/tutorials/export/exporting_pcks.html#opening-pck-or-zip-files-at-runtime).
+Do not substitute an Electron installer or mark a download as installed.
+Update acceptance requires download, integrity checks, installation, relaunch, and channel selection with versioned Kirie artifacts.
 
 ## Dependency baseline
 
-The coordinated Kirie baseline is 0.6.5 for npm, NuGet, and the Godot addon.
-Godot and `Godot.NET.Sdk` use 4.7.2. Godot CEF uses 1.16.1.
-The [Kirie 0.6.5 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.5) supplies the official artifacts.
+Kirie npm, NuGet, and the Godot addon use 0.6.5.
+Godot and Godot.NET.Sdk use 4.7.2. Godot CEF uses 1.16.1.
+The [0.6.5 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.6.5) supplies official artifacts.
 
-The addon archive SHA-256 is
-`d07aeaadac2184f39f1cae8a72a26320ee6d21d4000afc5d575db76f2fb9ba7f`.
-`addons/kirie/godot_cef.json` supplies the CEF version and published digest.
-The macOS artifact passed strict signature verification.
-Windows used D3D12 Forward+ with accelerated OSR.
+The addon SHA-256 is `d07aeaadac2184f39f1cae8a72a26320ee6d21d4000afc5d575db76f2fb9ba7f`.
+[godot_cef.json](addons/kirie/godot_cef.json) supplies the CEF digest.
+The macOS artifact passed strict signatures. Windows used D3D12 Forward+ with accelerated OSR.
 
 On 2026-09-29, the NuGet v3 feed omitted both 0.6.5 packages and restore failed with `NU1102`.
-The official v2 feed supplied them. That session used this command:
+That session used the official v2 feed successfully:
 
 ```sh
 mise x -- dotnet restore tests/StageTamagotchiKirie.Tests/StageTamagotchiKirie.Tests.csproj --source https://www.nuget.org/api/v2/ --no-http-cache
 ```
 
 The repository retained its default NuGet source.
-Kirie 0.6.5 corrected Windows CEF installation through system `tar.exe` and rename retries.
-See the [0.6.4 to 0.6.5 changes](https://github.com/moeru-ai/godot-kirie/compare/v0.6.4...v0.6.5).
+The [0.6.5 changes](https://github.com/moeru-ai/godot-kirie/compare/v0.6.4...v0.6.5) corrected Windows CEF extraction and rename retries.
+Exact Kirie entries bypass `minimumReleaseAge`. Later releases obey the normal [pnpm policy](https://pnpm.io/settings/dependency-resolution).
 
-The workspace has exact Kirie entries under `minimumReleaseAgeExclude`.
-Later versions remain subject to the standard release-age policy.
-See [pnpm dependency resolution](https://pnpm.io/settings/dependency-resolution).
-
-Use published packages for acceptance.
-Do not commit Kirie source links through `link:` dependencies or `ProjectReference` entries.
-Do not copy Kirie implementations or contracts into AIRI.
-A reproduced API gap can justify temporary sibling-source work after the required dependency-boundary approval.
-Return to one coordinated published version before acceptance.
-
-## Acceptance evidence
-
-| Record | Contents |
-| --- | --- |
-| [Platform verification](docs/verification.md) | Main integration checks, Windows acceptance, historical macOS results, AUV limits, and local artifact references |
-| [Ablation review](docs/ablation-review.md) | Numbered experiments, the withdrawn pointer experiment, resize cursor checks, and coverage limits |
-
-These records retain their original dates and results. This documentation reorganization adds no runtime acceptance.
+Acceptance requires coordinated published packages.
+Do not commit `link:` dependencies, sibling `ProjectReference` entries, or copied Kirie implementations.
+Temporary sibling-source work requires dependency-boundary approval and a reproduced API gap.
 
 ## Completion requirements
 
-The milestone requires all of these conditions:
-
-- Every in-scope capability passes its required platform flow, or has an explicit blocked or deferred decision.
-- Published Kirie packages and the installed CEF artifact match the selected baseline and required platform signature checks.
-- TypeScript and C# contracts agree, errors propagate, and Godot window work stays on the main thread.
-- The complete desktop flow passes on each platform under acceptance.
+- Every in-scope capability passes its platform flow, or has an explicit blocked or deferred decision.
+- Published packages, CEF artifacts, and signatures match the selected baseline.
+- TypeScript and C# contracts agree, errors propagate, and Godot operations stay on the main thread.
+- The complete desktop flow passes on each acceptance platform.
 - Deferred items retain explicit ownership and reopen conditions.
 
-For each new failure, record the input, actual result, expected result, and owner here.
-Add a focused reproduction, run the relevant [README checks](README.md#checks-and-build), and exercise the real desktop flow.
-Complete an independent review and resolve blocking findings before acceptance.
-For an IPC change, include a real request/response check.
+For a new failure, record its input, actual result, expected result, and owner.
+Use a focused reproduction and the [README checks](README.md#checks-and-build).
+For an IPC change, include a real request and response.
+Complete an independent review before acceptance.
+
+[Platform verification](docs/verification.md) and [ablation review](docs/ablation-review.md) retain dated evidence.
+The [full previous migration record](https://github.com/BeanDz/airi/blob/ef7eb50e5a76265f2675e9072a7430d2dc46f09c/apps/stage-tamagotchi-kirie/MIGRATION.md) retains longer narratives.
+This document reorganization adds no runtime acceptance.

@@ -14,7 +14,6 @@ vi.mock('./owner', () => ({
   initializeHostContext: () => ({
     context: {},
     platform: { globalShortcuts: platform },
-    runtime: 'kirie',
   }),
 }))
 

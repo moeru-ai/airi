@@ -36,7 +36,6 @@ const authState = vi.hoisted(() => ({
 }))
 
 vi.mock('@proj-airi/stage-host-context', () => ({
-  initializeHostContext: () => ({ runtime: 'kirie' }),
   useHostEventaContext: () => ref({ on: vi.fn(() => vi.fn()), emit: vi.fn() }),
   useHostAlwaysOnTop: () => vi.fn().mockResolvedValue(undefined),
   useHostAppQuit: () => vi.fn().mockResolvedValue(undefined),

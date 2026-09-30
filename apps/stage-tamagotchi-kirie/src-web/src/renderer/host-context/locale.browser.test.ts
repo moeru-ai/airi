@@ -2,13 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { useHostLocale } from './locale'
 
-vi.mock('./owner', () => ({
-  initializeHostContext: () => ({
-    context: {},
-    runtime: 'kirie',
-  }),
-}))
-
 const localeStorageKey = 'settings/language'
 
 describe('kirie host locale', () => {

@@ -7,16 +7,8 @@ import type {
 
 import type { ElectronShortcutTriggerPayload } from '../../shared/eventa'
 
-import { defineInvoke } from '@moeru/eventa'
 import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
 
-import {
-  electronShortcutList,
-  electronShortcutRegister,
-  electronShortcutTriggered,
-  electronShortcutUnregister,
-  electronShortcutUnregisterAll,
-} from '../../shared/eventa'
 import { initializeHostContext } from './owner'
 
 type TriggerListener = (payload: ElectronShortcutTriggerPayload) => void
@@ -96,30 +88,7 @@ export function toKirieGlobalShortcut(accelerator: ShortcutAccelerator): GlobalS
   }
 }
 
-function createElectronGlobalShortcuts(): HostGlobalShortcuts {
-  const { context } = initializeHostContext()
-  const list = defineInvoke(context, electronShortcutList)
-  const register = defineInvoke(context, electronShortcutRegister)
-  const unregister = defineInvoke(context, electronShortcutUnregister)
-  const unregisterAll = defineInvoke(context, electronShortcutUnregisterAll)
-
-  return {
-    list,
-    onTriggered(listener) {
-      return context.on(electronShortcutTriggered, ({ body }) => {
-        if (body)
-          listener(body)
-      })
-    },
-    register,
-    async unregister(id) {
-      await unregister({ id })
-    },
-    unregisterAll,
-  }
-}
-
-function createKirieGlobalShortcuts(): HostGlobalShortcuts {
+function createGlobalShortcuts(): HostGlobalShortcuts {
   const host = initializeHostContext()
   const registrations = new Map<string, KirieRegistration>()
   const listeners = new Set<TriggerListener>()
@@ -135,7 +104,7 @@ function createKirieGlobalShortcuts(): HostGlobalShortcuts {
     if (!registration)
       return
 
-    await host.platform!.globalShortcuts.unregister(registration.shortcut)
+    await host.platform.globalShortcuts.unregister(registration.shortcut)
     registrations.delete(id)
   }
 
@@ -165,7 +134,7 @@ function createKirieGlobalShortcuts(): HostGlobalShortcuts {
         }
       }
 
-      await host.platform!.globalShortcuts.register(
+      await host.platform.globalShortcuts.register(
         shortcut,
         (event) => {
           if (event.state === 'pressed' || binding.receiveKeyUps)
@@ -187,9 +156,6 @@ function createKirieGlobalShortcuts(): HostGlobalShortcuts {
 let shortcuts: HostGlobalShortcuts | undefined
 
 export function useHostGlobalShortcuts(): HostGlobalShortcuts {
-  const host = initializeHostContext()
-  shortcuts ??= host.runtime === 'kirie'
-    ? createKirieGlobalShortcuts()
-    : createElectronGlobalShortcuts()
+  shortcuts ??= createGlobalShortcuts()
   return shortcuts
 }

@@ -12,13 +12,6 @@ const kirieOpenChat = defineInvokeEventa<EmptyPayload, EmptyPayload>(
 
 export function useHostChat(): () => Promise<void> {
   const host = initializeHostContext()
-  if (host.runtime === 'electron') {
-    const open = defineInvoke(host.context, electronOpenChat)
-    return async () => {
-      await open()
-    }
-  }
-
   const open = defineInvoke(host.context, kirieOpenChat)
   return async () => {
     await open({})

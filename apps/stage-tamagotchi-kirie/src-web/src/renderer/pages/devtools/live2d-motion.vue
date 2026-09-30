@@ -1,34 +1,13 @@
 <script setup lang="ts">
 import { useStandardGamepad } from '@proj-airi/input-gamepad-vueuse'
-import { initializeHostContext } from '@proj-airi/stage-host-context'
 import { Live2DMotionDevtools } from '@proj-airi/stage-ui/features/devtools/motion/live2d'
-import { useSystemAudioLipSyncStore } from '@proj-airi/stage-ui/stores/system-audio-lipsync'
 import { BasicButton } from '@proj-airi/ui'
-import { onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-
-import { Live2DSystemAudioLipSyncDriver } from '../../features/live2d/system-audio-lipsync'
 
 const { t } = useI18n()
 const router = useRouter()
 const { snapshot: gamepad } = useStandardGamepad()
-const systemAudio = useSystemAudioLipSyncStore()
-const systemAudioDriver = initializeHostContext().runtime === 'electron'
-  ? new Live2DSystemAudioLipSyncDriver()
-  : undefined
-
-onMounted(() => {
-  if (systemAudioDriver)
-    systemAudio.setDriver(systemAudioDriver)
-})
-onUnmounted(() => {
-  if (!systemAudioDriver)
-    return
-
-  systemAudio.clearDriver(systemAudioDriver)
-  systemAudioDriver.dispose()
-})
 </script>
 
 <template>

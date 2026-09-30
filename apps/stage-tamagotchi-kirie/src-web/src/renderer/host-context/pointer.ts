@@ -1,7 +1,5 @@
 import type { MaybeElementRef } from '@vueuse/core'
 
-import { defineInvoke } from '@moeru/eventa'
-import { bounds, cursorScreenPoint, electron, startLoopGetBounds, startLoopGetCursorScreenPoint } from '@proj-airi/electron-eventa'
 import { defaultWindow, tryOnMounted, unrefElement, useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
 import { computed, shallowRef, watch } from 'vue'
 
@@ -21,49 +19,11 @@ let pollTimer: ReturnType<typeof setTimeout> | undefined
 let pollCount = 0
 let reportedPollingError = false
 
-function updateElectronPointerInsideWindow() {
-  const x = pointerX.value - windowBoundsX.value
-  const y = pointerY.value - windowBoundsY.value
-  pointerInsideWindow.value = x >= 0
-    && y >= 0
-    && x <= windowBoundsWidth.value
-    && y <= windowBoundsHeight.value
-}
-
-function startElectronTracking() {
-  const context = initializeHostContext().context
-
-  context.on(cursorScreenPoint, (event) => {
-    if (!event.body)
-      return
-
-    pointerX.value = event.body.x
-    pointerY.value = event.body.y
-    updateElectronPointerInsideWindow()
-  })
-
-  context.on(bounds, (event) => {
-    if (!event.body)
-      return
-
-    windowBoundsX.value = event.body.x
-    windowBoundsY.value = event.body.y
-    windowBoundsWidth.value = event.body.width
-    windowBoundsHeight.value = event.body.height
-    updateElectronPointerInsideWindow()
-  })
-
-  defineInvoke(context, startLoopGetCursorScreenPoint)()
-    .catch(error => console.error('[host-context] Failed to start Electron pointer tracking.', error))
-  defineInvoke(context, startLoopGetBounds)()
-    .catch(error => console.error('[host-context] Failed to start Electron window bounds tracking.', error))
-}
-
 async function pollKiriePointer() {
   if (trackingStopped)
     return
 
-  const platform = initializeHostContext().platform!
+  const platform = initializeHostContext().platform
 
   try {
     const shouldRefreshBounds = pollCount % 30 === 0
@@ -103,13 +63,6 @@ function startTracking() {
 
   trackingStarted = true
   trackingStopped = false
-  const host = initializeHostContext()
-
-  if (host.runtime === 'electron') {
-    startElectronTracking()
-    return
-  }
-
   pollKiriePointer()
     .catch(error => console.error('[host-context] Kirie pointer tracking stopped.', error))
 }
@@ -137,17 +90,9 @@ export function useHostWindowBounds() {
 
 export function useHostRelativeMouse() {
   startTracking()
-  const host = initializeHostContext()
-  const x = host.runtime === 'kirie'
-    ? pointerX
-    : computed(() => pointerX.value - windowBoundsX.value)
-  const y = host.runtime === 'kirie'
-    ? pointerY
-    : computed(() => pointerY.value - windowBoundsY.value)
-
   return {
-    x,
-    y,
+    x: pointerX,
+    y: pointerY,
   }
 }
 
@@ -227,10 +172,5 @@ export function useHostMouseAroundWindowBorder(
 }
 
 export function useHostPointerPassthrough() {
-  const host = initializeHostContext()
-  if (host.runtime === 'kirie')
-    return host.platform!.hostWindow.setPointerPassthrough
-
-  const setIgnoreMouseEvents = defineInvoke(host.context, electron.window.setIgnoreMouseEvents)
-  return (enabled: boolean) => setIgnoreMouseEvents([enabled, { forward: true }])
+  return initializeHostContext().platform.hostWindow.setPointerPassthrough
 }

@@ -37,7 +37,7 @@ export function useHostSpotlightWindow() {
     if (!body || !pendingNotificationIds.delete(body.id))
       return
 
-    void openChat()
+    openChat()
   })
 
   return {
@@ -48,7 +48,7 @@ export function useHostSpotlightWindow() {
       const id = `spotlight-result-${crypto.randomUUID()}`
       pendingNotificationIds.add(id)
       try {
-        await host.platform!.notifications.show({
+        await host.platform.notifications.show({
           body,
           id,
           title: 'AIRI',
@@ -86,9 +86,6 @@ export function startHostOwnedSpotlightShortcut(
   options?: { onRegistrationFailed?: (error: unknown) => void },
 ): () => void {
   const host = initializeHostContext()
-  if (!host.platform)
-    return () => {}
-
   const shortcuts = useHostSpotlightShortcut()
   const openSpotlight = defineInvoke(host.context, kirieSpotlightOpen)
   let current: GlobalShortcut | undefined
@@ -105,14 +102,14 @@ export function startHostOwnedSpotlightShortcut(
     }
 
     if (current) {
-      await host.platform!.globalShortcuts.unregister(current)
+      await host.platform.globalShortcuts.unregister(current)
       current = undefined
     }
 
     try {
-      await host.platform!.globalShortcuts.register(shortcut, (event) => {
+      await host.platform.globalShortcuts.register(shortcut, (event) => {
         if (event.state === 'pressed')
-          void openSpotlight({})
+          openSpotlight({})
       })
       current = shortcut
     }
@@ -123,10 +120,10 @@ export function startHostOwnedSpotlightShortcut(
 
   const stopListening = host.context.on(airiSpotlightShortcutChanged, ({ body }) => {
     if (body)
-      void bind(body)
+      bind(body)
   })
 
-  void shortcuts.get().then(bind).catch((error) => {
+  shortcuts.get().then(bind).catch((error) => {
     options?.onRegistrationFailed?.(error)
   })
 
@@ -139,26 +136,16 @@ export function startHostOwnedSpotlightShortcut(
 
     const shortcut = current
     current = undefined
-    void host.platform!.globalShortcuts.unregister(shortcut).catch((error) => {
+    host.platform.globalShortcuts.unregister(shortcut).catch((error) => {
       console.warn('[spotlight] Failed to unregister the host-owned shortcut:', error)
     })
   }
 
-  // NOTICE: the host keeps the registration across renderer page loads, but the key
-  // callback it stores belongs to the page that registered it. Releasing on unload
-  // hands the accelerator back before the next page claims it.
-  //
-  // Root cause: GdKiriePlatformHost binds one GlobalShortcutManager to one Eventa
-  // context, so the registration outlives the page that made it. The next page's
-  // register is then rejected as a duplicate, and the shortcut keeps dispatching
-  // into the unloaded page until the app restarts.
-  //
-  // `beforeunload` rather than `pagehide`: the Godot CEF browser dispatches
-  // `beforeunload` on reload, but does not dispatch `pagehide`, `unload`, or
-  // `visibilitychange`, so a `pagehide` release never ran.
-  //
-  // Removal condition: Kirie releases registrations whose owning context goes away,
-  // or exposes a replacing host-side registration.
+  // NOTICE:
+  // Release registrations before reload to prevent duplicate shortcuts and stale callbacks.
+  // GdKiriePlatformHost retains page callbacks. CEF reload emits only beforeunload.
+  // Context: apps/stage-tamagotchi-kirie/docs/host-architecture.md, Spotlight and permissions.
+  // Remove when Kirie releases registrations with their renderer context.
   globalThis.addEventListener('beforeunload', stop, { once: true })
 
   return stop

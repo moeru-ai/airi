@@ -15,10 +15,7 @@ function reportOpenFailure(error: unknown) {
 /** Routes external HTTP(S) navigation through Kirie until the returned cleanup restores browser navigation. */
 export function installExternalNavigation(): () => void {
   const host = initializeHostContext()
-  if (host.runtime !== 'kirie')
-    return () => {}
-
-  const platform = host.platform!
+  const platform = host.platform
   const originalOpen = window.open
 
   function handleLinkClick(event: MouseEvent) {
