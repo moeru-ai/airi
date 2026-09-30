@@ -111,3 +111,13 @@ about:
       title: 有可用的更新
       description: 有新的 v{version} 版本可用
       no-release-notes-markdown: _无发布日志_
+
+voice-inlay:
+  draft-title: '语音草稿'
+  indicator-title: '语音输入'
+  recording: '正在录音'
+  transcribing: '正在转写'
+  draft: '给 {name} 的语音草稿'
+  pending: '{count} 条待处理'
+  discard: '丢弃'
+  send: '发送'

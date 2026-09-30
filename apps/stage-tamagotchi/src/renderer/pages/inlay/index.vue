@@ -1,106 +1,55 @@
 <script setup lang="ts">
-import type { BackgroundMaterialType, VibrancyType } from '@proj-airi/electron-eventa'
-
-import { electron } from '@proj-airi/electron-eventa'
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { FieldCombobox } from '@proj-airi/ui'
-import { useAsyncState } from '@vueuse/core'
-import { ref, watch } from 'vue'
+import { BasicTextarea, Button } from '@proj-airi/ui'
+import { nextTick, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-const getIsWindows = useElectronEventaInvoke(electron.app.isWindows)
-const setVibrancy = useElectronEventaInvoke(electron.window.setVibrancy)
-const setBackgroundMaterial = useElectronEventaInvoke(electron.window.setBackgroundMaterial)
+import { useVoiceDraftEditor } from '../../composables/use-voice-draft-editor'
 
-const { state: isWindows } = useAsyncState(() => getIsWindows(), false)
-const vibrancy = ref<NonNullable<VibrancyType>>()
-const backgroundMaterial = ref<NonNullable<BackgroundMaterialType>>()
-
+const { drafts, sessionId, characterName, text, sending, error, edit, discard, send, handleKeydown } = useVoiceDraftEditor()
 const { t } = useI18n()
-
-watch(
-  vibrancy,
-  (newVibrancy) => {
-    setVibrancy([newVibrancy ?? null])
-  },
-)
-
-watch(
-  backgroundMaterial,
-  (newBackgroundMaterial) => {
-    if (!newBackgroundMaterial)
-      return
-
-    setBackgroundMaterial([newBackgroundMaterial])
-  },
-)
-
-function handleClose() {
-  window.close()
-}
+const draftInput = useTemplateRef<InstanceType<typeof BasicTextarea>>('draftInput')
+watch(sessionId, async (owner) => {
+  if (!owner)
+    return
+  await nextTick()
+  const element: unknown = draftInput.value?.$el
+  if (element instanceof HTMLTextAreaElement)
+    element.focus()
+}, { immediate: true, flush: 'post' })
 </script>
 
 <template>
-  <div :class="['relative p-4']">
-    <div class="drag-region" />
-    <div :class="['absolute right-2 top-2 z-10 flex items-center gap-1', '[-webkit-app-region:no-drag]']">
-      <button
-        type="button"
-        :class="[
-          'size-8 flex items-center justify-center rounded-full text-white transition',
-          'bg-black/40 hover:bg-black/60',
-        ]"
-        :title="t('tamagotchi.stage.inlay.close')"
-        :aria-label="t('tamagotchi.stage.inlay.close')"
-        @click="handleClose"
-      >
-        <span aria-hidden="true" :class="['text-2xl leading-none']">×</span>
-      </button>
-    </div>
-
-    <div class="py-4">
-      <h1>Spotlight</h1>
-      <p>This is the Spotlight page.</p>
-    </div>
-
-    <div class="space-y-2">
-      <FieldCombobox
-        v-model="vibrancy"
-        label="Vibrancy"
-        description="Set the vibrancy effect of the window."
-        :options="[
-          { label: 'titlebar', value: 'titlebar' },
-          { label: 'selection', value: 'selection' },
-          { label: 'menu', value: 'menu' },
-          { label: 'popover', value: 'popover' },
-          { label: 'sidebar', value: 'sidebar' },
-          { label: 'header', value: 'header' },
-          { label: 'sheet', value: 'sheet' },
-          { label: 'window', value: 'window' },
-          { label: 'hud', value: 'hud' },
-          { label: 'fullscreen-ui', value: 'fullscreen-ui' },
-          { label: 'tooltip', value: 'tooltip' },
-          { label: 'content', value: 'content' },
-          { label: 'under-window', value: 'under-window' },
-          { label: 'under-page', value: 'under-page' },
-        ]"
-      />
-
-      <FieldCombobox
-        v-if="isWindows"
-        v-model="backgroundMaterial"
-        label="Background Material"
-        description="Set the background material of the window."
-        :options="[
-          { label: 'auto', value: 'auto' },
-          { label: 'none', value: 'none' },
-          { label: 'mica', value: 'mica' },
-          { label: 'acrylic', value: 'acrylic' },
-          { label: 'tabbed', value: 'tabbed' },
-        ]"
-      />
-    </div>
-  </div>
+  <main :class="['h-full w-full flex flex-col gap-2 overflow-hidden rounded-2xl p-4', 'bg-white/85 text-neutral-900 shadow-xl backdrop-blur-xl dark:bg-neutral-900/85 dark:text-neutral-50']">
+    <header :class="['flex items-center justify-between gap-2 text-sm']">
+      <span>{{ t('tamagotchi.stage.voice-inlay.draft', { name: characterName }) }}</span>
+      <span :class="['text-xs text-neutral-500 dark:text-neutral-400']">{{ t('tamagotchi.stage.voice-inlay.pending', { count: drafts.pendingSessionIds.length }) }}</span>
+    </header>
+    <BasicTextarea
+      v-if="sessionId"
+      ref="draftInput"
+      autofocus
+      :model-value="text"
+      :aria-label="t('tamagotchi.stage.voice-inlay.draft', { name: characterName })"
+      :readonly="sending"
+      :submit-on-enter="false"
+      default-height="100%"
+      aria-keyshortcuts="Enter Escape"
+      :class="['min-h-0 flex-1']"
+      @update:model-value="edit"
+      @keydown="handleKeydown"
+    />
+    <p v-if="error" role="alert" :class="['text-sm text-red-600 dark:text-red-300']">
+      {{ error }}
+    </p>
+    <footer :class="['flex justify-end gap-2']">
+      <Button :disabled="sending || !sessionId" @click="discard">
+        {{ t('tamagotchi.stage.voice-inlay.discard') }}
+      </Button>
+      <Button color="primary" variant="primary" :loading="sending" :disabled="!text.trim()" @click="send">
+        {{ t('tamagotchi.stage.voice-inlay.send') }}
+      </Button>
+    </footer>
+  </main>
 </template>
 
 <route lang="yaml">

@@ -40,6 +40,7 @@ import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runt
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useStagePushToTalk } from '../composables/use-stage-push-to-talk'
+import { useVoiceInlay } from '../composables/use-voice-inlay'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
@@ -352,7 +353,8 @@ useModelSettingsRuntimeOwner({
   },
 })
 
-useStagePushToTalk()
+const voiceInlay = useVoiceInlay()
+useStagePushToTalk(voiceInlay)
 
 const manualRecordingActive = shallowRef(false)
 const manualRecordingLeases = new ManualRecordingLeaseTracker()
@@ -434,15 +436,20 @@ useStageHearing({
   consumerId: 'stage-tamagotchi:voice-input',
   suspended: manualRecordingActive,
   onError: error => reportVoiceInputFailure('listen', error),
-  onRecordingChange: ({ active }) => {
-    if (!active)
+  onRecordingChange: (event) => {
+    voiceInlay.onRecordingChange(event)
+    if (!event.active)
       clearHearingInput()
   },
-  onTranscriptionProgress: ({ text }) => {
+  onTranscriptionProgress: (event) => {
+    voiceInlay.onTranscriptionProgress(event)
+    const { text } = event
     replaceHearingInput(text)
     replaceSpeakerCaption(text)
   },
-  onTranscriptionComplete: ({ text }) => {
+  onTranscriptionComplete: (event) => {
+    voiceInlay.onTranscriptionComplete(event)
+    const { text } = event
     replaceHearingInput(text)
     scheduleHearingInputClear(currentHearingInputSourceId())
     activeHearingInputSourceId = undefined

@@ -8,13 +8,17 @@ import { createManualRecordingChannel, manualRecordingHeartbeatMs, manualRecordi
 import { useDesktopPushToTalk } from './use-desktop-push-to-talk'
 
 /** Connects the global hold shortcut to isolated manual capture and the shared stage recording lease. */
-export function useStagePushToTalk() {
+export function useStagePushToTalk(options?: {
+  onRecordingChange: (event: { active: boolean, sessionId: string, segmentId: string }) => void
+  onTranscriptionComplete: (event: { sessionId: string, segmentId: string, text: string }) => void
+}) {
   const sessions = useChatSessionStore()
   const recording = ref(false)
   const channel = createManualRecordingChannel()
   const sourceId = crypto.randomUUID()
   const { t } = useI18n()
   let heartbeat: ReturnType<typeof setInterval> | undefined
+  let capture: { sessionId: string, segmentId: string } | undefined
   function publish(active: boolean) {
     return channel.context.emit(manualRecordingStateChanged, { sourceId, active })
       .catch(error => console.warn('[Push to Talk] Failed to publish recording state:', error))
@@ -22,7 +26,21 @@ export function useStagePushToTalk() {
   const input = usePushToTalk({
     sessionId: () => sessions.activeSessionId,
     onError: message => toast.error(t('stage.voice.failed'), { description: message }),
-    onRecordingChange: active => recording.value = active,
+    onRecordingChange: (active) => {
+      recording.value = active
+      if (active) {
+        capture = { sessionId: sessions.activeSessionId, segmentId: crypto.randomUUID() }
+        options?.onRecordingChange({ ...capture, active })
+      }
+      else if (capture) {
+        options?.onTranscriptionComplete({ ...capture, text: '' })
+        capture = undefined
+      }
+    },
+  })
+  watch(input.phase, (phase) => {
+    if (phase === 'processing' && capture)
+      options?.onRecordingChange({ ...capture, active: false })
   })
   watch(recording, (active) => {
     clearInterval(heartbeat)

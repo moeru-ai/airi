@@ -8,30 +8,49 @@ import { voiceDraftChannelName, voiceDraftDiscarded } from './chat/voice-send'
 export const useHearingDraftStore = defineStore('hearing-drafts', () => {
   const pinia = getActivePinia()
   const drafts = ref<Record<string, string>>({})
+  const pendingSessionIds = ref<string[]>([])
   const channel = createBroadcastChannelContext(new BroadcastChannel(voiceDraftChannelName), { closeOnDispose: true })
 
   async function append(sessionId: string, text: string) {
     if (!text.trim())
       return
+    pendingSessionIds.value = [...pendingSessionIds.value.filter(id => id !== sessionId), sessionId]
     const previous = drafts.value[sessionId]
     drafts.value = { ...drafts.value, [sessionId]: previous ? `${previous}\n${text.trim()}` : text.trim() }
   }
 
   async function take(sessionId: string): Promise<string> {
     const text = drafts.value[sessionId] ?? ''
-    if (text) {
+    if (drafts.value[sessionId] !== undefined) {
       const next = { ...drafts.value }
       delete next[sessionId]
       drafts.value = next
+      pendingSessionIds.value = pendingSessionIds.value.filter(id => id !== sessionId)
     }
     return text
   }
 
   async function discard(sessionId?: string) {
-    if (sessionId)
+    if (sessionId) {
       await take(sessionId)
-    else
+    }
+    else {
       drafts.value = {}
+      pendingSessionIds.value = []
+    }
+  }
+
+  /** Edits an existing draft without recreating one already consumed by another window. */
+  async function edit(sessionId: string, text: string) {
+    if (drafts.value[sessionId] === undefined)
+      return
+    drafts.value = { ...drafts.value, [sessionId]: text }
+  }
+
+  /** Moves an existing draft to the end of the review order. */
+  async function promote(sessionId: string) {
+    if (drafts.value[sessionId] !== undefined)
+      pendingSessionIds.value = [...pendingSessionIds.value.filter(id => id !== sessionId), sessionId]
   }
 
   // Each renderer can observe deletion. The leader applies this idempotent command.
@@ -44,5 +63,5 @@ export const useHearingDraftStore = defineStore('hearing-drafts', () => {
     channel.dispose()
   })
 
-  return { drafts, append, take, discard }
-}, { synced: { state: true, actions: ['append', 'take', 'discard'] } })
+  return { drafts, pendingSessionIds, append, take, discard, edit, promote }
+}, { synced: { state: true, actions: ['append', 'take', 'discard', 'edit', 'promote'] } })
