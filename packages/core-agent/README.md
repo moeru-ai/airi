@@ -30,6 +30,11 @@ await streamFrom({
 
 The existing session store uses Chat-shaped UI records. The orchestrator decodes those records at the storage boundary, then composes runtime context as structured segments. Chat sends, vision inputs, and Spark notifications use the same generation contract. Hooks and the plugin bridge receive a separate display projection. That projection is text-only and excludes native continuation data and media payloads. Images, audio, and files become labels, including tool results.
 
+`prepareConversation` adapts media after the runtime resolves a provider request and before the protocol adapter projects its input.
+The callback also runs after a request scope change. It returns a request copy and keeps stored recordings intact.
+Stage uses this boundary to transcribe audio for text models and preserve transcripts in local history.
+Compatibility failures belong to the resolved model. After a tool starts, Stage does not automatically replay the whole turn.
+
 ## Turn history
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.

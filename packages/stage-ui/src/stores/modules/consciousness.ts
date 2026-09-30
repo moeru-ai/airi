@@ -151,6 +151,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     // State
     configured,
     supportsAudioInput,
+    modelSupportsAudioInput,
     activeProvider,
     activeModel,
     activeTemperature,

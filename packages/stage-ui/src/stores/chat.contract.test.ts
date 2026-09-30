@@ -570,9 +570,9 @@ describe('chat store contract', () => {
 
   it('uses a stored transcript when native audio falls back to string content', async () => {
     audioCapability.enabled = true
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions & { prepareStringContent: () => Promise<Conversation> }) => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions & { prepareStringContent: (source: Conversation) => Promise<Conversation> }) => {
       expect(context.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
-      const textContext = await options.prepareStringContent()
+      const textContext = await options.prepareStringContent(context)
       expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
       expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).not.toContainEqual(expect.objectContaining({ type: 'audio' }))
       await options.onStreamEvent?.({ type: 'finish' })
@@ -592,8 +592,8 @@ describe('chat store contract', () => {
     audioCapability.enabled = true
     transcriptionMocks.configured = true
     transcriptionMocks.transcribe.mockResolvedValue('spoken words')
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions & { prepareStringContent: () => Promise<Conversation> }) => {
-      const textContext = await options.prepareStringContent()
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, context: Conversation, options: StreamOptions & { prepareStringContent: (source: Conversation) => Promise<Conversation> }) => {
+      const textContext = await options.prepareStringContent(context)
       expect(textContext.turns.flatMap(turn => turn.type === 'user' ? turn.content : [])).toContainEqual({ type: 'text', text: 'spoken words' })
       await options.onStreamEvent?.({ type: 'finish' })
     })

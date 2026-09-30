@@ -12,7 +12,7 @@ export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
 
 interface LlmStreamOptions extends StreamOptions {
-  prepareStringContent?: () => Promise<Conversation>
+  prepareStringContent?: (conversation: Conversation) => Promise<Conversation>
 }
 
 export const useLLM = defineStore('llm', () => {
@@ -20,18 +20,36 @@ export const useLLM = defineStore('llm', () => {
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
-    const key = modelKey(model, chatProvider.generation(model))
+    let key = modelKey(model, chatProvider.generation(model))
+    let toolExecutionStarted = false
     const { tools: customTools, prepareStringContent, ...streamOptions } = options ?? {}
+    const resolveStep = streamOptions.resolveStep
     const builtinToolsResolver = () => resolveLlmTools({ customTools })
 
     const runStream = async () => coreStreamFrom({
       model,
       chatProvider,
-      conversation: contentArrayCompatibility.value.get(key) === false && prepareStringContent
-        ? await prepareStringContent()
-        : context,
+      conversation: context,
       options: {
         ...streamOptions,
+        resolveStep: resolveStep
+          ? async () => ({
+            ...await resolveStep(),
+            tools: await resolveLlmTools({ customTools }),
+          })
+          : undefined,
+        prepareConversation: async (source, request, providerId) => {
+          key = modelKey(request.config.model, request)
+          const prepared = await streamOptions.prepareConversation?.(source, request, providerId) ?? source
+          return contentArrayCompatibility.value.get(key) === false && prepareStringContent
+            ? prepareStringContent(prepared)
+            : prepared
+        },
+        onStreamEvent: async (event) => {
+          if (event.type === 'tool-call')
+            toolExecutionStarted = true
+          await streamOptions.onStreamEvent?.(event)
+        },
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
       },
@@ -55,6 +73,9 @@ export const useLLM = defineStore('llm', () => {
       if (isContentArrayRelatedError(err) && contentArrayCompatibility.value.get(key) !== false) {
         console.warn(`[llm] Auto-disabling content-part arrays for "${key}" and retrying once`)
         contentArrayCompatibility.value.set(key, false)
+        // A completed tool can have external effects. A full retry must not repeat it.
+        if (toolExecutionStarted)
+          throw err
         await runStream()
         return
       }
