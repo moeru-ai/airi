@@ -29,10 +29,16 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   const error = ref<string>()
   const mode = useLocalStorageManualReset<HearingInputMode>('settings/audio/input/mode', 'always')
   const wakeWordSetupPrompted = useLocalStorageManualReset('settings/audio/input/wake-setup-prompted', false, { flush: 'sync' })
-  const continuousInputEnabled = computed(() => audioInputEnabled.value && (mode.value === 'always' || mode.value === 'wake-word'))
+  const continuousInputSuspended = ref(false)
+  const continuousInputEnabled = computed(() => !continuousInputSuspended.value && audioInputEnabled.value && (mode.value === 'always' || mode.value === 'wake-word'))
   let audioInputStartGeneration = 0
   let audioInputStart: ReturnType<typeof startAudioInputStream> | undefined
   let stopPendingAudioInput = false
+
+  /** The foreground host blocks automatic capture until another microphone owner releases it. */
+  function setContinuousInputSuspended(suspended: boolean) {
+    continuousInputSuspended.value = suspended
+  }
 
   /** Only the active foreground hearing runtime claims this persisted setup request. */
   function claimWakeWordSetupPrompt() {
@@ -208,6 +214,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     enabled: audioInputEnabled,
     mode,
     continuousInputEnabled,
+    setContinuousInputSuspended,
     claimWakeWordSetupPrompt,
     resetWakeWordSetupPrompt,
 
