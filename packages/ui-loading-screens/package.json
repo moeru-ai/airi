@@ -18,6 +18,7 @@
     ".": "./src/index.ts",
     "./components": "./src/components/index.ts",
     "./startup-screen": "./src/components/startup-screen.vue",
+    "./fontsource-cdn.css": "./src/styles/fontsource-cdn.css",
     "./*": "./*"
   },
   "scripts": {

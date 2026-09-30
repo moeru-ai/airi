@@ -9,7 +9,7 @@ import {
   transformerVariantGroup,
 } from 'unocss'
 
-import { presetWdxlCdn, presetWdxlFonts } from '../../uno.config'
+import { presetWdxlFonts } from '../../uno.config'
 
 export default defineConfig({
   presets: [
@@ -32,7 +32,6 @@ export default defineConfig({
         failure: 10000,
       },
     }),
-    presetWdxlCdn(),
     presetIcons({
       scale: 1.2,
     }),

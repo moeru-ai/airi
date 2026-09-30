@@ -2522,6 +2522,9 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
+      '@proj-airi/ui-loading-screens':
+        specifier: workspace:^
+        version: link:../../packages/ui-loading-screens
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions

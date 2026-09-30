@@ -93,30 +93,6 @@ export function presetWdxlFonts(): Record<string, WebFontMeta> {
   }
 }
 
-/** Loads the pinned Fontsource faces from CDN for the web app and UI previews. */
-export function presetWdxlCdn(): Preset {
-  return {
-    name: 'wdxl-cdn',
-    preflights: [{
-      getCSS: () => `
-@font-face {
-  font-family: "WDXL Lubrifont SC";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url("https://cdn.jsdelivr.net/npm/@fontsource/wdxl-lubrifont-sc@5.3.0/files/wdxl-lubrifont-sc-chinese-simplified-400-normal.woff2") format("woff2");
-}
-@font-face {
-  font-family: "WDXL Lubrifont JP N";
-  font-style: normal;
-  font-display: swap;
-  font-weight: 400;
-  src: url("https://cdn.jsdelivr.net/npm/@fontsource/wdxl-lubrifont-jp-n@5.3.0/files/wdxl-lubrifont-jp-n-japanese-400-normal.woff2") format("woff2");
-}`,
-    }],
-  }
-}
-
 export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
   return {
     ...presetWdxlFonts(),

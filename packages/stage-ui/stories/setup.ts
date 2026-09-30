@@ -15,6 +15,7 @@ import './styles/main.css'
 // Fonts
 import '@proj-airi/font-cjkfonts-allseto/index.css'
 import '@proj-airi/font-xiaolai/index.css'
+import '@proj-airi/ui-loading-screens/fontsource-cdn.css'
 import '@fontsource-variable/dm-sans/index.css'
 import '@fontsource-variable/jura/index.css'
 import '@fontsource-variable/quicksand/index.css'

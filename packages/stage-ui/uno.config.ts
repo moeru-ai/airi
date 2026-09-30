@@ -1,6 +1,6 @@
 import { defineConfig, mergeConfigs, presetWebFonts } from 'unocss'
 
-import { histoireUnoConfig, presetWdxlCdn, presetWdxlFonts, sharedUnoConfig } from '../../uno.config'
+import { histoireUnoConfig, presetWdxlFonts, sharedUnoConfig } from '../../uno.config'
 
 export default mergeConfigs([
   sharedUnoConfig(),
@@ -8,7 +8,6 @@ export default mergeConfigs([
   defineConfig({
     presets: [
       presetWebFonts({ fonts: presetWdxlFonts() }),
-      presetWdxlCdn(),
     ],
   }),
 ])
