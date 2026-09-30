@@ -36,11 +36,6 @@ const emit = defineEmits<{
           <strong class="startup-name">AIRI</strong>
         </div>
         <div v-if="phase === 'error'" class="startup-error-info" role="alert">
-          <div class="startup-error-header" :class="locale.startsWith('ja') ? 'font-wdxl-jp' : 'font-wdxl-sc'">
-            <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
-            <span class="startup-error-header-spacer" />
-            <span i-solar:danger-triangle-linear class="startup-error-symbol" aria-hidden="true" />
-          </div>
           <div class="startup-error-heading">
             <h2 class="startup-error-title">
               {{ errorTitle }}
@@ -70,6 +65,11 @@ const emit = defineEmits<{
             'startup-status-error': phase === 'error',
           }"
         >
+          <div v-if="phase === 'error'" class="startup-error-header" :class="locale.startsWith('ja') ? 'font-wdxl-jp' : 'font-wdxl-sc'">
+            <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
+            <span class="startup-error-header-spacer" />
+            <span i-solar:danger-triangle-linear class="startup-error-symbol" aria-hidden="true" />
+          </div>
           <span v-if="phase === 'loading'" class="startup-label">{{ label }}</span>
           <div v-if="phase === 'error'" class="startup-error-progress-heading" aria-hidden="true">
             <span>{{ progress }}%</span>
@@ -189,7 +189,7 @@ const emit = defineEmits<{
 
 .startup-error-info {
   position: absolute;
-  top: max(calc(env(safe-area-inset-top) + 96px), 26%);
+  top: max(calc(env(safe-area-inset-top) + 168px), calc(26% + 72px));
   left: 50%;
   width: min(680px, calc(100% - 48px));
   transform: translateX(-50%);
@@ -239,21 +239,27 @@ const emit = defineEmits<{
 }
 
 .startup-error-header {
-  position: relative;
+  position: absolute;
+  bottom: calc(100% + 16px);
+  left: 50%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 16px;
+  width: min(680px, calc(100vw - 32px));
   min-height: 72px;
   padding: 8px 20px;
   overflow: hidden;
-  border-top: 1px solid #ef444499;
-  border-bottom: 1px solid #ef44441f;
+  border: 1px solid #ef444459;
+  border-radius: 16px;
   background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
   color: #dc2626;
   font-size: clamp(28px, 2.5vw, 32px);
   font-weight: 400;
   letter-spacing: 0.02em;
   text-transform: uppercase;
+  transform: translateX(-50%);
+  animation: startup-error-fade-in 400ms 100ms both;
 }
 
 .startup-error-header::before {
@@ -334,8 +340,7 @@ const emit = defineEmits<{
 }
 
 :global(html.dark .startup-error-header) {
-  border-color: #f8717199;
-  border-bottom-color: #f871711f;
+  border-color: #f8717159;
   background: linear-gradient(90deg, #f8717124, #f8717108 72%, transparent);
 }
 
@@ -389,7 +394,7 @@ const emit = defineEmits<{
   }
 
   .startup-error-info {
-    top: max(calc(env(safe-area-inset-top) + 88px), 17vh);
+    top: max(calc(env(safe-area-inset-top) + 160px), calc(17vh + 72px));
   }
 }
 
@@ -403,7 +408,7 @@ const emit = defineEmits<{
   }
 
   .startup-error-info {
-    top: max(env(safe-area-inset-top), 16px);
+    top: max(calc(env(safe-area-inset-top) + 64px), 80px);
     bottom: calc(max(env(safe-area-inset-bottom), 16px) + 44px);
     display: flex;
     flex-direction: column;
@@ -454,7 +459,8 @@ const emit = defineEmits<{
   }
 
   .startup-error-info,
-  .startup-error-recovery {
+  .startup-error-recovery,
+  .startup-error-header {
     animation: none;
   }
 
