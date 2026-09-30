@@ -29,8 +29,6 @@
     "@capacitor/local-notifications": "catalog:",
     "@date-fns/utc": "catalog:",
     "@fontsource-variable/nunito": "catalog:",
-    "@fontsource/wdxl-lubrifont-jp-n": "catalog:",
-    "@fontsource/wdxl-lubrifont-sc": "catalog:",
     "@formkit/auto-animate": "catalog:",
     "@huggingface/transformers": "catalog:",
     "@moeru/eventa": "catalog:",

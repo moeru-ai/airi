@@ -9,8 +9,6 @@ import {
   transformerVariantGroup,
 } from 'unocss'
 
-import { presetWdxlFonts } from '../../uno.config'
-
 export default defineConfig({
   presets: [
     presetWind3(),
@@ -25,7 +23,6 @@ export default defineConfig({
           name: 'Departure Mono',
           provider: 'none',
         },
-        ...presetWdxlFonts('fontsource'),
       },
       timeouts: {
         warning: 5000,
@@ -40,5 +37,5 @@ export default defineConfig({
     transformerDirectives(),
     transformerVariantGroup(),
   ],
-  safelist: [...'prose prose-sm m-auto text-left'.split(' '), 'font-wdxl-sc', 'font-wdxl-jp'],
+  safelist: 'prose prose-sm m-auto text-left'.split(' '),
 })

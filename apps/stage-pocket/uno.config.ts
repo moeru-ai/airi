@@ -1,16 +1,13 @@
 import { mergeConfigs, presetWebFonts } from 'unocss'
 
-import { presetWdxlFonts, presetWebFontsFonts, sharedUnoConfig } from '../../uno.config'
+import { presetWebFontsFonts, sharedUnoConfig } from '../../uno.config'
 
 export default mergeConfigs([
   sharedUnoConfig(),
   {
     presets: [
       presetWebFonts({
-        fonts: {
-          ...presetWebFontsFonts('fontsource'),
-          ...presetWdxlFonts('none'),
-        },
+        fonts: presetWebFontsFonts('fontsource'),
         timeouts: {
           warning: 5000,
           failure: 10000,

@@ -80,26 +80,8 @@ export function safelistSettingsEntryIcons(): string[] {
   ]
 }
 
-export function presetWdxlFonts(provider: 'fontsource' | 'none'): Record<string, WebFontMeta> {
-  return {
-    'wdxl-sc': {
-      name: 'WDXL Lubrifont SC',
-      provider,
-      weights: ['400'],
-      subsets: ['chinese-simplified', 'latin'],
-    },
-    'wdxl-jp': {
-      name: 'WDXL Lubrifont JP N',
-      provider,
-      weights: ['400'],
-      subsets: ['japanese', 'latin'],
-    },
-  }
-}
-
 export function presetWebFontsFonts(provider: 'fontsource' | 'none'): Record<string, string | WebFontMeta | (string | WebFontMeta)[]> {
   return {
-    ...presetWdxlFonts(provider),
     'sans': {
       name: provider === 'fontsource' ? 'DM Sans' : 'DM Sans Variable',
       provider,
@@ -186,8 +168,6 @@ export function sharedUnoConfig() {
     ],
     safelist: [
       ...'prose prose-sm m-auto text-left'.split(' '),
-      'font-wdxl-sc',
-      'font-wdxl-jp',
       ...safelistAllPrimaryBackgrounds(),
       ...safelistSettingsEntryIcons(),
     ],

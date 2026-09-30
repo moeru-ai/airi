@@ -13,7 +13,7 @@ const emit = defineEmits<{
   (e: 'finished'): void
   (e: 'skipModel'): void
 }>()
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const startup = useStartupResourcesStore()
 const { progress, failed, ready } = storeToRefs(startup)
 const errorTitle = computed(() => failed.value
@@ -51,11 +51,9 @@ watch([ready, opened], async ([isReady, isOpen]) => {
   <StartupScreen
     :phase="failed ? 'error' : phase"
     :progress="progress"
-    :locale="locale"
     :logo-src="logoSrc"
     :label="t('stage.operations.load-models-status.loading')"
     :error-title="errorTitle"
-    :error-status-label="t('stage.startup.interrupted')"
     :error-hint="t(failed?.id === 'model' ? 'stage.startup.recover-model' : 'stage.startup.recover')"
     :error-message="failed?.error"
     :error-details-label="t('stage.startup.details')"

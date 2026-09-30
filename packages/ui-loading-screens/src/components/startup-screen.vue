@@ -10,11 +10,9 @@ import '@fontsource-variable/comfortaa/wght.css'
 const props = defineProps<{
   phase: 'splash' | 'loading' | 'error' | 'done'
   progress: number
-  locale: string
   logoSrc: string
   label: string
   errorTitle: string
-  errorStatusLabel: string
   errorHint: string
   errorMessage?: string
   errorDetailsLabel: string
@@ -75,11 +73,6 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
             :message="errorMessage"
           />
         </div>
-        <div v-if="phase === 'error'" class="startup-error-header" :class="locale.startsWith('ja') ? 'font-wdxl-jp' : 'font-wdxl-sc'">
-          <span class="startup-error-status-label">{{ errorStatusLabel }}</span>
-          <span class="startup-error-header-spacer" />
-          <span i-solar:danger-triangle-linear class="startup-error-symbol" aria-hidden="true" />
-        </div>
         <div v-if="phase === 'error'" class="startup-error-recovery">
           <Button class="startup-error-action" color="primary" variant="primary" @click="emit('retry')">
             {{ retryLabel }}
@@ -131,7 +124,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
 
 .startup-screen-error {
   display: grid;
-  grid-template-rows: minmax(min-content, 1fr) auto auto auto;
+  grid-template-rows: minmax(min-content, 1fr) auto auto;
   gap: 16px;
   padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px);
   overflow-y: auto;
@@ -213,7 +206,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   position: relative;
   top: auto;
   left: auto;
-  grid-row: 4;
+  grid-row: 3;
   align-items: stretch;
   width: 100%;
   height: 16px;
@@ -270,55 +263,6 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   white-space: nowrap;
 }
 
-.startup-error-header {
-  position: relative;
-  box-sizing: border-box;
-  grid-row: 2;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  min-height: 72px;
-  padding: 8px 20px;
-  overflow: hidden;
-  border: 2px solid #ef444459;
-  border-radius: 16px;
-  background: linear-gradient(90deg, #ef444420, #ef444406 72%, transparent);
-  color: #dc2626;
-  font-size: clamp(28px, 2.5vw, 32px);
-  font-weight: 400;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  animation: startup-error-fade-in 400ms 100ms both;
-}
-
-.startup-error-header::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(110deg, transparent 0 12px, currentColor 12px 32px, transparent 32px 42px);
-  background-size: 42px 100%;
-  opacity: 0.09;
-  pointer-events: none;
-  animation: startup-warning-scroll 2s linear infinite;
-}
-
-.startup-error-status-label {
-  position: relative;
-  min-width: 0;
-  text-shadow: 0 1px 2px #ef44444d, 0 0 8px #ef444429;
-}
-
-.startup-error-header-spacer {
-  flex: 1;
-}
-
-.startup-error-symbol {
-  position: relative;
-  flex: none;
-  font-size: 32px;
-}
-
 .startup-error-title {
   margin: 0 24px;
   font-size: clamp(24px, 3vw, 32px);
@@ -335,7 +279,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
 }
 
 .startup-error-recovery {
-  grid-row: 3;
+  grid-row: 2;
   justify-self: center;
   display: flex;
   gap: 12px;
@@ -348,15 +292,6 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   flex: 1;
 }
 
-:global(html.dark .startup-error-header) {
-  color: #f87171;
-}
-
-:global(html.dark .startup-error-header) {
-  border-color: #f8717159;
-  background: linear-gradient(90deg, #f8717124, #f8717108 72%, transparent);
-}
-
 :global(html.dark .startup-error-hint) {
   color: #a3a3a3;
 }
@@ -364,10 +299,6 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
 @keyframes startup-error-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
-}
-
-@keyframes startup-warning-scroll {
-  to { background-position: 42px 0; }
 }
 
 :global(html.dark .startup-label) {
@@ -409,17 +340,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   }
 
   .startup-status-error {
-    grid-row: 3;
-  }
-
-  .startup-error-header {
-    min-height: 64px;
-    padding: 8px 12px;
-    font-size: clamp(24px, 6vw, 28px);
-  }
-
-  .startup-error-symbol {
-    font-size: 28px;
+    grid-row: 2;
   }
 
   .startup-error-title {
@@ -433,7 +354,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   }
 
   .startup-error-recovery {
-    grid-row: 4;
+    grid-row: 3;
     display: grid;
     width: 100%;
   }
@@ -456,12 +377,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   }
 
   .startup-error-info,
-  .startup-error-recovery,
-  .startup-error-header {
-    animation: none;
-  }
-
-  .startup-error-header::before {
+  .startup-error-recovery {
     animation: none;
   }
 

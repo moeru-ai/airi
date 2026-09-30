@@ -82,7 +82,6 @@ render-error:
 startup:
   failed: Startup failed
   failed-resource: Could not load {resource}
-  interrupted: Load interrupted
   recover: Try again. If it fails again, open the details below.
   recover-model: Try again, or continue without a character. You can select another model later.
   details: What happened?

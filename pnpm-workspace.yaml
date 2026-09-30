@@ -115,8 +115,6 @@ catalog:
   '@fontsource/gugi': ^5.3.0
   '@fontsource/kiwi-maru': ^5.3.0
   '@fontsource/m-plus-rounded-1c': ^5.3.0
-  '@fontsource/wdxl-lubrifont-jp-n': ^5.3.0
-  '@fontsource/wdxl-lubrifont-sc': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
   '@grammyjs/files': ^1.2.0
   '@guiiai/logg': ^1.2.12

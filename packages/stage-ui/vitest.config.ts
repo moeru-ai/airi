@@ -6,11 +6,11 @@ import Info from 'unplugin-info/vite'
 import VueRouter from 'vue-router/vite'
 
 import { playwright } from '@vitest/browser-playwright'
-import { mergeConfigs, presetWebFonts } from 'unocss'
+import { mergeConfigs } from 'unocss'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
-import { presetWdxlFonts, sharedUnoConfig } from '../../uno.config'
+import { sharedUnoConfig } from '../../uno.config'
 
 export default defineConfig({
   root: import.meta.dirname,
@@ -26,7 +26,6 @@ export default defineConfig({
     Vue(),
     UnoCSS(mergeConfigs([sharedUnoConfig(), {
       // Browser tests use product styles, not Histoire's hover-preview variants.
-      presets: [presetWebFonts({ fonts: presetWdxlFonts('none') })],
       configFile: false,
       // Vitest loads components after the stylesheet. Scan their source before
       // the initial CSS response instead of relying on Vite's HMR updates.
