@@ -400,6 +400,7 @@ const emit = defineEmits<{
 
   .startup-status-error {
     top: calc(70% - 14px);
+    width: calc(100% - 32px);
   }
 
   .startup-error-info {
@@ -431,8 +432,8 @@ const emit = defineEmits<{
   }
 
   .startup-error-progress-heading {
-    margin-right: 16px;
-    margin-left: 16px;
+    margin-right: 0;
+    margin-left: 0;
   }
 
   .startup-error-recovery {
