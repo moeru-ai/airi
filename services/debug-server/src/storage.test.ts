@@ -79,7 +79,7 @@ function batch(count: number, content = 'progress') {
       }],
     }],
   }))
-  const decoded = decodeOtlp('log', body, 'application/json', receivedUnixNano, { captureContent: true })
+  const decoded = decodeOtlp('log', body, 'application/json', receivedUnixNano)
   return {
     body: decoded.persistedBody,
     records: decoded.records,

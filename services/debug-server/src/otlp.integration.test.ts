@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { context, trace } from '@opentelemetry/api'
+import { context, SpanStatusCode, trace } from '@opentelemetry/api'
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-proto'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto'
 import { resourceFromAttributes } from '@opentelemetry/resources'
@@ -54,7 +54,6 @@ it('runs the CLI, observes logs during a 30-second span, and recovers committed 
         AIRI_DEBUG_PORT: String(port),
         AIRI_DEBUG_TOKEN: 'integration-test-only',
         AIRI_DEBUG_DB_PATH: join(directory, 'events.duckdb'),
-        AIRI_DEBUG_CAPTURE_CONTENT: 'true',
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -87,7 +86,11 @@ it('runs the CLI, observes logs during a 30-second span, and recovers committed 
   try {
     await start()
     const started = performance.now()
-    const span = tracerProvider.getTracer('test-tracer').startSpan('agent.long-running')
+    const span = tracerProvider.getTracer('test-tracer').startSpan('agent.long-running', {
+      attributes: { 'message.content': 'synthetic span content', 'api_key': 'synthetic-key' },
+    })
+    span.addEvent('tool.result', { 'tool.output': 'synthetic tool result' })
+    span.setStatus({ code: SpanStatusCode.ERROR, message: 'synthetic status message' })
     const traceId = span.spanContext().traceId
     const logger = loggerProvider.getLogger('test-logger')
     const latencies: number[] = []
@@ -119,7 +122,13 @@ it('runs the CLI, observes logs during a 30-second span, and recovers committed 
     span.end()
     await tracerProvider.forceFlush()
     const completed = await debugGetTrace({ ...options, path: { traceId } })
-    expect(completed.data?.trace).toMatchObject({ state: 'TRACE_STATE_COMPLETE', spanCount: '1', logCount: '5' })
+    expect(completed.data?.trace).toMatchObject({ state: 'TRACE_STATE_ERROR', spanCount: '1', logCount: '5' })
+    const completedEvents = await debugListEvents({ ...options, query: { traceId } })
+    const persistedSpan = completedEvents.data?.events?.find(event => event.span)
+    expect(JSON.stringify(persistedSpan)).toContain('synthetic span content')
+    expect(JSON.stringify(persistedSpan)).toContain('synthetic-key')
+    expect(JSON.stringify(persistedSpan)).toContain('synthetic tool result')
+    expect(JSON.stringify(persistedSpan)).toContain('synthetic status message')
     const firstPage = await debugListEvents({ ...options, query: { traceId, pageSize: 2 } })
     expect(firstPage.data?.events).toHaveLength(2)
     const secondPage = await debugListEvents({ ...options, query: { traceId, pageSize: 2, afterCursor: firstPage.data?.nextCursor } })

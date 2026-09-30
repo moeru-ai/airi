@@ -96,7 +96,7 @@
     },
     "/api/debug/v1/export": {
       "get": {
-        "summary": "Export persisted records and sanitized batches.",
+        "summary": "Export persisted records and original decompressed batches.",
         "operationId": "debug_export_records",
         "responses": {
           "200": {

@@ -24,7 +24,7 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 export const debugListEvents = <ThrowOnError extends boolean = false>(options?: Options<DebugListEventsData, ThrowOnError>): RequestResult<DebugListEventsResponses, DebugListEventsErrors, ThrowOnError> => (options?.client ?? client).get<DebugListEventsResponses, DebugListEventsErrors, ThrowOnError>({ url: '/api/debug/v1/events', ...options });
 
 /**
- * Export persisted records and sanitized batches.
+ * Export persisted records and original decompressed batches.
  */
 export const debugExportRecords = <ThrowOnError extends boolean = false>(options?: Options<DebugExportRecordsData, ThrowOnError>): RequestResult<DebugExportRecordsResponses, DebugExportRecordsErrors, ThrowOnError> => (options?.client ?? client).get<DebugExportRecordsResponses, DebugExportRecordsErrors, ThrowOnError>({ url: '/api/debug/v1/export', ...options });
 

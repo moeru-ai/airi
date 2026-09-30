@@ -51,7 +51,7 @@ curl -H "Authorization: Bearer $AIRI_DEBUG_TOKEN" \
 | `GET /api/debug/v1/traces` | Summaries with source, session, time, and state filters |
 | `GET /api/debug/v1/traces/:traceId` | One trace summary |
 | `GET /api/debug/v1/events` | Span or log records, including resource, scope, schema URLs, and exact timestamps |
-| `GET /api/debug/v1/export` | Paginated records and sanitized, re-encoded OTLP batches |
+| `GET /api/debug/v1/export` | Paginated records and original decompressed OTLP batches |
 
 Use `nextCursor` for the next page. An empty value means no further page currently exists.
 For tail polling, retain the last event's `cursor` and send it as `afterCursor`.
@@ -92,12 +92,10 @@ Mixed-source or mixed-session summaries have an empty corresponding field. Filte
 
 ## Privacy and limits
 
-Content capture is off by default. Log bodies, status messages, and content-like attributes are removed before persistence.
-For payload inspection, explicitly set `AIRI_DEBUG_CAPTURE_CONTENT=true`.
-For browser spans, also set `VITE_AIRI_DEBUG_CAPTURE_CONTENT=true`.
-Known credential keys and signed URL query parameters are filtered even with content enabled.
-Arbitrary secrets embedded in free text cannot be reliably detected. Use synthetic data when sharing exports.
-Exported batches are sanitized evidence, not byte-identical network captures.
+Local traces retain log bodies, status messages, attributes, and URL parameters without content filtering.
+Producers must avoid recording credentials or other data that must not be logged.
+The receiver does not attempt to detect or redact secrets. Review exports before sharing them.
+Exported batches preserve the received OTLP bytes after decompression; query records use normalized OTLP fields.
 
 | Environment variable | Default |
 | --- | --- |
@@ -108,7 +106,6 @@ Exported batches are sanitized evidence, not byte-identical network captures.
 | `AIRI_DEBUG_MAX_CONCURRENT_INGESTS` | `8` |
 | `AIRI_DEBUG_MAX_STORED_BYTES` | `1073741824` |
 | `AIRI_DEBUG_RETENTION_DAYS` | `7` |
-| `AIRI_DEBUG_CAPTURE_CONTENT` | `false` |
 
 The ingest limit includes requests reading their bodies. Excess requests return HTTP 503 with Retry-After.
 Retention runs at startup and after ingestion. The storage limit counts retained payloads and batch bytes, not DuckDB file allocation.

@@ -37,10 +37,6 @@ interface DecodedBatch {
   records: IngestRecord[]
 }
 
-interface DecodeOptions {
-  captureContent: boolean
-}
-
 const protoRoot = new protobuf.Root()
 const protoDirectory = join(import.meta.dirname, '..', 'proto')
 protoRoot.resolvePath = (_origin, target) => join(protoDirectory, target)
@@ -208,99 +204,6 @@ function normalizeKnownJson(signal: Signal, root: Record<string, unknown>): Reco
   return normalized
 }
 
-const sensitiveAttributePattern = /(?:^|[._-])(?:authorization|cookie|password|passwd|secret|api[._-]?key|access[._-]?token|refresh[._-]?token|bearer)(?:[._-]|$)/i
-const contentAttributePattern = /content|prompt|completion|response|request|message|input|output|text|transcript|raw[._-]?token|parameter/i
-const sensitiveQueryPattern = /credential|signature|secret|token|api.?key|authorization/i
-
-function sanitizeUrl(value: unknown): void {
-  const object = asObject(value)
-  if (typeof object.stringValue === 'string') {
-    try {
-      const url = new URL(object.stringValue)
-      for (const parameter of [...url.searchParams.keys()]) {
-        if (sensitiveQueryPattern.test(parameter))
-          url.searchParams.set(parameter, '[redacted]')
-      }
-      object.stringValue = url.toString()
-    }
-    catch {
-
-    }
-  }
-}
-
-function sanitizeAnyValue(value: unknown, captureContent: boolean): void {
-  const object = asObject(value)
-  sanitizeUrl(object)
-  const kvlist = asObject(object.kvlistValue)
-  if (Array.isArray(kvlist.values))
-    kvlist.values = sanitizeAttributes(kvlist.values, captureContent)
-  for (const child of asArray(asObject(object.arrayValue).values))
-    sanitizeAnyValue(child, captureContent)
-}
-
-function sanitizeAttributes(value: unknown, captureContent: boolean): unknown[] {
-  const sanitized: unknown[] = []
-  for (const entryValue of asArray(value)) {
-    const entry = asObject(entryValue)
-    const key = asString(entry.key)
-    if (sensitiveAttributePattern.test(key) || (!captureContent && contentAttributePattern.test(key)))
-      continue
-    sanitizeAnyValue(entry.value, captureContent)
-    sanitized.push(entry)
-  }
-  return sanitized
-}
-
-function sanitizeRequest(signal: Signal, root: Record<string, unknown>, captureContent: boolean): void {
-  if (signal === 'span') {
-    for (const resourceSpanValue of asArray(root.resourceSpans)) {
-      const resourceSpan = asObject(resourceSpanValue)
-      const resource = asObject(resourceSpan.resource)
-      resource.attributes = sanitizeAttributes(resource.attributes, captureContent)
-      for (const scopeSpanValue of asArray(resourceSpan.scopeSpans)) {
-        const scopeSpan = asObject(scopeSpanValue)
-        const scope = asObject(scopeSpan.scope)
-        scope.attributes = sanitizeAttributes(scope.attributes, captureContent)
-        for (const spanValue of asArray(scopeSpan.spans)) {
-          const span = asObject(spanValue)
-          span.attributes = sanitizeAttributes(span.attributes, captureContent)
-          if (!captureContent && isObject(span.status))
-            span.status.message = ''
-          for (const eventValue of asArray(span.events)) {
-            const event = asObject(eventValue)
-            event.attributes = sanitizeAttributes(event.attributes, captureContent)
-          }
-          for (const linkValue of asArray(span.links)) {
-            const link = asObject(linkValue)
-            link.attributes = sanitizeAttributes(link.attributes, captureContent)
-          }
-        }
-      }
-    }
-    return
-  }
-
-  for (const resourceLogValue of asArray(root.resourceLogs)) {
-    const resourceLog = asObject(resourceLogValue)
-    const resource = asObject(resourceLog.resource)
-    resource.attributes = sanitizeAttributes(resource.attributes, captureContent)
-    for (const scopeLogValue of asArray(resourceLog.scopeLogs)) {
-      const scopeLog = asObject(scopeLogValue)
-      const scope = asObject(scopeLog.scope)
-      scope.attributes = sanitizeAttributes(scope.attributes, captureContent)
-      for (const logValue of asArray(scopeLog.logRecords)) {
-        const log = asObject(logValue)
-        log.attributes = sanitizeAttributes(log.attributes, captureContent)
-        if (captureContent)
-          sanitizeAnyValue(log.body, captureContent)
-        else
-          delete log.body
-      }
-    }
-  }
-}
-
 function bytesToCanonicalJson(value: unknown, key = ''): unknown {
   if (Array.isArray(value))
     return value.map(item => bytesToCanonicalJson(item))
@@ -322,7 +225,7 @@ function bytesToCanonicalJson(value: unknown, key = ''): unknown {
   return canonical
 }
 
-function decodeRequest(signal: Signal, type: Type, body: Uint8Array, contentType: string, options: DecodeOptions): { canonical: Record<string, unknown>, persistedBody: Uint8Array } {
+function decodeRequest(signal: Signal, type: Type, body: Uint8Array, contentType: string): { canonical: Record<string, unknown>, persistedBody: Uint8Array } {
   let message: Message
   if (contentType === 'application/x-protobuf') {
     message = type.decode(body)
@@ -357,12 +260,8 @@ function decodeRequest(signal: Signal, type: Type, body: Uint8Array, contentType
       }
     }
   }
-  sanitizeRequest(signal, object, options.captureContent)
   const canonical = bytesToCanonicalJson(object) as Record<string, unknown>
-  const persistedBody = contentType === 'application/json'
-    ? Buffer.from(JSON.stringify(canonical))
-    : type.encode(type.fromObject(object)).finish()
-  return { canonical, persistedBody }
+  return { canonical, persistedBody: body }
 }
 
 function validateJsonEnums(root: Record<string, unknown>): void {
@@ -519,8 +418,8 @@ function flattenLogs(root: Record<string, unknown>, receivedUnixNano: string): I
   return records
 }
 
-export function decodeOtlp(signal: Signal, body: Uint8Array, contentType: string, receivedUnixNano: string, options: DecodeOptions): DecodedBatch {
-  const decoded = decodeRequest(signal, signal === 'span' ? traceRequestType : logsRequestType, body, contentType, options)
+export function decodeOtlp(signal: Signal, body: Uint8Array, contentType: string, receivedUnixNano: string): DecodedBatch {
+  const decoded = decodeRequest(signal, signal === 'span' ? traceRequestType : logsRequestType, body, contentType)
   return {
     persistedBody: decoded.persistedBody,
     records: signal === 'span' ? flattenTraces(decoded.canonical, receivedUnixNano) : flattenLogs(decoded.canonical, receivedUnixNano),

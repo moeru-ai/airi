@@ -16,7 +16,6 @@ const environmentSchema = pipe(object({
   AIRI_DEBUG_HOST: optional(picklist(['127.0.0.1', '::1', 'localhost'], 'AIRI_DEBUG_HOST must be a loopback host'), '127.0.0.1'),
   AIRI_DEBUG_TOKEN: optional(pipe(string(), minLength(1, 'AIRI_DEBUG_TOKEN must not be empty'))),
   AIRI_DEBUG_ALLOWED_ORIGINS: optional(string(), 'http://localhost:5173,http://127.0.0.1:5173'),
-  AIRI_DEBUG_CAPTURE_CONTENT: optional(picklist(['true', 'false'], 'AIRI_DEBUG_CAPTURE_CONTENT must be true or false'), 'false'),
   AIRI_DEBUG_DB_PATH: optional(string(), '.airi/debug.duckdb'),
   AIRI_DEBUG_MAX_REQUEST_BYTES: positiveInteger(1024 * 1024, 'AIRI_DEBUG_MAX_REQUEST_BYTES'),
   AIRI_DEBUG_MAX_CONCURRENT_INGESTS: positiveInteger(8, 'AIRI_DEBUG_MAX_CONCURRENT_INGESTS'),
@@ -25,7 +24,6 @@ const environmentSchema = pipe(object({
   AIRI_DEBUG_RETENTION_DAYS: positiveInteger(7, 'AIRI_DEBUG_RETENTION_DAYS'),
 }), transform(environment => ({
   allowedOrigins: new Set(environment.AIRI_DEBUG_ALLOWED_ORIGINS.split(',').map(value => value.trim()).filter(Boolean)),
-  captureContent: environment.AIRI_DEBUG_CAPTURE_CONTENT === 'true',
   databasePath: resolve(environment.AIRI_DEBUG_DB_PATH),
   host: environment.AIRI_DEBUG_HOST,
   maxRequestBytes: environment.AIRI_DEBUG_MAX_REQUEST_BYTES,

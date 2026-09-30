@@ -19,7 +19,6 @@ const cleanups: Array<() => Promise<void>> = []
 function config(databasePath: string, overrides: Partial<DebugServerConfig> = {}): DebugServerConfig {
   return {
     allowedOrigins: new Set(['http://localhost:5173']),
-    captureContent: false,
     databasePath,
     host: '127.0.0.1',
     maxRequestBytes: 1024 * 1024,
@@ -117,7 +116,7 @@ describe('debug server OTLP ingestion', () => {
   })
 
   it('accepts gzip JSON logs before spans without losing 64-bit precision', async () => {
-    const { app } = await setup({ captureContent: true })
+    const { app } = await setup()
     const payload = logRequest({
       body: { kvlistValue: { values: [{ key: 'nested', value: { intValue: '9007199254740993' } }] } },
       severityNumber: 9,
@@ -151,7 +150,7 @@ describe('debug server OTLP ingestion', () => {
   })
 
   it('rejects signed AnyValue overflow before protobuf conversion', async () => {
-    const { app } = await setup({ captureContent: true })
+    const { app } = await setup()
     const payload = logRequest({
       attributes: [{ key: 'overflow', value: { intValue: '9223372036854775808' } }],
       severityNumber: 9,
@@ -167,7 +166,7 @@ describe('debug server OTLP ingestion', () => {
     await expect(response.json()).resolves.toMatchObject({ code: 3 })
   })
 
-  it('strips content and credentials before event and batch persistence by default', async () => {
+  it('preserves received content and attributes in events and batches', async () => {
     const { app } = await setup()
     const payload = logRequest({
       attributes: [
@@ -193,22 +192,22 @@ describe('debug server OTLP ingestion', () => {
     const batchBodies = exportBody.batches.map(batch => Buffer.from(batch.body, 'base64').toString('utf8')).join('\n')
     const exported = JSON.stringify(exportBody)
     expect(exported).toContain('safe.count')
-    expect(exported).not.toContain('private content')
-    expect(exported).not.toContain('private body')
-    expect(exported).not.toContain('private credential')
-    expect(batchBodies).not.toContain('private content')
-    expect(batchBodies).not.toContain('private body')
-    expect(batchBodies).not.toContain('private credential')
+    expect(exported).toContain('private content')
+    expect(exported).toContain('private body')
+    expect(exported).toContain('private credential')
+    expect(batchBodies).toContain('private content')
+    expect(batchBodies).toContain('private body')
+    expect(batchBodies).toContain('private credential')
   })
 
-  it('preserves opted-in content while still scrubbing credentials and signed URLs', async () => {
-    const { app } = await setup({ captureContent: true })
+  it('preserves URL parameters and authorization attributes without rewriting', async () => {
+    const { app } = await setup()
     const payload = logRequest({
       attributes: [
         { key: 'safe.url', value: { stringValue: 'https://example.com/file?X-Amz-Signature=secret-signature&part=1' } },
         { key: 'authorization', value: { stringValue: 'Bearer secret-token' } },
       ],
-      body: { stringValue: 'opted-in body' },
+      body: { stringValue: 'received body' },
       severityNumber: 9,
       timeUnixNano: '1790670000123456789',
     })
@@ -222,9 +221,10 @@ describe('debug server OTLP ingestion', () => {
     const exportResponse = await app.request('/api/debug/v1/export', { headers: requestHeaders() })
     const exportBody = await exportResponse.json() as { batches: Array<{ body: string }> }
     const decodedBatch = Buffer.from(exportBody.batches[0]!.body, 'base64').toString('utf8')
-    expect(decodedBatch).toContain('opted-in body')
-    expect(decodedBatch).not.toContain('secret-signature')
-    expect(decodedBatch).not.toContain('secret-token')
+    expect(decodedBatch).toBe(JSON.stringify(payload))
+    expect(decodedBatch).toContain('received body')
+    expect(decodedBatch).toContain('secret-signature')
+    expect(decodedBatch).toContain('secret-token')
   })
 
   it('enforces the decompressed request limit during gunzip', async () => {

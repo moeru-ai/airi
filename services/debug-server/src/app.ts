@@ -326,9 +326,7 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
     const receivedUnixNano = (BigInt(Date.now()) * 1_000_000n).toString()
     let decoded
     try {
-      decoded = decodeOtlp(signal, decodedBody, requestContentType, receivedUnixNano, {
-        captureContent: config.captureContent,
-      })
+      decoded = decodeOtlp(signal, decodedBody, requestContentType, receivedUnixNano)
     }
     catch (error) {
       const message = errorMessageFromUnknown(error, 'OTLP body is invalid')
