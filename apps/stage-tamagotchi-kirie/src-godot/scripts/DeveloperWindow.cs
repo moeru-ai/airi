@@ -129,7 +129,7 @@ public partial class DeveloperWindow : Window
         GrabFocus();
     }
 
-    internal void RequestClose()
+    private void RequestClose()
     {
         _showRequested = false;
         Hide();

@@ -115,13 +115,6 @@ internal sealed class SpotlightHost : IDisposable
         {
             binding.Dispose();
         }
-
-        if (_window is not null
-            && GodotObject.IsInstanceValid(_window)
-            && !_window.IsQueuedForDeletion())
-        {
-            _window.QueueFree();
-        }
     }
 
     private void Open()

@@ -49,12 +49,6 @@ internal sealed class DeveloperToolsService : IDisposable
         }
 
         _disposed = true;
-        foreach (var window in _windows.Values.ToArray())
-        {
-            window.RequestClose();
-        }
-
-        _windows.Clear();
         _http.Dispose();
     }
 

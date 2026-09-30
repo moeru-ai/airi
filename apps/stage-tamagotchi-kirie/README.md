@@ -9,12 +9,36 @@ Do not treat this application as a production desktop package.
 
 ## Documentation
 
-- This README contains setup, development, checks, and troubleshooting commands.
-- [MIGRATION.md](MIGRATION.md) contains the dependency baseline, architecture, scope, all 29 migration items, platform results, and evidence.
+| Document | Purpose |
+| --- | --- |
+| This README | Setup, development, checks, and troubleshooting |
+| [Migration status](MIGRATION.md) | Scope, all 29 capabilities, open failures, deferred work, dependency baseline, and completion requirements |
+| [Host architecture](docs/host-architecture.md) | Runtime ownership, source map, and implementation constraints |
+| [Platform verification](docs/verification.md) | Dated platform results, acceptance evidence, and automation limits |
+| [Ablation review](docs/ablation-review.md) | Simplification experiments, resize cursor checks, and coverage limits |
+
+Windows exit still has a reproduced CEF crash. Later macOS checks do not establish Windows acceptance.
+The [migration status](MIGRATION.md#remaining-acceptance-work) records remaining work.
+
+## Prerequisites
+
+Install [mise](https://mise.jdx.dev/getting-started.html).
+The root [.tool-versions](../../.tool-versions) selects Node.js, pnpm, and .NET.
+The local [mise.toml](mise.toml) selects Godot Mono.
+The [C# project](StageTamagotchiKirie.csproj) requires .NET 10 and Godot.NET.Sdk 4.7.2.
+
+Desktop development also requires the configured Godot CEF artifact.
+Export templates are necessary for Godot exports. The Android SDK is necessary only for Android work.
 
 ## Setup
 
-Install workspace dependencies from the repository root:
+Install the workspace tools from the repository root:
+
+```sh
+mise install
+```
+
+Install workspace dependencies:
 
 ```sh
 mise x -- pnpm install
@@ -28,8 +52,13 @@ cd apps/stage-tamagotchi-kirie
 
 Run all remaining application commands from this directory.
 
-The local `mise.toml` selects the Godot version.
 Commands from another directory can use a different Godot installation or find no installation.
+
+Install the application tools:
+
+```sh
+mise install
+```
 
 Inspect the local environment:
 
@@ -37,9 +66,8 @@ Inspect the local environment:
 mise x -- pnpm kirie doctor
 ```
 
-Desktop development requires Godot, .NET, and Godot CEF.
-Export templates are necessary for Godot exports.
-The Android SDK is necessary only for Android work.
+The doctor also reports Android SDK and export-template failures. These failures alone do not block desktop development.
+The doctor does not inspect .NET.
 
 If Godot CEF is absent or stale, install the configured backend:
 
@@ -47,26 +75,32 @@ If Godot CEF is absent or stale, install the configured backend:
 mise x -- pnpm kirie doctor --fix godot-cef
 ```
 
-Kirie compares the release with the SHA-256 digest in `addons/kirie/godot_cef.json`.
-The configured version alone does not establish the version of an installed native artifact.
+The installer checks the downloaded archive against the SHA-256 digest in [godot_cef.json](addons/kirie/godot_cef.json).
+The doctor checks extension presence and a stored checksum marker. It does not inspect macOS signatures or hash installed native files.
+See the pinned [CEF installer](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/godot-cef.ts)
+and [doctor checks](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/doctor/index.ts).
 
 After a CEF version change, repeat the installation command.
 Before an acceptance run, make sure that the installed artifact matches the configured release.
 On macOS, also make sure that the framework passes strict code-signature verification.
 
+If an upstream artifact fails installation or signature verification, record the exact failure before any dependency workaround.
+
 ## Development
 
-Start the development session:
+Before the first development session, build the C# project.
+Then start the development session:
 
 ```sh
+mise x -- dotnet build
 mise x -- pnpm kirie dev
 ```
 
-The command starts Vite, Godot, and the CEF renderers.
+`kirie dev` starts Vite, Godot, and the CEF renderers.
 The application owns separate native windows for its desktop flows.
 The Spotlight window opens through its global shortcut and has no in-app entry point.
 
-`kirie dev` reuses the last C# build.
+The pinned [desktop dev command](https://github.com/moeru-ai/godot-kirie/blob/v0.6.5/packages/cli/src/dev.ts) reuses the last C# build.
 A new session can therefore run an older assembly after a C# source change.
 
 After a change under `src-godot/`, build the C# project before the next development session:
@@ -108,7 +142,8 @@ The migration document records the latest platform results and the scope of each
 | Godot is not found | The command did not load the application `mise.toml`. | Run the command from `apps/stage-tamagotchi-kirie`. |
 | `kirie doctor` reports missing export templates | The Godot installation cannot export the application. | Install templates that match Godot before an export. |
 | `kirie doctor` reports a missing Android SDK | Android development is unavailable. | If Android work is required, configure the Android SDK. |
-| The CEF artifact is stale or the macOS framework lacks a valid signature | The installed artifact differs from the configured release or lacks a valid signature. | Repeat the Godot CEF installation command. |
+| Godot CEF is missing or its checksum marker is stale | The doctor cannot accept the configured installation. | Run `mise x -- pnpm kirie doctor --fix godot-cef`. |
+| The macOS CEF framework fails signature verification | The current native artifact lacks a valid signature. If its checksum marker matches, the installer can skip it. | Record the exact signature failure and report the dependency failure. |
 | A C# change has no effect | The session uses the previous assembly. | Run `mise x -- dotnet build` before the next session. |
 | Godot CEF reports `Accelerated OSR unavailable` | The active renderer and graphics backend do not provide accelerated OSR. | Make sure that desktop uses Forward+ with Metal, Direct3D 12, or Vulkan. |
 | NuGet restore reports a missing pinned version | Package feed metadata can differ from published artifacts. | Compare the failure with the dependency evidence in [MIGRATION.md](MIGRATION.md). |

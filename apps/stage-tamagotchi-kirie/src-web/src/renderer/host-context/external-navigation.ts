@@ -12,6 +12,7 @@ function reportOpenFailure(error: unknown) {
   console.error('[host-context] Failed to open the external URL.', error)
 }
 
+/** Routes external HTTP(S) navigation through Kirie until the returned cleanup restores browser navigation. */
 export function installExternalNavigation(): () => void {
   const host = initializeHostContext()
   if (host.runtime !== 'kirie')
@@ -19,15 +20,6 @@ export function installExternalNavigation(): () => void {
 
   const platform = host.platform!
   const originalOpen = window.open
-
-  function openExternalUrl(rawUrl: string | URL): boolean {
-    const url = externalHttpUrl(rawUrl)
-    if (!url)
-      return false
-
-    platform.openExternalUrl(url).catch(reportOpenFailure)
-    return true
-  }
 
   function handleLinkClick(event: MouseEvent) {
     if (event.defaultPrevented)
@@ -55,8 +47,10 @@ export function installExternalNavigation(): () => void {
       const externalUrl = externalHttpUrl(url)
       const opensNewWindow = target?.toLowerCase() === '_blank'
       const leavesRendererOrigin = externalUrl && new URL(externalUrl).origin !== window.location.origin
-      if ((opensNewWindow || leavesRendererOrigin) && openExternalUrl(url))
+      if (externalUrl && (opensNewWindow || leavesRendererOrigin)) {
+        platform.openExternalUrl(externalUrl).catch(reportOpenFailure)
         return null
+      }
     }
 
     return originalOpen.call(window, url, target, features)

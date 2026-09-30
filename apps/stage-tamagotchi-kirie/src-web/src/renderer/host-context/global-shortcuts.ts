@@ -115,9 +115,7 @@ function createElectronGlobalShortcuts(): HostGlobalShortcuts {
     async unregister(id) {
       await unregister({ id })
     },
-    async unregisterAll() {
-      await unregisterAll()
-    },
+    unregisterAll,
   }
 }
 

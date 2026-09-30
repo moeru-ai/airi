@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
@@ -78,7 +79,8 @@ internal sealed class AuthService : IDisposable
                 ?? throw new InvalidOperationException("The renderer must configure authentication before sign-in.");
             var state = GenerateSecret();
             var codeVerifier = GenerateSecret();
-            var codeChallenge = Base64Url(SHA256.HashData(Encoding.ASCII.GetBytes(codeVerifier)));
+            var codeChallenge = Base64Url.EncodeToString(
+                SHA256.HashData(Encoding.ASCII.GetBytes(codeVerifier)));
             var loopback = LoopbackAuthServer.Start(state);
             var attempt = new LoginAttempt(
                 generation,
@@ -232,15 +234,7 @@ internal sealed class AuthService : IDisposable
 
     private static string GenerateSecret()
     {
-        return Base64Url(CryptoRandom.GetBytes(32));
-    }
-
-    private static string Base64Url(byte[] value)
-    {
-        return Convert.ToBase64String(value)
-            .TrimEnd('=')
-            .Replace('+', '-')
-            .Replace('/', '_');
+        return Base64Url.EncodeToString(CryptoRandom.GetBytes(32));
     }
 
     private static string ReadRequiredString(JsonElement value, string propertyName)

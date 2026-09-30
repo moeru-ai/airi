@@ -229,7 +229,7 @@ export function useHostMouseAroundWindowBorder(
 export function useHostPointerPassthrough() {
   const host = initializeHostContext()
   if (host.runtime === 'kirie')
-    return (enabled: boolean) => host.platform!.hostWindow.setPointerPassthrough(enabled)
+    return host.platform!.hostWindow.setPointerPassthrough
 
   const setIgnoreMouseEvents = defineInvoke(host.context, electron.window.setIgnoreMouseEvents)
   return (enabled: boolean) => setIgnoreMouseEvents([enabled, { forward: true }])

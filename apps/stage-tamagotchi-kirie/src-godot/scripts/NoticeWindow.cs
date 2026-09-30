@@ -108,7 +108,7 @@ public partial class NoticeWindow : Window
         return _completion.Task;
     }
 
-    internal void CloseWithoutAction()
+    private void CloseWithoutAction()
     {
         Complete(false);
     }

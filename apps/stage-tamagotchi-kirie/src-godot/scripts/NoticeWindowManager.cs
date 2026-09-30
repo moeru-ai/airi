@@ -45,7 +45,6 @@ internal sealed class NoticeWindowManager : IDisposable
 
         _disposed = true;
         _openRegistration.Dispose();
-        _window?.CloseWithoutAction();
     }
 
     private Task<bool> Open(NoticeOpenPayload payload, CancellationToken cancellationToken)
