@@ -5,6 +5,7 @@ import { nanoid } from 'nanoid'
 import { storage } from '../storage'
 
 const referencePrefix = 'airi-chat-audio:'
+const removalIndexKey = 'local:chat/audio-removal-index'
 let indexQueue = Promise.resolve()
 
 function indexKey(sessionId: string) {
@@ -85,7 +86,25 @@ export const chatAudioRepo = {
       const references = await storage.getItemRaw<string[]>(indexKey(sessionId)) ?? []
       await Promise.all(references.map(reference => storage.removeItem(`local:chat/audio/${reference.slice(referencePrefix.length)}`)))
       await storage.removeItem(indexKey(sessionId))
+      const pending = await storage.getItemRaw<string[]>(removalIndexKey) ?? []
+      const remaining = pending.filter(id => id !== sessionId)
+      if (remaining.length)
+        await storage.setItemRaw(removalIndexKey, remaining)
+      else
+        await storage.removeItem(removalIndexKey)
     })
+  },
+
+  async markSessionRemoval(sessionId: string) {
+    await enqueueIndex(async () => {
+      const pending = await storage.getItemRaw<string[]>(removalIndexKey) ?? []
+      if (!pending.includes(sessionId))
+        await storage.setItemRaw(removalIndexKey, [...pending, sessionId])
+    })
+  },
+
+  async pendingSessionRemovals() {
+    return await storage.getItemRaw<string[]>(removalIndexKey) ?? []
   },
 
   async retainSession(sessionId: string, retained: Set<string>) {

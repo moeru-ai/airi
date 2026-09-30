@@ -308,6 +308,22 @@ describe('manual voice recording lifecycle', () => {
     expect(voice.phase.value).toBe('idle')
   })
 
+  it('ends a released recording while microphone permission is pending', async () => {
+    const stream = microphone()
+    const permission = Promise.withResolvers<MediaStream>()
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockReturnValue(permission.promise)
+    const { voice, complete } = mountVoice()
+    const starting = voice.start('audio')
+
+    await voice.finish()
+    expect(voice.phase.value).toBe('idle')
+    expect(complete).not.toHaveBeenCalled()
+
+    permission.resolve(stream)
+    await starting
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+  })
+
   it('cancels while audio context resume remains pending', async () => {
     const stream = microphone()
     const getUserMedia = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
@@ -391,6 +407,27 @@ describe('manual voice recording lifecycle', () => {
     expect(vadStartup.disposed).toHaveBeenCalledOnce()
     expect(complete).not.toHaveBeenCalled()
     expect(errors).not.toHaveBeenCalled()
+  })
+
+  it('ends a released recording while a streaming provider is starting', async () => {
+    const stream = microphone()
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream)
+    const { voice, complete, screen } = mountVoice()
+    const hearing = useHearingStore()
+    hearing.activeTranscriptionProvider = 'pending-provider-test'
+    hearing.activeTranscriptionModel = 'test-model'
+    const providers = useProviderStore()
+    vi.spyOn(providers, 'getTranscriptionFeatures').mockReturnValue({ supportsGenerate: false, supportsStreamOutput: false, supportsStreamInput: true })
+    const createProvider = vi.spyOn(providers, 'getProviderInstance').mockImplementation(async () => await new Promise<never>(() => {}))
+    vadStartup.speechStart = true
+
+    await screen.getByRole('button', { name: 'Record' }).click()
+    await expect.poll(() => createProvider.mock.calls.length).toBe(1)
+    await voice.finish()
+
+    expect(voice.phase.value).toBe('idle')
+    expect(stream.getTracks()[0].readyState).toBe('ended')
+    expect(complete).not.toHaveBeenCalled()
   })
 
   it('discards a recording when its owning chat session changes', async () => {

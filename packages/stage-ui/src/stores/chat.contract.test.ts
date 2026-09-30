@@ -510,6 +510,24 @@ describe('chat store contract', () => {
     expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: 'stage.voice.configure-description' })
   })
 
+  // https://github.com/moeru-ai/airi/pull/2546#discussion_r4138591537
+  // ROOT CAUSE:
+  // The empty transcription path used an English fallback in chat history.
+  // It now uses the existing translated voice error.
+  it('stores the translated error when transcription returns no text', async () => {
+    transcriptionMocks.configured = true
+    transcriptionMocks.transcribe.mockResolvedValue('')
+
+    await expect(useChatStore().send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'YXVkaW8=' }],
+    })).rejects.toThrow('stage.voice.empty-transcription')
+
+    expect(sessionMessages['session-1'].at(-1)).toMatchObject({ role: 'error', content: 'stage.voice.empty-transcription' })
+    expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
   it('captures audio capability with the selected model before loading the session', async () => {
     audioCapability.enabled = true
     loadSessionMock.mockImplementationOnce(async () => {

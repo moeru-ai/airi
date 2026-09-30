@@ -10,7 +10,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 
 import { chatAudioReferences, chatAudioRepo, mapChatAudio } from '../../database/repos/chat-audio.repo'
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
@@ -281,7 +281,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(snapshot))
   }
 
-  async function persistSession(sessionId: string) {
+  async function persistSession(sessionId: string, onRecordSaved?: () => void) {
     await enqueuePersist(async () => {
       const meta = sessionMetas.value[sessionId]
       if (!meta)
@@ -305,6 +305,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       }
 
       await chatSessionsRepo.saveSession(sessionId, record)
+      onRecordSaved?.()
 
       if (index.value) {
         const snapshot = cloneDeep(index.value)
@@ -317,7 +318,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     void persistSession(sessionId)
   }
 
-  function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
+  function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean, onRecordSaved?: () => void }) {
     const previousReferences = chatAudioReferences(sessionMessages.value[sessionId] ?? [])
     const nextReferences = chatAudioReferences(next)
     sessionMessages.value[sessionId] = next
@@ -325,7 +326,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (options?.persist === false)
       return Promise.resolve()
 
-    const persisted = persistSession(sessionId).then(async () => {
+    const persisted = persistSession(sessionId, options?.onRecordSaved).then(async () => {
       const retainedReferences = chatAudioReferences(sessionMessages.value[sessionId] ?? [])
       for (const reference of previousReferences) {
         if (!nextReferences.has(reference) && !retainedReferences.has(reference))
@@ -342,10 +343,25 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
   function appendSessionMessage(sessionId: string, message: ChatHistoryItem) {
     ensureSession(sessionId)
-    replaceSessionMessages(sessionId, [
+    let recordSaved = false
+    const persisted = replaceSessionMessages(sessionId, [
       ...(sessionMessages.value[sessionId] ?? []),
       message,
-    ])
+    ], { onRecordSaved: () => recordSaved = true })
+    const appended = persisted.catch((error) => {
+      // The saved record owns the audio even if the later index write fails.
+      if (recordSaved)
+        return
+      const current = sessionMessages.value[sessionId]
+      if (current) {
+        sessionMessages.value[sessionId] = current.filter(candidate =>
+          message.id ? candidate.id !== message.id : toRaw(candidate) !== message)
+      }
+      throw error
+    })
+    // Some callers append without waiting. The persistence queue already reports failures.
+    void appended.catch(() => undefined)
+    return appended
   }
 
   /** Removes one message by stable id or by its current history index. */
@@ -575,6 +591,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const cloudChatId = meta.cloudChatId
     const currentUserId = getCurrentUserId()
     const isCloudUser = currentUserId !== 'local'
+    await chatAudioRepo.markSessionRemoval(sessionId)
 
     // ROOT CAUSE:
     //
@@ -1326,6 +1343,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       else
         selectWindowSessionFromIndex()
 
+      for (const removedSessionId of await chatAudioRepo.pendingSessionRemovals()) {
+        try {
+          if (!await chatSessionsRepo.getSession(removedSessionId))
+            await chatAudioRepo.removeSession(removedSessionId)
+        }
+        catch (error) {
+          console.warn('[chat-session] Failed to retry audio cleanup for', removedSessionId, errorMessageFrom(error))
+        }
+      }
+
       ready.value = true
     })()
 
@@ -1448,6 +1475,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     }
 
     for (const sessionId of sessionIds) {
+      await chatAudioRepo.markSessionRemoval(sessionId)
       await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
       await chatAudioRepo.removeSession(sessionId)
     }
@@ -1500,8 +1528,47 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const sessionId = nanoid()
-    const nextMessages = await mapChatAudio(parentMessages.slice(0, forkIndex), async data => chatAudioRepo.save(sessionId, await chatAudioRepo.load(data)))
-    return await createSession(characterId, { setActive: false, messages: nextMessages, sessionId })
+    const copies: Promise<string>[] = []
+    try {
+      const nextMessages = await mapChatAudio(parentMessages.slice(0, forkIndex), (data) => {
+        const copy = chatAudioRepo.load(data).then(audio => chatAudioRepo.save(sessionId, audio))
+        copies.push(copy)
+        return copy
+      })
+      return await createSession(characterId, { setActive: false, messages: nextMessages, sessionId })
+    }
+    catch (error) {
+      await Promise.allSettled(copies)
+      delete sessionMetas.value[sessionId]
+      delete sessionMessages.value[sessionId]
+      delete sessionGenerations.value[sessionId]
+      loadedSessions.delete(sessionId)
+      staleSessions.delete(sessionId)
+      cloudHydratedSessions.delete(sessionId)
+      loadingSessions.delete(sessionId)
+      if (index.value?.characters[characterId])
+        delete index.value.characters[characterId].sessions[sessionId]
+      try {
+        await chatAudioRepo.markSessionRemoval(sessionId)
+      }
+      catch (cleanupError) {
+        console.warn('[chat-session] Failed to mark fork audio for cleanup:', sessionId, errorMessageFrom(cleanupError))
+      }
+      try {
+        await enqueuePersist(() => chatSessionsRepo.deleteSession(sessionId))
+        await chatAudioRepo.removeSession(sessionId)
+      }
+      catch (cleanupError) {
+        console.warn('[chat-session] Failed to roll back fork audio:', sessionId, errorMessageFrom(cleanupError))
+      }
+      try {
+        await persistIndex()
+      }
+      catch (cleanupError) {
+        console.warn('[chat-session] Failed to remove fork from the index:', sessionId, errorMessageFrom(cleanupError))
+      }
+      throw error
+    }
   }
 
   async function exportSessions(): Promise<ChatSessionsExport> {
@@ -1558,14 +1625,32 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await enqueuePersist(() => chatSessionsRepo.saveIndex(cloneDeep(payload.index)))
 
     for (const [sessionId, record] of Object.entries(payload.sessions)) {
-      const messages = await mapChatAudio(record.messages, data => chatAudioRepo.save(sessionId, data))
-      sessionMetas.value[sessionId] = cloneDeep(record.meta)
-      sessionMessages.value[sessionId] = cloneDeep(messages)
-      ensureGeneration(sessionId)
-      await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
-        meta: cloneDeep(record.meta),
-        messages: cloneDeep(messages),
-      }))
+      const copies: Promise<string>[] = []
+      try {
+        const messages = await mapChatAudio(record.messages, (data) => {
+          const copy = chatAudioRepo.save(sessionId, data)
+          copies.push(copy)
+          return copy
+        })
+        await enqueuePersist(() => chatSessionsRepo.saveSession(sessionId, {
+          meta: cloneDeep(record.meta),
+          messages: cloneDeep(messages),
+        }))
+        sessionMetas.value[sessionId] = cloneDeep(record.meta)
+        sessionMessages.value[sessionId] = cloneDeep(messages)
+        ensureGeneration(sessionId)
+      }
+      catch (error) {
+        const completed = await Promise.allSettled(copies)
+        const cleanup = await Promise.allSettled(completed.flatMap(result => result.status === 'fulfilled'
+          ? [chatAudioRepo.remove(sessionId, result.value)]
+          : []))
+        for (const result of cleanup) {
+          if (result.status === 'rejected')
+            console.warn('[chat-session] Failed to remove audio from an incomplete import:', sessionId, errorMessageFrom(result.reason))
+        }
+        throw error
+      }
     }
 
     for (const sessionId of new Set([...replacedSessionIds, ...Object.keys(payload.sessions)]))

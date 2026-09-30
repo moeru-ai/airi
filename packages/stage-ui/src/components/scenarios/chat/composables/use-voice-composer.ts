@@ -185,6 +185,12 @@ export function useVoiceComposer(options: VoiceComposerOptions) {
   async function finish() {
     if (phase.value === 'idle' || finishing)
       return
+    if (phase.value === 'starting') {
+      await cancel()
+      return
+    }
+    if (streamingStartupPending)
+      startupAbortController?.abort()
     clearTimeout(recordingDeadline)
     recordingDeadline = undefined
     const ticket = generation
