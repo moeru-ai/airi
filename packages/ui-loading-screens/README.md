@@ -12,6 +12,7 @@ Import `StartupScreen` from `@proj-airi/ui-loading-screens/startup-screen`. Give
 
 The `splash` phase shows the logo. The `loading` phase shows progress near the lower edge.
 The `error` phase shows the error title, guidance, progress bar, and recovery actions.
+Desktop places the actions below the error text and keeps progress at the bottom.
 Mobile hides the logo and places progress just above the bottom actions. Error progress has no percentage label.
 The small details button opens a desktop tooltip or a mobile bottom drawer. The `done` phase removes the screen.
 

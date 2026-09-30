@@ -124,7 +124,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
 
 .startup-screen-error {
   display: grid;
-  grid-template-rows: minmax(min-content, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto minmax(0, 1fr) auto;
   gap: 16px;
   padding: max(env(safe-area-inset-top), 16px) 16px max(env(safe-area-inset-bottom), 16px);
   overflow-y: auto;
@@ -206,7 +206,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   position: relative;
   top: auto;
   left: auto;
-  grid-row: 3;
+  grid-row: 5;
   align-items: stretch;
   width: 100%;
   height: 16px;
@@ -215,7 +215,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
 }
 
 .startup-error-info {
-  grid-row: 1;
+  grid-row: 2;
   align-self: center;
   justify-self: center;
   width: min(680px, 100%);
@@ -279,7 +279,7 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
 }
 
 .startup-error-recovery {
-  grid-row: 2;
+  grid-row: 3;
   justify-self: center;
   display: flex;
   gap: 12px;
@@ -336,7 +336,12 @@ watch(() => props.phase, async (phase, previous, onCleanup) => {
   }
 
   .startup-screen-error {
+    grid-template-rows: minmax(min-content, 1fr) auto auto;
     gap: 12px;
+  }
+
+  .startup-error-info {
+    grid-row: 1;
   }
 
   .startup-status-error {
