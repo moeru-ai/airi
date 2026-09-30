@@ -180,7 +180,7 @@ const emit = defineEmits<{
 }
 
 .startup-status-error {
-  top: calc(100% - 22px);
+  top: calc(100% - 38px);
   box-sizing: border-box;
   align-items: stretch;
   justify-content: flex-end;

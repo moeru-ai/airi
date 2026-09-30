@@ -96,7 +96,7 @@ it('keeps the startup screen and retry action visible after a resource fails', a
     const recoveryRect = document.querySelector('.startup-error-recovery')!.getBoundingClientRect()
     await expect.poll(() => {
       const rect = document.querySelector('.startup-track')!.getBoundingClientRect()
-      return Math.abs(rect.bottom - window.innerHeight) + Math.abs(rect.left - 16) + Math.abs(rect.width - window.innerWidth + 32)
+      return Math.abs(rect.bottom - window.innerHeight + 16) + Math.abs(rect.left - 16) + Math.abs(rect.width - window.innerWidth + 32)
     }).toBeLessThanOrEqual(1)
     const progressRect = document.querySelector('.startup-track')!.getBoundingClientRect()
     const actions = document.querySelectorAll('.startup-error-action')
@@ -193,7 +193,7 @@ it('offers Retry without a continue action when a required resource fails', asyn
     expect(document.querySelector('.startup-error-recovery')?.textContent).not.toContain('Continue Anyway')
     await expect.poll(() => {
       return Math.round(document.querySelector('.startup-track')!.getBoundingClientRect().bottom)
-    }).toBe(window.innerHeight)
+    }).toBe(window.innerHeight - 16)
     const progressRect = document.querySelector('.startup-track')!.getBoundingClientRect()
     expect(progressRect.left).toBe(16)
     expect(progressRect.width).toBe(window.innerWidth - 32)
