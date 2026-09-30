@@ -984,6 +984,7 @@ pages:
                   description: API 密钥用于授权此服务来源的请求
                   placeholder: sk-……
                 base-url:
+                  label: 基础 URL
                   description: >-
                     用于连接远程服务的 baseUrl。通常看起来像是 http://localhost:11434/v1 或 https://example.com/v1。
                   placeholder: 基础 Url……
