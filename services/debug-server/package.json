@@ -8,15 +8,19 @@
     "start": "tsx ./src/bin.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@duckdb/node-api": "catalog:",
+    "@guiiai/logg": "catalog:",
     "@hono/node-server": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
+    "drizzle-orm": "catalog:",
     "hono": "catalog:",
     "lossless-json": "catalog:",
-    "protobufjs": "catalog:"
+    "protobufjs": "catalog:",
+    "valibot": "catalog:"
   },
   "devDependencies": {
     "@opentelemetry/api": "catalog:",
@@ -26,6 +30,7 @@
     "@opentelemetry/sdk-logs": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@types/node": "catalog:",
+    "drizzle-kit": "catalog:",
     "tsx": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:vitest"

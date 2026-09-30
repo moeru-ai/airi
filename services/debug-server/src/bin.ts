@@ -3,13 +3,16 @@ import process from 'node:process'
 import { chmod, mkdir } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
+import { initLogger, useLogg } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
-import { errorMessageFromUnknown } from '@proj-airi/stage-shared/error-message'
 
 import { createApp } from './app'
 import { loadConfig } from './config'
 import { closeHttpServer } from './server'
 import { DebugStorage } from './storage'
+
+initLogger()
+const log = useLogg('debug-server').useGlobalConfig()
 
 async function main(): Promise<void> {
   const config = loadConfig()
@@ -23,17 +26,16 @@ async function main(): Promise<void> {
   await chmod(config.databasePath, 0o600)
   const server = serve({ fetch: app.fetch, hostname: config.host, port: config.port })
 
-  console.info(`[debug-server] Listening on http://${config.host}:${config.port}`)
-  console.info(`[debug-server] Database: ${config.databasePath}`)
+  log.withFields({ host: config.host, port: config.port, databasePath: config.databasePath }).log('Listening for local traces')
   if (config.tokenGenerated)
-    console.info(`[debug-server] Generated Bearer token: ${config.token}`)
+    process.stderr.write(`[debug-server] Generated Bearer token: ${config.token}\n`)
 
   let stopping = false
   async function stop(signal: string): Promise<void> {
     if (stopping)
       return
     stopping = true
-    console.info(`[debug-server] ${signal} received. Closing the server.`)
+    log.withField('signal', signal).log('Closing the server')
     await closeHttpServer(server)
     await storage.close()
   }
@@ -43,6 +45,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error(`[debug-server] Startup failed: ${errorMessageFromUnknown(error)}`)
+  log.withError(error).error('Startup failed')
   process.exitCode = 1
 })

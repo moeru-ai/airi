@@ -3,9 +3,14 @@ import type { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api'
 import type { IngestRecord, Signal } from './protocol'
 
 import { createHash } from 'node:crypto'
+import { fileURLToPath } from 'node:url'
 
 import { blobValue, DuckDBInstance as NativeDuckDBInstance } from '@duckdb/node-api'
+import { useLogg } from '@guiiai/logg'
 import { errorMessageFromUnknown } from '@proj-airi/stage-shared/error-message'
+import { readMigrationFiles } from 'drizzle-orm/migrator'
+
+const log = useLogg('debug-server:storage').useGlobalConfig()
 
 export interface StorageOptions {
   path: string
@@ -146,94 +151,45 @@ export class DebugStorage {
     const connection = await instance.connect()
     const reader = await instance.connect()
     const storage = new DebugStorage(instance, connection, reader, options)
-    await storage.initialize()
-    await storage.pruneInternal()
-    return storage
+    try {
+      await storage.initialize()
+      await storage.pruneInternal()
+      return storage
+    }
+    catch (error) {
+      await storage.close()
+      throw error
+    }
   }
 
   private async initialize(): Promise<void> {
+    const migrations = readMigrationFiles({ migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) })
+    const existingTables = (await this.connection.runAndReadAll('SELECT table_name FROM information_schema.tables WHERE table_schema = \'main\'')).getRowObjectsJS()
+    if (existingTables.some(row => row.table_name === 'events') && !existingTables.some(row => row.table_name === '__drizzle_migrations'))
+      throw new Error('This debug database predates migrations. Keep the original file and set AIRI_DEBUG_DB_PATH to a new file.')
+    await this.connection.run('CREATE TABLE IF NOT EXISTS __drizzle_migrations (hash VARCHAR PRIMARY KEY, created_at BIGINT NOT NULL)')
+    const applied = (await this.connection.runAndReadAll('SELECT hash FROM __drizzle_migrations ORDER BY created_at')).getRowObjectsJS()
+    for (const [index, row] of applied.entries()) {
+      if (row.hash !== migrations[index]?.hash)
+        throw new Error('Debug database migration history differs from the migration files')
+    }
+    for (const migration of migrations.slice(applied.length)) {
+      await this.connection.run('BEGIN TRANSACTION')
+      try {
+        for (const statement of migration.sql)
+          await this.connection.run(statement)
+        await this.connection.run('INSERT INTO __drizzle_migrations VALUES (?, ?)', [migration.hash, BigInt(migration.folderMillis)])
+        await this.connection.run('COMMIT')
+      }
+      catch (error) {
+        await this.connection.run('ROLLBACK')
+        throw error
+      }
+    }
     await this.connection.run(`
-      CREATE SEQUENCE IF NOT EXISTS debug_batch_cursor START 1;
-      CREATE SEQUENCE IF NOT EXISTS debug_event_cursor START 1;
-      CREATE SEQUENCE IF NOT EXISTS debug_source_cursor START 1;
-      CREATE SEQUENCE IF NOT EXISTS debug_trace_cursor START 1;
-
-      CREATE TABLE IF NOT EXISTS metadata (
-        key VARCHAR PRIMARY KEY,
-        value VARCHAR NOT NULL
-      );
       INSERT INTO metadata VALUES ('events_pruned_through', '0') ON CONFLICT DO NOTHING;
       INSERT INTO metadata VALUES ('sources_pruned_through', '0') ON CONFLICT DO NOTHING;
       INSERT INTO metadata VALUES ('traces_pruned_through', '0') ON CONFLICT DO NOTHING;
-
-      CREATE TABLE IF NOT EXISTS ingest_batches (
-        cursor BIGINT PRIMARY KEY DEFAULT nextval('debug_batch_cursor'),
-        signal VARCHAR NOT NULL,
-        content_type VARCHAR NOT NULL,
-        content_encoding VARCHAR NOT NULL,
-        body BLOB NOT NULL,
-        received_unix_nano HUGEINT NOT NULL
-      );
-
-      CREATE TABLE IF NOT EXISTS events (
-        cursor BIGINT PRIMARY KEY DEFAULT nextval('debug_event_cursor'),
-        batch_cursor BIGINT NOT NULL,
-        kind VARCHAR NOT NULL,
-        trace_id VARCHAR NOT NULL,
-        span_id VARCHAR NOT NULL,
-        parent_span_id VARCHAR NOT NULL,
-        event_id VARCHAR NOT NULL,
-        source_id VARCHAR NOT NULL,
-        service_name VARCHAR NOT NULL,
-        session_id VARCHAR NOT NULL,
-        name VARCHAR NOT NULL,
-        time_unix_nano HUGEINT NOT NULL,
-        received_unix_nano HUGEINT NOT NULL,
-        span_end_time_unix_nano HUGEINT NOT NULL,
-        span_status_code INTEGER NOT NULL,
-        severity_number INTEGER NOT NULL,
-        severity_text VARCHAR NOT NULL,
-        resource_json VARCHAR NOT NULL,
-        resource_schema_url VARCHAR NOT NULL,
-        scope_json VARCHAR NOT NULL,
-        scope_schema_url VARCHAR NOT NULL,
-        raw_json VARCHAR NOT NULL,
-        payload_hash VARCHAR NOT NULL,
-        unique_key VARCHAR
-      );
-
-      CREATE UNIQUE INDEX IF NOT EXISTS events_unique_key ON events(unique_key);
-      CREATE INDEX IF NOT EXISTS events_trace_cursor ON events(trace_id, cursor);
-      CREATE INDEX IF NOT EXISTS events_span_cursor ON events(span_id, cursor);
-      CREATE INDEX IF NOT EXISTS events_source_cursor ON events(source_id, cursor);
-
-      CREATE TABLE IF NOT EXISTS sources (
-        cursor BIGINT PRIMARY KEY DEFAULT nextval('debug_source_cursor'),
-        source_id VARCHAR NOT NULL,
-        service_name VARCHAR NOT NULL,
-        first_seen_unix_nano HUGEINT NOT NULL,
-        last_seen_unix_nano HUGEINT NOT NULL,
-        event_count BIGINT NOT NULL,
-        saw_spans BOOLEAN NOT NULL,
-        saw_logs BOOLEAN NOT NULL,
-        UNIQUE(source_id, service_name)
-      );
-
-      CREATE TABLE IF NOT EXISTS traces (
-        cursor BIGINT PRIMARY KEY DEFAULT nextval('debug_trace_cursor'),
-        trace_id VARCHAR NOT NULL UNIQUE,
-        source_id VARCHAR NOT NULL,
-        session_id VARCHAR NOT NULL,
-        first_seen_unix_nano HUGEINT NOT NULL,
-        last_seen_unix_nano HUGEINT NOT NULL,
-        state INTEGER NOT NULL,
-        span_count BIGINT NOT NULL,
-        log_count BIGINT NOT NULL,
-        last_event_cursor BIGINT NOT NULL
-      );
-
-      ALTER TABLE events ADD COLUMN IF NOT EXISTS resource_schema_url VARCHAR DEFAULT '';
-      ALTER TABLE events ADD COLUMN IF NOT EXISTS scope_schema_url VARCHAR DEFAULT '';
     `)
   }
 
@@ -388,7 +344,7 @@ export class DebugStorage {
         }
         catch (error) {
           this.maintenanceError = errorMessageFromUnknown(error)
-          console.error('[debug-server] Retention maintenance failed after a committed ingest', error)
+          log.withError(error).error('Retention maintenance failed after a committed ingest')
         }
         return { conflicts, inserted }
       }

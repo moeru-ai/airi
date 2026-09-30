@@ -6020,12 +6020,18 @@ importers:
       '@duckdb/node-api':
         specifier: 'catalog:'
         version: 1.5.5-r.5
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.12
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.1(hono@4.13.3)
       '@proj-airi/stage-shared':
         specifier: workspace:^
         version: link:../../packages/stage-shared
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
       hono:
         specifier: 4.13.3
         version: 4.13.3
@@ -6035,6 +6041,9 @@ importers:
       protobufjs:
         specifier: 'catalog:'
         version: 7.6.5
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
     devDependencies:
       '@opentelemetry/api':
         specifier: 'catalog:'
@@ -6057,6 +6066,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.2.0
+      drizzle-kit:
+        specifier: 'catalog:'
+        version: 0.31.10
       tsx:
         specifier: 'catalog:'
         version: 4.23.12

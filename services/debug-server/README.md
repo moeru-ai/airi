@@ -138,7 +138,24 @@ Its local visibility target is p95 below 500 ms across those five samples. This 
 ## Storage choice and boundaries
 
 This service uses `@duckdb/node-api` with parameterized SQL and a local database file.
-The existing AIRI Drizzle adapter targets DuckDB WASM. No new ORM driver or protocol workspace is added.
+Drizzle owns the table schema in `src/schema.ts`. Drizzle Kit generates the table migrations in `drizzle/`.
+Run `pnpm -F @proj-airi/debug-server db:generate` after a schema change. Commit the SQL, snapshot, and journal together.
+The PostgreSQL dialect supplies the schema builder, as in AIRI's WASM adapter. This is not a PostgreSQL database.
+DuckDB-specific types use `customType`; indexes use ART. A custom migration creates DuckDB sequences.
+Startup applies pending migrations transactionally through the native connection and checks recorded hashes.
+Run the service tests against DuckDB after generation. Do not assume all PostgreSQL DDL works in DuckDB.
+
+The existing Drizzle/WASM adapter **can** persist data in Node. It is not browser-only.
+A local probe of version 0.6.0, Drizzle 0.45.2, and web-worker 1.5.0 passed file creation, transaction commit, and connection reopen.
+The probe used `storage: { type: 'node-fs', path, accessMode: DuckDBAccessMode.READ_WRITE }`.
+No comparative latency or memory benchmark was run.
+This change keeps the tested native query path; it does not add a Drizzle runtime driver or replace queries with ORM calls.
+No new ORM driver or protocol workspace is added.
+
+Files created before this PR added migrations are not auto-adopted.
+Keep the old file and select a new `AIRI_DEBUG_DB_PATH`. Startup fails rather than changing an unversioned store.
+Configuration uses Valibot and inferred types. Operational logs use logg.
+An automatically generated token is printed once to stderr for local setup, outside structured logs. Treat that output as a secret.
 
 This change does not add agent, tool, ASR, or TTS instrumentation or repair existing span lifecycles.
 The long-running-span producer proves receiver behavior, not full business-trace coverage.

@@ -20,11 +20,14 @@ import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 import { gunzipSync } from 'node:zlib'
 
+import { useLogg } from '@guiiai/logg'
 import { errorMessageFromUnknown } from '@proj-airi/stage-shared/error-message'
 import { Hono } from 'hono'
 
 import { decodeOtlp, encodeOtlpResponse, encodeStatus } from './protocol'
 import { CursorExpiredError, storageRow } from './storage'
+
+const log = useLogg('debug-server:http').useGlobalConfig()
 
 class HttpError extends Error {
   constructor(
@@ -259,7 +262,7 @@ export function createApp(storage: DebugStorage, config: DebugServerConfig): Hon
       return errorResponse(c, error)
     if (error instanceof CursorExpiredError)
       return errorResponse(c, new HttpError(410, 11, error.message))
-    console.error('[debug-server] Request failed', error)
+    log.withError(error).error('Request failed')
     return errorResponse(c, new HttpError(503, 14, 'The debug store is unavailable'))
   })
 
