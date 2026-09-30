@@ -25,7 +25,7 @@ export default defineConfig({
           name: 'Departure Mono',
           provider: 'none',
         },
-        ...presetWdxlFonts(),
+        ...presetWdxlFonts('fontsource'),
       },
       timeouts: {
         warning: 5000,
