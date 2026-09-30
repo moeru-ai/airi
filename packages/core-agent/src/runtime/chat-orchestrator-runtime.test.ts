@@ -169,6 +169,27 @@ function createHarness(getActiveProvider = () => 'mock-provider', audioAdapters?
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  it('starts a setup reply without storing or counting a user turn', async () => {
+    const harness = createHarness()
+    await harness.runtime.ingest('', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      assistantOnlyInstruction: 'Ask for calling words.',
+    }, 'session-1')
+
+    expect(harness.stream).toHaveBeenCalledOnce()
+    expect(harness.stream.mock.calls[0]?.[2].turns.at(-1)).toEqual(expect.objectContaining({
+      type: 'user',
+      content: [{ type: 'text', text: 'Ask for calling words.' }],
+    }))
+    expect(harness.sessionMessages['session-1'].map(message => message.role)).toEqual(['system', 'assistant'])
+    expect(harness.userAppended).toEqual([])
+    expect(harness.userTurns).toEqual([])
+    expect(harness.telemetry.messageSendStarted).toEqual([])
+    expect(harness.telemetry.messageRound).toEqual([])
+    expect(harness.telemetry.chatActivationStarted).toEqual([])
+  })
+
   it('runs different sessions together while preserving order within each session', async () => {
     const harness = createHarness()
     const releases: Array<() => void> = []

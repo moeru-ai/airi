@@ -7,12 +7,14 @@ import StatusCapsule from './status-capsule.vue'
 
 import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
 import { useSpeakingStore } from '../../../stores/audio'
+import { useHearingRuntimeStore } from '../../../stores/hearing-runtime'
 import { useHearingSpeechInputPipeline, useHearingStore } from '../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../stores/settings/audio-device'
 
 defineProps<{ align?: 'start' | 'center' }>()
 
 const { t } = useI18n()
+const { preparation, preparationError } = storeToRefs(useHearingRuntimeStore())
 const { enabled, stream, error: microphoneError } = storeToRefs(useSettingsAudioDevice())
 const { error, transcript, isTranscribing } = storeToRefs(useHearingSpeechInputPipeline())
 const { nowSpeaking } = storeToRefs(useSpeakingStore())
@@ -22,16 +24,20 @@ const issue = computed(() => {
   // Device failure prevents all input, so it takes precedence over provider feedback.
   if (microphoneError.value)
     return microphoneError.value
-  if (error.value)
-    return error.value
+  if (preparationError.value)
+    return preparationError.value
   if (enabled.value && !configured.value)
     return t('stage.status.configure-hearing')
+  if (preparation.value === 'unconfigured')
+    return t('settings.pages.modules.hearing.calling-status.unconfigured')
+  if (error.value)
+    return error.value
   return undefined
 })
 const state = computed(() => {
   if (issue.value)
     return 'error'
-  if (isTranscribing.value || (enabled.value && !stream.value))
+  if (isTranscribing.value || preparation.value === 'preparing' || (enabled.value && !stream.value))
     return 'busy'
   if (enabled.value && !nowSpeaking.value)
     return 'listening'
@@ -43,7 +49,7 @@ const label = computed(() => {
     return t('stage.status.hearing-error')
   if (isTranscribing.value)
     return t('stage.status.transcribing')
-  if (enabled.value && !stream.value)
+  if (preparation.value === 'preparing' || (enabled.value && !stream.value))
     return t('stage.status.preparing')
   if (nowSpeaking.value)
     return t('stage.status.paused')

@@ -11,7 +11,6 @@ import {
   useElectronMouseInWindow,
   useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
-import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
 import { hearingInputChannelName } from '@proj-airi/stage-shared'
 import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
@@ -21,14 +20,10 @@ import {
   resolveComponentStateToRuntimePhase,
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
-import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { useStageHearing } from '@proj-airi/stage-ui/composables/use-stage-hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { refDebounced, useBroadcastChannel } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
@@ -49,12 +44,6 @@ import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
-import { createVoiceInputInteractionLifecycle } from '../utils/voice-input-lifecycle'
-import {
-  assistantSpeechCooldownDeadline,
-  DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
-  shouldSuppressVoiceInput,
-} from '../utils/voice-input-suppression'
 
 const hearingStatusElement = ref<HTMLElement>()
 const authStatusElement = ref<HTMLElement>()
@@ -365,42 +354,6 @@ useModelSettingsRuntimeOwner({
 
 useStagePushToTalk()
 
-const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { stream, continuousInputEnabled: enabled } = storeToRefs(settingsAudioDeviceStore)
-const { askPermission, startStream, stopStream } = settingsAudioDeviceStore
-const { nowSpeaking } = storeToRefs(useSpeakingStore())
-const hearingStore = useHearingStore()
-const { activeTranscriptionModel, activeTranscriptionProvider } = storeToRefs(hearingStore)
-const hearingPipeline = useHearingSpeechInputPipeline()
-const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
-const { error: transcriptionError, supportsStreamInput } = storeToRefs(hearingPipeline)
-const transcriptionConsumerId = 'stage-tamagotchi:voice-input'
-const chatStore = useChatStore()
-const chatSession = useChatSessionStore()
-const streamingTranscriptionUnavailable = ref(false)
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value && !streamingTranscriptionUnavailable.value)
-const voiceTranscriptBuffer = createTranscriptBuffer({
-  flushDelayMs: 1200,
-  maxBufferedTextLength: 90,
-  async flush(text) {
-    await sendVoiceInputTextToChat(text)
-  },
-})
-
-const assistantSpeechSuppressedUntil = shallowRef(0)
-const assistantSpeechResumeTimer = shallowRef<ReturnType<typeof setTimeout>>()
-let voiceInputGeneration = 0
-
-/** Controls transcript cleanup while voice input stops. */
-interface StopAudioInteractionOptions {
-  /** Flushes pending transcript text to chat before stop completes. */
-  flushTranscript?: boolean
-}
-
-const voiceInputInteractionLifecycle = createVoiceInputInteractionLifecycle<StopAudioInteractionOptions>({
-  start: startAudioInteractionConsumers,
-  stop: stopAudioInteractionConsumers,
-})
 const manualRecordingActive = shallowRef(false)
 const manualRecordingLeases = new ManualRecordingLeaseTracker()
 const manualRecordingChannel = createManualRecordingChannel()
@@ -414,15 +367,6 @@ const manualRecordingExpiryTimer = setInterval(() => {
   manualRecordingLeases.expire()
   manualRecordingActive.value = manualRecordingLeases.active
 }, manualRecordingHeartbeatMs)
-watch(manualRecordingActive, (active) => {
-  if (active) {
-    clearAssistantSpeechResumeTimer()
-    void voiceInputInteractionLifecycle.stop({ flushTranscript: false }).catch(error => reportVoiceInputFailure('pause for manual recording', error))
-  }
-  else if (enabled.value) {
-    void voiceInputInteractionLifecycle.start().catch(error => reportVoiceInputFailure('resume after manual recording', error))
-  }
-}, { flush: 'sync' })
 
 // Caption overlay broadcast channel
 const { post: postCaption } = useBroadcastChannel<CaptionChannelEvent, CaptionChannelEvent>({ name: 'airi-caption-overlay' })
@@ -479,344 +423,31 @@ function reportVoiceInputFailure(action: string, error: unknown) {
   toast.error(message)
 }
 
-/**
- * Checks whether current voice input should be ignored to avoid assistant self-transcription.
- */
-function isVoiceInputSuppressed(now = Date.now()) {
-  return shouldSuppressVoiceInput({
-    assistantSpeaking: nowSpeaking.value,
-    suppressedUntil: assistantSpeechSuppressedUntil.value,
-    manualRecordingActive: manualRecordingActive.value,
-  }, now)
-}
-
-/**
- * Captures whether a queued VAD segment can still leave the app for ASR.
- */
-function inspectVoiceInputProviderRequestGate(generation: unknown) {
-  const current = generation === voiceInputGeneration
-  const audioEnabled = enabled.value
-  const suppressed = isVoiceInputSuppressed()
-  let reason: string | undefined
-  if (!current)
-    reason = 'Skipped stale voice input segment'
-  else if (!audioEnabled)
-    reason = 'Skipped voice input segment because audio input is disabled'
-  else if (suppressed)
-    reason = 'Skipped voice input segment while manual recording or assistant speech is active'
-
-  return {
-    generation,
-    activeGeneration: voiceInputGeneration,
-    current,
-    enabled: audioEnabled,
-    suppressed,
-    reason,
-    skip: !current || !audioEnabled || suppressed,
-  }
-}
-
-/**
- * Captures whether live microphone audio can still leave the app for streaming ASR.
- */
-function inspectVoiceInputStreamingRequestGate() {
-  const audioEnabled = enabled.value
-  const suppressed = isVoiceInputSuppressed()
-
-  return {
-    enabled: audioEnabled,
-    suppressed,
-    skip: !audioEnabled || suppressed,
-  }
-}
-
-/**
- * Clears the pending assistant-speech resume timer.
- */
-function clearAssistantSpeechResumeTimer() {
-  if (!assistantSpeechResumeTimer.value)
-    return
-
-  clearTimeout(assistantSpeechResumeTimer.value)
-  assistantSpeechResumeTimer.value = undefined
-}
-
-/**
- * Restarts voice input after assistant playback tail audio should be gone.
- */
-function scheduleAssistantSpeechResume() {
-  clearAssistantSpeechResumeTimer()
-
-  if (!enabled.value || manualRecordingActive.value)
-    return
-
-  const remainingCooldownMs = Math.max(
-    0,
-    assistantSpeechSuppressedUntil.value
-      ? assistantSpeechSuppressedUntil.value - Date.now()
-      : DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
-  )
-  const cooldownMs = nowSpeaking.value
-    ? DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS
-    : remainingCooldownMs
-
-  assistantSpeechResumeTimer.value = setTimeout(() => {
-    assistantSpeechResumeTimer.value = undefined
-    if (!enabled.value || isVoiceInputSuppressed())
-      return
-
-    void voiceInputInteractionLifecycle.start().catch(error => reportVoiceInputFailure('resume listening', error))
-  }, cooldownMs)
-}
-
-/**
- * Ensures the microphone stream has a live audio track before binding recorder or VAD.
- */
-async function ensureLiveAudioInputStream() {
-  if (!enabled.value)
-    return false
-
-  if (stream.value?.getAudioTracks().some(track => track.readyState === 'live'))
-    return true
-
-  stopStream()
-
-  if (!enabled.value)
-    return false
-
-  await askPermission()
-
-  if (!enabled.value)
-    return false
-
-  await startStream()
-
-  if (!enabled.value) {
-    stopStream()
-    return false
-  }
-
-  if (stream.value?.getAudioTracks().some(track => track.readyState === 'live'))
-    return true
-
-  throw new Error('Microphone stream did not provide a live audio track')
-}
-
-/**
- * Sends voice captions as best-effort overlay updates without interrupting chat ingestion.
- */
-function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelEvent['operation']> = 'append') {
-  const { error } = tryCatch(() => postCaption({ operation, type: 'caption-speaker', text }))
+/** Caption transport failure cannot discard a recognized utterance. */
+function replaceSpeakerCaption(text: string) {
+  const { error } = tryCatch(() => postCaption({ operation: 'replace', type: 'caption-speaker', text }))
   if (error)
     console.warn('[Main Page] Failed to post voice input caption:', error)
 }
 
-/**
- * Sends buffered voice input text to the active chat session.
- */
-async function sendVoiceInputTextToChat(text: string) {
-  if (manualRecordingActive.value)
-    return
-  try {
-    await chatStore.send({
-      sessionId: chatSession.activeSessionId,
-      text,
-    })
-  }
-  catch (err) {
-    reportVoiceInputFailure('send to chat', err)
-  }
-}
-
-/** Sends completed streaming-ASR sentences to captions and chat. */
-function handleStreamingSentenceEnd(delta: string) {
-  if (isVoiceInputSuppressed())
-    return
-
-  const finalText = delta
-  if (!finalText || !finalText.trim())
-    return
-
-  const sourceId = currentHearingInputSourceId()
-  replaceHearingInput(finalText)
-  scheduleHearingInputClear(sourceId)
-  activeHearingInputSourceId = undefined
-  postSpeakerCaption(finalText, 'replace')
-  void sendVoiceInputTextToChat(finalText)
-}
-
-/** Replaces the caption with the provider's current volatile transcript. */
-function handleStreamingTranscriptionUpdate(text: string) {
-  if (isVoiceInputSuppressed())
-    return
-
-  replaceHearingInput(text)
-  postSpeakerCaption(text, 'replace')
-}
-
-/** Publishes the provider's final streaming-ASR text to the caption overlay. */
-function handleStreamingSpeechEnd(text: string) {
-  if (isVoiceInputSuppressed())
-    return
-
-  postSpeakerCaption(text, 'replace')
-}
-
-/** Reads the listening generation attached to recorder-backed transcription metadata. */
-function getVoiceInputGeneration(metadata?: Record<string, unknown>) {
-  return typeof metadata?.generation === 'number' ? metadata.generation : undefined
-}
-
-const voiceInputSession = useVoiceInputSession(stream, {
-  shouldUseStreamInput,
-  onLog(level, event, message, details) {
-    const output = `[Voice Input] ${event}: ${message}`
-    if (level === 'error') {
-      console.error(output, details ?? {})
-      return
-    }
-    if (level === 'warn') {
-      console.warn(output, details ?? {})
-      return
-    }
-    console.info(output, details ?? {})
+useStageHearing({
+  consumerId: 'stage-tamagotchi:voice-input',
+  suspended: manualRecordingActive,
+  onError: error => reportVoiceInputFailure('listen', error),
+  onRecordingChange: ({ active }) => {
+    if (!active)
+      clearHearingInput()
   },
-  canStartSegment: () => enabled.value && !isVoiceInputSuppressed(),
-  inspectBeforeTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
-  inspectAfterTranscription: ({ metadata }) => inspectVoiceInputProviderRequestGate(getVoiceInputGeneration(metadata)),
-  onRecordingReady: () => ({ generation: voiceInputGeneration }),
-  onTranscriptionResult: ({ text }) => {
-    postSpeakerCaption(text)
-    toast(`Voice input transcribed: ${text}`)
-    voiceTranscriptBuffer.push(text)
+  onTranscriptionProgress: ({ text }) => {
+    replaceHearingInput(text)
+    replaceSpeakerCaption(text)
   },
-  onTranscriptionEmpty: () => {
-    if (transcriptionError.value) {
-      reportVoiceInputFailure('transcribe speech', transcriptionError.value)
-      return
-    }
-
-    toast('Voice input transcribed no text.')
+  onTranscriptionComplete: ({ text }) => {
+    replaceHearingInput(text)
+    scheduleHearingInputClear(currentHearingInputSourceId())
+    activeHearingInputSourceId = undefined
+    replaceSpeakerCaption(text)
   },
-  onTranscriptionError: ({ error }) => {
-    reportVoiceInputFailure('transcribe speech', error)
-  },
-})
-
-/** Starts the active streaming or recorder-backed voice-input consumers. */
-async function startAudioInteractionConsumers() {
-  if (manualRecordingActive.value)
-    return
-  if (isVoiceInputSuppressed()) {
-    scheduleAssistantSpeechResume()
-    return
-  }
-
-  if (!await ensureLiveAudioInputStream())
-    return
-
-  if (manualRecordingActive.value)
-    return
-
-  if (shouldUseStreamInput.value) {
-    const currentStream = stream.value
-    if (!currentStream)
-      throw new Error('Microphone stream is unavailable for streaming transcription')
-
-    const requestGate = inspectVoiceInputStreamingRequestGate()
-    if (requestGate.skip)
-      return
-
-    await transcribeForMediaStream(currentStream, {
-      consumerId: transcriptionConsumerId,
-      onSentenceEnd: handleStreamingSentenceEnd,
-      onSpeechEnd: handleStreamingSpeechEnd,
-      onTranscriptionUpdate: handleStreamingTranscriptionUpdate,
-    })
-
-    if (inspectVoiceInputStreamingRequestGate().skip) {
-      await stopStreamingTranscription(true)
-      return
-    }
-
-    if (transcriptionError.value) {
-      streamingTranscriptionUnavailable.value = true
-      await stopStreamingTranscription(true)
-      console.warn('[Main Page] Streaming transcription unavailable; using recorder-backed fallback:', transcriptionError.value)
-    }
-  }
-
-  if (!shouldUseStreamInput.value)
-    await voiceInputSession.startAutoSegmentation()
-}
-
-/**
- * Stops active microphone consumers before the stage binds to another audio stream.
- */
-async function stopAudioInteractionConsumers(options: StopAudioInteractionOptions = {}) {
-  const flushTranscript = options.flushTranscript ?? true
-
-  clearAssistantSpeechResumeTimer()
-  clearHearingInput()
-  voiceInputGeneration += 1
-
-  await Promise.all([
-    stopStreamingTranscription(true),
-    voiceInputSession.stop({ flushActiveRecording: false }),
-  ])
-
-  if (flushTranscript)
-    await voiceTranscriptBuffer.dispose()
-  else
-    voiceTranscriptBuffer.clear()
-}
-
-watch(enabled, async (val) => {
-  try {
-    if (val) {
-      await askPermission()
-      await voiceInputInteractionLifecycle.start()
-    }
-    else {
-      await voiceInputInteractionLifecycle.stop()
-    }
-  }
-  catch (error) {
-    reportVoiceInputFailure(val ? 'start listening' : 'stop listening', error)
-    if (val)
-      settingsAudioDeviceStore.enabled = false
-  }
-}, { immediate: true })
-
-watch([activeTranscriptionProvider, activeTranscriptionModel, supportsStreamInput], async () => {
-  streamingTranscriptionUnavailable.value = false
-  if (!enabled.value)
-    return
-
-  try {
-    await voiceInputInteractionLifecycle.stop({ flushTranscript: false })
-    await voiceInputInteractionLifecycle.start()
-  }
-  catch (error) {
-    reportVoiceInputFailure('restart after transcription settings changed', error)
-    settingsAudioDeviceStore.enabled = false
-  }
-})
-
-watch(nowSpeaking, async (speaking) => {
-  if (speaking) {
-    clearAssistantSpeechResumeTimer()
-    try {
-      await voiceInputInteractionLifecycle.stop({ flushTranscript: false })
-    }
-    catch (error) {
-      reportVoiceInputFailure('pause while assistant is speaking', error)
-    }
-    return
-  }
-
-  assistantSpeechSuppressedUntil.value = assistantSpeechCooldownDeadline()
-  scheduleAssistantSpeechResume()
 })
 
 onMounted(() => {
@@ -829,36 +460,13 @@ onUnmounted(() => {
   clearInterval(manualRecordingExpiryTimer)
   stopManualRecordingEvents()
   manualRecordingChannel.dispose()
-  removeStreamingTranscriptionConsumer(transcriptionConsumerId)
   for (const [timer, sourceId] of hearingInputClearTimers) {
     clearTimeout(timer)
     clearHearingInput(sourceId)
   }
   hearingInputClearTimers.clear()
   clearHearingInput()
-  clearAssistantSpeechResumeTimer()
-  void voiceInputInteractionLifecycle.stop().catch(error => reportVoiceInputFailure('stop listening', error))
 })
-
-watch(stream, async (currentStream) => {
-  if (!enabled.value || !currentStream || voiceInputInteractionLifecycle.isStarting() || voiceInputInteractionLifecycle.isStopping() || isVoiceInputSuppressed())
-    return
-
-  // NOTICE: The controls-island mic toggle and device changes can replace the underlying MediaStream
-  // without reloading the page. When that happens, VAD may successfully restart against the new stream,
-  // but any existing transcription transport is still bound to the old one. Always allow the page to
-  // restart voice input for a newly available stream unless another lifecycle operation is underway.
-  try {
-    await voiceInputInteractionLifecycle.stop()
-    await voiceInputInteractionLifecycle.start()
-  }
-  catch (error) {
-    reportVoiceInputFailure('restart after microphone changed', error)
-    settingsAudioDeviceStore.enabled = false
-  }
-})
-
-// Assistant caption is broadcast from Stage.vue via the same channel
 
 const cursorPosition = computed(() => ({
   x: relativeMouseX.value,

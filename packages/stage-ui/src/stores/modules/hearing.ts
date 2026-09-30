@@ -5,7 +5,7 @@ import type { StreamTranscriptionOptions as XSAIStreamTranscriptionOptions } fro
 import type {} from 'pinia-plugin-synced'
 
 import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-transcription'
-import type { StreamingTranscriptionCallbacks, StreamingTranscriptionConsumer } from './streaming-transcription-consumers'
+import type { StreamingTranscriptionCallbacks, StreamingTranscriptionConsumer, StreamingTranscriptionSegment } from './streaming-transcription-consumers'
 
 import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { toPCM16FromFloat32 } from '@proj-airi/audio/encoding'
@@ -121,7 +121,7 @@ interface MediaStreamTranscriptionOptions extends StreamingTranscriptionConsumer
 }
 
 /** Audio captured for one VAD speech segment before its provider session starts. */
-interface VadSpeechSegment {
+interface VadSpeechSegment extends StreamingTranscriptionSegment {
   audioChunks: Uint8Array[]
   audioStreamController?: ReadableStreamDefaultController<Uint8Array>
 }
@@ -609,18 +609,20 @@ export function useTranscriptionSession() {
   const providersStore = useProviderStore()
   const providerStore = useProviderConfigStore()
   const streamingConsumers = new StreamingTranscriptionConsumers()
+  let nextSpeechSegmentId = 0
   const streamingCallbacks = {
-    onSentenceEnd: (delta: string) => {
+    onSpeechStart: (segment: StreamingTranscriptionSegment) => streamingConsumers.emitSpeechStart(segment),
+    onSentenceEnd: (delta: string, segment?: StreamingTranscriptionSegment) => {
       transcript.value = delta
-      streamingConsumers.emitSentenceEnd(delta)
+      streamingConsumers.emitSentenceEnd(delta, segment)
     },
-    onSpeechEnd: (text: string) => streamingConsumers.emitSpeechEnd(text),
-    onTranscriptionUpdate: (text: string) => {
+    onSpeechEnd: (text: string, segment?: StreamingTranscriptionSegment) => streamingConsumers.emitSpeechEnd(text, segment),
+    onTranscriptionUpdate: (text: string, segment?: StreamingTranscriptionSegment) => {
       // Providers clear their interim buffer after committing a sentence. Keep
       // the last recognized words available when the compact indicator opens.
       if (text.trim())
         transcript.value = text
-      streamingConsumers.emitTranscriptionUpdate(text)
+      streamingConsumers.emitTranscriptionUpdate(text, segment)
     },
   }
   const {
@@ -628,6 +630,7 @@ export function useTranscriptionSession() {
     trackVoiceInputStarted,
   } = useAnalytics()
   const streamingSession = shallowRef<{
+    segment?: StreamingTranscriptionSegment
     audioContext?: AudioContext
     workletNode?: AudioWorkletNode
     mediaStreamSource?: MediaStreamAudioSourceNode
@@ -979,16 +982,16 @@ export function useTranscriptionSession() {
           if (value.type === 'transcript.text.snapshot') {
             latestSnapshotIsFinal = value.isFinal
             fullText = value.text
-            sessionCallbacks?.onTranscriptionUpdate?.(fullText)
+            sessionCallbacks?.onTranscriptionUpdate?.(fullText, session.segment)
             continue
           }
           if (value.type !== 'transcript.text.delta' || !value.delta)
             continue
 
           fullText += value.delta
-          sessionCallbacks?.onTranscriptionUpdate?.(fullText)
+          sessionCallbacks?.onTranscriptionUpdate?.(fullText, session.segment)
           sessionSpan?.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: value.delta })
-          sessionCallbacks?.onSentenceEnd?.(value.delta)
+          sessionCallbacks?.onSentenceEnd?.(value.delta, session.segment)
         }
       }
       catch (err) {
@@ -1000,14 +1003,14 @@ export function useTranscriptionSession() {
       finally {
         if (!session.abortController.signal.aborted && latestSnapshotIsFinal && fullText.trim()) {
           sessionSpan?.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: fullText })
-          sessionCallbacks?.onSentenceEnd?.(fullText)
+          sessionCallbacks?.onSentenceEnd?.(fullText, session.segment)
         }
         sessionSpan?.setAttribute(IOAttributes.ASRText, fullText)
         sessionSpan?.end()
         if (asrSpan === sessionSpan)
           asrSpan = undefined
         if (!session.abortController.signal.aborted)
-          sessionCallbacks?.onSpeechEnd?.(fullText)
+          sessionCallbacks?.onSpeechEnd?.(fullText, session.segment)
       }
     })()
   }
@@ -1033,6 +1036,7 @@ export function useTranscriptionSession() {
       abortController,
       providerId,
       callbacks: vadSession.callbacks,
+      segment,
     }
     const audioStream = createVadAudioStream(segment)
     session.audioStreamController = segment.audioStreamController
@@ -1080,7 +1084,8 @@ export function useTranscriptionSession() {
     let vadSession!: NonNullable<typeof streamingVadSession.value>
     const vad = useVAD(vadWorkletUrl, {
       onSpeechStart: () => {
-        const segment: VadSpeechSegment = { audioChunks: [] }
+        const segment: VadSpeechSegment = { id: ++nextSpeechSegmentId, audioChunks: [] }
+        streamingCallbacks.onSpeechStart(segment)
         vadSession.activeSegment = segment
         vadSession.lifecycle.onSpeechStart(segment)
       },
@@ -1256,6 +1261,15 @@ export function useTranscriptionSession() {
           }
         }
 
+        let speechSegment: StreamingTranscriptionSegment | undefined
+        function captureSpeechSegment() {
+          if (!speechSegment) {
+            speechSegment = { id: ++nextSpeechSegmentId }
+            streamingCallbacks.onSpeechStart(speechSegment)
+          }
+          return speechSegment
+        }
+
         let speechHasFinalResult = false
         let speechHasAnyFinalResult = false
         const result = streamWebSpeechAPITranscription(stream, {
@@ -1267,6 +1281,8 @@ export function useTranscriptionSession() {
               error.value = 'No transcription result returned from the browser'
           },
           onSpeechStart: () => {
+            speechSegment = undefined
+            captureSpeechSegment()
             error.value = undefined
             speechHasFinalResult = false
             if (finishingSession.value === abortController)
@@ -1281,7 +1297,7 @@ export function useTranscriptionSession() {
           interimResults: (options?.providerOptions?.interimResults as boolean) ?? (providerConfig.interimResults as boolean) ?? true,
           maxAlternatives: (options?.providerOptions?.maxAlternatives as number) ?? (providerConfig.maxAlternatives as number) ?? 1,
           abortSignal: abortController.signal,
-          onTranscriptionUpdate: text => streamingCallbacks.onTranscriptionUpdate(text),
+          onTranscriptionUpdate: text => streamingCallbacks.onTranscriptionUpdate(text, captureSpeechSegment()),
           onSentenceEnd: (delta) => {
             if (abortController.signal.aborted)
               return
@@ -1293,7 +1309,7 @@ export function useTranscriptionSession() {
             if (asrSpan)
               asrSpan.addEvent(IOEvents.ASRSentenceEnd, { [IOAttributes.ASRText]: delta })
             // Call the options callback
-            streamingCallbacks.onSentenceEnd(delta)
+            streamingCallbacks.onSentenceEnd(delta, captureSpeechSegment())
           },
           onSpeechEnd: (text) => {
             if (abortController.signal.aborted)
@@ -1306,7 +1322,8 @@ export function useTranscriptionSession() {
               asrSpan = undefined
             }
             // Call the options callback
-            streamingCallbacks.onSpeechEnd(text)
+            streamingCallbacks.onSpeechEnd(text, captureSpeechSegment())
+            speechSegment = undefined
           },
         })
 
