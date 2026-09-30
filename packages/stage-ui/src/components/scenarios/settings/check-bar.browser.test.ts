@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n'
 
 import CheckBar from './check-bar.vue'
 
+import 'virtual:uno.css'
+
 function createTestI18n() {
   return createI18n({
     legacy: false,
@@ -12,6 +14,7 @@ function createTestI18n() {
     messages: {
       en: {
         transitions: 'Disable Stage Transitions',
+        description: 'Some pages have their own transitions, which override the stage transitions.',
       },
     },
   })
@@ -76,5 +79,22 @@ describe('check bar', () => {
     await expect.element(toggle).toBeEnabled()
     await screen.getByText('Disable Stage Transitions', { exact: true }).click()
     expect(onUpdateModelValue).toHaveBeenLastCalledWith(false)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/1851
+  // ROOT CAUSE:
+  //
+  // Long descriptions shrank the switch, leaving its thumb outside the track.
+  // Preventing flex shrink keeps the full switch visible.
+  it('keeps the switch visible beside a long description (Issue #1851)', async () => {
+    const screen = await render(CheckBar, {
+      props: { text: 'transitions', description: 'description', modelValue: true },
+      attrs: { style: 'width: 390px' },
+      global: { plugins: [createTestI18n()] },
+    })
+
+    const toggle = screen.getByRole('switch', { name: 'Disable Stage Transitions' })
+    await expect.element(toggle).toBeVisible()
+    expect(getComputedStyle(toggle.element()).width).toBe('50px')
   })
 })
