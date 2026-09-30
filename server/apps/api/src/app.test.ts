@@ -80,6 +80,40 @@ describe('business API app', () => {
     expect(await response.json()).toMatchObject({ service: 'airi-api' })
   })
 
+  it.each(['GET', 'HEAD'])('redirects email verification root landings to the product with %s', async (method) => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/?callbackURL=https://example.com', {
+      method,
+      headers: { Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+    })
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('https://airi.moeru.ai/')
+    expect(response.headers.get('vary')).toBe('Accept')
+  })
+
+  it('keeps JSON clients at the API root', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/', { headers: { Accept: 'application/json' } })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(await response.json()).toMatchObject({ service: 'airi-api' })
+  })
+
+  it('does not redirect browser requests outside the root GET route', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const headers = { Accept: 'text/html' }
+    const unknown = await app.request('/not-an-api', { headers })
+    const post = await app.request('/', { method: 'POST', headers })
+    const live = await app.request('/livez', { headers })
+
+    expect(unknown.status).toBe(404)
+    expect(post.status).toBe(404)
+    expect(live.status).toBe(200)
+    expect(live.headers.get('location')).toBeNull()
+  })
+
   // ROOT CAUSE:
   //
   // The former global 1 MiB limit ran before the Responses route's auth

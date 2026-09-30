@@ -371,17 +371,18 @@ export async function buildApp(deps: AppDeps) {
       )
     })
 
-    /**
-     * Service identity at the API root. Visitors who land here from a stray
-     * email link, search engine, or copy-pasted URL get a clear pointer to
-     * the actual product UI instead of the framework's default "404 Not Found".
-     */
-    .on('GET', '/', c => c.json({
-      service: 'airi-api',
-      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
-      docs: 'https://airi.moeru.ai/docs',
-      ui: 'https://airi.moeru.ai',
-    }))
+    .on('GET', '/', (context) => {
+      context.header('Vary', 'Accept')
+      if (context.req.header('Accept')?.includes('text/html'))
+        return context.redirect('https://airi.moeru.ai/', 302)
+
+      return context.json({
+        service: 'airi-api',
+        message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
+        docs: 'https://airi.moeru.ai/docs',
+        ui: 'https://airi.moeru.ai',
+      })
+    })
 
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
