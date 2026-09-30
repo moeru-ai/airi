@@ -12,15 +12,17 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "@buf/googleapis_googleapis.bufbuild_es": "catalog:",
+    "@buf/opentelemetry_opentelemetry.bufbuild_es": "catalog:",
+    "@bufbuild/protobuf": "catalog:",
     "@duckdb/node-api": "catalog:",
     "@duckdbfan/drizzle-duckdb": "catalog:",
     "@guiiai/logg": "catalog:",
     "@hono/node-server": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
+    "async-mutex": "catalog:",
     "drizzle-orm": "catalog:",
     "hono": "catalog:",
-    "lossless-json": "catalog:",
-    "protobufjs": "catalog:",
     "valibot": "catalog:"
   },
   "devDependencies": {

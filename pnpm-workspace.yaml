@@ -83,6 +83,9 @@ catalog:
   '@better-auth/drizzle-adapter': 1.6.25
   '@better-auth/oauth-provider': 1.6.25
   '@better-fetch/fetch': ^1.3.1
+  '@buf/googleapis_googleapis.bufbuild_es': 2.15.0-20260414192239-c17df5b2beca.1
+  '@buf/opentelemetry_opentelemetry.bufbuild_es': 2.15.0-20260722205108-41ecbd638b41.1
+  '@bufbuild/protobuf': 2.15.0
   '@capacitor/android': ^8.5.0
   '@capacitor/app': ^8.1.1
   '@capacitor/barcode-scanner': ^3.1.1
@@ -354,7 +357,6 @@ catalog:
   less: ^4.9.0
   libsodium-wrappers: ^0.8.4
   localforage: ^1.10.0
-  lossless-json: 4.3.1
   mark.js: ^8.11.1
   markdown-it: 14.1.1
   markdown-it-anchor: ^9.2.1
@@ -400,7 +402,6 @@ catalog:
   prismarine-recipe: ^1.5.0
   prismarine-viewer: ^1.33.0
   prismarine-windows: ^2.10.0
-  protobufjs: 7.6.5
   publint: ^0.3.24
   rehype-katex: ^7.0.1
   rehype-parse: ^9.0.1

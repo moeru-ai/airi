@@ -1,12 +1,21 @@
-import type { Message, Type } from 'protobufjs'
+import type { AnyValue, InstrumentationScope, KeyValue } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/common/v1/common_pb.js'
+import type { LogRecord } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/logs/v1/logs_pb.js'
+import type { Resource } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/resource/v1/resource_pb.js'
+import type { Span } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/trace/v1/trace_pb.js'
+import type { DescMessage, JsonValue, MessageShape } from '@bufbuild/protobuf'
 
 import { Buffer } from 'node:buffer'
-import { join } from 'node:path'
 
-import protobuf from 'protobufjs'
+import { StatusSchema } from '@buf/googleapis_googleapis.bufbuild_es/google/rpc/status_pb.js'
+import { ExportLogsServiceRequestSchema, ExportLogsServiceResponseSchema } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/collector/logs/v1/logs_service_pb.js'
+import { ExportTraceServiceRequestSchema, ExportTraceServiceResponseSchema } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/collector/trace/v1/trace_service_pb.js'
+import { InstrumentationScopeSchema } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/common/v1/common_pb.js'
+import { LogRecordSchema } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/logs/v1/logs_pb.js'
+import { ResourceSchema } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/resource/v1/resource_pb.js'
+import { SpanSchema } from '@buf/opentelemetry_opentelemetry.bufbuild_es/opentelemetry/proto/trace/v1/trace_pb.js'
+import { create, fromBinary, fromJson, toBinary, toJsonString } from '@bufbuild/protobuf'
 
-import { isInteger, isLosslessNumber, parse, stringify } from 'lossless-json'
-
+export type OtlpContentType = 'application/json' | 'application/x-protobuf'
 export type Signal = 'log' | 'span'
 
 export interface IngestRecord {
@@ -37,397 +46,296 @@ interface DecodedBatch {
   records: IngestRecord[]
 }
 
-const protoRoot = new protobuf.Root()
-const protoDirectory = join(import.meta.dirname, '..', 'proto')
-protoRoot.resolvePath = (_origin, target) => join(protoDirectory, target)
-protoRoot.loadSync([
-  'opentelemetry/proto/collector/logs/v1/logs_service.proto',
-  'opentelemetry/proto/collector/trace/v1/trace_service.proto',
-  'google/rpc/status.proto',
-])
-protoRoot.resolveAll()
-
-const traceRequestType = protoRoot.lookupType('opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest')
-const traceResponseType = protoRoot.lookupType('opentelemetry.proto.collector.trace.v1.ExportTraceServiceResponse')
-const logsRequestType = protoRoot.lookupType('opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest')
-const logsResponseType = protoRoot.lookupType('opentelemetry.proto.collector.logs.v1.ExportLogsServiceResponse')
-const statusType = protoRoot.lookupType('google.rpc.Status')
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
+function record(value: unknown, field: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    throw new Error(`${field} must be an object`)
+  return value as Record<string, unknown>
 }
 
-function asArray(value: unknown): unknown[] {
+function array(value: unknown): unknown[] {
   return Array.isArray(value) ? value : []
 }
 
-function asObject(value: unknown): Record<string, unknown> {
-  return isObject(value) ? value : {}
+function decimalString(value: unknown, field: string): void {
+  if (value !== undefined && (typeof value !== 'string' || !/^\d+$/.test(value)))
+    throw new Error(`${field} must be a decimal string`)
 }
 
-function asString(value: unknown): string {
-  return typeof value === 'string' ? value : ''
-}
-
-function asInteger(value: unknown, field: string): number {
-  if (value === undefined)
-    return 0
-  if (isLosslessNumber(value)) {
-    if (!isInteger(value.toString()))
-      throw new Error(`${field} must be an integer`)
-    const parsed = Number(value.toString())
-    if (!Number.isSafeInteger(parsed))
-      throw new Error(`${field} must be a safe integer`)
-    return parsed
-  }
-  if (typeof value !== 'number' || !Number.isSafeInteger(value))
+function numericEnum(value: unknown, field: string): void {
+  if (value !== undefined && (typeof value !== 'number' || !Number.isSafeInteger(value)))
     throw new Error(`${field} must be an integer`)
-  return value
 }
 
-function exactInteger(value: unknown, field: string): string {
-  if (value === undefined)
-    return '0'
-  if (typeof value === 'string' && /^-?\d+$/.test(value))
-    return value
-  if (typeof value === 'number' && Number.isSafeInteger(value))
-    return String(value)
-  if (isLosslessNumber(value) && isInteger(value.toString()))
-    return value.toString()
-  throw new Error(`${field} must be an exact 64-bit integer`)
-}
-
-function decodeHexId(value: unknown, bytes: number, field: string, optional = false): Buffer {
-  if (optional && (value === undefined || value === ''))
-    return Buffer.alloc(0)
+function normalizeHexIdentifier(owner: Record<string, unknown>, field: string, bytes: number, required = false): void {
+  const value = owner[field]
+  if (!required && (value === undefined || value === ''))
+    return
   if (typeof value !== 'string' || !new RegExp(`^[0-9a-fA-F]{${bytes * 2}}$`).test(value))
     throw new Error(`${field} must be ${bytes} bytes of hexadecimal text`)
-  return Buffer.from(value, 'hex')
-}
-
-function setKnownId(object: Record<string, unknown>, key: string, bytes: number, field: string, optional = false): void {
-  if (object[key] !== undefined)
-    object[key] = decodeHexId(object[key], bytes, field, optional)
-}
-
-function assertIntegerRange(value: unknown, field: string, minimum: bigint, maximum: bigint): void {
-  if (value === undefined)
-    return
-  const text = exactInteger(value, field)
-  const integer = BigInt(text)
-  if (integer < minimum || integer > maximum)
-    throw new Error(`${field} is outside its 64-bit range`)
+  owner[field] = Buffer.from(value, 'hex').toString('base64')
 }
 
 function validateAnyValue(value: unknown, field: string): void {
-  const object = asObject(value)
-  assertIntegerRange(object.intValue, `${field}.intValue`, -9_223_372_036_854_775_808n, 9_223_372_036_854_775_807n)
-  for (const [index, child] of asArray(asObject(object.arrayValue).values).entries())
+  const anyValue = record(value, field)
+  if (anyValue.intValue !== undefined && (typeof anyValue.intValue !== 'string' || !/^-?\d+$/.test(anyValue.intValue)))
+    throw new Error(`${field}.intValue must be a decimal string`)
+  for (const [index, child] of array(record(anyValue.arrayValue ?? {}, `${field}.arrayValue`).values).entries())
     validateAnyValue(child, `${field}.arrayValue.values[${index}]`)
-  for (const [index, entryValue] of asArray(asObject(object.kvlistValue).values).entries())
-    validateAnyValue(asObject(entryValue).value, `${field}.kvlistValue.values[${index}].value`)
+  for (const [index, entry] of array(record(anyValue.kvlistValue ?? {}, `${field}.kvlistValue`).values).entries()) {
+    const entryValue = record(entry, `${field}.kvlistValue.values[${index}]`).value
+    if (entryValue !== undefined)
+      validateAnyValue(entryValue, `${field}.kvlistValue.values[${index}].value`)
+  }
 }
 
 function validateAttributes(value: unknown, field: string): void {
-  for (const [index, entryValue] of asArray(value).entries())
-    validateAnyValue(asObject(entryValue).value, `${field}[${index}].value`)
+  for (const [index, entry] of array(value).entries()) {
+    const attribute = record(entry, `${field}[${index}]`)
+    if (attribute.value !== undefined)
+      validateAnyValue(attribute.value, `${field}[${index}].value`)
+  }
 }
 
-function normalizeKnownJson(signal: Signal, normalized: Record<string, unknown>): Record<string, unknown> {
-  if (signal === 'span') {
-    for (const resourceSpanValue of asArray(normalized.resourceSpans)) {
-      validateAttributes(asObject(asObject(resourceSpanValue).resource).attributes, 'resource.attributes')
-      for (const scopeSpanValue of asArray(asObject(resourceSpanValue).scopeSpans)) {
-        validateAttributes(asObject(asObject(scopeSpanValue).scope).attributes, 'scope.attributes')
-        for (const spanValue of asArray(asObject(scopeSpanValue).spans)) {
-          const span = asObject(spanValue)
-          setKnownId(span, 'traceId', 16, 'span.traceId')
-          setKnownId(span, 'spanId', 8, 'span.spanId')
-          setKnownId(span, 'parentSpanId', 8, 'span.parentSpanId', true)
-          assertIntegerRange(span.startTimeUnixNano, 'span.startTimeUnixNano', 0n, 18_446_744_073_709_551_615n)
-          assertIntegerRange(span.endTimeUnixNano, 'span.endTimeUnixNano', 0n, 18_446_744_073_709_551_615n)
-          validateAttributes(span.attributes, 'span.attributes')
-          for (const linkValue of asArray(span.links)) {
-            const link = asObject(linkValue)
-            setKnownId(link, 'traceId', 16, 'span.link.traceId')
-            setKnownId(link, 'spanId', 8, 'span.link.spanId')
-            validateAttributes(link.attributes, 'span.link.attributes')
-          }
-          for (const eventValue of asArray(span.events)) {
-            const event = asObject(eventValue)
-            assertIntegerRange(event.timeUnixNano, 'span.event.timeUnixNano', 0n, 18_446_744_073_709_551_615n)
-            validateAttributes(event.attributes, 'span.event.attributes')
-          }
+function normalizeTraceJson(root: Record<string, unknown>): void {
+  for (const resourceSpanValue of array(root.resourceSpans)) {
+    const resourceSpan = record(resourceSpanValue, 'resourceSpans[]')
+    validateAttributes(record(resourceSpan.resource ?? {}, 'resource').attributes, 'resource.attributes')
+    for (const scopeSpanValue of array(resourceSpan.scopeSpans)) {
+      const scopeSpan = record(scopeSpanValue, 'scopeSpans[]')
+      validateAttributes(record(scopeSpan.scope ?? {}, 'scope').attributes, 'scope.attributes')
+      for (const spanValue of array(scopeSpan.spans)) {
+        const span = record(spanValue, 'spans[]')
+        normalizeHexIdentifier(span, 'traceId', 16, true)
+        normalizeHexIdentifier(span, 'spanId', 8, true)
+        normalizeHexIdentifier(span, 'parentSpanId', 8)
+        decimalString(span.startTimeUnixNano, 'span.startTimeUnixNano')
+        decimalString(span.endTimeUnixNano, 'span.endTimeUnixNano')
+        numericEnum(span.kind, 'span.kind')
+        numericEnum(record(span.status ?? {}, 'span.status').code, 'span.status.code')
+        validateAttributes(span.attributes, 'span.attributes')
+        for (const eventValue of array(span.events)) {
+          const event = record(eventValue, 'span.events[]')
+          decimalString(event.timeUnixNano, 'span.event.timeUnixNano')
+          validateAttributes(event.attributes, 'span.event.attributes')
+        }
+        for (const linkValue of array(span.links)) {
+          const link = record(linkValue, 'span.links[]')
+          normalizeHexIdentifier(link, 'traceId', 16, true)
+          normalizeHexIdentifier(link, 'spanId', 8, true)
+          validateAttributes(link.attributes, 'span.link.attributes')
         }
       }
     }
   }
-  else {
-    for (const resourceLogValue of asArray(normalized.resourceLogs)) {
-      validateAttributes(asObject(asObject(resourceLogValue).resource).attributes, 'resource.attributes')
-      for (const scopeLogValue of asArray(asObject(resourceLogValue).scopeLogs)) {
-        validateAttributes(asObject(asObject(scopeLogValue).scope).attributes, 'scope.attributes')
-        for (const logValue of asArray(asObject(scopeLogValue).logRecords)) {
-          const log = asObject(logValue)
-          setKnownId(log, 'traceId', 16, 'logRecord.traceId', true)
-          setKnownId(log, 'spanId', 8, 'logRecord.spanId', true)
-          assertIntegerRange(log.timeUnixNano, 'logRecord.timeUnixNano', 0n, 18_446_744_073_709_551_615n)
-          assertIntegerRange(log.observedTimeUnixNano, 'logRecord.observedTimeUnixNano', 0n, 18_446_744_073_709_551_615n)
-          validateAttributes(log.attributes, 'logRecord.attributes')
+}
+
+function normalizeLogsJson(root: Record<string, unknown>): void {
+  for (const resourceLogValue of array(root.resourceLogs)) {
+    const resourceLog = record(resourceLogValue, 'resourceLogs[]')
+    validateAttributes(record(resourceLog.resource ?? {}, 'resource').attributes, 'resource.attributes')
+    for (const scopeLogValue of array(resourceLog.scopeLogs)) {
+      const scopeLog = record(scopeLogValue, 'scopeLogs[]')
+      validateAttributes(record(scopeLog.scope ?? {}, 'scope').attributes, 'scope.attributes')
+      for (const logValue of array(scopeLog.logRecords)) {
+        const log = record(logValue, 'logRecords[]')
+        normalizeHexIdentifier(log, 'traceId', 16)
+        normalizeHexIdentifier(log, 'spanId', 8)
+        decimalString(log.timeUnixNano, 'logRecord.timeUnixNano')
+        decimalString(log.observedTimeUnixNano, 'logRecord.observedTimeUnixNano')
+        numericEnum(log.severityNumber, 'logRecord.severityNumber')
+        validateAttributes(log.attributes, 'logRecord.attributes')
+        if (log.body !== undefined)
           validateAnyValue(log.body, 'logRecord.body')
-        }
       }
     }
   }
-  return normalized
 }
 
-function bytesToCanonicalJson(value: unknown, key = ''): unknown {
-  if (Array.isArray(value))
-    return value.map(item => bytesToCanonicalJson(item))
-  if (!isObject(value))
-    return value
+function decodeRequest(signal: Signal, body: Uint8Array, contentType: OtlpContentType) {
+  const schema = signal === 'span' ? ExportTraceServiceRequestSchema : ExportLogsServiceRequestSchema
+  if (contentType === 'application/x-protobuf')
+    return fromBinary(schema, body)
 
-  const canonical: Record<string, unknown> = {}
-  for (const [childKey, childValue] of Object.entries(value)) {
-    if ((childKey === 'traceId' || childKey === 'spanId' || childKey === 'parentSpanId') && childValue instanceof Uint8Array) {
-      canonical[childKey] = Buffer.from(childValue).toString('hex')
-    }
-    else if (childValue instanceof Uint8Array) {
-      canonical[childKey] = Buffer.from(childValue).toString('base64')
-    }
-    else {
-      canonical[childKey] = bytesToCanonicalJson(childValue, key ? `${key}.${childKey}` : childKey)
-    }
-  }
-  return canonical
+  const parsed = record(JSON.parse(Buffer.from(body).toString('utf8')), 'OTLP JSON body')
+  if (signal === 'span')
+    normalizeTraceJson(parsed)
+  else
+    normalizeLogsJson(parsed)
+  return fromJson(schema, parsed as JsonValue, { ignoreUnknownFields: true })
 }
 
-function decodeRequest(signal: Signal, type: Type, body: Uint8Array, contentType: string): { canonical: Record<string, unknown>, persistedBody: Uint8Array } {
-  let message: Message
-  if (contentType === 'application/x-protobuf') {
-    message = type.decode(body)
-  }
-  else {
-    const parsed = parse(Buffer.from(body).toString('utf8'), (_key, value) => {
-      if (!isLosslessNumber(value))
-        return value
-      if (!isInteger(value.toString()))
-        return value.valueOf()
-      const number = Number(value.toString())
-      return Number.isSafeInteger(number) ? number : value.toString()
-    })
-    if (!isObject(parsed))
-      throw new Error('OTLP JSON body must be an object')
-    validateJsonEnums(parsed)
-    message = type.fromObject(normalizeKnownJson(signal, parsed))
-  }
-
-  const object = type.toObject(message, {
-    bytes: Buffer,
-    defaults: false,
-    enums: Number,
-    longs: String,
-    oneofs: false,
-  })
-  const verification = type.verify(message)
-  if (verification)
-    throw new Error(verification)
-  for (const resourceValue of asArray(object.resourceSpans)) {
-    for (const scopeValue of asArray(asObject(resourceValue).scopeSpans)) {
-      for (const spanValue of asArray(asObject(scopeValue).spans)) {
-        const span = asObject(spanValue)
-        for (const [field, length] of [['traceId', 16], ['spanId', 8]] as const) {
-          const identifier = span[field]
-          if (!(identifier instanceof Uint8Array) || identifier.length !== length || identifier.every(byte => byte === 0))
-            throw new Error(`span.${field} must be a nonzero ${length}-byte identifier`)
-        }
-      }
-    }
-  }
-  const canonical = bytesToCanonicalJson(object) as Record<string, unknown>
-  return { canonical, persistedBody: body }
+function hex(value: Uint8Array): string {
+  return Buffer.from(value).toString('hex')
 }
 
-function validateJsonEnums(root: Record<string, unknown>): void {
-  for (const resourceSpan of asArray(root.resourceSpans)) {
-    for (const scopeSpan of asArray(asObject(resourceSpan).scopeSpans)) {
-      for (const span of asArray(asObject(scopeSpan).spans)) {
-        const spanObject = asObject(span)
-        asInteger(spanObject.kind, 'span.kind')
-        asInteger(asObject(spanObject.status).code, 'span.status.code')
-      }
-    }
-  }
-  for (const resourceLog of asArray(root.resourceLogs)) {
-    for (const scopeLog of asArray(asObject(resourceLog).scopeLogs)) {
-      for (const logRecord of asArray(asObject(scopeLog).logRecords))
-        asInteger(asObject(logRecord).severityNumber, 'logRecord.severityNumber')
-    }
-  }
+function jsonObject<Schema extends DescMessage>(schema: Schema, message: MessageShape<Schema>): Record<string, unknown> {
+  return JSON.parse(toJsonString(schema, message, { enumAsInteger: true })) as Record<string, unknown>
 }
 
-function anyValueToString(value: unknown): string {
-  const object = asObject(value)
-  if (typeof object.stringValue === 'string')
-    return object.stringValue
-  if (typeof object.intValue === 'string')
-    return object.intValue
-  if (typeof object.boolValue === 'boolean')
-    return String(object.boolValue)
+function spanJson(span: Span): string {
+  const json = jsonObject(SpanSchema, span)
+  json.traceId = hex(span.traceId)
+  json.spanId = hex(span.spanId)
+  if (span.parentSpanId.length > 0)
+    json.parentSpanId = hex(span.parentSpanId)
+  const links = array(json.links)
+  for (const [index, link] of span.links.entries()) {
+    const linkJson = record(links[index], `span.links[${index}]`)
+    linkJson.traceId = hex(link.traceId)
+    linkJson.spanId = hex(link.spanId)
+  }
+  return JSON.stringify(json)
+}
+
+function logJson(log: LogRecord): string {
+  const json = jsonObject(LogRecordSchema, log)
+  if (log.traceId.length > 0)
+    json.traceId = hex(log.traceId)
+  if (log.spanId.length > 0)
+    json.spanId = hex(log.spanId)
+  return JSON.stringify(json)
+}
+
+function anyValueString(value: AnyValue | undefined): string {
+  if (value?.value.case === 'stringValue')
+    return value.value.value
+  if (value?.value.case === 'intValue' || value?.value.case === 'boolValue')
+    return String(value.value.value)
   return ''
 }
 
-function attributesToMap(value: unknown): Map<string, unknown> {
-  const attributes = new Map<string, unknown>()
-  for (const entry of asArray(value)) {
-    const object = asObject(entry)
-    const key = asString(object.key)
-    if (key)
-      attributes.set(key, object.value)
-  }
-  return attributes
+function attributesMap(attributes: KeyValue[]): Map<string, AnyValue | undefined> {
+  return new Map(attributes.map(attribute => [attribute.key, attribute.value]))
 }
 
-function firstAttribute(attributes: Map<string, unknown>, keys: string[]): string {
+function firstAttribute(attributes: Map<string, AnyValue | undefined>, keys: string[]): string {
   for (const key of keys) {
-    const value = anyValueToString(attributes.get(key))
+    const value = anyValueString(attributes.get(key))
     if (value)
       return value
   }
   return ''
 }
 
-function resourceIdentity(resource: Record<string, unknown>): { serviceName: string, sourceId: string } {
-  const attributes = attributesToMap(resource.attributes)
-  const serviceName = firstAttribute(attributes, ['service.name'])
-  const sourceId = firstAttribute(attributes, [
-    'service.instance.id',
-    'ai.moeru.airi.source_instance_id',
-    'source_instance_id',
-  ])
-  return { serviceName, sourceId }
-}
-
-function recordIdentity(attributesValue: unknown, resourceSourceId: string): { eventId: string, sessionId: string, sourceId: string } {
-  const attributes = attributesToMap(attributesValue)
+function resourceIdentity(resource: Resource | undefined): { serviceName: string, sourceId: string } {
+  const attributes = attributesMap(resource?.attributes ?? [])
   return {
-    eventId: firstAttribute(attributes, ['event_id', 'ai.moeru.airi.event_id']),
-    sessionId: firstAttribute(attributes, ['session_id', 'ai.moeru.airi.session_id']),
-    sourceId: firstAttribute(attributes, ['source_instance_id', 'ai.moeru.airi.source_instance_id']) || resourceSourceId,
+    serviceName: firstAttribute(attributes, ['service.name']),
+    sourceId: firstAttribute(attributes, ['service.instance.id', 'ai.moeru.airi.source_instance_id', 'source_instance_id']),
   }
 }
 
-function flattenTraces(root: Record<string, unknown>, receivedUnixNano: string): IngestRecord[] {
-  const records: IngestRecord[] = []
-  for (const resourceSpanValue of asArray(root.resourceSpans)) {
-    const resourceSpan = asObject(resourceSpanValue)
-    const resource = asObject(resourceSpan.resource)
-    const resourceSchemaUrl = asString(resourceSpan.schemaUrl)
-    const { serviceName, sourceId: resourceSourceId } = resourceIdentity(resource)
-    for (const scopeSpanValue of asArray(resourceSpan.scopeSpans)) {
-      const scopeSpan = asObject(scopeSpanValue)
-      const scope = asObject(scopeSpan.scope)
-      const scopeSchemaUrl = asString(scopeSpan.schemaUrl)
-      for (const spanValue of asArray(scopeSpan.spans)) {
-        const span = asObject(spanValue)
-        const identity = recordIdentity(span.attributes, resourceSourceId)
-        const status = asObject(span.status)
-        records.push({
-          eventId: identity.eventId,
-          kind: 'span',
-          name: asString(span.name),
-          parentSpanId: asString(span.parentSpanId).toLowerCase(),
-          rawJson: stringify(span) ?? '{}',
-          receivedUnixNano,
-          resourceJson: stringify(resource) ?? '{}',
-          resourceSchemaUrl,
-          scopeJson: stringify(scope) ?? '{}',
-          scopeSchemaUrl,
-          serviceName,
-          sessionId: identity.sessionId,
-          severityNumber: 0,
-          severityText: '',
-          sourceId: identity.sourceId,
-          spanId: asString(span.spanId).toLowerCase(),
-          spanStatusCode: asInteger(status.code, 'span.status.code'),
-          spanEndTimeUnixNano: exactInteger(span.endTimeUnixNano, 'span.endTimeUnixNano'),
-          timeUnixNano: exactInteger(span.startTimeUnixNano, 'span.startTimeUnixNano'),
-          traceId: asString(span.traceId).toLowerCase(),
-        })
-      }
-    }
-  }
-  return records
-}
-
-function flattenLogs(root: Record<string, unknown>, receivedUnixNano: string): IngestRecord[] {
-  const records: IngestRecord[] = []
-  for (const resourceLogValue of asArray(root.resourceLogs)) {
-    const resourceLog = asObject(resourceLogValue)
-    const resource = asObject(resourceLog.resource)
-    const resourceSchemaUrl = asString(resourceLog.schemaUrl)
-    const { serviceName, sourceId: resourceSourceId } = resourceIdentity(resource)
-    for (const scopeLogValue of asArray(resourceLog.scopeLogs)) {
-      const scopeLog = asObject(scopeLogValue)
-      const scope = asObject(scopeLog.scope)
-      const scopeSchemaUrl = asString(scopeLog.schemaUrl)
-      for (const logValue of asArray(scopeLog.logRecords)) {
-        const log = asObject(logValue)
-        const identity = recordIdentity(log.attributes, resourceSourceId)
-        records.push({
-          eventId: identity.eventId,
-          kind: 'log',
-          name: asString(log.eventName) || firstAttribute(attributesToMap(log.attributes), ['event.name', 'event_name']),
-          parentSpanId: '',
-          rawJson: stringify(log) ?? '{}',
-          receivedUnixNano,
-          resourceJson: stringify(resource) ?? '{}',
-          resourceSchemaUrl,
-          scopeJson: stringify(scope) ?? '{}',
-          scopeSchemaUrl,
-          serviceName,
-          sessionId: identity.sessionId,
-          severityNumber: asInteger(log.severityNumber, 'logRecord.severityNumber'),
-          severityText: asString(log.severityText),
-          sourceId: identity.sourceId,
-          spanId: asString(log.spanId).toLowerCase(),
-          spanStatusCode: 0,
-          spanEndTimeUnixNano: '0',
-          timeUnixNano: exactInteger(log.timeUnixNano ?? log.observedTimeUnixNano, 'logRecord.timeUnixNano'),
-          traceId: asString(log.traceId).toLowerCase(),
-        })
-      }
-    }
-  }
-  return records
-}
-
-export function decodeOtlp(signal: Signal, body: Uint8Array, contentType: string, receivedUnixNano: string): DecodedBatch {
-  const decoded = decodeRequest(signal, signal === 'span' ? traceRequestType : logsRequestType, body, contentType)
+function recordIdentity(attributes: KeyValue[], resourceSourceId: string): { eventId: string, sessionId: string, sourceId: string } {
+  const values = attributesMap(attributes)
   return {
-    persistedBody: decoded.persistedBody,
-    records: signal === 'span' ? flattenTraces(decoded.canonical, receivedUnixNano) : flattenLogs(decoded.canonical, receivedUnixNano),
+    eventId: firstAttribute(values, ['event_id', 'ai.moeru.airi.event_id']),
+    sessionId: firstAttribute(values, ['session_id', 'ai.moeru.airi.session_id']),
+    sourceId: firstAttribute(values, ['source_instance_id', 'ai.moeru.airi.source_instance_id']) || resourceSourceId,
   }
 }
 
-function responseType(signal: Signal): Type {
-  return signal === 'span' ? traceResponseType : logsResponseType
+function scopeJson(scope: InstrumentationScope | undefined): string {
+  return scope === undefined ? '{}' : toJsonString(InstrumentationScopeSchema, scope, { enumAsInteger: true })
 }
 
-export function encodeOtlpResponse(signal: Signal, contentType: string, rejected: number, message: string): Uint8Array | string {
-  const payload = rejected > 0
-    ? { partialSuccess: signal === 'span' ? { errorMessage: message, rejectedSpans: String(rejected) } : { errorMessage: message, rejectedLogRecords: String(rejected) } }
-    : {}
-  if (contentType === 'application/json')
-    return JSON.stringify(payload)
-  const type = responseType(signal)
-  return type.encode(type.fromObject(payload)).finish()
+function resourceJson(resource: Resource | undefined): string {
+  return resource === undefined ? '{}' : toJsonString(ResourceSchema, resource, { enumAsInteger: true })
 }
 
-export function encodeStatus(contentType: string, code: number, message: string): Uint8Array | string {
-  const payload = { code, message }
-  if (contentType === 'application/json')
-    return JSON.stringify(payload)
-  return statusType.encode(statusType.fromObject(payload)).finish()
+function assertSpanIdentifiers(span: Span): void {
+  for (const [field, value, length] of [['traceId', span.traceId, 16], ['spanId', span.spanId, 8]] as const) {
+    if (value.length !== length || value.every(byte => byte === 0))
+      throw new Error(`span.${field} must be a nonzero ${length}-byte identifier`)
+  }
+}
+
+function flattenTraces(request: MessageShape<typeof ExportTraceServiceRequestSchema>, receivedUnixNano: string): IngestRecord[] {
+  return request.resourceSpans.flatMap((resourceSpans) => {
+    const resource = resourceSpans.resource
+    const resourceData = resourceJson(resource)
+    const { serviceName, sourceId: resourceSourceId } = resourceIdentity(resource)
+    return resourceSpans.scopeSpans.flatMap(scopeSpans => scopeSpans.spans.map((span) => {
+      assertSpanIdentifiers(span)
+      const identity = recordIdentity(span.attributes, resourceSourceId)
+      return {
+        eventId: identity.eventId,
+        kind: 'span' as const,
+        name: span.name,
+        parentSpanId: hex(span.parentSpanId),
+        rawJson: spanJson(span),
+        receivedUnixNano,
+        resourceJson: resourceData,
+        resourceSchemaUrl: resourceSpans.schemaUrl,
+        scopeJson: scopeJson(scopeSpans.scope),
+        scopeSchemaUrl: scopeSpans.schemaUrl,
+        serviceName,
+        sessionId: identity.sessionId,
+        severityNumber: 0,
+        severityText: '',
+        sourceId: identity.sourceId,
+        spanEndTimeUnixNano: span.endTimeUnixNano.toString(),
+        spanId: hex(span.spanId),
+        spanStatusCode: span.status?.code ?? 0,
+        timeUnixNano: span.startTimeUnixNano.toString(),
+        traceId: hex(span.traceId),
+      }
+    }))
+  })
+}
+
+function flattenLogs(request: MessageShape<typeof ExportLogsServiceRequestSchema>, receivedUnixNano: string): IngestRecord[] {
+  return request.resourceLogs.flatMap((resourceLogs) => {
+    const resource = resourceLogs.resource
+    const resourceData = resourceJson(resource)
+    const { serviceName, sourceId: resourceSourceId } = resourceIdentity(resource)
+    return resourceLogs.scopeLogs.flatMap(scopeLogs => scopeLogs.logRecords.map((log) => {
+      const identity = recordIdentity(log.attributes, resourceSourceId)
+      return {
+        eventId: identity.eventId,
+        kind: 'log' as const,
+        name: log.eventName || firstAttribute(attributesMap(log.attributes), ['event.name', 'event_name']),
+        parentSpanId: '',
+        rawJson: logJson(log),
+        receivedUnixNano,
+        resourceJson: resourceData,
+        resourceSchemaUrl: resourceLogs.schemaUrl,
+        scopeJson: scopeJson(scopeLogs.scope),
+        scopeSchemaUrl: scopeLogs.schemaUrl,
+        serviceName,
+        sessionId: identity.sessionId,
+        severityNumber: log.severityNumber,
+        severityText: log.severityText,
+        sourceId: identity.sourceId,
+        spanEndTimeUnixNano: '0',
+        spanId: hex(log.spanId),
+        spanStatusCode: 0,
+        timeUnixNano: (log.timeUnixNano || log.observedTimeUnixNano).toString(),
+        traceId: hex(log.traceId),
+      }
+    }))
+  })
+}
+
+export function decodeOtlp(signal: Signal, body: Uint8Array, contentType: OtlpContentType, receivedUnixNano: string): DecodedBatch {
+  const request = decodeRequest(signal, body, contentType)
+  return {
+    persistedBody: body,
+    records: signal === 'span'
+      ? flattenTraces(request as MessageShape<typeof ExportTraceServiceRequestSchema>, receivedUnixNano)
+      : flattenLogs(request as MessageShape<typeof ExportLogsServiceRequestSchema>, receivedUnixNano),
+  }
+}
+
+export function encodeOtlpResponse(signal: Signal, contentType: OtlpContentType, rejected: number, message: string): Uint8Array<ArrayBuffer> | string {
+  if (signal === 'span') {
+    const response = create(ExportTraceServiceResponseSchema, rejected > 0 ? { partialSuccess: { errorMessage: message, rejectedSpans: BigInt(rejected) } } : {})
+    return contentType === 'application/json' ? toJsonString(ExportTraceServiceResponseSchema, response) : toBinary(ExportTraceServiceResponseSchema, response)
+  }
+  const response = create(ExportLogsServiceResponseSchema, rejected > 0 ? { partialSuccess: { errorMessage: message, rejectedLogRecords: BigInt(rejected) } } : {})
+  return contentType === 'application/json' ? toJsonString(ExportLogsServiceResponseSchema, response) : toBinary(ExportLogsServiceResponseSchema, response)
+}
+
+export function encodeStatus(contentType: OtlpContentType, code: number, message: string): Uint8Array<ArrayBuffer> | string {
+  const status = create(StatusSchema, { code, message })
+  return contentType === 'application/json' ? toJsonString(StatusSchema, status) : toBinary(StatusSchema, status)
 }

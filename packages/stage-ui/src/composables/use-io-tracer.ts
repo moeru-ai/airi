@@ -159,12 +159,10 @@ export function initIOTracer() {
     spanProcessors.push(debugSpanProcessor)
 
   provider = new BasicTracerProvider({
-    resource: debugSpanProcessor
-      ? resourceFromAttributes({
-          'service.instance.id': Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join(''),
-          'service.name': 'airi-stage-ui',
-        })
-      : undefined,
+    resource: resourceFromAttributes({
+      'service.instance.id': crypto.randomUUID(),
+      'service.name': 'airi-stage-ui',
+    }),
     spanProcessors,
   })
   trace.setGlobalTracerProvider(provider)

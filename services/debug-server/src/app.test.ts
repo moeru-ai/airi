@@ -135,7 +135,7 @@ describe('debug server OTLP ingestion', () => {
     expect((await pending).status).toBe(200)
   })
 
-  it('accepts gzip JSON logs before spans without losing 64-bit precision', async () => {
+  it('accepts gzip OTLP JSON logs with decimal-string 64-bit values', async () => {
     const { app } = await setup()
     const payload = logRequest({
       body: { kvlistValue: { values: [{ key: 'nested', value: { intValue: '9007199254740993' } }] } },
@@ -146,8 +146,6 @@ describe('debug server OTLP ingestion', () => {
       unknownFutureField: { traceId: 'not-an-otlp-id' },
     })
     const body = JSON.stringify(payload)
-      .replace('"1790670000123456789"', '1790670000123456789')
-      .replace('"9007199254740993"', '9007199254740993')
     const response = await app.request('/v1/logs', {
       body: gzipSync(body),
       headers: requestHeaders({ 'content-encoding': 'gzip' }),
@@ -261,7 +259,7 @@ describe('debug server OTLP ingestion', () => {
     await expect(response.json()).resolves.toMatchObject({ code: 8 })
   })
 
-  it('requires the configured token and allowed browser origin', async () => {
+  it('requires the configured token and applies CORS for allowed browser origins', async () => {
     const { app } = await setup()
     const unauthorized = await app.request('/api/debug/v1/events', { headers: { host: 'localhost' } })
     expect(unauthorized.status).toBe(401)
@@ -274,9 +272,16 @@ describe('debug server OTLP ingestion', () => {
     expect(wrongToken.status).toBe(401)
     await expect(wrongToken.json()).resolves.toMatchObject({ code: 16 })
 
-    const forbidden = await app.request('/api/debug/v1/events', {
+    const disallowedOrigin = await app.request('/api/debug/v1/events', {
       headers: requestHeaders({ origin: 'https://example.com' }),
     })
-    expect(forbidden.status).toBe(403)
+    expect(disallowedOrigin.status).toBe(200)
+    expect(disallowedOrigin.headers.get('access-control-allow-origin')).toBeNull()
+
+    const allowedOrigin = await app.request('/api/debug/v1/events', {
+      headers: requestHeaders({ origin: 'http://localhost:5173' }),
+    })
+    expect(allowedOrigin.status).toBe(200)
+    expect(allowedOrigin.headers.get('access-control-allow-origin')).toBe('http://localhost:5173')
   })
 })

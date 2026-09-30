@@ -30,7 +30,8 @@ It adds an independent processor without replacing the recording callback or Bro
 
 The default allowed origins are `http://localhost:5173` and `http://127.0.0.1:5173`.
 For another development port, set `AIRI_DEBUG_ALLOWED_ORIGINS` to a comma-separated list.
-Ingest and query requests require Bearer authentication. The service checks Host and Origin and binds only to loopback.
+Ingest and query requests require Bearer authentication. The service binds only to loopback.
+Hono's CORS middleware exposes responses only to configured browser origins.
 
 ## Query from a terminal or agent
 
@@ -120,6 +121,10 @@ Buf generates OpenAPI v2, then Hey API generates TypeScript and the Fetch client
 OpenAPI v2 does not encode every oneof constraint. Runtime validation remains necessary.
 Do not hand-edit or auto-format generated files.
 
+OTLP and Google RPC types come from BSR-generated Protobuf-ES packages.
+Their package versions pin the same module commits recorded in `buf.lock`.
+The repository does not copy external `.proto` files.
+
 ```sh
 buf lint
 pnpm --filter @proj-airi/stage-shared debug:generate
@@ -139,7 +144,7 @@ Drizzle owns runtime queries, transactions, and the table schema in `src/schema.
 Run `pnpm -F @proj-airi/debug-server db:generate` after a schema change. Commit the SQL, snapshot, and journal together.
 The PostgreSQL dialect supplies the schema builder, as in AIRI's WASM adapter. This is not a PostgreSQL database.
 DuckDB-specific types use `customType`; indexes use ART. A custom migration creates DuckDB sequences.
-Startup applies pending migrations through a Drizzle transaction and checks recorded hashes.
+Startup applies pending migrations through the DuckDB adapter's Drizzle migrator.
 Run the service tests against DuckDB after generation. Do not assume all PostgreSQL DDL works in DuckDB.
 
 The existing Drizzle/WASM adapter **can** persist data in Node. It is not browser-only.
@@ -158,7 +163,9 @@ Files created before this PR added migrations are not auto-adopted.
 Keep the old file and select a new `AIRI_DEBUG_DB_PATH`. Startup fails rather than changing an unversioned store.
 Configuration uses Valibot and inferred types. Operational logs use logg.
 HTTP errors and Bearer authentication use Hono. Query validation uses Valibot through Hono's validator middleware.
-Lossless JSON parsing uses a reviver to preserve large integers without a second recursive traversal.
+Hono middleware handles CORS and compressed-request size limits.
+Protobuf-ES handles message validation and binary codecs.
+The OTLP/JSON adapter only handles OTLP's hex identifiers, integer enums, and decimal-string 64-bit fields.
 An automatically generated token is printed once to stderr for local setup, outside structured logs. Treat that output as a secret.
 
 This change does not add agent, tool, ASR, or TTS instrumentation or repair existing span lifecycles.

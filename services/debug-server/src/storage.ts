@@ -8,11 +8,11 @@ import { createHash } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import { DuckDBInstance as NativeDuckDBInstance } from '@duckdb/node-api'
-import { drizzle } from '@duckdbfan/drizzle-duckdb'
+import { drizzle, migrate } from '@duckdbfan/drizzle-duckdb'
 import { useLogg } from '@guiiai/logg'
 import { errorMessageFromUnknown } from '@proj-airi/stage-shared/error-message'
+import { Mutex } from 'async-mutex'
 import { and, asc, eq, exists, gt, gte, inArray, lt, lte, max, min, not, sql } from 'drizzle-orm'
-import { readMigrationFiles } from 'drizzle-orm/migrator'
 
 import { events, ingestBatches, metadata, sources, traces } from './schema'
 
@@ -125,7 +125,7 @@ export class DebugStorage {
     private readonly options: StorageOptions,
   ) {}
 
-  private queue: Promise<void> = Promise.resolve()
+  private readonly mutex = new Mutex()
   private maintenanceError = ''
 
   static async open(options: StorageOptions): Promise<DebugStorage> {
@@ -150,34 +150,17 @@ export class DebugStorage {
   }
 
   private async initialize(): Promise<void> {
-    const migrations = readMigrationFiles({ migrationsFolder: fileURLToPath(new URL('../drizzle', import.meta.url)) })
-    const existingTables = await this.database.execute<{ table_name: string }>(sql`SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'`)
-    if (existingTables.some(row => row.table_name === 'events') && !existingTables.some(row => row.table_name === '__drizzle_migrations'))
+    const existingTables = await this.database.execute<{ table_name: string, table_schema: string }>(sql`SELECT table_schema, table_name FROM information_schema.tables`)
+    const hasEvents = existingTables.some(row => row.table_schema === 'main' && row.table_name === 'events')
+    const hasMigrations = existingTables.some(row => row.table_schema === 'drizzle' && row.table_name === '__drizzle_migrations')
+    if (hasEvents && !hasMigrations)
       throw new Error('This debug database predates migrations. Keep the original file and set AIRI_DEBUG_DB_PATH to a new file.')
-    await this.database.execute(sql`CREATE TABLE IF NOT EXISTS __drizzle_migrations (hash VARCHAR PRIMARY KEY, created_at BIGINT NOT NULL)`)
-    const applied = await this.database.execute<{ hash: string }>(sql`SELECT hash FROM __drizzle_migrations ORDER BY created_at`)
-    for (const [index, row] of applied.entries()) {
-      if (row.hash !== migrations[index]?.hash)
-        throw new Error('Debug database migration history differs from the migration files')
-    }
-    for (const migration of migrations.slice(applied.length)) {
-      await this.database.transaction(async (tx) => {
-        for (const statement of migration.sql)
-          await tx.execute(sql.raw(statement))
-        await tx.execute(sql`INSERT INTO __drizzle_migrations VALUES (${migration.hash}, ${migration.folderMillis})`)
-      })
-    }
+    await migrate(this.database, fileURLToPath(new URL('../drizzle', import.meta.url)))
     await this.database.insert(metadata).values([
       { key: 'events_pruned_through', value: '0' },
       { key: 'sources_pruned_through', value: '0' },
       { key: 'traces_pruned_through', value: '0' },
     ]).onConflictDoNothing()
-  }
-
-  private serialize<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.queue.then(operation, operation)
-    this.queue = result.then(() => undefined, () => undefined)
-    return result
   }
 
   async ingest(input: {
@@ -188,7 +171,7 @@ export class DebugStorage {
     records: IngestRecord[]
     signal: Signal
   }): Promise<IngestResult> {
-    return this.serialize(async () => {
+    return this.mutex.runExclusive(async () => {
       const result = await this.database.transaction(async (tx) => {
         const [batch] = await tx.insert(ingestBatches).values({
           signal: input.signal,
@@ -492,7 +475,7 @@ export class DebugStorage {
   }
 
   async close(): Promise<void> {
-    await this.queue
+    await this.mutex.waitForUnlock()
     await this.readDatabase.close()
     await this.database.close()
     this.instance.closeSync()
