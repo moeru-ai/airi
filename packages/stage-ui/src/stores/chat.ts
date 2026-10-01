@@ -45,6 +45,7 @@ import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useSettingsRunLimits } from './settings/run-limits'
 import { useSettingsSessionLifecycle } from './settings/session-lifecycle'
 import { executeToolCallRerun } from './tool-call-rerun'
 
@@ -226,6 +227,7 @@ export const useChatStore = defineStore('chat', () => {
   // Admitted runs, fed by the runtime run table. Request tools read their run audience, and lifecycle reads running sessions.
   const activeRuns = new Map<string, { sessionId: string, audience: Audience }>()
   const sessionLifecycleSettings = useSettingsSessionLifecycle()
+  const runLimitSettings = useSettingsRunLimits()
   let lifecycleTimer: ReturnType<typeof setInterval> | undefined
 
   function stopLifecycleSweep() {
@@ -550,6 +552,7 @@ export const useChatStore = defineStore('chat', () => {
       },
     },
     createEnvelope: createRunEnvelope,
+    getLimits: () => runLimitSettings.limits,
     onRunChange: trackRun,
     foregroundStream: {
       patch: (message) => {

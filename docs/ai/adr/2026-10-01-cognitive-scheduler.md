@@ -96,7 +96,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0 and P1 are Implemented with deterministic tests. Their live scenarios remain open. P2 through P10 have not started.
+- P0, P1, and P2 are Implemented with deterministic tests. Their live scenarios remain open. P3 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -156,6 +156,8 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: chat surfaces read per-session running state. Stop and interruption target the voice owner instead of any running send.
 - Observed (`chat-orchestrator-runs.test.ts`): a stalled or overdue run expires and its caller receives a failure. Repeated identical tool calls end a run as blocked.
 - Observed (`chat-orchestrator-runs.test.ts`): a cancelled run with rollback removes its user turn and partial reply, so a requeued input appears once. A waiting run cancels before it starts.
+- Implemented: Settings > Memory sets the concurrency, queue, stall, and deadline limits. A limit never switches models or skips work silently.
+- Not provided: an error-burst breaker across runs. Provider failures end each run as blocked, and P3 admission can add cooldowns.
 
 ### Open P0 evidence
 

@@ -504,6 +504,21 @@ pages:
       retire_after:
         label: Retired after (days)
         description: Days in the dormant state before a chat session retires. You can still open and continue it.
+    runs:
+      title: Replies in progress
+      description: Limits for replies that run at the same time. A limit never switches models or skips a reply silently. Work over a limit waits or fails with a message.
+      max_concurrent:
+        label: Replies at the same time
+        description: Chat sessions that can generate a reply at once. The character still speaks one reply at a time.
+      max_queued:
+        label: Waiting messages per chat session
+        description: Messages that can wait in one chat session. A new message beyond this limit is refused.
+      stall_timeout:
+        label: Stall timeout (seconds)
+        description: A reply that receives nothing for this long stops and reports a failure.
+      deadline:
+        label: Reply time limit (minutes)
+        description: A reply that runs longer than this stops and reports a failure.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

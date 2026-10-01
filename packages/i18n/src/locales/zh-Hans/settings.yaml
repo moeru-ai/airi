@@ -474,6 +474,21 @@ pages:
       retire_after:
         label: 归档前的休眠时间（天）
         description: 聊天会话在休眠状态下经过多少天后归档。你仍然可以打开并继续它。
+    runs:
+      title: 正在生成的回复
+      description: 同时生成回复的限制。限制不会切换模型，也不会悄悄跳过回复。超出限制的工作会等待，或者带着提示失败。
+      max_concurrent:
+        label: 同时生成的回复数
+        description: 可以同时生成回复的聊天会话数量。角色仍然一次只说一条回复。
+      max_queued:
+        label: 每个聊天会话的等待消息数
+        description: 一个聊天会话里可以排队等待的消息数量。超出后新的消息会被拒绝。
+      stall_timeout:
+        label: 停滞超时（秒）
+        description: 回复在这段时间内没有收到任何内容时会停止，并报告失败。
+      deadline:
+        label: 回复时限（分钟）
+        description: 回复运行超过这段时间时会停止，并报告失败。
   data:
     description: 管理存储 AIRI 数据、导出和重置
     sections:

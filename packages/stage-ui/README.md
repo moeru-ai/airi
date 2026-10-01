@@ -32,6 +32,7 @@ Only a local conversation run has the `voice` output in its envelope. The stage 
 A reply with an output target, such as a Discord message, goes to its scene and never speaks locally. Hook contexts carry `sessionId`, `runId`, and `outputs`.
 At most one send holds the voice. Stop and interruption act on `voiceSessionId`, so background replies in other sessions keep running.
 The chat store reports `runningSessionIds` and `streamingMessages` per session. Chat surfaces show the reply of the visible session.
+Settings > Memory sets the run limits: 4 concurrent replies, 8 waiting messages per session, a 60-second stall timeout, and a 10-minute deadline.
 
 ## Session lifecycle
 
