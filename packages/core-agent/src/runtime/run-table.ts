@@ -97,8 +97,14 @@ export class RunTable {
     return this.options.now?.() ?? Date.now()
   }
 
+  /** An observer failure never changes the run. */
   private notify(run: AgentRun) {
-    this.options.onChange?.(structuredClone(run))
+    try {
+      this.options.onChange?.(structuredClone(run))
+    }
+    catch (error) {
+      console.error('Run observer failed:', error)
+    }
   }
 
   private trimFinished() {

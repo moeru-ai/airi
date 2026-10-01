@@ -16,7 +16,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, pool?: ContextMessage[] } = {}) {
+function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void } = {}) {
   const messages: ChatHistoryItem[] = []
   const runChanges: AgentRun[] = []
   let sessionAudience = options.sessionAudience ?? OWNER_AUDIENCE
@@ -47,7 +47,7 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     getActiveSessionId: () => 'session',
     getActiveProvider: () => 'mock',
     createEnvelope: () => ({ bindings: [], outputs: ['chat:owner'], audience: options.runAudience ?? OWNER_AUDIENCE, personaId: 'airi' }),
-    onRunChange: run => runChanges.push(run),
+    onRunChange: options.onRunChange ?? (run => runChanges.push(run)),
   })
   return { runtime, messages, runChanges, correlations, snapshot, stream, getSessionAudience: () => sessionAudience }
 }
@@ -77,6 +77,20 @@ describe('orchestrator runs', () => {
     expect(harness.runtime.getRuns()).toEqual([])
     expect(harness.runChanges).toEqual([])
     expect(harness.messages).toEqual([])
+  })
+
+  // ROOT CAUSE:
+  // A throwing run observer escaped into the send queue, and the send never settled.
+  it('completes a send when a run observer throws', async () => {
+    const harness = createRunHarness({ onRunChange: () => {
+      throw new Error('observer failed')
+    } })
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+
+    expect(harness.runtime.getRuns()[0]?.state).toBe('done')
+    consoleError.mockRestore()
   })
 
   // A provider failure is a failed run, never a quiet success.
