@@ -52,7 +52,10 @@ Producers can import `createContextText` and `countContextTokens` from `@proj-ai
 `createContextText` replaces text over 80 tokens with a `sourceRef`. Producers retain the original details in their own state.
 An origin handle identifies details. It cannot grant tool or read permissions. Oversized handles fail instead of entering the pool.
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
-Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.
+The writer budget evicts only the incoming writer's entries. The pool budget then evicts the lowest retention across all writers.
+Pool entries keep the fields that projection, expiry, and routing read. `content`, `ideas`, and `hints` stay with the producer.
+Each stored entry has a 2048-byte serialized limit, so routing fields cannot inflate replication.
+Rejected replacements preserve the previous slot. History records keep identity, slot, and in-budget text only. Rejected text never enters history or checkpoints.
 Each send captures one session-filtered snapshot for both the model request and its display events.
 `checkpoint()` captures active costs, original expiry times, and bounded history for trusted host replication.
 `initialState` restores that checkpoint without replaying observations. Do not accept checkpoints from module transports.

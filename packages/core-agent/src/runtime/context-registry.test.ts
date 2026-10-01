@@ -246,6 +246,48 @@ describe('createContextRegistry', () => {
     expect(registry.contextHistory()).toHaveLength(20)
   })
 
+  // ROOT CAUSE:
+  // The writer pass skipped other writers, and the pool pass resumed after them.
+  // An older entry from another writer survived while the incoming writer lost a fresher slot.
+  it('evicts the lowest retention across writers after the writer budget holds', () => {
+    let now = 0
+    const registry = createContextRegistry({ now: () => now, defaultTtlMs: 100, maxWriterTokens: 6, maxTokens: 9, countTokens: text => text.length })
+    registry.ingest(createContextMessage({ id: 'old', source: 'other', text: 'aaaa', createdAt: 0 }))
+    now = 50
+    registry.ingest(createContextMessage({ id: 'one', source: 'sensor', contextId: 'one', text: 'bb', createdAt: 50 }))
+    registry.ingest(createContextMessage({ id: 'two', source: 'sensor', contextId: 'two', text: 'ccc', createdAt: 50 }))
+    now = 60
+
+    expect(registry.ingest(createContextMessage({ id: 'three', source: 'sensor', contextId: 'three', text: 'ddd', createdAt: 60 }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.snapshot().other).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  // History copied every delivered body before admission, and checkpoints replicated it to every renderer.
+  it('keeps rejected text and producer payloads out of history and checkpoints', () => {
+    const registry = createContextRegistry({ maxEntryTokens: 5, countTokens: text => text.length })
+    const oversized = 'x'.repeat(10_000)
+    registry.ingest(createContextMessage({ id: 'oversized', source: 'sensor', text: oversized }))
+    registry.ingest(createContextMessage({ id: 'small', source: 'sensor', text: 'small', content: oversized, hints: [oversized], ideas: [oversized] }))
+
+    const checkpoint = JSON.stringify(registry.checkpoint())
+    expect(checkpoint).not.toContain(oversized)
+    expect(registry.contextHistory()).toEqual([
+      expect.objectContaining({ id: 'oversized', sourceKey: 'sensor', text: undefined }),
+      expect.objectContaining({ id: 'small', sourceKey: 'sensor', text: 'small' }),
+    ])
+    expect(registry.snapshot().sensor?.[0]).toEqual(expect.objectContaining({ id: 'small', text: 'small' }))
+  })
+
+  it('rejects an entry whose routing fields exceed the replication budget', () => {
+    const registry = createContextRegistry({ maxEntryBytes: 512 })
+    registry.ingest(createContextMessage({ id: 'stable', source: 'sensor', text: 'stable' }))
+
+    expect(registry.ingest(createContextMessage({ id: 'wide', source: 'sensor', text: 'short', destinations: { include: ['x'.repeat(600)] } }))).toBeUndefined()
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['stable'])
+  })
+
   it('limits each writer without evicting another writer to admit an oversized slot', () => {
     const registry = createContextRegistry({ maxWriterTokens: 6, countTokens: text => text.length })
     registry.ingest(createContextMessage({ source: 'other', text: 'other' }))

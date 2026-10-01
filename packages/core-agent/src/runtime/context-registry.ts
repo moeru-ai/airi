@@ -13,11 +13,13 @@ interface EventSourcePayload {
 }
 
 /**
- * Stored context event with the registry bucket key resolved at ingest time.
+ * Bounded delivery record for diagnostics and deduplication. It never retains rejected or oversized text.
  */
-export interface ContextHistoryEntry extends ContextMessage {
+export interface ContextHistoryEntry extends Pick<ContextMessage, 'id' | 'contextId' | 'strategy' | 'lane' | 'createdAt'> {
   /** Stable source bucket key derived from metadata, source, or fallback. */
   sourceKey: string
+  /** Observation text, present only when it fits the entry budget. */
+  text?: string
 }
 
 /**
@@ -87,6 +89,8 @@ interface CreateContextRegistryOptions {
   maxWriterTokens?: number
   /** Maximum text cost of one entry. @default 80 */
   maxEntryTokens?: number
+  /** Maximum serialized size of one stored entry, in UTF-8 bytes. It bounds replication of fields outside the text budget. @default 2048 */
+  maxEntryBytes?: number
   /** Maximum retained events in one append slot. @default 8 */
   maxEntriesPerSlot?: number
   /** Fixed slots that accept append updates within each writer bucket. An empty list disables append. @default ['events'] */
@@ -106,6 +110,14 @@ interface StoredContext {
 }
 
 const EMPTY_CONTEXTS: readonly StoredContext[] = Object.freeze([])
+
+const entryEncoder = new TextEncoder()
+
+/** Keeps the fields that pool projection, expiry, and routing read. Content, ideas, and hints stay with the producer. */
+function toPoolMessage(message: ContextMessage): ContextMessage {
+  const { id, contextId, strategy, lane, text, destinations, ttlMs, salience, sourceRef, createdAt, expiresAt, metadata } = message
+  return { id, contextId, strategy, lane, text, destinations, ttlMs, salience, sourceRef, createdAt, expiresAt, metadata }
+}
 
 function formatMetadataSource(source?: MetadataEventSource) {
   if (!source)
@@ -181,12 +193,13 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   const maxTokens = options.maxTokens ?? 800
   const maxWriterTokens = options.maxWriterTokens ?? 200
   const maxEntryTokens = options.maxEntryTokens ?? CONTEXT_ENTRY_TOKEN_LIMIT
+  const maxEntryBytes = options.maxEntryBytes ?? 2048
   const maxEntriesPerSlot = options.maxEntriesPerSlot ?? 8
   const appendContextIds = new Set(options.appendContextIds ?? ['events'])
   const now = options.now ?? Date.now
   const countTokens = options.countTokens ?? countContextTokens
 
-  for (const limit of [historyLimit, defaultTtlMs, maxTokens, maxWriterTokens, maxEntryTokens, maxEntriesPerSlot]) {
+  for (const limit of [historyLimit, defaultTtlMs, maxTokens, maxWriterTokens, maxEntryTokens, maxEntryBytes, maxEntriesPerSlot]) {
     if (!Number.isFinite(limit) || limit <= 0)
       throw new RangeError('Context registry limits must be positive and finite')
   }
@@ -214,13 +227,14 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
 
   function ingest(envelope: ContextMessage): ContextIngestResult | undefined {
     const sourceKey = getSourceKey(envelope)
-    const safeEnvelopeToStore = structuredClone(envelope)
+    const safeEnvelopeToStore = toPoolMessage(structuredClone(envelope))
     const timestamp = now()
     const countedTokens = countTokens(safeEnvelopeToStore.text)
     if (!Number.isFinite(countedTokens) || countedTokens < 0)
       throw new RangeError('Context token cost must be finite and nonnegative')
     // Empty observations still consume one unit, so token limits also bound entry count.
     const tokens = Math.max(1, countedTokens)
+    const fitsTextBudget = tokens <= Math.min(maxEntryTokens, maxWriterTokens, maxTokens)
 
     const ttlMs = envelope.ttlMs ?? defaultTtlMs
     const expiresAt = Math.min(envelope.expiresAt ?? Infinity, envelope.createdAt + ttlMs)
@@ -228,12 +242,21 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
 
     currentContextHistory = [
       ...currentContextHistory,
-      { ...safeEnvelopeToStore, sourceKey },
+      {
+        id: safeEnvelopeToStore.id,
+        contextId: safeEnvelopeToStore.contextId,
+        strategy: safeEnvelopeToStore.strategy,
+        lane: safeEnvelopeToStore.lane,
+        createdAt: safeEnvelopeToStore.createdAt,
+        sourceKey,
+        text: fitsTextBudget ? safeEnvelopeToStore.text : undefined,
+      },
     ].slice(-historyLimit)
 
     if (!Number.isFinite(expiresAt) || expiresAt <= timestamp
       || !Number.isFinite(envelope.createdAt) || !Number.isFinite(envelope.salience ?? 0.5)
-      || tokens > Math.min(maxEntryTokens, maxWriterTokens, maxTokens)) {
+      || !fitsTextBudget
+      || entryEncoder.encode(JSON.stringify(safeEnvelopeToStore)).length > maxEntryBytes) {
       return undefined
     }
 
@@ -266,27 +289,36 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
     // Admission is transactional. A rejected update cannot erase the previous slot or evict other writers.
     const next = new Map(currentActiveContexts)
     next.set(sourceKey, candidates)
-    const ranked = Array.from(next, ([writer, entries]) => entries.map(entry => ({ writer, entry })))
-      .flat()
-      .sort((a, b) => retention(a.entry, timestamp) - retention(b.entry, timestamp))
-    let total = ranked.reduce((sum, item) => sum + item.entry.tokens, 0)
-    let writerTotal = candidates.reduce((sum, entry) => sum + entry.tokens, 0)
-    for (const { writer, entry } of ranked) {
-      if (writerTotal > maxWriterTokens && writer !== sourceKey)
-        continue
-      if (writerTotal <= maxWriterTokens && total <= maxTokens)
-        break
-      if (entry === incoming)
-        return undefined
-
+    const byRetention = (a: { entry: StoredContext }, b: { entry: StoredContext }) => retention(a.entry, timestamp) - retention(b.entry, timestamp)
+    const evict = (writer: string, entry: StoredContext) => {
       const retained = next.get(writer)!.filter(candidate => candidate !== entry)
       if (retained.length)
         next.set(writer, retained)
       else
         next.delete(writer)
+    }
+
+    // The writer budget evicts only the incoming writer's entries.
+    let writerTotal = candidates.reduce((sum, entry) => sum + entry.tokens, 0)
+    for (const { entry } of candidates.map(entry => ({ entry })).sort(byRetention)) {
+      if (writerTotal <= maxWriterTokens)
+        break
+      if (entry === incoming)
+        return undefined
+      evict(sourceKey, entry)
+      writerTotal -= entry.tokens
+    }
+
+    // The pool budget then evicts the lowest retention across all writers.
+    const ranked = Array.from(next, ([writer, entries]) => entries.map(entry => ({ writer, entry }))).flat().sort(byRetention)
+    let total = ranked.reduce((sum, item) => sum + item.entry.tokens, 0)
+    for (const { writer, entry } of ranked) {
+      if (total <= maxTokens)
+        break
+      if (entry === incoming)
+        return undefined
+      evict(writer, entry)
       total -= entry.tokens
-      if (writer === sourceKey)
-        writerTotal -= entry.tokens
     }
     currentActiveContexts = next
 

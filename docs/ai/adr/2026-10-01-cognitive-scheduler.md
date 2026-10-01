@@ -98,6 +98,8 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - The leader replicates a bounded removal journal. Duplicate lifecycle notifications preserve fresh observations after reconnection within that window.
 - Spark relay syntax lives in a trusted toolset prompt. Actual tool admission controls developer guidance for each model request.
 - Chat and Responses remove tool guidance after revocation. Request guidance stays outside shared observations and generation history.
+- History records keep identity and in-budget text only. Pool entries drop producer payloads and have a 2048-byte serialized limit.
+- Eviction applies the writer budget first, then evicts the lowest retention across all writers.
 
 ### Remaining P0 acceptance
 
