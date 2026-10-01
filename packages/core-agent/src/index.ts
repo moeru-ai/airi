@@ -47,6 +47,8 @@ export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRe
 export { createContextRegistry, projectContextRegistryState } from './runtime/context-registry'
 export type { IntakeDecider, IntakeDecision, IntakeOutcome, IntakeRecord, Stimulus, StimulusOrigin } from './runtime/intake'
 export { IntakeLog, salienceFromUrgency } from './runtime/intake'
+export type { Lease, LeaseGrant } from './runtime/lease-table'
+export { LeaseTable } from './runtime/lease-table'
 export { useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
   isContentArrayRelatedError,

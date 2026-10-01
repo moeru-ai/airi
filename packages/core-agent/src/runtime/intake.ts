@@ -99,11 +99,21 @@ export function salienceFromUrgency(urgency?: string): number {
  *
  * Returns:
  * - Cloned records, oldest first. Records beyond the limit are dropped oldest first.
+ * - Subscribers hear every new record.
  */
 export class IntakeLog {
   private readonly records: IntakeRecord[] = []
+  private readonly listeners = new Set<(record: IntakeRecord) => void>()
 
-  constructor(private readonly options: { limit?: number, now?: () => number, onRecord?: (record: IntakeRecord) => void } = {}) {}
+  constructor(private readonly options: { limit?: number, now?: () => number } = {}) {}
+
+  /** Calls the listener after every decision. Returns the unsubscribe function. */
+  subscribe(listener: (record: IntakeRecord) => void) {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
 
   /** Records one decision for a stimulus. */
   record(stimulus: Stimulus, decision: Omit<IntakeDecision, 'outcome'> & { outcome: IntakeOutcome, runId?: string }): IntakeRecord {
@@ -130,11 +140,13 @@ export class IntakeLog {
     const limit = this.options.limit ?? 200
     if (this.records.length > limit)
       this.records.splice(0, this.records.length - limit)
-    try {
-      this.options.onRecord?.(structuredClone(record))
-    }
-    catch (error) {
-      console.error('Intake observer failed:', error)
+    for (const listener of this.listeners) {
+      try {
+        listener(structuredClone(record))
+      }
+      catch (error) {
+        console.error('Intake observer failed:', error)
+      }
     }
     return structuredClone(record)
   }

@@ -20,6 +20,7 @@ import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
 import { audienceIncludes, intersectAudiences, OWNER_AUDIENCE } from './audience'
 import { IntakeLog, salienceFromUrgency } from './intake'
+import { LeaseTable } from './lease-table'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 import { RunTable } from './run-table'
@@ -147,6 +148,8 @@ interface QueuedSend {
   /** Run admitted for this send. */
   runId: string
   envelope: ExecutionEnvelope
+  /** Salience from intake. It orders lease takeovers. */
+  salience: number
   /** Message ids that this run wrote. A rollback removes them. */
   writtenMessageIds: string[]
   /** Set while the send runs. */
@@ -305,6 +308,12 @@ export interface ChatOrchestratorRuntimeDeps {
    * @default the session alone, with the owner chat and the voice as its outputs
    */
   createEnvelope?: (sessionId: string, options: ChatOrchestratorSendOptions) => Omit<ExecutionEnvelope, 'sessionId'>
+  /** Run table shared with other run owners in the host. @default a table owned by this runtime */
+  runs?: RunTable
+  /** Intake trace shared with other stimulus sources in the host. @default a trace owned by this runtime */
+  intake?: IntakeLog
+  /** Exclusive resources shared with other run owners in the host. A send with the `voice` output holds `voice`. @default leases owned by this runtime */
+  leases?: LeaseTable
   /** Called whenever a run is admitted or changes state. */
   onRunChange?: (run: AgentRun) => void
   /**
@@ -506,8 +515,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   // Waiting sends in admission order, and the running send of each session.
   let pendingQueuedSends: QueuedSend[] = []
   const runningSends = new Map<string, QueuedSend>()
-  const runs = new RunTable({ now, onChange: deps.onRunChange })
-  const intake = new IntakeLog({ now, onRecord: deps.onIntakeRecord })
+  const runs = deps.runs ?? new RunTable({ now })
+  const intake = deps.intake ?? new IntakeLog({ now })
+  const leases = deps.leases ?? new LeaseTable({ now })
+  if (deps.onRunChange)
+    runs.subscribe(deps.onRunChange)
+  if (deps.onIntakeRecord)
+    intake.subscribe(deps.onIntakeRecord)
+  // Another owner can release the voice, so waiting voice sends get another chance.
+  leases.subscribe(() => queueMicrotask(pump))
 
   function emitStateChange() {
     deps.onStateChange?.({
@@ -1219,7 +1235,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   /**
    * Starts waiting sends in admission order. A session runs one send at a time, and the run count stays within the limit.
-   * The voice is exclusive, so a send with the voice output waits until no other send holds it.
+   * The voice is an exclusive lease, so a send with the voice output waits until no other run holds it.
    * A slow session therefore holds only its own slot.
    */
   function pump() {
@@ -1229,13 +1245,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         break
       if (runningSends.has(queuedSend.sessionId))
         continue
-      if (queuedSend.envelope.outputs.includes('voice') && Array.from(runningSends.values()).some(send => send.envelope.outputs.includes('voice')))
+      if (queuedSend.envelope.outputs.includes('voice') && !leases.acquire('voice', queuedSend.runId, { salience: queuedSend.salience }).granted)
         continue
       pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
       runningSends.set(queuedSend.sessionId, queuedSend)
       void execute(queuedSend).then((result) => {
-        // Free the slot before the caller resumes, so a settled send never appears to run.
+        // Free the slot and leases before the caller resumes, so a settled send never appears to run.
         runningSends.delete(queuedSend.sessionId)
+        leases.releaseAll(queuedSend.runId)
         if (queuedSend.cancellation?.rollback && queuedSend.writtenMessageIds.length)
           deps.session.removeSessionMessages?.(queuedSend.sessionId, queuedSend.writtenMessageIds)
         pump()
@@ -1317,6 +1334,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       pendingQueuedSends.push({
         runId,
         envelope,
+        salience: decision.salience ?? stimulus.salience,
         writtenMessageIds: [],
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,

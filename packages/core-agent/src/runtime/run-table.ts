@@ -46,11 +46,21 @@ const FINAL_STATES = new Set<AgentRunState>(['done', 'dropped', 'blocked', 'expi
  *
  * Returns:
  * - Cloned run records. Finished runs beyond the retention limit are dropped oldest first.
+ * - Subscribers hear every admission and state change.
  */
 export class RunTable {
   private readonly runs = new Map<string, AgentRun>()
+  private readonly listeners = new Set<(run: AgentRun) => void>()
 
-  constructor(private readonly options: { finishedLimit?: number, now?: () => number, onChange?: (run: AgentRun) => void } = {}) {}
+  constructor(private readonly options: { finishedLimit?: number, now?: () => number } = {}) {}
+
+  /** Calls the listener after every admission and state change. Returns the unsubscribe function. */
+  subscribe(listener: (run: AgentRun) => void) {
+    this.listeners.add(listener)
+    return () => {
+      this.listeners.delete(listener)
+    }
+  }
 
   /** Admits a run in the `queued` state. */
   admit(run: Pick<AgentRun, 'runId' | 'envelope' | 'parentRunId'>): AgentRun {
@@ -97,13 +107,15 @@ export class RunTable {
     return this.options.now?.() ?? Date.now()
   }
 
-  /** An observer failure never changes the run. */
+  /** An observer failure never changes the run or reaches other observers. */
   private notify(run: AgentRun) {
-    try {
-      this.options.onChange?.(structuredClone(run))
-    }
-    catch (error) {
-      console.error('Run observer failed:', error)
+    for (const listener of this.listeners) {
+      try {
+        listener(structuredClone(run))
+      }
+      catch (error) {
+        console.error('Run observer failed:', error)
+      }
     }
   }
 

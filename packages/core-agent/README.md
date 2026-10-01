@@ -104,7 +104,9 @@ A policy can admit or ignore chat input. A failing policy admits the input with 
 `ingest` resolves with the stimulus id, its outcome, and the run id when it was admitted.
 Each session has its own queue. A session runs one send at a time, and different sessions run concurrently up to `maxConcurrentRuns`.
 A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
-The voice is exclusive. A send with the `voice` output waits while another send holds it. Domain sends keep running.
+The voice is an exclusive lease in `LeaseTable`. A send with the `voice` output waits while any run holds it, and releases it when it ends. Domain sends keep running.
+A lease is free when its holder releases it or it expires. Only a request with `preempt` and strictly higher salience takes over a held lease.
+Pass `runs`, `intake`, and `leases` to share them with other run owners in the host. Each table notifies its subscribers.
 Runtime state reports `runningSessionIds`, `voiceSessionId`, and the live reply of each running session.
 Supervision ends a run that streams nothing for `stallTimeoutMs` (60 seconds) or runs past `runDeadlineMs` (10 minutes). The run becomes `expired`.
 Three identical consecutive tool calls end a run as `blocked`. A supervised end rejects the send, so the caller sees a failure, never a quiet success.

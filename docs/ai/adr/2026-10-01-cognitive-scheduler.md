@@ -164,6 +164,8 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runs.test.ts`): an ignored connection input creates no run, provider call, or message. The intake trace records the ignore.
 - Observed (`chat-orchestrator-runs.test.ts`): direct owner input is admitted by rule without a policy call. A failing policy admits by fallback.
 - Observed (`chat-orchestrator-runs.test.ts`): an audience failure records `rejected` without a run. Rejection is a failure, never a choice.
+- Observed (`lease-table.test.ts`, `chat-orchestrator-runs.test.ts`): the voice is a lease with one holder. A chat send waits while another run owner holds it.
+- Implemented: one run table, intake trace, and lease table serve every run owner in a renderer.
 
 ### Open P0 evidence
 

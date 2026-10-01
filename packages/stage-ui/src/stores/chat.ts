@@ -45,6 +45,7 @@ import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useSchedulerStore } from './scheduler'
 import { useSettingsRunLimits } from './settings/run-limits'
 import { useSettingsSessionLifecycle } from './settings/session-lifecycle'
 import { executeToolCallRerun } from './tool-call-rerun'
@@ -205,6 +206,7 @@ export const useChatStore = defineStore('chat', () => {
   const contextSource = useContextSourceStore()
   const cardStore = useAiriCardStore()
   const contextObservability = useContextObservabilityStore()
+  const scheduler = useSchedulerStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -553,6 +555,9 @@ export const useChatStore = defineStore('chat', () => {
     },
     createEnvelope: createRunEnvelope,
     getLimits: () => runLimitSettings.limits,
+    runs: scheduler.runs,
+    intake: scheduler.intake,
+    leases: scheduler.leases,
     onRunChange: trackRun,
     foregroundStream: {
       patch: (message) => {
