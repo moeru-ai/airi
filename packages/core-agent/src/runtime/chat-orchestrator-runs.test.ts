@@ -18,7 +18,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], leases?: LeaseTable } = {}) {
+function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], leases?: LeaseTable } = {}) {
   const messages: ChatHistoryItem[] = []
   const runChanges: AgentRun[] = []
   let sessionAudience = options.sessionAudience ?? OWNER_AUDIENCE
@@ -56,6 +56,7 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     createEnvelope: () => ({ bindings: [], outputs: options.outputs ?? ['chat:owner'], audience: options.runAudience ?? OWNER_AUDIENCE, personaId: 'airi' }),
     onRunChange: options.onRunChange ?? (run => runChanges.push(run)),
     decideIntake: options.decideIntake,
+    decideDirectIntake: options.decideDirectIntake,
     leases: options.leases,
   })
   return { runtime, messages, runChanges, correlations, snapshot, stream, getSessionAudience: () => sessionAudience }
@@ -117,15 +118,34 @@ describe('orchestrator runs', () => {
     expect(harness.runtime.getIntakeRecords()).toMatchObject([{ stimulusId: result.stimulusId, outcome: 'ignored', reason: 'not-addressed' }])
   })
 
-  it('admits direct owner input without waiting for the intake policy', async () => {
-    const decideIntake = vi.fn(() => ({ outcome: 'ignored' as const, reason: 'never', decidedBy: 'rule' as const }))
-    const harness = createRunHarness({ decideIntake })
+  // The supplement requires an intake decision for direct input, without automatic admission or a remote wait.
+  it('decides direct owner input with the local policy, never the remote one', async () => {
+    const decideIntake = vi.fn(() => ({ outcome: 'admitted' as const, reason: 'remote', decidedBy: 'classifier' as const }))
+    const decideDirectIntake = vi.fn(() => ({ outcome: 'ignored' as const, reason: 'busy-persona', decidedBy: 'rule' as const }))
+    const harness = createRunHarness({ decideIntake, decideDirectIntake })
 
     const result = await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
 
     expect(decideIntake).not.toHaveBeenCalled()
+    expect(decideDirectIntake).toHaveBeenCalledWith(expect.objectContaining({ direct: true, source: 'owner', text: 'hello' }))
+    expect(result.outcome).toBe('ignored')
+    expect(harness.runtime.getRuns()).toEqual([])
+    expect(harness.stream).not.toHaveBeenCalled()
+    expect(harness.runtime.getIntakeRecords()).toMatchObject([{ outcome: 'ignored', reason: 'busy-persona', decidedBy: 'rule' }])
+  })
+
+  it('admits direct input by the default local rule and ignores empty input', async () => {
+    const harness = createRunHarness()
+
+    const empty = await harness.runtime.ingest('   ', { model: 'test', chatProvider: provider })
+    const result = await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+
+    expect(empty.outcome).toBe('ignored')
     expect(result).toMatchObject({ outcome: 'admitted', runId: harness.runtime.getRuns()[0]?.runId })
-    expect(harness.runtime.getIntakeRecords()).toMatchObject([{ outcome: 'admitted', reason: 'direct-input', decidedBy: 'rule', runId: result.runId }])
+    expect(harness.runtime.getIntakeRecords()).toMatchObject([
+      { outcome: 'ignored', reason: 'empty-input', decidedBy: 'rule' },
+      { outcome: 'admitted', reason: 'direct-input', decidedBy: 'rule', runId: result.runId },
+    ])
   })
 
   // ROOT CAUSE:

@@ -99,8 +99,10 @@ The run id reaches `requestCorrelation.runId` and the generated `AssistantTurn.r
 The context snapshot receives the run audience. Before each assistant write, the session audience narrows to the labels of the pool entries that the run read.
 Every input passes intake first. `IntakeLog` records each decision apart from the run table: `admitted`, `deferred`, `merged`, `ignored`, or `rejected`.
 An ignored or rejected input has no run. `rejected` is an audience, capacity, or authority failure, never a choice.
-Direct owner input is admitted by rule and never waits for a policy. Input from a connection goes through `decideIntake`.
-A policy can admit or ignore chat input. A failing policy admits the input with `decidedBy: 'fallback'`, so a broken policy cannot lose input.
+Direct owner input also needs an intake decision. `decideDirectIntake` decides it synchronously and locally, so the owner never waits for a remote classifier.
+The default rule `decideDirectInput` ignores input with no text and no attachments, and admits the rest. An admitted run can still choose silence.
+Input from a connection goes through `decideIntake`, which can ask a remote classifier. Either policy can admit or ignore chat input.
+A failing policy admits the input with `decidedBy: 'fallback'`, so a broken policy cannot lose input.
 `ingest` resolves with the stimulus id, its outcome, and the run id when it was admitted.
 Each session has its own queue. A session runs one send at a time, and different sessions run concurrently up to `maxConcurrentRuns`.
 A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.

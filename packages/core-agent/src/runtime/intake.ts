@@ -17,8 +17,12 @@ export interface Stimulus {
   bindings: readonly string[]
   /** Prior salience from 0 to 1. Sources set it, and intake only maps their vocabulary. */
   salience: number
-  /** Owner input on a local surface. It bypasses synchronous triage. */
+  /** Owner input on a local surface. A synchronous local policy decides it, never a remote classifier. */
   direct?: boolean
+  /** Content for appraisal. External content is untrusted data and never grants authority. */
+  text?: string
+  /** Whether the stimulus carries attachments, for example images. */
+  hasAttachments?: boolean
   receivedAt: number
   deadlineAt?: number
   /** Stimuli with the same key replace each other while they wait. */

@@ -317,7 +317,13 @@ export interface ChatOrchestratorRuntimeDeps {
   /** Called whenever a run is admitted or changes state. */
   onRunChange?: (run: AgentRun) => void
   /**
-   * Decides whether input from a connection becomes a run. Direct owner input never waits for it.
+   * Decides whether direct owner input becomes a run. It is synchronous and local, so the owner never waits for a remote classifier.
+   * A throwing policy admits the input as the fallback.
+   * @default {@link decideDirectInput}
+   */
+  decideDirectIntake?: (stimulus: Stimulus) => ChatIntakeDecision
+  /**
+   * Decides whether input from a connection becomes a run. It can ask a remote classifier.
    * A failure admits the input as the fallback, so a broken policy cannot lose input.
    * @default admit every input
    */
@@ -446,6 +452,18 @@ export interface ChatOrchestratorRuntimeDeps {
 
 /** Chat input either becomes a run or is ignored. It never waits for a later turn. */
 export type ChatIntakeDecision = IntakeDecision & { outcome: 'admitted' | 'ignored' }
+
+/**
+ * Default local intake rule for direct owner input.
+ *
+ * Returns:
+ * - `ignored` for input with no text and no attachments. Otherwise `admitted`. An admitted run can still choose silence.
+ */
+export function decideDirectInput(stimulus: Stimulus): ChatIntakeDecision {
+  if (!stimulus.text?.trim() && !stimulus.hasAttachments)
+    return { outcome: 'ignored', reason: 'empty-input', decidedBy: 'rule' }
+  return { outcome: 'admitted', reason: 'direct-input', decidedBy: 'rule' }
+}
 
 /** Result of one chat input. An ignored input has no run. */
 export interface ChatIngestResult {
@@ -1265,6 +1283,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     emitStateChange()
   }
 
+  function decideDirect(stimulus: Stimulus): ChatIntakeDecision {
+    try {
+      return (deps.decideDirectIntake ?? decideDirectInput)(stimulus)
+    }
+    catch (error) {
+      console.error('Direct intake policy failed:', error)
+      return { outcome: 'admitted', reason: 'policy-failed', decidedBy: 'fallback' }
+    }
+  }
+
   async function decideByPolicy(stimulus: Stimulus, decideIntake: NonNullable<ChatOrchestratorRuntimeDeps['decideIntake']>): Promise<ChatIntakeDecision> {
     try {
       return await decideIntake(stimulus)
@@ -1298,6 +1326,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       bindings: envelope.bindings,
       salience: salienceFromUrgency(),
       direct: !options.outputTarget,
+      text: sendingMessage,
+      hasAttachments: Boolean(options.attachments?.length),
       receivedAt: now(),
     }
     const rejectStimulus = (reason: string, message: string): never => {
@@ -1311,11 +1341,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     if (!audienceIncludes(sessionAudience, envelope.audience))
       rejectStimulus('audience', 'Run audience exceeds the session audience')
 
-    // Direct owner input bypasses synchronous triage. An admitted run can still choose silence.
-    // Without a policy, admission stays synchronous, so queue order follows call order.
-    const decision: ChatIntakeDecision = stimulus.direct || !deps.decideIntake
-      ? { outcome: 'admitted', reason: stimulus.direct ? 'direct-input' : 'connection-input', decidedBy: 'rule' }
-      : await decideByPolicy(stimulus, deps.decideIntake)
+    // Direct owner input gets a synchronous local decision, so queue order follows call order.
+    // Connection input can wait for a remote classifier.
+    const decision: ChatIntakeDecision = stimulus.direct
+      ? decideDirect(stimulus)
+      : deps.decideIntake
+        ? await decideByPolicy(stimulus, deps.decideIntake)
+        : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
     if (decision.outcome === 'ignored') {
       intake.record(stimulus, decision)
       return { stimulusId: stimulus.id, outcome: 'ignored' }

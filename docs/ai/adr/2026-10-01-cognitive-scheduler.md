@@ -35,6 +35,8 @@ Audience rules and persona disclosure rules remain independent.
 
 Application context has context authority. Untrusted text cannot authorize tools, module control, or memory writes.
 JEV improves decisions, with deterministic fallback and an 800ms deadline. Direct user conversation bypasses synchronous triage.
+Direct input still passes intake. A synchronous local policy decides it, without automatic admission and without a reply obligation.
+The design appendices outside the repository take priority over the whitepaper where they differ.
 
 ## Plain mechanisms
 
@@ -162,7 +164,8 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 ### P3 progress
 
 - Observed (`chat-orchestrator-runs.test.ts`): an ignored connection input creates no run, provider call, or message. The intake trace records the ignore.
-- Observed (`chat-orchestrator-runs.test.ts`): direct owner input is admitted by rule without a policy call. A failing policy admits by fallback.
+- Observed (`chat-orchestrator-runs.test.ts`): direct owner input gets a synchronous local intake decision, never a remote one. The local policy can ignore it without a run.
+- Observed (`chat-orchestrator-runs.test.ts`): the default local rule ignores empty input and admits the rest. A failing policy admits by fallback.
 - Observed (`chat-orchestrator-runs.test.ts`): an audience failure records `rejected` without a run. Rejection is a failure, never a choice.
 - Observed (`lease-table.test.ts`, `chat-orchestrator-runs.test.ts`): the voice is a lease with one holder. A chat send waits while another run owner holds it.
 - Implemented: one run table, intake trace, and lease table serve every run owner in a renderer.
