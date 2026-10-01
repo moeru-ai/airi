@@ -174,6 +174,7 @@ onUnmounted(() => {
   stopAuthenticatedSetup?.()
   stopLoggedOutSetup?.()
   chatStore.dispose()
+  characterOrchestratorStore.dispose()
   contextBridgeStore.dispose()
 })
 

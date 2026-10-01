@@ -317,6 +317,7 @@ function createFullStageRuntime() {
     dispose() {
       stopAuthenticatedSetup?.()
       stopLoggedOutSetup?.()
+      characterOrchestratorStore.dispose()
       contextBridgeStore.dispose()
     },
   }
