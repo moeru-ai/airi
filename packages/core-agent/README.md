@@ -38,6 +38,11 @@ Other slots and other writers remain intact. Snapshots are clones and cannot cha
 Reader snapshots match exact destination identities and lanes. Exclusions take precedence over inclusions.
 An entry without destinations is visible only to its writer. Explicit `{ all: true }` publishes to all readers.
 An empty destination list publishes to no reader. Unfiltered snapshots serve local diagnostics only.
+Active observations expire after 60 seconds by default. `ttlMs` overrides their lifetime, and a local `expiresAt` can shorten it.
+The default budgets are 800 units total, 200 per writer, and 80 per entry. Each append slot retains at most eight events.
+The default counter uses UTF-8 bytes as a conservative text cost. Hosts can supply a tokenizer through `countTokens`.
+Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
+Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 

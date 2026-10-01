@@ -67,6 +67,8 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
     source: MetadataEventSource
   }
   createdAt: number
+  /** Local expiry can shorten the transport TTL when the host scopes an observation. */
+  expiresAt?: number
 }
 
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {

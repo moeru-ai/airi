@@ -26,7 +26,7 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
     contextId: overrides.contextId ?? 'sensor-reading',
     strategy: overrides.strategy ?? ContextUpdateStrategy.ReplaceSelf,
     text: overrides.text ?? 'context text',
-    createdAt: overrides.createdAt ?? 1,
+    createdAt: overrides.createdAt ?? Date.now(),
     ...overrides,
   }
 }
@@ -91,6 +91,58 @@ describe('createContextRegistry', () => {
     expect(Object.keys(registry.snapshot({ ids: ['module-a'] }))).toEqual(['module-a'])
     expect(registry.snapshot({ ids: ['module-b'] })).toEqual({})
     expect(Object.keys(registry.snapshot({ ids: ['module-c'] }))).toEqual(['module-c'])
+  })
+
+  it('expires observations before reads and rejects already expired updates', () => {
+    let now = 1_000
+    const registry = createContextRegistry({ now: () => now, defaultTtlMs: 100 })
+    registry.ingest(createContextMessage({ source: 'sensor', createdAt: now }))
+    now = 1_100
+
+    expect(registry.snapshot()).toEqual({})
+    expect(registry.ingest(createContextMessage({ source: 'sensor', createdAt: 1_000 }))).toBeUndefined()
+    expect(registry.activeContexts()).toEqual({})
+    expect(registry.contextHistory()).toHaveLength(2)
+  })
+
+  it('bounds append slots independently of diagnostic history', () => {
+    const registry = createContextRegistry({ maxEntriesPerSlot: 2 })
+    for (const id of ['one', 'two', 'three'])
+      registry.ingest(createContextMessage({ id, source: 'sensor', strategy: ContextUpdateStrategy.AppendSelf }))
+
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.contextHistory()).toHaveLength(3)
+  })
+
+  it('rejects an oversized replacement without deleting the previous slot', () => {
+    const registry = createContextRegistry({ maxEntryTokens: 5, countTokens: text => text.length })
+    registry.ingest(createContextMessage({ source: 'sensor', text: 'small' }))
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text: 'oversized' }))).toBeUndefined()
+    expect(registry.snapshot().sensor?.[0]?.text).toBe('small')
+  })
+
+  it('enforces a total token budget across many writers', () => {
+    const registry = createContextRegistry({ maxTokens: 10, maxWriterTokens: 10, countTokens: text => text.length })
+    for (let index = 0; index < 20; index++)
+      registry.ingest(createContextMessage({ source: `writer-${index}`, text: 'four' }))
+
+    const messages = Object.values(registry.snapshot()).flat()
+    expect(messages.reduce((sum, message) => sum + message.text.length, 0)).toBeLessThanOrEqual(10)
+    expect(messages).toHaveLength(2)
+    expect(registry.contextHistory()).toHaveLength(20)
+  })
+
+  it('limits each writer without evicting another writer to admit an oversized slot', () => {
+    const registry = createContextRegistry({ maxWriterTokens: 6, countTokens: text => text.length })
+    registry.ingest(createContextMessage({ source: 'other', text: 'other' }))
+    registry.ingest(createContextMessage({ source: 'sensor', contextId: 'one', text: 'four' }))
+    registry.ingest(createContextMessage({ source: 'sensor', contextId: 'two', text: 'four' }))
+
+    expect(registry.snapshot().sensor).toHaveLength(1)
+    expect(registry.snapshot().other?.[0]?.text).toBe('other')
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text: 'toolong' }))).toBeUndefined()
+    expect(registry.snapshot().other?.[0]?.text).toBe('other')
   })
 
   /**
@@ -327,7 +379,7 @@ describe('createContextRegistry', () => {
         sourceKey: 'sensor',
       }),
     ])
-    expect(registry.activeContexts().sensor).toEqual([])
+    expect(registry.activeContexts()).toEqual({})
   })
 
   /**

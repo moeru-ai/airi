@@ -572,6 +572,10 @@ export interface ContextUpdate<
    */
   contextId: string
   lane?: string
+  /** Lifetime from the receiving host's observation time, in milliseconds. */
+  ttlMs?: number
+  /** Retention priority from 0 to 1. This value cannot grant permissions. */
+  salience?: number
   ideas?: Array<string>
   hints?: Array<string>
   strategy: ContextUpdateStrategy
