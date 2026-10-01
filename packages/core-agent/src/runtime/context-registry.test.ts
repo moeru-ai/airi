@@ -108,10 +108,55 @@ describe('createContextRegistry', () => {
   it('bounds append slots independently of diagnostic history', () => {
     const registry = createContextRegistry({ maxEntriesPerSlot: 2 })
     for (const id of ['one', 'two', 'three'])
-      registry.ingest(createContextMessage({ id, source: 'sensor', strategy: ContextUpdateStrategy.AppendSelf }))
+      registry.ingest(createContextMessage({ id, source: 'sensor', contextId: 'events', strategy: ContextUpdateStrategy.AppendSelf }))
 
     expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['two', 'three'])
     expect(registry.contextHistory()).toHaveLength(3)
+  })
+
+  // ROOT CAUSE:
+  // Any contextId accepted append updates, so random slots bypassed the per-slot event limit.
+  // Admission now requires an exact match in the host's fixed append-slot list.
+  it('rejects append updates outside fixed event slots without changing active observations', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ id: 'stable', source: 'sensor', contextId: 'position', text: 'forest' }))
+
+    const result = registry.ingest(createContextMessage({
+      id: 'append-position',
+      source: 'sensor',
+      contextId: 'position',
+      strategy: ContextUpdateStrategy.AppendSelf,
+      text: 'village',
+    }))
+
+    expect(result).toBeUndefined()
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['stable'])
+    expect(registry.contextHistory().map(message => message.id)).toEqual(['stable', 'append-position'])
+  })
+
+  it('uses an immutable copy of the configured append slots and keeps writer windows separate', () => {
+    const appendContextIds = ['alerts']
+    const registry = createContextRegistry({ appendContextIds, maxEntriesPerSlot: 2 })
+    appendContextIds.push('arbitrary-slot')
+    appendContextIds.splice(0, 1)
+    for (const source of ['sensor-a', 'sensor-b']) {
+      for (const id of ['one', 'two', 'three'])
+        registry.ingest(createContextMessage({ id, source, contextId: 'alerts', strategy: ContextUpdateStrategy.AppendSelf }))
+    }
+
+    expect(registry.snapshot()['sensor-a']?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.snapshot()['sensor-b']?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.ingest(createContextMessage({ source: 'sensor-a', contextId: 'arbitrary-slot', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+    expect(registry.ingest(createContextMessage({ source: 'sensor-a', contextId: 'events', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+    expect(registry.ingest(createContextMessage({ source: 'sensor-a', contextId: 'alerts:other', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+  })
+
+  it('disables append with an empty slot list while retaining replacement updates', () => {
+    const registry = createContextRegistry({ appendContextIds: [] })
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', contextId: 'events', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+    expect(registry.ingest(createContextMessage({ source: 'sensor', contextId: 'events' }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor).toHaveLength(1)
   })
 
   it('rejects an oversized replacement without deleting the previous slot', () => {
@@ -188,12 +233,14 @@ describe('createContextRegistry', () => {
       id: 'first',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'first reading',
     }))
     const secondResult = registry.ingest(createContextMessage({
       id: 'second',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'second reading',
     }))
 
@@ -309,12 +356,14 @@ describe('createContextRegistry', () => {
       id: 'first',
       source: 'toString',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'first toString bucket entry',
     }))
     const secondResult = registry.ingest(createContextMessage({
       id: 'second',
       source: 'toString',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'second toString bucket entry',
     }))
 

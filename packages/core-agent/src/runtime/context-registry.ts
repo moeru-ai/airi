@@ -77,6 +77,8 @@ interface CreateContextRegistryOptions {
   maxEntryTokens?: number
   /** Maximum retained events in one append slot. @default 8 */
   maxEntriesPerSlot?: number
+  /** Fixed slots that accept append updates within each writer bucket. An empty list disables append. @default ['events'] */
+  appendContextIds?: readonly string[]
   /** Counts text cost. UTF-8 bytes provide a conservative tokenizer-independent default. @default UTF-8 byte count */
   countTokens?: (text: string) => number
   /** Clock for observation expiry. @default Date.now */
@@ -153,6 +155,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   const maxWriterTokens = options.maxWriterTokens ?? 200
   const maxEntryTokens = options.maxEntryTokens ?? 80
   const maxEntriesPerSlot = options.maxEntriesPerSlot ?? 8
+  const appendContextIds = new Set(options.appendContextIds ?? ['events'])
   const now = options.now ?? Date.now
   const encoder = new TextEncoder()
   const countTokens = options.countTokens ?? ((text: string) => encoder.encode(text).length)
@@ -208,6 +211,10 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
     }
 
     if (envelope.strategy !== CONTEXT_UPDATE_REPLACE_SELF && envelope.strategy !== CONTEXT_UPDATE_APPEND_SELF)
+      return undefined
+
+    // A writer cannot create an unbounded set of event windows with arbitrary slot identifiers.
+    if (envelope.strategy === CONTEXT_UPDATE_APPEND_SELF && !appendContextIds.has(envelope.contextId))
       return undefined
 
     const incoming: StoredContext = { message: safeEnvelopeToStore, tokens, expiresAt }

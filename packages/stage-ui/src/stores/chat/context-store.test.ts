@@ -74,12 +74,14 @@ describe('useChatContextStore', () => {
       id: 'first',
       metadata: createMetadata('weather', 'station-1'),
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'sunny',
     })
     const secondMessage = createContextMessage({
       id: 'second',
       metadata: createMetadata('weather', 'station-1'),
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'windy',
     })
 
@@ -195,6 +197,7 @@ describe('useChatContextStore', () => {
       id: 'first',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'early',
       createdAt: timestamp - 20,
     }))
@@ -202,6 +205,7 @@ describe('useChatContextStore', () => {
       id: 'second',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'late',
       createdAt: timestamp,
     }))
