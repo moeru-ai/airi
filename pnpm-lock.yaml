@@ -3235,6 +3235,9 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:*
+        version: link:../../packages/server-shared
       '@xsai/generate-text':
         specifier: 'catalog:'
         version: 0.5.1
