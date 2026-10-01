@@ -140,7 +140,8 @@ async function setupAudioMonitoring() {
     if (startup.signal.aborted)
       return
     // Surface a denied or missing microphone before the detector starts. The plugin then subscribes by itself.
-    await settingsAudioDeviceStore.askPermission()
+    if (!await settingsAudioDeviceStore.askPermission())
+      throw new Error(settingsAudioDeviceStore.error || 'Microphone access was denied')
     if (startup.signal.aborted)
       return
     const model = useVADModel.value ? new SileroVad() : undefined

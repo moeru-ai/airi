@@ -61,15 +61,22 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     }).catch(() => {})
   }
 
-  async function askPermission() {
+  /**
+   * Requests microphone access and reports whether it succeeded.
+   *
+   * Denial is an expected user choice, so it never rejects. The reason stays in `error`.
+   * Controls call this from watchers, where a rejection would reach the app error boundary.
+   */
+  async function askPermission(): Promise<boolean> {
     error.value = undefined
     try {
       await device.askPermission()
+      return true
     }
     catch (cause) {
       if (!isAbort(cause))
         error.value = errorMessageFrom(cause) || 'Could not start the microphone'
-      throw cause
+      return false
     }
   }
 

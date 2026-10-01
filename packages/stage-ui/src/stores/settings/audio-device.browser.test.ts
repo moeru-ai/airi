@@ -65,7 +65,7 @@ describe('microphone settings through the browser adapter', () => {
     const devices = mountDevices()
     expect(devices.selectedAudioInput).toBe('missing-test-microphone')
 
-    await expect(devices.askPermission()).rejects.toThrow()
+    expect(await devices.askPermission()).toBe(false)
 
     expect(devices.error).toBeTruthy()
     expect(devices.stream).toBeUndefined()
