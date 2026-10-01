@@ -380,7 +380,7 @@ describe('context bridge contract', () => {
     await store.initialize()
     serverSendMock.mockClear()
     const context: ChatStreamEventContext = { turnId: 'turn-1', message: { role: 'user', content: 'hello' }, contexts: {}, composedMessage: [] }
-    const message = { role: 'assistant' as const, content: 'local reply' }
+    const message = { role: 'assistant' as const, content: 'local reply', slices: [], tool_results: [] }
 
     await emitHooks(assistantMessageHooks, message, message.content, context)
     await emitHooks(turnCompleteHooks, { output: message, outputText: message.content, toolCalls: [] }, context)
