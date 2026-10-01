@@ -1,3 +1,5 @@
+import type { Audience } from '@proj-airi/core-agent'
+
 import type { ChatHistoryItem } from './chat'
 
 export interface ChatSessionMeta {
@@ -6,6 +8,8 @@ export interface ChatSessionMeta {
   characterId: string
   /** External scene identities that recover this session within its user and persona partition. */
   bindings?: string[]
+  /** Subjects that this history may reach. It can only narrow. A missing label is derived from bindings. */
+  audience?: Audience
   /** Session from which this conversation branch was copied. */
   parentSessionId?: string
   /** Purpose supplied when the branch was created. */

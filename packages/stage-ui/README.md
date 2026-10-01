@@ -20,7 +20,9 @@ The overlay emits `finished` when all resources are ready. Apps open onboarding 
 External inputs use `overrides.binding` to identify their scene. The session leader creates or recovers a persistent session for that binding.
 Bindings belong to a user and character partition. Recovery keeps the calling window's selected conversation unchanged.
 Discord uses one binding per channel, including threads and direct messages.
-Conversation forks retain their parent session, reason, and hidden flag.
+Conversation forks retain their parent session, reason, hidden flag, bindings, and audience. Binding recovery never selects a fork.
+Each session has an allowed `audience`. It starts from its bindings and only narrows through `narrowSessionAudience`.
+A scene recovers only a root session whose audience still includes the scene audience. Otherwise the scene starts a new session.
 
 Array `destinations` on `context:update` route transport peers. The object form `{ include, exclude, all }` names logical readers.
 A module observation without logical readers belongs to `owner:private`. Bound scenes, such as Discord channels, do not read it.

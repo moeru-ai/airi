@@ -1,3 +1,4 @@
+import type { Audience } from '@proj-airi/core-agent'
 import type { MessageRole, NewMessagesPayload } from '@proj-airi/server-sdk-shared'
 import type {} from 'pinia-plugin-synced'
 
@@ -7,6 +8,7 @@ import type { ChatHistoryItem } from '../../types/chat'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
+import { audienceFromBindings, audienceIncludes, intersectAudiences } from '@proj-airi/core-agent'
 import { cloneDeep } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -478,6 +480,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     messages?: ChatHistoryItem[]
     title?: string
     bindings?: string[]
+    /** Allowed audience of the new history. @default derived from bindings */
+    audience?: Audience
     parentSessionId?: string
     forkReason?: string
     hidden?: boolean
@@ -491,6 +495,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       characterId,
       title: options?.title,
       bindings: options?.bindings,
+      audience: options?.audience ?? audienceFromBindings(options?.bindings),
       parentSessionId: options?.parentSessionId,
       forkReason: options?.forkReason,
       hidden: options?.hidden,
@@ -1490,7 +1495,31 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return getSessionGeneration(target)
   }
 
-  /** Recovers one external scene without changing the window's selected conversation. */
+  /** Allowed audience of a session's history. A session without a stored label has its binding-derived audience. */
+  function getSessionAudience(sessionId: string): Audience | undefined {
+    const meta = sessionMetas.value[sessionId]
+    return meta ? meta.audience ?? audienceFromBindings(meta.bindings) : undefined
+  }
+
+  /**
+   * Narrows a session's audience to what its history may reach. Labels never widen.
+   * A write inherits the intersection of everything the run read, including this history.
+   */
+  async function narrowSessionAudience(sessionId: string, audience: Audience) {
+    const current = getSessionAudience(sessionId)
+    if (!current)
+      return
+    const narrowed = intersectAudiences(current, audience)
+    if (JSON.stringify(narrowed) === JSON.stringify(current) && sessionMetas.value[sessionId]?.audience)
+      return
+    sessionMetas.value[sessionId] = { ...sessionMetas.value[sessionId]!, audience: narrowed }
+    await persistSession(sessionId)
+  }
+
+  /**
+   * Recovers one external scene without changing the window's selected conversation.
+   * Only a root session whose audience still reaches the scene can serve it. Otherwise the scene starts a new session.
+   */
   async function ensureBoundSession(binding: string): Promise<string> {
     if (!binding.trim())
       throw new Error('An external session binding must not be empty')
@@ -1499,8 +1528,11 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
     const currentUserId = getCurrentUserId()
     const characterId = getCurrentCharacterId()
-    const existing = Object.values(sessionMetas.value).find(meta => meta.userId === currentUserId
-      && meta.characterId === characterId && meta.bindings?.includes(binding))
+    const sceneAudience = audienceFromBindings([binding])
+    const existing = Object.values(sessionMetas.value)
+      .filter(meta => meta.userId === currentUserId && meta.characterId === characterId && !meta.parentSessionId
+        && meta.bindings?.includes(binding) && audienceIncludes(getSessionAudience(meta.sessionId)!, sceneAudience))
+      .sort((left, right) => right.updatedAt - left.updatedAt)[0]
     if (existing) {
       if (!await loadSession(existing.sessionId))
         throw new Error('Failed to recover the bound chat session')
@@ -1518,9 +1550,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const nextMessages = parentMessages.slice(0, forkIndex)
+    // A branch keeps its parent's scene and history label. Recovery never treats it as the scene's root session.
     return await createSession(characterId, {
       setActive: false,
       messages: nextMessages,
+      bindings: parentMeta.bindings,
+      audience: getSessionAudience(options.fromSessionId),
       parentSessionId: options.fromSessionId,
       forkReason: options.reason,
       hidden: options.hidden,
@@ -1687,6 +1722,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     importSessions,
     createSession,
     ensureBoundSession,
+    getSessionAudience,
+    narrowSessionAudience,
     loadSession,
     refreshSession,
     deleteSession,
@@ -1706,6 +1743,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'deleteSession',
       'ensureCurrentSession',
       'ensureBoundSession',
+      'narrowSessionAudience',
       'exportSessions',
       'forkSession',
       'importSessions',

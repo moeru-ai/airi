@@ -160,6 +160,37 @@ describe('chat session synchronization', () => {
     expect(leader.sessionMetas[fork]?.characterId).toBe('default')
   })
 
+  // ROOT CAUSE:
+  // A fork had no bindings, so it read the owner's private scene from a channel history.
+  // Recovery also ignored what a history had read, so a narrowed history could return to its channel.
+  it('keeps forks in their scene and recovers a scene only into a compatible root session', async () => {
+    const namespace = `chat-audience:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const store = useChatSessionStore(leaderContext.pinia)
+    await store.initialize()
+    const channel = { kind: 'subjects', subjects: ['discord:channel:a:members', 'user:owner'] }
+
+    const root = await store.ensureBoundSession('discord:channel:a')
+    expect(store.getSessionAudience(root)).toEqual(channel)
+    expect(store.getSessionAudience(store.activeSessionId)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+
+    const fork = await store.forkSession({ fromSessionId: root, hidden: true })
+    expect(store.sessionMetas[fork]?.bindings).toEqual(['discord:channel:a'])
+    expect(store.getSessionAudience(fork)).toEqual(channel)
+    expect(await store.ensureBoundSession('discord:channel:a')).toBe(root)
+
+    // The history read an owner-only record, so it can no longer serve the channel.
+    await store.narrowSessionAudience(root, { kind: 'subjects', subjects: ['user:owner'] })
+    expect(store.getSessionAudience(root)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+    await store.narrowSessionAudience(root, channel)
+    expect(store.getSessionAudience(root)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+    const next = await store.ensureBoundSession('discord:channel:a')
+    expect(next).not.toBe(root)
+    expect(next).not.toBe(fork)
+    expect(store.getSessionAudience(next)).toEqual(channel)
+  })
+
   it('initializes a follower through the canonical session action', async () => {
     // ROOT CAUSE:
     //

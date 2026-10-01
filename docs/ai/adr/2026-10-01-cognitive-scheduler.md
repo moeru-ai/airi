@@ -114,6 +114,8 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 - Audience labels are sorted subject sets or `public`. Every scene includes the owner, because host surfaces show every session to the owner.
 - Shared pool entries carry host-assigned audiences. A run reads an entry only when the entry's audience includes the run's effective audience.
+- Sessions store an audience derived from bindings. It only narrows. Forks inherit bindings and audience, and binding recovery skips forks.
+- A scene recovers a root session only when the session audience includes the scene audience.
 
 ### Open P0 evidence
 
@@ -126,8 +128,6 @@ These checks need live models, bots, or windows. They are not verified.
 
 ### Known limits until P1
 
-- Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
-- A fork of a bound session has no bindings, so it reads the owner scene.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
 
 ### Findings outside P0
