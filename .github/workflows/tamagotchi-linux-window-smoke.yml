@@ -1,4 +1,4 @@
-name: Tamagotchi Linux Window Smoke
+name: E2E Test - Tamagotchi (Linux)
 
 # Compiling stage-tamagotchi on Linux (see the `build-test` job in ci.yml)
 # only proves the code type-checks and bundles. It never launches the app,
