@@ -10,9 +10,13 @@ import Onboarding from './onboarding.vue'
 
 import { useBreakpoints } from '../../../../composables/use-breakpoints'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   extraSteps?: OnboardingStep[]
-}>()
+  scaleBackground?: boolean
+  instantOpen?: boolean
+}>(), {
+  scaleBackground: true,
+})
 
 const emit = defineEmits<{
   (e: 'configured'): void
@@ -31,8 +35,8 @@ onMounted(() => screenSafeArea.update())
 <template>
   <DialogRoot v-if="isDesktop" :open="showDialog" @update:open="value => showDialog = value">
     <DialogPortal>
-      <DialogOverlay class="fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-9999 h-[min(100dvh,48rem)] max-h-full max-w-2xl w-[92dvw] flex flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900">
+      <DialogOverlay class="fixed inset-0 z-9999 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" :style="props.instantOpen ? { animation: 'none' } : undefined" />
+      <DialogContent class="fixed left-1/2 top-1/2 z-9999 h-[min(100dvh,48rem)] max-h-full max-w-2xl w-[92dvw] flex flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-xl outline-none backdrop-blur-md scrollbar-none -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:bg-neutral-900" :style="props.instantOpen ? { animation: 'none' } : undefined">
         <VisuallyHidden>
           <DialogTitle>Onboarding</DialogTitle>
         </VisuallyHidden>
@@ -42,9 +46,10 @@ onMounted(() => screenSafeArea.update())
       </DialogContent>
     </DialogPortal>
   </DialogRoot>
-  <DrawerRoot v-else :open="showDialog" should-scale-background @update:open="value => showDialog = value">
+  <DrawerRoot v-else :open="showDialog" :should-scale-background="props.scaleBackground" @update:open="value => showDialog = value">
     <DrawerPortal>
       <DrawerOverlay
+        :style="props.instantOpen ? { animation: 'none' } : undefined"
         :class="[
           'fixed inset-0 z-900',
           'data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0',
@@ -52,6 +57,7 @@ onMounted(() => screenSafeArea.update())
         ]"
       />
       <DrawerContent
+        :data-vaul-animate="props.instantOpen ? 'false' : undefined"
         :class="[
           'fixed bottom-0 left-0 right-0 z-1000',
           'mt-20 px-4 pt-4',

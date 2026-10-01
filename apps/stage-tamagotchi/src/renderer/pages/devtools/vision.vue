@@ -5,7 +5,7 @@ import type { SourcesOptions } from 'electron'
 import { errorMessageFrom } from '@moeru/std'
 import { ProcessingMeter } from '@proj-airi/stage-ui/components'
 import { VISION_WORKLOADS } from '@proj-airi/stage-ui/composables'
-import { useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useVisionActivityStore, useVisionOrchestratorStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { Button, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onBeforeUnmount, ref } from 'vue'
@@ -24,13 +24,12 @@ const {
   captureIntervalMs,
   isRunning,
   isProcessing,
-  captureCount,
-  contextUpdateCount,
   lastProcessingDurationMs,
   captureRatePerMinute,
   contextUpdateRatePerMinute,
   processingHistoryMs,
 } = storeToRefs(visionProcessingStore)
+const { captureCount, contextUpdateCount } = storeToRefs(useVisionActivityStore())
 const {
   lastResultText,
   lastResultAt,

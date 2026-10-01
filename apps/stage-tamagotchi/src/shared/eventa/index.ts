@@ -55,16 +55,19 @@ export type ChatWindowMode = 'legacy' | 'floating'
  *
  * - `attached`: beside the main window, moving with it.
  * - `free`: where the user drags it.
+ * - `danmaku`: where the user drags it, like `free`. The chat shows as a
+ *   message feed: the composer folds away, and with fade on hover the feed
+ *   only follows new messages and lets every click through.
  */
-export type ChatFloatingPlacement = 'attached' | 'free'
+export type ChatFloatingPlacement = 'attached' | 'free' | 'danmaku'
 
 /** Chat window choices that the main process persists for every chat renderer. */
 export interface ChatWindowPreferences {
   mode: ChatWindowMode
   placement: ChatFloatingPlacement
   /**
-   * Keeps a `free` floating chat above other windows. An `attached` chat
-   * ignores it and follows the main window's pin state instead.
+   * Keeps a `free` floating chat above other windows. An `attached` or
+   * `danmaku` chat ignores it and follows the main window's pin state instead.
    */
   pinned: boolean
 }
@@ -75,7 +78,7 @@ export interface ChatFloatingState {
   /**
    * The side of the main window that the chat sits on in `attached` placement.
    * The renderer folds toward the character on this side and puts the resize
-   * grip on the other. `left` in `free` placement.
+   * grip on the other. `left` in `free` and `danmaku` placement.
    */
   side: 'left' | 'right'
   /**
@@ -92,8 +95,8 @@ export interface ChatFloatingState {
    */
   relocating: boolean
   /**
-   * Whether the chat window stays above other windows: the main window's pin
-   * when attached, the chat's own pin when free. The renderer passes clicks
+   * Whether the chat window stays above other windows: the chat's own pin
+   * when free, the main window's pin otherwise. The renderer passes clicks
    * through only while it is `true`, like the main window.
    */
   pinned: boolean

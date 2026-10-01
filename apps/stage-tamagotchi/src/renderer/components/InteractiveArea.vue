@@ -40,9 +40,27 @@ const props = withDefaults(defineProps<{
    * history reaches the app below instead.
    */
   floating?: boolean
+  /**
+   * `true` adds a tab at the bottom edge that folds the composer away, so
+   * the history reaches the bottom. The folded composer stays mounted, so an
+   * unsent draft, its attachments and its reply target survive.
+   */
+  composerFoldable?: boolean
+  /**
+   * `true` when nobody scrolls or reads the history by hand, such as a feed
+   * that passes every click through. The history then returns to the
+   * newest message.
+   */
+  passive?: boolean
 }>(), {
   floating: false,
+  composerFoldable: false,
+  passive: false,
 })
+
+/** Whether a foldable composer is folded away. */
+const composerFolded = defineModel<boolean>('composerFolded', { default: false })
+const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const lastEnterTime = ref(0)
@@ -205,6 +223,8 @@ async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: n
 
 async function handleReplyMessage(payload: ChatHistoryReplyPayload) {
   selectReply(payload)
+  // A reply needs the composer, so a folded one opens.
+  composerFolded.value = false
   await nextTick()
   messageComposer.value?.querySelector('textarea')?.focus()
 }
@@ -290,6 +310,8 @@ async function restoreDraft(draft: ChatDraftHandover): Promise<boolean> {
   if (activeSessionId.value !== draft.sessionId)
     return false
 
+  // The carried content must stay in sight, so a folded composer opens.
+  composerFolded.value = false
   messageInput.value = draft.text
   if (draft.replyTarget)
     selectReply(draft.replyTarget)
@@ -303,11 +325,19 @@ async function restoreDraft(draft: ChatDraftHandover): Promise<boolean> {
   return true
 }
 
-defineExpose({ restoreDraft, snapshotDraft })
+defineExpose({
+  restoreDraft,
+  snapshotDraft,
+  /** The layer that holds the history, without the composer. */
+  historyLayer: computed(() => viewportLayout.value?.historyLayer ?? null),
+})
 </script>
 
 <template>
-  <ChatViewportLayout>
+  <ChatViewportLayout
+    ref="viewport-layout"
+    :composer-at-edge="props.composerFoldable"
+  >
     <template #history="{ tailInset }">
       <!--
         The welcome card centers in the space above the composer, which covers
@@ -343,6 +373,7 @@ defineExpose({ restoreDraft, snapshotDraft })
         :tool-call-renderers="toolCallRenderers"
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
+        :passive="props.passive"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
@@ -351,10 +382,28 @@ defineExpose({ restoreDraft, snapshotDraft })
     </template>
 
     <template #composer>
+      <!-- The tab rides on the composer's top edge, and drops to the bottom edge with a fold. -->
+      <button
+        v-if="props.composerFoldable"
+        :title="composerFolded ? t('tamagotchi.stage.chat-window.composer.show') : t('tamagotchi.stage.chat-window.composer.hide')"
+        :aria-label="composerFolded ? t('tamagotchi.stage.chat-window.composer.show') : t('tamagotchi.stage.chat-window.composer.hide')"
+        :aria-expanded="!composerFolded"
+        :class="[
+          'mx-auto h-5 w-10 flex items-center justify-center rounded-t-full border border-b-0 outline-none transition-colors',
+          'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
+          'border-neutral-200 bg-white text-neutral-400 hover:text-primary-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-500 dark:hover:text-primary-400',
+        ]"
+        @click="composerFolded = !composerFolded"
+      >
+        <div :class="[composerFolded ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear', 'size-4']" />
+      </button>
       <div
         ref="message-composer"
         :class="[
           'min-h-0 max-h-full flex flex-col gap-1 overflow-hidden rounded-2xl',
+          // A foldable composer leaves the bottom edge to its folded tab.
+          props.composerFoldable ? 'chat-composer-foldable mb-4' : '',
+          props.composerFoldable && composerFolded ? 'chat-composer-folded' : '',
           // The composer layer clips overflow, which would cut a ring or a
           // shadow; a border stays inside the box.
           props.floating
@@ -568,6 +617,36 @@ defineExpose({ restoreDraft, snapshotDraft })
 </template>
 
 <style scoped>
+/*
+ * The composer folds down with the tab on top of it, and the history follows
+ * its height down. A hidden composer takes no focus.
+ */
+.chat-composer-foldable {
+  interpolate-size: allow-keywords;
+  transition:
+    height 250ms ease,
+    padding 250ms ease,
+    margin 250ms ease,
+    border-width 250ms ease,
+    opacity 200ms ease,
+    visibility 250ms;
+}
+
+.chat-composer-folded {
+  height: 0;
+  padding-block: 0;
+  margin-block: 0;
+  border-block-width: 0;
+  opacity: 0;
+  visibility: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-composer-foldable {
+    transition: none;
+  }
+}
+
 .chat-empty-state {
   container-type: size;
 }

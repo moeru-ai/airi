@@ -78,6 +78,26 @@ render-error:
     {renderer} 无法渲染选中的模型。
     模型 ID：{modelId}
     错误：{error}
+startup:
+  failed: 启动失败
+  failed-resource: 无法加载{resource}
+  recover: 请重试。如果仍然失败，请查看下方的错误详情。
+  recover-model: 重新启动 AIRI 再试一次，或暂不加载角色，稍后选择其他模型。
+  details: 发生了什么？
+  close-details: 关闭详情
+  retry: 重新启动 AIRI
+  continue-without-model: 暂不加载角色
+  resources:
+    auth: 账户设置
+    modelIndex: 模型列表
+    card: 角色设置
+    chat: 聊天记录
+    services: 应用服务
+    modelData: 已保存的模型
+    modelSelection: 模型设置
+    audio: 音频设置
+    route: 页面
+    model: 角色模型
 message: 说点什么...
 send-mode:
   title: 发送键值
