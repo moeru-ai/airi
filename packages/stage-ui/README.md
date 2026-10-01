@@ -22,6 +22,9 @@ Bindings belong to a user and character partition. Recovery keeps the calling wi
 Discord uses one binding per channel, including threads and direct messages.
 Conversation forks retain their parent session, reason, and hidden flag.
 
+Module observations enter chat through a session-filtered context snapshot. Minecraft owns its status and relay descriptions in its integration service.
+The frontend does not rebuild Minecraft prose or inject it into every request. Request-only providers contain application instructions, not module observations.
+
 ## Notification ownership
 
 Initialize the character orchestrator with the installed Pinia synchronization runtime.

@@ -1359,18 +1359,9 @@ describe('chat store contract', () => {
       text: 'Start every reply with an ACT token.\n\nDo not use emojis.',
       createdAt: 123,
     }
-    const minecraftContext = {
-      id: 'minecraft-context',
-      contextId: 'system:minecraft',
-      strategy: 'replace-self',
-      source: 'minecraft',
-      text: 'player is near spawn',
-      createdAt: 123,
-    }
     let composedMessages: Turn[] = []
 
     createRuntimePromptContextMock.mockReturnValue(runtimePromptContext)
-    createMinecraftContextMock.mockReturnValue(minecraftContext)
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: StreamOptions) => {
       composedMessages = context.turns
       await options.onStreamEvent?.({ type: 'text-delta', text: 'minecraft reply' })
@@ -1387,7 +1378,6 @@ describe('chat store contract', () => {
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emotion'))
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
     expect(createRuntimePromptContextMock).toHaveBeenCalledOnce()
-    expect(createMinecraftContextMock).toHaveBeenCalledOnce()
     expect(getContextsSnapshotMock).toHaveBeenCalledOnce()
     expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character', 'owner:private'] })
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
@@ -1397,7 +1387,6 @@ describe('chat store contract', () => {
       type: 'runtime-context',
       entries: [
         { source: 'system:airi-runtime-prompt', text: runtimePromptContext.text },
-        { source: 'system:minecraft', text: 'player is near spawn' },
       ],
     })
   })
@@ -1419,6 +1408,61 @@ describe('chat store contract', () => {
 
     expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'] })
     expect(createUserAccountContextMock).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  // The frontend Minecraft provider bypassed reader filtering through the request-only instruction path.
+  // Minecraft now publishes its own context. Chat reads it through the filtered observation pool.
+  it('does not inject frontend Minecraft context into an unrelated external scene', async () => {
+    sessionMetas['session-1'] = {
+      sessionId: 'session-1',
+      userId: 'local',
+      characterId: 'default',
+      bindings: ['discord:channel:a'],
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    createMinecraftContextMock.mockReturnValue({
+      id: 'minecraft-context',
+      contextId: 'system:minecraft-integration',
+      strategy: 'replace-self',
+      text: 'Private Minecraft coordinates: 10, 20, 30',
+      createdAt: Date.now(),
+    })
+    let prompt = ''
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, conversation: Conversation, options: StreamOptions) => {
+      prompt = JSON.stringify(conversation)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Hello from Discord' })
+
+    expect(prompt).not.toContain('Private Minecraft coordinates')
+    expect(createMinecraftContextMock).not.toHaveBeenCalled()
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'] })
+  })
+
+  it('projects module-owned Minecraft context from the reader snapshot', async () => {
+    getContextsSnapshotMock.mockReturnValue({
+      'minecraft-bot': [{
+        id: 'minecraft-status',
+        contextId: 'minecraft:status',
+        strategy: 'replace-self',
+        text: 'Minecraft bot is online.',
+        createdAt: Date.now(),
+      }],
+    })
+    let prompt = ''
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, conversation: Conversation, options: StreamOptions) => {
+      prompt = JSON.stringify(conversation)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Is the bot online?' })
+
+    expect(prompt).toContain('Minecraft bot is online.')
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character', 'owner:private'] })
+    expect(ingestContextMessageMock).not.toHaveBeenCalled()
   })
 
   it('adds account context only to the signed-in request without retaining it in the registry', async () => {
