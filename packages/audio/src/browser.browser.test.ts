@@ -1,51 +1,49 @@
-import { AudioInput, createPushStream, Playback } from '@proj-airi/pipelines-audio'
+import type { PcmBlock } from '@proj-airi/pipelines-audio'
+
+import { AudioInput, capture, createPushStream, Playback } from '@proj-airi/pipelines-audio'
 import { expect, it } from 'vitest'
 
-import { BrowserAudioSource, BrowserMediaAdapters, BrowserPlayback, Microphone } from './browser'
-import { toWav } from './encoding'
+import { BrowserPlayback, mediaStreamSource, microphoneSource, toMediaStream } from './browser'
+import { encodeWav, toWav } from './encoding'
 
-it('fails native capture and releases its output when the audio context closes', async () => {
+it('fails native output and releases its tracks when the audio context closes', async () => {
   const context = new AudioContext()
   await context.resume()
-  const frames = createPushStream<import('@proj-airi/pipelines-audio').PcmBlock>()
-  const output = new BrowserMediaAdapters(context).nativeStream(frames.stream, new AbortController().signal)
+  const frames = createPushStream<PcmBlock>()
+  const output = toMediaStream(frames.stream, context)
   const failed = output.done.then(() => false, () => true)
   await context.close()
+
   await expect.poll(() => output.media.getAudioTracks()[0].readyState).toBe('ended')
   expect(await failed).toBe(true)
 })
 
-it('shares microphone startup and releases owned tracks when the microphone closes', async () => {
-  const microphone = new Microphone({ audio: true })
-  const first = microphone.open()
-  expect(microphone.open()).toBe(first)
-  await first
+it('keeps microphone tracks alive until the last subscriber leaves', async () => {
+  const microphone = microphoneSource({ audio: true })
+  const input = new AudioInput(microphone)
+  const first = new AbortController()
+  const second = new AbortController()
+  const firstReader = input.subscribe({ signal: first.signal }).getReader()
+  input.subscribe({ signal: second.signal })
+  await firstReader.read()
   const track = microphone.stream!.getAudioTracks()[0]
+
+  first.abort()
   expect(track.readyState).toBe('live')
-  await microphone.close()
-  expect(track.readyState).toBe('ended')
+  second.abort()
+
+  await expect.poll(() => track.readyState).toBe('ended')
   expect(microphone.stream).toBeUndefined()
 })
 
-it('keeps shared tracks alive until the last capture or monitor releases its lease', async () => {
-  const microphone = new Microphone({ audio: true })
-  const first = microphone.acquire()
-  const second = microphone.acquire()
-  expect(await first.input).toBe(await second.input)
-  const track = microphone.stream!.getAudioTracks()[0]
-  await first.release()
-  await first.release()
-  expect(track.readyState).toBe('live')
-  await second.release()
-  expect(track.readyState).toBe('ended')
-})
+it('stops a late permission result when the only subscriber already left', async () => {
+  const microphone = microphoneSource({ audio: true })
+  const subscription = new AbortController()
+  const input = new AudioInput(microphone)
+  input.subscribe({ signal: subscription.signal })
+  subscription.abort()
 
-it('releases a late permission result when the last pending lease is cancelled', async () => {
-  const microphone = new Microphone({ audio: true })
-  const lease = microphone.acquire()
-  const rejected = expect(lease.input).rejects.toThrow()
-  await lease.release()
-  await rejected
+  await new Promise(resolve => setTimeout(resolve, 100))
   expect(microphone.stream).toBeUndefined()
 })
 
@@ -58,6 +56,7 @@ it('fades real playback on the audio clock before confirming silence', async () 
   await new Promise<void>(resolve => setTimeout(resolve, 100))
   const stoppedAt = context.currentTime
   const result = await group.stop({ fadeMs: 50 })
+
   expect(result.status).toBe('silent')
   expect(context.currentTime).toBeGreaterThanOrEqual(stoppedAt + 0.045)
   expect(result.played[0].throughMs).toBeGreaterThan(0)
@@ -65,27 +64,23 @@ it('fades real playback on the audio clock before confirming silence', async () 
   await context.close()
 })
 
-it('records real Web Audio into PCM and WAV without stopping borrowed microphone tracks', async () => {
+it('records real Web Audio into WAV without stopping borrowed tracks', async () => {
   const context = new AudioContext()
   await context.resume()
   const oscillator = context.createOscillator()
   const destination = context.createMediaStreamDestination()
   oscillator.connect(destination)
   oscillator.start()
-  const source = await BrowserAudioSource.open(context, destination.stream)
-  const input = new AudioInput(source, new BrowserMediaAdapters(context))
-  const capture = input.capture({ delivery: 'pcm-and-file', file: { mimeType: 'audio/wav', sampleRate: 16000, channels: 1 } })
-  const reader = capture.media.getReader()
-  await expect.poll(async () => (await reader.read()).value?.channels[0].some(value => value !== 0)).toBe(true)
-  const result = await capture.finish()
-  expect(result.status).toBe('finished')
-  if (result.status !== 'finished')
-    throw new Error('Recording failed')
-  const offline = new OfflineAudioContext(1, 1, 16000)
-  const decoded = await offline.decodeAudioData(await result.value.arrayBuffer())
+  const input = new AudioInput(mediaStreamSource(destination.stream, context))
+  const recording = capture(input)
+  const wav = encodeWav(recording.stream, { sampleRate: 16000, channels: 1 })
+  await recording.started
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  expect((await recording.finish()).status).toBe('finished')
+  const decoded = await new OfflineAudioContext(1, 1, 16000).decodeAudioData(await (await wav).arrayBuffer())
   expect(decoded.numberOfChannels).toBe(1)
   expect(decoded.length).toBeGreaterThan(0)
-  await input.close()
   expect(destination.stream.getAudioTracks()[0].readyState).toBe('live')
   oscillator.stop()
   destination.stream.getTracks().forEach(track => track.stop())

@@ -1,4 +1,4 @@
-export * from './audio-source'
-export * from './media-adapters'
-export * from './microphone'
+export * from './audio-output'
+export * from './media-stream'
 export * from './playback'
+export * from './sources'

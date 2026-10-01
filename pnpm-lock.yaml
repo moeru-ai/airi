@@ -429,9 +429,6 @@ catalogs:
     '@radix-ui/colors':
       specifier: ^3.0.0
       version: 3.0.0
-    '@ricky0123/vad-web':
-      specifier: ^0.0.30
-      version: 0.0.30
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
@@ -3562,6 +3559,9 @@ importers:
       '@proj-airi/pipelines-audio':
         specifier: workspace:*
         version: link:../pipelines-audio
+      mediabunny:
+        specifier: 'catalog:'
+        version: 1.55.2
     devDependencies:
       '@types/audioworklet':
         specifier: 'catalog:'
@@ -4597,9 +4597,6 @@ importers:
       '@proj-airi/vite-plugin-sherpaw':
         specifier: workspace:^
         version: link:../vite-plugin-sherpaw
-      '@ricky0123/vad-web':
-        specifier: 'catalog:'
-        version: 0.0.30
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
         version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)
@@ -10957,9 +10954,6 @@ packages:
 
   '@radix-ui/colors@3.0.0':
     resolution: {integrity: sha512-FUOsGBkHrYJwCSEtWRCIfQbZG7q1e6DgxCIOe1SUQzDe/7rXXeA47s8yCn6fuTNQAj1Zq4oTFi9Yjp3wzElcxg==}
-
-  '@ricky0123/vad-web@0.0.30':
-    resolution: {integrity: sha512-cJyYrh4YeeUBJcbR9Bic/bFDyB9qBkAepvpuWM3vLxnAi7bC3VHzf51UeNdT+OtY4D7MLAgV8iJMc4z41ZnaWg==}
 
   '@rive-app/canvas-lite@2.40.1':
     resolution: {integrity: sha512-gnlvjeI344tC9vBqYW8lV9o9g8FJPtaTq6UjmFmn4q9wLXloN/u3XqdXHsdU/5uBgCd8G6fFFQh7TqtnwzRSfA==}
@@ -25399,10 +25393,6 @@ snapshots:
       quansync: 1.0.0
 
   '@radix-ui/colors@3.0.0': {}
-
-  '@ricky0123/vad-web@0.0.30':
-    dependencies:
-      onnxruntime-web: 1.27.0
 
   '@rive-app/canvas-lite@2.40.1': {}
 
