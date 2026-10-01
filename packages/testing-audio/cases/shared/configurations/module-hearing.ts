@@ -11,6 +11,11 @@ export interface HearingModuleConfiguration {
   captureFormat?: AudioCaptureFormat
   /** @default false */
   microphoneEnabled?: boolean
+  /**
+   * Sends each accepted transcript to chat. Without it, AIRI keeps the transcript as a voice draft.
+   * @default false
+   */
+  autoSend?: boolean
   provider: ProviderConfiguration
 }
 
@@ -28,6 +33,7 @@ export function configureModuleHearing(resolve: HearingModuleResolver): AudioInp
       'settings/hearing/active-provider': configuration.provider.id,
       'settings/hearing/active-model': configuration.provider.model,
       'settings/audio/input/enabled': String(configuration.microphoneEnabled ?? false),
+      'settings/hearing/auto-send-enabled': String(configuration.autoSend ?? false),
     }
 
     const microphoneInput = await context.runtime.runtimePage.evaluate(async () => {

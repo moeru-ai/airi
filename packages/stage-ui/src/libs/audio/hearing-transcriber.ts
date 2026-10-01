@@ -3,7 +3,18 @@ import type { StreamingTranscriber, TranscriptionEvent, TranscriptSegment } from
 import type { AIRIStreamTranscriptionDelta } from '../providers/stream-transcription'
 import type { HearingTranscriptionResult } from '../providers/transcription-types'
 
-/** Converts provider output into complete transcript revisions. Each adapter owns its segmenters and cancellation. */
+import { errorMessageFrom } from '@moeru/std'
+import { SpanStatusCode } from '@opentelemetry/api'
+import { IOAttributes, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
+
+import { activeTurnSpan, startSpan } from '../../composables/use-io-tracer'
+
+/**
+ * Converts provider output into complete transcript revisions. Each adapter owns its segmenters and cancellation.
+ *
+ * Each request records one speech recognition span. Completion records the final text, caller abort marks
+ * the span as aborted, and a provider failure marks it as an error. Devtools and audio tests read this span.
+ */
 export function createHearingTranscriber(
   invoke: (audio: Parameters<StreamingTranscriber['transcribe']>[0]['audio'], signal: AbortSignal) => Promise<HearingTranscriptionResult>,
 ): StreamingTranscriber {
@@ -15,6 +26,7 @@ export function createHearingTranscriber(
     const signal = AbortSignal.any([request.signal, cancelled.signal])
     let reader: ReadableStreamDefaultReader<AIRIStreamTranscriptionDelta> | undefined
     let closed = false
+    const span = startSpan(IOSpanNames.SpeechRecognition, activeTurnSpan.value, { [IOAttributes.Subsystem]: IOSubsystems.ASR })
 
     return new ReadableStream<TranscriptionEvent>({
       start: (output) => {
@@ -23,6 +35,11 @@ export function createHearingTranscriber(
             return
 
           closed = true
+          if (request.signal.aborted)
+            span.setAttribute(IOAttributes.ASRAbort, true)
+          else
+            span.setStatus({ code: SpanStatusCode.ERROR, message: errorMessageFrom(error) ?? 'Speech recognition failed' })
+          span.end()
           output.error(error)
           cancelled.abort(error)
           void reader?.cancel(error).catch(() => {})
@@ -90,6 +107,8 @@ export function createHearingTranscriber(
 
             output.enqueue({ type: 'complete', revision })
             closed = true
+            span.setAttribute(IOAttributes.ASRText, text)
+            span.end()
             output.close()
           }
           catch (error) {
