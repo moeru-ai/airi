@@ -23,6 +23,7 @@ import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
+import { useSchedulerStore } from '../../scheduler'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -353,5 +354,98 @@ describe('store character-orchestrator', () => {
     expect(String(renderedMessages?.[1])).toContain('Rendered board snapshot')
     expect(String(renderedMessages?.[1])).toContain('base.prompt.emotion')
     expect(String(renderedMessages?.[1])).toContain('base.prompt.emoji')
+  })
+
+  describe('notification intake', () => {
+    const notify = (data: Partial<WebSocketEventOf<'spark:notify'>['data']> = {}): WebSocketEventOf<'spark:notify'> => ({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Creeper', destinations: ['character'], ...data },
+    })
+
+    function replyWith(text: string) {
+      const mockStream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+        await options?.onStreamEvent?.({ type: 'text-delta', text } satisfies StreamEvent)
+        await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+      })
+      mockedStore(useLLM, pinia).stream = mockStream as any
+      return mockStream
+    }
+
+    // ROOT CAUSE:
+    // A notification reaction opened an interrupting speech intent, so it spoke over the conversation run.
+    it('defers an immediate notification while another run holds the voice', async () => {
+      const mockStream = replyWith('Watch out!')
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.5 })
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(store.scheduledNotifies.map(item => item.event.data.id)).toEqual([event.data.id])
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'resource-busy', salience: 0.9 }])
+      expect(scheduler.runs.snapshot()).toEqual([])
+      expect(scheduler.leases.holder('voice')?.holderRunId).toBe('conversation-run')
+    })
+
+    it('runs an admitted notification as a run that holds and releases the voice', async () => {
+      replyWith('Watch out!')
+      const scheduler = useSchedulerStore(pinia)
+      const voiceHolders: Array<string | undefined> = []
+      scheduler.leases.subscribe(() => voiceHolders.push(scheduler.leases.holder('voice')?.holderRunId))
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      const [run] = scheduler.runs.snapshot()
+      expect(run).toMatchObject({ state: 'done', envelope: { outputs: ['voice'] } })
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'admitted', runId: run.runId, origin: 'external', source: 'minecraft' }])
+      expect(voiceHolders).toEqual([run.runId, undefined])
+    })
+
+    it('records a missing model as a blocked run, never as silence', async () => {
+      useConsciousnessStore(pinia).activeModel = ''
+      const store = useCharacterOrchestratorStore(pinia)
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      await store.handleSparkNotify(notify())
+
+      expect(useSchedulerStore(pinia).runs.snapshot()).toMatchObject([{ state: 'blocked', error: 'No active provider or model' }])
+      warn.mockRestore()
+    })
+
+    it('replaces a waiting notification with a newer one that has the same coalescing key', async () => {
+      const store = useCharacterOrchestratorStore(pinia)
+      const scheduler = useSchedulerStore(pinia)
+      const older = notify({ urgency: 'later', coalesceKey: 'health' })
+      const newer = notify({ urgency: 'later', coalesceKey: 'health' })
+      const unrelated = notify({ urgency: 'later' })
+
+      await store.handleSparkNotify(older)
+      await store.handleSparkNotify(unrelated)
+      await store.handleSparkNotify(newer)
+
+      expect(store.scheduledNotifies.map(item => item.event.data.id)).toEqual([unrelated.data.id, newer.data.id])
+      expect(store.pendingNotifies.map(item => item.data.id)).toEqual([unrelated.data.id, newer.data.id])
+      expect(scheduler.intake.forStimulus(older.data.id)).toMatchObject([
+        { outcome: 'deferred', retryAt: expect.any(Number) },
+        { outcome: 'merged', mergedInto: newer.data.id },
+      ])
+    })
+
+    it('ignores a notification whose time to live has passed', async () => {
+      const mockStream = replyWith('Too late')
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify({ ttlMs: 0 })
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'expired' }])
+      expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
+    })
   })
 })

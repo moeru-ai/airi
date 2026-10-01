@@ -1115,6 +1115,11 @@ interface SparkNotifyEvent {
   payload?: Record<string, unknown>
   ttlMs?: number
   requiresAck?: boolean
+  /**
+   * Waiting notifications from one source with the same key replace each other.
+   * Set it only for state updates whose older version has no remaining meaning. Distinct moments need distinct keys or none.
+   */
+  coalesceKey?: string
   destinations: Array<string>
   metadata?: Record<string, unknown>
 }

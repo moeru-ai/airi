@@ -166,6 +166,10 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runs.test.ts`): an audience failure records `rejected` without a run. Rejection is a failure, never a choice.
 - Observed (`lease-table.test.ts`, `chat-orchestrator-runs.test.ts`): the voice is a lease with one holder. A chat send waits while another run owner holds it.
 - Implemented: one run table, intake trace, and lease table serve every run owner in a renderer.
+- Observed (`orchestrator/index.test.ts`): a notification waits while another run holds the voice. An admitted notification is a run that holds and then releases the voice.
+- Observed (`orchestrator/index.test.ts`): a newer notification with the same `coalesceKey` replaces a waiting one. An expired notification is ignored without a run.
+- Observed (`orchestrator/index.test.ts`): a missing model ends a notification run as `blocked`, never as silence.
+- Observed (`store.browser.test.ts`): a due task enters intake as an internal stimulus.
 
 ### Open P0 evidence
 

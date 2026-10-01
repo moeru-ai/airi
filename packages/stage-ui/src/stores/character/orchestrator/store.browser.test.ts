@@ -8,6 +8,7 @@ import { createApp, ref } from 'vue'
 import { getSpeechBusContext, speechIntentCancelEvent, speechIntentEndEvent, speechIntentLiteralEvent } from '../../../services/speech/bus'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useProviderConfigStore } from '../../providers/config'
+import { useSchedulerStore } from '../../scheduler'
 import { useCharacterStore } from '../index'
 import { useCharacterNotebookStore } from '../notebook'
 import { useCharacterOrchestratorStore } from './store'
@@ -153,6 +154,8 @@ describe('orchestrator tick ownership', () => {
     follower.orchestrator.startTicker()
     await vi.waitFor(() => expect(leaderNotebook.tasks[0].lastNotifiedAt).toBeDefined())
     expect(followerNotebook.tasks[0].lastNotifiedAt).toBeUndefined()
+    // A due task is an internal stimulus with its own intake record.
+    await vi.waitFor(() => expect(useSchedulerStore(leader.pinia).intake.snapshot()).toContainEqual(expect.objectContaining({ origin: 'internal', event: 'task:due', source: 'character:task-scheduler' })))
 
     leader.orchestrator.dispose()
     leader.runtime.dispose()

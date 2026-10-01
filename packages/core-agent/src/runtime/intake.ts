@@ -160,3 +160,42 @@ export class IntakeLog {
     return structuredClone(this.records)
   }
 }
+
+/**
+ * Waiting time before deferred work returns to attention, from its salience.
+ *
+ * Returns:
+ * - 0 from 0.85, 10 seconds from 0.6, 30 seconds from 0.4, and 60 seconds below.
+ */
+export function deferDelayMs(salience: number): number {
+  if (salience >= 0.85)
+    return 0
+  if (salience >= 0.6)
+    return 10_000
+  if (salience >= 0.4)
+    return 30_000
+  return 60_000
+}
+
+/**
+ * Decides with the prior alone. It is also the fallback when a classifier is late or unavailable.
+ *
+ * Use when:
+ * - Background work arrives or returns to attention, and no classifier decides it.
+ *
+ * Expects:
+ * - `busy` is true while a resource that the work needs, for example the voice, has another holder.
+ * - `retryAt` is set for deferred work that returns. New work waits for `deferDelayMs` of its salience.
+ *
+ * Returns:
+ * - `ignored` past the deadline, `admitted` when the wait is over and nothing blocks it, or `deferred` with its return time.
+ */
+export function decideByPrior(stimulus: Stimulus, state: { now: number, busy: boolean, retryAt?: number }): IntakeDecision {
+  if (stimulus.deadlineAt !== undefined && stimulus.deadlineAt <= state.now)
+    return { outcome: 'ignored', reason: 'expired', decidedBy: 'rule' }
+
+  const retryAt = state.retryAt ?? state.now + deferDelayMs(stimulus.salience)
+  if (retryAt <= state.now && !state.busy)
+    return { outcome: 'admitted', reason: 'salience', decidedBy: 'rule' }
+  return { outcome: 'deferred', reason: state.busy ? 'resource-busy' : 'salience', decidedBy: 'rule', retryAt: Math.max(retryAt, state.now) }
+}

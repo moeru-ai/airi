@@ -9,6 +9,7 @@ export {
   createSparkNotifyAgent,
   getSparkNotifyHandlingAgentInstruction,
 } from './agent'
+export { getEventSourceKey } from './event-source'
 export {
   createSparkNotifyBuiltinToolsPlugin,
   createSparkNotifyObserverPlugin,

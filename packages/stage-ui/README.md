@@ -91,6 +91,10 @@ Only the elected renderer runs background notification consumers and reminder ti
 The notification queue is replicated state. Any renderer enqueues through a leader action, and a promoted leader resumes the queue.
 Leadership loss stops local consumers. Promotion starts them in the new owner.
 Stopping the owner aborts its active notification request and speech intent. Late output cannot issue commands or reactions.
+Every notification and due task passes intake. Source urgency sets the prior salience. Immediate work runs at once when the voice is free.
+Other work waits by its salience. A notification past its time to live is ignored, and a newer one with the same `coalesceKey` replaces waiting ones.
+A due task is an internal stimulus. Each admitted notification is a run with the `voice` output and holds the voice lease until it ends.
+A missing chat model ends the run as `blocked`. A stopped owner ends it as `dropped`.
 
 ## Chat sampling
 

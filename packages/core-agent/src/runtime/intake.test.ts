@@ -2,7 +2,7 @@ import type { Stimulus } from './intake'
 
 import { describe, expect, it } from 'vitest'
 
-import { IntakeLog, salienceFromUrgency } from './intake'
+import { decideByPrior, IntakeLog, salienceFromUrgency } from './intake'
 
 const stimulus: Stimulus = {
   id: 'stimulus',
@@ -36,5 +36,25 @@ describe('intake', () => {
 
     expect(log.snapshot().map(record => record.outcome)).toEqual(['admitted', 'ignored'])
     expect(log.forStimulus('stimulus')).toMatchObject([{ outcome: 'admitted', runId: 'run', salience: 0.7, decidedAt: 5, origin: 'internal' }])
+  })
+})
+
+describe('prior decisions', () => {
+  const at = (salience: number, extra: Partial<Stimulus> = {}): Stimulus => ({ ...stimulus, salience, ...extra })
+
+  it('admits immediate work at once and defers lower salience by its delay', () => {
+    expect(decideByPrior(at(0.9), { now: 100, busy: false })).toMatchObject({ outcome: 'admitted', decidedBy: 'rule' })
+    expect(decideByPrior(at(0.7), { now: 100, busy: false })).toMatchObject({ outcome: 'deferred', retryAt: 10_100 })
+    expect(decideByPrior(at(0.5), { now: 100, busy: false })).toMatchObject({ outcome: 'deferred', retryAt: 30_100 })
+    expect(decideByPrior(at(0.3), { now: 100, busy: false })).toMatchObject({ outcome: 'deferred', retryAt: 60_100 })
+  })
+
+  it('defers work whose resource is busy and admits returning work when it is free', () => {
+    expect(decideByPrior(at(0.9), { now: 100, busy: true })).toMatchObject({ outcome: 'deferred', reason: 'resource-busy', retryAt: 100 })
+    expect(decideByPrior(at(0.3), { now: 500, busy: false, retryAt: 400 })).toMatchObject({ outcome: 'admitted' })
+  })
+
+  it('ignores work past its deadline instead of running it late', () => {
+    expect(decideByPrior(at(0.9, { deadlineAt: 100 }), { now: 100, busy: false })).toMatchObject({ outcome: 'ignored', reason: 'expired' })
   })
 })
