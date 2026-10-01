@@ -867,16 +867,17 @@ describe('interactive area synchronized state', () => {
     // ChatHistory. Mocking either store or component hid that broken binding.
     const { chat, chatStream, screen } = await renderArea()
     chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'follower-b-stream',
-        role: 'assistant',
-        content: 'Follower B live response',
-        slices: [{ type: 'text', text: 'Follower B live response' }],
-        tool_results: [],
-        createdAt: 2,
+      runningSessionIds: ['session-b'],
+      streamingMessages: {
+        'session-b': {
+          id: 'follower-b-stream',
+          role: 'assistant',
+          content: 'Follower B live response',
+          slices: [{ type: 'text', text: 'Follower B live response' }],
+          tool_results: [],
+          createdAt: 2,
+        },
       },
-      sending: true,
     })
     chatStream.$patch({
       streamingMessage: {
@@ -903,16 +904,17 @@ describe('interactive area synchronized state', () => {
     // therefore rendered the live response from a send targeting session A.
     const { chat, chatStream, screen } = await renderArea(MobileInteractiveArea)
     chat.$patch({
-      activeSendSessionId: 'session-a',
-      activeStreamingMessage: {
-        id: 'session-a-stream',
-        role: 'assistant',
-        content: 'Session A live response',
-        slices: [{ type: 'text', text: 'Session A live response' }],
-        tool_results: [],
-        createdAt: 2,
+      runningSessionIds: ['session-a'],
+      streamingMessages: {
+        'session-a': {
+          id: 'session-a-stream',
+          role: 'assistant',
+          content: 'Session A live response',
+          slices: [{ type: 'text', text: 'Session A live response' }],
+          tool_results: [],
+          createdAt: 2,
+        },
       },
-      sending: true,
     })
     chatStream.$patch({
       streamingMessage: {
@@ -928,14 +930,16 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByText('Session A live response')).not.toBeInTheDocument()
 
     chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'session-b-stream',
-        role: 'assistant',
-        content: 'Session B live response',
-        slices: [{ type: 'text', text: 'Session B live response' }],
-        tool_results: [],
-        createdAt: 3,
+      runningSessionIds: ['session-b'],
+      streamingMessages: {
+        'session-b': {
+          id: 'session-b-stream',
+          role: 'assistant',
+          content: 'Session B live response',
+          slices: [{ type: 'text', text: 'Session B live response' }],
+          tool_results: [],
+          createdAt: 3,
+        },
       },
     })
     await nextTick()
@@ -951,16 +955,17 @@ describe('interactive area synchronized state', () => {
     // on B could therefore append A's live response.
     const { chat, chatStream, screen } = await renderArea(SharedInteractiveArea)
     chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'session-b-web-stream',
-        role: 'assistant',
-        content: 'Session B web response',
-        slices: [{ type: 'text', text: 'Session B web response' }],
-        tool_results: [],
-        createdAt: 2,
+      runningSessionIds: ['session-b'],
+      streamingMessages: {
+        'session-b': {
+          id: 'session-b-web-stream',
+          role: 'assistant',
+          content: 'Session B web response',
+          slices: [{ type: 'text', text: 'Session B web response' }],
+          tool_results: [],
+          createdAt: 2,
+        },
       },
-      sending: true,
     })
     chatStream.$patch({
       streamingMessage: {

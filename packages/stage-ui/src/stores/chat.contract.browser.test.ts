@@ -480,7 +480,7 @@ describe('chat store contract', () => {
       await sending
 
       expect(leaderSignal?.aborted).toBe(true)
-      expect(leaderStore.sending).toBe(false)
+      expect(leaderStore.runningSessionIds).toEqual([])
     }
     finally {
       followerRuntime.dispose()
@@ -1212,7 +1212,7 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(store.sending).toBe(false)
+    expect(store.runningSessionIds).toEqual([])
     expect(trackFirstMessageMock).toHaveBeenCalledOnce()
     // Datetime is no longer pushed through ingestContextMessage; it is now
     // applied at message-assembly time as per-message [HH:MM] prefixes. The
@@ -1298,25 +1298,25 @@ describe('chat store contract', () => {
   it('preserves a synchronized sending snapshot without replaying it through the follower runtime for Issue #2085', async () => {
     // ROOT CAUSE:
     //
-    // Applying `sending: true` invoked the follower's idle runtime, whose
+    // Applying a running snapshot invoked the follower's idle runtime, whose
     // derived state cleared the synchronized stream payload and could target
     // that follower's unrelated local selection.
     const store = useChatStore()
     store.$patch({
-      sending: true,
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        role: 'assistant',
-        content: 'authority stream',
-        slices: [],
-        tool_results: [],
+      runningSessionIds: ['session-b'],
+      streamingMessages: {
+        'session-b': {
+          role: 'assistant',
+          content: 'authority stream',
+          slices: [],
+          tool_results: [],
+        },
       },
     })
     await nextTick()
 
-    expect(store.sending).toBe(true)
-    expect(store.activeSendSessionId).toBe('session-b')
-    expect(store.activeStreamingMessage?.content).toBe('authority stream')
+    expect(store.runningSessionIds).toEqual(['session-b'])
+    expect(store.streamingMessages['session-b']?.content).toBe('authority stream')
   })
 
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {
@@ -1334,7 +1334,7 @@ describe('chat store contract', () => {
     })
 
     await vi.waitFor(() => {
-      expect(store.sending).toBe(true)
+      expect(store.runningSessionIds).toContain('session-1')
     })
     await vi.waitFor(() => {
       expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.InteractionTurn)).toBe(true)
@@ -1344,7 +1344,7 @@ describe('chat store contract', () => {
     if (!turnSpan)
       throw new Error('Expected the chat facade to create an interaction turn span')
 
-    store.sending = false
+    store.runningSessionIds = []
     await nextTick()
 
     expect(turnSpan.end).not.toHaveBeenCalled()

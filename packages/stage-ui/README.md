@@ -30,6 +30,8 @@ The context bridge assigns observation audiences from logical readers. Sharing w
 
 Only a local conversation run has the `voice` output in its envelope. The stage drives speech, motion, and expression only for that run.
 A reply with an output target, such as a Discord message, goes to its scene and never speaks locally. Hook contexts carry `sessionId`, `runId`, and `outputs`.
+At most one send holds the voice. Stop and interruption act on `voiceSessionId`, so background replies in other sessions keep running.
+The chat store reports `runningSessionIds` and `streamingMessages` per session. Chat surfaces show the reply of the visible session.
 
 ## Session lifecycle
 

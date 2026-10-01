@@ -151,6 +151,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runs.test.ts`): every hook context carries its session, run, and envelope outputs. Cross-window relays label turns from that context.
 - Observed (`chat.contract.browser.test.ts`): only a local conversation run has the `voice` output. A reply with an output target never speaks.
 - Implemented: the stage drives speech, motion, and expression only for a run with the `voice` output. External replies are no longer read aloud locally.
+- Observed (`chat-orchestrator-runtime.test.ts`): a slow domain session does not block another session. One session runs in order.
+- Observed (`chat-orchestrator-runtime.test.ts`): a full session queue rejects before a run exists. The run count stays within the limit, and only one send holds the voice.
+- Implemented: chat surfaces read per-session running state. Stop and interruption target the voice owner instead of any running send.
 
 ### Open P0 evidence
 

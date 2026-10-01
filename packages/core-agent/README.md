@@ -98,6 +98,10 @@ Each admitted send gets a `runId` in `RunTable`. Its state moves through `queued
 The run id reaches `requestCorrelation.runId` and the generated `AssistantTurn.runId`. Run ids use their own factory, so message id sequences stay unchanged.
 The context snapshot receives the run audience. Before each assistant write, the session audience narrows to the labels of the pool entries that the run read.
 This path admits every queued send. It is not the scheduler intake, and it does not record ignored stimuli or intentional silence.
+Each session has its own queue. A session runs one send at a time, and different sessions run concurrently up to `maxConcurrentRuns`.
+A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
+The voice is exclusive. A send with the `voice` output waits while another send holds it. Domain sends keep running.
+Runtime state reports `runningSessionIds`, `voiceSessionId`, and the live reply of each running session.
 
 ## Spark notification cancellation
 

@@ -250,15 +250,16 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
-const { sending: chatSending } = storeToRefs(useChatStore())
+const { voiceSessionId } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
-// `sending` is raised before the request leaves and cleared once the send
-// settles, which is the span the character has nothing to say yet.
+// The voice owner exists from the start of the conversation send until it
+// settles, which is the span the character has nothing to say yet. Silent
+// domain runs, such as channel replies, do not make the character think.
 //
 // Unread stays at zero: nothing reports whether the chat window is showing, so
 // there is no read cursor to count against.
-const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? presenceBubbleThinking : presenceBubbleIdle)
+const chatPresence = computed<PresenceBubbleState>(() => voiceSessionId.value ? presenceBubbleThinking : presenceBubbleIdle)
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()

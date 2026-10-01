@@ -207,9 +207,11 @@ export const useChatStore = defineStore('chat', () => {
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
-  const sending = shallowRef(false)
-  const activeSendSessionId = shallowRef<string>()
-  const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
+  // Sessions with a running send, and the live reply of each one. Different sessions can run at the same time.
+  const runningSessionIds = shallowRef<string[]>([])
+  // Session of the running send that holds the voice. Stop and interruption act on this owner.
+  const voiceSessionId = shallowRef<string>()
+  const streamingMessages = shallowRef<Record<string, StreamingAssistantMessage>>({})
   const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
@@ -476,9 +478,9 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
-    sending.value = state.sending
-    activeSendSessionId.value = state.activeSendSessionId
-    activeStreamingMessage.value = state.activeStreamingMessage
+    runningSessionIds.value = state.runningSessionIds
+    voiceSessionId.value = state.voiceSessionId
+    streamingMessages.value = state.streamingMessages
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -798,9 +800,9 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   return {
-    sending,
-    activeSendSessionId,
-    activeStreamingMessage,
+    runningSessionIds,
+    voiceSessionId,
+    streamingMessages,
     pendingQueuedSendCount,
 
     initialize,

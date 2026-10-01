@@ -235,14 +235,22 @@ export interface ChatOrchestratorPromptProjection {
  * Reactive state mirrored by UI facades.
  */
 export interface ChatOrchestratorRuntimeState {
-  /** Whether the runtime currently owns an active send. */
-  sending: boolean
-  /** Session that owns the active send; undefined while the queue is idle. */
-  activeSendSessionId?: string
-  /** Latest assistant stream snapshot owned by the active send session. */
-  activeStreamingMessage?: StreamingAssistantMessage
-  /** Number of sends waiting behind the active one. */
+  /** Sessions that have a running send. Each session runs at most one send at a time. */
+  runningSessionIds: string[]
+  /** Session of the running send that holds the voice. At most one send holds it. */
+  voiceSessionId?: string
+  /** Latest assistant stream snapshot of each running session. */
+  streamingMessages: Record<string, StreamingAssistantMessage>
+  /** Number of sends waiting for their session or for a free run slot. */
   pendingQueuedSendCount: number
+}
+
+/** Capacity limits that admission and scheduling read on each decision. */
+export interface ChatOrchestratorRuntimeLimits {
+  /** Sends that can run at the same time across sessions. @default 4 */
+  maxConcurrentRuns: number
+  /** Sends that can wait in one session. A full session rejects new work before a run exists. @default 8 */
+  maxQueuedPerSession: number
 }
 
 /** Correlation keys shared by every analytics milestone from one user-to-assistant round. */
@@ -280,6 +288,8 @@ export interface ChatOrchestratorRuntimeDeps {
   createEnvelope?: (sessionId: string, options: ChatOrchestratorSendOptions) => Omit<ExecutionEnvelope, 'sessionId'>
   /** Called whenever a run is admitted or changes state. */
   onRunChange?: (run: AgentRun) => void
+  /** Reads the current capacity limits. Invalid values use the defaults. */
+  getLimits?: () => Partial<ChatOrchestratorRuntimeLimits>
   /** Request-owned context providers evaluated once per send, outside the shared pool. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -292,7 +302,7 @@ export interface ChatOrchestratorRuntimeDeps {
   unwrapMessage?: <T>(message: T) => T
   /** Called whenever writable runtime state changes. */
   onStateChange?: (state: ChatOrchestratorRuntimeState) => void
-  /** Called after a runtime-owned send completes or fails and `sending` has been cleared. */
+  /** Called after a runtime-owned send completes or fails and its stream has ended. */
   onSendSettled?: (event: { sessionId: string }) => void
   /** Called when a send starts and the first assistant placeholder is created. */
   onTrackFirstMessage?: () => void
@@ -402,7 +412,7 @@ export interface ChatOrchestratorRuntimeDeps {
  * Platform-agnostic chat orchestrator runtime API.
  */
 export interface ChatOrchestratorRuntime {
-  /** Enqueues a user send for the target session, preserving FIFO order. */
+  /** Enqueues a user send. Sends in one session run in order. Different sessions run concurrently within the limits. */
   ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
   /** Rejects queued sends that have not started yet. */
   cancelPendingSends: (sessionId?: string) => void
@@ -410,10 +420,8 @@ export interface ChatOrchestratorRuntime {
   getPendingQueuedSendSnapshot: () => QueuedSendSnapshot[]
   /** Returns the current queued send count. */
   getPendingQueuedSendCount: () => number
-  /** Reads the writable sending flag. */
-  getSending: () => boolean
-  /** Updates the writable sending flag and notifies facade mirrors. */
-  setSending: (next: boolean) => void
+  /** Returns the sessions that have a running send. */
+  getRunningSessionIds: () => string[]
   /** Hook registry preserved from the previous stage-ui store API. */
   hooks: ReturnType<typeof createChatHooks>
   /** Returns one run with its envelope. */
@@ -438,7 +446,7 @@ function defaultCreateId() {
  * - `foregroundStream.patch` replaces the visible streaming assistant message.
  *
  * Returns:
- * - A runtime with send queue APIs, hook registry, writable sending state, and queue snapshots.
+ * - A runtime with per-session send queues, hook registry, running state, and queue snapshots.
  */
 export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps): ChatOrchestratorRuntime {
   // A queued send owns one controller until performSend settles. Session reset
@@ -450,32 +458,33 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const createId = deps.createId ?? defaultCreateId
   const unwrapMessage = deps.unwrapMessage ?? (<T>(message: T) => message)
 
-  let sending = false
-  let activeSendSessionId: string | undefined
-  let activeStreamingMessage: StreamingAssistantMessage | undefined
+  const streamingMessages = new Map<string, StreamingAssistantMessage>()
+  // Waiting sends in admission order, and the running send of each session.
   let pendingQueuedSends: QueuedSend[] = []
+  const runningSends = new Map<string, QueuedSend>()
   const runs = new RunTable({ now, onChange: deps.onRunChange })
 
   function emitStateChange() {
     deps.onStateChange?.({
-      sending,
-      activeSendSessionId,
-      activeStreamingMessage,
+      runningSessionIds: Array.from(runningSends.keys()),
+      voiceSessionId: Array.from(runningSends.values()).find(send => send.envelope.outputs.includes('voice'))?.sessionId,
+      streamingMessages: Object.fromEntries(Array.from(streamingMessages, ([sessionId, message]) => [sessionId, cloneStreamingMessage(message)])),
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
   }
 
-  function setSending(next: boolean) {
-    const nextActiveSendSessionId = next
-      ? activeSendSessionId ?? deps.getActiveSessionId()
-      : undefined
-    if (sending === next && activeSendSessionId === nextActiveSendSessionId)
-      return
-    sending = next
-    activeSendSessionId = nextActiveSendSessionId
-    if (!next)
-      activeStreamingMessage = undefined
-    emitStateChange()
+  function getLimits(): ChatOrchestratorRuntimeLimits {
+    const limits = deps.getLimits?.() ?? {}
+    const positiveInteger = (value: number | undefined, fallback: number) => Number.isInteger(value) && value! > 0 ? value! : fallback
+    return {
+      maxConcurrentRuns: positiveInteger(limits.maxConcurrentRuns, 4),
+      maxQueuedPerSession: positiveInteger(limits.maxQueuedPerSession, 8),
+    }
+  }
+
+  function endStream(sessionId: string) {
+    if (streamingMessages.delete(sessionId))
+      emitStateChange()
   }
 
   function isForegroundSession(sessionId: string) {
@@ -483,9 +492,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function beginStream(sessionId: string, message: StreamingAssistantMessage) {
-    sending = true
-    activeSendSessionId = sessionId
-    activeStreamingMessage = cloneStreamingMessage(message)
+    streamingMessages.set(sessionId, cloneStreamingMessage(message))
     emitStateChange()
 
     if (isForegroundSession(sessionId))
@@ -493,8 +500,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function updateStream(sessionId: string, message: StreamingAssistantMessage) {
-    if (sessionId === activeSendSessionId) {
-      activeStreamingMessage = cloneStreamingMessage(message)
+    if (streamingMessages.has(sessionId)) {
+      streamingMessages.set(sessionId, cloneStreamingMessage(message))
       emitStateChange()
     }
 
@@ -1081,55 +1088,65 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         appendAssistantMessage({ ...cloneStreamingMessage(buildingMessage), interrupted: true })
         resetForegroundStream(sessionId)
       }
-      setSending(false)
+      endStream(sessionId)
       deps.onSendSettled?.({ sessionId })
     }
   }
 
-  const sendQueue = createQueue<QueuedSend>({
-    handlers: [
-      async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId, runId, envelope } = data
+  /** Runs one send and records its run state. The caller settles the send after the session slot is free. */
+  async function execute(queuedSend: QueuedSend): Promise<{ ok: true } | { ok: false, error: unknown }> {
+    const { sendingMessage, options, generation, sessionId, providerId, runId, envelope } = queuedSend
 
-        if (cancelled) {
-          runs.transition(runId, 'dropped')
-          return
-        }
+    if (deps.session.getSessionGeneration(sessionId) !== generation) {
+      runs.transition(runId, 'dropped')
+      return { ok: false, error: new Error('Chat session was reset before send could start') }
+    }
 
-        if (deps.session.getSessionGeneration(sessionId) !== generation) {
-          runs.transition(runId, 'dropped')
-          deferred.reject(new Error('Chat session was reset before send could start'))
-          return
-        }
+    const controller = new AbortController()
+    activeSends.set(sessionId, controller)
+    runs.transition(runId, 'working')
+    try {
+      await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId, { runId, envelope })
+      runs.transition(runId, controller.signal.aborted || deps.session.getSessionGeneration(sessionId) !== generation ? 'dropped' : 'done')
+      return { ok: true }
+    }
+    catch (error) {
+      runs.transition(runId, controller.signal.aborted ? 'dropped' : 'blocked', errorMessageFrom(error) ?? 'Unknown run failure')
+      return { ok: false, error }
+    }
+    finally {
+      activeSends.delete(sessionId)
+    }
+  }
 
-        const controller = new AbortController()
-        activeSends.set(sessionId, controller)
-        runs.transition(runId, 'working')
-        try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId, { runId, envelope })
-          runs.transition(runId, controller.signal.aborted || deps.session.getSessionGeneration(sessionId) !== generation ? 'dropped' : 'done')
-          deferred.resolve()
-        }
-        catch (error) {
-          runs.transition(runId, controller.signal.aborted ? 'dropped' : 'blocked', errorMessageFrom(error) ?? 'Unknown run failure')
-          deferred.reject(error)
-        }
-        finally {
-          activeSends.delete(sessionId)
-        }
-      },
-    ],
-  })
-
-  sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.push(queuedSend)
+  /**
+   * Starts waiting sends in admission order. A session runs one send at a time, and the run count stays within the limit.
+   * The voice is exclusive, so a send with the voice output waits until no other send holds it.
+   * A slow session therefore holds only its own slot.
+   */
+  function pump() {
+    const { maxConcurrentRuns } = getLimits()
+    for (const queuedSend of [...pendingQueuedSends]) {
+      if (runningSends.size >= maxConcurrentRuns)
+        break
+      if (runningSends.has(queuedSend.sessionId))
+        continue
+      if (queuedSend.envelope.outputs.includes('voice') && Array.from(runningSends.values()).some(send => send.envelope.outputs.includes('voice')))
+        continue
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+      runningSends.set(queuedSend.sessionId, queuedSend)
+      void execute(queuedSend).then((result) => {
+        // Free the slot before the caller resumes, so a settled send never appears to run.
+        runningSends.delete(queuedSend.sessionId)
+        pump()
+        if (result.ok)
+          queuedSend.deferred.resolve()
+        else
+          queuedSend.deferred.reject(result.error)
+      })
+    }
     emitStateChange()
-  })
-
-  sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
-    emitStateChange()
-  })
+  }
 
   function ingest(
     sendingMessage: string,
@@ -1151,12 +1168,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     if (!audienceIncludes(sessionAudience, envelope.audience))
       return Promise.reject(new Error('Run audience exceeds the session audience'))
 
+    // A full session queue rejects before a run exists, so waiting work stays bounded.
+    if (pendingQueuedSends.filter(item => item.sessionId === sessionId).length >= getLimits().maxQueuedPerSession)
+      return Promise.reject(new Error('The chat session queue is full'))
+
     // Run identity uses its own factory, so deterministic message id sequences stay unchanged.
     const runId = defaultCreateId()
     runs.admit({ runId, envelope })
 
     return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+      pendingQueuedSends.push({
         runId,
         envelope,
         providerId: deps.getActiveProvider?.() ?? '',
@@ -1166,6 +1187,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionId,
         deferred: { resolve, reject },
       })
+      pump()
     })
   }
 
@@ -1206,8 +1228,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
     getPendingQueuedSendCount: () => pendingQueuedSends.length,
-    getSending: () => sending,
-    setSending,
+    getRunningSessionIds: () => Array.from(runningSends.keys()),
     hooks,
     getRun: runId => runs.get(runId),
     getRuns: () => runs.snapshot(),

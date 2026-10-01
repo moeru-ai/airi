@@ -32,6 +32,7 @@ export type {
   ChatOrchestratorPromptProjection,
   ChatOrchestratorRuntime,
   ChatOrchestratorRuntimeDeps,
+  ChatOrchestratorRuntimeLimits,
   ChatOrchestratorRuntimeState,
   ChatOrchestratorSendOptions,
   ChatOrchestratorSessionPort,

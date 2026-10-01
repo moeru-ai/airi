@@ -4,13 +4,14 @@ import type { Message } from '@xsai/shared-chat'
 import type { Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
-import type { ChatOrchestratorRuntimeDeps } from './chat-orchestrator-runtime'
+import type { ChatOrchestratorRuntimeDeps, ChatOrchestratorRuntimeLimits } from './chat-orchestrator-runtime'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
 import { renderConversationPreview } from '../messages/preview'
+import { OWNER_AUDIENCE } from './audience'
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
 import { streamFrom } from './llm-service'
 
@@ -63,6 +64,8 @@ function createHarness(getActiveProvider = () => 'mock-provider', runtimeContext
   let monotonicNowValues = [1000]
   let generation = 1
   let assistantResponseRenderedError: Error | undefined
+  let limits: Partial<ChatOrchestratorRuntimeLimits> = {}
+  let domainSessions: string[] = []
 
   const runtime = createChatOrchestratorRuntime({
     session: {
@@ -88,6 +91,11 @@ function createHarness(getActiveProvider = () => 'mock-provider', runtimeContext
       stream,
     },
     getActiveSessionId: () => 'session-1',
+    getLimits: () => limits,
+    // A domain session replies through its own channel and never holds the voice.
+    createEnvelope: sessionId => domainSessions.includes(sessionId)
+      ? { bindings: [], outputs: ['chat:owner', `connection:${sessionId}`], audience: OWNER_AUDIENCE }
+      : { bindings: [], outputs: ['chat:owner', 'voice'], audience: OWNER_AUDIENCE },
     getActiveProvider,
     runtimeContextProviders,
     getSystemPromptSupplement: () => systemPromptSupplement,
@@ -118,6 +126,12 @@ function createHarness(getActiveProvider = () => 'mock-provider', runtimeContext
   })
 
   return {
+    setLimits: (next: Partial<ChatOrchestratorRuntimeLimits>) => {
+      limits = next
+    },
+    setDomainSessions: (sessionIds: string[]) => {
+      domainSessions = sessionIds
+    },
     assistantAppended,
     assistantResponseRenderedError: {
       set: (error: Error | undefined) => {
@@ -1130,26 +1144,93 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps sending externally writable for UI facades', () => {
+  // ROOT CAUSE:
+  // One global queue served every session, so a slow background send blocked the owner's chat.
+  it('runs another session while a slow session is still streaming', async () => {
     const harness = createHarness()
-
-    harness.runtime.setSending(true)
-    expect(harness.runtime.getSending()).toBe(true)
-    expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: 'session-1',
-      activeStreamingMessage: undefined,
-      sending: true,
-      pendingQueuedSendCount: 0,
+    harness.setDomainSessions(['session-slow'])
+    let releaseSlow: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseSlow = resolve
+      })
     })
 
-    harness.runtime.setSending(false)
-    expect(harness.runtime.getSending()).toBe(false)
-    expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: undefined,
-      activeStreamingMessage: undefined,
-      sending: false,
-      pendingQueuedSendCount: 0,
+    const slow = harness.runtime.ingest('slow planning', { model: 'gpt-test', chatProvider: provider }, 'session-slow')
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    await harness.runtime.ingest('owner chat', { model: 'gpt-test', chatProvider: provider }, 'session-1')
+
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+    expect(harness.runtime.getRunningSessionIds()).toEqual(['session-slow'])
+    releaseSlow?.()
+    await slow
+    expect(harness.runtime.getRunningSessionIds()).toEqual([])
+  })
+
+  it('keeps one session in order and bounds its waiting sends', async () => {
+    const harness = createHarness()
+    harness.setLimits({ maxQueuedPerSession: 1 })
+    let releaseFirst: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
     })
+
+    const first = harness.runtime.ingest('first', { model: 'gpt-test', chatProvider: provider })
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    const second = harness.runtime.ingest('second', { model: 'gpt-test', chatProvider: provider })
+    // The waiting slot is full, so the third send never becomes a run.
+    await expect(harness.runtime.ingest('third', { model: 'gpt-test', chatProvider: provider })).rejects.toThrow('The chat session queue is full')
+    expect(harness.runtime.getRuns()).toHaveLength(2)
+
+    // The second send waits for its own session even though a run slot is free.
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+    releaseFirst?.()
+    await Promise.all([first, second])
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+  })
+
+  // The voice is exclusive. Two conversation runs cannot speak at once, but a domain run keeps going.
+  it('runs one voice send at a time across sessions', async () => {
+    const harness = createHarness()
+    let releaseFirst: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
+    })
+
+    const first = harness.runtime.ingest('first', { model: 'gpt-test', chatProvider: provider }, 'session-a')
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    const second = harness.runtime.ingest('second', { model: 'gpt-test', chatProvider: provider }, 'session-b')
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+    expect(harness.stateChanges.at(-1)).toMatchObject({ runningSessionIds: ['session-a'], voiceSessionId: 'session-a' })
+
+    releaseFirst?.()
+    await Promise.all([first, second])
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+  })
+
+  it('limits running sends across sessions', async () => {
+    const harness = createHarness()
+    harness.setLimits({ maxConcurrentRuns: 1 })
+    let releaseFirst: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
+    })
+
+    const first = harness.runtime.ingest('first', { model: 'gpt-test', chatProvider: provider }, 'session-a')
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    const second = harness.runtime.ingest('second', { model: 'gpt-test', chatProvider: provider }, 'session-b')
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(1)
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+
+    releaseFirst?.()
+    await Promise.all([first, second])
+    expect(harness.stream).toHaveBeenCalledTimes(2)
   })
 
   // https://github.com/moeru-ai/airi/issues/2085
@@ -1175,12 +1256,13 @@ describe('createChatOrchestratorRuntime', () => {
 
     await vi.waitFor(() => {
       expect(harness.stateChanges).toContainEqual(expect.objectContaining({
-        activeSendSessionId: 'session-2',
-        activeStreamingMessage: expect.objectContaining({
-          role: 'assistant',
-          createdAt: expect.any(Number),
-        }),
-        sending: true,
+        runningSessionIds: ['session-2'],
+        streamingMessages: {
+          'session-2': expect.objectContaining({
+            role: 'assistant',
+            createdAt: expect.any(Number),
+          }),
+        },
         pendingQueuedSendCount: 0,
       }))
     })
@@ -1189,8 +1271,7 @@ describe('createChatOrchestratorRuntime', () => {
     })
     await vi.waitFor(() => {
       expect(harness.stateChanges).toContainEqual(expect.objectContaining({
-        activeSendSessionId: 'session-2',
-        activeStreamingMessage: expect.objectContaining({ content: expect.stringContaining('background') }),
+        streamingMessages: { 'session-2': expect.objectContaining({ content: expect.stringContaining('background') }) },
       }))
     })
 
@@ -1198,9 +1279,8 @@ describe('createChatOrchestratorRuntime', () => {
     await pendingSend
 
     expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: undefined,
-      activeStreamingMessage: undefined,
-      sending: false,
+      runningSessionIds: [],
+      streamingMessages: {},
       pendingQueuedSendCount: 0,
     })
   })
