@@ -6,6 +6,7 @@ This workspace runs AIRI's dedicated Minecraft bot. It connects a Mineflayer run
 
 Plain bridge observations append to the fixed `events` slot. The receiving context registry bounds this event window per writer.
 Structured status updates retain their own `contextId` and replacement strategy.
+The bridge preserves module-declared retention, visibility, and structured observation fields. The receiving host enforces pool admission and reader visibility.
 
 ## Deprecation Notice
 

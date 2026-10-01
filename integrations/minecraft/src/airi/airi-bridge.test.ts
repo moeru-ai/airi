@@ -2,6 +2,7 @@ import type { Client } from '@proj-airi/server-sdk'
 
 import type { EventBus } from '../cognitive/event-bus'
 
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { describe, expect, it, vi } from 'vitest'
 
 import { AiriBridge } from './airi-bridge'
@@ -47,6 +48,45 @@ function createBridgeHarness(options: { commandAvailable?: boolean } = {}) {
  * bridge.setCommandAvailable(true) lets a generic `spark:command` wake the Minecraft brain.
  */
 describe('airiBridge spark command routing', () => {
+  // ROOT CAUSE:
+  // The bridge rebuilt a subset of context fields and lost the module's retention policy and structured observations.
+  // Structured updates now retain all declared fields before the bridge assigns transport identifiers.
+  it('preserves the retention policy and structured payload declared by the module', () => {
+    const { bridge, client } = createBridgeHarness()
+
+    bridge.sendContextUpdate({
+      id: 'observation',
+      contextId: 'minecraft:status',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      lane: 'game',
+      text: 'Bot online',
+      ttlMs: 10_000,
+      salience: 0.8,
+      hints: ['online'],
+      ideas: ['follow owner'],
+      metadata: { sourceRef: 'minecraft:status' },
+      destinations: ['owner:private'],
+    })
+
+    expect(client.send).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'context:update',
+      data: expect.objectContaining({
+        contextId: 'minecraft:status',
+        strategy: 'replace-self',
+        lane: 'game',
+        text: 'Bot online',
+        ttlMs: 10_000,
+        salience: 0.8,
+        hints: ['online'],
+        ideas: ['follow owner'],
+        metadata: { sourceRef: 'minecraft:status' },
+        destinations: ['owner:private'],
+      }),
+    }))
+
+    bridge.destroy()
+  })
+
   // ROOT CAUSE:
   // A random contextId on every observation bypassed per-slot event limits.
   // Plain observations now share the fixed events slot within their writer bucket.

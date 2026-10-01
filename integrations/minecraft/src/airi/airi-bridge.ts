@@ -157,13 +157,9 @@ export class AiriBridge {
     this.client.send({
       type: 'context:update',
       data: {
+        ...update,
         id: nanoid(),
         contextId,
-        lane: update.lane,
-        text: update.text,
-        hints: update.hints,
-        strategy: update.strategy,
-        destinations: update.destinations,
       },
     } as Parameters<typeof this.client.send>[0])
     this.logger.log('Sent context:update', { lane: update.lane, preview: update.text.slice(0, 80), contextId })
