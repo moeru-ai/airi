@@ -27,6 +27,8 @@ export {
   unionAudiences,
 } from './runtime/audience'
 export type {
+  ChatIngestResult,
+  ChatIntakeDecision,
   ChatOrchestratorLifecycleRecord,
   ChatOrchestratorLLMPort,
   ChatOrchestratorPromptProjection,
@@ -43,6 +45,8 @@ export { CONTEXT_SOURCE_TOKEN_LIMIT, limitContextText, loadContextTokenCounter }
 export type { ContextTokenCounter } from './runtime/context-budget'
 export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRegistry, ContextRegistryState } from './runtime/context-registry'
 export { createContextRegistry, projectContextRegistryState } from './runtime/context-registry'
+export type { IntakeDecider, IntakeDecision, IntakeOutcome, IntakeRecord, Stimulus, StimulusOrigin } from './runtime/intake'
+export { IntakeLog, salienceFromUrgency } from './runtime/intake'
 export { useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
   isContentArrayRelatedError,

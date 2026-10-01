@@ -8,6 +8,7 @@ import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 import type { Audience } from './audience'
+import type { IntakeDecision, IntakeRecord, Stimulus } from './intake'
 import type { AgentRun, ExecutionEnvelope } from './run-table'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -18,6 +19,7 @@ import { formatTimePrefix } from '../messages/datetime-prefix'
 import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
 import { audienceIncludes, intersectAudiences, OWNER_AUDIENCE } from './audience'
+import { IntakeLog, salienceFromUrgency } from './intake'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 import { RunTable } from './run-table'
@@ -305,6 +307,14 @@ export interface ChatOrchestratorRuntimeDeps {
   createEnvelope?: (sessionId: string, options: ChatOrchestratorSendOptions) => Omit<ExecutionEnvelope, 'sessionId'>
   /** Called whenever a run is admitted or changes state. */
   onRunChange?: (run: AgentRun) => void
+  /**
+   * Decides whether input from a connection becomes a run. Direct owner input never waits for it.
+   * A failure admits the input as the fallback, so a broken policy cannot lose input.
+   * @default admit every input
+   */
+  decideIntake?: (stimulus: Stimulus) => ChatIntakeDecision | Promise<ChatIntakeDecision>
+  /** Called for every intake decision, including ignored and rejected input. */
+  onIntakeRecord?: (record: IntakeRecord) => void
   /** Reads the current capacity limits. Invalid values use the defaults. */
   getLimits?: () => Partial<ChatOrchestratorRuntimeLimits>
   /** Request-owned context providers evaluated once per send, outside the shared pool. */
@@ -425,12 +435,25 @@ export interface ChatOrchestratorRuntimeDeps {
   }) => void
 }
 
+/** Chat input either becomes a run or is ignored. It never waits for a later turn. */
+export type ChatIntakeDecision = IntakeDecision & { outcome: 'admitted' | 'ignored' }
+
+/** Result of one chat input. An ignored input has no run. */
+export interface ChatIngestResult {
+  stimulusId: string
+  outcome: 'admitted' | 'ignored'
+  runId?: string
+}
+
 /**
  * Platform-agnostic chat orchestrator runtime API.
  */
 export interface ChatOrchestratorRuntime {
-  /** Enqueues a user send. Sends in one session run in order. Different sessions run concurrently within the limits. */
-  ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
+  /**
+   * Offers one input to intake. An admitted send runs in its session queue, and the promise settles when the run ends.
+   * An audience or capacity failure rejects before a run exists.
+   */
+  ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<ChatIngestResult>
   /** Rejects queued sends that have not started yet. */
   cancelPendingSends: (sessionId?: string) => void
   /** Returns serializable snapshots of currently queued sends. */
@@ -447,6 +470,8 @@ export interface ChatOrchestratorRuntime {
   getRun: (runId: string) => AgentRun | undefined
   /** Returns admitted, active, and recently finished runs. */
   getRuns: () => AgentRun[]
+  /** Returns recent intake decisions, oldest first. */
+  getIntakeRecords: () => IntakeRecord[]
 }
 
 function defaultCreateId() {
@@ -482,6 +507,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   let pendingQueuedSends: QueuedSend[] = []
   const runningSends = new Map<string, QueuedSend>()
   const runs = new RunTable({ now, onChange: deps.onRunChange })
+  const intake = new IntakeLog({ now, onRecord: deps.onIntakeRecord })
 
   function emitStateChange() {
     deps.onStateChange?.({
@@ -1222,11 +1248,21 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     emitStateChange()
   }
 
-  function ingest(
+  async function decideByPolicy(stimulus: Stimulus, decideIntake: NonNullable<ChatOrchestratorRuntimeDeps['decideIntake']>): Promise<ChatIntakeDecision> {
+    try {
+      return await decideIntake(stimulus)
+    }
+    catch (error) {
+      console.error('Intake policy failed:', error)
+      return { outcome: 'admitted', reason: 'policy-failed', decidedBy: 'fallback' }
+    }
+  }
+
+  async function ingest(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
-  ) {
+  ): Promise<ChatIngestResult> {
     const sessionId = targetSessionId || deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
     const envelope: ExecutionEnvelope = {
@@ -1236,21 +1272,48 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       ...deps.createEnvelope?.(sessionId, options),
       sessionId,
     }
+    const stimulus: Stimulus = {
+      id: defaultCreateId(),
+      kind: options.input?.type ?? 'input:text',
+      origin: 'external',
+      source: options.outputTarget ? `connection:${options.outputTarget}` : 'owner',
+      event: options.input?.type ?? 'input:text',
+      bindings: envelope.bindings,
+      salience: salienceFromUrgency(),
+      direct: !options.outputTarget,
+      receivedAt: now(),
+    }
+    const rejectStimulus = (reason: string, message: string): never => {
+      intake.record(stimulus, { outcome: 'rejected', reason, decidedBy: 'rule' })
+      throw new Error(message)
+    }
+
     // Recovery stays inside the history's audience. A wider run would show the history to subjects it never reached.
     // The rejection happens before a run exists, so the run table never records unauthorized work.
     const sessionAudience = deps.session.getSessionAudience?.(sessionId) ?? OWNER_AUDIENCE
     if (!audienceIncludes(sessionAudience, envelope.audience))
-      return Promise.reject(new Error('Run audience exceeds the session audience'))
+      rejectStimulus('audience', 'Run audience exceeds the session audience')
+
+    // Direct owner input bypasses synchronous triage. An admitted run can still choose silence.
+    // Without a policy, admission stays synchronous, so queue order follows call order.
+    const decision: ChatIntakeDecision = stimulus.direct || !deps.decideIntake
+      ? { outcome: 'admitted', reason: stimulus.direct ? 'direct-input' : 'connection-input', decidedBy: 'rule' }
+      : await decideByPolicy(stimulus, deps.decideIntake)
+    if (decision.outcome === 'ignored') {
+      intake.record(stimulus, decision)
+      return { stimulusId: stimulus.id, outcome: 'ignored' }
+    }
 
     // A full session queue rejects before a run exists, so waiting work stays bounded.
     if (pendingQueuedSends.filter(item => item.sessionId === sessionId).length >= getLimits().maxQueuedPerSession)
-      return Promise.reject(new Error('The chat session queue is full'))
+      rejectStimulus('capacity', 'The chat session queue is full')
 
     // Run identity uses its own factory, so deterministic message id sequences stay unchanged.
     const runId = defaultCreateId()
     runs.admit({ runId, envelope })
+    intake.record(stimulus, { ...decision, runId })
 
-    return new Promise<void>((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       pendingQueuedSends.push({
         runId,
         envelope,
@@ -1264,6 +1327,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
       pump()
     })
+    return { stimulusId: stimulus.id, outcome: 'admitted', runId }
   }
 
   function cancelPendingSends(sessionId?: string) {
@@ -1331,5 +1395,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     hooks,
     getRun: runId => runs.get(runId),
     getRuns: () => runs.snapshot(),
+    getIntakeRecords: () => intake.snapshot(),
   }
 }

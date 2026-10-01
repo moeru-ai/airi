@@ -97,7 +97,11 @@ Each admitted send gets a `runId` in `RunTable`. Its state moves through `queued
 `done` means the send settled, `dropped` means cancellation, and `blocked` means a failure with its error.
 The run id reaches `requestCorrelation.runId` and the generated `AssistantTurn.runId`. Run ids use their own factory, so message id sequences stay unchanged.
 The context snapshot receives the run audience. Before each assistant write, the session audience narrows to the labels of the pool entries that the run read.
-This path admits every queued send. It is not the scheduler intake, and it does not record ignored stimuli or intentional silence.
+Every input passes intake first. `IntakeLog` records each decision apart from the run table: `admitted`, `deferred`, `merged`, `ignored`, or `rejected`.
+An ignored or rejected input has no run. `rejected` is an audience, capacity, or authority failure, never a choice.
+Direct owner input is admitted by rule and never waits for a policy. Input from a connection goes through `decideIntake`.
+A policy can admit or ignore chat input. A failing policy admits the input with `decidedBy: 'fallback'`, so a broken policy cannot lose input.
+`ingest` resolves with the stimulus id, its outcome, and the run id when it was admitted.
 Each session has its own queue. A session runs one send at a time, and different sessions run concurrently up to `maxConcurrentRuns`.
 A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
 The voice is exclusive. A send with the `voice` output waits while another send holds it. Domain sends keep running.

@@ -96,7 +96,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0, P1, and P2 are Implemented with deterministic tests. Their live scenarios remain open. P3 through P10 have not started.
+- P0, P1, and P2 are Implemented with deterministic tests. Their live scenarios remain open. P3 is in progress. P4 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -140,7 +140,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runs.test.ts`): a provider failure records `blocked` with its error. Writes narrow the session audience to the labels the run read.
 - Observed (`chat.contract.browser.test.ts`): a reply with an output target reads with the scene audience.
 - Implemented: the context bridge labels observations from logical readers. Discord voice transcriptions bind to their channel.
-- Not provided: the run table is the current execution path, not P3 intake. Ignored stimuli and intentional silence have no record yet.
+- Not provided in P1: the run table recorded admitted runs only. P3 intake adds records for ignored, deferred, and rejected stimuli.
 - Observed (`session-store.browser.test.ts`): sessions move from active to idle, dormant, and retired. A retired session leaves binding recovery, and a run reactivates it.
 - Observed (`session-store.browser.test.ts`): a digest must end at a message in its session and keeps the session audience.
 - Implemented: Settings > Memory sets the dormant and retired thresholds. The leader applies them each minute.
@@ -158,6 +158,12 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runs.test.ts`): a cancelled run with rollback removes its user turn and partial reply, so a requeued input appears once. A waiting run cancels before it starts.
 - Implemented: Settings > Memory sets the concurrency, queue, stall, and deadline limits. A limit never switches models or skips work silently.
 - Not provided: an error-burst breaker across runs. Provider failures end each run as blocked, and P3 admission can add cooldowns.
+
+### P3 progress
+
+- Observed (`chat-orchestrator-runs.test.ts`): an ignored connection input creates no run, provider call, or message. The intake trace records the ignore.
+- Observed (`chat-orchestrator-runs.test.ts`): direct owner input is admitted by rule without a policy call. A failing policy admits by fallback.
+- Observed (`chat-orchestrator-runs.test.ts`): an audience failure records `rejected` without a run. Rejection is a failure, never a choice.
 
 ### Open P0 evidence
 

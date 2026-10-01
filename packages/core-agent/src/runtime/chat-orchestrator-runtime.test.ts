@@ -281,7 +281,7 @@ describe('createChatOrchestratorRuntime', () => {
     await expect(harness.runtime.ingest('hello', {
       model: 'gpt-test',
       chatProvider: provider,
-    })).resolves.toBeUndefined()
+    })).resolves.toMatchObject({ outcome: 'admitted' })
 
     expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
       role: 'assistant',
