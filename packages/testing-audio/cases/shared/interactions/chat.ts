@@ -32,6 +32,12 @@ export async function enableChatMicrophone(
     }
   }
 
+  if (runtime.target === 'web') {
+    // The startup screen covers the page until its exit animation ends.
+    // A click before that point lands on the startup screen and does not open the hearing popover.
+    await runtime.page.locator('.startup-screen').waitFor({ state: 'detached', timeout: 60_000 })
+  }
+
   const { page } = runtime
   await page.locator('textarea').first().waitFor({ state: 'visible', timeout: 60_000 })
   await captureStreamingTranscription(page, 'textarea')
