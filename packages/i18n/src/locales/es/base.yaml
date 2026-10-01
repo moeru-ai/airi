@@ -35,6 +35,8 @@ prompt:
     <{'|'}CALL {'["name"]'}{'|'}> o <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}> Usa CALL solo cuando la tarea actual o el módulo conectado te pida explícitamente emitir una llamada con nombre, por ejemplo <{'|'}CALL {'["chess.play"]'}{'|'}>.
 
     Las emociones disponibles:
+  emoji: |
+    No utilice emojis o texto que un hablante no pueda pronunciar.
   suffix: |
     Las acciones disponibles:
 

@@ -1243,6 +1243,7 @@ pages:
             region:
               description: 音声サービスリージョン
               label: リージョン
+        title: Microsoft / Azure 音声
       index-tts-vllm:
         title: Bilibili/IndexTTS
         callout_indextts2_unavailable_title: 限定的なサポート
@@ -1259,6 +1260,7 @@ pages:
           field:
             appId:
               description: コンソールで取得できるプロジェクトのApp ID
+        title: 火山エンジン (Volcengine)
       volcengine-coding-plan:
         description: Volcengineコーディングプラン
         models:

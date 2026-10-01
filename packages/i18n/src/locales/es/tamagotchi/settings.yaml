@@ -49,6 +49,59 @@ devtools:
   pages:
     context-flow:
       title: Flujo de contexto
+    live2d-ambient-light:
+      title: Luz ambiente Live2D
+      description: Ajustar muestreo de pantalla y el sombreado de color Live2D
+      controls:
+        title: Fuente de luz y salida
+      enabled:
+        title: Luz ambiente
+        description: Aplicar el filtro de luz ambiente al modelo activo Live2D.
+      source:
+        title: Fuente de luz
+        options:
+          screen-capture: Captura de pantalla
+          forced-color: Color forzado
+      mode:
+        title: Modo de iluminación
+        options:
+          window-gradient: Degradado de ventana
+          global: Ambiente global
+      forced-color:
+        description: Aplicar este color sin captura de pantalla.
+      strength:
+        title: Intensidad de la luz
+      squint:
+        title: Entrecerrar los ojos ante cambios luminosos
+        description: Entrecierra los ojos cuando la pantalla se ilumina más rápido de lo que el personaje puede adaptarse a ella. Una pantalla que permanece brillante mantiene los ojos abiertos. El valor 0 desactiva esta función.
+      main-window-note: Los cambios aparecen en la ventana principal de AIRI.
+      diagnostics:
+        status:
+          disabled: Desactivado
+          starting: Iniciando
+          capturing: Capturando
+          forced-color: Color forzado
+        capture:
+          display: Pantalla y límites
+          video-size: Fuente de vídeo
+          window-bounds: Límites de ventana de AIRI
+          excluded-region: Región excluida
+          behind-luminance: Luz detrás del personaje
+          updated: Última actualización
+        preview:
+          title: Captura a baja escala
+          description: El rectángulo rojo marca la ventana de AIRI. El rectángulo con guiones marca el área que cubre el mapa de luz.
+        pixels:
+          accepted: Aceptado
+          excluded: Pintado
+          transparent: Transparente
+        maps:
+          title: Mapas de luz
+          unavailable: No hay entorno disponible.
+          target: Medido
+          applied: Aplicado después de suavizado
+          surround:
+            title: Mapa envolvente
     lag-visualizer:
       title: Visualizador de retraso
     performance-visualizer:

@@ -39,6 +39,7 @@ export default defineConfig({
           '@auv-js/sdk',
           '@duckdb/node-api',
           '@xsai-apple-speech/transcription-native',
+          '@xsai-apple-vision/vision-native',
         ],
       },
     },
