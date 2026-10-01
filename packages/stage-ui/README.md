@@ -17,18 +17,19 @@ The overlay emits `finished` when all resources are ready. Apps open onboarding 
 
 ## Voice integration
 
-The audio host owns one VoiceController and shared microphone leases.
+The audio host owns one VoiceController and one shared microphone input.
 Other windows send Eventa commands and render snapshots. They do not create competing capture or playback runtimes.
+Consumers subscribe to the microphone input with their own abort signal. The last subscriber to leave releases the device.
 
 - `useVoiceStore` owns application routing, drafts, responses, and host command registration.
-- `useVoiceController` binds public controller state to Vue and borrows the selected audio connection.
+- `useVoiceController` binds public controller state to Vue and moves the controller to the input of the selected device.
 - `useVoiceInput` maps hold and release controls to host commands.
 - `useVoiceMessagesStore` owns independent recording previews and explicit attachment submission.
-- Hearing selects providers and adapts media to transcript events. It does not acquire the microphone.
+- Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
 - Speech preserves existing chunked synthesis and bidirectional provider output.
 
 Recording completion never sends an attachment. Failed submission retains its preview and stable message identity.
-Native audio requires declared model support and Chat Completions. Other models use a configured file transcription provider.
+Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
 Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
 
 ### External wake-word adapters
