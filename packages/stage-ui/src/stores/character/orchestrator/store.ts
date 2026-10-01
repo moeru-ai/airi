@@ -1,5 +1,5 @@
 import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
-import type { WebSocketBaseEvent, WebSocketEventOf, WebSocketEvents } from '@proj-airi/server-sdk'
+import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin } from '@proj-airi/core-agent/agents/spark-notify'
@@ -264,7 +264,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     tickTimer = undefined
   }
 
-  async function handleSparkEmit(_: WebSocketBaseEvent<'spark:emit', WebSocketEvents['spark:emit']>) {
+  async function handleSparkEmit() {
     // Currently no-op
     return undefined
   }
@@ -286,11 +286,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     )
 
     eventUnsubscribes.push(
-      modsServerChannelStore.onEvent('spark:emit', async (event) => {
+      modsServerChannelStore.onEvent('spark:emit', async () => {
         if (!leadership?.isLeader())
           return
         try {
-          await handleSparkEmit(event)
+          await handleSparkEmit()
         }
         catch (error) {
           console.warn('Failed to handle spark:emit event:', error)

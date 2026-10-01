@@ -11,7 +11,7 @@
  * - `https://ex.com/ab`
  */
 export function sanitizeUrl(url: string): string {
-  return url.replace(/[\u0000-\u001F"<>]/g, '')
+  return Array.from(url).filter(char => char.charCodeAt(0) > 0x1F && char !== '"' && char !== '<' && char !== '>').join('')
 }
 
 /**
