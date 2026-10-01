@@ -62,6 +62,11 @@ The current Responses adapter supports text, images, file data or URLs, refusals
 
 Realtime transport is not implemented. A future session adapter can project the same context, but must define continuous input, interruption, and session ownership separately.
 
+## Spark notification cancellation
+
+The host supplies an `abortSignal` to the notification agent and its model runner.
+Cancellation blocks new model work, late reaction deltas, and command completion, even when a runner ignores transport cancellation.
+
 ## Verify
 
 ```sh

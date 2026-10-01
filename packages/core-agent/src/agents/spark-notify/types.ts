@@ -135,6 +135,8 @@ export interface SparkNotifyTurn {
 
 /** Completed request passed to the host-owned selected-chat runner. */
 export interface SparkNotifyRunRequest {
+  /** Ends model work when the host loses execution ownership. */
+  abortSignal?: AbortSignal
   /** Resolved model and provider for this run. */
   selectedChat: SparkNotifySelectedChat
   /** Context projected by the host-selected protocol adapter. */
