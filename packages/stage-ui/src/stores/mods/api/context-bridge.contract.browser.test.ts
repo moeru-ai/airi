@@ -452,6 +452,37 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  // ROOT CAUSE:
+  // Input side context used the array form for logical readers, while arrays route transport peers.
+  // A sender's transport list became a reader list, and the observation reached no session.
+  it('gives input side context the input scene unless the sender names logical readers', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text', {
+      type: 'input:text',
+      source: 'discord-bot',
+      metadata: createMetadata('discord', 'bot'),
+      data: {
+        text: 'hello',
+        overrides: { binding: 'discord:channel:a' },
+        contextUpdates: [
+          { strategy: ContextUpdateStrategy.ReplaceSelf, contextId: 'unaddressed', text: 'one' },
+          { strategy: ContextUpdateStrategy.ReplaceSelf, contextId: 'transport-routed', text: 'two', destinations: ['instance:discord-bot'] },
+          { strategy: ContextUpdateStrategy.ReplaceSelf, contextId: 'shared', text: 'three', destinations: { include: ['discord:channel:b'] } },
+        ],
+      },
+    })
+
+    expect(chatContextIngestMock.mock.calls.map(([message]) => [message.contextId, message.destinations])).toEqual([
+      ['unaddressed', { include: ['discord:channel:a'] }],
+      ['transport-routed', { include: ['discord:channel:a'] }],
+      ['shared', { include: ['discord:channel:b'] }],
+    ])
+
+    await store.dispose()
+  })
+
   // https://github.com/moeru-ai/airi/actions/runs/34237304157/job/102098223378
   // ROOT CAUSE:
   // The old consciousness mock omitted temperature and top-p. Input handling

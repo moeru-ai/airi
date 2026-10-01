@@ -84,6 +84,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
 - Minecraft observations no longer use a frontend request provider. Producers use fixed event slots and preserve declared retention fields.
 - Array destinations route transport peers. Object destinations name logical readers. Unaddressed module observations belong to the owner scene.
+- Input side context follows the same rule. Without object destinations, it belongs to the input scene.
 - Lanes describe subscriptions. A reader without a lane reads every lane that its destinations allow.
 - Local chat output stays inside the host. External replies target their server-assigned source connection and omit internal prompt snapshots.
 - Server routing rejects untargeted chat output. Broadcast and consumer delivery both preserve explicit destinations.

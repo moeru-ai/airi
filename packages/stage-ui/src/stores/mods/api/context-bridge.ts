@@ -38,6 +38,14 @@ export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 
   }
 }
 
+/**
+ * Reads the logical readers of an observation. Array destinations route transport peers, so they never name readers.
+ * An observation without the object form belongs to the fallback scene.
+ */
+function logicalReadersFrom(destinations: ContextMessage['destinations'], scene: string): ContextMessage['destinations'] {
+  return destinations && !Array.isArray(destinations) ? destinations : { include: [scene] }
+}
+
 export const useContextBridgeStore = defineStore('mods:api:context-bridge', () => {
   const consumerRegistrationEvents = [
     'input:text',
@@ -607,11 +615,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         })
         const contextMessage: ContextMessage = {
           ...event.data,
-          // Array destinations route transport peers. Only the object form names logical readers.
           // Local modules without readers belong to the owner's scene.
-          destinations: event.data.destinations && !Array.isArray(event.data.destinations)
-            ? event.data.destinations
-            : { include: ['owner:private'] },
+          destinations: logicalReadersFrom(event.data.destinations, 'owner:private'),
           metadata: event.metadata,
           createdAt: Date.now(),
         }
@@ -672,8 +677,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             ...update,
             id,
             contextId,
-            // Input side context follows its scene unless the sender explicitly shares it.
-            destinations: update.destinations ?? [overrides?.binding ?? overrides?.sessionId ?? chatSession.activeSessionId],
+            // Input side context follows its scene unless the sender names readers.
+            destinations: logicalReadersFrom(update.destinations, overrides?.binding ?? overrides?.sessionId ?? chatSession.activeSessionId),
           }
         })
         const acceptedContextUpdates: typeof normalizedContextUpdates = normalizedContextUpdates ? [] : undefined
