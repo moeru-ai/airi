@@ -1,4 +1,4 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { AgentRun, Audience, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, ExecutionEnvelope, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
+import { audienceFromBindings, createChatOrchestratorRuntime, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -258,19 +258,50 @@ export const useChatStore = defineStore('chat', () => {
     return reads
   }
 
-  /** Session bindings decide which observations a request reads. An unbound session reads the owner scene. */
-  function contextReaderFor(sessionId: string): ContextReader {
+  /**
+   * Session bindings select the scene, and the run audience limits the records that a request reads.
+   * An unbound session reads the owner scene.
+   */
+  function contextReaderFor(sessionId: string, audience: Audience): ContextReader {
     const bindings = chatSession.sessionMetas[sessionId]?.bindings
-    return { ids: bindings?.length ? [sessionId, ...bindings] : [sessionId, 'character', 'owner:private'] }
+    return { ids: bindings?.length ? [sessionId, ...bindings] : [sessionId, 'character', 'owner:private'], audience }
   }
 
-  /** Adds the source reader, authorized by the session that owns the request. */
-  function withContextSourceTool(tools: StreamOptions['tools'], sessionId: string | undefined): StreamOptions['tools'] {
-    if (!sessionId)
+  /**
+   * Builds the limits for one send. The owner chat shows every session, so every run reaches the owner.
+   * An external reply also reaches the session's scene. A module without a declared scene speaks for the owner.
+   */
+  function createRunEnvelope(sessionId: string, options: ChatOrchestratorSendOptions): Omit<ExecutionEnvelope, 'sessionId'> {
+    const meta = chatSession.sessionMetas[sessionId]
+    // Session metadata is reactive. The run table clones a plain copy.
+    const bindings = [...meta?.bindings ?? []]
+    return {
+      bindings,
+      outputs: options.outputTarget ? ['chat:owner', `connection:${options.outputTarget}`] : ['chat:owner'],
+      audience: options.outputTarget ? unionAudiences(OWNER_AUDIENCE, audienceFromBindings(bindings)) : OWNER_AUDIENCE,
+      personaId: meta?.characterId,
+    }
+  }
+
+  // Active run audiences, fed by the runtime run table. A request tool reads the audience of its own run.
+  const activeRunAudiences = new Map<string, Audience>()
+
+  function trackRunAudience(run: AgentRun) {
+    if (run.state === 'queued' || run.state === 'working')
+      activeRunAudiences.set(run.runId, run.envelope.audience)
+    else
+      activeRunAudiences.delete(run.runId)
+  }
+
+  /** Adds the source reader, authorized by the session and run that own the request. */
+  function withContextSourceTool(tools: StreamOptions['tools'], correlation: StreamOptions['requestCorrelation']): StreamOptions['tools'] {
+    if (!correlation)
       return tools
+    const { conversationId: sessionId, runId } = correlation
+    const audience = (runId ? activeRunAudiences.get(runId) : undefined) ?? OWNER_AUDIENCE
     return async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
-      ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId), sourceRef) }),
+      ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
     ]
   }
 
@@ -379,7 +410,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
-        tools: withContextSourceTool(options?.tools, options?.requestCorrelation?.conversationId),
+        tools: withContextSourceTool(options?.tools, options?.requestCorrelation),
         headers,
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {
@@ -456,19 +487,27 @@ export const useChatStore = defineStore('chat', () => {
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
+      getSessionAudience: sessionId => chatSession.getSessionAudience(sessionId),
+      narrowSessionAudience: (sessionId, audience) => {
+        void chatSession.narrowSessionAudience(sessionId, audience).catch((error) => {
+          console.warn('[chat] Failed to narrow the session audience:', errorMessageFrom(error))
+        })
+      },
     },
     context: {
       ingest: async (envelope) => { await chatContext.ingestContextMessage(envelope) },
-      snapshot: (sessionId) => {
-        const snapshot = chatContext.getContextsSnapshot(contextReaderFor(sessionId))
+      snapshot: (sessionId, audience) => {
+        const snapshot = chatContext.getContextsSnapshot(contextReaderFor(sessionId, audience))
         // Account data belongs to this request, not the persistent context registry.
         // A signed-out request therefore cannot inherit the previous account snapshot.
         const account = chatSession.sessionMetas[sessionId]?.bindings?.length ? null : createUserAccountContext(authStore)
         if (account)
-          snapshot[account.contextId] = [account]
+          snapshot[account.contextId] = [{ ...account, audience: OWNER_AUDIENCE }]
         return snapshot
       },
     },
+    createEnvelope: createRunEnvelope,
+    onRunChange: trackRunAudience,
     foregroundStream: {
       patch: (message) => {
         streamingMessage.value = message

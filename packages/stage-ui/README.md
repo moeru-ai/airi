@@ -23,6 +23,8 @@ Discord uses one binding per channel, including threads and direct messages.
 Conversation forks retain their parent session, reason, hidden flag, bindings, and audience. Binding recovery never selects a fork.
 Each session has an allowed `audience`. It starts from its bindings and only narrows through `narrowSessionAudience`.
 A scene recovers only a root session whose audience still includes the scene audience. Otherwise the scene starts a new session.
+Every chat run reaches the owner chat. A reply with an output target also reaches the session's scene. A module without a declared scene speaks for the owner.
+The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
 
 Array `destinations` on `context:update` route transport peers. The object form `{ include, exclude, all }` names logical readers.
 A module observation without logical readers belongs to `owner:private`. Bound scenes, such as Discord channels, do not read it.

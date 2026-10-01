@@ -58,6 +58,8 @@ export type {
   CategorizedSegment,
   ResponseCategory,
 } from './runtime/response-categoriser'
+export type { AgentRun, AgentRunState, ExecutionEnvelope } from './runtime/run-table'
+export { RunTable } from './runtime/run-table'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'
 export type {
   ChatAssistantMessage,

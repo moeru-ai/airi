@@ -224,6 +224,7 @@ vi.mock('../../chat/session-store', () => ({
       return activeSessionIdRef.value
     },
     getSessionGenerationValue: () => currentGeneration,
+    getSessionAudience: (sessionId: string) => sessionId === 'session-1' ? { kind: 'subjects', subjects: ['user:owner'] } : undefined,
     refreshSession: (sessionId: string) => refreshSessionMock(sessionId),
   }),
 }))
@@ -477,11 +478,17 @@ describe('context bridge contract', () => {
     await emitContextUpdate(createContextUpdateEvent({ id: 'unaddressed' }))
     await emitContextUpdate(createContextUpdateEvent({ id: 'transport-routed', destinations: ['instance:stage-1'] }))
     await emitContextUpdate(createContextUpdateEvent({ id: 'shared', destinations: { include: ['discord:channel:a'] } }))
+    await emitContextUpdate(createContextUpdateEvent({ id: 'everyone', destinations: { all: true } }))
+    // A producer cannot choose its own label.
+    await emitContextUpdate(createContextUpdateEvent({ id: 'forged', audience: { kind: 'public' } }))
 
-    expect(chatContextIngestMock.mock.calls.map(([message]) => [message.id, message.destinations])).toEqual([
-      ['unaddressed', { include: ['owner:private'] }],
-      ['transport-routed', { include: ['owner:private'] }],
-      ['shared', { include: ['discord:channel:a'] }],
+    const owner = { kind: 'subjects', subjects: ['user:owner'] }
+    expect(chatContextIngestMock.mock.calls.map(([message]) => [message.id, message.destinations, message.audience])).toEqual([
+      ['unaddressed', { include: ['owner:private'] }, owner],
+      ['transport-routed', { include: ['owner:private'] }, owner],
+      ['shared', { include: ['discord:channel:a'] }, { kind: 'subjects', subjects: ['discord:channel:a:members', 'user:owner'] }],
+      ['everyone', { all: true }, { kind: 'public' }],
+      ['forged', { include: ['owner:private'] }, owner],
     ])
 
     await store.dispose()

@@ -7,6 +7,7 @@ Allow アイリ to talk to you and many other users in Discord voice channels.
 The stage host returns chat output only to the requesting connection.
 The adapter reads the destination channel from `event.data.discord`. It does not require internal prompt or context snapshots.
 Input context uses object destinations to name logical channel readers. Array destinations remain transport addresses.
+Text messages and voice transcriptions both bind to `discord:channel:<id>`. Without a binding, a reply would join the owner's private session.
 
 ## Getting started
 

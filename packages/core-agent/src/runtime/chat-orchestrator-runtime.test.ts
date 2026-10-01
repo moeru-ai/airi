@@ -174,7 +174,7 @@ describe('createChatOrchestratorRuntime', () => {
     let currentContext: ContextMessage | undefined = runtimeContext
     const harness = createHarness(undefined, [() => currentContext])
     await harness.runtime.ingest('first', { model: 'test', chatProvider: provider }, 'session-1')
-    expect(harness.snapshotContext).toHaveBeenCalledWith('session-1')
+    expect(harness.snapshotContext).toHaveBeenCalledWith('session-1', { kind: 'subjects', subjects: ['user:owner'] })
     expect(harness.ingestContext).not.toHaveBeenCalled()
     expect(renderConversationPreview(harness.stream.mock.calls[0][2]).at(-1)?.content).toContain('current runtime instructions')
 
@@ -1355,9 +1355,9 @@ describe('responses generated turn ownership', () => {
     })
     await harness.runtime.ingest('first', { model: 'test', chatProvider: responsesProvider })
     await harness.runtime.ingest('second', { model: 'test', chatProvider: responsesProvider })
-    expect(harness.stream.mock.calls[1][2].turns).toContainEqual(generatedTurn)
+    expect(harness.stream.mock.calls[1][2].turns).toContainEqual({ ...generatedTurn, runId: expect.any(String) })
     await harness.runtime.ingest('third', { model: 'test', chatProvider: provider })
-    expect(harness.stream.mock.calls[2][2].turns).toContainEqual(generatedTurn)
+    expect(harness.stream.mock.calls[2][2].turns).toContainEqual({ ...generatedTurn, runId: expect.any(String) })
     expect(conversationToChatMessages(harness.stream.mock.calls[2][2])).toContainEqual({ role: 'assistant', content: 'answer' })
   })
 

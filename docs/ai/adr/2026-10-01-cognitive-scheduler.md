@@ -112,10 +112,17 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ### P1 progress
 
+Labels follow the claim levels in the design review appendix: Observed has a named test, and Implemented lacks a full user scenario.
+
 - Audience labels are sorted subject sets or `public`. Every scene includes the owner, because host surfaces show every session to the owner.
 - Shared pool entries carry host-assigned audiences. A run reads an entry only when the entry's audience includes the run's effective audience.
 - Sessions store an audience derived from bindings. It only narrows. Forks inherit bindings and audience, and binding recovery skips forks.
 - A scene recovers a root session only when the session audience includes the scene audience.
+- Observed (`chat-orchestrator-runs.test.ts`): each send has a run id, an envelope, and a state trace. Work beyond the session audience rejects before a run exists.
+- Observed (`chat-orchestrator-runs.test.ts`): a provider failure records `blocked` with its error. Writes narrow the session audience to the labels the run read.
+- Observed (`chat.contract.browser.test.ts`): a reply with an output target reads with the scene audience.
+- Implemented: the context bridge labels observations from logical readers. Discord voice transcriptions bind to their channel.
+- Not provided: the run table is the current execution path, not P3 intake. Ignored stimuli and intentional silence have no record yet.
 
 ### Open P0 evidence
 

@@ -7,15 +7,20 @@ import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
+import type { Audience } from './audience'
+import type { AgentRun, ExecutionEnvelope } from './run-table'
 
+import { errorMessageFrom } from '@moeru/std'
 import { createQueue } from '@proj-airi/stream-kit'
 
 import { chatMessagesToTurns } from '../messages/chat-completions'
 import { formatTimePrefix } from '../messages/datetime-prefix'
 import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
+import { audienceIncludes, intersectAudiences, OWNER_AUDIENCE } from './audience'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
+import { RunTable } from './run-table'
 
 const REASONING_UI_FLUSH_CHUNK_SIZE = 24
 
@@ -137,6 +142,9 @@ export interface ChatOrchestratorSendOptions {
 }
 
 interface QueuedSend {
+  /** Run admitted for this send. */
+  runId: string
+  envelope: ExecutionEnvelope
   /** Keep provider identity paired with the client captured at enqueue time. */
   providerId: string
   sendingMessage: string
@@ -180,6 +188,10 @@ export interface ChatOrchestratorSessionPort {
   appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void
   /** Returns a monotonic generation used to reject stale queued sends. */
   getSessionGeneration: (sessionId: string) => number
+  /** Returns the audience that the session history may reach. A run must stay inside it. @default the owner */
+  getSessionAudience?: (sessionId: string) => Audience | undefined
+  /** Narrows the session audience after a run writes output derived from labeled reads. */
+  narrowSessionAudience?: (sessionId: string, audience: Audience) => void
 }
 
 /**
@@ -261,6 +273,13 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /**
+   * Builds the limits for one send. The runtime records them in the run table.
+   * @default the session alone, with the owner chat as its only output
+   */
+  createEnvelope?: (sessionId: string, options: ChatOrchestratorSendOptions) => Omit<ExecutionEnvelope, 'sessionId'>
+  /** Called whenever a run is admitted or changes state. */
+  onRunChange?: (run: AgentRun) => void
   /** Request-owned context providers evaluated once per send, outside the shared pool. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -397,6 +416,10 @@ export interface ChatOrchestratorRuntime {
   setSending: (next: boolean) => void
   /** Hook registry preserved from the previous stage-ui store API. */
   hooks: ReturnType<typeof createChatHooks>
+  /** Returns one run with its envelope. */
+  getRun: (runId: string) => AgentRun | undefined
+  /** Returns admitted, active, and recently finished runs. */
+  getRuns: () => AgentRun[]
 }
 
 function defaultCreateId() {
@@ -431,6 +454,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   let activeSendSessionId: string | undefined
   let activeStreamingMessage: StreamingAssistantMessage | undefined
   let pendingQueuedSends: QueuedSend[] = []
+  const runs = new RunTable({ now, onChange: deps.onRunChange })
 
   function emitStateChange() {
     deps.onStateChange?.({
@@ -483,16 +507,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function getRequestContexts(sessionId: string) {
-    const snapshot = deps.context.snapshot(sessionId)
-    if (!deps.runtimeContextProviders)
-      return snapshot
-    for (const provider of deps.runtimeContextProviders) {
+  /**
+   * Projects pool observations for the run's audience, then adds request-owned providers.
+   * The read label covers pool entries only. Request-owned providers carry host instructions, not shared records.
+   */
+  function getRequestContexts(sessionId: string, audience: Audience) {
+    const snapshot = deps.context.snapshot(sessionId, audience)
+    const readAudience = intersectAudiences(...Object.values(snapshot).flat().map(message => message.audience ?? OWNER_AUDIENCE))
+    for (const provider of deps.runtimeContextProviders ?? []) {
       const context = provider()
       if (context)
         snapshot[context.contextId] = [context]
     }
-    return snapshot
+    return { contexts: snapshot, readAudience }
   }
 
   function getStablePromptTimestamp(message: ChatHistoryItem, fallbackCreatedAt: number) {
@@ -524,6 +551,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     sessionId: string,
     abortSignal: AbortSignal,
     activeProvider: string,
+    run: { runId: string, envelope: ExecutionEnvelope },
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
@@ -543,7 +571,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    const requestContexts = getRequestContexts(sessionId)
+    const { contexts: requestContexts, readAudience } = getRequestContexts(sessionId, run.envelope.audience)
+    // Output derives from everything the run read, so the history label narrows before each write.
+    const appendAssistantMessage = (message: ChatHistoryItem) => {
+      deps.session.narrowSessionAudience?.(sessionId, readAudience)
+      deps.session.appendSessionMessage(sessionId, message)
+    }
 
     const sendingCreatedAt = now()
 
@@ -821,10 +854,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         headers,
         providerId: activeProvider,
         abortSignal,
-        onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
+        onGeneratedTurn: (turn) => { generatedTurn = { ...structuredClone(turn), runId: run.runId } },
         requestCorrelation: {
           conversationId: correlation.conversationId,
           turnId: correlation.roundId,
+          runId: run.runId,
         },
         tools: options.tools,
         temperature: options.temperature,
@@ -944,7 +978,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
-        deps.session.appendSessionMessage(sessionId, finalAssistant)
+        appendAssistantMessage(finalAssistant)
         assistantStored = true
         deps.onAssistantMessageAppended?.({
           sessionId,
@@ -1010,7 +1044,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
         // sync for an assistant turn that never reached a terminal event.
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        appendAssistantMessage({ ...cloneStreamingMessage(buildingMessage), interrupted: true })
       }
       resetForegroundStream(sessionId)
 
@@ -1041,7 +1075,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         && abortSignal.aborted
         && !isStaleGeneration()
         && hasAssistantOutput(buildingMessage)) {
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        appendAssistantMessage({ ...cloneStreamingMessage(buildingMessage), interrupted: true })
         resetForegroundStream(sessionId)
       }
       setSending(false)
@@ -1052,23 +1086,29 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const sendQueue = createQueue<QueuedSend>({
     handlers: [
       async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
+        const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId, runId, envelope } = data
 
-        if (cancelled)
+        if (cancelled) {
+          runs.transition(runId, 'dropped')
           return
+        }
 
         if (deps.session.getSessionGeneration(sessionId) !== generation) {
+          runs.transition(runId, 'dropped')
           deferred.reject(new Error('Chat session was reset before send could start'))
           return
         }
 
         const controller = new AbortController()
         activeSends.set(sessionId, controller)
+        runs.transition(runId, 'working')
         try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
+          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId, { runId, envelope })
+          runs.transition(runId, controller.signal.aborted || deps.session.getSessionGeneration(sessionId) !== generation ? 'dropped' : 'done')
           deferred.resolve()
         }
         catch (error) {
+          runs.transition(runId, controller.signal.aborted ? 'dropped' : 'blocked', errorMessageFrom(error) ?? 'Unknown run failure')
           deferred.reject(error)
         }
         finally {
@@ -1095,9 +1135,27 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   ) {
     const sessionId = targetSessionId || deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
+    const envelope: ExecutionEnvelope = {
+      bindings: [],
+      outputs: ['chat:owner'],
+      audience: OWNER_AUDIENCE,
+      ...deps.createEnvelope?.(sessionId, options),
+      sessionId,
+    }
+    // Recovery stays inside the history's audience. A wider run would show the history to subjects it never reached.
+    // The rejection happens before a run exists, so the run table never records unauthorized work.
+    const sessionAudience = deps.session.getSessionAudience?.(sessionId) ?? OWNER_AUDIENCE
+    if (!audienceIncludes(sessionAudience, envelope.audience))
+      return Promise.reject(new Error('Run audience exceeds the session audience'))
+
+    // Run identity uses its own factory, so deterministic message id sequences stay unchanged.
+    const runId = defaultCreateId()
+    runs.admit({ runId, envelope })
 
     return new Promise<void>((resolve, reject) => {
       sendQueue.enqueue({
+        runId,
+        envelope,
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
         options,
@@ -1119,6 +1177,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         continue
 
       queued.cancelled = true
+      runs.transition(queued.runId, 'dropped')
       queued.deferred.reject(new Error('Chat session was reset before send could start'))
     }
 
@@ -1147,5 +1206,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     getSending: () => sending,
     setSending,
     hooks,
+    getRun: runId => runs.get(runId),
+    getRuns: () => runs.snapshot(),
   }
 }

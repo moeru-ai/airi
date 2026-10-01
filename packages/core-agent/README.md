@@ -89,6 +89,16 @@ The current Responses adapter supports text, images, file data or URLs, refusals
 
 Realtime transport is not implemented. A future session adapter can project the same context, but must define continuous input, interruption, and session ownership separately.
 
+## Runs and execution envelopes
+
+`ingest` builds an `ExecutionEnvelope` through `createEnvelope`: the session, bindings, outputs, effective audience, and persona.
+Work whose audience exceeds the session audience rejects before a run exists. The run table never records unauthorized work.
+Each admitted send gets a `runId` in `RunTable`. Its state moves through `queued`, `working`, and one final state.
+`done` means the send settled, `dropped` means cancellation, and `blocked` means a failure with its error.
+The run id reaches `requestCorrelation.runId` and the generated `AssistantTurn.runId`. Run ids use their own factory, so message id sequences stay unchanged.
+The context snapshot receives the run audience. Before each assistant write, the session audience narrows to the labels of the pool entries that the run read.
+This path admits every queued send. It is not the scheduler intake, and it does not record ignored stimuli or intentional silence.
+
 ## Spark notification cancellation
 
 The host supplies an `abortSignal` to the notification agent and its model runner.

@@ -8,6 +8,7 @@ import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
+import { audienceFromBindings } from '@proj-airi/core-agent'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
@@ -164,6 +165,8 @@ vi.mock('./chat/session-store', () => ({
     ensureCurrentSession: ensureCurrentSessionMock,
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
+    getSessionAudience: (sessionId: string) => audienceFromBindings(sessionMetas[sessionId]?.bindings),
+    narrowSessionAudience: async () => {},
     setSessionMessages: (sessionId: string, messages: ChatHistoryItem[]) => {
       sessionMessages[sessionId] = messages
     },
@@ -1382,7 +1385,7 @@ describe('chat store contract', () => {
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
     expect(createRuntimePromptContextMock).toHaveBeenCalledOnce()
     expect(getContextsSnapshotMock).toHaveBeenCalledOnce()
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character', 'owner:private'] })
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character', 'owner:private'], audience: { kind: 'subjects', subjects: ['user:owner'] } })
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
     if (composedMessages[1].type !== 'user')
       throw new Error('Expected user turn')
@@ -1409,8 +1412,31 @@ describe('chat store contract', () => {
 
     await useChatStore().send({ sessionId: 'session-1', text: 'Hello from Discord' })
 
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'] })
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'], audience: { kind: 'subjects', subjects: ['user:owner'] } })
     expect(createUserAccountContextMock).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  // An external reply reaches the channel members, so its run must read only records that also reach them.
+  it('reads with the channel audience when the reply leaves the host', async () => {
+    sessionMetas['session-1'] = {
+      sessionId: 'session-1',
+      userId: 'local',
+      characterId: 'default',
+      bindings: ['discord:channel:a'],
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Hello from Discord', outputTarget: 'discord-connection' })
+
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({
+      ids: ['session-1', 'discord:channel:a'],
+      audience: { kind: 'subjects', subjects: ['discord:channel:a:members', 'user:owner'] },
+    })
   })
 
   // ROOT CAUSE:
@@ -1442,7 +1468,7 @@ describe('chat store contract', () => {
 
     expect(prompt).not.toContain('Private Minecraft coordinates')
     expect(createMinecraftContextMock).not.toHaveBeenCalled()
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'] })
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'], audience: { kind: 'subjects', subjects: ['user:owner'] } })
   })
 
   it('projects module-owned Minecraft context from the reader snapshot', async () => {
@@ -1464,7 +1490,7 @@ describe('chat store contract', () => {
     await useChatStore().send({ sessionId: 'session-1', text: 'Is the bot online?' })
 
     expect(prompt).toContain('Minecraft bot is online.')
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character', 'owner:private'] })
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character', 'owner:private'], audience: { kind: 'subjects', subjects: ['user:owner'] } })
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
   })
 

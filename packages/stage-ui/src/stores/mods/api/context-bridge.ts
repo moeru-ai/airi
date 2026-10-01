@@ -5,6 +5,7 @@ import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat
 import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { errorMessageFrom } from '@moeru/std'
+import { audienceFromBindings, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, PUBLIC_AUDIENCE, unionAudiences } from '@proj-airi/core-agent'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
@@ -62,6 +63,19 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const serverChannelStore = useModsServerChannelStore()
   const contextObservability = useContextObservabilityStore()
   const contextSource = useContextSourceStore()
+
+  /**
+   * Assigns the allowed audience of an observation from its logical readers. A producer cannot set it.
+   * A reader is a session, a binding, or the owner scene. Sharing with every reader makes the record public.
+   */
+  function audienceForReaders(destinations: ContextMessage['destinations']) {
+    if (!destinations || Array.isArray(destinations))
+      return OWNER_AUDIENCE
+    if ('all' in destinations)
+      return destinations.all ? PUBLIC_AUDIENCE : OWNER_AUDIENCE
+    return unionAudiences(OWNER_AUDIENCE, ...(destinations.include ?? []).map(reader =>
+      chatSession.getSessionAudience(reader) ?? (reader === 'character' ? OWNER_AUDIENCE : audienceFromBindings([reader]))))
+  }
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
@@ -618,10 +632,12 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
           details: event,
         })
+        // Local modules without readers belong to the owner's scene.
+        const destinations = logicalReadersFrom(event.data.destinations, OWNER_PRIVATE_BINDING)
         const contextMessage: ContextMessage = {
           ...event.data,
-          // Local modules without readers belong to the owner's scene.
-          destinations: logicalReadersFrom(event.data.destinations, 'owner:private'),
+          destinations,
+          audience: audienceForReaders(destinations),
           metadata: event.metadata,
           createdAt: Date.now(),
         }
@@ -707,6 +723,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             })
             const contextMessage: ContextMessage = {
               ...update,
+              audience: audienceForReaders(update.destinations),
               metadata: event.metadata,
               createdAt,
             }
