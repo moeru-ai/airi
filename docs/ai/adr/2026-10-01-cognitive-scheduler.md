@@ -96,13 +96,15 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Server-owned module removal clears the exact writer through the context leader. Bounded history rejects delayed copies after removal.
 - The server drops client-authored module removal events. Repeated removal does not publish another state change.
 - The leader replicates a bounded removal journal. Duplicate lifecycle notifications preserve fresh observations after reconnection within that window.
+- Spark relay syntax lives in a trusted toolset prompt. Actual tool admission controls developer guidance for each model request.
+- Chat and Responses remove tool guidance after revocation. Request guidance stays outside shared observations and generation history.
 
 ### Remaining P0 acceptance
 
 - Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
 - Other context producers still require budget verification. Origin handles do not yet expose a cross-module authorized query boundary.
-- Minecraft relay guidance still requires a request-owned toolset prompt and live validation. Compact status facts do not replace command instructions.
+- Minecraft relay guidance has request-owned toolset coverage. Live model selection and delivery to a running bot still require validation.
 - Static tokenizer imports require production bundle measurements. Full-pool replication requires multi-window cost measurements under repeated status renewal.
 - Origin references retain details in modules, but models cannot resolve them yet. Player names and oversized page or subtitle details remain unavailable.
 - Directed output removes the devtools server broadcast feed. Local chat hooks remain, but cross-window observation still requires validation.

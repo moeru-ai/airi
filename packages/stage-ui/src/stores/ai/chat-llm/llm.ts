@@ -4,11 +4,13 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { DescribeToolImage } from './tool-images'
 
 import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import { SPARK_COMMAND_TOOLSET_PROMPT } from '@proj-airi/core-agent/agents/spark-command'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { resolveLlmTools } from './tool-resolver'
+import { resolveLlmTools, toolNameFrom } from './tool-resolver'
+import { useLlmToolsetPromptsStore } from './toolset-prompts'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
@@ -20,6 +22,13 @@ export interface LlmStreamOptions extends StreamOptions {
 }
 
 export const useLLM = defineStore('llm', () => {
+  const toolsetPrompts = useLlmToolsetPromptsStore()
+  toolsetPrompts.registerToolsetPrompts('spark-command', [{
+    id: 'spark-command',
+    title: 'Command relay',
+    requiredTools: ['builtIn_emitSparkCommand'],
+    content: SPARK_COMMAND_TOOLSET_PROMPT,
+  }])
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
@@ -35,6 +44,12 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        resolveToolsetPrompt: (tools) => {
+          const names = tools.map(toolNameFrom).filter((name): name is string => name !== undefined)
+          const registered = toolsetPrompts.getToolsetPromptForTools(names)
+          const requestOwned = streamOptions.resolveToolsetPrompt?.(tools).trim()
+          return [registered, requestOwned].filter(Boolean).join('\n\n')
+        },
         onStreamEvent: async (event) => {
           if (event.type === 'tool-call')
             toolExecutionStarted = true

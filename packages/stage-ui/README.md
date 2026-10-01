@@ -36,6 +36,12 @@ Message and completion events target that connection explicitly. They contain th
 Discord reads its channel from the top-level `discord` field. Cross-renderer stream projection remains on the local context channel.
 Transport targeting does not replace session audience checks. Those checks form the next scheduler stage.
 
+## Toolset guidance
+
+Toolset prompt contributions can name `requiredTools`. The request grants every listed tool before the prompt enters developer instructions.
+Contributions without `requiredTools` remain host-wide instructions. Register prompts only from trusted tool owners, never from observation text.
+The Spark relay prompt specifies action intent, structured guidance, and truthful submission reports. It is absent when the model cannot use tools.
+
 ## Notification ownership
 
 The synchronized context store routes ingestion, reset, pruning, and writer removal to the elected renderer.
