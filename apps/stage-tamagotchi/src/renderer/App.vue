@@ -296,7 +296,7 @@ function createFullStageRuntime() {
       }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
       contextBridgeStore.initialize()
       if (!isWidgetsWindow) {
-        characterOrchestratorStore.initialize()
+        characterOrchestratorStore.initialize(syncedPinia)
         await startTrackingCursorPoint()
       }
 

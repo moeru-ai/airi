@@ -15,12 +15,20 @@ The home page reports when its character model is ready or fails. A failed model
 If the model fails, the user can retry the app or continue without a character.
 The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
 
-## Chat sampling
+## Conversation bindings
 
 External inputs use `overrides.binding` to identify their scene. The session leader creates or recovers a persistent session for that binding.
 Bindings belong to a user and character partition. Recovery keeps the calling window's selected conversation unchanged.
 Discord uses one binding per channel, including threads and direct messages.
 Conversation forks retain their parent session, reason, and hidden flag.
+
+## Notification ownership
+
+Initialize the character orchestrator with the installed Pinia synchronization runtime.
+Only the elected renderer runs background notification consumers and reminder ticks. Followers cannot start a ticker manually.
+Leadership loss stops local consumers. Promotion starts them in the new owner.
+
+## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off
 by default. Enable each parameter only when the selected model supports it.
