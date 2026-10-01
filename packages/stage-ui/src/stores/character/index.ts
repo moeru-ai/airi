@@ -105,21 +105,19 @@ export const useCharacterStore = defineStore('character', () => {
     void state.parser.consume(chunk)
   }
 
-  function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
+  async function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
     const state = streamingReactions.value.get(sparkEventId)
     if (!state)
       return
 
     state.reaction.message = fullText
+    await state.parser.end()
+    if (streamingReactions.value.get(sparkEventId) !== state)
+      return
     recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
-
-    void state.parser.end().then(() => {
-      if (streamingReactions.value.get(sparkEventId) !== state)
-        return
-      state.intent.writeFlush()
-      state.intent.end()
-      streamingReactions.value.delete(sparkEventId)
-    })
+    state.intent.writeFlush()
+    state.intent.end()
+    streamingReactions.value.delete(sparkEventId)
   }
 
   /** Cancels the speech intent and invalidates pending parser writes for one notification. */

@@ -66,6 +66,7 @@ Realtime transport is not implemented. A future session adapter can project the 
 
 The host supplies an `abortSignal` to the notification agent and its model runner.
 Cancellation blocks new model work, late reaction deltas, and command completion, even when a runner ignores transport cancellation.
+An asynchronous reaction sink remains part of the run until its stream closes. Completed audio playback has a separate host lifecycle.
 
 ## Verify
 

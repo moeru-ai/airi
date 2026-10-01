@@ -99,6 +99,43 @@ describe('createSparkNotifyAgent', () => {
     expect(onEnd).not.toHaveBeenCalled()
   })
 
+  it('keeps ownership until the asynchronous reaction sink finishes', async () => {
+    const controller = new AbortController()
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    let settled = false
+    const agent = createSparkNotifyAgent({
+      runner: { run: async (request) => { await request.onStreamEvent({ type: 'text-delta', text: 'Reaction.' }) } },
+      plugins: [createSparkNotifyReactionPlugin({
+        onDelta: vi.fn(),
+        onEnd: async () => {
+          entered.resolve()
+          await release.promise
+        },
+      })],
+    })
+    const completion = agent.handle({
+      event: createEvent(),
+      selectedChat: {
+        providerId: 'mock-provider',
+        model: 'mock-model',
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
+      },
+      systemPrompt: 'You are a character.',
+      abortSignal: controller.signal,
+    }).then(() => { settled = true }, (error: unknown) => {
+      settled = true
+      return error
+    })
+    await entered.promise
+    // Drain result microtasks while the reaction sink remains deliberately blocked.
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    expect(settled).toBe(false)
+    controller.abort(new Error('Lost notify ownership'))
+    release.resolve()
+    expect(await completion).toMatchObject({ message: 'Lost notify ownership' })
+  })
+
   it('runs the selected chat and sends reaction text through a plugin', async () => {
     const onDelta = vi.fn()
     const onEnd = vi.fn()
