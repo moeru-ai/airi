@@ -98,7 +98,7 @@ sudo apt install -y websockify novnc
 
 画像と注釈データが収集されたら、[YOLO 公式の形式](https://docs.ultralytics.com/datasets/detect/)に従ってデータセットを整理し、[Ultralytics Hub](https://www.ultralytics.com/hub) にアップロードして効果を確認できます：
 
-![Ultralytics Hub](/en/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.jpg)
+![Ultralytics Hub](/en/blog/DevLog-2025.08.26/assets/factorio-ultralytics-hub-preview.avif)
 
 悪くないでしょう？では、トレーニングを始めましょう！
 
