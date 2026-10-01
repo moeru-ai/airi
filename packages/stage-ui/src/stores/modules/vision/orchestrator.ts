@@ -1,8 +1,7 @@
-import type { CommonContentPart } from '@xsai/shared-chat'
-
 import type { VisionWorkloadId } from '../../../composables/vision/use-vision-workloads'
 
 import { errorMessageFrom } from '@moeru/std'
+import { createContextText } from '@proj-airi/core-agent/context'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
@@ -79,21 +78,13 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
 
       if (payload.publishContext) {
         const workload = getVisionWorkload(payload.workloadId)
-        const content: CommonContentPart[] = [
-          { type: 'text', text },
-          {
-            type: 'image_url',
-            image_url: {
-              url: payload.imageDataUrl,
-            },
-          },
-        ]
+        const contextId = getVisionContextId(payload)
 
+        // The frame stays in this renderer. Oversized descriptions become an origin handle.
         modsServerChannelStore.sendContextUpdate({
           strategy: ContextUpdateStrategy.ReplaceSelf,
-          contextId: getVisionContextId(payload),
-          text,
-          content,
+          contextId,
+          ...await createContextText(text, { refType: 'vision', targetId: contextId }),
           metadata: {
             module: 'vision',
             workload: workload.id,

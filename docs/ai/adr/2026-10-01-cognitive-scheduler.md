@@ -94,6 +94,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Minecraft status and VS Code observations use the shared token counter. Oversized text becomes an origin handle with module-owned details.
 - Minecraft renews unchanged online status. Three missed refreshes expire it, and unbinding stops renewal.
 - Browser page, video, and subtitle observations replace fixed slots and use budgeted origin references. The extension announces the SDK module identity.
+- Vision observations use budgeted origin references. The captured frame stays in the renderer and no longer reaches other modules.
 - Server-owned module removal clears the exact writer through the context leader. Bounded history rejects delayed copies after removal.
 - The server drops client-authored module removal events. Repeated removal does not publish another state change.
 - The leader replicates a bounded removal journal. Duplicate lifecycle notifications preserve fresh observations after reconnection within that window.
