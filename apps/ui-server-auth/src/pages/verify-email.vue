@@ -88,7 +88,7 @@ onMounted(async () => {
     trackEmailVerificationCompleted()
     if (isSupported.value)
       post('verified')
-    window.location.replace('https://airi.moeru.ai/')
+    window.location.replace(import.meta.env.VITE_WEB_APP_URL)
     return
   }
 

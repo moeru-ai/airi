@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from './app'
 
-function createTestDeps() {
+function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
   const redisSubscriber = {
     on: vi.fn(),
     subscribe: vi.fn(async () => 1),
@@ -36,6 +36,7 @@ function createTestDeps() {
     env: {
       API_SERVER_URL: 'https://api.airi.build',
       AUTH_SERVER_URL: 'https://api.airi.build',
+      WEB_APP_URL: webAppUrl,
       TEST_AUTH_TOKEN: 'test-token',
       TEST_AUTH_USER_ID: 'user-1',
       TEST_AUTH_USER_EMAIL: 'test@example.com',
@@ -81,15 +82,27 @@ describe('business API app', () => {
   })
 
   it.each(['GET', 'HEAD'])('redirects email verification root landings to the product with %s', async (method) => {
-    const { app } = await buildApp(createTestDeps())
+    const { app } = await buildApp(createTestDeps('https://stage.example.test/'))
     const response = await app.request('/?callbackURL=https://example.com', {
       method,
       headers: { Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
     })
 
     expect(response.status).toBe(302)
-    expect(response.headers.get('location')).toBe('https://airi.moeru.ai/')
+    expect(response.headers.get('location')).toBe('https://stage.example.test/')
     expect(response.headers.get('vary')).toBe('Accept')
+  })
+
+  it('uses the configured product URL in JSON root and not-found hints', async () => {
+    const { app } = await buildApp(createTestDeps('https://stage.example.test/'))
+    const root = await app.request('/')
+    const missing = await app.request('/missing')
+
+    expect(await root.json()).toMatchObject({
+      ui: 'https://stage.example.test/',
+      docs: 'https://stage.example.test/docs',
+    })
+    expect(await missing.json()).toMatchObject({ ui: 'https://stage.example.test/' })
   })
 
   it.each(['application/json', 'text/html;q=0, application/json', 'application/json;profile="text/html"'])('keeps JSON clients at the API root with Accept %s', async (accept) => {

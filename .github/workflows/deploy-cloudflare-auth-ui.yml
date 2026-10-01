@@ -51,6 +51,7 @@ jobs:
         env:
           VITE_ENABLE_ANALYTICS: 'true'
           VITE_SERVER_URL: 'https://api.airi.build'
+          VITE_WEB_APP_URL: 'https://airi.moeru.ai/'
 
       - uses: cloudflare/wrangler-action@v4
         with:

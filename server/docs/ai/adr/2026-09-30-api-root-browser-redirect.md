@@ -4,10 +4,10 @@ Status: accepted
 
 ## Decision
 
-Browser GET and HEAD requests to the API root redirect to `https://airi.moeru.ai/` with status 302.
+Browser GET and HEAD requests to the API root redirect to the configured `WEB_APP_URL` with status 302.
 The request must explicitly accept `text/html` with positive quality. Hono parses the media ranges; other clients retain the JSON service identity.
 The response varies by `Accept`. The existing no-store policy remains active.
-The target is fixed. Request queries are not forwarded.
+The target comes from server configuration, never from the request. Request queries are not forwarded.
 
 ## Scope
 
@@ -46,13 +46,13 @@ sequenceDiagram
   Browser->>Auth: Verify email with callbackURL=/
   Auth-->>Browser: Redirect to API root
   Browser->>API: GET / with Accept text/html
-  API-->>Browser: 302 Location https://airi.moeru.ai/
+  API-->>Browser: 302 Location WEB_APP_URL
   Browser->>Product: GET /
 ```
 
 ## Test plan
 
 Run the API app tests before and after the change.
-Check GET and HEAD redirects, fixed destinations, JSON responses, unknown paths, POST requests, and health routes.
+Check GET and HEAD redirects, configured destinations without forwarded queries, JSON responses, unknown paths, POST requests, and health routes.
 Run API typecheck, lint, and diff checks.
 Production acceptance requires deployment and a fresh email verification flow.
