@@ -36,7 +36,7 @@ type EventaContext = ReturnType<typeof createContext>['context']
 
 const chatWindowConfigSchema = object({
   mode: picklist(['legacy', 'floating']),
-  placement: picklist(['attached', 'free']),
+  placement: picklist(['attached', 'free', 'danmaku']),
   pinned: boolean(),
   floating: object({
     width: number(),

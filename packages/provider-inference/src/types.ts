@@ -39,6 +39,13 @@ export type GenerationCapabilities = {
   }
 }[GenerationRequest['protocol']]
 
+/**
+ * Image reads that a vision provider answers at once when its definition
+ * declares no limit. Cloud providers answer several reads in parallel, and four
+ * keeps a message with several images fast without flooding the provider.
+ */
+export const DEFAULT_CONCURRENT_VISION_READS = 4
+
 /** Narrows instances that already expose AIRI's protocol-neutral inference capability. */
 export function isGenerationProvider(provider: ProviderInstance): provider is GenerationProvider {
   return 'generation' in provider && typeof provider.generation === 'function'
@@ -323,6 +330,15 @@ export interface ProviderDefinition<TConfig = Record<string, unknown>, TId exten
     chat?: {
       generation?: GenerationCapabilities
       reasoning?: ChatReasoningCapability
+    }
+    vision?: {
+      /**
+       * How many image reads the provider answers at once. Stage queues the
+       * other reads of each window, so a queued read does not spend its timeout.
+       *
+       * @default {@link DEFAULT_CONCURRENT_VISION_READS}
+       */
+      concurrentReads: number
     }
     transcription?: {
       protocol: 'websocket' | 'http' | 'native'

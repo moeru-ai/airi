@@ -46,6 +46,7 @@
     "@proj-airi/stage-ui-three": "workspace:^",
     "@proj-airi/stream-kit": "workspace:^",
     "@proj-airi/ui": "workspace:^",
+    "@proj-airi/ui-loading-screens": "workspace:^",
     "@proj-airi/ui-transitions": "workspace:^",
     "@tresjs/cientos": "catalog:",
     "@tresjs/core": "catalog:",
