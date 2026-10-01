@@ -2,21 +2,10 @@ import type { MetadataEventSource } from '@proj-airi/server-shared/types'
 
 import type { ContextMessage } from '../types/chat'
 
-import o200kBase from 'js-tiktoken/ranks/o200k_base'
-
-import { Tiktoken } from 'js-tiktoken/lite'
+import { CONTEXT_ENTRY_TOKEN_LIMIT, countContextTokens } from './context-budget'
 
 const CONTEXT_UPDATE_REPLACE_SELF = 'replace-self'
 const CONTEXT_UPDATE_APPEND_SELF = 'append-self'
-
-// Registries share one local encoder. Construction waits until a default-budget observation arrives.
-let poolTokenizer: Tiktoken | undefined
-
-function countPoolTokens(text: string): number {
-  poolTokenizer ??= new Tiktoken(o200kBase)
-  // Observation text cannot activate tokenizer control tokens or fail admission merely by naming one.
-  return poolTokenizer.encode(text, [], []).length
-}
 
 interface EventSourcePayload {
   source?: string
@@ -189,11 +178,11 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   const defaultTtlMs = options.defaultTtlMs ?? 60_000
   const maxTokens = options.maxTokens ?? 800
   const maxWriterTokens = options.maxWriterTokens ?? 200
-  const maxEntryTokens = options.maxEntryTokens ?? 80
+  const maxEntryTokens = options.maxEntryTokens ?? CONTEXT_ENTRY_TOKEN_LIMIT
   const maxEntriesPerSlot = options.maxEntriesPerSlot ?? 8
   const appendContextIds = new Set(options.appendContextIds ?? ['events'])
   const now = options.now ?? Date.now
-  const countTokens = options.countTokens ?? countPoolTokens
+  const countTokens = options.countTokens ?? countContextTokens
 
   for (const limit of [historyLimit, defaultTtlMs, maxTokens, maxWriterTokens, maxEntryTokens, maxEntriesPerSlot]) {
     if (!Number.isFinite(limit) || limit <= 0)

@@ -562,6 +562,14 @@ export type ContextUpdateDestinationFilter
   = | ContextUpdateDestinationAll
     | ContextUpdateDestinationList
 
+/** Identifies module-owned details that stay outside the shared observation pool. */
+export interface ContextSourceRef {
+  /** Module query namespace. A reference cannot grant tool or read permissions. */
+  refType: string
+  /** Stable lookup key within that namespace. */
+  targetId: string
+}
+
 export interface ContextUpdate<
   Metadata extends Record<string, any> = Record<string, unknown>,
   // eslint-disable-next-line ts/no-unnecessary-type-constraint
@@ -578,6 +586,8 @@ export interface ContextUpdate<
   ttlMs?: number
   /** Retention priority from 0 to 1. This value cannot grant permissions. */
   salience?: number
+  /** Origin handle for details retained by the producer, not inline context authority. */
+  sourceRef?: ContextSourceRef
   ideas?: Array<string>
   hints?: Array<string>
   strategy: ContextUpdateStrategy

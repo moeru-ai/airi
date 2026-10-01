@@ -48,6 +48,9 @@ Spark tools put append observations in the fixed event slot. Their unique event 
 The default counter uses local `js-tiktoken/lite` with `o200k_base`. One encoder serves all registries and initializes on the first observation.
 This encoding defines pool budgets, not provider billing. Literal control-token markers count as ordinary text.
 Hosts can supply a different tokenizer through `countTokens`. The default loads no remote word list and sends no text over a network.
+Producers can import `createContextText` and `countContextTokens` from `@proj-airi/core-agent/context` without loading the agent runtime.
+`createContextText` replaces text over 80 tokens with a `sourceRef`. Producers retain the original details in their own state.
+An origin handle identifies details. It cannot grant tool or read permissions. Oversized handles fail instead of entering the pool.
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
 Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.
 Each send captures one session-filtered snapshot for both the model request and its display events.
