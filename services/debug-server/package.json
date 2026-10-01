@@ -3,6 +3,10 @@
   "type": "module",
   "private": true,
   "description": "Local OTLP persistence and query service for AIRI development.",
+  "exports": {
+    ".": "./src/runtime.ts",
+    "./config": "./src/config.ts"
+  },
   "scripts": {
     "dev": "tsx watch ./src/bin.ts",
     "start": "tsx ./src/bin.ts",

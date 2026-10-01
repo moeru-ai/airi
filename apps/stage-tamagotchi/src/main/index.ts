@@ -4,7 +4,7 @@ import type { FileLoggerHandle } from './app/file-logger'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
@@ -25,6 +25,7 @@ import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
 import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
+import { createDebugTracingConfig } from './configs/debug-tracing'
 import { createGlobalAppConfig } from './configs/global'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
@@ -32,6 +33,7 @@ import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupComputerUse } from './services/airi/computer-use'
+import { DebugTracingService } from './services/airi/debug-tracing'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
@@ -174,6 +176,7 @@ app.whenReady().then(async () => {
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
+  const debugTracingConfig = injeca.provide('configs:debug-tracing', () => createDebugTracingConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
@@ -217,6 +220,29 @@ app.whenReady().then(async () => {
 
   const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
     build: async () => setupMcpStdioManager(),
+  })
+
+  const debugTracing = injeca.provide('modules:debug-tracing', {
+    dependsOn: { config: debugTracingConfig, lifecycle },
+    build: ({ dependsOn }) => {
+      const rendererOrigin = env.ELECTRON_RENDERER_URL ? new URL(env.ELECTRON_RENDERER_URL).origin : 'null'
+      const getConfig = () => {
+        const config = dependsOn.config.get()
+        if (!config)
+          throw new Error('Debug tracing configuration is unavailable.')
+        return config
+      }
+      const service = new DebugTracingService({
+        allowedOrigins: new Set([rendererOrigin]),
+        connectionPath: join(app.getPath('userData'), 'debug', 'connection.json'),
+        databasePath: join(app.getPath('userData'), 'debug', 'debug.duckdb'),
+        getStoredEnabled: () => getConfig().enabled,
+        setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
+      })
+      dependsOn.lifecycle.appHooks.onStart(() => service.restore())
+      dependsOn.lifecycle.appHooks.onStop(() => service.dispose())
+      return service
+    },
   })
 
   const widgetsManager = injeca.provide('windows:widgets', {
@@ -277,7 +303,7 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, globalShortcut, spotlightWindow },
+    dependsOn: { widgetsManager, beatSync, autoUpdater, debugTracing, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, globalShortcut, spotlightWindow },
     build: async ({ dependsOn }) =>
       setupSettingsWindowReusableFunc({
         ...dependsOn,
@@ -295,7 +321,7 @@ app.whenReady().then(async () => {
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, debugTracing, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {

@@ -1,5 +1,5 @@
-import type { Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
-import type { ReadableSpan, SpanExporter, SpanProcessor } from '@opentelemetry/sdk-trace-base'
+import type { Context, Span, SpanContext, SpanStatusCode } from '@opentelemetry/api'
+import type { ReadableSpan, Span as SdkSpan, SpanExporter, SpanProcessor } from '@opentelemetry/sdk-trace-base'
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 
 import { context, trace } from '@opentelemetry/api'
@@ -15,6 +15,51 @@ const TRACER_NAME = 'ai.moeru.airi.io-tracer'
 const BROADCAST_CHANNEL = 'io-tracer-channel' // TODO: Use simple BroadcastChannel for now
 
 type SpanCallback = (span: ReadableSpan) => void
+
+export interface DebugTracingConnection {
+  endpoint: string
+  token: string
+}
+
+class SwitchableSpanProcessor implements SpanProcessor {
+  private processor: SpanProcessor | undefined
+  private transition = Promise.resolve()
+
+  constructor(processor?: SpanProcessor) {
+    this.processor = processor
+  }
+
+  onStart(span: SdkSpan, parentContext: Context): void {
+    this.processor?.onStart(span, parentContext)
+  }
+
+  onEnd(span: ReadableSpan): void {
+    this.processor?.onEnd(span)
+  }
+
+  forceFlush(): Promise<void> {
+    return this.processor?.forceFlush() ?? Promise.resolve()
+  }
+
+  shutdown(): Promise<void> {
+    return this.replace(undefined)
+  }
+
+  replace(processor: SpanProcessor | undefined): Promise<void> {
+    const previousProcessor = this.processor
+    this.processor = processor
+    if (!previousProcessor)
+      return Promise.resolve()
+
+    const shutdown = async () => {
+      await previousProcessor.forceFlush()
+      await previousProcessor.shutdown()
+    }
+    const operation = this.transition.then(shutdown, shutdown)
+    this.transition = operation.then(() => undefined, () => undefined)
+    return operation
+  }
+}
 
 export function deserializeSpan(s: SerializedIOSpan): ReadableSpan {
   const nanoToHr = (nano: string): [number, number] => {
@@ -101,21 +146,13 @@ export function createCallbackSpanExporter(): SpanExporter {
   }
 }
 
-function createDebugSpanProcessor(): SpanProcessor | undefined {
-  if (!import.meta.env.DEV)
-    return undefined
-  const endpoint = import.meta.env.VITE_AIRI_DEBUG_OTLP_ENDPOINT?.trim()
-  const token = import.meta.env.VITE_AIRI_DEBUG_TOKEN?.trim()
-  if (!endpoint || !token)
-    return undefined
-
+function createDebugSpanProcessor(connection: DebugTracingConnection): SpanProcessor {
   let endpointUrl: URL
   try {
-    endpointUrl = new URL(endpoint)
+    endpointUrl = new URL(connection.endpoint)
   }
   catch (error) {
-    console.warn('[io-tracer] Ignoring invalid local debug OTLP endpoint', error)
-    return undefined
+    throw new TypeError('The local debug OTLP endpoint is invalid.', { cause: error })
   }
   if (!['http:', 'https:'].includes(endpointUrl.protocol)
     || endpointUrl.username
@@ -123,13 +160,13 @@ function createDebugSpanProcessor(): SpanProcessor | undefined {
     || endpointUrl.search
     || endpointUrl.hash
     || !['127.0.0.1', '[::1]', 'localhost'].includes(endpointUrl.hostname)) {
-    return undefined
+    throw new TypeError('The local debug OTLP endpoint must use HTTP and a loopback host.')
   }
 
   if (!endpointUrl.pathname.endsWith('/v1/traces'))
     endpointUrl.pathname = `${endpointUrl.pathname.replace(/\/$/, '')}/v1/traces`
   const exporter = new OTLPTraceExporter({
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${connection.token}` },
     url: endpointUrl.toString(),
   })
   return new BatchSpanProcessor(exporter, {
@@ -139,6 +176,18 @@ function createDebugSpanProcessor(): SpanProcessor | undefined {
     scheduledDelayMillis: 250,
   })
 }
+
+function createEnvironmentDebugSpanProcessor(): SpanProcessor | undefined {
+  if (!import.meta.env.DEV)
+    return undefined
+  const endpoint = import.meta.env.VITE_AIRI_DEBUG_OTLP_ENDPOINT?.trim()
+  const token = import.meta.env.VITE_AIRI_DEBUG_TOKEN?.trim()
+  if (!endpoint || !token)
+    return undefined
+  return createDebugSpanProcessor({ endpoint, token })
+}
+
+const debugSpanProcessor = new SwitchableSpanProcessor(createEnvironmentDebugSpanProcessor())
 
 export function getIOTracer() {
   if (provider)
@@ -153,19 +202,20 @@ export function initIOTracer() {
   if (provider)
     return
 
-  const spanProcessors: SpanProcessor[] = [new SimpleSpanProcessor(createCallbackSpanExporter())]
-  const debugSpanProcessor = createDebugSpanProcessor()
-  if (debugSpanProcessor)
-    spanProcessors.push(debugSpanProcessor)
-
   provider = new BasicTracerProvider({
     resource: resourceFromAttributes({
       'service.instance.id': crypto.randomUUID(),
       'service.name': 'airi-stage-ui',
     }),
-    spanProcessors,
+    spanProcessors: [new SimpleSpanProcessor(createCallbackSpanExporter()), debugSpanProcessor],
   })
   trace.setGlobalTracerProvider(provider)
+}
+
+export async function configureDebugTracing(connection: DebugTracingConnection | undefined): Promise<void> {
+  initIOTracer()
+  const processor = connection ? createDebugSpanProcessor(connection) : undefined
+  await debugSpanProcessor.replace(processor)
 }
 
 export function onIOSpan(cb: SpanCallback | undefined) {

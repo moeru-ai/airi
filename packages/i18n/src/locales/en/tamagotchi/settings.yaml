@@ -39,6 +39,10 @@ pages:
         label: Toggle Ignore Mouse Event
       press-keys: Press Keys...
     developer:
+      local-debug-tracing:
+        title: Local debug tracing
+        description: Store local traces in DuckDB and expose them to command-line tools.
+        error: Failed to change local debug tracing.
       sections:
         section:
           use-window-mouse:

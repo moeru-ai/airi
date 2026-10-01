@@ -39,6 +39,10 @@ pages:
         label: 忽略鼠标事件
       press-keys: 请按下按键...
     developer:
+      local-debug-tracing:
+        title: 本地调试追踪
+        description: 将本地 trace 存入 DuckDB，并提供给命令行工具查询。
+        error: 无法切换本地调试追踪。
       sections:
         section:
           use-window-mouse:

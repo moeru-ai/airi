@@ -1,5 +1,6 @@
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { DebugTracingService } from '../../services/airi/debug-tracing'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
@@ -29,6 +30,7 @@ export interface SettingsWindowManager {
 export function setupSettingsWindowReusableFunc(params: {
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
+  debugTracing: DebugTracingService
   devtoolsWindow: DevtoolsWindowManager
   getMainWindow?: () => BrowserWindow | undefined
   onWindowCreated?: (window: BrowserWindow) => void
@@ -68,6 +70,7 @@ export function setupSettingsWindowReusableFunc(params: {
       settingsWindow: window,
       widgetsManager: params.widgetsManager,
       autoUpdater: params.autoUpdater,
+      debugTracing: params.debugTracing,
       devtoolsWindow: params.devtoolsWindow,
       getMainWindow: params.getMainWindow,
       serverChannel: params.serverChannel,

@@ -27,6 +27,9 @@ export default defineConfig({
   main: {
     build: {
       externalizeDeps: {
+        exclude: [
+          '@proj-airi/debug-server',
+        ],
         include: [
           // Native modules that have `__dirname` usages. Externalize to avoid bundling
           // them into ESM and causing issues in runtime.
@@ -34,6 +37,7 @@ export default defineConfig({
           'uiohook-napi',
           '@auv-js/cli',
           '@auv-js/sdk',
+          '@duckdb/node-api',
           '@xsai-apple-speech/transcription-native',
         ],
       },

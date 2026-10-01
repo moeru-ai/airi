@@ -25,8 +25,18 @@ pnpm --filter @proj-airi/stage-web dev
 ```
 
 Normal app activity now exports existing, ended I/O spans. No devtools page needs to be open.
-The exporter is disabled in production builds and rejects non-loopback endpoints.
+The environment-configured Web exporter is disabled in production builds and rejects non-loopback endpoints.
 It adds an independent processor without replacing the recording callback or BroadcastChannel.
+
+### Tamagotchi
+
+Open **Settings > System > Developer** and enable **Local debug tracing**.
+Tamagotchi starts the receiver in its main process. You do not need a separate script.
+The setting persists across app restarts.
+
+Tamagotchi stores `debug.duckdb` and `connection.json` in `<userData>/debug`.
+The connection file contains the local endpoint and Bearer token for command-line clients.
+Tamagotchi creates the connection file with owner-only permissions and removes it when the receiver stops.
 
 The default allowed origins are `http://localhost:5173` and `http://127.0.0.1:5173`.
 For another development port, set `AIRI_DEBUG_ALLOWED_ORIGINS` to a comma-separated list.
@@ -170,6 +180,6 @@ An automatically generated token is printed once to stderr for local setup, outs
 
 This change does not add agent, tool, ASR, or TTS instrumentation or repair existing span lifecycles.
 The long-running-span producer proves receiver behavior, not full business-trace coverage.
-Electron pairing, production HTTPS-to-local access, SSE, CLI wrappers, OTLP gRPC, and metrics ingestion are out of scope.
+Production HTTPS-to-local access, SSE, CLI wrappers, OTLP gRPC, and metrics ingestion are out of scope.
 Browser shutdown can lose unsent data. The exporter has a bounded record queue, not a durable browser outbox.
 This is not a production replacement for Tempo or Langfuse.

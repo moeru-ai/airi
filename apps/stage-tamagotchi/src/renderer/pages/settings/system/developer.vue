@@ -1,16 +1,60 @@
 <script setup lang="ts">
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import type { DebugTracingState } from '../../../../shared/eventa'
+
+import { errorMessageFrom } from '@moeru/std'
+import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue-sonner'
 
-import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools } from '../../../../shared/eventa'
+import { debugTracingChanged, debugTracingGet, debugTracingSetEnabled, electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools } from '../../../../shared/eventa'
 
 const { t } = useI18n()
 const settings = useSettings()
 const router = useRouter()
+const context = useElectronEventaContext()
+const getDebugTracing = useElectronEventaInvoke(debugTracingGet)
+const setDebugTracingEnabled = useElectronEventaInvoke(debugTracingSetEnabled)
+const debugTracingEnabled = ref(false)
+const debugTracingBusy = ref(false)
+
+function applyDebugTracingState(state: DebugTracingState) {
+  debugTracingEnabled.value = state.enabled
+}
+
+function requireDebugTracingState(state: DebugTracingState | undefined): DebugTracingState {
+  if (!state)
+    throw new Error('The main process returned no debug tracing state.')
+  return state
+}
+
+async function refreshDebugTracing() {
+  applyDebugTracingState(requireDebugTracingState(await getDebugTracing()))
+}
+
+async function updateDebugTracing(enabled: boolean | undefined) {
+  if (enabled === undefined)
+    throw new TypeError('The debug tracing switch returned no value.')
+  if (debugTracingBusy.value)
+    return
+  debugTracingBusy.value = true
+  try {
+    applyDebugTracingState(requireDebugTracingState(await setDebugTracingEnabled({ enabled })))
+  }
+  catch (error) {
+    toast.error(errorMessageFrom(error) ?? t('tamagotchi.settings.pages.system.developer.local-debug-tracing.error'))
+  }
+  finally {
+    debugTracingBusy.value = false
+  }
+}
+
+const stopDebugTracingListener = context.value.on(debugTracingChanged, event => applyDebugTracingState(requireDebugTracingState(event.body)))
+onMounted(() => void refreshDebugTracing().catch(error => toast.error(errorMessageFrom(error) ?? t('tamagotchi.settings.pages.system.developer.local-debug-tracing.error'))))
+onUnmounted(stopDebugTracingListener)
 
 const menu = computed(() => [
   {
@@ -165,8 +209,21 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
     {{ t('tamagotchi.settings.devtools.pages.lag-visualizer.title') }}
   </ButtonBar>
   <CheckBar
+    :model-value="debugTracingEnabled"
+    :class="[
+      'mb-2',
+      debugTracingBusy ? 'pointer-events-none opacity-60' : '',
+    ]"
+    icon-on="i-solar:bug-bold-duotone"
+    icon-off="i-solar:bug-outline"
+    text="tamagotchi.settings.pages.system.developer.local-debug-tracing.title"
+    description="tamagotchi.settings.pages.system.developer.local-debug-tracing.description"
+    transition="all ease-in-out duration-250"
+    @update:model-value="updateDebugTracing"
+  />
+  <CheckBar
     v-model="settings.disableTransitions"
-    mb-2
+    :class="['mb-2']"
     icon-on="i-solar:people-nearby-bold-duotone"
     icon-off="i-solar:running-2-line-duotone"
     text="settings.animations.stage-transitions.title"
@@ -174,6 +231,7 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   />
   <CheckBar
     v-model="settings.usePageSpecificTransitions"
+    :class="['mb-2']"
     :disabled="settings.disableTransitions"
     icon-on="i-solar:running-2-line-duotone"
     icon-off="i-solar:people-nearby-bold-duotone"
@@ -181,7 +239,7 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
     description="settings.animations.use-page-specific-transitions.description"
     transition="all ease-in-out duration-250"
   />
-  <div flex="~ col gap-4" mt-2 pb-12>
+  <div :class="['mt-2 pb-12', 'flex flex-col gap-4']">
     <IconItem
       v-for="(item, index) in menu"
       :key="item.to"
@@ -201,14 +259,16 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
 
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[65dvh]" right--15 z--1
+    :class="[
+      'pointer-events-none fixed right--15 top-[65dvh] z--1',
+      'flex items-center justify-center',
+      'text-neutral-200/50 dark:text-neutral-600/20',
+    ]"
     :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
     :enter="{ scale: 1, opacity: 1, rotate: 0 }"
     :duration="250"
-    flex items-center justify-center
   >
-    <div text="60" i-solar:code-bold-duotone />
+    <div :class="['text-60', 'i-solar:code-bold-duotone']" />
   </div>
 </template>
 

@@ -3,6 +3,7 @@ import type { InferOutput } from 'valibot'
 
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { DebugTracingService } from '../../services/airi/debug-tracing'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
@@ -55,6 +56,7 @@ export async function setupMainWindow(params: {
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
+  debugTracing: DebugTracingService
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
@@ -180,6 +182,7 @@ export async function setupMainWindow(params: {
     widgetsManager: params.widgetsManager,
     noticeWindow: params.noticeWindow,
     autoUpdater: params.autoUpdater,
+    debugTracing: params.debugTracing,
     serverChannel: params.serverChannel,
     godotStageManager: params.godotStageManager,
     mcpStdioManager: params.mcpStdioManager,

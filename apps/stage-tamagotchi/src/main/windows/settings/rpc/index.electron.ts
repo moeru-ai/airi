@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
+import type { DebugTracingService } from '../../../services/airi/debug-tracing'
 import type { GodotStageManager } from '../../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
@@ -22,6 +23,7 @@ import {
   electronSpotlightShortcutSet,
 } from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
+import { registerDebugTracing } from '../../../services/airi/debug-tracing'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
@@ -33,6 +35,7 @@ export async function setupSettingsWindowInvokes(params: {
   settingsWindow: BrowserWindow
   widgetsManager: WidgetsWindowManager
   autoUpdater: AutoUpdater
+  debugTracing: DebugTracingService
   devtoolsWindow: DevtoolsWindowManager
   getMainWindow?: () => BrowserWindow | undefined
   serverChannel: ServerChannel
@@ -56,6 +59,8 @@ export async function setupSettingsWindowInvokes(params: {
   createMcpServersService({ context, manager: params.mcpStdioManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.settingsWindow })
   createAuthService({ context, window: params.settingsWindow })
+  const stopDebugTracing = registerDebugTracing(context, params.debugTracing)
+  params.settingsWindow.once('closed', stopDebugTracing)
 
   // Register the global shortcut service for the settings window.
   params.globalShortcut.registerWindow({ context, window: params.settingsWindow })

@@ -31,6 +31,21 @@ import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
+export type DebugTracingState = {
+  databasePath: string
+  enabled: false
+  error?: string
+} | {
+  databasePath: string
+  enabled: true
+  endpoint: string
+  token: string
+}
+
+export const debugTracingGet = defineInvokeEventa<DebugTracingState>('eventa:invoke:electron:debug-tracing:get')
+export const debugTracingSetEnabled = defineInvokeEventa<DebugTracingState, { enabled: boolean }>('eventa:invoke:electron:debug-tracing:set-enabled')
+export const debugTracingChanged = defineEventa<DebugTracingState>('eventa:event:electron:debug-tracing:changed')
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
