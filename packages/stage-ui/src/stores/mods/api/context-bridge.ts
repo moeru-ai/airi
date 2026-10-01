@@ -190,7 +190,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     })
   }
 
-  function ingestContextMessageSafely(options: {
+  async function ingestContextMessageSafely(options: {
     channel: 'server' | 'broadcast' | 'input'
     contextMessage: ContextMessage
     details?: unknown
@@ -199,7 +199,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     try {
       return {
         ok: true as const,
-        result: chatContext.ingestContextMessage(options.contextMessage),
+        result: await chatContext.ingestContextMessage(options.contextMessage),
       }
     }
     catch (error) {
@@ -475,7 +475,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       let isProcessingRemoteStream = false
 
-      const stopContextUpdates = contextChannel.onContext((event) => {
+      const stopContextUpdates = contextChannel.onContext(async (event) => {
         contextObservability.recordLifecycle({
           phase: 'broadcast-received',
           channel: 'broadcast',
@@ -488,7 +488,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           sourceLabel: getMetadataSourceLabel(event.metadata?.source),
           details: event,
         })
-        const ingestAttempt = ingestContextMessageSafely({
+        const ingestAttempt = await ingestContextMessageSafely({
           channel: 'broadcast',
           contextMessage: event,
           sourceLabel: getMetadataSourceLabel(event.metadata?.source),
@@ -585,7 +585,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
 
-      disposeHookFns.value.push(serverChannelStore.onContextUpdate((event) => {
+      disposeHookFns.value.push(serverChannelStore.onContextUpdate(async (event) => {
         contextObservability.recordLifecycle({
           phase: 'server-received',
           channel: 'server',
@@ -608,7 +608,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           metadata: event.metadata,
           createdAt: Date.now(),
         }
-        const ingestAttempt = ingestContextMessageSafely({
+        const ingestAttempt = await ingestContextMessageSafely({
           channel: 'server',
           contextMessage,
           sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
@@ -693,7 +693,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               metadata: event.metadata,
               createdAt,
             }
-            const ingestAttempt = ingestContextMessageSafely({
+            const ingestAttempt = await ingestContextMessageSafely({
               channel: 'input',
               contextMessage,
               sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,

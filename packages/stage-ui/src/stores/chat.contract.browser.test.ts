@@ -112,6 +112,8 @@ vi.mock('vue-i18n', () => ({
 
 vi.mock('./chat/context-store', () => ({
   useChatContextStore: () => ({
+    initialize: vi.fn(),
+    dispose: vi.fn(),
     ingestContextMessage: ingestContextMessageMock,
     getContextsSnapshot: getContextsSnapshotMock,
   }),

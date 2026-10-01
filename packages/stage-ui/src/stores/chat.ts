@@ -216,6 +216,7 @@ export const useChatStore = defineStore('chat', () => {
    * A promoted renderer restarts the leader-owned cloud consumer.
    */
   async function initialize(syncedPinia: SyncedPiniaRuntime) {
+    chatContext.initialize(syncedPinia)
     stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
       if (!isLeader) {
         chatSession.dispose()
@@ -232,6 +233,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Stops chat consumers that belong to this window. */
   function dispose() {
+    chatContext.dispose()
     stopLeadershipListener?.()
     stopLeadershipListener = undefined
     chatSession.dispose()
@@ -436,7 +438,7 @@ export const useChatStore = defineStore('chat', () => {
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
-      ingest: envelope => chatContext.ingestContextMessage(envelope),
+      ingest: async (envelope) => { await chatContext.ingestContextMessage(envelope) },
       snapshot: (sessionId) => {
         const bindings = chatSession.sessionMetas[sessionId]?.bindings
         const ids = [sessionId]
@@ -664,12 +666,12 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
-  function cleanup(sessionId: string) {
+  async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
     chatSession.cleanupMessages(sessionId)
-    chatContext.resetContexts()
     runtime.cancelPendingSends(sessionId)
     chatStream.resetStream()
+    await chatContext.resetContexts()
   }
 
   /** Cancels queued work before permanently removing its owning session. */

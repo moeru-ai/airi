@@ -38,6 +38,11 @@ Transport targeting does not replace session audience checks. Those checks form 
 
 ## Notification ownership
 
+The synchronized context store routes ingestion, reset, and pruning to the elected renderer.
+Its checkpoint retains original expiry times and deduplicates repeated event identities within the bounded history.
+Follower projections do not propose state changes. Initialize chat or its context store with the synchronization runtime to start owner-only idle cleanup.
+Leadership loss and disposal stop cleanup. Promotion continues from the replicated checkpoint without replaying observations.
+
 Initialize the character orchestrator with the installed Pinia synchronization runtime.
 Only the elected renderer runs background notification consumers and reminder ticks. Followers cannot start a ticker manually.
 Leadership loss stops local consumers. Promotion starts them in the new owner.

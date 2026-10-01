@@ -37,7 +37,7 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
 /**
  * @example
  * const store = useChatContextStore()
- * store.ingestContextMessage(contextMessage)
+ * await store.ingestContextMessage(contextMessage)
  */
 describe('useChatContextStore', () => {
   beforeEach(() => {
@@ -45,7 +45,7 @@ describe('useChatContextStore', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933126137
-  it('keeps the runtime prompt when another replace-self context is active', () => {
+  it('keeps the runtime prompt when another replace-self context is active', async () => {
     const store = useChatContextStore()
     const runtimePrompt = createRuntimePromptContext('Start every reply with an ACT token.\n\nDo not use emojis.')
     const minecraftContext = createContextMessage({
@@ -57,8 +57,8 @@ describe('useChatContextStore', () => {
     if (!runtimePrompt)
       throw new Error('Expected a runtime prompt context')
 
-    store.ingestContextMessage(runtimePrompt)
-    store.ingestContextMessage(minecraftContext)
+    await store.ingestContextMessage(runtimePrompt)
+    await store.ingestContextMessage(minecraftContext)
 
     expect(store.getContextsSnapshot()['system:airi-runtime-prompt']).toEqual([runtimePrompt])
     expect(store.getContextsSnapshot().unknown).toEqual([minecraftContext])
@@ -68,7 +68,7 @@ describe('useChatContextStore', () => {
    * @example
    * Ingesting append-self updates mirrors activeContexts and contextHistory from core registry.
    */
-  it('keeps reactive mirrors aligned with the core registry after ingest', () => {
+  it('keeps reactive mirrors aligned with the core registry after ingest', async () => {
     const store = useChatContextStore()
     const firstMessage = createContextMessage({
       id: 'first',
@@ -85,8 +85,8 @@ describe('useChatContextStore', () => {
       text: 'windy',
     })
 
-    const firstResult = store.ingestContextMessage(firstMessage)
-    const secondResult = store.ingestContextMessage(secondMessage)
+    const firstResult = await store.ingestContextMessage(firstMessage)
+    const secondResult = await store.ingestContextMessage(secondMessage)
 
     expect(firstResult).toEqual({
       sourceKey: 'weather:station-1',
@@ -107,7 +107,7 @@ describe('useChatContextStore', () => {
    * @example
    * Vue reactive envelopes are unwrapped before they enter the core registry.
    */
-  it('unwraps Vue reactive envelopes before ingesting through the core registry', () => {
+  it('unwraps Vue reactive envelopes before ingesting through the core registry', async () => {
     const store = useChatContextStore()
     const reactiveMessage = reactive(createContextMessage({
       id: 'reactive-message',
@@ -115,7 +115,7 @@ describe('useChatContextStore', () => {
       text: 'reactive weather',
     }))
 
-    const result = store.ingestContextMessage(reactiveMessage)
+    const result = await store.ingestContextMessage(reactiveMessage)
 
     expect(result).toEqual({
       sourceKey: 'weather:station-1',
@@ -129,10 +129,10 @@ describe('useChatContextStore', () => {
    * @example
    * Consumers can read mirrors but cannot mutate the registry source of truth through them.
    */
-  it('exposes readonly mirrors that do not allow external writes to pollute registry state', () => {
+  it('exposes readonly mirrors that do not allow external writes to pollute registry state', async () => {
     const store = useChatContextStore()
 
-    store.ingestContextMessage(createContextMessage({
+    await store.ingestContextMessage(createContextMessage({
       id: 'stable',
       source: 'sensor',
       text: 'stable context',
@@ -171,14 +171,14 @@ describe('useChatContextStore', () => {
    * @example
    * resetContexts() clears both Pinia mirrors and the backing registry snapshot.
    */
-  it('clears reactive mirrors and the backing registry when reset', () => {
+  it('clears reactive mirrors and the backing registry when reset', async () => {
     const store = useChatContextStore()
 
-    store.ingestContextMessage(createContextMessage({
+    await store.ingestContextMessage(createContextMessage({
       source: 'sensor',
       text: 'before reset',
     }))
-    store.resetContexts()
+    await store.resetContexts()
 
     expect(store.activeContexts).toEqual({})
     expect(store.contextHistory).toEqual([])
@@ -189,11 +189,11 @@ describe('useChatContextStore', () => {
    * @example
    * getContextBucketsSnapshot() returns entryCount, latestCreatedAt, and cloned messages.
    */
-  it('preserves context bucket snapshot fields and latestCreatedAt calculation', () => {
+  it('preserves context bucket snapshot fields and latestCreatedAt calculation', async () => {
     const store = useChatContextStore()
     const timestamp = Date.now()
 
-    store.ingestContextMessage(createContextMessage({
+    await store.ingestContextMessage(createContextMessage({
       id: 'first',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
@@ -201,7 +201,7 @@ describe('useChatContextStore', () => {
       text: 'early',
       createdAt: timestamp - 20,
     }))
-    store.ingestContextMessage(createContextMessage({
+    await store.ingestContextMessage(createContextMessage({
       id: 'second',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
@@ -226,10 +226,10 @@ describe('useChatContextStore', () => {
    * @example
    * Mutating bucket snapshot messages never mutates the core registry.
    */
-  it('keeps bucket snapshot message mutation isolated from the core registry', () => {
+  it('keeps bucket snapshot message mutation isolated from the core registry', async () => {
     const store = useChatContextStore()
 
-    store.ingestContextMessage(createContextMessage({
+    await store.ingestContextMessage(createContextMessage({
       source: 'sensor',
       text: 'original bucket text',
     }))

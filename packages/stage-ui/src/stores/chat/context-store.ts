@@ -1,8 +1,10 @@
-import type { ContextHistoryEntry, ContextIngestResult, ContextMessage, ContextReader } from '@proj-airi/core-agent'
+import type { ContextIngestResult, ContextMessage, ContextReader, ContextRegistryState } from '@proj-airi/core-agent'
+import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
-import { createContextRegistry } from '@proj-airi/core-agent'
+import { errorMessageFrom } from '@moeru/std'
+import { createContextRegistry, projectContextRegistryState } from '@proj-airi/core-agent'
 import { defineStore } from 'pinia'
-import { readonly, ref, toRaw } from 'vue'
+import { computed, onScopeDispose, readonly, ref, toRaw } from 'vue'
 
 import { getEventSourceKey } from '../../utils/event-source'
 
@@ -23,41 +25,87 @@ export interface ContextBucketSnapshot {
 }
 
 const CONTEXT_HISTORY_LIMIT = 400
+const CONTEXT_CLEANUP_INTERVAL_MS = 2000
 
 export const useChatContextStore = defineStore('chat-context', () => {
-  const registry = createContextRegistry({
-    historyLimit: CONTEXT_HISTORY_LIMIT,
-    getSourceKey: getEventSourceKey,
-  })
-  const activeContextsMirror = ref<Record<string, ContextMessage[]>>({})
-  const contextHistoryMirror = ref<ContextHistoryEntry[]>([])
-  const activeContexts = readonly(activeContextsMirror)
-  const contextHistory = readonly(contextHistoryMirror)
+  const registryState = ref<ContextRegistryState>({ active: {}, history: [] })
+  const activeContexts = computed(() => readonly(projectContextRegistryState(toRaw(registryState.value))))
+  const contextHistory = computed(() => readonly(registryState.value.history))
+  let leadership: SyncedPiniaRuntime | undefined
+  let stopLeadershipListener: (() => void) | undefined
+  let cleanupInterval: ReturnType<typeof setInterval> | undefined
 
-  function syncRegistrySnapshot() {
-    activeContextsMirror.value = registry.activeContexts()
-    contextHistoryMirror.value = registry.contextHistory()
+  function restoreRegistry() {
+    return createContextRegistry({
+      historyLimit: CONTEXT_HISTORY_LIMIT,
+      getSourceKey: getEventSourceKey,
+      initialState: toRaw(registryState.value),
+    })
   }
 
-  function ingestContextMessage(envelope: ContextMessage): ContextIngestResult | undefined {
+  async function ingestContextMessage(envelope: ContextMessage): Promise<ContextIngestResult | undefined> {
+    const sourceKey = getEventSourceKey(envelope)
+    // Server and broadcast copies share an event identity. Only the first delivery changes the pool.
+    if (registryState.value.history.some(entry => entry.sourceKey === sourceKey && entry.id === envelope.id && entry.contextId === envelope.contextId))
+      return undefined
+    const registry = restoreRegistry()
     const result = registry.ingest(toRaw(envelope))
-    syncRegistrySnapshot()
+    registryState.value = registry.checkpoint()
     return result
   }
 
-  function resetContexts() {
-    registry.reset()
-    syncRegistrySnapshot()
+  async function resetContexts() {
+    registryState.value = { active: {}, history: [] }
+  }
+
+  async function pruneContexts() {
+    const next = restoreRegistry().checkpoint()
+    const count = (state: ContextRegistryState) => Object.values(state.active).reduce((total, entries) => total + entries.length, 0)
+    if (count(next) !== count(registryState.value))
+      registryState.value = next
+  }
+
+  function stopCleanup() {
+    if (cleanupInterval !== undefined)
+      clearInterval(cleanupInterval)
+    cleanupInterval = undefined
+  }
+
+  /** Binds idle cleanup to the elected renderer, not to request or component lifetimes. */
+  function initialize(runtime: SyncedPiniaRuntime) {
+    if (leadership === runtime)
+      return
+    dispose()
+    leadership = runtime
+    stopLeadershipListener = runtime.onLeadershipChange((isLeader) => {
+      stopCleanup()
+      if (!isLeader)
+        return
+      const prune = () => {
+        if (!runtime.isLeader())
+          return
+        void pruneContexts().catch((error) => {
+          console.warn('[chat-context] Failed to prune expired observations:', errorMessageFrom(error))
+        })
+      }
+      prune()
+      cleanupInterval = setInterval(prune, CONTEXT_CLEANUP_INTERVAL_MS)
+    })
+  }
+
+  function dispose() {
+    stopLeadershipListener?.()
+    stopLeadershipListener = undefined
+    stopCleanup()
+    leadership = undefined
   }
 
   function getContextsSnapshot(reader?: ContextReader) {
-    const snapshot = registry.snapshot(reader)
-    syncRegistrySnapshot()
-    return snapshot
+    return projectContextRegistryState(toRaw(registryState.value), reader)
   }
 
   function getContextBucketsSnapshot() {
-    return Object.entries(registry.activeContexts()).map(([sourceKey, messages]) => ({
+    return Object.entries(getContextsSnapshot()).map(([sourceKey, messages]) => ({
       sourceKey,
       entryCount: messages.length,
       latestCreatedAt: messages.reduce<number | undefined>((latest, message) => {
@@ -69,12 +117,23 @@ export const useChatContextStore = defineStore('chat-context', () => {
     } satisfies ContextBucketSnapshot))
   }
 
+  onScopeDispose(dispose)
+
   return {
+    registryState,
+    initialize,
+    dispose,
     ingestContextMessage,
     resetContexts,
+    pruneContexts,
     getContextsSnapshot,
     getContextBucketsSnapshot,
     activeContexts,
     contextHistory,
   }
+}, {
+  synced: {
+    actions: ['ingestContextMessage', 'resetContexts', 'pruneContexts'],
+    state: true,
+  },
 })
