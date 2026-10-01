@@ -48,6 +48,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   let initialized = false
   let leadership: SyncedPiniaRuntime | undefined
   let stopLeadershipListener: (() => void) | undefined
+  let activeNotify: { eventId: string, controller: AbortController } | undefined
   const eventUnsubscribes: Array<() => void> = []
   const sparkNotifyAgent = createSparkNotifyAgent({
     runner: {
@@ -56,6 +57,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         request.selectedChat.provider,
         request.conversation,
         {
+          abortSignal: request.abortSignal,
           tools: request.tools,
           providerId: request.selectedChat.providerId,
           supportsTools: request.policy.supportsTools,
@@ -127,11 +129,15 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return undefined
     }
 
-    const provider = await consciousnessStore.getChatProviderInstance(providerId)
+    const controller = new AbortController()
+    activeNotify = { eventId: event.data.id, controller }
     processing.value = true
 
     try {
+      const provider = await consciousnessStore.getChatProviderInstance(providerId)
+      controller.signal.throwIfAborted()
       const result = await sparkNotifyAgent.handle({
+        abortSignal: controller.signal,
         event,
         selectedChat: {
           providerId,
@@ -142,6 +148,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         runtimePrompt: runtimePrompt.value,
         control,
       })
+      controller.signal.throwIfAborted()
       if (!result.commands.length)
         return result
 
@@ -155,7 +162,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return result
     }
     finally {
-      processing.value = false
+      if (activeNotify?.controller === controller) {
+        activeNotify = undefined
+        processing.value = false
+      }
     }
   }
 
@@ -231,6 +241,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       await processSparkNotify(next.event, next.control)
     }
     catch (error) {
+      if (!leadership?.isLeader())
+        return
       if (next.attempts + 1 < next.maxAttempts) {
         scheduledNotifies.value = [...scheduledNotifies.value, {
           ...next,
@@ -301,6 +313,12 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
   function stopConsumers() {
     stopTicker()
+    if (activeNotify) {
+      activeNotify.controller.abort(new Error('Notify owner stopped'))
+      characterStore.cancelSparkNotifyReaction(activeNotify.eventId)
+      activeNotify = undefined
+      processing.value = false
+    }
 
     for (const unsubscribe of eventUnsubscribes) {
       unsubscribe()

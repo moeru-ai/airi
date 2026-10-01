@@ -27,6 +27,7 @@ Conversation forks retain their parent session, reason, and hidden flag.
 Initialize the character orchestrator with the installed Pinia synchronization runtime.
 Only the elected renderer runs background notification consumers and reminder ticks. Followers cannot start a ticker manually.
 Leadership loss stops local consumers. Promotion starts them in the new owner.
+Stopping the owner aborts its active notification request and speech intent. Late output cannot issue commands or reactions.
 
 ## Chat sampling
 

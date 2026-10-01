@@ -5,7 +5,10 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, ref } from 'vue'
 
+import { getSpeechBusContext, speechIntentCancelEvent, speechIntentEndEvent, speechIntentLiteralEvent } from '../../../services/speech/bus'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { useProviderConfigStore } from '../../providers/config'
+import { useCharacterStore } from '../index'
 import { useCharacterNotebookStore } from '../notebook'
 import { useCharacterOrchestratorStore } from './store'
 
@@ -53,9 +56,84 @@ afterEach(() => {
     context.runtime.dispose()
     disposePinia(context.pinia)
   }
+  vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 describe('orchestrator tick ownership', () => {
+  it('delivers current reaction tokens and closes only the matching cancelled speech intent', async () => {
+    const context = createContext(`reaction-cancel:${crypto.randomUUID()}`, 'leader-only')
+    const character = useCharacterStore(context.pinia)
+    const literals: string[] = []
+    const cancelled: string[] = []
+    const ended: string[] = []
+    const bus = getSpeechBusContext()
+    const stops = [
+      bus.on(speechIntentLiteralEvent, ({ body }) => { literals.push(body?.value ?? '') }),
+      bus.on(speechIntentCancelEvent, ({ body }) => { cancelled.push(body?.intentId ?? '') }),
+      bus.on(speechIntentEndEvent, ({ body }) => { ended.push(body?.intentId ?? '') }),
+    ]
+    try {
+      character.onSparkNotifyReactionStreamEvent('current', 'A complete reaction with enough text for the parser. ')
+      await vi.waitFor(() => expect(literals.join('')).toContain('A complete reaction'))
+      character.cancelSparkNotifyReaction('current')
+      character.onSparkNotifyReactionStreamEnd('current', 'Cancelled text')
+      expect(cancelled).toEqual(['spark:current'])
+      expect(character.reactions).toEqual([])
+      expect(ended).toEqual([])
+      character.onSparkNotifyReactionStreamEvent('next', 'Next reaction.')
+      character.onSparkNotifyReactionStreamEnd('next', 'Next reaction.')
+      await vi.waitFor(() => expect(ended).toEqual(['spark:next']))
+      expect(literals.join('')).toContain('Next reaction.')
+    }
+    finally {
+      for (const stop of stops)
+        stop()
+    }
+  })
+
+  it('aborts a model request and rejects late output when its owner stops', async () => {
+    const release = Promise.withResolvers<Response>()
+    let requestSignal: AbortSignal | null | undefined
+    let requested = false
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input, init) => {
+      if (String(input).includes('/chat/completions')) {
+        requestSignal = init?.signal
+        requested = true
+        return release.promise
+      }
+      return Response.json({ data: [] })
+    }))
+    const owner = createContext(`orchestrator-abort:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(owner.runtime.isLeader()).toBe(true))
+    const providerId = `notify-test-${crypto.randomUUID()}`
+    useProviderConfigStore(owner.pinia).ensureProvider(providerId, 'openai', { apiKey: 'test', baseUrl: 'https://example.test/v1/', api: 'chat-completions' })
+    const consciousness = useConsciousnessStore(owner.pinia)
+    consciousness.activeProvider = providerId
+    consciousness.activeModel = 'mock-model'
+    owner.orchestrator.initialize(owner.runtime)
+    const request = owner.orchestrator.handleSparkNotify({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: 'notify-cancelled', eventId: 'event-cancelled', kind: 'alarm', urgency: 'immediate', headline: 'Alarm', destinations: ['character'] },
+    }).then(() => undefined, (error: unknown) => error)
+    await vi.waitFor(() => expect(requested).toBe(true))
+    owner.orchestrator.dispose()
+    expect(requestSignal?.aborted).toBe(true)
+    release.resolve(new Response([
+      'data: {"id":"reply","object":"chat.completion.chunk","created":1,"model":"mock-model","choices":[{"index":0,"delta":{"content":"Stale reaction."},"finish_reason":null}]}',
+      '',
+      'data: {"id":"reply","object":"chat.completion.chunk","created":1,"model":"mock-model","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}',
+      '',
+      'data: [DONE]',
+      '',
+      '',
+    ].join('\n'), { headers: { 'Content-Type': 'text/event-stream' } }))
+    expect(await request).toBeInstanceOf(Error)
+    expect(useCharacterStore(owner.pinia).reactions).toEqual([])
+    expect(owner.orchestrator.processing).toBe(false)
+  })
+
   // ROOT CAUSE:
   // Each renderer started its own interval. Followers processed local reminder queues.
   // The installed election runtime now owns ticker and event-consumer lifecycle.
