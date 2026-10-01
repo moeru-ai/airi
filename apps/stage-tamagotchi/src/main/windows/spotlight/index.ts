@@ -5,6 +5,7 @@ import type { Config } from '../../libs/electron/persistence'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
+import type { ChatWindowManager } from '../chat'
 
 import { join, resolve } from 'node:path'
 
@@ -53,7 +54,7 @@ function resolveSpotlightBounds() {
 export function setupSpotlightWindowManager(params: {
   serverChannel: ServerChannel
   i18n: I18n
-  chatWindow: () => Promise<BrowserWindow>
+  chatWindow: ChatWindowManager
   globalShortcut: GlobalShortcutService
   appConfig: Config<typeof globalAppConfigSchema>
 }): SpotlightWindowManager {
@@ -68,12 +69,7 @@ export function setupSpotlightWindowManager(params: {
 
   async function openChatWindowFromNotification() {
     try {
-      const window = await params.chatWindow()
-      if (window.isMinimized())
-        window.restore()
-      window.show()
-      window.focus()
-      window.moveTop()
+      await params.chatWindow.open()
     }
     catch (error) {
       log.withError(error).warn('Failed to open Chat window from Spotlight notification')

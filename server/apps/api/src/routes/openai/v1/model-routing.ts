@@ -50,6 +50,7 @@ export async function routeModelAliasCandidates(input: {
   abortSignal?: AbortSignal
   protocol?: LlmRouteRequest['protocol']
   requiresWebSearch?: boolean
+  attempts?: LlmRouteRequest['attempts']
 }): Promise<{
   modelId: string
   response: Response
@@ -60,7 +61,8 @@ export async function routeModelAliasCandidates(input: {
   let lastResponse: { modelId: string, response: Response, routeCtx: ReturnType<typeof newRouteContext> } | undefined
   for (let index = 0; index < input.modelIds.length; index += 1) {
     const modelId = input.modelIds[index]
-    Object.assign(input.routeCtx, newRouteContext())
+    const { triedUpstreams, triedKeys } = input.routeCtx
+    Object.assign(input.routeCtx, newRouteContext(), { triedUpstreams, triedKeys })
     const routeCtx = input.routeCtx
     try {
       const response = await input.deps.llmRouter.route({
@@ -70,6 +72,7 @@ export async function routeModelAliasCandidates(input: {
         body: input.body,
         headers: {},
         abortSignal: input.abortSignal,
+        attempts: input.attempts,
       }, routeCtx)
       await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
       if (response.ok || index === input.modelIds.length - 1)
@@ -79,6 +82,10 @@ export async function routeModelAliasCandidates(input: {
       lastResponse = { modelId, response, routeCtx: { ...routeCtx } }
     }
     catch (err) {
+      if (err instanceof ApiError && err.errorCode === 'LLM_TRACKING_UNAVAILABLE') {
+        await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
+        throw err
+      }
       if (input.abortSignal?.aborted) {
         await lastResponse?.response.body?.cancel().catch(error => logger.withError(error).warn('Failed to discard alias response'))
         throw err
@@ -98,7 +105,7 @@ export async function routeModelAliasCandidates(input: {
   }
 
   if (lastResponse)
-    return lastResponse
+    return { ...lastResponse, routeCtx: { ...lastResponse.routeCtx, triedUpstreams: input.routeCtx.triedUpstreams, triedKeys: input.routeCtx.triedKeys } }
   throw lastError
 }
 

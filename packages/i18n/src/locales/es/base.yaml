@@ -1,7 +1,7 @@
 edition:
-  desktop: Versión de escritorio
-  mobile: Versión de Móvil
-  web: Versión de Web
+  desktop: Versión de escritorio.
+  mobile: Versión móvil.
+  web: Versión web.
 prompt:
   prefix: |
     ¡Buenos días! Por fin has despertado.
@@ -38,13 +38,12 @@ prompt:
   suffix: |
     Las acciones disponibles:
 
-    - <{'|'}DELAY 1{'|'}> (Retraso por 1 segundo)
-    - <{'|'}DELAY 3{'|'}> (Retraso por 3 segundos)
+    - <{'|'}DELAY 1{'|'}> (Retraso de 1 segundo)
+    - <{'|'}DELAY 3{'|'}> (Retraso de 3 segundos)
 
-    Y el último, ¡Haz lo que quieras!
+    Y por último, ¡haz lo que quieras!
 toaster:
   pwaUpdateReady:
     message: Nueva versión lista, ¿recargar ahora?
     action:
       notNow: Ahora no
-      ok: OK

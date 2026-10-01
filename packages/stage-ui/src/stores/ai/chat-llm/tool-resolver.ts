@@ -2,12 +2,15 @@ import type { StreamOptions } from '@proj-airi/core-agent'
 import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
+import type { DescribeToolImage } from './tool-images'
+
 import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-command'
 import { uniqBy } from 'es-toolkit'
 
 import { createWebSearchTools, debug, mcp } from '../../../tools'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useWebSearchStore } from '../../modules/web-search'
+import { withDescribedImages } from './tool-images'
 import { useLlmToolsStore } from './tools'
 
 type ToolSource = Tool[] | (() => Promise<Tool[]>)
@@ -59,6 +62,13 @@ export interface ResolveLlmToolsOptions {
    * @default useLlmToolsStore().activeTools
    */
   activeTools?: Tool[]
+  /**
+   * Reads the images in tool results for a chat model that cannot see them.
+   * Every resolved tool, MCP tools included, returns text in place of images.
+   *
+   * @default images stay in tool results
+   */
+  describeImage?: DescribeToolImage
 }
 
 /**
@@ -153,7 +163,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     resolveCustomTools(options.customTools),
   ])
 
-  return uniqBy(
+  const tools = uniqBy(
     [
       ...builtInTools,
       ...debugTools,
@@ -164,4 +174,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
     ].toReversed(),
     tool => toolNameFrom(tool) ?? tool,
   ).toReversed()
+
+  const describeImage = options.describeImage
+  return describeImage ? tools.map(tool => withDescribedImages(tool, describeImage)) : tools
 }

@@ -48,7 +48,20 @@ devtools:
   title: 开发者选项
   pages:
     context-flow:
-      title: Context Flow
+      title: 上下文流
+    presence-bubble:
+      title: 状态气泡
+      description: 从这里驱动角色头顶的气泡，效果显示在主窗口
+      override:
+        title: 由此处驱动气泡
+        description: 关闭时，除非有对话回合正在进行，舞台不显示气泡。
+      thinking:
+        title: 思考中
+        description: 显示三个点。优先级高于未读数量。
+      unread:
+        title: 未读消息
+        description: 在头部旁以气泡显示，内含提示标记和数量。
+      main-window-note: 改动会即时反映在 AIRI 主窗口。
     editor:
       title: AIRI 编辑器
       description: 打开独立的 AIRI 编辑器窗口
@@ -79,7 +92,6 @@ devtools:
         export-last-recording: 导出上次录制
       metrics:
         fps:
-          label: FPS
           description: 最近 10 秒内的动画帧率。每个样本为 1000 除以帧间隔（毫秒）。
         frame-duration:
           label: 帧时间（毫秒）
@@ -115,8 +127,6 @@ devtools:
     markdown-stress:
       title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
-    io-tracer:
-      title: IO Tracer
     widgets-calling:
       title: 小组件调用
 screen-capture:

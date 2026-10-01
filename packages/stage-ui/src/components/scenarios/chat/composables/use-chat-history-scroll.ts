@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 
 import { useEventListener } from '@vueuse/core'
-import { computed, watch } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 interface ChatHistoryScrollOptions<TMessage> {
   container: Readonly<Ref<HTMLElement | null>>
@@ -10,6 +10,12 @@ interface ChatHistoryScrollOptions<TMessage> {
   scrollToIndex: (index: number, align: 'start' | 'end') => void
   /** Space that a floating composer covers at the end of the viewport. */
   tailInset: Readonly<Ref<number>>
+  /**
+   * `true` when nobody scrolls the history by hand, such as a feed that
+   * passes every click through. The history returns to the tail when it
+   * turns passive.
+   */
+  passive?: Readonly<Ref<boolean>>
 }
 
 /**
@@ -25,6 +31,7 @@ export function useChatHistoryScroll<TMessage>({
   getKey,
   scrollToIndex,
   tailInset,
+  passive = shallowRef(false),
 }: ChatHistoryScrollOptions<TMessage>) {
   let didRequestInitialScroll = false
   let hasUserScrollIntent = false
@@ -149,4 +156,18 @@ export function useChatHistoryScroll<TMessage>({
     },
     { flush: 'post', immediate: true },
   )
+
+  // Nobody can scroll or inspect a passive history, and an older selection
+  // or pointer ends with no event that clears its flag. The history returns
+  // to the tail, and the scroll listener follows it again.
+  watch(passive, (isPassive) => {
+    if (!isPassive)
+      return
+
+    isPointerOrFocusOnOlderMessage = false
+    isSelectionInOlderMessage = false
+    const lastIndex = messages.value.length - 1
+    if (container.value && lastIndex >= 0)
+      scrollToIndex(lastIndex, 'end')
+  }, { flush: 'post' })
 }

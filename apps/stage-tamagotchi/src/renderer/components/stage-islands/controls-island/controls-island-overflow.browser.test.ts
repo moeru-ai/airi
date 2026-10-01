@@ -33,6 +33,9 @@ const authState = vi.hoisted(() => ({
   isAuthenticated: { value: false },
   needsLogin: { value: false },
   user: { value: null as { createdAt: Date, email: string, emailVerified: boolean, id: string, name: string, updatedAt: Date } | null },
+  // Provider replica sync registers these when the island creates the provider store.
+  onAuthenticated: () => () => {},
+  onLogout: () => () => {},
 }))
 
 vi.mock('@proj-airi/electron-vueuse', () => ({
@@ -428,6 +431,32 @@ it('keeps the menu open while genuinely hovered even if the Electron cursor sign
   island.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }))
   document.dispatchEvent(new MouseEvent('mouseleave'))
   await expect.poll(() => screen.getByTestId('controls-menu').element().closest('[aria-hidden]')?.getAttribute('aria-hidden'), { timeout: 3500 }).toBe('true')
+})
+
+it('hides the Island while the cursor is away unless its menu is open or it holds focus', async () => {
+  const { screen } = mountControlsIsland('top-right')
+  const island = screen.getByTestId('controls-island').element()
+  // The label switches between Expand and Collapse, so find the toggle by the
+  // menu it controls.
+  const toggle = () => screen.getByTestId('main-controls').element().querySelector<HTMLButtonElement>('[aria-controls]')!
+
+  await screen.rerender({ cursorAway: true })
+  await expect.poll(() => island.classList.contains('opacity-0')).toBe(true)
+
+  await screen.rerender({ cursorAway: false })
+  await expect.poll(() => island.classList.contains('opacity-100')).toBe(true)
+
+  toggle().click()
+  await screen.rerender({ cursorAway: true })
+  await expect.poll(() => island.classList.contains('opacity-100')).toBe(true)
+
+  toggle().click()
+  toggle().focus()
+  await nextTick()
+  expect(island.classList.contains('opacity-100')).toBe(true)
+
+  toggle().blur()
+  await expect.poll(() => island.classList.contains('opacity-0')).toBe(true)
 })
 
 // https://github.com/moeru-ai/airi/pull/2474

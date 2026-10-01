@@ -23,6 +23,7 @@ import {
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
 import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { getSchemaDefault } from '../../libs/zod'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { normalizeProviderConfigDefaults } from './config-defaults'
@@ -89,6 +90,7 @@ export const useProviderStore = defineStore('provider', () => {
   // Provider instances contain functions and transport handles. Keep this map
   // private so it never enters Pinia state.
   const providerInstanceCache = new Map<string, { configKey: string | undefined, instance: unknown }>()
+  const previousCredentialHashes = new Map<string, string>()
   const { t } = useI18n()
 
   const VISION_PROVIDER_ID_PREFIX = 'vision-'
@@ -389,6 +391,15 @@ export const useProviderStore = defineStore('provider', () => {
     }
   }
 
+  async function getInitialProviderConfig(providerId: string) {
+    const schema = await getProviderDefinition(providerId).createProviderConfig({ t })
+    const defaultOptions = getSchemaDefault(schema) as Record<string, unknown>
+    return {
+      ...defaultOptions,
+      ...(Object.hasOwn(defaultOptions, 'baseUrl') ? {} : { baseUrl: '' }),
+    }
+  }
+
   function initializeProviderRuntimeState(providerId: string) {
     if (!providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId] = {
@@ -405,7 +416,7 @@ export const useProviderStore = defineStore('provider', () => {
     await waitForProviderMetadata()
     if (!providerConfigStore.getProvider(providerId)) {
       const definitionId = getProviderDefinitionId(providerId)
-      providerConfigStore.ensureProvider(providerId, definitionId, getDefaultProviderConfig(providerId))
+      await providerConfigStore.ensureProvider(providerId, definitionId, await getInitialProviderConfig(providerId))
     }
     initializeProviderRuntimeState(providerId)
   }
@@ -458,15 +469,12 @@ export const useProviderStore = defineStore('provider', () => {
       .filter(([providerId]) => shouldListProvider(providerId) || providerId === 'browser-web-speech-api')
       .map(async ([providerId]) => {
         try {
-          if (providerRuntimeState.value[providerId]) {
-            const isValid = await validateProvider(providerId)
-            providerConfigStore.setProviderStatus(providerId, isValid ? 'configured' : 'invalid')
-          }
+          initializeProviderRuntimeState(providerId)
+          const isValid = await validateProvider(providerId)
+          providerConfigStore.setProviderStatus(providerId, isValid ? 'configured' : 'invalid')
         }
         catch {
-          if (providerRuntimeState.value[providerId]) {
-            providerConfigStore.setProviderStatus(providerId, 'invalid')
-          }
+          providerConfigStore.setProviderStatus(providerId, 'invalid')
         }
       }))
   }
@@ -476,6 +484,24 @@ export const useProviderStore = defineStore('provider', () => {
     await updateConfigurationStatus()
     startPeriodicRuntimeValidation()
   }
+
+  providerConfigStore.onRemoteWorking(async (row) => {
+    const result = await validateProviderConfig(row.definitionId, row.config, { skipChatPingCheck: true })
+    return result.valid
+  })
+
+  // Follower windows never run onAfterSync. Drop stale local clients when
+  // replicated credentials change.
+  watch(providerCredentials, () => {
+    for (const providerId of [...providerInstanceCache.keys()]) {
+      const current = providerCredentials.value[providerId]
+      if (current && previousCredentialHashes.get(providerId) === JSON.stringify(current))
+        continue
+      void disposeProviderInstance(providerId)
+    }
+  }, { deep: true, flush: 'sync' })
+
+  providerConfigStore.onAfterSync(refreshListedProviderValidation)
 
   // Available providers (only those that are properly configured)
   const availableProviders = computed(() => Object.values(providerConfigStore.providers)
@@ -503,7 +529,7 @@ export const useProviderStore = defineStore('provider', () => {
     delete providerRuntimeState.value[providerId]
   }
 
-  function forceProviderConfigured(providerId: string) {
+  async function forceProviderConfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       // Also cache the current config to prevent re-validation from overwriting
       const config = providerCredentials.value[providerId]
@@ -511,16 +537,17 @@ export const useProviderStore = defineStore('provider', () => {
         providerRuntimeState.value[providerId].validatedCredentialHash = JSON.stringify(config)
       }
     }
-    providerConfigStore.setProviderStatus(providerId, 'configured')
-    markProviderAdded(providerId)
+    // The leader stores status before this action resolves. Callers read it immediately.
+    await providerConfigStore.setProviderStatus(providerId, 'configured')
+    await markProviderAdded(providerId)
   }
 
-  function setProviderUnconfigured(providerId: string) {
+  async function setProviderUnconfigured(providerId: string) {
     if (providerRuntimeState.value[providerId]) {
       providerRuntimeState.value[providerId].validatedCredentialHash = undefined
     }
-    providerConfigStore.setProviderStatus(providerId, 'unconfigured')
-    unmarkProviderAdded(providerId)
+    await providerConfigStore.setProviderStatus(providerId, 'unconfigured')
+    await unmarkProviderAdded(providerId)
   }
 
   async function resetProviderSettings() {
@@ -791,7 +818,6 @@ export const useProviderStore = defineStore('provider', () => {
       }
     }
   }
-  const previousCredentialHashes = new Map<string, string>()
 
   async function refreshModelsForChangedCredentials() {
     const changedProviders: string[] = []
@@ -887,7 +913,7 @@ export const useProviderStore = defineStore('provider', () => {
     let config = providerCredentials.value[providerId]
     const noCredentials = definition.requiresCredentials === false || providerId === 'browser-web-speech-api'
     if (!config && noCredentials) {
-      config = getDefaultProviderConfig(providerId) || {}
+      config = await getInitialProviderConfig(providerId)
       const definitionId = getProviderDefinitionId(providerId)
       providerConfigStore.ensureProvider(providerId, definitionId, config)
     }
@@ -907,6 +933,7 @@ export const useProviderStore = defineStore('provider', () => {
     try {
       const instance = await definition.createProvider(config || {})
       providerInstanceCache.set(providerId, { configKey, instance })
+      previousCredentialHashes.set(providerId, JSON.stringify(config || {}))
       return instance as R
     }
     catch (error) {
@@ -936,6 +963,7 @@ export const useProviderStore = defineStore('provider', () => {
     const instance = providerInstanceCache.get(providerId)?.instance as { dispose?: () => Promise<void> | void } | undefined
     // Remove ownership before awaiting cleanup so a concurrent request cannot reuse it.
     providerInstanceCache.delete(providerId)
+    previousCredentialHashes.delete(providerId)
     if (instance?.dispose)
       await instance.dispose()
   }
