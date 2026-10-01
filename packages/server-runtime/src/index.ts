@@ -481,6 +481,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       Array.from(peerInfo.extensionModules?.values() ?? []).map(module => ({
         name: module.name,
         identity: module.identity,
+        connectionId: peerInfo.peer.id,
+        cognition: module.cognition,
       })),
     )
 
@@ -603,7 +605,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     }).debug('received event')
 
     // Only server-owned peer cleanup can revoke a module's live observations.
-    if (event.type === 'extension:module:de-announced')
+    // Only the server lists modules, so a peer cannot forge another module's connection or declaration.
+    if (event.type === 'extension:module:de-announced' || event.type === 'registry:modules:sync')
       return
 
     if (authenticatedPeer) {
@@ -749,7 +752,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           return
         }
 
-        const { name, identity } = event.data
+        const { name, identity, cognition } = event.data
         if (!name || typeof name !== 'string') {
           send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceNameInvalid))
 
@@ -769,7 +772,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         }
 
         p.extensionIdentity = identity.extension
-        registerExtensionModulePeer(p, { name, identity })
+        registerExtensionModulePeer(p, { name, identity, cognition: cognition && typeof cognition === 'object' ? cognition : undefined })
 
         send(peer, {
           type: 'extension:module:announced',

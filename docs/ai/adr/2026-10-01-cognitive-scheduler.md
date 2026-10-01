@@ -173,6 +173,10 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`orchestrator/index.test.ts`): a newer notification with the same `coalesceKey` replaces a waiting one. An expired notification is ignored without a run.
 - Observed (`orchestrator/index.test.ts`): a missing model ends a notification run as `blocked`, never as silence.
 - Observed (`store.browser.test.ts`): a due task enters intake as an internal stimulus.
+- Observed (`setupApp.liveness.test.ts`): the server lists each module with its connection and `cognition` declaration. It drops module lists forged by peers.
+- Observed (`context-bridge.contract.browser.test.ts`): a module with declared scenes cannot name an owner session. Its input reaches only the bound session of a declared scene.
+- Observed (`context-bridge.contract.browser.test.ts`): a scene outside the module's namespace invalidates the declaration and rejects its input.
+- Implemented: Discord declares the `discord:channel:` scene.
 
 ### Open P0 evidence
 
@@ -186,7 +190,7 @@ These checks need live models, bots, or windows. They are not verified.
 ### Known limits after P1
 
 - The `spark_command` tool can send contexts to modules outside the run envelope. P3 moves it behind admission.
-- A module without a declared scene speaks for the owner. Modules declare scenes and output audiences in the P3 `cognition` block.
+- A module without a declared scene speaks for the owner. Modules that serve other people declare scenes in the P3 `cognition` block. Public scenes wait for a caller, for example live streaming.
 - Only assistant writes narrow the session audience. Derived results and memory writes get labels in P8 and P10.
 
 ### Findings outside P0

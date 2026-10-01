@@ -8,6 +8,7 @@ import { ref } from 'vue'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useConsciousnessSettingsStore } from '../../modules/consciousness-settings'
+import { useSchedulerStore } from '../../scheduler'
 import { useContextBridgeStore } from './context-bridge'
 import { createContextChannel } from './context-channel'
 
@@ -225,6 +226,7 @@ vi.mock('../../chat/session-store', () => ({
     },
     getSessionGenerationValue: () => currentGeneration,
     getSessionAudience: (sessionId: string) => sessionId === 'session-1' ? { kind: 'subjects', subjects: ['user:owner'] } : undefined,
+    ensureBoundSession: async (binding: string) => `bound:${binding}`,
     refreshSession: (sessionId: string) => refreshSessionMock(sessionId),
   }),
 }))
@@ -523,6 +525,72 @@ describe('context bridge contract', () => {
     ])
 
     await store.dispose()
+  })
+
+  describe('declared scenes', () => {
+    async function announceDiscord(cognition: unknown) {
+      await emitServerEvent('registry:modules:sync', {
+        type: 'registry:modules:sync',
+        data: { modules: [{ name: 'discord', identity: createMetadata('discord', 'bot').source, connectionId: 'discord-connection', cognition }] },
+      })
+    }
+
+    function discordInput(overrides: Record<string, string>) {
+      return emitServerEvent('input:text', {
+        type: 'input:text',
+        source: 'discord',
+        metadata: { ...createMetadata('discord', 'bot'), originConnectionId: 'discord-connection' },
+        data: { text: 'hello', overrides },
+      })
+    }
+
+    // ROOT CAUSE:
+    // Any connection could name the owner's session. The reply then carried owner history to that connection.
+    it('rejects input from a scened module that names a session outside its scenes', async () => {
+      consciousness.activeProvider = 'mock-provider'
+      consciousness.activeModel = 'mock-model'
+      const store = useContextBridgeStore()
+      await store.initialize()
+      await announceDiscord({ scenes: [{ binding: 'discord:channel:' }] })
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      await discordInput({ sessionId: 'session-1' })
+
+      expect(chatOrchestratorMock.send).not.toHaveBeenCalled()
+      expect(useSchedulerStore().intake.snapshot()).toMatchObject([{ outcome: 'rejected', reason: 'undeclared-scene', source: 'discord:bot' }])
+      warn.mockRestore()
+      await store.dispose()
+    })
+
+    it('sends input in a declared scene to its bound session, never a named one', async () => {
+      consciousness.activeProvider = 'mock-provider'
+      consciousness.activeModel = 'mock-model'
+      const store = useContextBridgeStore()
+      await store.initialize()
+      await announceDiscord({ scenes: [{ binding: 'discord:channel:' }] })
+
+      await discordInput({ binding: 'discord:channel:a', sessionId: 'session-1' })
+
+      expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
+      expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'bound:discord:channel:a', outputTarget: 'discord-connection' })
+      await store.dispose()
+    })
+
+    it('rejects input from a module whose scene leaves its namespace', async () => {
+      consciousness.activeProvider = 'mock-provider'
+      consciousness.activeModel = 'mock-model'
+      const store = useContextBridgeStore()
+      await store.initialize()
+      await announceDiscord({ scenes: [{ binding: 'owner:' }] })
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      await discordInput({ binding: 'owner:private' })
+
+      expect(chatOrchestratorMock.send).not.toHaveBeenCalled()
+      expect(useSchedulerStore().intake.snapshot()).toMatchObject([{ outcome: 'rejected', reason: 'invalid-declaration' }])
+      warn.mockRestore()
+      await store.dispose()
+    })
   })
 
   // https://github.com/moeru-ai/airi/actions/runs/34237304157/job/102098223378

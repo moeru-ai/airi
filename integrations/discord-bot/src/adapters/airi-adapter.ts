@@ -84,6 +84,8 @@ export class DiscordAdapter {
         'module:configure',
         'output:gen-ai:chat:message',
       ],
+      // Every Discord conversation is a channel scene. Input must name its channel binding, never an owner session.
+      cognition: { scenes: [{ binding: 'discord:channel:' }] },
       token: config.airiToken,
       url: config.airiUrl,
     })

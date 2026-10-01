@@ -385,6 +385,30 @@ export interface ModuleConfigEnvelope<C = Record<string, unknown>> {
   baseRevision?: number
 }
 
+/** Intent vocabulary of `spark:command`. */
+export type SparkCommandIntent = 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
+
+/**
+ * Scheduler-facing declaration of a module. The scheduler reads these names and numbers, never their meaning.
+ * A new module declares itself here instead of changing scheduler code.
+ */
+export interface ModuleCognition {
+  /** Command intents that the module accepts. The host sends no command to a module without them. */
+  accepts?: SparkCommandIntent[]
+  /** Module control is exclusive. One run holds it at a time, and the lease expires without renewal. */
+  control?: {
+    exclusive: true
+    /** @default 60_000 */
+    leaseMs?: number
+  }
+  /**
+   * Scenes that the module serves. A binding matches a scene when it starts with `binding`.
+   * Output in a scene reaches its members and the owner. Input from a module with scenes must name a matching binding.
+   * A module without scenes speaks for the owner.
+   */
+  scenes?: Array<{ binding: string }>
+}
+
 export interface ModuleCapability {
   /**
    * Stable capability id within a module.
@@ -715,6 +739,7 @@ interface ExtensionModuleAnnounceEvent<C = undefined> {
   permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
+  cognition?: ModuleCognition
 }
 
 interface ExtensionKitAnnounceEvent {
@@ -751,6 +776,9 @@ export interface RegistryModulesSyncEvent {
     name: string
     index?: number
     identity: MetadataEventSource
+    /** Server-assigned connection of the module. It matches `metadata.originConnectionId` of its events. */
+    connectionId?: string
+    cognition?: ModuleCognition
   }>
 }
 
@@ -1168,7 +1196,9 @@ interface SparkCommandEvent {
   commandId: string
   interrupt: 'force' | 'soft' | false
   priority: 'critical' | 'high' | 'normal' | 'low'
-  intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
+  intent: SparkCommandIntent
+  /** Run that holds the module's control lease. A module with exclusive control can drop commands from an earlier holder. */
+  holder?: string
   ack?: string
   guidance?: SparkCommandGuidance
   contexts?: Array<ContextUpdate>

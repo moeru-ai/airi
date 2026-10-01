@@ -24,6 +24,8 @@ Conversation forks retain their parent session, reason, hidden flag, bindings, a
 Each session has an allowed `audience`. It starts from its bindings and only narrows through `narrowSessionAudience`.
 A scene recovers only a root session whose audience still includes the scene audience. Otherwise the scene starts a new session.
 Every chat run reaches the owner chat. A reply with an output target also reaches the session's scene. A module without a declared scene speaks for the owner.
+`useModuleDirectoryStore` keeps the server's module list with validated declarations. Input from a module with scenes needs a matching binding and cannot name a session.
+An invalid declaration, for example a scene outside the module's namespace, rejects the module's input. The intake trace records each rejection.
 The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
 
 ## Voice ownership

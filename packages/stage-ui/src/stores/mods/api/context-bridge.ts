@@ -5,7 +5,7 @@ import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat
 import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceFromBindings, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, PUBLIC_AUDIENCE, unionAudiences } from '@proj-airi/core-agent'
+import { audienceFromBindings, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, PUBLIC_AUDIENCE, salienceFromUrgency, unionAudiences } from '@proj-airi/core-agent'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
@@ -22,9 +22,11 @@ import { useChatSessionStore } from '../../chat/session-store'
 import { useChatStreamStore } from '../../chat/stream-store'
 import { useContextObservabilityStore } from '../../devtools/context-observability'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { useSchedulerStore } from '../../scheduler'
 import { useModsServerChannelStore } from './channel-server'
 import { createContextChannel } from './context-channel'
 import { useContextSourceStore } from './context-source'
+import { resolveInputScene, useModuleDirectoryStore } from './module-directory'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -63,6 +65,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const serverChannelStore = useModsServerChannelStore()
   const contextObservability = useContextObservabilityStore()
   const contextSource = useContextSourceStore()
+  const moduleDirectory = useModuleDirectoryStore()
+  const scheduler = useSchedulerStore()
 
   /**
    * Assigns the allowed audience of an observation from its logical readers. A producer cannot set it.
@@ -611,6 +615,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
       // Every renderer answers reads for the handles it wrote.
       disposeHookFns.value.push(contextSource.listen())
+      disposeHookFns.value.push(moduleDirectory.listen())
 
       disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', async (event) => {
         const sourceKey = getMetadataSourceLabel(event.data.identity)
@@ -687,9 +692,26 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         const {
           text,
           textRaw,
-          overrides,
           contextUpdates,
         } = event.data
+
+        // A module that declares scenes reaches only those scenes. A module without scenes speaks for the owner.
+        const scene = resolveInputScene(moduleDirectory.byConnection(event.metadata?.originConnectionId), event.data.overrides)
+        if (!scene.ok) {
+          scheduler.intake.record({
+            id: event.metadata?.event?.id ?? nanoid(),
+            kind: 'input:text',
+            origin: 'external',
+            source: getEventSourceKey(event),
+            event: 'input:text',
+            bindings: event.data.overrides?.binding ? [event.data.overrides.binding] : [],
+            salience: salienceFromUrgency(),
+            receivedAt: Date.now(),
+          }, { outcome: 'rejected', reason: scene.reason, decidedBy: 'rule' })
+          console.warn('[context-bridge] Rejected input outside the sender\'s declared scenes:', scene.reason)
+          return
+        }
+        const overrides = scene.overrides
 
         const normalizedContextUpdates = contextUpdates?.map((update) => {
           const id = update.id ?? nanoid()

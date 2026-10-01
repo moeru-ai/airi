@@ -26,6 +26,10 @@ import { moduleAnnounce, moduleAuthenticate } from '@proj-airi/plugin-protocol/t
 Both events need explicit route destinations. The server never broadcasts them.
 `module:authenticated.connectionId` tells a peer its own server connection. It changes on every reconnection.
 The `connection` route expression matches exact server connection IDs. It does not match module names, client aliases, or wildcard patterns.
+`extension:module:announce` can carry a `cognition` declaration. `scenes` lists binding prefixes that the module serves, inside its own `<name>:` namespace.
+A module with scenes can send input only with a matching binding. It can never name a session. A module without scenes speaks for the owner.
+`registry:modules:sync` lists each module with its `connectionId` and `cognition`. Only the server sends it.
+`spark:notify.coalesceKey` lets a newer notification replace waiting ones from the same source. Use it only for state whose older version has no remaining meaning.
 
 - You need canonical protocol contracts for plugin <-> host communication.
 - You need event name stability and matching payload definitions across runtimes.

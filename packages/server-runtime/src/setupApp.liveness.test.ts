@@ -423,4 +423,50 @@ describe('setupApp websocket liveness', () => {
 
     expect(peer.peer.close).toHaveBeenCalledOnce()
   })
+
+  // The scheduler maps an event's origin connection to the module declaration, so the registry carries both.
+  it('lists each module with its connection and cognition declaration', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const observer = createPeer('observer')
+      const module = createPeer('module-connection')
+      handler.open?.(observer.peer)
+      handler.open?.(module.peer)
+      const announcement = createExtensionModuleAnnounceEvent()
+      if (announcement.type !== 'extension:module:announce')
+        throw new Error('Expected a module announcement')
+      const cognition = { accepts: ['action' as const], control: { exclusive: true as const }, scenes: [{ binding: 'discord:channel:' }] }
+      sendEvent(handler, module.peer, { ...announcement, data: { ...announcement.data, cognition } })
+
+      const syncs = decodeEvents(observer.sent).filter(event => event.type === 'registry:modules:sync')
+      expect(syncs.at(-1)?.data).toEqual({ modules: [expect.objectContaining({ name: 'memory', connectionId: 'module-connection', cognition })] })
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
+  it('drops a module list forged by a peer', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const observer = createPeer('observer')
+      const forger = createPeer('forger')
+      handler.open?.(observer.peer)
+      handler.open?.(forger.peer)
+      observer.sent.length = 0
+
+      sendEvent(handler, forger.peer, {
+        type: 'registry:modules:sync',
+        data: { modules: [{ name: 'discord', identity: { kind: 'plugin', id: 'discord', plugin: { id: 'discord' } }, connectionId: 'forger' }] },
+        metadata: { source: { kind: 'plugin', id: 'forger', plugin: { id: 'forger' } }, event: { id: 'forged-sync' } },
+      })
+
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'registry:modules:sync')).toEqual([])
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
 })

@@ -40,6 +40,15 @@ Useful runtime helpers:
 - `client.sendOrThrow()` is available when you want strict delivery semantics
 - `client.onEvent()` returns an unsubscribe function
 
+Pass `cognition` to declare the module to the scheduler. A module that serves external conversations declares its scenes:
+
+```typescript
+const client = new Client({
+  name: 'discord',
+  cognition: { scenes: [{ binding: 'discord:channel:' }] },
+})
+```
+
 ## License
 
 [MIT](../../LICENSE)
