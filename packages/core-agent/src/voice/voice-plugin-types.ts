@@ -1,60 +1,18 @@
-import type { AudioWindow, Observer, WindowOptions } from '@proj-airi/pipelines-audio'
+import type { AudioRange, AudioWindow, Observer, WindowOptions } from '@proj-airi/pipelines-audio'
 
-import type { SpeechInputAttempt } from './speech-input-attempt'
-import type { TranscriptSegment } from './transcript'
-import type { VoiceController as BaseVoiceController, Interruption, TurnRef } from './voice-controller'
+import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence, SpeechInputAttemptOutcome } from './speech-input-types'
+import type { SpeechSelection, SpeechSnapshot } from './speech-snapshot'
+import type { TranscriptEdit, WriteResult } from './transcript'
+import type { TurnRef } from './turn'
+import type { BeginSpeechInput, Interruption } from './voice-contracts'
 
-/** Model scores are evidence, not calibrated identity probabilities. */
-export interface SpeakerEvidence {
-  readonly revision: number
-  readonly candidates: readonly { readonly speakerId: string, readonly score: number }[]
-  readonly voicedMs: number
-}
-
-/** Selection fixes the data that a task reads and the dependencies of its writes. */
-export interface SpeechSelection {
-  readonly transcript: 'raw' | 'corrected'
-  readonly speakers?: boolean
-  readonly context?: readonly { readonly plugin: string, readonly key: string, readonly scope?: 'input' | 'target-segment' }[]
-  /** Limits automatic corrections in corrected views. Manual corrections are always included. */
-  readonly correctionPlugins?: readonly string[]
-  readonly scope?: 'document' | { readonly kind: 'segment', readonly neighbors: number, readonly neighborTranscript?: 'raw' | 'corrected' }
-}
-
-/** Each snapshot belongs to one input. Segment selection includes explicit neighboring segments. */
-export interface SpeechSnapshot {
-  readonly inputId: string
-  readonly sessionId: string
-  readonly transcript: {
-    readonly view: 'raw' | 'corrected'
-    readonly revision: number
-    readonly text: string
-    readonly segments: readonly TranscriptSegment[]
-    readonly targetSegmentId?: string
-  }
-  readonly speakers?: SpeakerEvidence
-  readonly neighbors: readonly { readonly view: 'raw' | 'corrected', readonly segment: TranscriptSegment }[]
-  readonly correctionPlugins: readonly string[]
-  readonly context: readonly { readonly plugin: string, readonly key: string, readonly segmentId?: string, readonly revision: number, readonly value?: unknown }[]
-}
-
-/** A write never starts another asynchronous operation. It checks and changes state synchronously. */
-export type WriteResult
-  = { readonly status: 'applied' }
-    | { readonly status: 'rejected', readonly reason: 'stale' | 'closed' | 'conflict' | 'denied' }
+export type { SpeakerEvidence, SpeechSelection, SpeechSnapshot } from './speech-snapshot'
+export type { TranscriptEdit, WriteResult } from './transcript'
 
 /** Keys belong to the current plugin and input. Values remain in-process references. Publishers replace values to signal changes. */
 export interface ContextWriter {
   set: <T>(key: string, value: T) => WriteResult
   delete: (key: string) => WriteResult
-}
-
-/** Edits refer to raw tokens from the task snapshot. The runtime supplies their dependency versions. */
-export interface TranscriptEdit {
-  readonly segmentId: string
-  readonly range: { readonly kind: 'tokens', readonly start: number, readonly end: number } | { readonly kind: 'segment' }
-  readonly expectedText: string
-  readonly replacement: string
 }
 
 /** This view expires when its task ends. Detached callbacks cannot publish through it. */
@@ -126,16 +84,16 @@ export interface SpeechInputScope {
 export interface SpeechInputControl {
   readonly id: string
   readonly sessionId: string
-  noteActivity: SpeechInputAttempt['noteActivity']
-  end: () => { status: 'accepted', done: SpeechInputAttempt['done'] } | { status: 'denied' }
+  noteActivity: (evidence: SpeechActivityEvidence) => boolean
+  end: () => { status: 'accepted', done: Promise<SpeechInputAttemptOutcome> } | { status: 'denied' }
   cancel: (reason: string) => 'cancelled' | 'closed' | 'denied'
-  detectEnd: (...args: Parameters<SpeechInputAttempt['detectEnd']>) => { status: 'installed', observer: Observer } | { status: 'denied' }
+  detectEnd: (options: EndDetectionOptions, detector: EndDetector) => { status: 'installed', observer: Observer } | { status: 'denied' }
 }
 
 /** Each command checks both installation grants and the calling task's live ownership. */
 export interface VoicePluginControls {
   activeInput: () => SpeechInputControl | undefined
-  beginInput: (settings: Parameters<BaseVoiceController['beginInput']>[0]) => { status: 'started', input: SpeechInputControl } | { status: 'denied' }
+  beginInput: (settings: BeginSpeechInput) => { status: 'started', input: SpeechInputControl } | { status: 'denied' }
   cancelInput: (inputId: string, reason: string) => 'cancelled' | 'closed' | 'denied'
   interrupt: (turns: readonly TurnRef[], cause: string) => { status: 'started', interruption: Interruption } | { status: 'denied' }
 }
@@ -174,6 +132,14 @@ export interface VoicePluginError {
   readonly inputId?: string
   readonly stage: 'setup' | 'subscription' | 'task' | 'dependency' | 'cleanup'
   readonly error: Error
+}
+
+/** Grants authorize domain operations. They do not sandbox trusted in-process plugins. */
+export interface VoicePluginSettings {
+  readonly grants?: readonly ('input-control' | 'cancel-input' | 'interrupt-turns' | 'transcript-patch')[]
+  readonly dependsOn?: readonly string[]
+  readonly onAudioEvidence?: (event: { plugin: string, range: AudioRange, value: unknown }) => void
+  readonly onError?: (event: VoicePluginError) => void
 }
 
 /** Disposal revokes writes immediately, then waits for registered cleanup. Repeated calls share completion. */

@@ -6,6 +6,7 @@ import { AudioInput, createPushStream, Playback } from '@proj-airi/pipelines-aud
 import { describe, expect, it, vi } from 'vitest'
 
 import { VoiceController } from '../index'
+import { keepOpen, pcmSource } from '../testing/audio'
 
 describe('voiceController output', () => {
   it('ends the speaking indicator only after cancelled audio becomes silent', async () => {
@@ -32,6 +33,23 @@ describe('voiceController output', () => {
     await controller.close()
   })
 
+  it('reports a finished response as silent when a later input interrupts it', async () => {
+    const playback = new Playback({ play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
+    const controller = new VoiceController({ speech: () => ({ playback, synthesize: async () => new Blob(['speech']) }) })
+    const turn = { sessionId: 'alice', turnId: 'finished' }
+    const response = controller.openResponse(turn)
+    const speech = response.openSpeech({ purpose: 'answer' })
+    speech.write('Done.')
+    speech.end()
+    expect(await response.finish()).toBe('finished')
+
+    const interruption = controller.interrupt({ turns: [turn], cause: 'speech-input' })
+
+    expect(await interruption.silenced).toEqual([{ turn, status: 'silent' }])
+    expect(await interruption.done).toEqual({ status: 'recorded', notifications: [] })
+    await controller.close()
+  })
+
   it('preserves earlier reserved speech when an intermediate producer is cancelled', async () => {
     const firstAudio = Promise.withResolvers<Blob>()
     const played: string[] = []
@@ -43,9 +61,7 @@ describe('voiceController output', () => {
       }),
       stop: async () => ({ throughMs: 0 }),
     }) })
-    const controller = new VoiceController({ audio: async () => {
-      throw new Error('No microphone')
-    }, transcriber: vi.fn(), submit: vi.fn(), speech: () => ({ playback, synthesize: async (request) => {
+    const controller = new VoiceController({ transcriber: vi.fn(), submit: vi.fn(), speech: () => ({ playback, synthesize: async (request) => {
       requested.push(request.text)
       return request.text === 'First.' ? firstAudio.promise : new Blob([request.text])
     } }) })
@@ -91,9 +107,7 @@ describe('voiceController output', () => {
         return { throughMs: samples.length }
       } }
     } })
-    const controller = new VoiceController({ audio: async () => {
-      throw new Error('Output requires no microphone')
-    }, transcriber: vi.fn(), submit: vi.fn(), speech: () => ({ playback, onPlaybackStart: text => captions.push(text), stream: async (text) => {
+    const controller = new VoiceController({ transcriber: vi.fn(), submit: vi.fn(), speech: () => ({ playback, onPlaybackStart: clip => captions.push(clip.text), stream: async (text) => {
       void (async () => {
         for await (const part of text)
           words.push(part)
@@ -120,9 +134,8 @@ describe('voiceController output', () => {
 
   it('retains speech-onset samples while waiting for playback silence', async () => {
     const source = createPushStream<import('@proj-airi/pipelines-audio').PcmBlock>()
-    const audio = new AudioInput({ id: 'mic', frames: source.stream, close: async () => {} }, { supportsFile: () => false, encode: async () => {
-      throw new Error('No codec')
-    } }, { historyMs: 4 })
+    const audio = new AudioInput(pcmSource(source.stream), { historyMs: 4 })
+    const release = keepOpen(audio)
     const playing = Promise.withResolvers<void>()
     const faded = Promise.withResolvers<{ throughMs: number }>()
     const playback = new Playback({ play: () => {
@@ -132,30 +145,29 @@ describe('voiceController output', () => {
     const samples: number[] = []
     const output = createPushStream<import('./transcript').TranscriptionEvent>()
     const transcribe = vi.fn<import('./voice-controller').StreamingTranscriber['transcribe']>((request) => {
-      if (request.audio.kind !== 'pcm')
-        throw new Error('Expected PCM')
-      const stream = request.audio.stream
+      const stream = request.audio
       void (async () => {
         for await (const block of stream) samples.push(...block.channels[0])
       })().catch(() => {})
       return output.stream
     })
-    const controller = new VoiceController({ audio, transcriber: () => ({ capabilities: { inputs: ['pcm'], output: 'updates' }, transcribe }), submit: vi.fn(), speech: () => ({ playback, synthesize: async () => new Blob(['speech']) }), recordInterruption: async () => ({ status: 'queued' }) })
+    const controller = new VoiceController({ audio, transcriber: () => ({ transcribe }), submit: vi.fn(), speech: () => ({ playback, synthesize: async () => new Blob(['speech']) }), recordInterruption: async () => ({ status: 'queued' }) })
     const turn = { sessionId: 'alice', turnId: 'answer' }
     const speech = controller.openResponse(turn).openSpeech({ purpose: 'answer' })
     await speech.write('Current answer.')
     speech.end()
     await playing.promise
     source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array([1, 2, 3, 4])] })
-    await expect.poll(() => audio.position.frame).toBe(4)
+    await expect.poll(() => audio.position?.frame).toBe(4)
     const attempt = controller.beginInput({ sessionId: 'alice', interruptTurns: [turn], start: { kind: 'speech-onset', at: { sourceId: 'mic', frame: 0 } } })
     source.write({ range: { sourceId: 'mic', startFrame: 4, endFrame: 8 }, sampleRate: 1000, channels: [new Float32Array([5, 6, 7, 8])] })
-    await expect.poll(() => audio.position.frame).toBe(8)
+    await expect.poll(() => audio.position?.frame).toBe(8)
     expect(transcribe).not.toHaveBeenCalled()
     faded.resolve({ throughMs: 20 })
     await expect.poll(() => samples).toEqual([1, 2, 3, 4, 5, 6, 7, 8])
     expect(attempt.state.phase).toBe('capturing')
     attempt.cancel('done')
+    release()
     await controller.close()
   })
 
@@ -164,9 +176,7 @@ describe('voiceController output', () => {
     const playback = new Playback({ play: () => {
       throw new Error('No audio expected')
     } })
-    const controller = new VoiceController({ audio: async () => {
-      throw new Error('No microphone')
-    }, transcriber: vi.fn(), submit: vi.fn(), speech: () => ({ playback, synthesize: async () => null }), recordInterruption })
+    const controller = new VoiceController({ transcriber: vi.fn(), submit: vi.fn(), speech: () => ({ playback, synthesize: async () => null }), recordInterruption })
     const turn = { sessionId: 'alice', turnId: 'reasoning' }
     controller.openResponse(turn)
     const first = controller.interrupt({ turns: [turn], cause: 'button' })
@@ -187,9 +197,7 @@ describe('voiceController output', () => {
       playing.resolve()
       return { done: new Promise<{ throughMs: number }>(() => {}), stop: () => faded.promise }
     } })
-    const audio = new AudioInput({ id: 'mic', frames: createPushStream<import('@proj-airi/pipelines-audio').PcmBlock>().stream, close: async () => {} }, { supportsFile: () => false, encode: async () => {
-      throw new Error('No codec')
-    } })
+    const audio = new AudioInput(pcmSource(createPushStream<import('@proj-airi/pipelines-audio').PcmBlock>().stream, async () => {}))
     const transcriber = vi.fn()
     const controller = new VoiceController({ audio, transcriber, submit: vi.fn(), speech: () => ({ playback, synthesize: async () => new Blob(['speech']) }), recordInterruption: async () => ({ status: 'queued' }) })
     const turn = { sessionId: 'alice', turnId: 'talking' }
@@ -222,9 +230,6 @@ describe('voiceController output', () => {
     const requests: TtsRequest[] = []
     const recordInterruption = vi.fn(async () => ({ status: 'queued' as const }))
     const controller = new VoiceController({
-      audio: async () => {
-        throw new Error('Text speech does not acquire audio')
-      },
       transcriber: () => {
         throw new Error('No transcriber')
       },

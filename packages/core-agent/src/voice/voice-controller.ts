@@ -1,38 +1,19 @@
-import type { AudioInput, AudioRange, FileOptions, Outcome, PcmBlock, PlaybackReceipt, Position } from '@proj-airi/pipelines-audio'
+import type { AudioInput, AudioRange, PlaybackReceipt } from '@proj-airi/pipelines-audio'
 
-import type { SpeechOutput } from './response'
-import type { TranscriptionEvent, TranscriptPatch, TranscriptSnapshot } from './transcript'
-import type { SpeakerEvidence, SpeechSnapshot, TranscriptEdit, VoicePlugin, VoicePluginHandle, WriteResult } from './voice-plugin-types'
+import type { SpeechInputAttemptOwner } from './speech-input-attempt'
+import type { TurnRef } from './turn'
+import type { BeginSpeechInput, Interruption, VoiceControllerOptions } from './voice-contracts'
+import type { SpeakerEvidence, TranscriptEdit, VoicePlugin, VoicePluginHandle, WriteResult } from './voice-plugin-types'
 import type { VoicePluginSettings } from './voice-plugins'
 
-import { Response } from './response'
+import { errorFromCause } from '../utils/error'
+import { VoiceResponse } from './response'
 import { SpeechInputAttempt } from './speech-input-attempt'
+import { turnKey } from './turn'
 import { VoicePlugins } from './voice-plugins'
 
-/** A provider request consumes media and produces transcription concurrently. */
-export interface StreamingTranscriber {
-  readonly capabilities: {
-    readonly inputs: readonly ('pcm' | 'file' | 'native')[]
-    readonly output: 'updates' | 'final'
-  }
-  transcribe: (request: {
-    audio: { kind: 'pcm', stream: ReadableStream<PcmBlock> } | { kind: 'file', blob: Blob } | { kind: 'native', stream: MediaStream, ended: Promise<Outcome<void>> }
-    signal: AbortSignal
-  }) => ReadableStream<TranscriptionEvent>
-}
-
-/** Identity belongs to the conversation runtime and cannot be reused for a closed response. */
-export interface TurnRef {
-  readonly sessionId: string
-  readonly turnId: string
-}
-
-/** Playback silence and durable agent notification have separate completion boundaries. */
-export interface Interruption {
-  readonly id: string
-  readonly silenced: Promise<readonly { readonly turn: TurnRef, readonly status: 'silent' | 'failed', readonly playback?: PlaybackReceipt, readonly error?: Error }[]>
-  readonly done: Promise<{ readonly status: 'recorded' | 'failed', readonly notifications: readonly { readonly turn: TurnRef, readonly eventId: string, readonly status: 'acknowledged' | 'queued' | 'failed' }[], readonly error?: Error }>
-}
+export type { TurnRef } from './turn'
+export type { BeginSpeechInput, Interruption, SpeechSubmission, StreamingTranscriber, VoiceControllerOptions, VoiceInterruptionEvent } from './voice-contracts'
 
 interface TurnInterruption {
   readonly eventId: string
@@ -42,81 +23,52 @@ interface TurnInterruption {
   notification?: Promise<Awaited<Interruption['done']>['notifications'][number]>
 }
 
-/** The caller selects admission policy and explicit interruption targets. */
-export interface BeginSpeechInput {
-  readonly sessionId: string
-  readonly interruptTurns: readonly TurnRef[]
-  readonly start: { readonly kind: 'after-silence' } | { readonly kind: 'speech-onset', readonly at: Position, readonly preRollMs?: number }
-}
-
-/** Submission identity is stable across transport retries. The adapter owns persistence. */
-export interface SpeechSubmission {
-  readonly submissionId: string
-  readonly sessionId: string
-  readonly text: string
-  readonly transcript: {
-    readonly raw: TranscriptSnapshot
-    readonly corrected: TranscriptSnapshot
-    readonly history: readonly TranscriptSnapshot[]
-    readonly patches: readonly TranscriptPatch[]
-  }
-  readonly context: SpeechSnapshot['context']
-  readonly speakers?: SpeakerEvidence
-}
-
-/** Durable external control information travels separately from user-authored chat messages. */
-export interface VoiceInterruptionEvent {
-  readonly eventId: string
-  readonly turn: TurnRef
-  readonly cause: string
-  readonly playback: PlaybackReceipt
-}
-
-/** Only external source, provider, and persistence boundaries are injected. */
-export interface VoiceControllerOptions {
-  readonly onError?: (event: { stage: string, error: Error }) => void
-  readonly audio?: AudioInput | (() => Promise<AudioInput>)
-  /** @default owned. Borrowed input remains available to other controllers after this controller closes. */
-  readonly audioOwnership?: 'owned' | 'borrowed'
-  readonly transcriber?: (sessionId: string) => StreamingTranscriber
-  /** @default WAV, 16 kHz, mono. Used only when the provider requires a completed file. */
-  readonly file?: FileOptions
-  readonly submit?: (submission: SpeechSubmission, signal: AbortSignal) => Promise<{ status: 'committed', messageId: string } | { status: 'drafted', draftId: string }>
-  readonly speech?: (turn: TurnRef) => SpeechOutput
-  /** Persistence retries must reuse eventId. This is an agent control event, not a chat message. */
-  readonly recordInterruption?: (event: VoiceInterruptionEvent) => Promise<{ status: 'acknowledged' | 'queued' | 'failed' }>
-  /** @default 100. Playback uses its audio clock to apply this fade. */
-  readonly fadeMs?: number
-  readonly conversationContext?: (sessionId: string) => { readonly revision: number, readonly messages: readonly { role: string, text: string }[] }
-}
-
 /** Coordinates input admission and downstream completion without owning browser or provider APIs. */
 export class VoiceController {
-  readonly plugins = new VoicePlugins(this)
+  private readonly plugins = new VoicePlugins({
+    activeInput: () => this.current,
+    audio: () => this.audioInput,
+    beginInput: options => this.beginInput(options),
+    cancelInput: (id, reason) => this.cancelInput(id, reason),
+    interrupt: options => this.interrupt(options),
+    reportError: (stage, cause) => this.reportError(stage, cause),
+  })
+
   private readonly inputListeners = new Set<(attempt: SpeechInputAttempt) => void>()
   private current: SpeechInputAttempt | undefined
   private readonly attempts = new Map<string, SpeechInputAttempt>()
-  private audioValue: AudioInput | undefined
-  private audioSource: VoiceControllerOptions['audio'] | undefined
-  private audioPromise: Promise<AudioInput> | undefined
-  private readonly releasingAudio = new Set<Promise<void>>()
+  private audioInput: AudioInput | undefined
   private closing: Promise<void> | undefined
-  private readonly responses = new Map<string, Response>()
+  private readonly responses = new Map<string, VoiceResponse>()
+  /**
+   * Turn keys stay here after their response closes, so a late producer cannot reopen finished speech.
+   * The set holds one short key per turn and clears when the controller closes.
+   */
+  private readonly usedTurns = new Set<string>()
   private readonly interruptions = new Map<string, TurnInterruption>()
 
-  constructor(readonly options: VoiceControllerOptions) {
-    this.audioSource = options.audio
-    if (typeof options.audio !== 'function')
-      this.audioValue = options.audio
+  /** Every attempt receives the same narrow view of this controller. */
+  private readonly inputOwner: SpeechInputAttemptOwner
+
+  constructor(private readonly options: VoiceControllerOptions) {
+    this.audioInput = options.audio
+    this.inputOwner = {
+      options,
+      audio: () => this.audioInput,
+      interrupt: request => this.interrupt(request),
+      createPlugins: input => this.plugins.input(input),
+      seal: attempt => this.sealInput(attempt),
+      reportError: (stage, error) => this.reportError(stage, error),
+    }
   }
 
-  get availableAudio(): AudioInput | undefined {
-    return this.audioValue
+  get audio(): AudioInput | undefined {
+    return this.audioInput
   }
 
   /** Diagnostics cannot take ownership of a domain operation's completion. */
-  reportError(stage: string, cause: unknown) {
-    const error = cause instanceof Error ? cause : new Error('Voice operation failed', { cause })
+  private reportError(stage: string, cause: unknown) {
+    const error = errorFromCause(cause, 'Voice operation failed')
     try {
       if (this.options.onError)
         this.options.onError({ stage, error })
@@ -150,7 +102,8 @@ export class VoiceController {
     if (this.closing)
       throw new Error('Voice controller is closed')
     this.current?.cancel('Replaced by a new input')
-    const attempt = new SpeechInputAttempt(this, options)
+
+    const attempt = new SpeechInputAttempt(this.inputOwner, options)
     this.current = attempt
     this.attempts.set(attempt.id, attempt)
     for (const listener of this.inputListeners) {
@@ -161,6 +114,7 @@ export class VoiceController {
         this.reportError('input-observer', error)
       }
     }
+
     void attempt.done.then(() => this.attempts.delete(attempt.id))
     void attempt.start()
     return attempt
@@ -190,40 +144,58 @@ export class VoiceController {
     return input.patch('user', { edits, evidenceIds: [] }, () => true, true)
   }
 
-  openResponse(turn: TurnRef): Response {
+  openResponse(turn: TurnRef): VoiceResponse {
     if (this.closing)
       throw new Error('Voice controller is closed')
-    const key = JSON.stringify([turn.sessionId, turn.turnId])
+    const key = turnKey(turn)
     const existing = this.responses.get(key)
-    if (existing?.closed)
-      throw new Error('Response turn identity is already used')
     if (existing)
       return existing
+    if (this.usedTurns.has(key))
+      throw new Error('Response turn identity is already used')
     if (!this.options.speech)
       throw new Error('Speech output is not configured')
-    const response = new Response(turn, this.options.speech(turn))
+
+    const response = new VoiceResponse(turn, this.options.speech(turn), () => this.responses.delete(key))
+    this.usedTurns.add(key)
     this.responses.set(key, response)
     return response
   }
 
   interrupt(options: { turns: readonly TurnRef[], cause: string }): Interruption {
     const id = crypto.randomUUID()
-    const targets = [...new Map(options.turns.map(turn => [JSON.stringify([turn.sessionId, turn.turnId]), Object.freeze({ ...turn })])).entries()]
+    const fadeMs = this.options.fadeMs ?? 100
+    const unique = new Map(options.turns.map(turn => [turnKey(turn), Object.freeze({ ...turn })]))
+    const targets = [...unique.entries()]
+
     const pending = targets.map(([key, turn]) => {
       const response = this.responses.get(key)
       let record = this.interruptions.get(key)
       if (!record && response && !response.closed) {
-        record = { eventId: crypto.randomUUID(), turn, cause: options.cause, silence: response.interrupt(options.cause, this.options.fadeMs ?? 100) }
+        record = { eventId: crypto.randomUUID(), turn, cause: options.cause, silence: response.interrupt(options.cause, fadeMs) }
         this.interruptions.set(key, record)
       }
-      const silence = record?.silence ?? response?.interrupt(options.cause, this.options.fadeMs ?? 100)
-      const result = silence
-        ? silence.then(playback => ({ turn, status: playback.status, playback, ...(playback.error ? { error: playback.error } : {}) }))
-        : Promise.resolve({ turn, status: 'failed' as const, playback: undefined, error: new Error('Unknown response turn') })
-      return { record, result, known: !!response }
+
+      const silence = record?.silence ?? response?.interrupt(options.cause, fadeMs)
+      if (silence) {
+        const result = silence.then(playback => ({ turn, status: playback.status, playback, ...(playback.error ? { error: playback.error } : {}) }))
+        return { record, result, known: true }
+      }
+
+      // A finished response released its playback group. It is already silent, so there is nothing to record.
+      if (this.usedTurns.has(key))
+        return { record, result: Promise.resolve({ turn, status: 'silent' as const }), known: true }
+
+      return { record, result: Promise.resolve({ turn, status: 'failed' as const, error: new Error('Unknown response turn') }), known: false }
     })
+
     const silenced = Promise.all(pending.map(target => target.result))
-    const done = Promise.all(pending.flatMap(target => target.record ? [this.notifyInterruption(target.record)] : [])).then(notifications => ({ status: pending.some(target => !target.known) || notifications.some(item => item.status === 'failed') ? 'failed' as const : 'recorded' as const, notifications }))
+    const notifications = pending.flatMap(target => target.record ? [this.notifyInterruption(target.record)] : [])
+    const done = Promise.all(notifications).then((results) => {
+      const failed = pending.some(target => !target.known) || results.some(item => item.status === 'failed')
+      return { status: failed ? 'failed' as const : 'recorded' as const, notifications: results }
+    })
+
     return { id, silenced, done }
   }
 
@@ -244,65 +216,34 @@ export class VoiceController {
         return { turn: record.turn, eventId: record.eventId, status: 'failed' as const }
       }
     })()
+
     record.notification = pending
     void pending.then((result) => {
       if (result.status === 'failed' && record.notification === pending)
         record.notification = undefined
+      else if (result.status !== 'failed' && record.notification === pending)
+        this.interruptions.delete(turnKey(record.turn))
     })
     return pending
   }
 
-  /** Pending permission is shared. An obsolete attempt never owns or closes the shared source. */
-  acquireAudio(): Promise<AudioInput> {
-    if (this.closing)
-      return Promise.reject(new Error('Voice controller is closed'))
-    if (!this.audioPromise) {
-      const source = this.audioSource
-      if (!source)
-        return Promise.reject(new Error('Audio input is not connected'))
-      let started: Promise<AudioInput>
-      try {
-        started = Promise.resolve(typeof source === 'function' ? source() : source)
-      }
-      catch (error) {
-        return Promise.reject(error)
-      }
-      const pending = started.then((audio) => {
-        if (this.audioPromise === pending)
-          this.audioValue = audio
-        return audio
-      })
-      this.audioPromise = pending
-      void pending.catch(() => {
-        if (this.audioPromise === pending)
-          this.audioPromise = undefined
-      })
-    }
-    return this.audioPromise
-  }
-
-  /** Replaces input ownership synchronously. Completion waits for old resources, including late permission results. Responses continue. */
-  replaceAudio(source?: VoiceControllerOptions['audio']): Promise<void> {
+  /**
+   * Switches future inputs and plugin observations to another shared input, for example after a device change.
+   * Active attempts cancel, because their frame coordinates belong to the old source. Responses continue.
+   */
+  replaceAudio(audio: AudioInput | undefined) {
     if (this.closing)
       throw new Error('Voice controller is closed')
-    if (source === this.audioSource)
-      return Promise.resolve()
+    if (audio === this.audioInput)
+      return
+
     for (const attempt of this.attempts.values())
       attempt.cancel('Audio input replaced')
-    const previous = this.audioPromise ?? Promise.resolve(this.audioValue)
-    this.audioSource = source
-    this.audioValue = typeof source === 'function' ? undefined : source
-    this.audioPromise = undefined
+    this.audioInput = audio
     this.plugins.replaceAudio()
-    const releasing = previous.then(audio => this.options.audioOwnership === 'borrowed' ? undefined : audio?.close(), (error) => {
-      this.reportError('audio-startup', error)
-    })
-    this.releasingAudio.add(releasing)
-    void releasing.finally(() => this.releasingAudio.delete(releasing)).catch(error => this.reportError('audio-release', error))
-    return releasing
   }
 
-  sealInput(attempt: SpeechInputAttempt) {
+  private sealInput(attempt: SpeechInputAttempt) {
     if (this.current === attempt)
       this.current = undefined
   }
@@ -313,12 +254,17 @@ export class VoiceController {
     for (const attempt of this.attempts.values())
       attempt.cancel('Voice controller closed')
     this.inputListeners.clear()
+
     for (const response of this.responses.values())
       response.cancel('Voice controller closed')
-    const sourceClosed = this.options.audioOwnership === 'borrowed'
-      ? undefined
-      : this.audioPromise ? this.audioPromise.then(audio => audio.close()) : this.audioValue?.close()
-    this.closing = Promise.all([this.plugins.close(), sourceClosed, ...this.releasingAudio, ...[...this.responses.values()].map(response => response.finish())]).then(() => {})
+
+    // Attempts and plugins end their own input subscriptions. The shared input stays with its owner.
+    const responsesClosed = [...this.responses.values()].map(response => response.finish())
+    this.closing = Promise.all([this.plugins.close(), ...responsesClosed]).then(() => {}).finally(() => {
+      this.responses.clear()
+      this.interruptions.clear()
+      this.usedTurns.clear()
+    })
     return this.closing
   }
 }

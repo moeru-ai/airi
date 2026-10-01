@@ -88,12 +88,14 @@ const input = voice.beginInput({
 const result = await input.end()
 ```
 
-- `SpeechInputAttempt` exists during permission and playback fade.
+- `SpeechInputAttempt` exists during playback fade and until the source delivers audio, which includes microphone permission.
 - `SpeechInput` exists after capture admission. It retains raw transcripts, corrected text, speaker evidence, and plugin context.
 - `end()` completes recording. `cancel(reason)` rejects later publication from the attempt.
 - `interrupt({ turns, cause })` targets named responses and reports silence separately from agent delivery.
 - The notification receiver deduplicates by event ID. Its acknowledgment means durable receipt, without another user message or response.
-- Borrowed audio remains open when the controller closes. Its application owner releases the source.
+- `audio` is a shared `AudioInput`. Attempts and plugins subscribe to it. The controller never closes it.
+- `replaceAudio(input)` cancels active attempts and moves plugin observations to the new input.
+- A transcriber receives continuous PCM. An adapter that needs a file or a MediaStream converts the PCM itself.
 
 ### Trusted plugins
 
