@@ -191,6 +191,60 @@ describe('chat session synchronization', () => {
     expect(store.getSessionAudience(next)).toEqual(channel)
   })
 
+  it('moves idle sessions to dormant and retired, and only a run makes them active again', async () => {
+    const namespace = `chat-lifecycle:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const store = useChatSessionStore(leaderContext.pinia)
+    await store.initialize()
+    const thresholds = { dormantAfterMs: 1_000, retireAfterMs: 10_000 }
+
+    const bound = await store.ensureBoundSession('discord:channel:a')
+    await store.markSessionRunStarted(bound)
+    expect(store.sessionMetas[bound]?.status).toBe('active')
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [bound], now: Date.now() + 100_000 })
+    expect(store.sessionMetas[bound]?.status).toBe('active')
+
+    await store.markSessionRunEnded(bound, 0)
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 500 })
+    expect(store.sessionMetas[bound]?.status).toBe('idle')
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 1_000 })
+    expect(store.sessionMetas[bound]?.status).toBe('dormant')
+    // A dormant scene still recovers its session.
+    expect(await store.ensureBoundSession('discord:channel:a')).toBe(bound)
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 11_000 })
+    expect(store.sessionMetas[bound]?.status).toBe('retired')
+
+    // A retired session leaves automatic recovery, but an explicit run reactivates it.
+    const next = await store.ensureBoundSession('discord:channel:a')
+    expect(next).not.toBe(bound)
+    await store.markSessionRunStarted(bound)
+    expect(store.sessionMetas[bound]?.status).toBe('active')
+
+    // An active session without a running run returns to idle, for example after a leader closes.
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 0 })
+    expect(store.sessionMetas[bound]?.status).toBe('idle')
+  })
+
+  it('stores a digest only for a message in its session, with the session audience', async () => {
+    const namespace = `chat-digest:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const store = useChatSessionStore(leaderContext.pinia)
+    await store.initialize()
+    const session = await store.ensureBoundSession('discord:channel:a')
+    store.appendSessionMessage(session, { id: 'last', role: 'user', content: 'hello' })
+
+    await expect(store.setSessionDigest(session, { text: 'summary', upToMessageId: 'missing' })).rejects.toThrow('must end at a message')
+    await store.setSessionDigest(session, { text: 'summary', upToMessageId: 'last' })
+
+    expect(store.sessionMetas[session]?.digest).toMatchObject({
+      text: 'summary',
+      upToMessageId: 'last',
+      audience: { kind: 'subjects', subjects: ['discord:channel:a:members', 'user:owner'] },
+    })
+  })
+
   it('initializes a follower through the canonical session action', async () => {
     // ROOT CAUSE:
     //

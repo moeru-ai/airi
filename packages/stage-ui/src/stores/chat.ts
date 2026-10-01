@@ -45,6 +45,7 @@ import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useSettingsSessionLifecycle } from './settings/session-lifecycle'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -174,6 +175,8 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 /** Stands in for an image in a stored tool result while the vision model reads tool images. */
 const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
+/** The leader checks idle thresholds at this cadence. Status changes take effect within one interval. */
+const SESSION_LIFECYCLE_INTERVAL_MS = 60_000
 
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
@@ -218,14 +221,42 @@ export const useChatStore = defineStore('chat', () => {
    * Initializes chat state and binds local consumers to synchronized leadership.
    * A promoted renderer restarts the leader-owned cloud consumer.
    */
+  // Admitted runs, fed by the runtime run table. Request tools read their run audience, and lifecycle reads running sessions.
+  const activeRuns = new Map<string, { sessionId: string, audience: Audience }>()
+  const sessionLifecycleSettings = useSettingsSessionLifecycle()
+  let lifecycleTimer: ReturnType<typeof setInterval> | undefined
+
+  function stopLifecycleSweep() {
+    if (lifecycleTimer !== undefined)
+      clearInterval(lifecycleTimer)
+    lifecycleTimer = undefined
+  }
+
+  /** Moves idle sessions toward dormant and retired. Only the leader writes session metadata. */
+  function startLifecycleSweep() {
+    stopLifecycleSweep()
+    const sweep = () => {
+      void chatSession.updateSessionLifecycle({
+        ...sessionLifecycleSettings.thresholds,
+        runningSessionIds: Array.from(activeRuns.values(), run => run.sessionId),
+      }).catch((error) => {
+        console.warn('[chat] Failed to update session lifecycle:', errorMessageFrom(error))
+      })
+    }
+    sweep()
+    lifecycleTimer = setInterval(sweep, SESSION_LIFECYCLE_INTERVAL_MS)
+  }
+
   async function initialize(syncedPinia: SyncedPiniaRuntime) {
     chatContext.initialize(syncedPinia)
     stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
       if (!isLeader) {
+        stopLifecycleSweep()
         chatSession.dispose()
         return
       }
 
+      startLifecycleSweep()
       void chatSession.ensureCurrentSession().catch((error) => {
         console.error('[chat] Failed to start chat consumers after leader promotion:', error)
       })
@@ -237,6 +268,7 @@ export const useChatStore = defineStore('chat', () => {
   /** Stops chat consumers that belong to this window. */
   function dispose() {
     chatContext.dispose()
+    stopLifecycleSweep()
     stopLeadershipListener?.()
     stopLeadershipListener = undefined
     chatSession.dispose()
@@ -283,14 +315,18 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  // Active run audiences, fed by the runtime run table. A request tool reads the audience of its own run.
-  const activeRunAudiences = new Map<string, Audience>()
-
-  function trackRunAudience(run: AgentRun) {
+  function trackRun(run: AgentRun) {
     if (run.state === 'queued' || run.state === 'working')
-      activeRunAudiences.set(run.runId, run.envelope.audience)
+      activeRuns.set(run.runId, { sessionId: run.sessionId, audience: run.envelope.audience })
     else
-      activeRunAudiences.delete(run.runId)
+      activeRuns.delete(run.runId)
+
+    const lifecycleUpdate = run.state === 'working'
+      ? chatSession.markSessionRunStarted(run.sessionId)
+      : run.state === 'queued' ? undefined : chatSession.markSessionRunEnded(run.sessionId)
+    void lifecycleUpdate?.catch((error) => {
+      console.warn('[chat] Failed to record the session lifecycle:', errorMessageFrom(error))
+    })
   }
 
   /** Adds the source reader, authorized by the session and run that own the request. */
@@ -298,7 +334,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!correlation)
       return tools
     const { conversationId: sessionId, runId } = correlation
-    const audience = (runId ? activeRunAudiences.get(runId) : undefined) ?? OWNER_AUDIENCE
+    const audience = (runId ? activeRuns.get(runId)?.audience : undefined) ?? OWNER_AUDIENCE
     return async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
@@ -507,7 +543,7 @@ export const useChatStore = defineStore('chat', () => {
       },
     },
     createEnvelope: createRunEnvelope,
-    onRunChange: trackRunAudience,
+    onRunChange: trackRun,
     foregroundStream: {
       patch: (message) => {
         streamingMessage.value = message

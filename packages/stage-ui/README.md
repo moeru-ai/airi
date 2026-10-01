@@ -26,6 +26,14 @@ A scene recovers only a root session whose audience still includes the scene aud
 Every chat run reaches the owner chat. A reply with an output target also reaches the session's scene. A module without a declared scene speaks for the owner.
 The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
 
+## Session lifecycle
+
+A session is `active` while a run uses it and `idle` after the run ends. The leader moves idle sessions to `dormant`, then `retired`.
+Settings > Memory sets both thresholds. The defaults are 30 minutes and 30 days, counted from the last run.
+A dormant session still recovers for its scene. A retired session leaves binding recovery, and an explicit run reactivates it.
+An `active` state without a running run returns to idle, for example after the previous leader closed. Lifecycle changes do not unload or archive history.
+`setSessionDigest` stores a summary that ends at a message in its session. The digest keeps the session audience at the time of writing.
+
 Array `destinations` on `context:update` route transport peers. The object form `{ include, exclude, all }` names logical readers.
 A module observation without logical readers belongs to `owner:private`. Bound scenes, such as Discord channels, do not read it.
 Module observations enter chat through a session-filtered context snapshot. Minecraft owns its status and relay descriptions in its integration service.

@@ -5,7 +5,7 @@ import type {} from 'pinia-plugin-synced'
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
+import type { ChatSessionDigest, ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, ChatSessionStatus } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
 import { audienceFromBindings, audienceIncludes, intersectAudiences } from '@proj-airi/core-agent'
@@ -1516,9 +1516,75 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     await persistSession(sessionId)
   }
 
+  /** Updates metadata in memory and in the loaded index. Callers persist the index. */
+  function writeSessionMeta(sessionId: string, patch: Partial<ChatSessionMeta>) {
+    const meta = sessionMetas.value[sessionId]
+    if (!meta)
+      return false
+    const next = { ...meta, ...patch }
+    sessionMetas.value[sessionId] = next
+    const characterIndex = index.value?.characters[meta.characterId]
+    if (characterIndex?.sessions[sessionId])
+      characterIndex.sessions[sessionId] = next
+    return true
+  }
+
+  /** Marks a session as used by a running run. A retired or dormant session becomes active again. */
+  async function markSessionRunStarted(sessionId: string) {
+    if (writeSessionMeta(sessionId, { status: 'active' }))
+      await persistIndex()
+  }
+
+  /** Marks the end of a run. Idle thresholds count from this time. */
+  async function markSessionRunEnded(sessionId: string, endedAt = Date.now()) {
+    if (writeSessionMeta(sessionId, { status: 'idle', lastRunAt: endedAt }))
+      await persistIndex()
+  }
+
+  /**
+   * Moves idle sessions forward: idle, then dormant, then retired. Only a run makes a session active again.
+   * An `active` session without a running run returns to idle, for example after the previous leader closed.
+   */
+  async function updateSessionLifecycle(options: { dormantAfterMs: number, retireAfterMs: number, runningSessionIds: readonly string[], now?: number }) {
+    const now = options.now ?? Date.now()
+    let changed = false
+    for (const meta of Object.values(sessionMetas.value)) {
+      let status: ChatSessionStatus = meta.status ?? 'idle'
+      if (status === 'active' && options.runningSessionIds.includes(meta.sessionId))
+        continue
+      if (status === 'active')
+        status = 'idle'
+      const idleFor = now - (meta.lastRunAt ?? meta.updatedAt)
+      if (status === 'idle' && idleFor >= options.dormantAfterMs)
+        status = 'dormant'
+      if (status === 'dormant' && idleFor >= options.dormantAfterMs + options.retireAfterMs)
+        status = 'retired'
+      if (status !== (meta.status ?? 'idle')) {
+        writeSessionMeta(meta.sessionId, { status })
+        changed = true
+      }
+    }
+    if (changed)
+      await persistIndex()
+  }
+
+  /**
+   * Stores a summary of a session's history. It keeps the session audience at the time of writing.
+   * Generation belongs to history compaction. This entry only validates and stores the result.
+   */
+  async function setSessionDigest(sessionId: string, digest: Pick<ChatSessionDigest, 'text' | 'upToMessageId'>) {
+    const audience = getSessionAudience(sessionId)
+    if (!audience)
+      throw new Error('The digest session does not exist')
+    if (!getSessionMessages(sessionId).some(message => message.id === digest.upToMessageId))
+      throw new Error('The digest must end at a message in its session')
+    writeSessionMeta(sessionId, { digest: { text: digest.text, upToMessageId: digest.upToMessageId, updatedAt: Date.now(), audience } })
+    await persistIndex()
+  }
+
   /**
    * Recovers one external scene without changing the window's selected conversation.
-   * Only a root session whose audience still reaches the scene can serve it. Otherwise the scene starts a new session.
+   * Only a root, unretired session whose audience still reaches the scene can serve it. Otherwise the scene starts a new session.
    */
   async function ensureBoundSession(binding: string): Promise<string> {
     if (!binding.trim())
@@ -1530,7 +1596,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const characterId = getCurrentCharacterId()
     const sceneAudience = audienceFromBindings([binding])
     const existing = Object.values(sessionMetas.value)
-      .filter(meta => meta.userId === currentUserId && meta.characterId === characterId && !meta.parentSessionId
+      .filter(meta => meta.userId === currentUserId && meta.characterId === characterId && !meta.parentSessionId && meta.status !== 'retired'
         && meta.bindings?.includes(binding) && audienceIncludes(getSessionAudience(meta.sessionId)!, sceneAudience))
       .sort((left, right) => right.updatedAt - left.updatedAt)[0]
     if (existing) {
@@ -1724,6 +1790,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ensureBoundSession,
     getSessionAudience,
     narrowSessionAudience,
+    markSessionRunStarted,
+    markSessionRunEnded,
+    updateSessionLifecycle,
+    setSessionDigest,
     loadSession,
     refreshSession,
     deleteSession,
@@ -1744,6 +1814,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'ensureCurrentSession',
       'ensureBoundSession',
       'narrowSessionAudience',
+      'markSessionRunStarted',
+      'markSessionRunEnded',
+      'updateSessionLifecycle',
+      'setSessionDigest',
       'exportSessions',
       'forkSession',
       'importSessions',

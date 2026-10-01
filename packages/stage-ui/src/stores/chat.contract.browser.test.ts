@@ -167,6 +167,9 @@ vi.mock('./chat/session-store', () => ({
     getSessionGeneration: () => currentGeneration,
     getSessionAudience: (sessionId: string) => audienceFromBindings(sessionMetas[sessionId]?.bindings),
     narrowSessionAudience: async () => {},
+    markSessionRunStarted: async () => {},
+    markSessionRunEnded: async () => {},
+    updateSessionLifecycle: async () => {},
     setSessionMessages: (sessionId: string, messages: ChatHistoryItem[]) => {
       sessionMessages[sessionId] = messages
     },

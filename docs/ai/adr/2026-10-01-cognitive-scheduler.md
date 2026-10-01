@@ -141,6 +141,10 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat.contract.browser.test.ts`): a reply with an output target reads with the scene audience.
 - Implemented: the context bridge labels observations from logical readers. Discord voice transcriptions bind to their channel.
 - Not provided: the run table is the current execution path, not P3 intake. Ignored stimuli and intentional silence have no record yet.
+- Observed (`session-store.browser.test.ts`): sessions move from active to idle, dormant, and retired. A retired session leaves binding recovery, and a run reactivates it.
+- Observed (`session-store.browser.test.ts`): a digest must end at a message in its session and keeps the session audience.
+- Implemented: Settings > Memory sets the dormant and retired thresholds. The leader applies them each minute.
+- Designed: digest generation belongs to P7 history compaction. P1 stores and validates digests only.
 
 ### Open P0 evidence
 
