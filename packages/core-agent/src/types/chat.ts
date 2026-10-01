@@ -93,6 +93,8 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
+  /** Server connection that receives the reply. An absent target keeps output inside the host. */
+  outputTarget?: string
 }
 
 export type ChatStreamEvent

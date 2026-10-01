@@ -22,10 +22,19 @@ Bindings belong to a user and character partition. Recovery keeps the calling wi
 Discord uses one binding per channel, including threads and direct messages.
 Conversation forks retain their parent session, reason, and hidden flag.
 
+Array `destinations` on `context:update` route transport peers. The object form `{ include, exclude, all }` names logical readers.
+A module observation without logical readers belongs to `owner:private`. Bound scenes, such as Discord channels, do not read it.
 Module observations enter chat through a session-filtered context snapshot. Minecraft owns its status and relay descriptions in its integration service.
 The frontend does not rebuild Minecraft prose or inject it into every request. Request-only providers contain application instructions, not module observations.
 Input side context and channel sends use the fixed `events` slot for append updates without a declared `contextId`.
 Explicit append slots still require host admission. Unique event identifiers do not create extra append windows.
+
+## Chat output boundaries
+
+Local chat turns stay inside the host. External input captures one server-assigned return connection, which stays attached to its queued turn.
+Message and completion events target that connection explicitly. They contain the reply and channel metadata, without prompt or context snapshots.
+Discord reads its channel from the top-level `discord` field. Cross-renderer stream projection remains on the local context channel.
+Transport targeting does not replace session audience checks. Those checks form the next scheduler stage.
 
 ## Notification ownership
 

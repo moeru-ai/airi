@@ -35,7 +35,8 @@ The existing session store uses Chat-shaped UI records. The orchestrator decodes
 Runtime context uses writer buckets containing independent `contextId` slots.
 `replace-self` replaces only the matching slot in that writer's bucket.
 Other slots and other writers remain intact. Snapshots are clones and cannot change registry state.
-Reader snapshots match exact destination identities and lanes. Exclusions take precedence over inclusions.
+Reader snapshots match exact destination identities. Exclusions take precedence over inclusions.
+A reader without a lane reads every lane. A lane-scoped reader reads its own lane and entries without a lane.
 An entry without destinations is visible only to its writer. Explicit `{ all: true }` publishes to all readers.
 An empty destination list publishes to no reader. Unfiltered snapshots serve local diagnostics only.
 Active observations expire after 60 seconds by default. `ttlMs` overrides their lifetime, and a local `expiresAt` can shorten it.
@@ -48,6 +49,7 @@ The default counter uses UTF-8 bytes as a conservative text cost. Hosts can supp
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
 Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.
 Each send captures one session-filtered snapshot for both the model request and its display events.
+Each send also retains its host-selected `outputTarget`. Output hooks keep this return address separate from input content and context visibility.
 Request-owned instruction providers run once per send. They bypass the observation pool and cannot retain stale instructions between sends.
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.

@@ -160,7 +160,7 @@ export class DiscordAdapter {
     this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
       try {
         const message = (event.data as { message?: { content: string } }).message
-        const discordContext = (event.data)['gen-ai:chat'].input.data.discord
+        const discordContext = event.data.discord
 
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
@@ -268,7 +268,7 @@ export class DiscordAdapter {
               ? [{
                   contextId: `${binding}:notice`,
                   strategy: ContextUpdateStrategy.ReplaceSelf,
-                  destinations: [binding],
+                  destinations: { include: [binding] },
                   text: discordNotice,
                   content: discordNotice,
                   metadata: {

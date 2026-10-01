@@ -34,7 +34,7 @@ export interface ContextIngestResult {
 export interface ContextReader {
   /** Exact destination identities. A match never grants instruction or tool authority. */
   ids: readonly string[]
-  /** A lane-scoped entry requires this lane. Entries without a lane remain eligible. */
+  /** Restricts the reader to one lane and unscoped entries. Omit it to subscribe to every lane. */
   lane?: string
 }
 
@@ -113,7 +113,8 @@ function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
 }
 
 function isVisibleToReader(message: ContextMessage, sourceKey: string, reader: ContextReader): boolean {
-  if (message.lane !== undefined && message.lane !== reader.lane)
+  // Lanes describe subscriptions. Destinations alone decide visibility.
+  if (reader.lane !== undefined && message.lane !== undefined && message.lane !== reader.lane)
     return false
 
   const destinations = message.destinations

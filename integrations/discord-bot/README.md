@@ -2,6 +2,12 @@
 
 Allow アイリ to talk to you and many other users in Discord voice channels.
 
+## Chat return routing
+
+The stage host returns chat output only to the requesting connection.
+The adapter reads the destination channel from `event.data.discord`. It does not require internal prompt or context snapshots.
+Input context uses object destinations to name logical channel readers. Array destinations remain transport addresses.
+
 ## Getting started
 
 ```shell

@@ -316,6 +316,59 @@ describe('context bridge contract', () => {
     localStorage.clear()
   })
 
+  // ROOT CAUSE:
+  // Chat output hooks broadcast every reply and its prompt snapshot, including local private turns.
+  // Only a transport return address permits module output. Prompt snapshots stay inside the host.
+  it.each(['message', 'complete'] as const)('keeps local %s output inside the host', async (kind) => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    serverSendMock.mockClear()
+    const context: ChatStreamEventContext = {
+      turnId: 'private-turn',
+      message: { role: 'user', content: 'private question' },
+      contexts: {},
+      composedMessage: [{ role: 'system', content: 'private system prompt' }],
+      input: { type: 'input:text', data: { text: 'private question' } },
+    }
+    const message = { role: 'assistant', content: 'private reply' }
+
+    if (kind === 'message')
+      await emitHooks(assistantMessageHooks, message, message.content, context)
+    else
+      await emitHooks(turnCompleteHooks, { output: message }, context)
+
+    expect(serverSendMock).not.toHaveBeenCalled()
+  })
+
+  it.each(['message', 'complete'] as const)('returns %s output only to its origin without prompt snapshots', async (kind) => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    serverSendMock.mockClear()
+    const context = {
+      turnId: 'external-turn',
+      message: { role: 'user', content: 'channel question' },
+      contexts: { private: [createContextMessage({ text: 'private observation' })] },
+      composedMessage: [{ role: 'system', content: 'private system prompt' }],
+      input: { type: 'input:text', data: { text: 'channel question', discord: { channelId: 'channel-a' }, secret: 'input-only' } },
+      outputTarget: 'discord:instance-a',
+    }
+    const message = { role: 'assistant', content: 'channel reply' }
+
+    if (kind === 'message')
+      await emitHooks(assistantMessageHooks, message, message.content, context)
+    else
+      await emitHooks(turnCompleteHooks, { output: message }, context)
+
+    expect(serverSendMock).toHaveBeenCalledTimes(1)
+    const output = serverSendMock.mock.calls[0][0]
+    expect(output.route).toEqual({ destinations: [{ type: 'connection', connections: ['discord:instance-a'] }] })
+    expect(output.data.message).toEqual(message)
+    expect(output.data.discord).toEqual({ channelId: 'channel-a' })
+    expect(output.data).not.toHaveProperty('gen-ai:chat')
+    expect(output.data).not.toHaveProperty('secret')
+    expect(output.data).not.toHaveProperty('text')
+  })
+
   it('records core ingest result for broadcast context updates', async () => {
     chatContextIngestMock.mockReturnValueOnce({
       sourceKey: 'weather:station-1',
@@ -382,6 +435,23 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('gives module observations without logical readers to the owner scene', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitContextUpdate(createContextUpdateEvent({ id: 'unaddressed' }))
+    await emitContextUpdate(createContextUpdateEvent({ id: 'transport-routed', destinations: ['instance:stage-1'] }))
+    await emitContextUpdate(createContextUpdateEvent({ id: 'shared', destinations: { include: ['discord:channel:a'] } }))
+
+    expect(chatContextIngestMock.mock.calls.map(([message]) => [message.id, message.destinations])).toEqual([
+      ['unaddressed', { include: ['owner:private'] }],
+      ['transport-routed', { include: ['owner:private'] }],
+      ['shared', { include: ['discord:channel:a'] }],
+    ])
+
+    await store.dispose()
+  })
+
   // https://github.com/moeru-ai/airi/actions/runs/34237304157/job/102098223378
   // ROOT CAUSE:
   // The old consciousness mock omitted temperature and top-p. Input handling
@@ -405,7 +475,7 @@ describe('context bridge contract', () => {
     await emitServerEvent('input:text', {
       type: 'input:text',
       source: 'extension-module-host',
-      metadata: createMetadata('weather', 'station-1'),
+      metadata: { ...createMetadata('weather', 'station-1'), originConnectionId: 'station-connection' },
       data: {
         text: 'hello',
         contextUpdates: [
@@ -431,6 +501,7 @@ describe('context bridge contract', () => {
     expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
     expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({
       sessionId: 'session-1',
+      outputTarget: 'station-connection',
       text: 'hello',
       temperature: 0.3,
       topP: 0.8,

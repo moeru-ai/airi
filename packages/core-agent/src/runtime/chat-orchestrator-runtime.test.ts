@@ -647,6 +647,26 @@ describe('createChatOrchestratorRuntime', () => {
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
   })
 
+  it('keeps each queued turn attached to its own output target', async () => {
+    const harness = createHarness()
+    const messageTargets: Array<string | undefined> = []
+    const completeTargets: Array<string | undefined> = []
+    harness.runtime.hooks.onAssistantMessage(async (_message, _text, context) => {
+      messageTargets.push(context.outputTarget)
+    })
+    harness.runtime.hooks.onChatTurnComplete(async (_chat, context) => {
+      completeTargets.push(context.outputTarget)
+    })
+
+    await Promise.all([
+      harness.runtime.ingest('external', { model: 'test', chatProvider: provider, outputTarget: 'discord-a' }, 'external-session'),
+      harness.runtime.ingest('local', { model: 'test', chatProvider: provider }, 'session-1'),
+    ])
+
+    expect(messageTargets).toEqual(['discord-a', undefined])
+    expect(completeTargets).toEqual(['discord-a', undefined])
+  })
+
   it('emits telemetry milestones for a successful voice-backed message round', async () => {
     const harness = createHarness()
     harness.monotonicNow.set([100, 150, 250, 400, 460])

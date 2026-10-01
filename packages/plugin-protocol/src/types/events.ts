@@ -501,6 +501,8 @@ export type RouteTargetExpression
     | { type: 'ids', ids: string[], inverted?: boolean }
     | { type: 'plugin', plugins: string[], inverted?: boolean }
     | { type: 'instance', instances: string[], inverted?: boolean }
+    /** Exact server connection IDs, without module aliases or wildcard matching. */
+    | { type: 'connection', connections: string[] }
     | { type: 'label', selectors: string[], inverted?: boolean }
     | { type: 'module', modules: string[], inverted?: boolean }
     | { type: 'source', sources: string[], inverted?: boolean }

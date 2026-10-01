@@ -58,6 +58,8 @@ export interface ChatSendPayload {
   attachments?: { type: 'image', data: string, mimeType: string }[]
   /** Original input metadata for chat hooks and telemetry. */
   input?: WebSocketEventInputs
+  /** Server connection for this reply. Local turns have no transport target. */
+  outputTarget?: ChatOrchestratorSendOptions['outputTarget']
   /** Session that owns the new turn. */
   sessionId: string
   /** Message that the new user turn replies to in the target session. */
@@ -574,6 +576,7 @@ export const useChatStore = defineStore('chat', () => {
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
+      outputTarget: payload.outputTarget,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
       temperature: payload.temperature ?? consciousnessStore.activeTemperature,

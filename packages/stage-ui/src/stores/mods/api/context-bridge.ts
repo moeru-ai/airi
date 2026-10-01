@@ -1,6 +1,5 @@
 import type { LlmStreamingControlCallManifest } from '@proj-airi/pipelines-audio'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
-import type { UserMessage } from '@xsai/shared-chat'
 
 import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat'
 import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
@@ -601,6 +600,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         })
         const contextMessage: ContextMessage = {
           ...event.data,
+          // Array destinations route transport peers. Only the object form names logical readers.
+          // Local modules without readers belong to the owner's scene.
+          destinations: event.data.destinations && !Array.isArray(event.data.destinations)
+            ? event.data.destinations
+            : { include: ['owner:private'] },
           metadata: event.metadata,
           createdAt: Date.now(),
         }
@@ -761,6 +765,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 : overrides?.sessionId ?? chatSession.activeSessionId
               await chatOrchestrator.send({
                 sessionId: targetSessionId,
+                outputTarget: event.metadata?.originConnectionId,
                 text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,
@@ -839,28 +844,29 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+          // Local turns have no external recipient. Internal prompt snapshots never leave the host through chat output.
+          if (isProcessingRemoteStream || !context.outputTarget)
+            return
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
+            route: { destinations: [{ type: 'connection', connections: [context.outputTarget] }] },
             data: {
-              ...context.input?.data,
+              'discord': context.input?.data.discord,
               message,
               'stage-web': isStageWeb(),
               'stage-tamagotchi': isStageTamagotchi(),
-              'gen-ai:chat': {
-                message: context.message as UserMessage,
-                composedMessage: context.composedMessage,
-                contexts: context.contexts,
-                input: context.input,
-              },
             },
           })
         }),
 
         chatOrchestrator.onChatTurnComplete(async (chat, context) => {
+          if (isProcessingRemoteStream || !context.outputTarget)
+            return
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
+            route: { destinations: [{ type: 'connection', connections: [context.outputTarget] }] },
             data: {
-              ...context.input?.data,
+              'discord': context.input?.data.discord,
               'message': chat.output,
               // TODO: tool calls should be captured properly
               'toolCalls': [],
@@ -872,12 +878,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 completionTokens: 0,
                 totalTokens: 0,
                 source: 'estimate-based',
-              },
-              'gen-ai:chat': {
-                message: context.message as UserMessage,
-                composedMessage: context.composedMessage,
-                contexts: context.contexts,
-                input: context.input,
               },
             },
           })

@@ -78,7 +78,16 @@ describe('createContextRegistry', () => {
     registry.ingest(createContextMessage({ source: 'shared', destinations: ['character'] }))
 
     expect(Object.keys(registry.snapshot({ ids: ['character', 'owner:private'], lane: 'chat' }))).toEqual(['chat', 'shared'])
-    expect(Object.keys(registry.snapshot({ ids: ['character'] }))).toEqual(['secret', 'shared'])
+    expect(Object.keys(registry.snapshot({ ids: ['character'] }))).toEqual(['secret', 'chat', 'game', 'shared'])
+  })
+
+  it('lets a reader without a lane subscription read every lane it is addressed by', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'minecraft', lane: 'minecraft:status', destinations: { include: ['owner:private'] } }))
+    registry.ingest(createContextMessage({ source: 'browser', lane: 'web:page', destinations: { include: ['owner:private'] } }))
+
+    expect(Object.keys(registry.snapshot({ ids: ['owner:private'] }))).toEqual(['minecraft', 'browser'])
+    expect(registry.snapshot({ ids: ['discord:channel:a'] })).toEqual({})
   })
 
   it('limits unspecified destinations to the writer and treats empty destinations as private', () => {

@@ -11,6 +11,7 @@ import type {
 import type { Message as CrossWsMessage, Peer as CrossWsPeer } from 'crossws'
 
 import type {
+  RouteContext,
   RouteMiddleware,
   RoutingPolicy,
 } from './middlewares'
@@ -352,7 +353,13 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     consumers.unregisterPeer(peerId)
   }
 
-  function selectConsumer(event: WebSocketEvent, fromPeerId: string, delivery?: DeliveryConfig) {
+  function selectConsumer(
+    event: WebSocketEvent,
+    fromPeerId: string,
+    delivery?: DeliveryConfig,
+    destinations?: RouteContext['destinations'],
+    targetIds?: Set<string>,
+  ) {
     if (!isConsumerDeliveryMode(delivery?.mode)) {
       return
     }
@@ -365,6 +372,11 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         event: event.type,
         mode: delivery?.mode,
         group: delivery?.group,
+      }).filter((entry) => {
+        const candidate = peers.get(entry.peerId)
+        if (destinations && (!candidate || !matchesDestinations(destinations, candidate)))
+          return false
+        return !targetIds || targetIds.has(entry.peerId)
       }).map(entry => ({
         peerId: entry.peerId,
         priority: entry.priority,
@@ -875,9 +887,19 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
+    // Chat output can contain private replies. Missing routes never authorize broadcast, even for devtools or configured middleware.
+    const isChatOutput = event.type.startsWith('output:gen-ai:chat:')
+    if (isChatOutput && !event.route?.destinations?.length)
+      return
+
+    if (event.type === 'input:text' || event.type === 'input:text:voice' || event.type === 'input:voice') {
+      // Module IDs can collide or change on a shared connection. Only the server owns the physical return address.
+      event.metadata = { ...event.metadata, originConnectionId: peer.id }
+    }
+
     const payload = stringifyEvent(event)
     const allowBypass = options?.routing?.allowBypass !== false
-    const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
+    const shouldBypass = !isChatOutput && Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
     const destinations = shouldBypass ? undefined : collectDestinations(event)
     const delivery = shouldBypass ? undefined : resolveEventDelivery(event)
     const effectiveRoutingMiddleware = shouldBypass ? [] : routingMiddleware
@@ -894,7 +916,9 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
-    const selectedConsumer = selectConsumer(event, peer.id, delivery)
+    const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
+    // Consumer selection and broadcast delivery obey the same output boundary.
+    const selectedConsumer = selectConsumer(event, peer.id, delivery, isChatOutput ? destinations : undefined, isChatOutput ? targetIds : undefined)
     if (delivery && (delivery.mode === 'consumer' || delivery.mode === 'consumer-group')) {
       if (!selectedConsumer) {
         logger.withFields({ peer: peer.id, peerName: p.name, event, delivery }).warn('no consumer registered for event delivery')
@@ -931,7 +955,6 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
-    const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
     const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
     logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
@@ -951,7 +974,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         continue
       }
 
-      if (shouldBroadcast && destinations !== undefined && !matchesDestinations(destinations, other)) {
+      if ((shouldBroadcast || isChatOutput) && destinations !== undefined && !matchesDestinations(destinations, other)) {
         continue
       }
 

@@ -126,6 +126,8 @@ export interface ChatOrchestratorSendOptions {
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Host-selected return connection. This transport address does not grant access to context. */
+  outputTarget?: ChatStreamEventContext['outputTarget']
   /** Message that the new user turn replies to in the target session. */
   replyToMessageId?: string
   /** Temperature for the LLM request. */
@@ -562,6 +564,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: requestContexts,
       composedMessage: [],
       input: options.input,
+      outputTarget: options.outputTarget,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
