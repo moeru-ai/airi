@@ -16,7 +16,7 @@ This is a plugin for the AIRI to understand what you are reading, looking at, or
 Page, video, and subtitle updates replace the fixed `web:page`, `web:video`, and `web:subtitle` slots.
 Each text uses the shared 80-token budget. Oversized text becomes a `web-extension:context` reference to its slot.
 The latest full payload remains in `ClientState.lastPage`, `lastVideo`, or `lastSubtitle` until replacement or background restart.
-These references identify current module state. They do not grant access, and cross-module authorized queries remain separate work.
+These references identify current module state. They do not grant access. A host read returns the slot's full text only to the requesting connection.
 The connection announces an extension module identity, as required by the Server SDK handshake.
 
 ## Quick start

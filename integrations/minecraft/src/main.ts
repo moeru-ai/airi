@@ -75,7 +75,7 @@ async function main() {
     name: config.airi.clientName,
     url: config.airi.wsBaseUrl,
     token: config.airi.token || undefined,
-    possibleEvents: ['module:configure', 'module:announced', 'spark:command', 'context:update'],
+    possibleEvents: ['module:configure', 'module:announced', 'spark:command', 'context:update', 'context:source:request'],
     autoConnect: false,
     // NOTICE:
     // The bot's Node event loop occasionally goes quiet for ~30s (busy mineflayer packet handling /

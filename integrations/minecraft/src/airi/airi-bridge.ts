@@ -183,6 +183,11 @@ export class AiriBridge {
     this.commandAvailable = available
   }
 
+  /** Answers host reads for this module's origin handles. Each answer goes only to the requester. */
+  onContextSourceRequest(read: Parameters<Client['onContextSourceRequest']>[0]) {
+    return this.client.onContextSourceRequest(read)
+  }
+
   onModuleAnnounced(listener: (event: ModuleAnnouncedEvent) => void) {
     this.moduleAnnouncedListeners.add(listener)
 

@@ -9,6 +9,7 @@ import { createClientState, ensureClient, handlePageContext, handleSubtitle, han
 
 const send = vi.hoisted(() => vi.fn<(event: WebSocketEventOptionalSource) => void>())
 const connectOptions = vi.hoisted(() => vi.fn<(options: ClientOptions) => void>())
+const sourceReader = vi.hoisted(() => ({ read: undefined as ((sourceRef: { refType: string, targetId: string }) => string | undefined) | undefined }))
 
 vi.mock('@proj-airi/server-sdk', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('@proj-airi/server-sdk')>()
@@ -20,6 +21,11 @@ vi.mock('@proj-airi/server-sdk', async (importOriginal) => {
       }
 
       connect = vi.fn(async () => {})
+      onContextSourceRequest = vi.fn((read: (sourceRef: { refType: string, targetId: string }) => string | undefined) => {
+        sourceReader.read = read
+        return () => {}
+      })
+
       send = send
       close = vi.fn()
     },
@@ -89,6 +95,8 @@ describe('browser observation slots', () => {
       expect(event.data.sourceRef).toEqual({ refType: 'web-extension:context', targetId: `web:${slot}` })
     }
     expect(registry.snapshot().unknown).toHaveLength(1)
+    expect(sourceReader.read?.({ refType: 'web-extension:context', targetId: `web:${slot}` })).toContain(text)
+    expect(sourceReader.read?.({ refType: 'other', targetId: `web:${slot}` })).toBeUndefined()
   })
 
   it('replaces each domain slot without retaining previous page updates', async () => {

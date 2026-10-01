@@ -21,12 +21,15 @@ export interface ClientState {
   lastVideo?: VideoContextPayload
   lastSubtitle?: SubtitlePayload
   lastVisionFrameAt?: number
+  /** Full text of each published slot. The host reads it through the slot's origin handle. */
+  sourceDetails: Map<string, string>
 }
 
 export function createClientState(): ClientState {
   return {
     client: null,
     connected: false,
+    sourceDetails: new Map(),
   }
 }
 
@@ -70,7 +73,7 @@ export async function ensureClient(state: ClientState, settings: ExtensionSettin
     url: settings.wsUrl,
     token: settings.token || undefined,
     identity: createIdentity(),
-    possibleEvents: ['context:update', 'spark:notify', 'spark:emit'],
+    possibleEvents: ['context:update', 'context:source:request', 'spark:notify', 'spark:emit'],
     autoConnect: false,
     autoReconnect: true,
     onError: (error) => {
@@ -83,6 +86,7 @@ export async function ensureClient(state: ClientState, settings: ExtensionSettin
   })
 
   state.client = client
+  client.onContextSourceRequest(sourceRef => sourceRef.refType === 'web-extension:context' ? state.sourceDetails.get(sourceRef.targetId) : undefined)
 
   try {
     await client.connect()
@@ -108,6 +112,7 @@ async function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate,
   if (!state.client || !state.connected)
     return
 
+  state.sourceDetails.set(update.contextId, update.text)
   const observation = await createContextText(update.text, { refType: 'web-extension:context', targetId: update.contextId })
   // The connection can close while the encoder loads.
   if (!state.client || !state.connected)

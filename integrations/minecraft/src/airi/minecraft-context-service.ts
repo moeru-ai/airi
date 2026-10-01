@@ -1,4 +1,4 @@
-import type { ContextUpdate, ModuleAnnouncedEvent } from '@proj-airi/server-sdk'
+import type { ContextSourceRef, ContextUpdate, ModuleAnnouncedEvent } from '@proj-airi/server-sdk'
 
 import type { MineflayerWithAgents } from '../cognitive/types'
 
@@ -33,6 +33,7 @@ interface MinecraftContextBot {
 }
 
 interface MinecraftContextBridge {
+  onContextSourceRequest: (read: (sourceRef: ContextSourceRef) => string | undefined) => () => void
   onModuleAnnounced: (listener: (event: ModuleAnnouncedEvent) => void) => () => void
   sendContextUpdate: (update: ContextUpdate) => void
   setCommandAvailable: (available: boolean) => void
@@ -59,6 +60,23 @@ function buildStatusText(snapshot: MinecraftStatusSnapshot) {
     `Health: ${snapshot.health}/20, Mode: ${snapshot.gameMode}`,
     `Other players online: ${snapshot.otherPlayers.length}`,
     ...(snapshot.masterUsername ? [`Owner: ${snapshot.masterUsername}`] : []),
+  ].join('\n')
+}
+
+/** Full status for a host read. The pool observation stays short, so these facts stay in the module until a request needs them. */
+function buildStatusDetails(snapshot: MinecraftStatusSnapshot | null, serverHost: string, serverPort: number, masterUsername?: string) {
+  if (!snapshot) {
+    return [
+      buildOfflineStatusText(),
+      `Configured server: ${serverHost}:${serverPort}`,
+      ...(masterUsername ? [`Configured owner: ${masterUsername}`] : []),
+    ].join('\n')
+  }
+
+  return [
+    buildStatusText(snapshot),
+    `Server: ${snapshot.serverHost}:${snapshot.serverPort}`,
+    `Other players: ${snapshot.otherPlayers.length > 0 ? snapshot.otherPlayers.join(', ') : 'none'}`,
   ].join('\n')
 }
 
@@ -100,6 +118,7 @@ export class MinecraftContextService {
   private lastPublishedText = ''
   private refreshTimer: ReturnType<typeof setInterval> | null = null
   private unsubscribeModuleAnnounced: (() => void) | null = null
+  private unsubscribeSourceRequests: (() => void) | null = null
   private readonly serverHost: string
   private readonly serverPort: number
   private readonly refreshIntervalMs: number
@@ -126,6 +145,11 @@ export class MinecraftContextService {
     if (this.unsubscribeModuleAnnounced) {
       return
     }
+
+    this.unsubscribeSourceRequests = this.deps.airiBridge.onContextSourceRequest(sourceRef =>
+      sourceRef.refType === 'minecraft:status' && sourceRef.targetId === STATUS_CONTEXT_ID
+        ? buildStatusDetails(this.refreshStatusSnapshot(), this.serverHost, this.serverPort, this.masterUsername)
+        : undefined)
 
     this.unsubscribeModuleAnnounced = this.deps.airiBridge.onModuleAnnounced((event) => {
       const destinations = collectFrontendDestinations(event)
@@ -210,6 +234,8 @@ export class MinecraftContextService {
     this.unbindBot()
     this.unsubscribeModuleAnnounced?.()
     this.unsubscribeModuleAnnounced = null
+    this.unsubscribeSourceRequests?.()
+    this.unsubscribeSourceRequests = null
   }
 
   private refreshStatusSnapshot() {

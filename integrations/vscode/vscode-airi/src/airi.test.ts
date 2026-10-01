@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Client } from './airi'
 
 const send = vi.hoisted(() => vi.fn<(event: WebSocketEventOptionalSource<Events>) => void>())
+const sourceReader = vi.hoisted(() => ({ read: undefined as ((sourceRef: { refType: string, targetId: string }) => string | undefined) | undefined }))
 
 vi.mock('@proj-airi/server-sdk', async (importOriginal) => {
   const sdk = await importOriginal<typeof import('@proj-airi/server-sdk')>()
@@ -15,6 +16,11 @@ vi.mock('@proj-airi/server-sdk', async (importOriginal) => {
     ...sdk,
     Client: class {
       connect = vi.fn(async () => {})
+      onContextSourceRequest = vi.fn((read: (sourceRef: { refType: string, targetId: string }) => string | undefined) => {
+        sourceReader.read = read
+        return () => {}
+      })
+
       send = send
       close = vi.fn()
     },
@@ -45,6 +51,7 @@ describe('vs Code context slots', () => {
     if (!event.data.sourceRef)
       throw new Error('Expected an origin reference')
     expect(client.getContext(event.data.sourceRef)).toBe(details)
+    expect(sourceReader.read?.(event.data.sourceRef)).toBe(details)
     client.disconnect()
     expect(client.getContext(event.data.sourceRef)).toBeUndefined()
   })

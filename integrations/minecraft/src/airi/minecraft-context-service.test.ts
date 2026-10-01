@@ -24,7 +24,14 @@ function fakeBot(): ContextBot {
 function makeService(masterUsername?: string, refreshIntervalMs?: number) {
   const captured: ContextUpdate[] = []
   let moduleAnnouncedListener: ((event: ModuleAnnouncedEvent) => void) | undefined
+  let readSource: ((sourceRef: { refType: string, targetId: string }) => string | undefined) | undefined
   const airiBridge = {
+    onContextSourceRequest: vi.fn((read: (sourceRef: { refType: string, targetId: string }) => string | undefined) => {
+      readSource = read
+      return () => {
+        readSource = undefined
+      }
+    }),
     onModuleAnnounced: vi.fn((listener: (event: ModuleAnnouncedEvent) => void) => {
       moduleAnnouncedListener = listener
       return () => {
@@ -48,6 +55,7 @@ function makeService(masterUsername?: string, refreshIntervalMs?: number) {
     airiBridge,
     captured,
     getModuleAnnouncedListener: () => moduleAnnouncedListener,
+    readSource: (sourceRef: { refType: string, targetId: string }) => readSource?.(sourceRef),
     service,
   }
 }
@@ -80,6 +88,27 @@ describe('minecraftContextService desktop relay context', () => {
     finally {
       service.destroy()
     }
+  })
+
+  // ROOT CAUSE:
+  // The budgeted status dropped player names and the server address, and no read path returned them.
+  it('answers a status read with the facts that the observation omits', () => {
+    const { service, readSource } = makeService('dssadg')
+    service.init()
+    try {
+      const statusRef = { refType: 'minecraft:status', targetId: 'minecraft:status' }
+      expect(readSource(statusRef)).toContain('Configured server: 127.0.0.1:25565')
+      service.bindBot(fakeBot())
+
+      const details = readSource(statusRef)
+      expect(details).toContain('Server: 127.0.0.1:25565')
+      expect(details).toContain('Other players: Bob, dssadg')
+      expect(readSource({ refType: 'minecraft:status', targetId: 'other' })).toBeUndefined()
+    }
+    finally {
+      service.destroy()
+    }
+    expect(readSource({ refType: 'minecraft:status', targetId: 'minecraft:status' })).toBeUndefined()
   })
 
   it('sizes status expiry for the configured refresh cadence', async () => {

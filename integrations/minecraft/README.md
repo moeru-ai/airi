@@ -8,6 +8,7 @@ Plain bridge observations append to the fixed `events` slot. The receiving conte
 Structured status updates retain their own `contextId` and replacement strategy.
 The status publisher sends compact facts with a `minecraft:status` source reference, not tool instructions or world data.
 `getStatusSnapshot()` retains the full current status in the module. Oversized observations become references instead of truncated world details.
+A host read of `minecraft:status` returns the server address, player names, and owner. The answer goes only to the requesting connection.
 Online status renews every refresh interval, even without changes. Its TTL expires after three missed refreshes. Unbinding stops renewal.
 The bridge preserves module-declared retention, visibility, and structured observation fields. The receiving host enforces pool admission and reader visibility.
 

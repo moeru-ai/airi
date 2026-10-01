@@ -18,6 +18,8 @@ export class Client {
   async connect(): Promise<boolean> {
     try {
       this.client = new ServerClient<Events>({ name: 'proj-airi:plugin-vscode' })
+      // The host reads retained workspace and event details through origin handles.
+      this.client.onContextSourceRequest(sourceRef => this.getContext(sourceRef))
       await this.client.connect()
       useLogger().log('AIRI connected to Server Channel')
       return true
