@@ -36,6 +36,24 @@ Audience rules and persona disclosure rules remain independent.
 Application context has context authority. Untrusted text cannot authorize tools, module control, or memory writes.
 JEV improves decisions, with deterministic fallback and an 800ms deadline. Direct user conversation bypasses synchronous triage.
 
+## Plain mechanisms
+
+The design terms name conventional mechanisms. Code uses the plain names.
+
+| Design term | Mechanism |
+| --- | --- |
+| Scheduler and admission | Several queues with admission rules |
+| Execution envelope | A capability ACL for one run, checked where each action executes |
+| Audience | Access labels with set operations: intersection, union, and inclusion |
+| Exclusive resource and lease | A resource lease with an expiry |
+| Session | A persisted session with a state machine |
+| Mood role | One classifier call and a smoothing function |
+| Long-term memory | A database with provenance and invalidation rules |
+| Internal stimulus | A timer and rules or a classifier that decide whether to enqueue work |
+
+The mechanisms are not the open work. Policy and evaluation are: when to stay silent, what to remember, when to interrupt, and whether mood changes decisions.
+Scenario tests must prove those behaviors. A mechanism alone does not prove them.
+
 ## Stages and acceptance
 
 | Stage | Change | Acceptance |
