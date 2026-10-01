@@ -2,6 +2,7 @@ import type { ContextMessage } from '../types/chat'
 
 export interface AgentContextPort {
   ingest: (envelope: ContextMessage) => void
-  snapshot: () => Record<string, ContextMessage[]>
+  /** Projects context for the identified session. Diagnostic snapshots cannot enter a model request. */
+  snapshot: (sessionId: string) => Record<string, ContextMessage[]>
   reset: () => void
 }

@@ -1,4 +1,4 @@
-import type { ContextHistoryEntry, ContextIngestResult, ContextMessage } from '@proj-airi/core-agent'
+import type { ContextHistoryEntry, ContextIngestResult, ContextMessage, ContextReader } from '@proj-airi/core-agent'
 
 import { createContextRegistry } from '@proj-airi/core-agent'
 import { defineStore } from 'pinia'
@@ -50,8 +50,10 @@ export const useChatContextStore = defineStore('chat-context', () => {
     syncRegistrySnapshot()
   }
 
-  function getContextsSnapshot() {
-    return registry.snapshot()
+  function getContextsSnapshot(reader?: ContextReader) {
+    const snapshot = registry.snapshot(reader)
+    syncRegistrySnapshot()
+    return snapshot
   }
 
   function getContextBucketsSnapshot() {

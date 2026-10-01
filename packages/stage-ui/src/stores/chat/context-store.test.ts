@@ -29,7 +29,7 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
     contextId: overrides.contextId ?? id,
     strategy: overrides.strategy ?? ContextUpdateStrategy.ReplaceSelf,
     text: overrides.text ?? 'context text',
-    createdAt: overrides.createdAt ?? 1,
+    createdAt: overrides.createdAt ?? Date.now(),
     ...overrides,
   }
 }
@@ -189,20 +189,21 @@ describe('useChatContextStore', () => {
    */
   it('preserves context bucket snapshot fields and latestCreatedAt calculation', () => {
     const store = useChatContextStore()
+    const timestamp = Date.now()
 
     store.ingestContextMessage(createContextMessage({
       id: 'first',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
       text: 'early',
-      createdAt: 10,
+      createdAt: timestamp - 20,
     }))
     store.ingestContextMessage(createContextMessage({
       id: 'second',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
       text: 'late',
-      createdAt: 30,
+      createdAt: timestamp,
     }))
 
     const bucket = store.getContextBucketsSnapshot().find(snapshot => snapshot.sourceKey === 'sensor')
@@ -213,7 +214,7 @@ describe('useChatContextStore', () => {
 
     expect(bucket.sourceKey).toBe('sensor')
     expect(bucket.entryCount).toBe(2)
-    expect(bucket.latestCreatedAt).toBe(30)
+    expect(bucket.latestCreatedAt).toBe(timestamp)
     expect(bucket.messages.map(message => message.text)).toEqual(['early', 'late'])
   })
 

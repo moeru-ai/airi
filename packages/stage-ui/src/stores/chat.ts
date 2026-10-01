@@ -435,11 +435,17 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => {
-        const snapshot = { ...chatContext.getContextsSnapshot() }
+      snapshot: (sessionId) => {
+        const bindings = chatSession.sessionMetas[sessionId]?.bindings
+        const ids = [sessionId]
+        if (bindings?.length)
+          ids.push(...bindings)
+        else
+          ids.push('character', 'owner:private')
+        const snapshot = chatContext.getContextsSnapshot({ ids })
         // Account data belongs to this request, not the persistent context registry.
         // A signed-out request therefore cannot inherit the previous account snapshot.
-        const account = createUserAccountContext(authStore)
+        const account = bindings?.length ? null : createUserAccountContext(authStore)
         if (account)
           snapshot[account.contextId] = [account]
         return snapshot

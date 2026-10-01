@@ -43,6 +43,8 @@ The default budgets are 800 units total, 200 per writer, and 80 per entry. Each 
 The default counter uses UTF-8 bytes as a conservative text cost. Hosts can supply a tokenizer through `countTokens`.
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
 Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.
+Each send captures one session-filtered snapshot for both the model request and its display events.
+Request-owned instruction providers run once per send. They bypass the observation pool and cannot retain stale instructions between sends.
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 

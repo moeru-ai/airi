@@ -4,11 +4,13 @@ import type { Message } from '@xsai/shared-chat'
 import type { Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ChatOrchestratorRuntimeDeps } from './chat-orchestrator-runtime'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
+import { renderConversationPreview } from '../messages/preview'
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
 import { streamFrom } from './llm-service'
 
@@ -16,7 +18,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider') {
+function createHarness(getActiveProvider = () => 'mock-provider', runtimeContextProviders?: ChatOrchestratorRuntimeDeps['runtimeContextProviders']) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -28,6 +30,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     ],
   }
   const contextSnapshot: Record<string, ContextMessage[]> = {}
+  const ingestContext = vi.fn()
+  const snapshotContext = vi.fn((_sessionId: string) => structuredClone(contextSnapshot))
   const foregroundPatches: StreamingAssistantMessage[] = []
   const foregroundResets: StreamingAssistantMessage[] = []
   const lifecycleRecords: unknown[] = []
@@ -73,8 +77,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
       getSessionGeneration: () => generation,
     },
     context: {
-      ingest: vi.fn(),
-      snapshot: () => structuredClone(contextSnapshot),
+      ingest: ingestContext,
+      snapshot: snapshotContext,
     },
     foregroundStream: {
       patch: message => foregroundPatches.push(message),
@@ -85,6 +89,7 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
+    runtimeContextProviders,
     getSystemPromptSupplement: () => systemPromptSupplement,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
@@ -121,6 +126,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     assistantTurns,
     contextSnapshot,
+    ingestContext,
+    snapshotContext,
     foregroundPatches,
     foregroundResets,
     generation: {
@@ -156,6 +163,26 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  it('projects one session and reads fresh runtime prompts without retaining them in the shared pool', async () => {
+    const runtimeContext: ContextMessage = {
+      id: 'runtime',
+      contextId: 'runtime',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      text: 'current runtime instructions',
+      createdAt: Date.now(),
+    }
+    let currentContext: ContextMessage | undefined = runtimeContext
+    const harness = createHarness(undefined, [() => currentContext])
+    await harness.runtime.ingest('first', { model: 'test', chatProvider: provider }, 'session-1')
+    expect(harness.snapshotContext).toHaveBeenCalledWith('session-1')
+    expect(harness.ingestContext).not.toHaveBeenCalled()
+    expect(renderConversationPreview(harness.stream.mock.calls[0][2]).at(-1)?.content).toContain('current runtime instructions')
+
+    currentContext = undefined
+    await harness.runtime.ingest('second', { model: 'test', chatProvider: provider }, 'session-1')
+    expect(JSON.stringify(harness.stream.mock.calls[1][2])).not.toContain('current runtime instructions')
+  })
+
   // ROOT CAUSE:
   //
   // The marker parser buffered 24 literal characters plus its marker-safety tail.

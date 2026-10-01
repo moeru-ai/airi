@@ -259,7 +259,7 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
-  /** Runtime context providers ingested immediately before prompt composition. */
+  /** Request-owned context providers evaluated once per send, outside the shared pool. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
@@ -481,12 +481,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function ingestRuntimeContexts() {
-    for (const provider of deps.runtimeContextProviders ?? []) {
-      const contextMessage = provider()
-      if (contextMessage)
-        deps.context.ingest(contextMessage)
+  function getRequestContexts(sessionId: string) {
+    const snapshot = deps.context.snapshot(sessionId)
+    if (!deps.runtimeContextProviders)
+      return snapshot
+    for (const provider of deps.runtimeContextProviders) {
+      const context = provider()
+      if (context)
+        snapshot[context.contextId] = [context]
     }
+    return snapshot
   }
 
   function getStablePromptTimestamp(message: ChatHistoryItem, fallbackCreatedAt: number) {
@@ -537,11 +541,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    ingestRuntimeContexts()
+    const requestContexts = getRequestContexts(sessionId)
 
     const sendingCreatedAt = now()
 
-    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
     // Allocate the three per-round ids in their historical order so callers
     // with deterministic id factories keep the same durable message ids.
     const streamContextMessageId = createId()
@@ -556,7 +559,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: streamContextMessageId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
       },
-      contexts: deps.context.snapshot(),
+      contexts: requestContexts,
       composedMessage: [],
       input: options.input,
     }
@@ -765,7 +768,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
-      const contextsSnapshot = deps.context.snapshot()
+      const contextsSnapshot = requestContexts
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
         const lastMessage = context.turns.at(-1)
