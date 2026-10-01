@@ -2,8 +2,8 @@
 
 Read **the two-minute overview** first. If you need more detail, open the matching section.
 
-**Status: proposed design.** The base declarations and caller examples pass typechecking. No production audio runtime exists for this proposal.
-The [version 4 plugin contract](voice-plugin-api.md) covers growing windows, memory lookup, transcript corrections, and scoped lifecycle tasks.
+**Status: historical design reference.** The implementation is in `packages/pipelines-audio` and `packages/core-agent`. The adjacent declarations describe the design, not the installed package exports.
+The [version 4 plugin contract](../specs/voice-plugin-api.md) covers growing windows, memory lookup, transcript corrections, and scoped lifecycle tasks.
 
 ## Two-minute overview
 
@@ -25,7 +25,7 @@ VAD, wake words, and buttons supply signals. They do not create separate recordi
 1. **Listen.** One microphone source supplies capture and detector windows. Observation continues during assistant playback.
 2. **Accept speech.** A button or speech policy creates a `SpeechInputAttempt`. Permission and playback-fade waits belong to that request.
 3. **Build the input.** Accepted audio goes to Hearing. A `SpeechInput` holds text, speaker results, and related context.
-4. **Reply.** The agent reads a fixed input copy. A `Response` can contain a short acknowledgment followed by the answer.
+4. **Reply.** The agent reads a fixed input copy. A `VoiceResponse` can contain a short acknowledgment followed by the answer.
 5. **Interrupt.** An external control calls `VoiceController`. It rejects late results, cancels generation, stops selected playback, and records an agent notification.
 
 Cancellation before recording creates no `SpeechInput`.
@@ -55,10 +55,9 @@ Reading times are estimates for scanning, not complete review.
 1. **Names and ownership — 4 minutes.** Object meanings, package placement, and the full connection diagram.
 2. **Runtime rules — 6 minutes.** Audio resources, stream backpressure, interruption, and UI state.
 3. **Migration and required checks — 5 minutes.** Replacement steps, all 12 review findings, and implementation tests.
-4. **Evidence and current checks — 4 minutes.** Existing constraints, source research, caller exercises, and completed checks.
 
-For call examples, open the [API guide](audio-pipeline-api.md).
-For the revised plugin API and review findings, open the [plugin contract](voice-plugin-api.md) and [review record](../research/voice-v4-review.md).
+For call examples, open the [API guide](../specs/audio-pipeline-api.md).
+For the revised plugin API and review findings, open the [plugin contract](../specs/voice-plugin-api.md).
 
 For recognition windows, short replies, memory, and text corrections, open the [input and response guide](2026-09-30-voice-controller-extensions.md).
 
@@ -86,7 +85,7 @@ The controller can stop that response without stopping microphone observation.
 | Name | Meaning | 中文 |
 | --- | --- | --- |
 | `Transcript` | The original text and its accepted corrections | 转录文档 |
-| `Response` | One agent reply, including its speech output | 一次回复 |
+| `VoiceResponse` | One agent reply, including its speech output | 一次回复 |
 | `SpeechStream` | Text and audio from one source within a response | 回复中的一段语音输出 |
 | `VoiceController` | The owner of input requests, response lifetimes, and interruption | 语音交互控制器 |
 
@@ -95,14 +94,14 @@ A `SpeechInput` can stay open across many audio frames and text updates.
 `SpeechInputAttempt` owns the request to accept speech. Cancellation before recording does not create a `SpeechInput`.
 
 The `Speech` prefix identifies conversation input. `AudioInput` can also supply music, noise, or file recordings.
-A `Response` can contain a short acknowledgment followed by a longer answer.
+A `VoiceResponse` can contain a short acknowledgment followed by a longer answer.
 These objects do not require a separate AudioNode for every step.
 
 A snapshot is a fixed copy of data. A revision is its version number.
 An audio window is a short interval of samples that a detector reads.
 A turn links an accepted input to its response. A silence receipt reports whether the selected playback stopped.
 
-The [API guide](audio-pipeline-api.md) covers capture, detection, and interruption.
+The [API guide](../specs/audio-pipeline-api.md) covers capture, detection, and interruption.
 The [input and response guide](2026-09-30-voice-controller-extensions.md) covers growing audio windows, short replies, memory lookup, and text corrections.
 The declarations cover the base API. The input and response additions remain design sketches.
 The name update uses `VoiceController` and `SpeechInput` throughout the design and current examples.
@@ -113,7 +112,7 @@ One shared audio input supplies separate capture and detector handles.
 Each handle owns its work and its stop operation.
 Native streams carry media. Typed messages carry control requests.
 The input module does not select transcription providers or control conversations.
-The public [caller guide](audio-pipeline-api.md) and [declarations](audio-pipeline-api.d.ts) define operations, ownership, bounds, and failure behavior.
+The public [caller guide](../specs/audio-pipeline-api.md) and [declarations](../specs/audio-pipeline-api.d.ts) define operations, ownership, bounds, and failure behavior.
 
 ```mermaid
 flowchart LR
@@ -447,113 +446,8 @@ The desktop page suppresses input while assistant speech plays. That policy prev
 
 The existing character-routing decision remains in force.
 Every accepted speech input captures its character session before asynchronous work starts.
-PTT and wake-word acceptance use the fade barrier described in [the routing ADR](0002-route-voice-turns-by-character-session.md).
+PTT and wake-word acceptance use the fade barrier described in [the routing ADR](2026-09-30-route-voice-turns-by-character-session.md).
 Physical microphone observation can remain active during that barrier. Accepted recording starts after the barrier.
-
-### Research
-
-Three research agents inspected external sources. The parent agent used their reports and local AIRI code.
-All five selected repositories exceeded 1,000 GitHub stars on 2026-09-30.
-
-| Project | Stars | Relevant observation | AIRI decision |
-| --- | ---: | --- | --- |
-| Three.js | 116,065 | Shared context, borrowed sources, separate playback instances | One browser host owns resources. Attach does not transfer track ownership |
-| Godot | 117,953 | Resources differ from playback instances. Handles include a generation | Closed output handles cannot address a replacement response |
-| Tone.js | 14,748 | Audio timestamps and scheduled gain envelopes | Fade completion uses the audio clock |
-| Strudel | 3,032 | Bounded pattern queries and late-deadline checks after loading | Recheck turn identity after asynchronous work |
-| Mediabunny | 7,216 | Codec adapters, sample disposal, and live encoder queue limits | Encoding stays separate from capture, fan-out, and conversation policy |
-
-The reports contain pinned source links, GitHub search commands, selection evidence, and limitations:
-[engines](../research/audio-pipelines-engines.md), [music](../research/audio-pipelines-music.md), and [media](../research/audio-pipelines-media.md).
-Strudel moved to Codeberg. That host was inaccessible, so its source findings use an explicitly identified historical GitHub revision.
-Established project history is evidence against a wholly generated project. It cannot prove the authorship of every line.
-None of the selected projects is an OpenClaw-style agent project.
-
-These projects provide design evidence, not a request to install their libraries.
-Existing WAV encoding is sufficient for the first implementation.
-Mediabunny remains a candidate for additional container and codec adapters. Dependency selection requires a separate user choice.
-
-### Independent caller evaluation
-
-Three additional agents received only the public caller guide and declarations.
-They did not read production internals, research reports, or each other's findings.
-They wrote compiling consumers and recorded assumptions before the parent revised the contract.
-
-| Exercise | First-round finding | Revision | Final assessment |
-| --- | --- | --- | --- |
-| [Capture](../research/audio-dx-capture.md) | Attempt state and overlap rules were missing. File success overstated provider success | Structured attempt outcomes, one active input, separate provider completion | Assigned scenarios need no UI lifecycle race bookkeeping |
-| [Observers](../research/audio-dx-observers.md) | Callers had to filter windows and coordinate pending turn decisions | Attempt-owned detectEnd, activity coverage, source and revision checks | Continuous speech requires no caller generation counters or window queues |
-| [Interruption](../research/audio-dx-interrupt.md) | Turn-to-group binding and agent acknowledgment were absent | Response handles, scoped receipts, per-turn event IDs | A/B isolation and overlapping interruption requests are expressible |
-
-The corresponding [capture](../research/audio-dx-capture.ts), [observer](../research/audio-dx-observers.ts), and [interruption](../research/audio-dx-interrupt.ts) examples import only the proposed contract.
-The examples are caller exercises, not implementations of the audio runtime.
-The final observer exercise retains only speaker evidence and observer handles.
-VAD supplies speech results. The controller accepts input, builds windows, checks revisions, and finishes the input.
-
-Three rounds were necessary. The first design did not pass the caller exercise.
-Earlier findings remain in the reports, followed by reassessments against the revised contract.
-This is evidence of interface comprehension by independent agents. It does not establish human usability or runtime correctness.
-
-### Design completion audit
-
-**Research and audio design**
-
-| Requested result | Evidence | Boundary of the claim |
-| --- | --- | --- |
-| Research delegated to agents | Three source reports with pinned revisions and recorded GitHub searches | Parent inspected reports and AIRI code |
-| Established projects above 1,000 stars | Dated metadata for all five named projects | Authorship of every line cannot be proven |
-| Extensible pure TypeScript pipeline | Public declarations, package placement, and signal/observer contracts | No runtime implementation in this task |
-| Minimize unnecessary nodes | Explicit graph budget and zero-node detector/capture additions | Actual counts need browser measurements |
-| Use native messages and streams | ReadableStream media, bounded MessagePort transport, native output adapter | Cross-runtime transfer support remains an implementation gate |
-
-**Ownership, callers, and migration**
-
-| Requested result | Evidence | Boundary of the claim |
-| --- | --- | --- |
-| Clear stream and cancellation ownership | Ownership table, finalization rules, stream backpressure, and scoped receipts | Hardware and provider cleanup need runtime tests |
-| Support speaker and turn middleware | Independently authored observer example and revised contract | Model accuracy remains unmeasured |
-| Full interruption and agent notification | Response scopes, silence receipts, saved notification IDs for each turn | Delivery reliability requires persistence and transport tests |
-| Independent caller comprehension | Three exercises and their final reassessments | No claim about measured human completion time |
-| Address the reviewed design problems | Twelve-item coverage table and migration/deletion plan | Existing production defects remain until migration |
-
-### Checks run for this design
-
-The checks in this section describe the earlier reading update.
-The [current review record](../research/voice-v4-review.md) records revision 5 changes and checks.
-The document lint command passed after the reading update:
-
-```sh
-pnpm exec moeru-lint docs/ai/adr/2026-09-30-audio-pipeline-ownership.md
-```
-
-Checks also passed for local links, fold structure, sentence lengths, and preservation of the original table rows and code blocks.
-
-The following declaration and caller check passed without skipLibCheck:
-
-```sh
-pnpm exec tsc --ignoreConfig --noEmit --strict --lib esnext,dom --types node --target es2022 --module esnext --moduleResolution bundler docs/ai/adr/audio-pipeline-api.d.ts docs/ai/research/audio-dx-*.ts
-```
-
-Lint passed for the new design, research, and caller files:
-
-```sh
-pnpm exec moeru-lint docs/ai/adr/*audio-pipeline* docs/ai/adr/*voice-controller* docs/ai/research/audio-*.{md,ts}
-```
-
-`git diff --check` passed. A separate file check covered whitespace and local links in the new, untracked documents.
-The version 3.1 wording update passed these checks again.
-The language check covered sentence length, consistent terms, conditions before commands, and prohibited wording in the three guides.
-`pnpm lint` failed with 656 errors outside these new files. No unrelated source was changed to clear those errors.
-The failures include existing chained assertions, comment lengths, and trivial-function rules.
-
-No production workspace changed in this task. Workspace tests and root typecheck were not run.
-No runtime audio test ran. The required implementation checks remain mandatory before a production migration can claim completion.
-
-### Completion boundary
-
-This task delivers a researched design, a reviewable public contract, independent usage exercises, and a migration plan.
-Runtime tests, browser measurements, and the removal of old implementations belong to the subsequent implementation task.
-No prototype or typecheck alone proves real-time audio behavior.
 
 </details>
 

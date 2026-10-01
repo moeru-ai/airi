@@ -38,14 +38,14 @@ Users keep existing recording and draft workflows while gaining consistent cance
 | SpeechInputAttempt | Represent admission, including pending permission and playback fade. |
 | SpeechInput | Own one accepted input, its session, transcript, speaker evidence, and derived context. |
 | Transcript | Preserve raw provider text, checked patches, and the corrected view. |
-| Response | Own one agent reply and the order of its speech producers. |
-| SpeechStream | Own text and synthesized output from one producer within a Response. |
+| VoiceResponse | Own one agent reply and the order of its speech producers. |
+| SpeechStream | Own text and synthesized output from one producer within a VoiceResponse. |
 
 **Three primary flows**
 
 - Voice message: AudioInput → Capture → preview → explicit attachment submission.
 - Conversation input: signal policy → SpeechInputAttempt → Capture → Hearing → Transcript → plugins → draft or agent submission.
-- Conversation output: core agent → Response → SpeechStreams → existing TTS chunker → synthesis → Playback.
+- Conversation output: core agent → VoiceResponse → SpeechStreams → existing TTS chunker → synthesis → Playback.
 
 UI controls and authorized signal policies interrupt named turns through VoiceController.
 Memory, speaker identification, wake-word detection, and rewriting remain replaceable plugins or application adapters.
@@ -96,7 +96,7 @@ The runtime supplies lifecycle and publication rules. Plugin authors own their m
 ### Multiple speech producers
 
 26. As a user, I want a short acknowledgment before a longer answer, so that I receive feedback while reasoning continues.
-27. As an agent developer, I want text chat to open a Response directly, so that speech output does not require microphone input.
+27. As an agent developer, I want text chat to open a VoiceResponse directly, so that speech output does not require microphone input.
 28. As an agent developer, I want concurrent speech producers with stable playback order, so that faster synthesis cannot reorder the reply.
 29. As an agent developer, I want to cancel an outdated acknowledgment, so that the main answer can proceed without a false interruption event.
 30. As an agent developer, I want existing early TTS chunks preserved, so that the refactor retains current speech-start behavior.
@@ -215,13 +215,13 @@ The runtime supplies lifecycle and publication rules. Plugin authors own their m
 - Record a stable interruption event for the agent without adding a fake user message. Retries reuse event identity and report notification status.
 - Confirm silence through the playback adapter before dependent capture starts. Failure cannot count as silence, and unrelated sessions remain active.
 
-### Response and SpeechStream
+### VoiceResponse and SpeechStream
 
-- A text input can open a Response without passing through capture or transcription. Core-agent supplies acknowledgment and answer text.
+- A text input can open a VoiceResponse without passing through capture or transcription. Core-agent supplies acknowledgment and answer text.
 - Opening a SpeechStream reserves its response order before synthesis. Provider completion order must not reorder playback.
 - Preserve existing TTS chunking and early-chunk behavior. Producers receive cancellation and completion without a mandatory deadline.
 - Cancelling an acknowledgment releases its output while the answer continues. It does not generate an external interruption event.
-- Ending a producer flushes its text. Finishing a Response seals new producers and drains accepted output, unless cancellation or interruption wins.
+- Ending a producer flushes its text. Finishing a VoiceResponse seals new producers and drains accepted output, unless cancellation or interruption wins.
 
 ### Attachment submission and UI migration
 
@@ -235,7 +235,7 @@ The runtime supplies lifecycle and publication rules. Plugin authors own their m
 
 - First implement source and capture ownership, then migrate recording and attachment callers. Remove replaced startup and recorder coordination in that slice.
 - Next convert Hearing adapters and migrate speech-session callers. Retain existing provider protocols and correct padded VAD audio behavior.
-- Then connect Response, SpeechStream, UI interruption, VAD interruption, persistence, and agent notification through VoiceController.
+- Then connect VoiceResponse, SpeechStream, UI interruption, VAD interruption, persistence, and agent notification through VoiceController.
 - Add extension integration scenarios for speaker windows, memory, rewriting, and turn detection using supplied external adapters.
 - Each slice removes the orchestration it replaces. Completion requires migrated callers, working public imports, documentation, and passing behavior checks.
 
@@ -297,7 +297,7 @@ The user confirmed this test boundary: public conversation flows first, with bro
 | --- | --- |
 | An acknowledgment and answer synthesize concurrently | Playback follows reserved producer order. |
 | A delayed acknowledgment is cancelled | The answer proceeds and no user-interruption event appears. |
-| Text chat produces speech | Response creation needs no microphone or transcription setup. |
+| Text chat produces speech | VoiceResponse creation needs no microphone or transcription setup. |
 | UI, PTT, or accepted VAD interrupts a turn | Generation, synthesis, queued output, and active playback stop for that turn. |
 | A provider ignores abort | Late tokens and audio cannot reopen the closed turn. |
 | Another character session is generating | Its work continues unless explicitly targeted. |

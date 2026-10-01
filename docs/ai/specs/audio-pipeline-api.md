@@ -1,75 +1,66 @@
 # Audio pipeline API guide
 
 The [version 4 plugin contract](voice-plugin-api.md) builds on this base capture and interruption API.
-Its Response replaces the base response surface with ordered SpeechStreams. It does not expose a direct playback bypass.
+Its VoiceResponse replaces the base response surface with ordered SpeechStreams. It does not expose a direct playback bypass.
 Both contracts are proposals, not installed package exports.
 
 
-Status: proposed interface, version 3.1. No production implementation exists for these declarations.
-Version 3.1 changes names and explanations. The base API behavior remains the same as version 3.
+Status: design reference, version 3.2. The runtime APIs are in `packages/pipelines-audio` and `packages/core-agent`.
+Version 3.2 replaces device leases and capture delivery formats with shared sources and subscriptions.
 `VoiceController` is the current name. The input and response guide uses `SpeechInput` for one accepted voice input.
 The adjacent [TypeScript declarations](audio-pipeline-api.d.ts) are the complete surface for these exercises.
 Consumers need this document and those declarations. They do not need runtime internals or research notes.
 
 ## Quick start
 
-The application owns one `AudioInput` per physical source. It also provides `VoiceController` and `AudioPlayback` instances.
-Vue components receive these instances. They do not create contexts, providers, encoders, or shared device owners.
-The device owner opens the microphone and handles permission and cancellation.
-It also supplies input for voice attachments when Hearing mode is off.
-Direct AudioInput capture starts after the microphone opens.
-The controller uses the same device owner. The source ID identifies that input.
+The application owns one `AudioInput` for the selected device. It also provides `VoiceController` and `AudioPlayback` instances.
+Vue components receive these instances. They do not create contexts, providers, or encoders.
+The input wraps an `AudioInputSource`, for example `microphoneSource(constraints)`. The source handles permission and tracks.
+Every consumer subscribes with its own abort signal. The first subscriber opens the microphone, and the last one to leave closes it.
+Voice attachments, transcription, and detectors use the same input.
 
 ```ts
-const capture = input.capture({
-  delivery: 'file',
-  file: { mimeType: 'audio/wav', sampleRate: 16000, channels: 1 },
-})
+const recording = capture(input)
+const wav = encodeWav(recording.stream, { sampleRate: 16000, channels: 1 })
 
 // A later release event ends recording.
-const result = await capture.finish()
+const result = await recording.finish()
 if (result.status === 'finished')
-  await hearing.transcribe(result.value)
+  await hearing.transcribe(await wav)
 ```
 
 `hearing.transcribe` is the application's downstream adapter, not a method supplied by the audio package.
 AudioInput never imports Hearing, chat, providers, Pinia, Vue, or character settings.
 
-For live delivery, pass `capture.media` downstream immediately. When the accepted input ends, call `finish()`.
+For live delivery, pass `recording.stream` downstream immediately. When the accepted input ends, call `finish()`.
 Do not await the downstream transcript before ending capture. A provider can wait for end-of-stream before returning text.
-`pcm-and-file` provides live PCM and a final Blob from the same interval.
-Its success proves complete local encoding and successful delivery into the live stream.
-It does not prove final ASR success. The workflow joins capture and provider outcomes separately.
-Native stream delivery requires the browser adapter's `nativeStream` capability.
-Callers can inspect input.capabilities before choosing a delivery format.
-Unsupported formats fail before recording. There is no default assumption that a provider supports audio input.
+Every transcription provider receives PCM. A provider adapter that needs a file encodes the stream with `encodeWav`.
+An adapter that needs tracks, such as Web Speech, creates them with `toMediaStream`.
+A stored recording is also a source. `fileSource(blob)` decodes it, so it enters transcription through the same path.
 
 ## Who owns each operation
 
 | Object | Owner | End operation | Effect on siblings |
 | --- | --- | --- | --- |
-| Physical source and PCM history | Application's AudioInput | `close()` | Cancels its captures and observers |
+| Physical source and PCM history | Application's AudioInput | Last subscription ends, or `close()` | `close()` ends every subscription |
 | One recording | Capture handle | `finish()` or `cancel(reason)` | None |
 | One detector | Observer handle | `cancel()` | None |
 | One response's output | PlaybackGroup handle | `finish()` or `stop({ fadeMs })` | None |
 | One accepted input request | SpeechInputAttempt handle | `end()` or `cancel(reason)` | None |
 | Reasoning through response delivery | VoiceController, indexed by TurnRef | `interrupt(...)` | Only named turns |
 
-A source adapter declares ownership when it opens or attaches a device.
-An owned microphone adapter stops its tracks. A borrowed adapter disconnects its graph without stopping caller-owned tracks.
-AudioInput consumes `source.frames` once. Two AudioInput instances must not consume the same source.
-A browser host shares its AudioContext. Closing one input does not close that shared context.
+A source declares ownership when it opens or attaches a device.
+`microphoneSource` stops its tracks and closes its own AudioContext. `mediaStreamSource` disconnects its graph without stopping caller-owned tracks.
+Each connection has a new `sourceId`. Frame coordinates and history never cross connections.
 
 Capture `finish()` stops accepting samples immediately. Repeated calls return the same completion promise.
 Finalization drains accepted samples, closes live outputs, and finalizes the file.
 It never waits for ASR, LLM, or agent delivery.
 The PCM adapter owns stream backpressure and pending accepted samples. The public contract specifies no queue byte quota.
 Finish waits for accepted samples to drain, then closes the stream. The caller can cancel a stalled operation.
-Native output finish also waits for the adapter's done receipt after its internal render queue drains and its owned tracks end.
 Cancellation wins until completion settles. After settlement, both operations return or preserve the recorded outcome.
-ReadableStream cancellation cancels that capture, including its archive.
-Native tracks remain capture-owned. Consumers end them through the capture handle, because native track.stop does not emit an ended event.
-Consumers must not clone or remove these tracks. A consumer that requires ownership needs a separate, explicitly owned output adapter.
+ReadableStream cancellation cancels that capture.
+A sample gap fails the capture, because consumers treat its stream as continuous audio.
 Input shutdown cancels unfinished captures. It does not implicitly submit recordings.
 
 ## Speech detectors and control signals
@@ -80,7 +71,8 @@ A detector is an ordinary asynchronous function from an audio window to a value.
 Functions can compose detector results without creating AudioNodes or changing AudioInput.
 
 ```ts
-const speaker = input.observe(
+const speaker = observe(
+  input,
   { windowMs: 1500, hopMs: 500, scheduling: 'latest' },
   async (window, signal) => identifySpeaker(window.channels, window.sampleRate, signal),
   result => speakerPolicy.accept(result),
@@ -120,7 +112,7 @@ The controller freezes that target. A later character selection cannot redirect 
 It interrupts named turns with a 100 ms fade and waits for silence before accepting samples.
 UI can show the pending attempt immediately.
 Release during permission or fade cancels the attempt without creating a recording or submitting empty audio.
-Permission dialogs cannot always be aborted. The device owner releases any late stream after cancellation.
+Permission dialogs cannot always be aborted. The microphone source stops any late tracks after cancellation.
 Toggle uses the same attempt: the first press begins, the second ends.
 Wake word selects the matched session and uses the same after-silence policy.
 Speaker identification and wake-word observation stay active during the fade.

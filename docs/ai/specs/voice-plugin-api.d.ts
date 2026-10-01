@@ -35,14 +35,8 @@ export type TranscriptionEvent
 
 /** Each call owns one provider request. Input and output progress concurrently. */
 export interface StreamingTranscriber {
-  readonly capabilities: {
-    readonly inputs: readonly ('pcm' | 'file' | 'native')[]
-    readonly output: 'updates' | 'final'
-  }
-  transcribe: (request: {
-    audio: { kind: 'pcm', stream: ReadableStream<PcmBlock> } | { kind: 'file', blob: Blob } | { kind: 'native', stream: MediaStream }
-    signal: AbortSignal
-  }) => ReadableStream<TranscriptionEvent>
+  /** The PCM stream closes when the input ends. Adapters that need a file or a MediaStream convert it themselves. */
+  transcribe: (request: { audio: ReadableStream<PcmBlock>, signal: AbortSignal }) => ReadableStream<TranscriptionEvent>
 }
 
 /** Model scores are evidence, not calibrated identity probabilities. */
@@ -227,13 +221,13 @@ export interface SpeechStream {
   readonly signal: AbortSignal
   readonly done: Promise<{ status: 'finished' } | { status: 'cancelled', reason: string } | { status: 'failed', error: Error }>
 
-  write: (text: string) => Promise<{ status: 'accepted' | 'closed' | 'failed' }>
+  write: (text: string) => { status: 'accepted' | 'closed' }
   end: () => void
   cancel: (reason: string) => void
 }
 
-/** Response order follows stream creation order. Cancellation records no external interruption event. */
-export interface Response {
+/** VoiceResponse order follows stream creation order. Cancellation records no external interruption event. */
+export interface VoiceResponse {
   readonly turn: TurnRef
   readonly signal: AbortSignal
   finish: () => Promise<'finished' | 'cancelled' | 'interrupted' | 'failed'>
@@ -251,7 +245,7 @@ export interface VoiceController extends Omit<BaseVoiceController, 'openResponse
     onError?: (event: VoicePluginError) => void
   }) => VoicePluginHandle
   cancelInput: (inputId: string, reason: string) => 'cancelled' | 'closed'
-  openResponse: (turn: TurnRef) => Response
+  openResponse: (turn: TurnRef) => VoiceResponse
   /** The host routes source-tagged speaker results to a named open input. Accepted evidence receives a runtime revision. */
   updateSpeakerEvidence: (inputId: string, evidence: { range: AudioRange, value: Omit<SpeakerEvidence, 'revision'> }) => WriteResult
   readonly audio: AudioInput

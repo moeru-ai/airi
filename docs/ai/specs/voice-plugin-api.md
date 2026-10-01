@@ -21,7 +21,7 @@ A plugin is a module installed through `voice.use`. This proposal adds no discov
 ## Ownership and setup
 
 - AudioInput, Capture, audio windows, and Playback remain audio primitives.
-- SpeechInput, Transcript, Response, and SpeechStream belong to the conversation runtime.
+- SpeechInput, Transcript, VoiceResponse, and SpeechStream belong to the conversation runtime.
 - The application supplies a configured VoiceController, provider adapters, storage, and model instances.
 - Controller construction and production adapter registration remain outside this caller contract. Examples must declare these supplied dependencies.
 - A plugin receives limited scopes. It does not receive the mutable controller, microphone owner, or raw transcript writer.
@@ -311,7 +311,7 @@ sequenceDiagram
 **Media and failure ownership**
 
 - A PCM call owns the reader of its supplied stream. Abort cancels that reader and the provider request, then releases owned resources.
-- Native tracks stay capture-owned. Provider adapters detach on abort and never close or clone those tracks.
+- An adapter that needs tracks creates them from the PCM with `toMediaStream`. It owns those tracks and stops them on abort.
 - Capture failure aborts transcription. Provider failure ends the corresponding capture and settles its input failure.
 - Normal capture finish closes input without aborting the provider. The adapter awaits final output. The caller can cancel or configure an adapter timeout.
 - Provider adapters own stream backpressure and report transport failures. The plugin contract imposes no event-count or byte quota.
@@ -319,8 +319,8 @@ sequenceDiagram
 Abort errors the output stream and settles pending reads. Output reader cancellation cancels the provider request and its PCM reader.
 Cleanup is idempotent. Output cancellation never closes capture-owned native tracks.
 
-`output: final` still uses the same result stream. It sends one snapshot and completion, without claiming incremental recognition.
-Input capabilities distinguish PCM streams, native streams, and files. Unsupported media fails before allocation.
+A provider without incremental output uses the same result stream. It sends one snapshot and completion.
+Every provider receives PCM. A file provider encodes the PCM after the stream closes, for example with `encodeWav`.
 The application owns raw and patch history retention and persistence. The plugin contract imposes no history byte quota.
 Only persistence and transport adapters require a serialization format. In-process context does not require JSON compatibility.
 
@@ -375,20 +375,17 @@ Technical cancellation does not fabricate a user-interruption event or undo comp
 - `openResponse(turn)` registers turn ownership before output starts. Each `openSpeech` reserves its order synchronously.
 - `write` waits for text-queue capacity and returns accepted, closed, or failed. Producers must handle closed or failed results.
 - `end` stops text input and flushes the last chunk. `finish` prevents new streams and waits for accepted output.
-- Producer cancellation removes only its queued or active output. Response cancellation stops its children without an external interruption event.
+- Producer cancellation removes only its queued or active output. VoiceResponse cancellation stops its children without an external interruption event.
 - `voice.interrupt` closes named turns, cancels generation, fades playback, and records notifications under the base interruption contract.
 
 SpeechStream.signal aborts on cancellation or failure. Its done promise reports finished, cancelled with a reason, or failed with an error.
 An explicitly configured creation deadline cancels the producer with reason `deadline`. Cancellation before playback releases its reserved slot.
-The version 4 Response exposes no raw playback group. All of its speech passes through reserved SpeechStreams.
-Response.finish reports cancelled after technical response cancellation. Interruption reports interrupted. The first terminal transition determines the result. Calling finish only seals new streams. Cancellation or interruption can still win while output drains.
+The version 4 VoiceResponse exposes no raw playback group. All of its speech passes through reserved SpeechStreams.
+VoiceResponse.finish reports cancelled after technical response cancellation. Interruption reports interrupted. The first terminal transition determines the result. Calling finish only seals new streams. Cancellation or interruption can still win while output drains.
 SpeechStreams have no framework text-size quota or mandatory deadline. Audio adapters own playback backpressure.
 Provider completion order never changes reserved playback order.
 
 ## Review boundary
-
-The [review record](../research/voice-v4-review.md) links three independent consumers and preserves their counterexamples through revision 4. Revision 5 removes resource policies after user review. These reviewers did not re-review revision 5.
-The [prompt record](../research/voice-v4-review-prompts.md) contains their exact initial instructions.
 
 - Independent callers must use only this guide and the two declaration files.
 - Required scenarios include stale writes, task waiting, cancellation scopes, stream-in/stream-out, and conflicting patches.

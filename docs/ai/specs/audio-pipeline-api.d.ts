@@ -23,28 +23,13 @@ export interface AudioWindow extends PcmBlock {
   readonly discontinuity: boolean
 }
 
-/** This adapter transfers one readable source to AudioInput. Close releases only resources owned by the adapter. */
-export interface AudioSource {
-  readonly id: string
-  readonly frames: ReadableStream<PcmBlock>
-  close: () => Promise<void>
-}
-
-/** Browser capabilities are explicit. A native output factory is absent on unsupported runtimes. */
-export interface MediaAdapters {
-  supportsFile: (options: FileOptions) => boolean
-  encode: (frames: ReadableStream<PcmBlock>, options: FileOptions, signal: AbortSignal) => Promise<Blob>
-  nativeStream?: (frames: ReadableStream<PcmBlock>, signal: AbortSignal) => {
-    readonly media: MediaStream
-    /** Resolves after EOS drains through the derived output and its owned tracks end. */
-    readonly done: Promise<void>
-  }
-}
-
-export interface FileOptions {
-  readonly mimeType: string
-  readonly sampleRate: number
-  readonly channels: 1 | 2
+/**
+ * A microphone, a borrowed MediaStream, or a decoded file.
+ * Each open call is one connection. Aborting its signal releases what that call opened.
+ * Open starts permission work synchronously, so a click handler can start a microphone.
+ */
+export interface AudioInputSource {
+  open: (signal: AbortSignal) => ReadableStream<PcmBlock>
 }
 
 /** Operational failures resolve done. Invalid options throw before resources are allocated. */
@@ -53,31 +38,26 @@ export type Outcome<T>
     | { readonly status: 'cancelled', readonly reason: string }
     | { readonly status: 'failed', readonly error: Error }
 
-/** Finish seals input synchronously. It does not await transcription or conversation processing. */
-export interface Capture<T> {
-  readonly done: Promise<Outcome<T>>
-  finish: () => Promise<Outcome<T>>
-  /** Cancellation is immediate. It also wins during finalization, before done settles. */
+/** One continuous interval. Finish seals input synchronously and does not await transcription. */
+export interface Capture {
+  readonly stream: ReadableStream<PcmBlock>
+  /** Resolves at the first block. The owner shows permission as pending until then. */
+  readonly started: Promise<void>
+  readonly done: Promise<Outcome<void>>
+  finish: () => Promise<Outcome<void>>
+  /** Cancellation is immediate and errors the stream. */
   cancel: (reason: string) => void
-}
-
-/** Stream cancellation cancels capture. Native tracks stay capture-owned and end through finish or cancel. */
-export interface LiveCapture<T, R = void> extends Capture<R> {
-  readonly media: T
-}
-
-export interface CaptureOptions {
-  /** Omission starts at the current input position. Unavailable history produces a failed capture. */
-  readonly from?: Position
-  readonly signal?: AbortSignal
 }
 
 export interface WindowOptions {
   readonly windowMs: number
   readonly hopMs: number
+  readonly minWindowMs?: number
   /** @default latest. Latest replaces pending windows. Ordered preserves their order. */
   readonly scheduling?: 'latest' | 'ordered'
   readonly signal?: AbortSignal
+  /** Keeps input history before windows that are still in inference. */
+  readonly preRollMs?: number
 }
 
 /** The input attaches the range after inference. Results cannot publish after cancellation. */
@@ -95,27 +75,32 @@ export interface Observer {
 /** A detector receives copied samples. Abort is cooperative. The runtime also rejects late results. */
 export type Detector<T> = (window: AudioWindow, signal: AbortSignal) => Promise<T>
 
-/** One source, bounded history, and independent capture and observation lifetimes. */
+/**
+ * Shares one source. The first subscriber opens it and the last one to leave closes it.
+ * Each subscription ends with its own signal, so no consumer releases a lease.
+ */
 export declare class AudioInput {
-  /** The application supplies browser and codec adapters at its composition root. */
-  constructor(source: AudioSource, adapters: MediaAdapters, options?: {
+  constructor(source: AudioInputSource, options?: {
     /** @default 0. The caller selects pre-roll history retention. */
     historyMs?: number
   })
 
-  readonly position: Position
-  readonly capabilities: { readonly nativeStream: boolean, readonly supportsFile: (options: FileOptions) => boolean }
-  capture(options: CaptureOptions & { delivery: 'file', file: FileOptions }): Capture<Blob>
-  capture(options: CaptureOptions & { delivery: 'pcm' }): LiveCapture<ReadableStream<PcmBlock>>
-  capture(options: CaptureOptions & { delivery: 'media-stream' }): LiveCapture<MediaStream>
-  /** Both outputs use one interval. File success does not assert downstream transcription success. */
-  capture(options: CaptureOptions & { delivery: 'pcm-and-file', file: FileOptions }): LiveCapture<ReadableStream<PcmBlock>, Blob>
-
-  /** The result callback runs synchronously and must not retain PCM or perform blocking work. */
-  observe<T>(options: WindowOptions, detector: Detector<T>, onResult: (result: Observation<T>) => void): Observer
-  /** Close cancels all children, releases owned source resources, and rejects results from cancelled detectors. */
+  /** Undefined until the current connection delivers a block. */
+  readonly position: Position | undefined
+  readonly sampleRate: number | undefined
+  /** With `from`, the stream first replays retained history. Missing history errors the stream. */
+  subscribe(options?: { from?: Position, signal?: AbortSignal }): ReadableStream<PcmBlock>
+  /** Keeps history from the returned frame while `signal` is active. */
+  retain(frame: () => number | undefined, signal: AbortSignal): void
+  /** Ends every subscription. A later subscription opens the source again. */
   close(): Promise<void>
 }
+
+/** A capture fails on a sample gap, because consumers treat it as continuous audio. */
+export declare function capture(input: AudioInput, options?: { from?: Position, signal?: AbortSignal }): Capture
+
+/** The result callback runs synchronously and must not retain PCM or perform blocking work. */
+export declare function observe<T>(input: AudioInput, options: WindowOptions, detector: Detector<T>, onResult: (result: Observation<T>) => void): Observer
 
 /** An immutable identity allocated by the conversation runtime. It is never reused. */
 export interface TurnRef {

@@ -2,10 +2,9 @@
 
 Read **the four use cases** first, about 1 minute. Then open the section that matches your question.
 
-**Status: proposed version 4, revision 5. Resource quotas removed.** Read the [plugin API](voice-plugin-api.md) for the current contract and [declarations](voice-plugin-api.d.ts).
+**Status: proposed version 4, revision 5. Resource quotas removed.** Read the [plugin API](../specs/voice-plugin-api.md) for the current contract and [declarations](../specs/voice-plugin-api.d.ts).
 
 - The snippets describe proposed interfaces. They are not existing package exports.
-- The [version 4 review](../research/voice-v4-review.md) records independent callers, findings, and remaining implementation checks.
 - Sequence diagrams describe proposed behavior. Arrow labels name operations, not additional exported methods.
 
 ## Four use cases
@@ -39,7 +38,7 @@ Corrected text can still change. It does not mean final text or submitted input.
 
 - **`AudioInput`:** Source position, bounded PCM history, independent observation and capture queues.
 - **`SpeechInput`:** Accepted input identity, transcript document, speaker evidence, and derived context.
-- **`Response`:** One turn's output lifetime, producer order, and cancellation.
+- **`VoiceResponse`:** One turn's output lifetime, producer order, and cancellation.
 - **`SpeechStream`:** One producer's text chunks, synthesis requests, queued audio, and completion.
 - **`VoiceController`:** Input acceptance, turn routing, response tracking, interruption results and notification.
 
@@ -47,7 +46,7 @@ Corrected text can still change. It does not mean final text or submitted input.
 
 - The controller creates a SpeechInput when it starts accepting speech. Permission and fade waits remain part of the SpeechInputAttempt.
 - Application setup connects memory and rewrite integrations to each new SpeechInput once.
-- Text chat can register a Response directly. It does not pass through microphone capture or transcription.
+- Text chat can register a VoiceResponse directly. It does not pass through microphone capture or transcription.
 
 <details>
 <summary>Ownership map: full input and response flow</summary>
@@ -69,11 +68,11 @@ flowchart LR
   Memory --> Commit
   Commit --> Agent[Core agent]
   Text[Text chat input] --> Agent
-  Agent --> Response[Response: acknowledgment then answer]
-  Response --> Chunker[Existing TTS chunker]
+  Agent --> VoiceResponse[VoiceResponse: acknowledgment then answer]
+  VoiceResponse --> Chunker[Existing TTS chunker]
   Chunker --> Playback[Scoped playback]
   Controls[UI / VAD / PTT policy] --> Controller[VoiceController]
-  Controller --> Response
+  Controller --> VoiceResponse
 ```
 
 </details>
@@ -171,39 +170,39 @@ plugin.observeAudio(
 sequenceDiagram
   participant Agent as Core agent
   participant Voice as VoiceController
-  participant Response as Response and SpeechStreams
+  participant VoiceResponse as VoiceResponse and SpeechStreams
   participant TTS as Chunker and TTS
   participant Playback as Playback group
 
   Agent->>Voice: openResponse(turn)
-  Voice-->>Agent: Response handle and cancellation signal
-  Agent->>Response: openSpeech(acknowledgment)
-  Response->>Response: Reserve output slot 1
-  Agent->>Response: write acknowledgment, then end its text
-  Response->>TTS: Send acknowledgment chunks
-  Agent->>Response: openSpeech(answer)
-  Response->>Response: Reserve output slot 2
-  TTS-->>Response: Acknowledgment audio
-  Response->>Playback: Play slot 1
+  Voice-->>Agent: VoiceResponse handle and cancellation signal
+  Agent->>VoiceResponse: openSpeech(acknowledgment)
+  VoiceResponse->>VoiceResponse: Reserve output slot 1
+  Agent->>VoiceResponse: write acknowledgment, then end its text
+  VoiceResponse->>TTS: Send acknowledgment chunks
+  Agent->>VoiceResponse: openSpeech(answer)
+  VoiceResponse->>VoiceResponse: Reserve output slot 2
+  TTS-->>VoiceResponse: Acknowledgment audio
+  VoiceResponse->>Playback: Play slot 1
   par Acknowledgment plays
     Playback->>Playback: Render acknowledgment audio
   and Answer generation starts
-    Agent->>Response: write early answer tokens
-    Response->>TTS: Send answer chunks
-    TTS-->>Response: Answer audio
-    Response->>Response: Hold slot 2 until slot 1 ends
+    Agent->>VoiceResponse: write early answer tokens
+    VoiceResponse->>TTS: Send answer chunks
+    TTS-->>VoiceResponse: Answer audio
+    VoiceResponse->>VoiceResponse: Hold slot 2 until slot 1 ends
   end
-  Playback-->>Response: Slot 1 ended
-  Response->>Playback: Play available slot 2 audio
+  Playback-->>VoiceResponse: Slot 1 ended
+  VoiceResponse->>Playback: Play available slot 2 audio
   Note over Agent,Playback: Later answer chunks can arrive during answer playback
-  Agent->>Response: end answer text, then finish response
-  Response->>Response: Reject new streams and await accepted output
-  Playback-->>Response: Remaining output ended
-  Response-->>Agent: Response finished
+  Agent->>VoiceResponse: end answer text, then finish response
+  VoiceResponse->>VoiceResponse: Reject new streams and await accepted output
+  Playback-->>VoiceResponse: Remaining output ended
+  VoiceResponse-->>Agent: VoiceResponse finished
 ```
 
 - This timeline shows answer audio ready before the acknowledgment ends. Provider timing can differ.
-- Full queues make producers wait. An expired acknowledgment can release its slot before playback starts.
+- An expired acknowledgment can release its slot before playback starts.
 
 **One response, several speech streams**
 
@@ -214,7 +213,7 @@ sequenceDiagram
 const response = voice.openResponse(turn)
 
 const acknowledgment = response.openSpeech({ purpose: 'acknowledgment', deadlineMs: 3000 })
-const accepted = await acknowledgment.write('我看看。')
+const accepted = acknowledgment.write('我看看。')
 if (accepted.status !== 'accepted')
   acknowledgment.cancel('acknowledgment-unavailable')
 acknowledgment.end()
@@ -224,7 +223,7 @@ await coreAgent.run({
   input: committedInput,
   signal: answer.signal,
   onToken: async (token) => {
-    const result = await answer.write(token)
+    const result = answer.write(token)
     if (result.status !== 'accepted')
       throw new Error('Speech output closed')
   },
@@ -237,8 +236,8 @@ await response.finish()
 
 - This example assumes successful generation. On failure, the caller cancels the response in its error path.
 - `end()` stops accepting text from that source and sends its remaining chunk to TTS. It does not wait for playback.
-- `write()` resolves when the stream accepts the text. Before producers send more text, they await this promise.
-- Main reasoning and synthesis can therefore run while acknowledgment audio plays.
+- `write()` reports text acceptance synchronously. The stream reports synthesis and playback failures through `done`.
+- Main reasoning and synthesis can run while acknowledgment audio plays.
 
 **Ending a response**
 
@@ -250,7 +249,7 @@ await response.finish()
 
 - The existing `chunkTtsInput` remains responsible for segmentation and early chunks.
 - Its boost mode reduces the opening chunk's wait for hard punctuation. It does not schedule multiple producers or own response cancellation.
-- SpeechStreams each feed a chunker. Response ordering coordinates their output before playback.
+- SpeechStreams each feed a chunker. VoiceResponse ordering coordinates their output before playback.
 - Playback adapters supply backpressure to synthesis while earlier speech streams play.
 
 **Delayed acknowledgments**
@@ -261,7 +260,7 @@ await response.finish()
 
 **Playback order and audio nodes**
 
-- Response speech is sequential by default. Synthesis completion order cannot reorder reserved producer slots.
+- VoiceResponse speech is sequential by default. Synthesis completion order cannot reorder reserved producer slots.
 - A per-response gain can fade its single active clip without adding a gain for every token or text chunk.
 - Concurrent audio that needs independent fades requires separate gains. That is an explicit playback policy, not a detector cost.
 
@@ -273,7 +272,7 @@ await response.finish()
 sequenceDiagram
   participant Control as UI or input policy
   participant Voice as VoiceController
-  participant Work as Response and generation
+  participant Work as VoiceResponse and generation
   participant Playback as Playback group
   participant Events as Saved notification queue
   participant Agent as Agent event receiver
@@ -283,7 +282,7 @@ sequenceDiagram
     Work->>Work: Reject late output and cancel this producer
     Work->>Playback: Remove its queued audio and stop its active audio
     Playback-->>Work: Stop result
-    Note over Work,Agent: Response stays open. No user-interruption event
+    Note over Work,Agent: VoiceResponse stays open. No user-interruption event
   else Interrupt selected turns
     Control->>Voice: interrupt(turns, cause)
     Voice->>Work: Reject late results and abort reasoning, tools, and TTS
@@ -564,7 +563,7 @@ sequenceDiagram
   Note over Runtime,Memory: Deadline expiry closes remaining work and rejects late writes
 ```
 
-The [plugin contract](voice-plugin-api.md) specifies cancellation, dependency failure, late waits, and zero-grace submission.
+The [plugin contract](../specs/voice-plugin-api.md) specifies cancellation, dependency failure, late waits, and zero-grace submission.
 
 ## Placement and remaining checks
 

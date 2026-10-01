@@ -12,7 +12,7 @@ The push retry uses an isolated worktree to preserve unrelated local changes.
 
 - [x] Add AudioInput, Capture, observer windows, Playback, and public behavior tests.
 - [x] Add SpeechInputAttempt, raw and corrected transcripts, and trusted plugin scopes.
-- [x] Add Response, ordered SpeechStream producers, and interruption receipts.
+- [x] Add VoiceResponse, ordered SpeechStream producers, and interruption receipts.
 - [x] Add browser audio adapters, PCM encoding, and a media-only Hearing adapter.
 - [x] Add concurrent chat session queues, stable submission receipts, and named generation cancellation.
 - [x] Adapt the existing WebSocket TTS protocol to SpeechStream.

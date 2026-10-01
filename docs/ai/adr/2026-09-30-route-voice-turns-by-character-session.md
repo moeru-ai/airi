@@ -2,7 +2,7 @@
 
 Status: accepted
 
-Each voice turn belongs to one character session, even if the user wakes another character while the first replies. Different sessions may generate text at the same time. Each new model request reads the latest settings for its turn's character; a request already in progress keeps its original settings. The chat runtime must resolve these settings by session rather than by the globally selected character.
+Each voice turn belongs to one character session, even if the user wakes another character while the first replies. Different sessions can generate text at the same time. Each new voice request reads its character's latest settings. A request in progress keeps its original settings. Voice submissions resolve settings by session. Text sends retain the active chat provider and model.
 
 The desktop inlay presents editable transcripts when Auto send is off. New speech for the same session appends to its draft. Waking another character brings that character's draft forward and keeps earlier drafts pending. Sending or canceling the front draft returns to the previous pending draft. The inlay's visible draft does not itself switch the chat window's session.
 
