@@ -3,15 +3,18 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { ChatHistoryItem, StreamingAssistantMessage } from '../types/chat'
+import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
-import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick, reactive, ref } from 'vue'
 
+import { getAnalytics } from '../libs/product-signals'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
@@ -20,14 +23,6 @@ import {
 import { useChatStore } from './chat'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
-
-vi.hoisted(() => {
-  ;(globalThis as any).window = {
-    location: {
-      origin: 'http://localhost',
-    },
-  }
-})
 
 const ioTracerMocks = vi.hoisted(() => {
   const activeTurnSpan = { value: undefined as any }
@@ -86,44 +81,14 @@ const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metada
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
-const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
+const streamingMessageRef = ref<StreamingAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 // The chat session store keeps messages in reactive state, so the mock does too.
-const sessionMessages = reactive<Record<string, any[]>>({})
+const sessionMessages = reactive<Record<string, ChatHistoryItem[]>>({})
+const sessionMetas = reactive<Record<string, ChatSessionMeta>>({})
 let currentGeneration = 1
-
-vi.mock('pinia', async () => {
-  const actual = await vi.importActual<typeof import('pinia')>('pinia')
-  return {
-    ...actual,
-    storeToRefs: (store: any) => store,
-  }
-})
 
 vi.mock('../composables', () => ({
   getConversationAnalyticsSurface: () => 'web',
-}))
-
-vi.mock('../libs/product-signals', () => ({
-  getAnalytics: () => ({
-    emit: (event: { name: string }, properties: unknown) => {
-      switch (event.name) {
-        case 'message_round':
-          chatAnalyticsMocks.trackMessageRound(properties)
-          break
-        case 'message_round_failed':
-          chatAnalyticsMocks.trackMessageRoundFailed(properties)
-          break
-        case 'message_sent':
-          chatAnalyticsMocks.trackMessageSent(properties)
-          break
-        default:
-          return false
-      }
-
-      return true
-    },
-    recordFirstMessage: trackFirstMessageMock,
-  }),
 }))
 
 vi.mock('../composables/use-io-tracer', () => ({
@@ -173,14 +138,15 @@ vi.mock('../composables/vision/use-vision-inference', () => ({
 }))
 
 vi.mock('./chat/session-store', () => ({
-  useChatSessionStore: () => ({
+  useChatSessionStore: defineStore('chat-session', () => ({
     activeSessionId: activeSessionIdRef,
     sessionMessages,
+    sessionMetas,
     ensureSession: (sessionId: string) => {
       ensureSessionMock(sessionId)
       sessionMessages[sessionId] ??= [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
     },
-    appendSessionMessage: (sessionId: string, message: any) => {
+    appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => {
       sessionMessages[sessionId] ??= []
       sessionMessages[sessionId].push(message)
     },
@@ -196,20 +162,20 @@ vi.mock('./chat/session-store', () => ({
     ensureCurrentSession: ensureCurrentSessionMock,
     persistSessionMessages: persistSessionMessagesMock,
     getSessionGeneration: () => currentGeneration,
-    setSessionMessages: (sessionId: string, messages: any[]) => {
+    setSessionMessages: (sessionId: string, messages: ChatHistoryItem[]) => {
       sessionMessages[sessionId] = messages
     },
     forkSession: forkSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
     pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
-  }),
+  })),
 }))
 
 vi.mock('./chat/stream-store', () => ({
-  useChatStreamStore: () => ({
+  useChatStreamStore: defineStore('chat-stream', () => ({
     streamingMessage: streamingMessageRef,
-  }),
+  })),
 }))
 
 vi.mock('./ai/chat-llm/llm', () => ({
@@ -233,14 +199,14 @@ vi.mock('./ai/chat-llm/toolset-prompts', () => ({
 }))
 
 vi.mock('./modules/consciousness', () => ({
-  useConsciousnessStore: () => ({
+  useConsciousnessStore: defineStore('consciousness', () => ({
     activeModel: activeModelRef,
     activeProvider: activeProviderRef,
     providerModels: consciousnessModels.value,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
-  }),
+  })),
 }))
 
 vi.mock('./modules/airi-card', () => ({
@@ -267,7 +233,7 @@ const provider: GenerationProvider = {
 }
 
 /** An assistant message whose stored tool result holds an original screenshot. */
-function storedToolImageMessage() {
+function storedToolImageMessage(): ChatHistoryItem {
   return {
     role: 'assistant',
     id: 'assistant-1',
@@ -292,6 +258,23 @@ function storedToolImageMessage() {
 describe('chat store contract', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
+      switch (event.name) {
+        case 'message_round':
+          chatAnalyticsMocks.trackMessageRound(properties)
+          break
+        case 'message_round_failed':
+          chatAnalyticsMocks.trackMessageRoundFailed(properties)
+          break
+        case 'message_sent':
+          chatAnalyticsMocks.trackMessageSent(properties)
+          break
+        default:
+          return false
+      }
+      return true
+    })
+    vi.spyOn(getAnalytics(), 'recordFirstMessage').mockImplementation(trackFirstMessageMock)
     llmStreamMock.mockReset()
     trackFirstMessageMock.mockReset()
     for (const analyticsMock of Object.values(chatAnalyticsMocks))
@@ -340,6 +323,9 @@ describe('chat store contract', () => {
 
     for (const key of Object.keys(sessionMessages)) {
       delete sessionMessages[key]
+    }
+    for (const key of Object.keys(sessionMetas)) {
+      delete sessionMetas[key]
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
@@ -395,7 +381,7 @@ describe('chat store contract', () => {
     await store.retry({ sessionId: 'session-1', index: 2 })
 
     const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
-    expect(retried.content).toEqual([
+    expect(retried?.content).toEqual([
       { type: 'text', text: 'What is this?' },
       { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
     ])
@@ -622,7 +608,7 @@ describe('chat store contract', () => {
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })
     })
-    const imageMessage = { role: 'user', content: [{ type: 'text', text: 'Read this' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }], createdAt: 2 }
+    const imageMessage: ChatHistoryItem = { role: 'user', content: [{ type: 'text', text: 'Read this' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }], createdAt: 2 }
     const store = useChatStore()
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }, { ...imageMessage }]
     await store.send({ sessionId: 'session-1', text: 'Hello' })
@@ -1361,7 +1347,11 @@ describe('chat store contract', () => {
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
-  it('ingests the runtime prompt before composing prompt snapshots', async () => {
+  // https://github.com/moeru-ai/airi/actions/runs/36826476027
+  // ROOT CAUSE:
+  // The session fixture omitted reader metadata, and runtime-context assertions still required persistent writes.
+  // The fixture now exposes metadata through Pinia. Context assertions follow the request-only projection contract.
+  it('projects runtime contexts once without retaining them in the registry', async () => {
     const runtimePromptContext = {
       id: 'airi-runtime-prompt-context',
       contextId: 'system:airi-runtime-prompt',
@@ -1381,14 +1371,10 @@ describe('chat store contract', () => {
 
     createRuntimePromptContextMock.mockReturnValue(runtimePromptContext)
     createMinecraftContextMock.mockReturnValue(minecraftContext)
-    getContextsSnapshotMock.mockReturnValue({
-      'system:airi-runtime-prompt': [runtimePromptContext],
-      'system:minecraft': [minecraftContext],
-    })
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: StreamOptions) => {
       composedMessages = context.turns
-      await options.onStreamEvent({ type: 'text-delta', text: 'minecraft reply' })
-      await options.onStreamEvent({ type: 'finish' })
+      await options.onStreamEvent?.({ type: 'text-delta', text: 'minecraft reply' })
+      await options.onStreamEvent?.({ type: 'finish' })
     })
 
     const store = useChatStore()
@@ -1400,12 +1386,11 @@ describe('chat store contract', () => {
 
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emotion'))
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
-    expect(ingestContextMessageMock).toHaveBeenCalledTimes(2)
-    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(1, runtimePromptContext)
-    expect(ingestContextMessageMock).toHaveBeenNthCalledWith(2, minecraftContext)
-    expect(ingestContextMessageMock.mock.invocationCallOrder[0]).toBeLessThan(
-      getContextsSnapshotMock.mock.invocationCallOrder[0],
-    )
+    expect(createRuntimePromptContextMock).toHaveBeenCalledOnce()
+    expect(createMinecraftContextMock).toHaveBeenCalledOnce()
+    expect(getContextsSnapshotMock).toHaveBeenCalledOnce()
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character', 'owner:private'] })
+    expect(ingestContextMessageMock).not.toHaveBeenCalled()
     if (composedMessages[1].type !== 'user')
       throw new Error('Expected user turn')
     expect(composedMessages[1].content[1]).toEqual({
@@ -1417,6 +1402,25 @@ describe('chat store contract', () => {
     })
   })
 
+  it('uses external scene readers without adding private owner or account context', async () => {
+    sessionMetas['session-1'] = {
+      sessionId: 'session-1',
+      userId: 'local',
+      characterId: 'default',
+      bindings: ['discord:channel:a'],
+      createdAt: 1,
+      updatedAt: 1,
+    }
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Hello from Discord' })
+
+    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'] })
+    expect(createUserAccountContextMock).not.toHaveBeenCalled()
+  })
+
   it('adds account context only to the signed-in request without retaining it in the registry', async () => {
     const account = {
       id: 'account',
@@ -1426,7 +1430,8 @@ describe('chat store contract', () => {
       createdAt: 123,
     }
     const registry = {}
-    getContextsSnapshotMock.mockReturnValue(registry)
+    // Registry reads return independent snapshots. Request overlays do not mutate the retained registry.
+    getContextsSnapshotMock.mockImplementation(() => structuredClone(registry))
     createUserAccountContextMock.mockReturnValue(account)
     const prompts: string[] = []
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, messages: Conversation, options: StreamOptions) => {
