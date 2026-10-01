@@ -495,6 +495,15 @@ pages:
   memory:
     description: Where memories got stored, and organized
     title: Memory
+    sessions:
+      title: Chat sessions
+      description: A chat session becomes dormant after a quiet period, then retired after a longer one. A dormant session still resumes. A retired session no longer resumes for its external scene.
+      dormant_after:
+        label: Dormant after (minutes)
+        description: Minutes without activity before a chat session becomes dormant.
+      retire_after:
+        label: Retired after (days)
+        description: Days in the dormant state before a chat session retires. You can still open and continue it.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

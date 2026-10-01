@@ -465,6 +465,15 @@ pages:
   memory:
     description: 存放记忆的地方，以及策略
     title: 记忆体
+    sessions:
+      title: 聊天会话
+      description: 聊天会话在一段时间没有活动后进入休眠，再过更长时间后归档。休眠的会话仍然可以恢复。归档的会话不再被它的外部场景自动恢复。
+      dormant_after:
+        label: 休眠前的空闲时间（分钟）
+        description: 聊天会话在没有活动的情况下经过多少分钟后进入休眠。
+      retire_after:
+        label: 归档前的休眠时间（天）
+        description: 聊天会话在休眠状态下经过多少天后归档。你仍然可以打开并继续它。
   data:
     description: 管理存储 AIRI 数据、导出和重置
     sections:
