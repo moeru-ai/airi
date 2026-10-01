@@ -4,6 +4,14 @@ export interface ChatSessionMeta {
   sessionId: string
   userId: string
   characterId: string
+  /** External scene identities that recover this session within its user and persona partition. */
+  bindings?: string[]
+  /** Session from which this conversation branch was copied. */
+  parentSessionId?: string
+  /** Purpose supplied when the branch was created. */
+  forkReason?: string
+  /** Excludes task branches from conversation navigation. */
+  hidden?: boolean
   title?: string
   createdAt: number
   updatedAt: number

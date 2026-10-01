@@ -17,6 +17,11 @@ The overlay emits `finished` when all resources are ready. Apps open onboarding 
 
 ## Chat sampling
 
+External inputs use `overrides.binding` to identify their scene. The session leader creates or recovers a persistent session for that binding.
+Bindings belong to a user and character partition. Recovery keeps the calling window's selected conversation unchanged.
+Discord uses one binding per channel, including threads and direct messages.
+Conversation forks retain their parent session, reason, and hidden flag.
+
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off
 by default. Enable each parameter only when the selected model supports it.
 Some models accept only one sampling parameter at a time.

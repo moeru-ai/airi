@@ -473,7 +473,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * - The new session id. When `setActive` is not `false` the session is
    *   also made the active one.
    */
-  async function createSession(characterId: string, options?: { setActive?: boolean, messages?: ChatHistoryItem[], title?: string }) {
+  async function createSession(characterId: string, options?: {
+    setActive?: boolean
+    messages?: ChatHistoryItem[]
+    title?: string
+    bindings?: string[]
+    parentSessionId?: string
+    forkReason?: string
+    hidden?: boolean
+  }) {
     const currentUserId = getCurrentUserId()
     const sessionId = nanoid()
     const now = Date.now()
@@ -482,6 +490,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       userId: currentUserId,
       characterId,
       title: options?.title,
+      bindings: options?.bindings,
+      parentSessionId: options?.parentSessionId,
+      forkReason: options?.forkReason,
+      hidden: options?.hidden,
       createdAt: now,
       updatedAt: now,
     }
@@ -1478,13 +1490,41 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return getSessionGeneration(target)
   }
 
-  async function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean }) {
+  /** Recovers one external scene without changing the window's selected conversation. */
+  async function ensureBoundSession(binding: string): Promise<string> {
+    if (!binding.trim())
+      throw new Error('An external session binding must not be empty')
+    if (!ready.value)
+      await initialize()
+
+    const currentUserId = getCurrentUserId()
     const characterId = getCurrentCharacterId()
-    await loadSession(options.fromSessionId)
+    const existing = Object.values(sessionMetas.value).find(meta => meta.userId === currentUserId
+      && meta.characterId === characterId && meta.bindings?.includes(binding))
+    if (existing) {
+      if (!await loadSession(existing.sessionId))
+        throw new Error('Failed to recover the bound chat session')
+      return existing.sessionId
+    }
+
+    return createSession(characterId, { setActive: false, bindings: [binding] })
+  }
+
+  async function forkSession(options: { fromSessionId: string, atIndex?: number, reason?: string, hidden?: boolean }) {
+    if (!await loadSession(options.fromSessionId))
+      throw new Error('Failed to load the parent chat session')
+    const parentMeta = sessionMetas.value[options.fromSessionId]
+    const characterId = parentMeta.characterId
     const parentMessages = getSessionMessages(options.fromSessionId)
     const forkIndex = options.atIndex ?? parentMessages.length
     const nextMessages = parentMessages.slice(0, forkIndex)
-    return await createSession(characterId, { setActive: false, messages: nextMessages })
+    return await createSession(characterId, {
+      setActive: false,
+      messages: nextMessages,
+      parentSessionId: options.fromSessionId,
+      forkReason: options.reason,
+      hidden: options.hidden,
+    })
   }
 
   async function exportSessions(): Promise<ChatSessionsExport> {
@@ -1646,6 +1686,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     exportSessions,
     importSessions,
     createSession,
+    ensureBoundSession,
     loadSession,
     refreshSession,
     deleteSession,
@@ -1664,6 +1705,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       'deleteMessage',
       'deleteSession',
       'ensureCurrentSession',
+      'ensureBoundSession',
       'exportSessions',
       'forkSession',
       'importSessions',

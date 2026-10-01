@@ -661,6 +661,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
             ...update,
             id,
             contextId,
+            // Input side context follows its scene unless the sender explicitly shares it.
+            destinations: update.destinations ?? [overrides?.binding ?? overrides?.sessionId ?? chatSession.activeSessionId],
           }
         })
         const acceptedContextUpdates: typeof normalizedContextUpdates = normalizedContextUpdates ? [] : undefined
@@ -725,7 +727,6 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         if (activeProvider.value && activeModel.value) {
           let messageText = text
-          const targetSessionId = overrides?.sessionId
 
           if (overrides?.messagePrefix) {
             messageText = `${overrides.messagePrefix}${text}`
@@ -755,8 +756,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // - https://developer.mozilla.org/en-US/docs/Web/API/Web_Locks_API
           await withContextBridgeLock('context-bridge:event:input:text', async () => {
             try {
+              const targetSessionId = overrides?.binding
+                ? await chatSession.ensureBoundSession(overrides.binding)
+                : overrides?.sessionId ?? chatSession.activeSessionId
               await chatOrchestrator.send({
-                sessionId: targetSessionId ?? chatSession.activeSessionId,
+                sessionId: targetSessionId,
                 text: messageText,
                 temperature: activeTemperature.value,
                 topP: activeTopP.value,

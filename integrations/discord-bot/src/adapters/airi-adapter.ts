@@ -246,17 +246,11 @@ export class DiscordAdapter {
           ? `on server '${serverName}'`
           : 'in Direct Message'
 
-        // Calculate sessionId based on guild or DM
-        let targetSessionId = 'discord'
-        if (normalizedDiscord?.guildId) {
-          targetSessionId = `discord-guild-${normalizedDiscord.guildId}`
-        }
-        else {
-          targetSessionId = `discord-dm-${normalizedDiscord?.guildMember?.id || 'unknown'}`
-        }
+        // Channels, including threads and DMs, own independent persistent conversations.
+        const binding = `discord:channel:${message.channelId}`
 
         const discordNotice = normalizedDiscord
-          ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
+          ? `Discord channel: ${normalizedDiscord.channelId}`
           : undefined
 
         this.airiClient.send({
@@ -268,11 +262,13 @@ export class DiscordAdapter {
               messagePrefix: displayName
                 ? `(From Discord user ${displayName} ${contextPrefix}): `
                 : `(From Discord user ${contextPrefix}): `,
-              sessionId: targetSessionId,
+              binding,
             },
             contextUpdates: discordNotice
               ? [{
-                  strategy: ContextUpdateStrategy.AppendSelf,
+                  contextId: `${binding}:notice`,
+                  strategy: ContextUpdateStrategy.ReplaceSelf,
+                  destinations: [binding],
                   text: discordNotice,
                   content: discordNotice,
                   metadata: {

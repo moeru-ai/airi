@@ -125,6 +125,41 @@ afterEach(() => {
 })
 
 describe('chat session synchronization', () => {
+  it('recovers one persistent external session through the leader without changing local selection', async () => {
+    const namespace = `chat-binding:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+    const selected = follower.activeSessionId
+    const [first, second] = await Promise.all([
+      follower.ensureBoundSession('discord:channel:a'),
+      follower.ensureBoundSession('discord:channel:a'),
+    ])
+
+    expect(first).toBe(second)
+    expect(first).not.toBe(selected)
+    expect(follower.activeSessionId).toBe(selected)
+    expect(leader.sessionMetas[first]?.bindings).toEqual(['discord:channel:a'])
+    expect(Object.values(leader.sessionMetas).filter(meta => meta.bindings?.includes('discord:channel:a'))).toHaveLength(1)
+
+    const other = await follower.ensureBoundSession('discord:channel:b')
+    expect(other).not.toBe(first)
+    leader.appendSessionMessage(first, { id: 'external-input', role: 'user', content: 'hello from A' })
+    await vi.waitFor(() => expect(follower.sessionMessages[first]?.at(-1)?.content).toBe('hello from A'))
+
+    const fork = await follower.forkSession({ fromSessionId: first, reason: 'follow-up', hidden: true })
+    expect(leader.sessionMetas[fork]?.parentSessionId).toBe(first)
+    expect(leader.sessionMetas[fork]?.forkReason).toBe('follow-up')
+    expect(leader.sessionMetas[fork]?.hidden).toBe(true)
+    expect(leader.sessionMetas[fork]?.characterId).toBe('default')
+  })
+
   it('initializes a follower through the canonical session action', async () => {
     // ROOT CAUSE:
     //

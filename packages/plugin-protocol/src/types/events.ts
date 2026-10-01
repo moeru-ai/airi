@@ -587,6 +587,8 @@ export interface ContextUpdate<
 
 export interface InputMessageOverrides {
   sessionId?: string
+  /** Stable external scene identity. The host resolves it to a persistent persona session. */
+  binding?: string
   messagePrefix?: string
 }
 
