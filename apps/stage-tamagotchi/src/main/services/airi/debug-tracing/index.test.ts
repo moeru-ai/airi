@@ -16,6 +16,7 @@ async function temporaryPaths() {
   return {
     connectionPath: join(directory, 'connection.json'),
     databasePath: join(directory, 'debug.duckdb'),
+    migrationsFolder: join(directory, 'drizzle'),
   }
 }
 
@@ -37,8 +38,9 @@ describe('debugTracingService', () => {
       setStoredEnabled: (enabled) => {
         storedEnabled = enabled
       },
-      startServer: async (config) => {
+      startServer: async (config, runtimeOptions) => {
         receivedConfig = config
+        expect(runtimeOptions).toEqual({ migrationsFolder: paths.migrationsFolder })
         return {
           databasePath: config.databasePath,
           endpoint: 'http://127.0.0.1:49152',

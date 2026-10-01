@@ -100,6 +100,11 @@ export default {
   ],
   extraResources: [
     {
+      from: '../../services/debug-server/drizzle',
+      to: 'debug-server/drizzle',
+      filter: ['**/*'],
+    },
+    {
       from: '../../engines/stage-tamagotchi-godot/out/${os}',
       to: 'godot-stage',
       filter: ['**/*'],

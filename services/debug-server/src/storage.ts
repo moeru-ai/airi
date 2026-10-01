@@ -19,6 +19,7 @@ import { events, ingestBatches, metadata, sources, traces } from './schema'
 const log = useLogg('debug-server:storage').useGlobalConfig()
 
 export interface StorageOptions {
+  migrationsFolder?: string
   path: string
   retentionDays: number
   maxStoredBytes: number
@@ -155,7 +156,7 @@ export class DebugStorage {
     const hasMigrations = existingTables.some(row => row.table_schema === 'drizzle' && row.table_name === '__drizzle_migrations')
     if (hasEvents && !hasMigrations)
       throw new Error('This debug database predates migrations. Keep the original file and set AIRI_DEBUG_DB_PATH to a new file.')
-    await migrate(this.database, fileURLToPath(new URL('../drizzle', import.meta.url)))
+    await migrate(this.database, this.options.migrationsFolder ?? fileURLToPath(new URL('../drizzle', import.meta.url)))
     await this.database.insert(metadata).values([
       { key: 'events_pruned_through', value: '0' },
       { key: 'sources_pruned_through', value: '0' },

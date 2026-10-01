@@ -22,6 +22,10 @@ export interface DebugServerHandle {
   stop: () => Promise<void>
 }
 
+export interface DebugServerRuntimeOptions {
+  migrationsFolder?: string
+}
+
 function endpointFor(host: string, port: number): string {
   const hostname = isIPv6(host) ? `[${host}]` : host
   return new URL(`http://${hostname}:${port}`).origin
@@ -37,10 +41,11 @@ async function listen(app: ReturnType<typeof createApp>, config: DebugServerConf
   })
 }
 
-export async function startDebugServer(config: DebugServerConfig): Promise<DebugServerHandle> {
+export async function startDebugServer(config: DebugServerConfig, runtimeOptions: DebugServerRuntimeOptions = {}): Promise<DebugServerHandle> {
   await mkdir(dirname(config.databasePath), { recursive: true, mode: 0o700 })
   const storage = await DebugStorage.open({
     maxStoredBytes: config.maxStoredBytes,
+    migrationsFolder: runtimeOptions.migrationsFolder,
     path: config.databasePath,
     retentionDays: config.retentionDays,
   })

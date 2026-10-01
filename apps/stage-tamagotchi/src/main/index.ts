@@ -237,6 +237,9 @@ app.whenReady().then(async () => {
         connectionPath: join(app.getPath('userData'), 'debug', 'connection.json'),
         databasePath: join(app.getPath('userData'), 'debug', 'debug.duckdb'),
         getStoredEnabled: () => getConfig().enabled,
+        migrationsFolder: app.isPackaged
+          ? join(process.resourcesPath, 'debug-server', 'drizzle')
+          : resolve(app.getAppPath(), '..', '..', 'services', 'debug-server', 'drizzle'),
         setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
       })
       dependsOn.lifecycle.appHooks.onStart(() => service.restore())

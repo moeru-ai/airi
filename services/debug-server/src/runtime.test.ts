@@ -14,6 +14,26 @@ afterEach(async () => {
 })
 
 describe('startDebugServer', () => {
+  it('uses the configured migrations folder', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'airi-debug-runtime-'))
+    temporaryDirectories.push(directory)
+    const config = {
+      ...loadConfig({ AIRI_DEBUG_DB_PATH: join(directory, 'debug.duckdb'), AIRI_DEBUG_TOKEN: 'runtime-test' }),
+      port: 0,
+    }
+    let server: Awaited<ReturnType<typeof startDebugServer>> | undefined
+    try {
+      server = await startDebugServer(config, { migrationsFolder: join(directory, 'missing-migrations') })
+      expect.unreachable('The configured migrations folder should be required')
+    }
+    catch (error) {
+      expect(error).toHaveProperty('message', expect.stringContaining('meta/_journal.json'))
+    }
+    finally {
+      await server?.stop()
+    }
+  })
+
   it('reports its allocated endpoint and closes it idempotently', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'airi-debug-runtime-'))
     temporaryDirectories.push(directory)

@@ -1,5 +1,5 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
-import type { DebugServerHandle } from '@proj-airi/debug-server'
+import type { DebugServerHandle, DebugServerRuntimeOptions } from '@proj-airi/debug-server'
 import type { DebugServerConfig } from '@proj-airi/debug-server/config'
 
 import type { DebugTracingState } from '../../../../shared/eventa'
@@ -25,8 +25,9 @@ interface DebugTracingServiceOptions {
   connectionPath: string
   databasePath: string
   getStoredEnabled: () => boolean
+  migrationsFolder: string
   setStoredEnabled: (enabled: boolean) => void
-  startServer?: (config: DebugServerConfig) => Promise<DebugServerHandle>
+  startServer?: (config: DebugServerConfig, runtimeOptions: DebugServerRuntimeOptions) => Promise<DebugServerHandle>
 }
 
 export class DebugTracingService {
@@ -99,7 +100,9 @@ export class DebugTracingService {
     }
     try {
       await rm(this.options.connectionPath, { force: true })
-      const handle = await (this.options.startServer ?? startDebugServer)(config)
+      const handle = await (this.options.startServer ?? startDebugServer)(config, {
+        migrationsFolder: this.options.migrationsFolder,
+      })
       try {
         await mkdir(dirname(this.options.connectionPath), { recursive: true, mode: 0o700 })
         await writeFile(this.options.connectionPath, JSON.stringify({
