@@ -90,12 +90,14 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Pool admission and retention use local `o200k_base` token cost. Short multibyte observations no longer consume a byte budget.
 - Context mutations run in leader actions. Replicated checkpoints retain original expiry times and bounded delivery history.
 - One owner prunes idle contexts. Followers read projections without publishing state proposals.
+- Minecraft status and VS Code observations use the shared token counter. Oversized text becomes an origin handle with module-owned details.
+- Minecraft renews unchanged online status. Three missed refreshes expire it, and unbinding stops renewal.
 
 ### Remaining P0 acceptance
 
 - Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
-- Module status text must fit the observation budget or use an origin reference. Producer-level status acceptance still requires verification.
+- Other context producers still require budget verification. Origin handles do not yet expose a cross-module authorized query boundary.
 - Live external-session recovery and minimized-window timing still require integration evidence.
 
 ### Validation findings

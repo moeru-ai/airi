@@ -3235,6 +3235,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/core-agent':
+        specifier: workspace:*
+        version: link:../../packages/core-agent
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
@@ -3532,6 +3535,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/core-agent':
+        specifier: workspace:*
+        version: link:../../../packages/core-agent
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../../packages/server-sdk

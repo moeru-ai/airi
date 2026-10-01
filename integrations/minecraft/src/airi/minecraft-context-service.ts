@@ -2,6 +2,7 @@ import type { ContextUpdate, ModuleAnnouncedEvent } from '@proj-airi/server-sdk'
 
 import type { MineflayerWithAgents } from '../cognitive/types'
 
+import { createContextText } from '@proj-airi/core-agent/context'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { nanoid } from 'nanoid'
 
@@ -53,24 +54,18 @@ function buildStatusText(snapshot: MinecraftStatusSnapshot) {
   return [
     `Bot online: ${snapshot.botUsername}`,
     'Desktop command relay: available.',
-    `When the user asks to instruct or control this Minecraft bot, call the ${DESKTOP_RELAY_TOOL_NAME} tool.`,
-    'Set destinations to ["minecraft-bot"], set intent to "action", and put the user\'s Minecraft instruction in guidance.options[0].label and guidance.options[0].steps.',
-    'Do not claim that an instruction was relayed unless the tool call succeeds.',
-    `Server: ${snapshot.serverHost}:${snapshot.serverPort}`,
+    `Relay tool: ${DESKTOP_RELAY_TOOL_NAME}. Destination: minecraft-bot.`,
     `Position: ${snapshot.position}`,
     `Health: ${snapshot.health}/20, Mode: ${snapshot.gameMode}`,
-    `Other players online: ${snapshot.otherPlayers.length > 0 ? snapshot.otherPlayers.join(', ') : 'none'}`,
-    ...(snapshot.masterUsername ? [`Master (your owner) in-game username: ${snapshot.masterUsername}`] : []),
+    `Other players online: ${snapshot.otherPlayers.length}`,
+    ...(snapshot.masterUsername ? [`Owner: ${snapshot.masterUsername}`] : []),
   ].join('\n')
 }
 
-function buildOfflineStatusText(serverHost: string, serverPort: number, masterUsername?: string) {
+function buildOfflineStatusText() {
   return [
     'Bot offline: no active Minecraft bot.',
     'Desktop command relay: unavailable.',
-    `Do not call the ${DESKTOP_RELAY_TOOL_NAME} tool for Minecraft until a later status context says that the bot is online.`,
-    `Configured server: ${serverHost}:${serverPort}`,
-    ...(masterUsername ? [`Configured in-game master username: ${masterUsername}`] : []),
   ].join('\n')
 }
 
@@ -89,7 +84,7 @@ function collectFrontendDestinations(event: ModuleAnnouncedEvent) {
  * Publishes Minecraft capability and status context through the AIRI server event seam.
  *
  * Use when:
- * - A Stage runtime must discover how to relay a user instruction without Minecraft-specific UI code.
+ * - A Stage runtime needs current availability without Minecraft-specific UI code.
  * - The integration must reject relayed commands while no bot runtime is active.
  *
  * Expects:
@@ -97,7 +92,7 @@ function collectFrontendDestinations(event: ModuleAnnouncedEvent) {
  * - The AIRI bridge is initialized before status updates are published.
  *
  * Returns:
- * - Replace-self status context that describes relay availability and the existing generic relay tool.
+ * - Budgeted status facts with an origin handle. Full world details remain in this module.
  */
 export class MinecraftContextService {
   private runtimeBot: MinecraftContextBot | null = null
@@ -107,6 +102,7 @@ export class MinecraftContextService {
   private unsubscribeModuleAnnounced: (() => void) | null = null
   private readonly serverHost: string
   private readonly serverPort: number
+  private readonly refreshIntervalMs: number
 
   private readonly masterUsername?: string
 
@@ -115,11 +111,15 @@ export class MinecraftContextService {
     serverHost: string
     serverPort: number
     masterUsername?: string
+    /** @default 5000 */
     refreshIntervalMs?: number
   }) {
     this.serverHost = deps.serverHost
     this.serverPort = deps.serverPort
     this.masterUsername = deps.masterUsername
+    this.refreshIntervalMs = deps.refreshIntervalMs ?? STATUS_REFRESH_INTERVAL_MS
+    if (!Number.isFinite(this.refreshIntervalMs) || this.refreshIntervalMs <= 0)
+      throw new RangeError('Status refresh interval must be positive and finite')
   }
 
   init() {
@@ -148,8 +148,9 @@ export class MinecraftContextService {
     }
 
     this.refreshTimer = setInterval(() => {
-      this.publishStatus()
-    }, this.deps.refreshIntervalMs ?? STATUS_REFRESH_INTERVAL_MS)
+      // A live observation must renew even when its facts remain unchanged.
+      this.publishStatus({ force: true })
+    }, this.refreshIntervalMs)
   }
 
   unbindBot() {
@@ -172,7 +173,7 @@ export class MinecraftContextService {
     const snapshot = this.refreshStatusSnapshot()
     const text = snapshot
       ? buildStatusText(snapshot)
-      : buildOfflineStatusText(this.serverHost, this.serverPort, this.masterUsername)
+      : buildOfflineStatusText()
     if (!options.force && text === this.lastPublishedText) {
       return
     }
@@ -181,7 +182,9 @@ export class MinecraftContextService {
       id: nanoid(),
       contextId: STATUS_CONTEXT_ID,
       lane: STATUS_LANE,
-      text,
+      ...createContextText(text, { refType: 'minecraft:status', targetId: STATUS_CONTEXT_ID }),
+      // Three missed refreshes expire an unavailable producer without retaining stale online status.
+      ttlMs: this.refreshIntervalMs * 3,
       hints: [
         'status',
         snapshot ? 'online' : 'offline',

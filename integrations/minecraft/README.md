@@ -6,6 +6,9 @@ This workspace runs AIRI's dedicated Minecraft bot. It connects a Mineflayer run
 
 Plain bridge observations append to the fixed `events` slot. The receiving context registry bounds this event window per writer.
 Structured status updates retain their own `contextId` and replacement strategy.
+The status publisher sends compact facts with a `minecraft:status` source reference, not tool instructions or world data.
+`getStatusSnapshot()` retains the full current status in the module. Oversized observations become references instead of truncated world details.
+Online status renews every refresh interval, even without changes. Its TTL expires after three missed refreshes. Unbinding stops renewal.
 The bridge preserves module-declared retention, visibility, and structured observation fields. The receiving host enforces pool admission and reader visibility.
 
 ## Deprecation Notice

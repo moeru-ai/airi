@@ -1,6 +1,7 @@
 import type { ContextUpdate, ModuleAnnouncedEvent } from '@proj-airi/server-sdk'
 
-import { describe, expect, it, vi } from 'vitest'
+import { createContextRegistry } from '@proj-airi/core-agent'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { MinecraftContextService } from './minecraft-context-service'
 
@@ -19,7 +20,7 @@ function fakeBot(): ContextBot {
   }
 }
 
-function makeService(masterUsername?: string) {
+function makeService(masterUsername?: string, refreshIntervalMs?: number) {
   const captured: ContextUpdate[] = []
   let moduleAnnouncedListener: ((event: ModuleAnnouncedEvent) => void) | undefined
   const airiBridge = {
@@ -39,6 +40,7 @@ function makeService(masterUsername?: string) {
     serverHost: '127.0.0.1',
     serverPort: 25565,
     masterUsername,
+    refreshIntervalMs,
   })
 
   return {
@@ -49,16 +51,85 @@ function makeService(masterUsername?: string) {
   }
 }
 
-/**
- * @example
- * service.bindBot(fakeBot()) publishes relay instructions through `minecraft:status`.
- */
+afterEach(() => vi.useRealTimers())
+
 describe('minecraftContextService desktop relay context', () => {
-  /**
-   * @example
-   * expect(update.text).toContain('builtIn_emitSparkCommand')
-   */
-  it('publishes the generic relay tool contract and configured master while the bot is online', () => {
+  it('retains world details in the module while an oversized status becomes a reference', () => {
+    const { service, captured } = makeService('owner'.repeat(100))
+    try {
+      const bot = fakeBot()
+      bot.bot.players = Object.fromEntries(Array.from({ length: 1000 }, (_, index) => [`player-${index}`, {}]))
+      service.bindBot(bot)
+      const registry = createContextRegistry()
+      const update = captured[0]!
+
+      expect(update.text).toBe('Source details: minecraft:status/minecraft:status')
+      expect(update.sourceRef).toEqual({ refType: 'minecraft:status', targetId: 'minecraft:status' })
+      expect(registry.ingest({ ...update, metadata: undefined, createdAt: Date.now() })?.mutation).toBe('replace')
+      expect(service.getStatusSnapshot()?.otherPlayers).toHaveLength(1000)
+      expect(service.getStatusSnapshot()?.masterUsername).toBe('owner'.repeat(100))
+    }
+    finally {
+      service.destroy()
+    }
+  })
+
+  it('sizes status expiry for the configured refresh cadence', () => {
+    const { service, captured } = makeService(undefined, 10_000)
+    try {
+      service.bindBot(fakeBot())
+      expect(captured[0]?.ttlMs).toBe(30_000)
+    }
+    finally {
+      service.destroy()
+    }
+  })
+
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])('rejects an invalid refresh interval: %s', (interval) => {
+    expect(() => makeService(undefined, interval)).toThrow(RangeError)
+  })
+
+  // ROOT CAUSE:
+  // Long relay instructions and player lists exceeded the receiving pool's 80-token entry limit.
+  // Unchanged status also stopped refreshing, so a live bot disappeared when its observation expired.
+  it('admits the live status through the default observation budget', () => {
+    const { service, captured } = makeService('dssadg')
+    try {
+      service.bindBot(fakeBot())
+      const registry = createContextRegistry()
+      expect(registry.ingest({ ...captured[0]!, metadata: undefined, createdAt: Date.now() })?.mutation).toBe('replace')
+    }
+    finally {
+      service.destroy()
+    }
+  })
+
+  it('refreshes unchanged status before its observation expires', () => {
+    vi.useFakeTimers()
+    const { service, captured, airiBridge } = makeService()
+    try {
+      // Isolate expiry from text admission. The preceding regression checks the default token budget.
+      const registry = createContextRegistry({ countTokens: () => 1 })
+      airiBridge.sendContextUpdate.mockImplementation((update) => {
+        captured.push(update)
+        registry.ingest({ ...update, metadata: undefined, createdAt: Date.now() })
+      })
+      service.bindBot(fakeBot())
+      vi.advanceTimersByTime(65_000)
+      expect(registry.snapshot().unknown).toHaveLength(1)
+      expect(captured.length).toBeGreaterThan(1)
+      expect(captured.at(-1)?.ttlMs).toBe(15_000)
+      service.unbindBot()
+      airiBridge.sendContextUpdate.mockClear()
+      vi.advanceTimersByTime(20_000)
+      expect(airiBridge.sendContextUpdate).not.toHaveBeenCalled()
+      expect(registry.snapshot()).toEqual({})
+    }
+    finally {
+      service.destroy()
+    }
+  })
+  it('publishes relay availability and configured master as status facts', () => {
     const { airiBridge, service, captured } = makeService('dssadg')
 
     service.bindBot(fakeBot())
@@ -69,18 +140,16 @@ describe('minecraftContextService desktop relay context', () => {
     expect(update.text).toContain('Bot online: Airi')
     expect(update.text).toContain('Desktop command relay: available.')
     expect(update.text).toContain('builtIn_emitSparkCommand')
-    expect(update.text).toContain('destinations to ["minecraft-bot"]')
-    expect(update.text).toContain('Master (your owner) in-game username: dssadg')
+    expect(update.text).toContain('Destination: minecraft-bot.')
+    expect(update.text).not.toContain('When the user asks')
+    expect(update.sourceRef).toEqual({ refType: 'minecraft:status', targetId: 'minecraft:status' })
+    expect(update.text).toContain('Owner: dssadg')
     expect(update.hints?.some(hint => hint.startsWith('master:'))).toBe(false)
     expect(airiBridge.setCommandAvailable).toHaveBeenCalledWith(true)
 
     service.destroy()
   })
 
-  /**
-   * @example
-   * expect(update.text).toContain('Desktop command relay: unavailable.')
-   */
   it('replaces the relay context with an offline capability when the bot unbinds', () => {
     const { airiBridge, service, captured } = makeService()
     service.bindBot(fakeBot())
@@ -90,17 +159,13 @@ describe('minecraftContextService desktop relay context', () => {
     const update = captured[1]
     expect(update.text).toContain('Bot offline: no active Minecraft bot.')
     expect(update.text).toContain('Desktop command relay: unavailable.')
-    expect(update.text).toContain('Do not call the builtIn_emitSparkCommand tool')
+    expect(update.text).not.toContain('Do not call')
     expect(update.hints).toEqual(['status', 'offline'])
     expect(airiBridge.setCommandAvailable).toHaveBeenLastCalledWith(false)
 
     service.destroy()
   })
 
-  /**
-   * @example
-   * expect(update.destinations).toEqual(['instance:stage-1'])
-   */
   it('replays the current relay capability to a newly announced Stage instance', () => {
     const { service, captured, getModuleAnnouncedListener } = makeService()
     service.init()
