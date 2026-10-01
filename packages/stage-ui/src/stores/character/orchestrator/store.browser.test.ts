@@ -159,4 +159,30 @@ describe('orchestrator tick ownership', () => {
     await vi.waitFor(() => expect(follower.runtime.isLeader()).toBe(true))
     await vi.waitFor(() => expect(followerNotebook.tasks[0].lastNotifiedAt).toBeDefined())
   })
+
+  // ROOT CAUSE:
+  // The queue lived in each renderer. Only the leader ticks, so a follower enqueue never ran,
+  // and a leader handoff dropped every notification that the previous leader had queued.
+  it('keeps queued notifications across leader handoff and routes follower enqueues to the leader', async () => {
+    const namespace = `orchestrator-queue:${crypto.randomUUID()}`
+    const leader = createContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    const follower = createContext(namespace, 'follower-preferred')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    const notify = (id: string) => ({
+      type: 'spark:notify' as const,
+      source: 'minecraft',
+      data: { id, eventId: id, kind: 'reminder' as const, urgency: 'later' as const, headline: id, destinations: ['character'] },
+    })
+
+    await leader.orchestrator.handleSparkNotify(notify('from-leader'))
+    await follower.orchestrator.handleSparkNotify(notify('from-follower'))
+    await vi.waitFor(() => expect(leader.orchestrator.scheduledNotifies.map(item => item.event.data.id)).toEqual(['from-leader', 'from-follower']))
+
+    leader.orchestrator.dispose()
+    leader.runtime.dispose()
+    await vi.waitFor(() => expect(follower.runtime.isLeader()).toBe(true))
+    expect(follower.orchestrator.scheduledNotifies.map(item => item.event.data.id)).toEqual(['from-leader', 'from-follower'])
+    expect(follower.orchestrator.pendingNotifies.map(event => event.data.id)).toEqual(['from-leader', 'from-follower'])
+  })
 })

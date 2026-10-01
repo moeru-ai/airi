@@ -11,6 +11,7 @@ import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prom
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { useCharacterNotifyQueueStore } from './queue'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
 
@@ -25,17 +26,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)
-  const pendingNotifies = ref<Array<WebSocketEventOf<'spark:notify'>>>([])
-
-  const scheduledNotifies = ref<Array<{
-    event: WebSocketEventOf<'spark:notify'>
-    control?: SparkNotifyResponseControl
-    enqueuedAt: number
-    nextRunAt: number
-    attempts: number
-    maxAttempts: number
-    reason?: string
-  }>>([])
+  // The queue survives leader handoff. A follower enqueue reaches the leader ticker.
+  const notifyQueue = useCharacterNotifyQueueStore()
+  const { pendingNotifies, scheduledNotifies } = storeToRefs(notifyQueue)
 
   const attentionConfig = ref({
     tickIntervalMs: 2_000,
@@ -97,7 +90,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     pendingNotifies.value = pendingNotifies.value.filter(item => item.data.id !== eventId)
   }
 
-  function enqueueSparkNotify(
+  async function enqueueSparkNotify(
     event: WebSocketEventOf<'spark:notify'>,
     options?: {
       reason?: string
@@ -106,11 +99,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       control?: SparkNotifyResponseControl
     },
   ) {
-    if (!pendingNotifies.value.some(item => item.data.id === event.data.id)) {
-      pendingNotifies.value.push(event)
-    }
-
-    scheduledNotifies.value.push({
+    await notifyQueue.enqueue({
       event,
       control: options?.control,
       enqueuedAt: Date.now(),
@@ -174,7 +163,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return await processSparkNotify(event, control)
     }
 
-    enqueueSparkNotify(event, { reason: 'spark:notify', control })
+    await enqueueSparkNotify(event, { reason: 'spark:notify', control })
     return undefined
   }
 
@@ -193,7 +182,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     return reaction || options?.fallbackText || ''
   }
 
-  function enqueueDueTasks(now: number) {
+  async function enqueueDueTasks(now: number) {
     const dueTasks = notebookStore.getDueTasks(now, attentionConfig.value.taskNotifyWindowMs)
     if (!dueTasks.length)
       return
@@ -218,8 +207,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         },
       }
 
-      enqueueSparkNotify(event, { reason: 'task:due' })
+      // Mark before the await, so an overlapping tick cannot schedule the same task again.
       notebookStore.markTaskNotified(task.id, now + attentionConfig.value.requeueDelayMs)
+      await enqueueSparkNotify(event, { reason: 'task:due' })
     }
   }
 
@@ -228,7 +218,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return
 
     const now = Date.now()
-    enqueueDueTasks(now)
+    await enqueueDueTasks(now)
 
     const nextIndex = scheduledNotifies.value.findIndex(item => item.nextRunAt <= now)
     if (nextIndex < 0)

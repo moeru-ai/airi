@@ -53,6 +53,7 @@ Leadership loss and disposal stop cleanup. Promotion continues from the replicat
 
 Initialize the character orchestrator with the installed Pinia synchronization runtime.
 Only the elected renderer runs background notification consumers and reminder ticks. Followers cannot start a ticker manually.
+The notification queue is replicated state. Any renderer enqueues through a leader action, and a promoted leader resumes the queue.
 Leadership loss stops local consumers. Promotion starts them in the new owner.
 Stopping the owner aborts its active notification request and speech intent. Late output cannot issue commands or reactions.
 

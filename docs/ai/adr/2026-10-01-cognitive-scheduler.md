@@ -82,6 +82,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
+- Queued notifications are replicated state. Any renderer enqueues through a leader action, and a promoted leader resumes the queue.
 - Minecraft observations no longer use a frontend request provider. Producers use fixed event slots and preserve declared retention fields.
 - Array destinations route transport peers. Object destinations name logical readers. Unaddressed module observations belong to the owner scene.
 - Input side context follows the same rule. Without object destinations, it belongs to the input scene.
