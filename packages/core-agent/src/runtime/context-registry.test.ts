@@ -31,12 +31,23 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
   }
 }
 
-/**
- * @example
- * const registry = createContextRegistry()
- * registry.ingest({ strategy: ContextUpdateStrategy.ReplaceSelf, text: 'now' })
- */
 describe('createContextRegistry', () => {
+  it('removes all slots for one exact writer and retains history across checkpoints', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ id: 'status', contextId: 'status', metadata: createMetadata('weather', 'station') }))
+    registry.ingest(createContextMessage({ id: 'events', contextId: 'events', metadata: createMetadata('weather', 'station') }))
+    registry.ingest(createContextMessage({ id: 'sibling', metadata: createMetadata('other-weather', 'station') }))
+    registry.ingest(createContextMessage({ id: 'instance', metadata: createMetadata('weather', 'other-station') }))
+
+    expect(registry.removeWriter('weather:station')).toBe(true)
+    expect(registry.removeWriter('weather:station')).toBe(false)
+    const restored = createContextRegistry({ initialState: registry.checkpoint() })
+    expect(Object.keys(restored.snapshot())).toEqual(['other-weather:station', 'weather:other-station'])
+    expect(restored.contextHistory()).toHaveLength(4)
+    restored.ingest(createContextMessage({ id: 'reconnected', metadata: createMetadata('weather', 'station') }))
+    expect(restored.snapshot()['weather:station']?.[0]?.id).toBe('reconnected')
+  })
+
   it('restores a checkpoint without restarting expiry or replaying history', () => {
     let timestamp = 1000
     const registry = createContextRegistry({ now: () => timestamp })

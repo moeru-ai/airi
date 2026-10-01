@@ -48,6 +48,8 @@ export interface ContextRegistry {
   ingest: (envelope: ContextMessage) => ContextIngestResult | undefined
   /** Clears active context buckets and ingest history. */
   reset: () => void
+  /** Removes one writer's active slots and preserves bounded delivery history. */
+  removeWriter: (sourceKey: string) => boolean
   /** Returns a cloned reader projection. Omit the reader only for local diagnostics. */
   snapshot: (reader?: ContextReader) => Record<string, ContextMessage[]>
   /** Returns cloned active context buckets for callers that prefer explicit naming. */
@@ -314,6 +316,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   return {
     ingest,
     reset,
+    removeWriter: sourceKey => currentActiveContexts.delete(sourceKey),
     snapshot,
     activeContexts: snapshot,
     contextHistory: () => structuredClone(currentContextHistory),

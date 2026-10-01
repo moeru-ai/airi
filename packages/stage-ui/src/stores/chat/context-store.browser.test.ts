@@ -45,6 +45,33 @@ afterEach(() => {
 })
 
 describe('context registry ownership', () => {
+  it('routes writer removal to the owner and rejects late copies without new mutations', async () => {
+    const namespace = `context-removal:${crypto.randomUUID()}`
+    const leader = createWindow(namespace, 'leader-only')
+    const follower = createWindow(namespace, 'follower-only')
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    const event = observation({ metadata: { source: { extension: { id: 'weather' }, id: 'station' } } })
+    await follower.store.ingestContextMessage(event)
+    await follower.store.ingestContextMessage(observation({ id: 'sibling', metadata: { source: { extension: { id: 'other-weather' }, id: 'station' } } }))
+    await vi.waitFor(() => expect(Object.keys(follower.store.activeContexts)).toHaveLength(2))
+
+    expect(await follower.store.removeContextWriter('weather:station', 'removal')).toBe(true)
+    await vi.waitFor(() => expect(Object.keys(follower.store.activeContexts)).toEqual(['other-weather:station']))
+    expect(Object.keys(leader.store.activeContexts)).toEqual(['other-weather:station'])
+    let mutations = 0
+    leader.store.$subscribe(() => mutations++, { flush: 'sync' })
+    expect(await follower.store.removeContextWriter('weather:station', 'removal')).toBe(false)
+    expect(await follower.store.ingestContextMessage(event)).toBeUndefined()
+    expect(mutations).toBe(0)
+    expect(leader.store.contextHistory).toHaveLength(2)
+    await follower.store.ingestContextMessage({ ...event, id: 'reconnected' })
+    await vi.waitFor(() => expect(follower.store.activeContexts['weather:station']?.[0]?.id).toBe('reconnected'))
+    expect(await follower.store.removeContextWriter('weather:station', 'removal')).toBe(false)
+    expect(leader.store.activeContexts['weather:station']?.[0]?.id).toBe('reconnected')
+    expect(await follower.store.removeContextWriter('weather:station', 'next-removal')).toBe(true)
+    await vi.waitFor(() => expect(follower.store.activeContexts['weather:station']).toBeUndefined())
+  })
+
   // ROOT CAUSE:
   // Each renderer mutated its own registry. Broadcast copies replayed append events and diverged on expiry.
   it('routes follower writes to one owner and deduplicates copied deliveries', async () => {
@@ -135,6 +162,8 @@ describe('context registry ownership', () => {
     await leader.store.ingestContextMessage(event)
     await vi.waitFor(() => expect(follower.store.registryState.active.sensor).toHaveLength(1))
     const expiresAt = follower.store.registryState.active.sensor[0]!.expiresAt
+    await leader.store.removeContextWriter('departed', 'before-promotion')
+    await vi.waitFor(() => expect(follower.store.writerRemovalHistory).toHaveLength(1))
     leader.store.dispose()
     leader.runtime.dispose()
     await vi.waitFor(() => expect(follower.runtime.isLeader()).toBe(true))
@@ -144,6 +173,9 @@ describe('context registry ownership', () => {
     expect(follower.store.registryState.active.sensor[0]?.expiresAt).toBe(expiresAt)
     await follower.store.ingestContextMessage(event)
     expect(follower.store.contextHistory).toHaveLength(2)
+    await follower.store.ingestContextMessage(observation({ id: 'returned', metadata: { source: { id: 'departed' } } }))
+    expect(await follower.store.removeContextWriter('departed', 'before-promotion')).toBe(false)
+    expect(follower.store.activeContexts.departed?.[0]?.id).toBe('returned')
     await follower.store.resetContexts()
     expect(follower.store.getContextsSnapshot()).toEqual({})
   })

@@ -29,6 +29,7 @@ const CONTEXT_CLEANUP_INTERVAL_MS = 2000
 
 export const useChatContextStore = defineStore('chat-context', () => {
   const registryState = ref<ContextRegistryState>({ active: {}, history: [] })
+  const writerRemovalHistory = ref<Array<{ sourceKey: string, eventId: string }>>([])
   const activeContexts = computed(() => readonly(projectContextRegistryState(toRaw(registryState.value))))
   const contextHistory = computed(() => readonly(registryState.value.history))
   let leadership: SyncedPiniaRuntime | undefined
@@ -56,6 +57,18 @@ export const useChatContextStore = defineStore('chat-context', () => {
 
   async function resetContexts() {
     registryState.value = { active: {}, history: [] }
+  }
+
+  async function removeContextWriter(sourceKey: string, eventId: string): Promise<boolean> {
+    if (writerRemovalHistory.value.some(entry => entry.sourceKey === sourceKey && entry.eventId === eventId))
+      return false
+    const registry = restoreRegistry()
+    const removed = registry.removeWriter(sourceKey)
+    // Every renderer receives the same lifecycle event. Keep its identity across writer reconnection and leader promotion.
+    writerRemovalHistory.value = [...writerRemovalHistory.value, { sourceKey, eventId }].slice(-CONTEXT_HISTORY_LIMIT)
+    if (removed)
+      registryState.value = registry.checkpoint()
+    return removed
   }
 
   async function pruneContexts() {
@@ -121,10 +134,12 @@ export const useChatContextStore = defineStore('chat-context', () => {
 
   return {
     registryState,
+    writerRemovalHistory,
     initialize,
     dispose,
     ingestContextMessage,
     resetContexts,
+    removeContextWriter,
     pruneContexts,
     getContextsSnapshot,
     getContextBucketsSnapshot,
@@ -133,7 +148,7 @@ export const useChatContextStore = defineStore('chat-context', () => {
   }
 }, {
   synced: {
-    actions: ['ingestContextMessage', 'resetContexts', 'pruneContexts'],
+    actions: ['ingestContextMessage', 'resetContexts', 'pruneContexts', 'removeContextWriter'],
     state: true,
   },
 })

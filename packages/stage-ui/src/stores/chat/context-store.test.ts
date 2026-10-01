@@ -1,7 +1,7 @@
 import type { ContextMessage } from '../../types/chat'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
-import { createPinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { isReadonly, reactive } from 'vue'
 
@@ -9,6 +9,25 @@ import { createRuntimePromptContext } from './context-providers/runtime-prompt'
 import { useChatContextStore } from './context-store'
 
 type TestContextMessage = ContextMessage & { source?: string }
+
+describe('writer lifecycle journal', () => {
+  it('bounds removal identities even when no writer bucket exists', async () => {
+    const pinia = createPinia()
+    const store = useChatContextStore(pinia)
+    try {
+      for (let index = 0; index < 405; index++)
+        expect(await store.removeContextWriter('weather:station', `removal-${index}`)).toBe(false)
+      expect(store.writerRemovalHistory).toHaveLength(400)
+      expect(store.writerRemovalHistory[0]?.eventId).toBe('removal-5')
+      await store.ingestContextMessage(createContextMessage({ id: 'returned', metadata: createMetadata('weather', 'station') }))
+      expect(await store.removeContextWriter('weather:station', 'removal-404')).toBe(false)
+      expect(store.activeContexts['weather:station']?.[0]?.id).toBe('returned')
+    }
+    finally {
+      disposePinia(pinia)
+    }
+  })
+})
 
 function createMetadata(extensionId: string, moduleId: string): NonNullable<ContextMessage['metadata']> {
   return {

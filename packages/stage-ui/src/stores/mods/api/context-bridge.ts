@@ -585,6 +585,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
 
+      disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', async (event) => {
+        const sourceKey = getMetadataSourceLabel(event.data.identity)
+        const eventId = event.metadata?.event.id
+        if (sourceKey && eventId)
+          await chatContext.removeContextWriter(sourceKey, eventId)
+      }))
+
       disposeHookFns.value.push(serverChannelStore.onContextUpdate(async (event) => {
         contextObservability.recordLifecycle({
           phase: 'server-received',

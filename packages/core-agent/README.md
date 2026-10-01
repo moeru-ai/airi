@@ -57,6 +57,7 @@ Each send captures one session-filtered snapshot for both the model request and 
 `checkpoint()` captures active costs, original expiry times, and bounded history for trusted host replication.
 `initialState` restores that checkpoint without replaying observations. Do not accept checkpoints from module transports.
 `projectContextRegistryState` gives replicas a read-only projection without updating authoritative state.
+`removeWriter()` removes only the named writer's active slots. It preserves bounded history for host delivery deduplication.
 Each send also retains its host-selected `outputTarget`. Output hooks keep this return address separate from input content and context visibility.
 Request-owned instruction providers run once per send. They bypass the observation pool and cannot retain stale instructions between sends.
 

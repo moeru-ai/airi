@@ -38,7 +38,9 @@ Transport targeting does not replace session audience checks. Those checks form 
 
 ## Notification ownership
 
-The synchronized context store routes ingestion, reset, and pruning to the elected renderer.
+The synchronized context store routes ingestion, reset, pruning, and writer removal to the elected renderer.
+Server module removal clears only the exact extension and module instance. Bounded history prevents delayed copies from restoring removed observations.
+The leader retains the latest 400 removal identities. Duplicate notifications cannot erase reconnected observations within that window.
 Its checkpoint retains original expiry times and deduplicates repeated event identities within the bounded history.
 Follower projections do not propose state changes. Initialize chat or its context store with the synchronization runtime to start owner-only idle cleanup.
 Leadership loss and disposal stop cleanup. Promotion continues from the replicated checkpoint without replaying observations.
