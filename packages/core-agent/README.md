@@ -32,6 +32,13 @@ The existing session store uses Chat-shaped UI records. The orchestrator decodes
 
 ## Turn history
 
+Runtime context uses writer buckets containing independent `contextId` slots.
+`replace-self` replaces only the matching slot in that writer's bucket.
+Other slots and other writers remain intact. Snapshots are clones and cannot change registry state.
+Reader snapshots match exact destination identities and lanes. Exclusions take precedence over inclusions.
+An entry without destinations is visible only to its writer. Explicit `{ all: true }` publishes to all readers.
+An empty destination list publishes to no reader. Unfiltered snapshots serve local diagnostics only.
+
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
 The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.

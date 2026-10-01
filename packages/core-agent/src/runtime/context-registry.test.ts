@@ -23,7 +23,7 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
 
   return {
     id,
-    contextId: overrides.contextId ?? id,
+    contextId: overrides.contextId ?? 'sensor-reading',
     strategy: overrides.strategy ?? ContextUpdateStrategy.ReplaceSelf,
     text: overrides.text ?? 'context text',
     createdAt: overrides.createdAt ?? 1,
@@ -37,6 +37,62 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
  * registry.ingest({ strategy: ContextUpdateStrategy.ReplaceSelf, text: 'now' })
  */
 describe('createContextRegistry', () => {
+  it('replaces one context slot without erasing another slot from the same writer', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ id: 'position-1', source: 'game', contextId: 'position', text: 'forest' }))
+    registry.ingest(createContextMessage({ id: 'health-1', source: 'game', contextId: 'health', text: '20 HP' }))
+    registry.ingest(createContextMessage({ id: 'position-2', source: 'game', contextId: 'position', text: 'village' }))
+
+    expect(registry.snapshot().game?.map(message => [message.contextId, message.text])).toEqual([
+      ['health', '20 HP'],
+      ['position', 'village'],
+    ])
+  })
+
+  it('keeps equal context ids isolated between writers', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'channel-a', contextId: 'status', text: 'A' }))
+    registry.ingest(createContextMessage({ source: 'channel-b', contextId: 'status', text: 'B' }))
+
+    expect(registry.snapshot()['channel-a']?.[0]?.text).toBe('A')
+    expect(registry.snapshot()['channel-b']?.[0]?.text).toBe('B')
+  })
+
+  it('projects contexts for one reader without leaking another channel', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'discord-a', destinations: ['discord:channel:a'], text: 'private A' }))
+    registry.ingest(createContextMessage({ source: 'discord-b', destinations: ['discord:channel:b'], text: 'private B' }))
+    registry.ingest(createContextMessage({ source: 'clock', destinations: { all: true }, text: 'public time' }))
+
+    const snapshot = registry.snapshot({ ids: ['discord:channel:a'] })
+    expect(Object.keys(snapshot)).toEqual(['discord-a', 'clock'])
+    expect(snapshot['discord-a']?.[0]?.text).toBe('private A')
+    expect(registry.activeContexts()['discord-b']?.[0]?.text).toBe('private B')
+  })
+
+  it('applies destination exclusions before includes and filters lanes', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'secret', destinations: { include: ['character'], exclude: ['owner:private'] } }))
+    registry.ingest(createContextMessage({ source: 'chat', destinations: ['character'], lane: 'chat' }))
+    registry.ingest(createContextMessage({ source: 'game', destinations: ['character'], lane: 'game' }))
+    registry.ingest(createContextMessage({ source: 'shared', destinations: ['character'] }))
+
+    expect(Object.keys(registry.snapshot({ ids: ['character', 'owner:private'], lane: 'chat' }))).toEqual(['chat', 'shared'])
+    expect(Object.keys(registry.snapshot({ ids: ['character'] }))).toEqual(['secret', 'shared'])
+  })
+
+  it('limits unspecified destinations to the writer and treats empty destinations as private', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'module-a' }))
+    registry.ingest(createContextMessage({ source: 'module-b', destinations: [] }))
+    registry.ingest(createContextMessage({ source: 'module-c', destinations: { exclude: ['other-reader'] } }))
+
+    expect(registry.snapshot({ ids: ['owner:private'] })).toEqual({})
+    expect(Object.keys(registry.snapshot({ ids: ['module-a'] }))).toEqual(['module-a'])
+    expect(registry.snapshot({ ids: ['module-b'] })).toEqual({})
+    expect(Object.keys(registry.snapshot({ ids: ['module-c'] }))).toEqual(['module-c'])
+  })
+
   /**
    * @example
    * replace-self from the same source leaves one active entry and reports replace.
