@@ -335,6 +335,13 @@ function handleFadeOnHoverInteractionChange() {
     const interaction = resolveFadeOnHoverInteraction({
       alwaysOnTop: alwaysOnTop.value,
       cursorInsideWindow: !isOutsideWindow.value,
+      // NOTICE:
+      // On native Wayland the polled cursor position can stick stale (#2521),
+      // and Electron's setIgnoreMouseEvents `forward` flag is unsupported on
+      // Linux. A click-through window there never gets pointer events back,
+      // so the controls menu can never open. Keep the window interactive.
+      // Removal: reliable Wayland cursor reporting or Linux `forward` support.
+      clickThroughAvailable: !isWayland.value,
       enabled: fadeOnHoverEnabled.value,
       transparentForFade: isTransparent.value,
       transparentForPointer: isTransparentForMouseEvents.value,
@@ -347,7 +354,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
