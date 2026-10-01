@@ -65,6 +65,8 @@ export interface ErrorMessage {
 export interface ContextMessage extends ContextUpdate<Record<string, unknown>, unknown> {
   metadata?: {
     source: MetadataEventSource
+    /** Server-assigned connection that wrote this observation. Source reads route only there. */
+    originConnectionId?: string
   }
   createdAt: number
   /** Local expiry can shorten the transport TTL when the host scopes an observation. */

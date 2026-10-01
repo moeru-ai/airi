@@ -38,3 +38,24 @@ export async function createContextText(text: string, sourceRef: ContextSourceRe
     throw new RangeError('Context source reference exceeds the observation budget')
   return { text: referenceText, sourceRef: reference }
 }
+
+/** The maximum detail cost that one source read returns to a model request. */
+export const CONTEXT_SOURCE_TOKEN_LIMIT = 1000
+
+/** Cuts text to a token limit at a code point boundary. */
+export function limitContextText(text: string, countTokens: ContextTokenCounter, limit: number): { text: string, truncated: boolean } {
+  if (countTokens(text) <= limit)
+    return { text, truncated: false }
+
+  const codePoints = Array.from(text)
+  let low = 0
+  let high = codePoints.length
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2)
+    if (countTokens(codePoints.slice(0, middle).join('')) <= limit)
+      low = middle
+    else
+      high = middle - 1
+  }
+  return { text: codePoints.slice(0, low).join(''), truncated: true }
+}

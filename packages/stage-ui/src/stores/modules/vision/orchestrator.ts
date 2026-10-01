@@ -9,6 +9,7 @@ import { ref } from 'vue'
 import { useVisionInference } from '../../../composables/vision'
 import { getVisionWorkload } from '../../../composables/vision/use-vision-workloads'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useContextSourceStore } from '../../mods/api/context-source'
 import { useVisionStore } from './store'
 
 /**
@@ -51,6 +52,9 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
   const { activeProvider, activeModel } = storeToRefs(visionStore)
   const modsServerChannelStore = useModsServerChannelStore()
   const { runVisionInference, lastText } = useVisionInference()
+  // Published descriptions stay here. One entry per context slot answers reads for its origin handle.
+  const publishedDetails = new Map<string, string>()
+  useContextSourceStore().registerSource('vision', sourceRef => publishedDetails.get(sourceRef.targetId))
 
   const lastResultText = ref('')
   const lastResultAt = ref<number | null>(null)
@@ -79,6 +83,7 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
       if (payload.publishContext) {
         const workload = getVisionWorkload(payload.workloadId)
         const contextId = getVisionContextId(payload)
+        publishedDetails.set(contextId, text)
 
         // The frame stays in this renderer. Oversized descriptions become an origin handle.
         modsServerChannelStore.sendContextUpdate({

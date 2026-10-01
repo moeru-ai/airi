@@ -9,6 +9,7 @@ import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
+import { CONTEXT_SOURCE_TOOL_NAME, CONTEXT_SOURCE_TOOLSET_PROMPT } from '../../../tools/context-source'
 import { resolveLlmTools, toolNameFrom } from './tool-resolver'
 import { useLlmToolsetPromptsStore } from './toolset-prompts'
 
@@ -28,6 +29,12 @@ export const useLLM = defineStore('llm', () => {
     title: 'Command relay',
     requiredTools: ['builtIn_emitSparkCommand'],
     content: SPARK_COMMAND_TOOLSET_PROMPT,
+  }])
+  toolsetPrompts.registerToolsetPrompts('context-source', [{
+    id: 'context-source',
+    title: 'Observation details',
+    requiredTools: [CONTEXT_SOURCE_TOOL_NAME],
+    content: CONTEXT_SOURCE_TOOLSET_PROMPT,
   }])
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())

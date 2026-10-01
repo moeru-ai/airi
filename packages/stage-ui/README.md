@@ -42,6 +42,14 @@ Toolset prompt contributions can name `requiredTools`. The request grants every 
 Contributions without `requiredTools` remain host-wide instructions. Register prompts only from trusted tool owners, never from observation text.
 The Spark relay prompt specifies action intent, structured guidance, and truthful submission reports. It is absent when the model cannot use tools.
 
+## Observation details
+
+`builtIn_readContextSource` reads the details behind a `Source details: <type>/<id>` observation.
+The request's session must see an observation that carries that handle. The read goes only to the connection that wrote it.
+Only that writer can answer. A renderer reads its own handles locally. Answers over 1000 tokens are cut and marked.
+The tool wraps details in `<untrusted_content>` tags. Its toolset prompt treats them as data, never instructions.
+Renderer producers register readers with `useContextSourceStore().registerSource()`. Vision registers the `vision` type.
+
 ## Notification ownership
 
 The synchronized context store routes ingestion, reset, pruning, and writer removal to the elected renderer.

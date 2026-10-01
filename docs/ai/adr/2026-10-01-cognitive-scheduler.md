@@ -96,6 +96,9 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Minecraft renews unchanged online status. Three missed refreshes expire it, and unbinding stops renewal.
 - Browser page, video, and subtitle observations replace fixed slots and use budgeted origin references. The extension announces the SDK module identity.
 - Vision observations use budgeted origin references. The captured frame stays in the renderer and no longer reaches other modules.
+- Every context producer in the repository fits the shared budget. Minecraft, VS Code, the web extension, and vision turn oversized text into origin handles. Discord notices stay short.
+- A model resolves an origin handle through `builtIn_readContextSource`. The session must see an observation with that handle.
+- The read goes only to the server-identified writer connection, and only that writer can answer. Details over 1000 tokens are cut.
 - Server-owned module removal clears the exact writer through the context leader. Bounded history rejects delayed copies after removal.
 - The server drops client-authored module removal events. Repeated removal does not publish another state change.
 - The leader replicates a bounded removal journal. Duplicate lifecycle notifications preserve fresh observations after reconnection within that window.
@@ -110,10 +113,8 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 - Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
-- Other context producers still require budget verification. Origin handles do not yet expose a cross-module authorized query boundary.
 - Minecraft relay guidance has request-owned toolset coverage. Live model selection and delivery to a running bot still require validation.
 - Full-pool replication requires multi-window cost measurements under repeated status renewal.
-- Origin references retain details in modules, but models cannot resolve them yet. Player names and oversized page or subtitle details remain unavailable.
 - Directed output removes the devtools server broadcast feed. Local chat hooks remain, but cross-window observation still requires validation.
 - Live external-session recovery and minimized-window timing still require integration evidence.
 

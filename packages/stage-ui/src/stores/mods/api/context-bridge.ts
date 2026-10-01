@@ -23,6 +23,7 @@ import { useContextObservabilityStore } from '../../devtools/context-observabili
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useModsServerChannelStore } from './channel-server'
 import { createContextChannel } from './context-channel'
+import { useContextSourceStore } from './context-source'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -60,6 +61,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const chatContext = useChatContextStore()
   const serverChannelStore = useModsServerChannelStore()
   const contextObservability = useContextObservabilityStore()
+  const contextSource = useContextSourceStore()
   const characterOrchestratorStore = useCharacterOrchestratorStore()
   const consciousnessStore = useConsciousnessStore()
   const { activeProvider, activeModel, activeTemperature, activeTopP } = storeToRefs(consciousnessStore)
@@ -592,6 +594,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopSparkNotifyBridgeWatch)
+
+      // Every renderer answers reads for the handles it wrote.
+      disposeHookFns.value.push(contextSource.listen())
 
       disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', async (event) => {
         const sourceKey = getMetadataSourceLabel(event.data.identity)

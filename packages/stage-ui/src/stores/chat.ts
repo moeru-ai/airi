@@ -1,4 +1,4 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
@@ -27,6 +27,7 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
+import { createContextSourceTool } from '../tools/context-source'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -38,6 +39,7 @@ import { describeChatImages, replaceToolResultImages } from './chat/image-projec
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useContextSourceStore } from './mods/api/context-source'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -196,6 +198,7 @@ export const useChatStore = defineStore('chat', () => {
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const contextSource = useContextSourceStore()
   const cardStore = useAiriCardStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
@@ -253,6 +256,22 @@ export const useChatStore = defineStore('chat', () => {
       failedImageReads.set(sessionId, reads)
     }
     return reads
+  }
+
+  /** Session bindings decide which observations a request reads. An unbound session reads the owner scene. */
+  function contextReaderFor(sessionId: string): ContextReader {
+    const bindings = chatSession.sessionMetas[sessionId]?.bindings
+    return { ids: bindings?.length ? [sessionId, ...bindings] : [sessionId, 'character', 'owner:private'] }
+  }
+
+  /** Adds the source reader, authorized by the session that owns the request. */
+  function withContextSourceTool(tools: StreamOptions['tools'], sessionId: string | undefined): StreamOptions['tools'] {
+    if (!sessionId)
+      return tools
+    return async () => [
+      ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
+      ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId), sourceRef) }),
+    ]
   }
 
   async function streamWithStageAdapters(
@@ -360,6 +379,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
+        tools: withContextSourceTool(options?.tools, options?.requestCorrelation?.conversationId),
         headers,
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {
@@ -440,16 +460,10 @@ export const useChatStore = defineStore('chat', () => {
     context: {
       ingest: async (envelope) => { await chatContext.ingestContextMessage(envelope) },
       snapshot: (sessionId) => {
-        const bindings = chatSession.sessionMetas[sessionId]?.bindings
-        const ids = [sessionId]
-        if (bindings?.length)
-          ids.push(...bindings)
-        else
-          ids.push('character', 'owner:private')
-        const snapshot = chatContext.getContextsSnapshot({ ids })
+        const snapshot = chatContext.getContextsSnapshot(contextReaderFor(sessionId))
         // Account data belongs to this request, not the persistent context registry.
         // A signed-out request therefore cannot inherit the previous account snapshot.
-        const account = bindings?.length ? null : createUserAccountContext(authStore)
+        const account = chatSession.sessionMetas[sessionId]?.bindings?.length ? null : createUserAccountContext(authStore)
         if (account)
           snapshot[account.contextId] = [account]
         return snapshot

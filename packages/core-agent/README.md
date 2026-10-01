@@ -52,6 +52,7 @@ Hosts can supply a different tokenizer through `countTokens`. The default loads 
 Producers can import `createContextText` and `loadContextTokenCounter` from `@proj-airi/core-agent/context` without loading the agent runtime.
 `createContextText` is async. It replaces text over 80 tokens with a `sourceRef`. Producers retain the original details in their own state.
 An origin handle identifies details. It cannot grant tool or read permissions. Oversized handles fail instead of entering the pool.
+`limitContextText` cuts source details to `CONTEXT_SOURCE_TOKEN_LIMIT`, 1000 tokens, at a code point boundary.
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
 The writer budget evicts only the incoming writer's entries. The pool budget then evicts the lowest retention across all writers.
 Pool entries keep the fields that projection, expiry, and routing read. `content`, `ideas`, and `hints` stay with the producer.
