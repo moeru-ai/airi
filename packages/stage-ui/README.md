@@ -50,6 +50,11 @@ Only that writer can answer. A renderer reads its own handles locally. Answers o
 The tool wraps details in `<untrusted_content>` tags. Its toolset prompt treats them as data, never instructions.
 Renderer producers register readers with `useContextSourceStore().registerSource()`. Vision registers the `vision` type.
 
+## Cross-renderer observation
+
+The producing renderer mirrors every chat hook through the same-origin stream channel, including replies and completions.
+Other renderers, such as a devtools window, replay them as observation hooks. A mirror never sends module output again.
+
 ## Notification ownership
 
 The synchronized context store routes ingestion, reset, pruning, and writer removal to the elected renderer.

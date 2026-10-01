@@ -860,9 +860,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
-        chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+        chatOrchestrator.onAssistantMessage(async (message, messageText, context) => {
+          if (isProcessingRemoteStream)
+            return
+          // Other renderers, such as a devtools window, observe the turn through the same-origin channel.
+          await contextChannel?.emitStream({ type: 'assistant-message', message: structuredClone(toRaw(message)), messageText, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
           // Local turns have no external recipient. Internal prompt snapshots never leave the host through chat output.
-          if (isProcessingRemoteStream || !context.outputTarget)
+          if (!context.outputTarget)
             return
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
@@ -877,7 +881,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onChatTurnComplete(async (chat, context) => {
-          if (isProcessingRemoteStream || !context.outputTarget)
+          if (isProcessingRemoteStream)
+            return
+          await contextChannel?.emitStream({ type: 'chat-turn-complete', chat: structuredClone(toRaw(chat)), sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          if (!context.outputTarget)
             return
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',
@@ -929,6 +936,13 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'after-send':
               await chatOrchestrator.emitAfterSendHooks(event.message, event.context)
+              break
+            // Observation hooks only. They change no stream state in this renderer.
+            case 'assistant-message':
+              await chatOrchestrator.emitAssistantMessageHooks(event.message, event.messageText, event.context)
+              break
+            case 'chat-turn-complete':
+              await chatOrchestrator.emitChatTurnCompleteHooks(event.chat, event.context)
               break
             case 'token-literal':
               if (!remoteStreamGuard.value)

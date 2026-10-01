@@ -183,6 +183,8 @@ const chatOrchestratorMock = {
   emitTokenSpecialHooks: (...args: unknown[]) => emitHooks(tokenSpecialHooks, ...args),
   emitStreamEndHooks: (...args: unknown[]) => emitHooks(streamEndHooks, ...args),
   emitAssistantResponseEndHooks: (...args: unknown[]) => emitHooks(assistantEndHooks, ...args),
+  emitAssistantMessageHooks: (...args: unknown[]) => emitHooks(assistantMessageHooks, ...args),
+  emitChatTurnCompleteHooks: (...args: unknown[]) => emitHooks(turnCompleteHooks, ...args),
 }
 
 vi.mock('@proj-airi/stage-shared', async (importOriginal) => {
@@ -367,6 +369,39 @@ describe('context bridge contract', () => {
     expect(output.data).not.toHaveProperty('gen-ai:chat')
     expect(output.data).not.toHaveProperty('secret')
     expect(output.data).not.toHaveProperty('text')
+  })
+
+  // ROOT CAUSE:
+  // Devtools in another renderer read reply and completion entries from the server broadcast.
+  // Directed output removed that feed, so those renderers saw no reply for a turn.
+  it('mirrors reply and completion hooks to other renderers without module output', async () => {
+    const outgoing = collectChannelMessages<{ type: string, sessionId: string }>(CHAT_STREAM_CHANNEL_NAME)
+    const store = useContextBridgeStore()
+    await store.initialize()
+    serverSendMock.mockClear()
+    const context: ChatStreamEventContext = { turnId: 'turn-1', message: { role: 'user', content: 'hello' }, contexts: {}, composedMessage: [] }
+    const message = { role: 'assistant' as const, content: 'local reply' }
+
+    await emitHooks(assistantMessageHooks, message, message.content, context)
+    await emitHooks(turnCompleteHooks, { output: message, outputText: message.content, toolCalls: [] }, context)
+    await vi.waitFor(() => expect(outgoing.map(event => event.type)).toEqual(['assistant-message', 'chat-turn-complete']))
+
+    const received: string[] = []
+    chatOrchestratorMock.onAssistantMessage(async (_message, text) => {
+      received.push(`message:${text as string}`)
+    })
+    chatOrchestratorMock.onChatTurnComplete(async (chat) => {
+      received.push(`complete:${(chat as { outputText: string }).outputText}`)
+    })
+    const remote = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const remoteContext = { ...context, outputTarget: 'discord:instance-a' }
+    await remote.postMessage({ type: 'assistant-message', message, messageText: 'remote reply', sessionId: 'session-1', context: remoteContext })
+    await remote.postMessage({ type: 'chat-turn-complete', chat: { output: message, outputText: 'remote reply', toolCalls: [] }, sessionId: 'session-1', context: remoteContext })
+    await vi.waitFor(() => expect(received).toEqual(['message:remote reply', 'complete:remote reply']))
+
+    // The producing renderer owns module output. A mirror never sends it again.
+    expect(serverSendMock).not.toHaveBeenCalled()
+    await store.dispose()
   })
 
   it('records core ingest result for broadcast context updates', async () => {

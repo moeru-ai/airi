@@ -99,6 +99,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Every context producer in the repository fits the shared budget. Minecraft, VS Code, the web extension, and vision turn oversized text into origin handles. Discord notices stay short.
 - A model resolves an origin handle through `builtIn_readContextSource`. The session must see an observation with that handle.
 - The read goes only to the server-identified writer connection, and only that writer can answer. Details over 1000 tokens are cut.
+- Reply and completion hooks reach other renderers through the same-origin stream channel. Devtools in a follower window sees every turn stage.
 - Server-owned module removal clears the exact writer through the context leader. Bounded history rejects delayed copies after removal.
 - The server drops client-authored module removal events. Repeated removal does not publish another state change.
 - The leader replicates a bounded removal journal. Duplicate lifecycle notifications preserve fresh observations after reconnection within that window.
@@ -115,7 +116,6 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
 - Minecraft relay guidance has request-owned toolset coverage. Live model selection and delivery to a running bot still require validation.
 - Full-pool replication requires multi-window cost measurements under repeated status renewal.
-- Directed output removes the devtools server broadcast feed. Local chat hooks remain, but cross-window observation still requires validation.
 - Live external-session recovery and minimized-window timing still require integration evidence.
 
 ### Validation findings
