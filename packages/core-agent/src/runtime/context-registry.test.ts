@@ -4,6 +4,7 @@ import type { ContextTokenCounter } from './context-budget'
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { beforeAll, describe, expect, it } from 'vitest'
 
+import { audienceFromBindings, OWNER_AUDIENCE, PUBLIC_AUDIENCE } from './audience'
 import { loadContextTokenCounter } from './context-budget'
 import { createContextRegistry as createRegistry } from './context-registry'
 
@@ -115,6 +116,25 @@ describe('createContextRegistry', () => {
     expect(Object.keys(snapshot)).toEqual(['discord-a', 'clock'])
     expect(snapshot['discord-a']?.[0]?.text).toBe('private A')
     expect(registry.activeContexts()['discord-b']?.[0]?.text).toBe('private B')
+  })
+
+  // ROOT CAUSE:
+  // P0 destinations isolate transport scenes only. A record now also carries the subjects it may reach,
+  // and a run reads it only when the record reaches every subject that the run's outputs reach.
+  it('reads a record only when its allowed audience includes the run audience', () => {
+    const channel = audienceFromBindings(['discord:channel:a'])
+    const registry = createContextRegistry()
+    const shared = { destinations: { all: true } }
+    registry.ingest(createContextMessage({ id: 'private', source: 'private', ...shared, audience: OWNER_AUDIENCE }))
+    registry.ingest(createContextMessage({ id: 'channel', source: 'channel', ...shared, audience: channel }))
+    registry.ingest(createContextMessage({ id: 'public', source: 'public', ...shared, audience: PUBLIC_AUDIENCE }))
+    registry.ingest(createContextMessage({ id: 'unlabeled', source: 'unlabeled', ...shared }))
+
+    const ids = (audience?: typeof channel) => Object.values(registry.snapshot({ ids: ['reader'], audience })).flat().map(message => message.id).sort()
+    expect(ids(OWNER_AUDIENCE)).toEqual(['channel', 'private', 'public', 'unlabeled'])
+    expect(ids(channel)).toEqual(['channel', 'public'])
+    expect(ids(PUBLIC_AUDIENCE)).toEqual(['public'])
+    expect(ids()).toEqual(['channel', 'private', 'public', 'unlabeled'])
   })
 
   it('applies destination exclusions before includes and filters lanes', () => {

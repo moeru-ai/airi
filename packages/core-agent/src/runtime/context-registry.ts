@@ -1,8 +1,10 @@
 import type { MetadataEventSource } from '@proj-airi/server-shared/types'
 
 import type { ContextMessage } from '../types/chat'
+import type { Audience } from './audience'
 import type { ContextTokenCounter } from './context-budget'
 
+import { audienceIncludes, OWNER_AUDIENCE } from './audience'
 import { CONTEXT_ENTRY_TOKEN_LIMIT } from './context-budget'
 
 const CONTEXT_UPDATE_REPLACE_SELF = 'replace-self'
@@ -41,6 +43,8 @@ export interface ContextReader {
   ids: readonly string[]
   /** Restricts the reader to one lane and unscoped entries. Omit it to subscribe to every lane. */
   lane?: string
+  /** The run's effective audience. An entry is readable only when its allowed audience includes it. */
+  audience?: Audience
 }
 
 /**
@@ -116,8 +120,8 @@ const entryEncoder = new TextEncoder()
 
 /** Keeps the fields that pool projection, expiry, and routing read. Content, ideas, and hints stay with the producer. */
 function toPoolMessage(message: ContextMessage): ContextMessage {
-  const { id, contextId, strategy, lane, text, destinations, ttlMs, salience, sourceRef, createdAt, expiresAt, metadata } = message
-  return { id, contextId, strategy, lane, text, destinations, ttlMs, salience, sourceRef, createdAt, expiresAt, metadata }
+  const { id, contextId, strategy, lane, text, destinations, ttlMs, salience, sourceRef, createdAt, expiresAt, metadata, audience } = message
+  return { id, contextId, strategy, lane, text, destinations, ttlMs, salience, sourceRef, createdAt, expiresAt, metadata, audience }
 }
 
 function formatMetadataSource(source?: MetadataEventSource) {
@@ -140,8 +144,10 @@ function defaultGetSourceKey(event: EventSourcePayload, fallback = 'unknown') {
 }
 
 function isVisibleToReader(message: ContextMessage, sourceKey: string, reader: ContextReader): boolean {
-  // Lanes describe subscriptions. Destinations alone decide visibility.
+  // Lanes describe subscriptions. Destinations and audience labels decide visibility.
   if (reader.lane !== undefined && message.lane !== undefined && message.lane !== reader.lane)
+    return false
+  if (reader.audience && !audienceIncludes(message.audience ?? OWNER_AUDIENCE, reader.audience))
     return false
 
   const destinations = message.destinations

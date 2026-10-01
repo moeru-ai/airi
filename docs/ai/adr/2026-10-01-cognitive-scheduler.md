@@ -78,7 +78,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0 code is complete and has deterministic tests. Live evidence for P0 remains open. P1 through P10 have not started.
+- P0 code is complete and has deterministic tests. Live evidence for P0 remains open. P1 is in progress. P2 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -109,6 +109,11 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Eviction applies the writer budget first, then evicts the lowest retention across all writers.
 - The o200k rank table loads on the first observation. A static import added 2.33 MB raw and 1.14 MB gzip to stage-web startup JavaScript.
   With the lazy chunk, startup JavaScript measures 1,756,808 bytes gzip, against 1,756,522 bytes for a build without the rank table.
+
+### P1 progress
+
+- Audience labels are sorted subject sets or `public`. Every scene includes the owner, because host surfaces show every session to the owner.
+- Shared pool entries carry host-assigned audiences. A run reads an entry only when the entry's audience includes the run's effective audience.
 
 ### Open P0 evidence
 

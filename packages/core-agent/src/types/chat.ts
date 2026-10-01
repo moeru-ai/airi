@@ -2,6 +2,7 @@ import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 import type { AssistantTurn } from '../messages/types'
+import type { Audience } from '../runtime/audience'
 
 export interface ChatSlicesText {
   type: 'text'
@@ -71,6 +72,8 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
   createdAt: number
   /** Local expiry can shorten the transport TTL when the host scopes an observation. */
   expiresAt?: number
+  /** Host-assigned allowed audience. The host overwrites any producer value. A missing label reaches the owner only. */
+  audience?: Audience
 }
 
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {

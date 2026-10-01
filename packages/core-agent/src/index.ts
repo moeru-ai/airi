@@ -14,6 +14,18 @@ export { formatTimePrefix } from './messages/datetime-prefix'
 export { renderConversationPreview } from './messages/preview'
 export type { AssistantTurn, Citation, ContentSegment, Conversation, GenerationRound, ProviderContinuation, SystemTurn, ToolExecution, ToolInvocation, Turn, UserTurn } from './messages/types'
 export { createChatHooks } from './runtime/agent-hooks'
+export type { Audience } from './runtime/audience'
+export {
+  audienceFromBindings,
+  audienceIncludes,
+  intersectAudiences,
+  OWNER_AUDIENCE,
+  OWNER_PRIVATE_BINDING,
+  OWNER_SUBJECT,
+  PUBLIC_AUDIENCE,
+  subjectAudience,
+  unionAudiences,
+} from './runtime/audience'
 export type {
   ChatOrchestratorLifecycleRecord,
   ChatOrchestratorLLMPort,

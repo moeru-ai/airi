@@ -38,6 +38,10 @@ Other slots and other writers remain intact. Snapshots are clones and cannot cha
 Reader snapshots match exact destination identities. Exclusions take precedence over inclusions.
 A reader without a lane reads every lane. A lane-scoped reader reads its own lane and entries without a lane.
 An entry without destinations is visible only to its writer. Explicit `{ all: true }` publishes to all readers.
+An `Audience` is `public` or a sorted set of subjects. A reader with an `audience` reads an entry only when the entry's allowed audience includes it.
+The host assigns entry audiences. An entry without a label reaches the owner only. Destinations and audiences must both allow a read.
+`audienceFromBindings` gives every scene the owner plus one members subject for each external binding.
+Writes take `intersectAudiences` of everything the run read. A run's effective audience is `unionAudiences` of its outputs.
 An empty destination list publishes to no reader. Unfiltered snapshots serve local diagnostics only.
 Active observations expire after 60 seconds by default. `ttlMs` overrides their lifetime, and a local `expiresAt` can shorten it.
 The default budgets are 800 units total, 200 per writer, and 80 per entry. Each append slot retains at most eight events.
