@@ -4,6 +4,7 @@ import type { AssistantTurn, Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage } from '../types/chat'
 import type { StreamOptions } from '../types/llm'
 import type { Audience } from './audience'
+import type { ChatOrchestratorRuntimeLimits } from './chat-orchestrator-runtime'
 import type { AgentRun } from './run-table'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
@@ -16,7 +17,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void } = {}) {
+function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits> } = {}) {
   const messages: ChatHistoryItem[] = []
   const runChanges: AgentRun[] = []
   let sessionAudience = options.sessionAudience ?? OWNER_AUDIENCE
@@ -40,7 +41,12 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
       narrowSessionAudience: (_sessionId, audience) => {
         sessionAudience = intersectAudiences(sessionAudience, audience)
       },
+      removeSessionMessages: (_sessionId, messageIds) => {
+        const kept = messages.filter(message => !message.id || !messageIds.includes(message.id))
+        messages.splice(0, messages.length, ...kept)
+      },
     },
+    getLimits: () => options.limits ?? {},
     context: { ingest: vi.fn(), snapshot },
     foregroundStream: { patch: vi.fn(), reset: vi.fn() },
     llm: { stream },
@@ -50,6 +56,16 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     onRunChange: options.onRunChange ?? (run => runChanges.push(run)),
   })
   return { runtime, messages, runChanges, correlations, snapshot, stream, getSessionAudience: () => sessionAudience }
+}
+
+/** Waits like a provider stream until the run aborts its request. */
+function untilAborted(streamOptions?: StreamOptions) {
+  return new Promise<void>((_resolve, reject) => {
+    const signal = streamOptions?.abortSignal
+    if (signal?.aborted)
+      reject(signal.reason)
+    signal?.addEventListener('abort', () => reject(signal.reason), { once: true })
+  })
 }
 
 describe('orchestrator runs', () => {
@@ -105,6 +121,84 @@ describe('orchestrator runs', () => {
 
     expect(harness.runtime.getRuns()[0]?.state).toBe('done')
     consoleError.mockRestore()
+  })
+
+  // ROOT CAUSE:
+  // A stalled or endless provider kept its session slot forever, and its caller never learned that it failed.
+  it('expires a stalled run and reports a failure', async () => {
+    const harness = createRunHarness({ limits: { stallTimeoutMs: 30 } })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => untilAborted(streamOptions))
+
+    await expect(harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })).rejects.toThrow('Run stalled without stream activity')
+    expect(harness.runtime.getRuns()[0]).toMatchObject({ state: 'expired', error: 'Run stalled without stream activity' })
+    expect(harness.runtime.getRunningSessionIds()).toEqual([])
+  })
+
+  it('expires an active run at its deadline', async () => {
+    const harness = createRunHarness({ limits: { stallTimeoutMs: 1_000, runDeadlineMs: 60 } })
+    harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
+      const ticker = setInterval(() => void streamOptions?.onStreamEvent?.({ type: 'text-delta', text: '.' }), 10)
+      try {
+        await untilAborted(streamOptions)
+      }
+      finally {
+        clearInterval(ticker)
+      }
+    })
+
+    await expect(harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })).rejects.toThrow('Run exceeded its deadline')
+    expect(harness.runtime.getRuns()[0]?.state).toBe('expired')
+  })
+
+  it('stops a run that repeats an identical tool call', async () => {
+    const harness = createRunHarness()
+    harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
+      for (let index = 0; index < 3; index++)
+        await streamOptions?.onStreamEvent?.({ type: 'tool-call', toolCallId: `call-${index}`, toolCallType: 'function', toolName: 'search', args: '{"q":"same"}' })
+      await untilAborted(streamOptions)
+    })
+
+    await expect(harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })).rejects.toThrow('Run repeated an identical tool call')
+    expect(harness.runtime.getRuns()[0]?.state).toBe('blocked')
+  })
+
+  // ROOT CAUSE:
+  // The user turn was written before the model call and stayed after cancellation, so a requeued input appeared twice.
+  it('rolls back a cancelled run so a requeued input appears once', async () => {
+    const harness = createRunHarness()
+    harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
+      await streamOptions?.onStreamEvent?.({ type: 'text-delta', text: 'partial' })
+      await untilAborted(streamOptions)
+    })
+
+    const first = harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+    // Cancel after the provider streams output, so the run has written its user turn and a partial reply.
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    expect(harness.messages.some(message => message.role === 'user')).toBe(true)
+    expect(harness.runtime.cancelRun(harness.runtime.getRuns()[0]!.runId, { rollback: true })).toBe(true)
+    await first
+
+    expect(harness.runtime.getRuns()[0]?.state).toBe('dropped')
+    expect(harness.messages).toEqual([])
+    await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+    expect(harness.messages.filter(message => message.role === 'user')).toHaveLength(1)
+  })
+
+  it('cancels a waiting run before it starts', async () => {
+    const harness = createRunHarness()
+    harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => untilAborted(streamOptions))
+
+    const first = harness.runtime.ingest('first', { model: 'test', chatProvider: provider })
+    await vi.waitFor(() => expect(harness.runtime.getRuns()[0]?.state).toBe('working'))
+    const second = harness.runtime.ingest('second', { model: 'test', chatProvider: provider })
+    const waiting = harness.runtime.getRuns()[1]!
+
+    expect(harness.runtime.cancelRun(waiting.runId)).toBe(true)
+    await expect(second).rejects.toThrow('Run was cancelled before it started')
+    expect(harness.runtime.getRun(waiting.runId)?.state).toBe('dropped')
+    harness.runtime.cancelRun(harness.runtime.getRuns()[0]!.runId)
+    await first
+    expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
   // A provider failure is a failed run, never a quiet success.

@@ -102,6 +102,10 @@ Each session has its own queue. A session runs one send at a time, and different
 A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
 The voice is exclusive. A send with the `voice` output waits while another send holds it. Domain sends keep running.
 Runtime state reports `runningSessionIds`, `voiceSessionId`, and the live reply of each running session.
+Supervision ends a run that streams nothing for `stallTimeoutMs` (60 seconds) or runs past `runDeadlineMs` (10 minutes). The run becomes `expired`.
+Three identical consecutive tool calls end a run as `blocked`. A supervised end rejects the send, so the caller sees a failure, never a quiet success.
+`cancelRun(runId, { rollback })` stops a waiting or running run. Its late output never commits.
+With `rollback`, the run's user turn and partial reply leave the session through `removeSessionMessages`. A requeued input therefore appears once.
 
 ## Spark notification cancellation
 

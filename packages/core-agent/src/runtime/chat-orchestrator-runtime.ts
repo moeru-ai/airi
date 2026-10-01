@@ -145,6 +145,14 @@ interface QueuedSend {
   /** Run admitted for this send. */
   runId: string
   envelope: ExecutionEnvelope
+  /** Message ids that this run wrote. A rollback removes them. */
+  writtenMessageIds: string[]
+  /** Set while the send runs. */
+  controller?: AbortController
+  /** Set when the host cancels the run. */
+  cancellation?: { rollback: boolean }
+  /** Set when supervision ends the run. */
+  supervision?: { state: 'expired' | 'blocked', reason: string }
   /** Keep provider identity paired with the client captured at enqueue time. */
   providerId: string
   sendingMessage: string
@@ -192,6 +200,8 @@ export interface ChatOrchestratorSessionPort {
   getSessionAudience?: (sessionId: string) => Audience | undefined
   /** Narrows the session audience after a run writes output derived from labeled reads. */
   narrowSessionAudience?: (sessionId: string, audience: Audience) => void
+  /** Removes messages that a cancelled run wrote. Required for rollback. */
+  removeSessionMessages?: (sessionId: string, messageIds: readonly string[]) => void
 }
 
 /**
@@ -251,7 +261,14 @@ export interface ChatOrchestratorRuntimeLimits {
   maxConcurrentRuns: number
   /** Sends that can wait in one session. A full session rejects new work before a run exists. @default 8 */
   maxQueuedPerSession: number
+  /** A running send without a stream event for this long expires. @default 60000 */
+  stallTimeoutMs: number
+  /** A running send expires after this total time. @default 600000 */
+  runDeadlineMs: number
 }
+
+/** Identical consecutive tool calls that end a run. Supervision stops a loop instead of waiting for the deadline. */
+const REPEATED_TOOL_CALL_LIMIT = 3
 
 /** Correlation keys shared by every analytics milestone from one user-to-assistant round. */
 interface ChatRoundCorrelation {
@@ -422,6 +439,8 @@ export interface ChatOrchestratorRuntime {
   getPendingQueuedSendCount: () => number
   /** Returns the sessions that have a running send. */
   getRunningSessionIds: () => string[]
+  /** Cancels one waiting or running run. With rollback, its writes leave the session. */
+  cancelRun: (runId: string, options?: { rollback?: boolean }) => boolean
   /** Hook registry preserved from the previous stage-ui store API. */
   hooks: ReturnType<typeof createChatHooks>
   /** Returns one run with its envelope. */
@@ -479,6 +498,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return {
       maxConcurrentRuns: positiveInteger(limits.maxConcurrentRuns, 4),
       maxQueuedPerSession: positiveInteger(limits.maxQueuedPerSession, 8),
+      stallTimeoutMs: positiveInteger(limits.stallTimeoutMs, 60_000),
+      runDeadlineMs: positiveInteger(limits.runDeadlineMs, 600_000),
     }
   }
 
@@ -558,7 +579,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     sessionId: string,
     abortSignal: AbortSignal,
     activeProvider: string,
-    run: { runId: string, envelope: ExecutionEnvelope },
+    run: {
+      runId: string
+      envelope: ExecutionEnvelope
+      /** Resets stall supervision. */
+      onActivity: () => void
+      /** Reports one tool call for loop supervision. */
+      onToolCall: (key: string) => void
+      /** Records a message that a rollback can remove. */
+      onWrite: (messageId: string) => void
+    },
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
@@ -583,6 +613,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const appendAssistantMessage = (message: ChatHistoryItem) => {
       deps.session.narrowSessionAudience?.(sessionId, readAudience)
       deps.session.appendSessionMessage(sessionId, message)
+      if (message.id)
+        run.onWrite(message.id)
     }
 
     const sendingCreatedAt = now()
@@ -710,6 +742,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
       }
       deps.session.appendSessionMessage(sessionId, userMessage)
+      run.onWrite(userMessage.id)
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.
@@ -892,6 +925,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         onStreamEvent: async (event: StreamEvent) => {
           if (shouldAbort())
             return
+          run.onActivity()
 
           switch (event.type) {
             case 'search':
@@ -903,6 +937,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               updateStream(sessionId, buildingMessage)
               break
             case 'tool-call':
+              run.onToolCall(`${event.toolName}\u0000${event.args}`)
               toolCallQueue.enqueue({
                 type: 'tool-call',
                 toolCall: event,
@@ -1093,7 +1128,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
   }
 
-  /** Runs one send and records its run state. The caller settles the send after the session slot is free. */
+  /**
+   * Runs one send and records its run state. The caller settles the send after the session slot is free.
+   * Supervision ends a stalled, overdue, or looping run. Its caller receives a failure, never a quiet success.
+   */
   async function execute(queuedSend: QueuedSend): Promise<{ ok: true } | { ok: false, error: unknown }> {
     const { sendingMessage, options, generation, sessionId, providerId, runId, envelope } = queuedSend
 
@@ -1103,18 +1141,52 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
 
     const controller = new AbortController()
+    queuedSend.controller = controller
     activeSends.set(sessionId, controller)
+    const { stallTimeoutMs, runDeadlineMs } = getLimits()
+    const supervise = (state: 'expired' | 'blocked', reason: string) => {
+      if (controller.signal.aborted)
+        return
+      queuedSend.supervision = { state, reason }
+      controller.abort(new Error(reason))
+    }
+    const deadline = setTimeout(supervise, runDeadlineMs, 'expired', 'Run exceeded its deadline')
+    let stall = setTimeout(supervise, stallTimeoutMs, 'expired', 'Run stalled without stream activity')
+    let lastToolCall: string | undefined
+    let repeatedToolCalls = 0
+
     runs.transition(runId, 'working')
     try {
-      await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId, { runId, envelope })
+      await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId, {
+        runId,
+        envelope,
+        onActivity: () => {
+          clearTimeout(stall)
+          stall = setTimeout(supervise, stallTimeoutMs, 'expired', 'Run stalled without stream activity')
+        },
+        onToolCall: (key) => {
+          repeatedToolCalls = key === lastToolCall ? repeatedToolCalls + 1 : 1
+          lastToolCall = key
+          if (repeatedToolCalls >= REPEATED_TOOL_CALL_LIMIT)
+            supervise('blocked', 'Run repeated an identical tool call')
+        },
+        onWrite: messageId => queuedSend.writtenMessageIds.push(messageId),
+      })
+      if (queuedSend.supervision) {
+        runs.transition(runId, queuedSend.supervision.state, queuedSend.supervision.reason)
+        return { ok: false, error: new Error(queuedSend.supervision.reason) }
+      }
       runs.transition(runId, controller.signal.aborted || deps.session.getSessionGeneration(sessionId) !== generation ? 'dropped' : 'done')
       return { ok: true }
     }
     catch (error) {
-      runs.transition(runId, controller.signal.aborted ? 'dropped' : 'blocked', errorMessageFrom(error) ?? 'Unknown run failure')
-      return { ok: false, error }
+      const supervision = queuedSend.supervision
+      runs.transition(runId, supervision?.state ?? (controller.signal.aborted ? 'dropped' : 'blocked'), supervision?.reason ?? errorMessageFrom(error) ?? 'Unknown run failure')
+      return { ok: false, error: supervision ? new Error(supervision.reason) : error }
     }
     finally {
+      clearTimeout(deadline)
+      clearTimeout(stall)
       activeSends.delete(sessionId)
     }
   }
@@ -1138,6 +1210,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       void execute(queuedSend).then((result) => {
         // Free the slot before the caller resumes, so a settled send never appears to run.
         runningSends.delete(queuedSend.sessionId)
+        if (queuedSend.cancellation?.rollback && queuedSend.writtenMessageIds.length)
+          deps.session.removeSessionMessages?.(queuedSend.sessionId, queuedSend.writtenMessageIds)
         pump()
         if (result.ok)
           queuedSend.deferred.resolve()
@@ -1180,6 +1254,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       pendingQueuedSends.push({
         runId,
         envelope,
+        writtenMessageIds: [],
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
         options,
@@ -1212,6 +1287,29 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     emitStateChange()
   }
 
+  /**
+   * Cancels one run. A waiting run never starts. A running run stops, and its late output never commits.
+   * With rollback, the run's user turn and partial reply leave the session, so a requeued input cannot duplicate them.
+   */
+  function cancelRun(runId: string, options: { rollback?: boolean } = {}) {
+    const waiting = pendingQueuedSends.find(item => item.runId === runId)
+    if (waiting) {
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== waiting)
+      waiting.cancelled = true
+      runs.transition(runId, 'dropped')
+      waiting.deferred.reject(new Error('Run was cancelled before it started'))
+      emitStateChange()
+      return true
+    }
+
+    const running = Array.from(runningSends.values()).find(item => item.runId === runId)
+    if (!running?.controller)
+      return false
+    running.cancellation = { rollback: options.rollback ?? false }
+    running.controller.abort(new Error('Run was cancelled'))
+    return true
+  }
+
   function getPendingQueuedSendSnapshot() {
     return pendingQueuedSends.map(queued => ({
       sessionId: queued.sessionId,
@@ -1229,6 +1327,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     getPendingQueuedSendSnapshot,
     getPendingQueuedSendCount: () => pendingQueuedSends.length,
     getRunningSessionIds: () => Array.from(runningSends.keys()),
+    cancelRun,
     hooks,
     getRun: runId => runs.get(runId),
     getRuns: () => runs.snapshot(),

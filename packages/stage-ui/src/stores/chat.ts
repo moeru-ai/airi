@@ -527,6 +527,10 @@ export const useChatStore = defineStore('chat', () => {
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
       getSessionAudience: sessionId => chatSession.getSessionAudience(sessionId),
+      removeSessionMessages: (sessionId, messageIds) => {
+        chatSession.setSessionMessages(sessionId, chatSession.getSessionMessages(sessionId)
+          .filter(message => !message.id || !messageIds.includes(message.id)))
+      },
       narrowSessionAudience: (sessionId, audience) => {
         void chatSession.narrowSessionAudience(sessionId, audience).catch((error) => {
           console.warn('[chat] Failed to narrow the session audience:', errorMessageFrom(error))
@@ -795,6 +799,11 @@ export const useChatStore = defineStore('chat', () => {
     runtime.cancelPendingSends(sessionId)
   }
 
+  /** Cancels one run in the leader. With rollback, its user turn and partial reply leave the session. */
+  async function cancelRun(runId: string, options?: { rollback?: boolean }) {
+    return runtime.cancelRun(runId, options)
+  }
+
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
@@ -815,6 +824,7 @@ export const useChatStore = defineStore('chat', () => {
     retry,
     send,
     cancelPendingSends,
+    cancelRun,
     getPendingQueuedSendSnapshot,
 
     clearHooks: runtime.hooks.clearHooks,
@@ -843,7 +853,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    actions: ['cancelPendingSends', 'cancelRun', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
     state: true,
   },
 })
