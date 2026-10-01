@@ -1,12 +1,27 @@
-import type { AudioInput } from '@proj-airi/pipelines-audio'
+import type { MicrophoneSource } from '@proj-airi/audio/browser'
 
-import { Microphone } from '@proj-airi/audio/browser'
+import { microphoneSource } from '@proj-airi/audio/browser'
+import { AudioInput } from '@proj-airi/pipelines-audio'
 import { useDevicesList } from '@vueuse/core'
-import { computed, onScopeDispose, ref, shallowRef, watch } from 'vue'
+import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 import { useAnalytics } from '../use-analytics'
 
 const UNKNOWN_STT_PROVIDER_ID = 'unknown'
+
+/** Speech-onset capture replays this much audio from before detection. */
+const MICROPHONE_HISTORY_MS = 360
+
+/**
+ * Silero VAD requires 512-sample windows at 16 kHz, so capture runs at that rate.
+ *
+ * NOTICE:
+ * Firefox rejects createMediaStreamSource when the AudioContext rate differs from the device rate.
+ * Root cause: Firefox does not resample MediaStream sources across AudioContext sample rates.
+ * Source: "Connecting AudioNodes from AudioContexts with different sample-rate is currently not supported".
+ * Removal condition: capture at the device rate and resample windows for VAD, or Firefox supports resampling.
+ */
+const MICROPHONE_CONTEXT: AudioContextOptions = { sampleRate: 16000 }
 
 /**
  * Normalizes browser microphone failures into low-cardinality analytics codes.
@@ -19,14 +34,16 @@ function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_una
 }
 
 /**
- * Provides microphone device selection, permission requests, and audio stream lifecycle state.
+ * Provides microphone selection and one shared input for the selected device.
+ *
+ * Consumers subscribe to `input` with their own abort signal. The first subscriber opens the microphone,
+ * and the last one to leave releases it. Selecting another device creates a new input. Existing
+ * subscriptions keep the old device until their owners move to the new input.
  */
 export function useAudioDevice() {
   const { trackMicrophonePermissionDenied } = useAnalytics()
   const { devices, audioInputs } = useDevicesList({ requestPermissions: false })
   const selectedAudioInput = ref('')
-  const stream = shallowRef<MediaStream>()
-  const input = shallowRef<AudioInput>()
   const permissionGranted = ref(false)
   const audioInputOptions = computed(() => audioInputs.value.filter(device => device.deviceId).map(device => ({ label: device.label || device.deviceId, value: device.deviceId })))
   const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: {
@@ -35,97 +52,57 @@ export function useAudioDevice() {
     echoCancellation: true,
     noiseSuppression: true,
   } }))
-  const connection = shallowRef<Microphone>()
+  /** Tracks of the selected device while any subscriber keeps it open. */
+  const stream = shallowRef<MediaStream>()
+  const source = shallowRef<MicrophoneSource>(createSource(deviceConstraints.value))
+  const input = shallowRef(markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS })))
 
-  function owner() {
-    connection.value ??= new Microphone(deviceConstraints.value, { contextOptions: { sampleRate: 16000 }, historyMs: 360 })
-    return connection.value
+  function createSource(constraints: MediaStreamConstraints): MicrophoneSource {
+    const created = markRaw(microphoneSource(constraints, {
+      contextOptions: MICROPHONE_CONTEXT,
+      // A replaced device can close after the new one opened. Only the selected source updates the view.
+      onStream: (opened) => {
+        if (source.value === created)
+          stream.value = opened
+      },
+    }))
+    return created
   }
 
-  /** Each capture or monitor releases its own lease after downstream media completion. */
-  function acquireInput() {
-    const current = owner()
-    const lease = current.acquire()
-    // Publish platform state through the same startup path as direct source owners.
-    const opening = openInput()
-    void lease.input.catch(() => {})
-    return { input: opening, release: () => {
-      const released = lease.release()
-      if (connection.value === current && current.isClosed) {
-        connection.value = undefined
-        stream.value = undefined
-        // Clear synchronously so another consumer never receives a closing source.
-        input.value = undefined
-      }
-      return released
-    } }
-  }
+  // Subscribers move to the new input themselves. The old device closes when its last subscriber leaves.
+  watch(deviceConstraints, (constraints) => {
+    stream.value = undefined
+    source.value = createSource(constraints)
+    input.value = markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS }))
+  })
 
-  /** One owner shares permission, tracks, and source startup across all consumers. */
-  async function openInput(): Promise<AudioInput> {
-    const current = owner()
+  /**
+   * Subscribes until the first block arrives, then leaves. It reports a denied or missing device.
+   * Device labels need enumeration after permission, so this also refreshes the device list.
+   */
+  async function askPermission() {
+    const probe = new AbortController()
+    const reader = input.value.subscribe({ signal: probe.signal }).getReader()
     try {
-      const audio = await current.open()
-      if (connection.value !== current)
-        throw new DOMException('Microphone replaced during startup', 'AbortError')
-      input.value = audio
-      stream.value = current.stream
+      await reader.read()
       permissionGranted.value = true
-      // Device labels need a refresh after permission. Enumeration cannot revoke a working source.
-      void navigator.mediaDevices.enumerateDevices().then((available) => {
-        if (connection.value === current)
-          devices.value = available
-      }).catch(error => console.error('Audio device enumeration failed', error))
-      return audio
+      devices.value = await navigator.mediaDevices.enumerateDevices()
     }
     catch (error) {
-      if (connection.value === current) {
-        connection.value = undefined
-        stream.value = undefined
-        input.value = undefined
-      }
-      void current.close()
       if (audioDeviceErrorCode(error) === 'permission_denied') {
         permissionGranted.value = false
         trackMicrophonePermissionDenied({ stt_provider_id: UNKNOWN_STT_PROVIDER_ID, error_code: 'permission_denied' })
       }
       throw error
     }
-  }
-
-  async function close() {
-    const owner = connection.value
-    connection.value = undefined
-    stream.value = undefined
-    input.value = undefined
-    await owner?.close()
-  }
-
-  /** Controller bindings borrow a source already retained by their attempt or signal monitor. */
-  function borrowInput(): Promise<AudioInput> {
-    if (!connection.value)
-      return Promise.reject(new Error('No consumer owns the microphone'))
-    return connection.value.open()
-  }
-
-  async function askPermission() {
-    const lease = acquireInput()
-    try {
-      await lease.input
-    }
     finally {
-      await lease.release()
+      probe.abort('Permission probe finished')
     }
   }
 
-  watch(selectedAudioInput, () => {
-    if (connection.value) {
-      void close().catch(error => console.error('Microphone release failed', error))
-    }
-  }, { flush: 'sync' })
   onScopeDispose(() => {
-    void close()
+    void input.value.close()
   })
 
-  return { audioInputs, audioInputOptions, selectedAudioInput, stream, input, connection, deviceConstraints, permissionGranted, askPermission, acquireInput, borrowInput, close }
+  return { audioInputs, audioInputOptions, selectedAudioInput, deviceConstraints, permissionGranted, source, input, stream, askPermission }
 }

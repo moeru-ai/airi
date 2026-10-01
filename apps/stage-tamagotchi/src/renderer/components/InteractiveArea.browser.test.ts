@@ -859,6 +859,15 @@ describe('interactive area synchronized state', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743121861
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743309235
+  // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743366443
+  // ROOT CAUSE:
+  //
+  // Every layout passed one global foreground stream to ChatHistory.
+  // A window on session B therefore showed session A's live response.
+  //
+  // We fixed this by storing one live message per active turn.
+  // Each layout renders only its selected session's turn.
   it.each([
     ['desktop', InteractiveArea],
     ['mobile', MobileInteractiveArea],

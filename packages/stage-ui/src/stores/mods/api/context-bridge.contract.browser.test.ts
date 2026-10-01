@@ -761,7 +761,8 @@ describe('context bridge contract', () => {
     streamSender.postMessage({ type: 'token-special', special: 'remote-special', sessionId: 'remote-session', context })
     await waitForBroadcastDelivery()
 
-    expect(outgoingStreamMessages.filter(message => message.sessionId === 'session-1')).toHaveLength(1)
+    // The sender and local hook each publish once. Remote handling must not echo the sender.
+    expect(outgoingStreamMessages.filter(message => message.sessionId === 'remote-session')).toHaveLength(2)
 
     await store.dispose()
   })

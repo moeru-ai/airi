@@ -371,7 +371,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
     playback,
     onSpecial: (special: string) => void playSpecialToken(special, { turnId: turn.turnId }),
-    onPlaybackStart: (text: string) => {
+    onPlaybackStart: ({ text }: { text: string }) => {
       playingCount += 1
       nowSpeaking.value = true
       assistantCaption.value += ` ${text}`

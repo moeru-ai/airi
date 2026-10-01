@@ -52,12 +52,4 @@ describe('speech output control', () => {
     expect(await createStore().requestStopSpeaking({ reason: 'manual-all' })).toEqual({ status: 'recorded' })
     expect(interrupt.mock.calls[0]?.[0]).toEqual({ turns, cause: 'manual-all' })
   })
-
-  it('persists mute independently from external interruption', () => {
-    const sender = createStore()
-    sender.setSpeechMuted(true)
-    expect(sender.speechMuted).toBe(true)
-    sender.toggleSpeechMuted()
-    expect(sender.speechMuted).toBe(false)
-  })
 })

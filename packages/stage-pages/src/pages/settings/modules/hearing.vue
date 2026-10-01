@@ -2,6 +2,7 @@
 import type { VoicePluginHandle } from '@proj-airi/core-agent'
 
 import { errorMessageFrom } from '@moeru/std'
+import { encodeWav } from '@proj-airi/audio/encoding'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
 import { useAnalytics, useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
 import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
@@ -92,22 +93,22 @@ const volumeLevel = shallowRef(0)
 const loadedVAD = shallowRef(false)
 const loadingVAD = shallowRef(false)
 const vadModelError = shallowRef('')
-const recordings = new Map<string, ReturnType<typeof startRecording>>()
+/** A WAV preview per input, encoded from a copy of the PCM that the provider receives. */
+const recordings = new Map<string, Promise<ReturnType<typeof startRecording> | undefined>>()
 let listening: VoicePluginHandle | undefined
 let monitoringStartup: AbortController | undefined
-let monitoringInput: ReturnType<typeof settingsAudioDeviceStore.acquireInput> | undefined
 const { controller, state: inputState, snapshot, error: transcriptionPipelineError } = useVoiceController({
   transcriber: () => {
     const transcriber = hearingStore.createTranscriber()
     const id = controller.activeInput!.id
-    return { ...transcriber, transcribe: (request) => {
-      if (request.audio.kind === 'file')
-        recordings.set(id, startRecording(request.audio.blob))
-      return transcriber.transcribe(request)
+    return { transcribe: (request) => {
+      const [audio, preview] = request.audio.tee()
+      recordings.set(id, encodeWav(preview, { sampleRate: 16000, channels: 1 }, request.signal).then(startRecording, () => undefined))
+      return transcriber.transcribe({ ...request, audio })
     } }
   },
   submit: async (submission) => {
-    const recording = recordings.get(submission.submissionId)
+    const recording = await recordings.get(submission.submissionId)
     if (recording)
       finishRecording(recording, submission.text)
     else
@@ -118,8 +119,8 @@ const { controller, state: inputState, snapshot, error: transcriptionPipelineErr
   },
 })
 controller.onInput((attempt) => {
-  void attempt.done.then((outcome) => {
-    const recording = recordings.get(attempt.id)
+  void attempt.done.then(async (outcome) => {
+    const recording = await recordings.get(attempt.id)
     if (outcome.status === 'failed')
       finishError(recording, errorMessageFrom(outcome.error) ?? 'Transcription failed')
     recordings.delete(attempt.id)
@@ -138,13 +139,10 @@ async function setupAudioMonitoring() {
     await stopped
     if (startup.signal.aborted)
       return
-    const input = settingsAudioDeviceStore.acquireInput()
-    monitoringInput = input
-    await input.input
-    if (startup.signal.aborted || monitoringInput !== input) {
-      await input.release()
+    // Surface a denied or missing microphone before the detector starts. The plugin then subscribes by itself.
+    await settingsAudioDeviceStore.askPermission()
+    if (startup.signal.aborted)
       return
-    }
     const model = useVADModel.value ? new SileroVad() : undefined
     loadingVAD.value = !!model
     loadedVAD.value = false
@@ -189,12 +187,9 @@ async function stopAudioMonitoring() {
   monitoringStartup = undefined
   isMonitoring.value = false
   const previous = listening
-  const input = monitoringInput
-  monitoringInput = undefined
   listening = undefined
   controller.activeInput?.cancel('Hearing preview stopped')
   await previous?.dispose()
-  await input?.release()
 }
 
 // Monitoring toggle

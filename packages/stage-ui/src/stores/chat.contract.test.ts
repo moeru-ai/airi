@@ -377,13 +377,27 @@ describe('chat store contract', () => {
     expect(sessionMessages['session-1'].some(message => message.id === 'pending-input')).toBe(false)
   })
 
-  it('uses the target character settings even while another character is selected', async () => {
+  it('uses the active provider for a text send to another session', async () => {
     cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()
     await store.send({ sessionId: 'session-2', text: 'For Bob' })
+
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
+    expect(llmStreamMock.mock.calls[0]?.[0]).toBe('gpt-test')
+    expect(activeSessionIdRef.value).toBe('session-1')
+  })
+
+  it('uses the target character settings for a voice submission', async () => {
+    cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.submit({ sessionId: 'session-2', messageId: 'bob-voice', text: 'For Bob' })
+
     expect(getChatProviderInstanceMock).toHaveBeenCalledWith('bob-provider', { reasoning: 'disabled' })
     expect(llmStreamMock.mock.calls[0]?.[0]).toBe('bob-model')
     expect(activeSessionIdRef.value).toBe('session-1')

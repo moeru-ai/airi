@@ -1,18 +1,16 @@
-import type { TurnRef } from '@proj-airi/core-agent'
-
-import type { ChatInterruptionOptions } from '../../../stage-layouts/src/composables/use-chat-interruption'
+import type { ChatInterruptionOptions } from './use-chat-interruption'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { getSpeechBusContext, voiceGetTurns, voiceInterrupt, voiceTurnsChanged } from '@proj-airi/stage-ui/services/speech/bus'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, defineComponent, h, ref } from 'vue'
 import { createI18n } from 'vue-i18n'
 
-import { useChatInterruption } from '../../../stage-layouts/src/composables/use-chat-interruption'
-import { useStopSpeakingButton } from '../../../stage-layouts/src/composables/useStopSpeakingButton'
-import { getSpeechBusContext, voiceGetTurns, voiceInterrupt, voiceTurnsChanged } from '../services/speech/bus'
-import { useChatSessionStore } from './chat/session-store'
-import { useSpeechOutputControlStore } from './speech-output-control'
+import { useChatInterruption } from './use-chat-interruption'
+import { useStopSpeakingButton } from './useStopSpeakingButton'
 
 const cleanups: (() => void)[] = []
 
@@ -42,7 +40,7 @@ function mountControls(options: ChatInterruptionOptions) {
 function connectHost(receipt: Promise<{ status: 'recorded' | 'failed' }> = Promise.resolve({ status: 'recorded' })) {
   const context = getSpeechBusContext()
   const turns = [{ sessionId: 'alice', turnId: 'a' }, { sessionId: 'bob', turnId: 'b' }]
-  const interrupt = vi.fn((_request: { turns: readonly TurnRef[], cause: string }) => receipt)
+  const interrupt = vi.fn((_request: { turns: readonly { sessionId: string, turnId: string }[], cause: string }) => receipt)
   cleanups.push(defineInvokeHandler(context, voiceGetTurns, () => turns))
   cleanups.push(defineInvokeHandler(context, voiceInterrupt, interrupt))
   context.emit(voiceTurnsChanged, turns)

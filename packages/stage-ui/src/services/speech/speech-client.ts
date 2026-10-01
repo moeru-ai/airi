@@ -17,6 +17,7 @@ export class SpeechClient {
   private readonly stopHostListener: () => void
 
   constructor(turn: TurnRef, purpose: string) {
+    // Each client opens one producer. The host matches all later commands with these same fields.
     this.identity = { turn: { ...turn }, originId: crypto.randomUUID(), producerId: crypto.randomUUID() }
     this.stopHostListener = getSpeechBusContext().on(voiceSnapshotChanged, ({ body }) => {
       if (body && !body.connected)

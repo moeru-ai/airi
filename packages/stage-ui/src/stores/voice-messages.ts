@@ -1,6 +1,5 @@
 import { defineInvokeHandler } from '@moeru/eventa'
 import { encodeBase64 } from '@moeru/std/base64'
-import { Recording } from '@proj-airi/pipelines-audio'
 import { defineStore } from 'pinia'
 import { onScopeDispose, shallowRef } from 'vue'
 
@@ -28,10 +27,7 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
     if (opened.has(id))
       return false
     opened.add(id)
-    const lease = devices.acquireInput()
-    const recording = new Recording(() => lease.input, { mimeType: 'audio/wav', sampleRate: 16000, channels: 1 })
-    void recording.done.then(() => lease.release()).catch(error => console.error('Voice message microphone release failed', error))
-    const message = new VoiceMessage(id, sessionId, recording, async (draft) => {
+    const message = new VoiceMessage(id, sessionId, devices.input, async (draft) => {
       const data = encodeBase64(new Uint8Array(await draft.audio.arrayBuffer()))
       return chat.submit({
         sessionId: draft.sessionId,

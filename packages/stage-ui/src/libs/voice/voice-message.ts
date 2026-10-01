@@ -1,6 +1,8 @@
-import type { Recording, RecordingState } from '@proj-airi/pipelines-audio'
+import type { AudioInput } from '@proj-airi/pipelines-audio'
 
 import { errorMessageFrom } from '@moeru/std'
+import { encodeWav } from '@proj-airi/audio/encoding'
+import { capture } from '@proj-airi/pipelines-audio'
 
 /** The application owns a preview until explicit submission receives its durable message receipt. */
 export interface VoiceMessageSnapshot {
@@ -11,22 +13,43 @@ export interface VoiceMessageSnapshot {
   readonly error?: string
 }
 
-/** A voice attachment does not depend on transcription or Hearing mode. */
+/**
+ * A voice attachment recorded as 16 kHz mono WAV. It does not depend on transcription or Hearing mode.
+ *
+ * Phases: pending until audio arrives, capturing, finalizing after finish, then ready with the file.
+ */
 export class VoiceMessage {
   private readonly listeners = new Set<() => void>()
   private current: VoiceMessageSnapshot
   private sending: Promise<{ messageId: string }> | undefined
   private receipt: { messageId: string } | undefined
-  private readonly stopRecording: () => void
+  private readonly recording: ReturnType<typeof capture>
 
   constructor(
     readonly id: string,
     readonly sessionId: string,
-    private readonly recording: Recording,
+    input: AudioInput,
     private readonly submit: (draft: { messageId: string, sessionId: string, audio: Blob }) => Promise<{ messageId: string }>,
   ) {
-    this.current = { id, sessionId, phase: recording.state.phase === 'settled' ? 'pending' : recording.state.phase }
-    this.stopRecording = recording.subscribe(state => this.onRecording(state))
+    this.current = { id, sessionId, phase: 'pending' }
+    this.recording = capture(input)
+    const encoding = encodeWav(this.recording.stream, { sampleRate: 16000, channels: 1 })
+    // Cancellation and capture failure also reject encoding. The done handler reports those outcomes instead.
+    void encoding.catch(() => {})
+    void this.recording.started.then(() => this.advance('pending', 'capturing'))
+    void this.recording.done.then(async (outcome) => {
+      if (outcome.status === 'cancelled')
+        return this.advance(this.current.phase, 'cancelled')
+      if (outcome.status === 'failed')
+        return this.change({ ...this.current, phase: 'failed', error: outcome.error.message })
+      try {
+        const audio = await encoding
+        this.change({ ...this.current, phase: 'ready', audio })
+      }
+      catch (cause) {
+        this.change({ ...this.current, phase: 'failed', error: errorMessageFrom(cause) ?? 'Voice message encoding failed' })
+      }
+    })
   }
 
   get snapshot(): VoiceMessageSnapshot { return this.current }
@@ -36,13 +59,15 @@ export class VoiceMessage {
     return () => this.listeners.delete(listener)
   }
 
-  finish() { return this.recording.finish() }
+  finish() {
+    this.advance('capturing', 'finalizing')
+    return this.recording.finish()
+  }
 
   /** Persistence owns an in-flight send. Discard cannot erase the only recoverable draft during that operation. */
   cancel(): 'cancelled' | 'closed' {
     if (this.sending || this.receipt)
       return 'closed'
-    this.stopRecording()
     this.recording.cancel('Voice message discarded')
     this.change({ id: this.id, sessionId: this.sessionId, phase: 'cancelled' })
     return 'cancelled'
@@ -71,19 +96,10 @@ export class VoiceMessage {
     return this.sending
   }
 
-  /** Recording owns source admission and encoding. This handler retains only the completed attachment. */
-  private onRecording(state: RecordingState) {
-    if (state.phase !== 'settled') {
-      this.change({ ...this.current, phase: state.phase })
-      return
-    }
-    const outcome = state.outcome
-    if (outcome.status === 'finished')
-      this.change({ ...this.current, phase: 'ready', audio: outcome.value })
-    else if (outcome.status === 'failed')
-      this.change({ ...this.current, phase: 'failed', error: outcome.error.message })
-    else
-      this.change({ ...this.current, phase: 'cancelled' })
+  /** Moves forward only from the expected phase, so late recording events cannot undo a newer state. */
+  private advance(from: VoiceMessageSnapshot['phase'], to: VoiceMessageSnapshot['phase']) {
+    if (this.current.phase === from)
+      this.change({ ...this.current, phase: to })
   }
 
   private change(snapshot: VoiceMessageSnapshot) {

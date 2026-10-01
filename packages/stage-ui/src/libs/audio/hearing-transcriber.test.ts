@@ -6,23 +6,22 @@ import { VoiceController } from '@proj-airi/core-agent'
 import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
 import { expect, it, vi } from 'vitest'
 
-import { HearingTranscriber } from './hearing-transcriber'
+import { createHearingTranscriber } from './hearing-transcriber'
 
 it('streams provider updates before capture ends and preserves the final response after normal finish', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ id: 'mic', frames: frames.stream, close: async () => {} }, { supportsFile: () => false, encode: async () => {
-    throw new Error('No codec')
-  } })
+  const audio = new AudioInput({ open: () => frames.stream })
   const events = createPushStream<AIRIStreamTranscriptionDelta>()
   const final = Promise.withResolvers<string>()
   let requestSignal: AbortSignal | undefined
-  const transcriber = new HearingTranscriber({ inputs: ['pcm'], output: 'updates' }, async (_audio, signal) => {
+  const transcriber = createHearingTranscriber(async (_audio, signal) => {
     requestSignal = signal
     return { mode: 'stream', fullStream: events.stream, text: final.promise, textStream: new ReadableStream<string>() }
   })
   const submit = vi.fn(async () => ({ status: 'drafted' as const, draftId: 'saved' }))
   const controller = new VoiceController({ audio, transcriber: () => transcriber, submit })
   const attempt = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+  frames.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
   events.write({ type: 'transcript.text.delta', delta: 'part' })
   await expect.poll(() => attempt.input?.transcript.raw.text).toBe('part')
   expect(attempt.input?.transcript.raw.segments[0]?.tokens).toEqual([{ text: 'part', start: 0, end: 4 }])
@@ -43,8 +42,8 @@ it('releases a late provider stream after the owning input was cancelled', async
   const result = Promise.withResolvers<import('../providers/transcription-types').HearingTranscriptionResult>()
   const abort = new AbortController()
   const release = vi.fn()
-  const transcriber = new HearingTranscriber({ inputs: ['file'], output: 'updates' }, () => result.promise)
-  const reader = transcriber.transcribe({ audio: { kind: 'file', blob: new Blob() }, signal: abort.signal }).getReader()
+  const transcriber = createHearingTranscriber(() => result.promise)
+  const reader = transcriber.transcribe({ audio: new ReadableStream<PcmBlock>(), signal: abort.signal }).getReader()
   const read = reader.read().catch(() => undefined)
   abort.abort('cancelled')
   await read
@@ -54,13 +53,14 @@ it('releases a late provider stream after the owning input was cancelled', async
 
 it('fails the input when final transcription rejects before its event stream closes', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ id: 'mic', frames: frames.stream, close: async () => {} }, { supportsFile: () => false, encode: vi.fn() })
+  const audio = new AudioInput({ open: () => frames.stream })
   const final = Promise.withResolvers<string>()
   const released = vi.fn()
-  const transcriber = new HearingTranscriber({ inputs: ['pcm'], output: 'updates' }, async () => ({ mode: 'stream', fullStream: new ReadableStream({ cancel: released }), text: final.promise, textStream: new ReadableStream<string>() }))
+  const transcriber = createHearingTranscriber(async () => ({ mode: 'stream', fullStream: new ReadableStream({ cancel: released }), text: final.promise, textStream: new ReadableStream<string>() }))
   const submit = vi.fn()
   const controller = new VoiceController({ audio, transcriber: () => transcriber, submit })
   const input = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+  frames.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
   await expect.poll(() => input.state.phase).toBe('capturing')
   final.reject(new Error('ASR connection failed'))
   await expect.poll(() => input.state.phase).toBe('settled')
@@ -72,10 +72,10 @@ it('fails the input when final transcription rejects before its event stream clo
 
 it('retains a sentence correction when another sentence appends to streaming transcription', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ id: 'mic', frames: frames.stream, close: async () => {} }, { supportsFile: () => false, encode: vi.fn() })
+  const audio = new AudioInput({ open: () => frames.stream })
   const events = createPushStream<AIRIStreamTranscriptionDelta>()
   const final = Promise.withResolvers<string>()
-  const transcriber = new HearingTranscriber({ inputs: ['pcm'], output: 'updates' }, async () => ({ mode: 'stream', fullStream: events.stream, text: final.promise, textStream: new ReadableStream<string>() }))
+  const transcriber = createHearingTranscriber(async () => ({ mode: 'stream', fullStream: events.stream, text: final.promise, textStream: new ReadableStream<string>() }))
   const controller = new VoiceController({ audio, transcriber: () => transcriber, submit: async () => ({ status: 'drafted', draftId: 'draft' }) })
   controller.use({ name: 'rewrite', setup(plugin) {
     plugin.onSpeechInput((input) => {
@@ -87,6 +87,7 @@ it('retains a sentence correction when another sentence appends to streaming tra
     })
   } }, { grants: ['transcript-patch'] })
   const input = controller.beginInput({ sessionId: 'alice', interruptTurns: [], start: { kind: 'after-silence' } })
+  frames.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 4 }, sampleRate: 1000, channels: [new Float32Array(4)] })
   events.write({ type: 'transcript.text.delta', delta: 'Air listens. ' })
   await expect.poll(() => input.input?.transcript.corrected.text).toBe('AIRI listens. ')
   events.write({ type: 'transcript.text.delta', delta: 'Another sentence.' })
@@ -104,11 +105,11 @@ it('aborts all provider outputs when standalone transcription fails', async () =
   const releasedEvents = vi.fn()
   const releasedText = vi.fn()
   let providerSignal: AbortSignal | undefined
-  const transcriber = new HearingTranscriber({ inputs: ['file'], output: 'updates' }, async (_audio, signal) => {
+  const transcriber = createHearingTranscriber(async (_audio, signal) => {
     providerSignal = signal
     return { mode: 'stream', fullStream: new ReadableStream({ cancel: releasedEvents }), text: final.promise, textStream: new ReadableStream({ cancel: releasedText }) }
   })
-  const reader = transcriber.transcribe({ audio: { kind: 'file', blob: new Blob() }, signal: new AbortController().signal }).getReader()
+  const reader = transcriber.transcribe({ audio: new ReadableStream<PcmBlock>(), signal: new AbortController().signal }).getReader()
   const read = reader.read()
   final.reject(new Error('Provider disconnected'))
   await expect(read).rejects.toThrow('Provider disconnected')

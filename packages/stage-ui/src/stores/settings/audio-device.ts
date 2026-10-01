@@ -5,7 +5,16 @@ import { onScopeDispose, ref, watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
 
-/** Stores microphone preferences. The browser adapter owns permission and source lifecycles. */
+function isAbort(cause: unknown) {
+  return cause instanceof DOMException && cause.name === 'AbortError'
+}
+
+/**
+ * Stores microphone preferences and keeps the selected microphone open while it is enabled.
+ *
+ * `input` is the shared input for the selected device. Consumers subscribe with their own signal.
+ * The enabled preference holds one extra subscription, so later consumers start without waiting for permission.
+ */
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const device = useAudioDevice()
   const selectedAudioInput = useLocalStorageManualReset<string>('settings/audio/input', '')
@@ -14,92 +23,67 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   let permissionStatus: PermissionStatus | undefined
   let disposed = false
   let initialized = false
-  let enabledInput: ReturnType<typeof device.acquireInput> | undefined
+  let holding: AbortController | undefined
 
-  watch(selectedAudioInput, (id, previous) => {
-    device.selectedAudioInput.value = id
-    if (previous === undefined || !enabled.value)
+  /** Holds the current input open. A failure other than release turns the preference off. */
+  function hold() {
+    holding?.abort('Microphone hold replaced')
+    if (!enabled.value || !initialized)
       return
-    const replaced = enabledInput
-    enabledInput = undefined
-    void replaced?.release()
-    startEnabledInput()
-  }, { immediate: true, flush: 'sync' })
 
-  async function borrowInput() {
+    const current = new AbortController()
+    holding = current
     error.value = undefined
-    try {
-      return await device.borrowInput()
-    }
-    catch (cause) {
-      if (!(cause instanceof DOMException) || cause.name !== 'AbortError')
-        error.value = errorMessageFrom(cause) ?? 'Could not start the microphone'
-      throw cause
-    }
-  }
-
-  async function askPermission() {
-    await device.askPermission()
-  }
-
-  function close() {
-    return device.close()
-  }
-
-  function startEnabledInput() {
-    error.value = undefined
-    enabledInput ??= device.acquireInput()
-    const current = enabledInput
-    void current.input.catch((cause) => {
-      if (enabledInput === current && (!(cause instanceof DOMException) || cause.name !== 'AbortError')) {
-        error.value = errorMessageFrom(cause) ?? 'Could not start the microphone'
-        enabled.value = false
-      }
+    void device.input.value.subscribe({ signal: current.signal }).pipeTo(new WritableStream()).catch((cause) => {
+      if (holding !== current || current.signal.aborted || isAbort(cause))
+        return
+      error.value = errorMessageFrom(cause) || 'Could not start the microphone'
+      enabled.value = false
     })
   }
 
-  watch(enabled, (value) => {
-    if (value) {
-      startEnabledInput()
-    }
-    else {
-      const previous = enabledInput
-      enabledInput = undefined
-      void previous?.release()
-    }
-  }, { flush: 'sync' })
+  watch(selectedAudioInput, id => void (device.selectedAudioInput.value = id), { immediate: true, flush: 'sync' })
+  watch([enabled, device.input], hold, { flush: 'sync' })
 
   function initialize() {
     if (initialized || disposed)
       return
     initialized = true
-    if (enabled.value)
-      startEnabledInput()
+    hold()
     void navigator.permissions?.query({ name: 'microphone' }).then((status) => {
       if (disposed)
         return
       permissionStatus = status
       status.onchange = () => {
-        if (status.state !== 'granted') {
+        if (status.state !== 'granted')
           enabled.value = false
-          void close()
-        }
       }
     }).catch(() => {})
+  }
+
+  async function askPermission() {
+    error.value = undefined
+    try {
+      await device.askPermission()
+    }
+    catch (cause) {
+      if (!isAbort(cause))
+        error.value = errorMessageFrom(cause) || 'Could not start the microphone'
+      throw cause
+    }
   }
 
   function resetState() {
     error.value = undefined
     selectedAudioInput.reset()
     enabled.reset()
-    void close()
   }
 
   onScopeDispose(() => {
     disposed = true
+    holding?.abort('Microphone settings disposed')
     if (permissionStatus)
       permissionStatus.onchange = null
-    void close()
   })
 
   return {
@@ -112,9 +96,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     permissionGranted: device.permissionGranted,
     stream: device.stream,
     input: device.input,
-    connection: device.connection,
-    acquireInput: device.acquireInput,
-    borrowInput,
+    source: device.source,
     askPermission,
     initialize,
     resetState,

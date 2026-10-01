@@ -32,30 +32,31 @@ afterEach(() => {
 })
 
 describe('microphone settings through the browser adapter', () => {
-  it('shares startup and releases tracks after both consumers finish', async () => {
+  it('shares one microphone between subscribers and releases tracks after both leave', async () => {
     const devices = mountDevices()
-    const firstLease = devices.acquireInput()
-    const secondLease = devices.acquireInput()
-    const [first, second] = await Promise.all([firstLease.input, secondLease.input])
-    expect(first).toBe(second)
-    expect(devices.permissionGranted).toBe(true)
+    const first = new AbortController()
+    const second = new AbortController()
+    const firstReader = devices.input.subscribe({ signal: first.signal }).getReader()
+    devices.input.subscribe({ signal: second.signal })
+    await firstReader.read()
     const track = devices.stream!.getAudioTracks()[0]
     expect(track.readyState).toBe('live')
-    await firstLease.release()
+
+    first.abort()
     expect(track.readyState).toBe('live')
-    await secondLease.release()
-    expect(devices.input).toBeUndefined()
+    second.abort()
+
+    await expect.poll(() => track.readyState).toBe('ended')
     expect(devices.stream).toBeUndefined()
-    expect(track.readyState).toBe('ended')
   })
 
-  it('does not publish a late source after cancellation during startup', async () => {
+  it('does not publish a late microphone after the only subscriber left during startup', async () => {
     const devices = mountDevices()
-    const lease = devices.acquireInput()
-    const rejected = expect(lease.input).rejects.toThrow()
-    await lease.release()
-    await rejected
-    expect(devices.input).toBeUndefined()
+    const subscription = new AbortController()
+    devices.input.subscribe({ signal: subscription.signal })
+    subscription.abort()
+
+    await new Promise(resolve => setTimeout(resolve, 100))
     expect(devices.stream).toBeUndefined()
   })
 
@@ -63,10 +64,10 @@ describe('microphone settings through the browser adapter', () => {
     localStorage.setItem('settings/audio/input', 'missing-test-microphone')
     const devices = mountDevices()
     expect(devices.selectedAudioInput).toBe('missing-test-microphone')
-    const lease = devices.acquireInput()
-    await expect(lease.input).rejects.toThrow()
-    await lease.release()
-    expect(devices.input).toBeUndefined()
+
+    await expect(devices.askPermission()).rejects.toThrow()
+
+    expect(devices.error).toBeTruthy()
     expect(devices.stream).toBeUndefined()
   })
 })

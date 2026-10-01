@@ -1,3 +1,5 @@
+import type { WakeWord } from '../libs/voice/wake-words'
+
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
@@ -5,11 +7,14 @@ import { computed } from 'vue'
 import { resolveWakeWords, validateWakeWords } from '../libs/voice/wake-words'
 import { useAiriCardStore } from './modules/airi-card'
 
+/** Cards without wake words share one immutable empty value across catalog updates. */
+const EMPTY_WAKE_WORDS: readonly WakeWord[] = Object.freeze([])
+
 /** Pronunciation choices belong to this device library. Card import and export never include these choices. */
 export const useWakeWordsStore = defineStore('wake-words', () => {
   const cards = useAiriCardStore()
   const owners = useLocalStorageManualReset<Record<string, string>>('settings/voice/pronunciation-owners', {})
-  const catalog = computed(() => resolveWakeWords([...cards.cards].map(([characterId, card]) => ({ characterId, words: card.extensions.airi.wakeWords ?? [] })), owners.value))
+  const catalog = computed(() => resolveWakeWords([...cards.cards].map(([characterId, card]) => ({ characterId, words: card.extensions.airi.wakeWords ?? EMPTY_WAKE_WORDS })), owners.value))
 
   function chooseOwner(key: string, characterId: string) {
     const conflict = catalog.value.conflicts.find(conflict => conflict.key === key)

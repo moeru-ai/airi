@@ -8,7 +8,8 @@ import type { AIRIStreamTranscriptionResult } from '../../libs/providers/stream-
 import type { HearingTranscriptionResult } from '../../libs/providers/transcription-types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { Pcm16Encoder } from '@proj-airi/audio/encoding'
+import { toMediaStream } from '@proj-airi/audio/browser'
+import { encodeWav, Pcm16Encoder } from '@proj-airi/audio/encoding'
 import { streamWebSpeechAPITranscription } from '@proj-airi/provider-inference'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
@@ -17,11 +18,12 @@ import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, toRaw, watch } from 'vue'
 
 import { useAnalytics } from '../../composables/use-analytics'
-import { HearingTranscriber } from '../../libs/audio/hearing-transcriber'
+import { createHearingTranscriber } from '../../libs/audio/hearing-transcriber'
 import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
 import { executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/sherpaw'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
+import { useAudioContext } from '../audio'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 
@@ -515,25 +517,23 @@ export const useHearingStore = defineStore('hearing-store', () => {
     const threshold = confidenceThreshold.value
     const providerOptions = resolveTranscriptionProviderOptions(config)
     const features = providersStore.getTranscriptionFeatures(providerId)
-    const native = providerId === 'browser-web-speech-api'
     const definition = providersStore.getProviderDefinition(providerId)
-    let inputs: StreamingTranscriber['capabilities']['inputs'] = ['file']
-    if (native)
-      inputs = ['native']
-    else if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID)
-      inputs = ['pcm']
-    else if (features.supportsStreamInput)
-      inputs = ['pcm', 'file']
-    return new HearingTranscriber({ inputs, output: features.supportsStreamOutput ? 'updates' : 'final' }, async (audio, signal) => {
+    // The provider decides its upload format. Every format starts from the same captured PCM stream.
+    let upload: 'media-stream' | 'pcm' | 'file' = 'file'
+    if (providerId === 'browser-web-speech-api')
+      upload = 'media-stream'
+    else if (providerId === SHERPAW_TRANSCRIPTION_PROVIDER_ID || features.supportsStreamInput)
+      upload = 'pcm'
+    return createHearingTranscriber(async (audio, signal) => {
       const setupError = resolveActiveTranscriptionProviderError(providerId)
       if (setupError)
         throw new Error(setupError)
-      if (audio.kind === 'native') {
-        const result = streamWebSpeechAPITranscription(audio.stream, { ...providerOptions, continuous: true, interimResults: true, abortSignal: signal })
-        void audio.ended.then((outcome) => {
-          if (outcome.status === 'finished' && !signal.aborted)
-            result.recognition?.stop()
-        })
+      if (upload === 'media-stream') {
+        // Web Speech recognizes live tracks. Stopping recognition after playback drains keeps the final result.
+        // The shared context is created on first use, so stores without Web Speech never allocate audio hardware.
+        const media = toMediaStream(audio, useAudioContext().audioContext, signal)
+        const result = streamWebSpeechAPITranscription(media.media, { ...providerOptions, continuous: true, interimResults: true, abortSignal: signal })
+        void media.done.then(() => result.recognition?.stop(), () => {})
         return { mode: 'stream', ...result }
       }
       const provider = await definition.createProvider(config)
@@ -558,9 +558,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
         await dispose()
         throw new Error('Provider does not support transcription')
       }
-      const input = audio.kind === 'file'
-        ? new File([audio.blob], audio.blob.type === 'audio/mpeg' ? 'recording.mp3' : 'recording.wav', { type: audio.blob.type })
-        : { inputAudioStream: new Pcm16Encoder(audio.stream, { sampleRate: 16000, signal }).stream }
+      const input = upload === 'pcm'
+        ? { inputAudioStream: new Pcm16Encoder(audio, { sampleRate: 16000, signal }).stream }
+        : new File([await encodeWav(audio, { sampleRate: 16000, channels: 1 }, signal)], 'recording.wav', { type: 'audio/wav' })
       try {
         const result = await transcription(providerId, provider, model, input, undefined, { signal, confidenceThreshold: threshold, providerOptions })
         if (result.mode === 'stream') {

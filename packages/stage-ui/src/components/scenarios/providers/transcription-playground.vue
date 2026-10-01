@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import type { Capture, Observer } from '@proj-airi/pipelines-audio'
+import type { Capture } from '@proj-airi/pipelines-audio'
 
 import type { HearingTranscriptionResult } from '../../../libs/providers/transcription-types'
 
 import { errorMessageFrom } from '@moeru/std'
+import { encodeWav } from '@proj-airi/audio/encoding'
+import { capture as captureAudio, observe } from '@proj-airi/pipelines-audio'
 import { Button, FieldCombobox, FieldRange } from '@proj-airi/ui'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,83 +27,70 @@ const volumeLevel = ref(0)
 const isSpeaking = computed(() => volumeLevel.value >= speakingThreshold.value)
 const errorMessage = ref('')
 const recordings = ref<{ url: string, text: string }[]>([])
-let capture: Capture<Blob> | undefined
-let source: ReturnType<typeof devices.acquireInput> | undefined
-let meter: Observer | undefined
+/** One recording and its level meter. Aborting the session ends both and releases the microphone. */
+let session: { recording: Capture, wav: Promise<Blob>, meter: AbortController } | undefined
 let disposed = false
 
-watch(devices.input, (input, previous) => {
-  if (previous && input !== previous) {
-    capture?.cancel('Audio device replaced')
-    capture = undefined
-    meter?.cancel()
-    isMonitoring.value = false
-  }
-})
+function reportFailure(cause: unknown) {
+  if (!disposed && (!(cause instanceof DOMException) || cause.name !== 'AbortError'))
+    errorMessage.value = errorMessageFrom(cause) ?? t('stage.chat.voice-preview.failed')
+}
 
-async function start() {
+function discard(reason: string) {
+  session?.meter.abort(reason)
+  session?.recording.cancel(reason)
+  session = undefined
+  isMonitoring.value = false
+  volumeLevel.value = 0
+}
+
+watch(devices.input, () => discard('Audio device replaced'))
+
+function start() {
   errorMessage.value = ''
   isMonitoring.value = true
-  let lease: ReturnType<typeof devices.acquireInput> | undefined
-  try {
-    lease = devices.acquireInput()
-    source = lease
-    const audio = await lease.input
-    if (disposed || !isMonitoring.value || source !== lease) {
-      await lease.release()
+  const input = devices.input.value
+  const recording = captureAudio(input)
+  const wav = encodeWav(recording.stream, { sampleRate: 16000, channels: 1 })
+  const meter = new AbortController()
+  session = { recording, wav, meter }
+  void wav.catch(() => {})
+  observe(input, { windowMs: 32, hopMs: 32, signal: meter.signal }, async (window) => {
+    const samples = window.channels[0]
+    return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length) * 100
+  }, (result) => { volumeLevel.value = result.value })
+  void recording.done.then((outcome) => {
+    if (outcome.status !== 'failed' || session?.recording !== recording)
       return
-    }
-    capture = audio.capture({ delivery: 'file', file: { mimeType: 'audio/wav', sampleRate: 16000, channels: 1 } })
-    const recordingLease = lease
-    void capture.done.then(() => recordingLease.release())
-    meter = audio.observe({ windowMs: 32, hopMs: 32 }, async (window) => {
-      const samples = window.channels[0]
-      return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length) * 100
-    }, (result) => { volumeLevel.value = result.value })
-  }
-  catch (cause) {
-    void lease?.release()
-    if (source !== lease)
-      return
-    isMonitoring.value = false
-    source = undefined
-    if (!disposed && (!(cause instanceof DOMException) || cause.name !== 'AbortError'))
-      errorMessage.value = errorMessageFrom(cause) ?? t('stage.chat.voice-preview.failed')
-  }
+    discard('Recording failed')
+    reportFailure(outcome.error)
+  })
 }
 
 async function finish() {
+  const current = session
+  session = undefined
   isMonitoring.value = false
-  const recording = capture
-  const lease = source
-  source = undefined
-  capture = undefined
-  meter?.cancel()
-  meter = undefined
+  current?.meter.abort('Recording finished')
   volumeLevel.value = 0
-  // Retain the source until its codec has drained. Another recording can retain the same microphone meanwhile.
-  const completed = recording?.finish()
-  if (!completed) {
-    await lease?.release()
+  if (!current)
     return
-  }
+
   try {
-    const outcome = await completed
-    if (outcome.status === 'failed')
-      throw outcome.error
+    const outcome = await current.recording.finish()
     if (outcome.status !== 'finished' || disposed)
       return
-    const entry = { url: URL.createObjectURL(outcome.value), text: '' }
+    const audio = await current.wav
+    const entry = { url: URL.createObjectURL(audio), text: '' }
     recordings.value.push(entry)
-    const result = await props.generateTranscription(new File([outcome.value], 'recording.wav', { type: outcome.value.type }))
+    const result = await props.generateTranscription(new File([audio], 'recording.wav', { type: audio.type }))
     const text = await result.text
     const displayed = recordings.value.find(recording => recording.url === entry.url)
     if (!disposed && displayed)
       displayed.text = text
   }
   catch (cause) {
-    if (!disposed)
-      errorMessage.value = errorMessageFrom(cause) ?? t('stage.chat.voice-preview.failed')
+    reportFailure(cause)
   }
 }
 
@@ -109,7 +98,7 @@ async function toggleMonitoring() {
   if (isMonitoring.value)
     await finish()
   else
-    await start()
+    start()
 }
 
 const speakingIndicatorClass = computed(() => isSpeaking.value
@@ -118,9 +107,7 @@ const speakingIndicatorClass = computed(() => isSpeaking.value
 
 onScopeDispose(() => {
   disposed = true
-  capture?.cancel('Playground disposed')
-  void source?.release()
-  meter?.cancel()
+  discard('Playground disposed')
   recordings.value.forEach(recording => URL.revokeObjectURL(recording.url))
 })
 </script>

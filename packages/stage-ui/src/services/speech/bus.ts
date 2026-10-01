@@ -46,10 +46,13 @@ export const voiceInterrupt = defineInvokeEventa<{ status: 'recorded' | 'failed'
   cause: string
 }>('eventa:voice:interrupt')
 
-/** A producer is opened explicitly. Later commands cannot recreate a missing or closed producer. */
+/** Commands match one source window, producer, session, and turn. A closed producer cannot reopen. */
 export type VoiceSpeechCommand = {
+  /** Keeps producer IDs from different windows separate. */
   originId: string
+  /** Matches later commands to the producer opened by this source. */
   producerId: string
+  /** Prevents commands from affecting another conversation turn. */
   turn: TurnRef
 } & (
   { type: 'open', purpose: string }
@@ -83,6 +86,7 @@ export interface VoiceHostSnapshot {
   readonly error?: string
 }
 
+/** A request ID identifies one recording control. Draft commands use a separate draft ID. */
 export type VoiceInputCommand
   = { type: 'begin', requestId: string, sessionId: string }
     | { type: 'end' | 'cancel', requestId: string }
@@ -94,6 +98,7 @@ export const voiceInputCommand = defineInvokeEventa<{ status: 'accepted' | 'clos
 export const voiceRequestSnapshot = defineEventa('eventa:voice:request-snapshot')
 export const voiceSnapshotChanged = defineEventa<VoiceHostSnapshot>('eventa:voice:snapshot-changed')
 
+/** Recording commands address one session-owned voice message draft. */
 export type VoiceMessageCommand
   = { type: 'record', id: string, sessionId: string }
     | { type: 'finish' | 'discard' | 'send', id: string }

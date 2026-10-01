@@ -9,17 +9,14 @@ import { createVoiceActivityPlugin } from './voice-activity-plugin'
 
 it('uses ordered VAD signals to capture, stream transcription, and submit to the accepted session', async () => {
   const source = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ id: 'mic', frames: source.stream, close: async () => {} }, { supportsFile: () => false, encode: vi.fn() }, { historyMs: 360 })
+  const audio = new AudioInput({ open: () => source.stream }, { historyMs: 360 })
   const received: number[] = []
   const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'accepted' }))
   let sessionId = 'alice'
   let attempt: SpeechInputAttempt | undefined
   const controller = new VoiceController({ audio, submit, transcriber: () => ({
-    capabilities: { inputs: ['pcm'], output: 'updates' },
     transcribe: (request) => {
-      if (request.audio.kind !== 'pcm')
-        throw new Error('Expected PCM')
-      const media = request.audio.stream
+      const media = request.audio
       return new ReadableStream<TranscriptionEvent>({ async start(output) {
         for await (const block of media)
           received.push(...block.channels[0])
@@ -36,7 +33,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
     minSpeechMs: 32,
     silenceMs: 64,
   }), { grants: ['input-control', 'cancel-input'] })
-  await controller.acquireAudio()
+  await Promise.resolve()
   source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 32 }, sampleRate: 1000, channels: [new Float32Array(32).fill(1)] })
   await expect.poll(() => attempt?.state.phase).toBe('capturing')
   sessionId = 'bob'
@@ -49,7 +46,7 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
 
 it('rejects playback echo and opens the matched character input only after playback fades', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ id: 'mic', frames: frames.stream, close: async () => {} }, { supportsFile: () => false, encode: vi.fn() })
+  const audio = new AudioInput({ open: () => frames.stream })
   const fading = Promise.withResolvers<{ throughMs: number }>()
   const played = vi.fn()
   const fade = vi.fn(() => fading.promise)
@@ -60,10 +57,8 @@ it('rejects playback echo and opens the matched character input only after playb
   const received: number[] = []
   const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'wake-message' }))
   const interrupted = vi.fn(async () => ({ status: 'queued' as const }))
-  const controller = new VoiceController({ audio, submit, recordInterruption: interrupted, speech: () => ({ playback, synthesize: async () => new Blob(['Speaking']) }), transcriber: () => ({ capabilities: { inputs: ['pcm'], output: 'updates' }, transcribe(request) {
-    if (request.audio.kind !== 'pcm')
-      throw new Error('Expected PCM')
-    const stream = request.audio.stream
+  const controller = new VoiceController({ audio, submit, recordInterruption: interrupted, speech: () => ({ playback, synthesize: async () => new Blob(['Speaking']) }), transcriber: () => ({ transcribe(request) {
+    const stream = request.audio
     return new ReadableStream<TranscriptionEvent>({ async start(output) {
       for await (const block of stream)
         received.push(...block.channels[0])
@@ -89,7 +84,7 @@ it('rejects playback echo and opens the matched character input only after playb
     minSpeechMs: 32,
     silenceMs: 32,
   }), { grants: ['input-control', 'cancel-input'] })
-  await controller.acquireAudio()
+  await Promise.resolve()
   function push(startFrame: number, value: number) {
     frames.write({ range: { sourceId: 'mic', startFrame, endFrame: startFrame + 32 }, sampleRate: 1000, channels: [new Float32Array(32).fill(value)] })
   }
@@ -105,8 +100,10 @@ it('rejects playback echo and opens the matched character input only after playb
   push(64, 1)
   await expect.poll(() => detected).toHaveBeenCalledTimes(3)
   fading.resolve({ throughMs: 100 })
-  await expect.poll(() => attempt.state.phase).toBe('capturing')
+  // After silence, the input subscribes and the next source block admits it.
+  await expect.poll(() => attempt.state).toEqual({ phase: 'pending', waitingFor: 'source' })
   push(96, 1)
+  await expect.poll(() => attempt.state.phase).toBe('capturing')
   await expect.poll(() => received.length).toBe(32)
   push(128, 0)
   expect(await attempt.done).toEqual({ status: 'committed', messageId: 'wake-message' })

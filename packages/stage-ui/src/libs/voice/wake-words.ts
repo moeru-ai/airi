@@ -9,8 +9,10 @@ export const wakeWordSchema = object({
   pronunciations: pipe(array(pipe(array(pipe(string(), minLength(1))), minLength(1))), minLength(1)),
 })
 
+/** A card stores the written word and the model-specific token pronunciations. */
 export type WakeWord = InferOutput<typeof wakeWordSchema>
 
+/** One character's pronunciation after the card and model identifiers are combined. */
 export interface WakePronunciation {
   readonly key: string
   readonly modelId: string
@@ -19,6 +21,7 @@ export interface WakePronunciation {
   readonly text: string
 }
 
+/** Conflicting pronunciations remain unresolved until the device selects an owner. */
 export interface WakeWordConflict {
   readonly key: string
   readonly candidates: readonly WakePronunciation[]
