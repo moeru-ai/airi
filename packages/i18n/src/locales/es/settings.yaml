@@ -754,7 +754,7 @@ pages:
         empty: No hay nada aquí todavía. ¡Añade una abajo!
       add:
         title: Nuevo
-        description: 'Completa un nuevo servidor y luego haz clic en "Guardar y reiniciar"; pasará a "Configurados" arriba.'
+        description: "Completa un nuevo servidor y luego haz clic en \"Guardar y reiniciar\"; pasará a \"Configurados\" arriba."
         pending-badge: Sin guardar
       status:
         unknown: no se ha cargado
@@ -1388,7 +1388,7 @@ pages:
                 Colores chinos tradicionales, derivados de textiles antiguos, porcelana y pinturas
               title: Colores Tradicionales Chinos
           title: Presets de Esquema de Colores
-    title: Apariencia
+    title: Sistema
   page:
     developers:
       open-devtools:
