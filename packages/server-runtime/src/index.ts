@@ -602,6 +602,10 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       peerModuleIndex: authenticatedPeer?.index,
     }).debug('received event')
 
+    // Only server-owned peer cleanup can revoke a module's live observations.
+    if (event.type === 'extension:module:de-announced')
+      return
+
     if (authenticatedPeer) {
       markPeerAlive(authenticatedPeer, { parentId: event.metadata?.event.id })
 

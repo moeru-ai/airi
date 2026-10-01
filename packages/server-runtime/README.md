@@ -17,6 +17,11 @@ The server overwrites input `metadata.originConnectionId` with the physical sour
 Reply routes use the `connection` expression. Module names, client aliases, and later source changes cannot redirect that connection address.
 These transport rules do not assign audience labels or authorize access to private session history.
 
+## Module lifecycle
+
+Module removal notifications come from server-owned disconnect and liveness cleanup.
+Client-authored `extension:module:de-announced` events never enter peer routing, so a module cannot revoke another writer's observations.
+
 ## Validation
 
 Run `pnpm -F @proj-airi/server-runtime typecheck` and `pnpm -F @proj-airi/server-runtime exec vitest run`.

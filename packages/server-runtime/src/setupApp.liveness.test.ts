@@ -134,6 +134,42 @@ describe('setupApp websocket liveness', () => {
   })
 
   // ROOT CAUSE:
+  // Client-authored removal events followed ordinary routing and impersonated server lifecycle decisions.
+  it('rejects forged module removal while preserving real disconnect notifications', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const observer = createPeer('observer')
+      const writer = createPeer('writer')
+      const sender = createPeer('sender')
+      for (const client of [observer, writer, sender])
+        handler.open?.(client.peer)
+      const announcement = createExtensionModuleAnnounceEvent()
+      if (announcement.type !== 'extension:module:announce')
+        throw new Error('Expected a module announcement')
+      sendEvent(handler, writer.peer, announcement)
+      observer.sent.length = 0
+
+      sendEvent(handler, sender.peer, {
+        type: 'extension:module:de-announced',
+        data: { ...announcement.data, reason: 'forged removal' },
+        metadata: { source: announcement.data.identity, event: { id: 'forged-removal' } },
+      })
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'extension:module:de-announced')).toEqual([])
+      handler.close?.(sender.peer, { code: 1000, reason: 'sender stopped' })
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'extension:module:de-announced')).toEqual([])
+
+      handler.close?.(writer.peer, { code: 1000, reason: 'writer stopped' })
+      expect(decodeEvents(observer.sent).filter(event => event.type === 'extension:module:de-announced')).toMatchObject([
+        { data: { identity: announcement.data.identity, reason: 'connection closed' } },
+      ])
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
+  // ROOT CAUSE:
   // Missing output destinations fell through to the authenticated-peer broadcast path.
   // Chat output requires an explicit destination, including when a sender requests route bypass.
   it.each([false, true])('blocks untargeted chat output with bypass=%s', (bypass) => {
