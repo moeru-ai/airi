@@ -92,12 +92,14 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - One owner prunes idle contexts. Followers read projections without publishing state proposals.
 - Minecraft status and VS Code observations use the shared token counter. Oversized text becomes an origin handle with module-owned details.
 - Minecraft renews unchanged online status. Three missed refreshes expire it, and unbinding stops renewal.
+- Browser page, video, and subtitle observations replace fixed slots and use budgeted origin references. The extension announces the SDK module identity.
 
 ### Remaining P0 acceptance
 
 - Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
 - Other context producers still require budget verification. Origin handles do not yet expose a cross-module authorized query boundary.
+- Writer disappearance currently expires through TTL. Explicit lifecycle removal still requires implementation and regression checks.
 - Live external-session recovery and minimized-window timing still require integration evidence.
 
 ### Validation findings

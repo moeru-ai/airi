@@ -1,7 +1,8 @@
-import type { ContextUpdate } from '@proj-airi/server-sdk'
+import type { ContextUpdate, ExtensionModuleIdentity } from '@proj-airi/server-sdk'
 
 import type { ExtensionSettings, ExtensionStatus, PageContextPayload, SubtitlePayload, VideoContextPayload } from '../shared/types'
 
+import { createContextText } from '@proj-airi/core-agent/context'
 import { Client, ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { nanoid } from 'nanoid'
 
@@ -11,6 +12,7 @@ import { errorMessageFromValue } from '../utils/error-message'
 
 const PLUGIN_NAME = 'proj-airi:plugin-web-extension'
 
+/** Connection state and latest module-owned payloads. Payloads survive reconnects until replacement or background restart. */
 export interface ClientState {
   client: Client | null
   connected: boolean
@@ -28,10 +30,9 @@ export function createClientState(): ClientState {
   }
 }
 
-function createIdentity() {
+function createIdentity(): ExtensionModuleIdentity {
   return {
-    kind: 'plugin',
-    plugin: {
+    extension: {
       id: PLUGIN_NAME,
       version: typeof packageJSON.version === 'string' ? packageJSON.version : undefined,
     },
@@ -103,17 +104,16 @@ export function disconnectClient(state: ClientState) {
   state.connected = false
 }
 
-function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate, 'id' | 'contextId'> & Partial<Pick<ContextUpdate, 'id' | 'contextId'>>) {
+function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate, 'id' | 'sourceRef'>) {
   if (!state.client || !state.connected)
     return
 
-  const id = update.id ?? nanoid()
   state.client.send({
     type: 'context:update',
     data: {
-      id,
-      contextId: update.contextId ?? id,
       ...update,
+      id: nanoid(),
+      ...createContextText(update.text, { refType: 'web-extension:context', targetId: update.contextId }),
     },
   })
 }
@@ -137,6 +137,7 @@ function sendSparkNotify(state: ClientState, data: { headline: string, note?: st
   })
 }
 
+/** Retains the latest page payload even when observation publishing is disabled. */
 export function handlePageContext(state: ClientState, settings: ExtensionSettings, payload: PageContextPayload) {
   state.lastPage = payload
 
@@ -145,6 +146,7 @@ export function handlePageContext(state: ClientState, settings: ExtensionSetting
 
   sendContextUpdate(state, {
     strategy: ContextUpdateStrategy.ReplaceSelf,
+    contextId: 'web:page',
     lane: 'web:page',
     text: `User is browsing: ${payload.title} (${payload.url}).`,
     metadata: {
@@ -158,6 +160,7 @@ export function handlePageContext(state: ClientState, settings: ExtensionSetting
   })
 }
 
+/** Replaces video facts while retaining full details for module-local reads and optional notifications. */
 export function handleVideoContext(
   state: ClientState,
   settings: ExtensionSettings,
@@ -193,6 +196,7 @@ export function handleVideoContext(
 
   sendContextUpdate(state, {
     strategy: ContextUpdateStrategy.ReplaceSelf,
+    contextId: 'web:video',
     lane: 'web:video',
     text: [
       headline,
@@ -219,6 +223,7 @@ export function handleVideoContext(
   })
 }
 
+/** Replaces the subtitle observation. Full text stays in the module when the pool receives a reference. */
 export function handleSubtitle(state: ClientState, settings: ExtensionSettings, payload: SubtitlePayload) {
   state.lastSubtitle = payload
 
@@ -227,6 +232,7 @@ export function handleSubtitle(state: ClientState, settings: ExtensionSettings, 
 
   sendContextUpdate(state, {
     strategy: ContextUpdateStrategy.ReplaceSelf,
+    contextId: 'web:subtitle',
     lane: 'web:subtitle',
     text: `Subtitle: ${payload.text}`,
     metadata: {

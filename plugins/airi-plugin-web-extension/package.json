@@ -19,6 +19,7 @@
     "@iconify-json/svg-spinners": "catalog:",
     "@moeru/eventa": "catalog:",
     "@moeru/std": "catalog:",
+    "@proj-airi/core-agent": "workspace:^",
     "@proj-airi/server-sdk": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@unocss/reset": "catalog:",
