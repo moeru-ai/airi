@@ -124,7 +124,7 @@ describe('createContextRegistry', () => {
   it('reads a record only when its allowed audience includes the run audience', () => {
     const channel = audienceFromBindings(['discord:channel:a'])
     const registry = createContextRegistry()
-    const shared = { destinations: { all: true } }
+    const shared = { destinations: { all: true as const } }
     registry.ingest(createContextMessage({ id: 'private', source: 'private', ...shared, audience: OWNER_AUDIENCE }))
     registry.ingest(createContextMessage({ id: 'channel', source: 'channel', ...shared, audience: channel }))
     registry.ingest(createContextMessage({ id: 'public', source: 'public', ...shared, audience: PUBLIC_AUDIENCE }))

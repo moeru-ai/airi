@@ -169,7 +169,7 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
     const store = useChatSessionStore(leaderContext.pinia)
     await store.initialize()
-    const channel = { kind: 'subjects', subjects: ['discord:channel:a:members', 'user:owner'] }
+    const channel = { kind: 'subjects' as const, subjects: ['discord:channel:a:members', 'user:owner'] }
 
     const root = await store.ensureBoundSession('discord:channel:a')
     expect(store.getSessionAudience(root)).toEqual(channel)
