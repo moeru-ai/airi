@@ -42,7 +42,6 @@ describe('applyDesktopOverlayInputIsolation', () => {
       setContentProtection: vi.fn(),
       setIgnoreMouseEvents: vi.fn(),
       setVisibleOnAllWorkspaces: vi.fn(),
-      setSkipTaskbar: vi.fn(),
     }
 
     applyDesktopOverlayInputIsolation(window)

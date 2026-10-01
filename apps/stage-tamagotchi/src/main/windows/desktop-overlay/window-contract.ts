@@ -1,7 +1,6 @@
 import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
-import { excludeWindowFromTaskbar } from '../shared/taskbar'
-import { showWindowOnAllWorkspaces } from '../shared/workspaces'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 
 /**
  * Build BrowserWindow options for the desktop grounding overlay.
@@ -57,9 +56,8 @@ export function createDesktopOverlayWindowOptions(params: {
  * - Nothing; mutates Electron window flags in place
  */
 export function applyDesktopOverlayInputIsolation(
-  window: Pick<BrowserWindow, 'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces' | 'setSkipTaskbar'>,
+  window: Pick<BrowserWindow, 'setAlwaysOnTop' | 'setContentProtection' | 'setIgnoreMouseEvents' | 'setVisibleOnAllWorkspaces'>,
 ): void {
-  excludeWindowFromTaskbar(window)
   window.setIgnoreMouseEvents(true, { forward: true })
   window.setAlwaysOnTop(true, 'screen-saver')
   window.setContentProtection(true)

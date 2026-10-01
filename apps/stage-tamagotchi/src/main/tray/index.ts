@@ -1,7 +1,8 @@
 import type { LocaleDetector } from '@intlify/core'
 import type { BrowserWindow, Rectangle } from 'electron'
 
-import type { createTrayConfig } from '../configs/tray'
+import type { globalAppConfigSchema } from '../configs/global'
+import type { Config } from '../libs/electron/persistence'
 import type { I18n } from '../libs/i18n'
 import type { ServerChannel } from '../services/airi/channel-server'
 import type { setupBeatSync } from '../windows/beat-sync'
@@ -28,9 +29,9 @@ import { electronAppIconGet, electronAppIconSet } from '../../shared/eventa'
 import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { Animator } from '../windows/shared/animator'
+import { AppIconVisibility } from '../windows/shared/app-icon'
 import { computeResizedBoundsAnchoredToDominantDisplay } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
-import { TrayAppVisibility } from './app-visibility'
 
 const RECOMMENDED_WIDTH = 450
 const RECOMMENDED_HEIGHT = 600
@@ -113,7 +114,7 @@ export function setupTray(params: {
   inlayWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
-  trayConfig: ReturnType<typeof createTrayConfig>
+  appConfig: Config<typeof globalAppConfigSchema>
 }): void {
   once(() => {
     const mainWindowAnimator = new Animator(params.mainWindow)
@@ -265,14 +266,12 @@ export function setupTray(params: {
       rebuildContextMenu()
     })
 
-    const appVisibility = new TrayAppVisibility(params.trayConfig.get()?.hideAppIcon ?? false)
+    const appIcon = new AppIconVisibility(params.appConfig)
     const { context, dispose } = createContext(ipcMain)
-    defineInvokeHandler(context, electronAppIconGet, () => params.trayConfig.get()?.hideAppIcon ?? false)
+    defineInvokeHandler(context, electronAppIconGet, () => appIcon.hidden)
     defineInvokeHandler(context, electronAppIconSet, async (payload) => {
-      const hideAppIcon = parse(boolean(), payload)
-      await appVisibility.setHidden(hideAppIcon)
-      params.trayConfig.update({ hideAppIcon })
-      return hideAppIcon
+      await appIcon.setHidden(parse(boolean(), payload))
+      return appIcon.hidden
     })
 
     onAppBeforeQuit(() => {
@@ -287,7 +286,7 @@ export function setupTray(params: {
       rebuildContextMenu.cancel()
       mainWindowAnimator.stop()
 
-      appVisibility.dispose()
+      appIcon.dispose()
       dispose()
       appTray.destroy()
     })
