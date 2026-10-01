@@ -3,7 +3,7 @@ import type { MetadataEventSource, ProtocolEvents, RouteConfig, WebSocketEventSo
 export * from '@proj-airi/plugin-protocol/types'
 
 export interface WebSocketEventBaseMetadata {
-  /** Server-assigned source connection for input replies. The server replaces sender-provided values. */
+  /** Server-assigned source connection of every routed event. The server replaces sender-provided values. */
   originConnectionId?: string
   source?: MetadataEventSource
   event?: {
@@ -20,7 +20,7 @@ export interface WebSocketBaseEvent<T, D, S extends string = string> {
    */
   source?: WebSocketEventSource | S
   metadata: {
-    /** Server-assigned source connection for input replies. It expires when that connection closes. */
+    /** Server-assigned source connection of every routed event. It expires when that connection closes. */
     originConnectionId?: string
     source: MetadataEventSource
     event: {

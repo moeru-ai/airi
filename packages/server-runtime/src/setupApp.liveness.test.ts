@@ -255,6 +255,75 @@ describe('setupApp websocket liveness', () => {
     }
   })
 
+  it('tells each peer its own connection when it authenticates', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const client = createPeer('stage-window')
+      handler.open?.(client.peer)
+
+      expect(decodeEvents(client.sent).find(event => event.type === 'module:authenticated')?.data).toEqual({ authenticated: true, connectionId: 'stage-window' })
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
+  // ROOT CAUSE:
+  // Origin handles had no delivery boundary. Source details must reach only the requester,
+  // and a request must reach only the observation writer that the server identified.
+  it('routes a source request to the writer and its answer to the requester only', () => {
+    const runtime = setupApp({ routing: { middleware: [() => ({ type: 'broadcast' })] } })
+    try {
+      const handler = wsHandler()
+      const host = createPeer('host')
+      const writer = createPeer('writer')
+      const observer = createPeer('observer')
+      for (const client of [host, writer, observer])
+        handler.open?.(client.peer)
+      const metadata = (id: string) => ({ source: { id, extension: { id } }, event: { id: `${id}-event` }, originConnectionId: 'forged' })
+
+      sendEvent(handler, writer.peer, {
+        type: 'context:update',
+        data: { id: 'status', contextId: 'status', strategy: 'replace-self', text: 'Source details: game/status', sourceRef: { refType: 'game', targetId: 'status' } },
+        metadata: metadata('writer'),
+      } as WebSocketEvent)
+      const observation = decodeEvents(host.sent).find(event => event.type === 'context:update')
+      expect(observation?.metadata.originConnectionId).toBe('writer')
+
+      for (const route of [undefined, { bypass: true }]) {
+        sendEvent(handler, host.peer, {
+          type: 'context:source:request',
+          data: { requestId: 'untargeted', sourceRef: { refType: 'game', targetId: 'status' } },
+          route,
+          metadata: metadata('host'),
+        } as WebSocketEvent)
+      }
+      sendEvent(handler, host.peer, {
+        type: 'context:source:request',
+        data: { requestId: 'request', sourceRef: { refType: 'game', targetId: 'status' } },
+        route: { destinations: [{ type: 'connection', connections: [observation!.metadata.originConnectionId!] }] },
+        metadata: metadata('host'),
+      } as WebSocketEvent)
+      const requests = decodeEvents(writer.sent).filter(event => event.type === 'context:source:request')
+      expect(requests.map(event => event.data)).toEqual([{ requestId: 'request', sourceRef: { refType: 'game', targetId: 'status' } }])
+      expect(requests[0]?.metadata.originConnectionId).toBe('host')
+
+      sendEvent(handler, writer.peer, {
+        type: 'context:source:response',
+        data: { requestId: 'request', sourceRef: { refType: 'game', targetId: 'status' }, text: 'private details' },
+        route: { destinations: [{ type: 'connection', connections: [requests[0]!.metadata.originConnectionId!] }] },
+        metadata: metadata('writer'),
+      } as WebSocketEvent)
+
+      expect(decodeEvents(host.sent).filter(event => event.type === 'context:source:response')).toHaveLength(1)
+      expect(decodeEvents(observer.sent).filter(event => event.type.startsWith('context:source:'))).toEqual([])
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
+
   it('broadcasts extension module unhealthy events from better-ws liveness checks', () => {
     const runtime = setupApp({ heartbeat: { readTimeout: 20_000 } })
     const handler = wsHandler()

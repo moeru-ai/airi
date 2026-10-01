@@ -550,7 +550,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
     }
     else {
-      send(peer, RESPONSES.authenticated())
+      send(peer, RESPONSES.authenticated(peer.id))
       peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
       sendRegistrySync(peer)
     }
@@ -642,7 +642,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           return
         }
 
-        send(peer, RESPONSES.authenticated(event.metadata?.event.id))
+        send(peer, RESPONSES.authenticated(peer.id, event.metadata?.event.id))
         const p = peers.get(peer.id)
         if (p) {
           p.authenticated = true
@@ -891,19 +891,17 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
-    // Chat output can contain private replies. Missing routes never authorize broadcast, even for devtools or configured middleware.
-    const isChatOutput = event.type.startsWith('output:gen-ai:chat:')
-    if (isChatOutput && !event.route?.destinations?.length)
+    // Chat output and source details can contain private text. Missing routes never authorize broadcast, even for devtools or configured middleware.
+    const isDirectedOnly = event.type.startsWith('output:gen-ai:chat:') || event.type === 'context:source:request' || event.type === 'context:source:response'
+    if (isDirectedOnly && !event.route?.destinations?.length)
       return
 
-    if (event.type === 'input:text' || event.type === 'input:text:voice' || event.type === 'input:voice') {
-      // Module IDs can collide or change on a shared connection. Only the server owns the physical return address.
-      event.metadata = { ...event.metadata, originConnectionId: peer.id }
-    }
+    // Module IDs can collide or change on a shared connection. Only the server owns the physical return address.
+    event.metadata = { ...event.metadata, originConnectionId: peer.id }
 
     const payload = stringifyEvent(event)
     const allowBypass = options?.routing?.allowBypass !== false
-    const shouldBypass = !isChatOutput && Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
+    const shouldBypass = !isDirectedOnly && Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
     const destinations = shouldBypass ? undefined : collectDestinations(event)
     const delivery = shouldBypass ? undefined : resolveEventDelivery(event)
     const effectiveRoutingMiddleware = shouldBypass ? [] : routingMiddleware
@@ -922,7 +920,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
 
     const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
     // Consumer selection and broadcast delivery obey the same output boundary.
-    const selectedConsumer = selectConsumer(event, peer.id, delivery, isChatOutput ? destinations : undefined, isChatOutput ? targetIds : undefined)
+    const selectedConsumer = selectConsumer(event, peer.id, delivery, isDirectedOnly ? destinations : undefined, isDirectedOnly ? targetIds : undefined)
     if (delivery && (delivery.mode === 'consumer' || delivery.mode === 'consumer-group')) {
       if (!selectedConsumer) {
         logger.withFields({ peer: peer.id, peerName: p.name, event, delivery }).warn('no consumer registered for event delivery')
@@ -978,7 +976,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         continue
       }
 
-      if ((shouldBroadcast || isChatOutput) && destinations !== undefined && !matchesDestinations(destinations, other)) {
+      if ((shouldBroadcast || isDirectedOnly) && destinations !== undefined && !matchesDestinations(destinations, other)) {
         continue
       }
 

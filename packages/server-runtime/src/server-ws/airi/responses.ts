@@ -30,10 +30,10 @@ export function createEventMetadata(
 /** Creates AIRI server response event factories. */
 export function createResponses(serverInstanceId: string) {
   return {
-    authenticated(parentId?: string) {
+    authenticated(connectionId: string, parentId?: string) {
       return {
         type: 'module:authenticated',
-        data: { authenticated: true },
+        data: { authenticated: true, connectionId },
         metadata: createEventMetadata(serverInstanceId, parentId),
       } satisfies WebSocketEvent<Record<string, unknown>>
     },

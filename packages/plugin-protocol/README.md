@@ -22,6 +22,9 @@ import { moduleAnnounce, moduleAuthenticate } from '@proj-airi/plugin-protocol/t
 `overrides.sessionId` identifies an existing host session. A binding takes precedence when both fields are present.
 `context:update.ttlMs` sets an observation lifetime. `salience` affects retention and cannot grant permissions.
 `sourceRef` identifies module-owned details through a query namespace and lookup key. It does not grant access or tool authority.
+`context:source:request` asks the writer of a visible observation for those details. The writer answers with `context:source:response`, routed to the request's `originConnectionId`.
+Both events need explicit route destinations. The server never broadcasts them.
+`module:authenticated.connectionId` tells a peer its own server connection. It changes on every reconnection.
 The `connection` route expression matches exact server connection IDs. It does not match module names, client aliases, or wildcard patterns.
 
 - You need canonical protocol contracts for plugin <-> host communication.

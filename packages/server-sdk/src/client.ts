@@ -5,6 +5,7 @@ import type {
   ReconnectOptions,
 } from '@proj-airi/better-ws'
 import type {
+  ContextSourceRef,
   ExtensionIdentity,
   ExtensionModuleIdentity,
   ModuleConfigSchema,
@@ -338,6 +339,37 @@ export class Client<C = undefined> {
     }
 
     this.eventListeners.delete(event)
+  }
+
+  /**
+   * Answers host requests for the details behind this module's origin handles.
+   * Each answer goes only to the requesting connection. Return `undefined` when the details are gone.
+   */
+  onContextSourceRequest(read: (sourceRef: ContextSourceRef) => string | undefined | Promise<string | undefined>): () => void {
+    return this.onEvent('context:source:request', async (event) => {
+      const requester = event.metadata?.originConnectionId
+      if (!requester)
+        return
+
+      let text: string | undefined
+      let error: string | undefined
+      try {
+        text = await read(event.data.sourceRef)
+      }
+      catch (cause) {
+        error = errorMessageFrom(cause) ?? 'Source read failed'
+      }
+
+      this.send({
+        type: 'context:source:response',
+        route: { destinations: [{ type: 'connection', connections: [requester] }] },
+        data: {
+          requestId: event.data.requestId,
+          sourceRef: event.data.sourceRef,
+          ...(text === undefined ? { error: error ?? 'Source unavailable' } : { text }),
+        },
+      } as WebSocketEventOptionalSource<C>)
+    })
   }
 
   send(data: WebSocketEventOptionalSource<C>): boolean {

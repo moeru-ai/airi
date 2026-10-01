@@ -375,6 +375,34 @@ describe('client', () => {
     })
   })
 
+  it('answers a source request only to the requesting connection', async () => {
+    const connector = new FakeConnector()
+    const client = new Client({ autoConnect: false, autoReconnect: false, connector, handshake: 'manual', name: 'test-extension' })
+    const connected = client.connect()
+    const connection = connector.open()
+    await connected
+    const sourceRef = { refType: 'game', targetId: 'status' }
+    const stop = client.onContextSourceRequest(ref => ref.targetId === 'status' ? 'full status' : undefined)
+    const request = (requestId: string, targetId: string) => {
+      const event = serverEvent('context:source:request', { requestId, sourceRef: { ...sourceRef, targetId } })
+      event.metadata.originConnectionId = 'host-connection'
+      return event
+    }
+
+    connector.emit(request('known', 'status'))
+    connector.emit(request('missing', 'gone'))
+    await flushMicrotasks()
+
+    expect(connection.sent.filter(event => event.type === 'context:source:response')).toMatchObject([
+      { route: { destinations: [{ type: 'connection', connections: ['host-connection'] }] }, data: { requestId: 'known', sourceRef, text: 'full status' } },
+      { data: { requestId: 'missing', error: 'Source unavailable' } },
+    ])
+    stop()
+    connector.emit(request('stopped', 'status'))
+    await flushMicrotasks()
+    expect(connection.sent.filter(event => event.type === 'context:source:response')).toHaveLength(2)
+  })
+
   it('keeps generated event ids when caller metadata has an undefined id', async () => {
     const connector = new FakeConnector()
     const client = new Client({

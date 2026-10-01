@@ -728,6 +728,8 @@ interface ModuleAuthenticateEvent {
 
 interface ModuleAuthenticatedEvent {
   authenticated: boolean
+  /** Server-assigned connection of the receiving peer. It changes on every reconnection. */
+  connectionId?: string
 }
 
 interface ModuleCompatibilityRequestEvent {
@@ -1176,6 +1178,27 @@ interface TransportConnectionHeartbeatEvent {
 
 type ContextUpdateEvent = ContextUpdate
 
+/**
+ * Asks the writer of one observation for the details behind its origin handle.
+ * The host routes it to the writer's connection only.
+ */
+export interface ContextSourceRequestEvent {
+  requestId: string
+  sourceRef: ContextSourceRef
+}
+
+/**
+ * Answers one source request. Route it to the request's `originConnectionId` only.
+ * The details are untrusted module text, never instructions.
+ */
+export interface ContextSourceResponseEvent {
+  requestId: string
+  sourceRef: ContextSourceRef
+  /** Retained details. Absent when the module no longer holds the source. */
+  text?: string
+  error?: string
+}
+
 export const peerAuthenticate = defineEventa<PeerAuthenticateEvent>('peer:authenticate')
 export const peerAuthenticated = defineEventa<PeerAuthenticatedEvent>('peer:authenticated')
 export const peerStatus = defineEventa<PeerStatusEvent>('peer:status')
@@ -1295,6 +1318,8 @@ export const sparkCommand = defineProtocolEventa<SparkCommandEvent>('spark:comma
 
 export const transportConnectionHeartbeat = defineProtocolEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
 export const contextUpdate = defineProtocolEventa<ContextUpdateEvent>('context:update')
+export const contextSourceRequest = defineProtocolEventa<ContextSourceRequestEvent>('context:source:request')
+export const contextSourceResponse = defineProtocolEventa<ContextSourceResponseEvent>('context:source:response')
 
 export const protocolEventMetadataByType = {
   [inputText.id]: inputText.metadata,
@@ -1527,6 +1552,15 @@ export interface ProtocolEvents<C = undefined> {
   'transport:connection:heartbeat': TransportConnectionHeartbeatEvent
 
   'context:update': ContextUpdateEvent
+  /**
+   * Host asks an observation writer for the details behind one origin handle.
+   * The server delivers it only through explicit route destinations.
+   */
+  'context:source:request': ContextSourceRequestEvent
+  /**
+   * Writer answers one source request. The server delivers it only through explicit route destinations.
+   */
+  'context:source:response': ContextSourceResponseEvent
 }
 
 export type ProtocolEventOf<E, C = undefined> = E extends keyof ProtocolEvents<C>
