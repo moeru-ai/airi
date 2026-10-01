@@ -2,8 +2,21 @@ import type { MetadataEventSource } from '@proj-airi/server-shared/types'
 
 import type { ContextMessage } from '../types/chat'
 
+import o200kBase from 'js-tiktoken/ranks/o200k_base'
+
+import { Tiktoken } from 'js-tiktoken/lite'
+
 const CONTEXT_UPDATE_REPLACE_SELF = 'replace-self'
 const CONTEXT_UPDATE_APPEND_SELF = 'append-self'
+
+// Registries share one local encoder. Construction waits until a default-budget observation arrives.
+let poolTokenizer: Tiktoken | undefined
+
+function countPoolTokens(text: string): number {
+  poolTokenizer ??= new Tiktoken(o200kBase)
+  // Observation text cannot activate tokenizer control tokens or fail admission merely by naming one.
+  return poolTokenizer.encode(text, [], []).length
+}
 
 interface EventSourcePayload {
   source?: string
@@ -79,7 +92,7 @@ interface CreateContextRegistryOptions {
   maxEntriesPerSlot?: number
   /** Fixed slots that accept append updates within each writer bucket. An empty list disables append. @default ['events'] */
   appendContextIds?: readonly string[]
-  /** Counts text cost. UTF-8 bytes provide a conservative tokenizer-independent default. @default UTF-8 byte count */
+  /** Counts text cost for the pool, independently of provider billing. @default local o200k_base encoding */
   countTokens?: (text: string) => number
   /** Clock for observation expiry. @default Date.now */
   now?: () => number
@@ -158,8 +171,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   const maxEntriesPerSlot = options.maxEntriesPerSlot ?? 8
   const appendContextIds = new Set(options.appendContextIds ?? ['events'])
   const now = options.now ?? Date.now
-  const encoder = new TextEncoder()
-  const countTokens = options.countTokens ?? ((text: string) => encoder.encode(text).length)
+  const countTokens = options.countTokens ?? countPoolTokens
 
   for (const limit of [historyLimit, defaultTtlMs, maxTokens, maxWriterTokens, maxEntryTokens, maxEntriesPerSlot]) {
     if (!Number.isFinite(limit) || limit <= 0)

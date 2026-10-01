@@ -87,12 +87,13 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Lanes describe subscriptions. A reader without a lane reads every lane that its destinations allow.
 - Local chat output stays inside the host. External replies target their server-assigned source connection and omit internal prompt snapshots.
 - Server routing rejects untargeted chat output. Broadcast and consumer delivery both preserve explicit destinations.
+- Pool admission and retention use local `o200k_base` token cost. Short multibyte observations no longer consume a byte budget.
 
 ### Remaining P0 acceptance
 
 - Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
-- Module status text must fit the observation budget or use an origin reference. The default counter remains conservative UTF-8 byte cost.
+- Module status text must fit the observation budget or use an origin reference. Producer-level status acceptance still requires verification.
 - Context mirrors still ingest events in multiple renderers. Registry mutation ownership and periodic cleanup require a leader-owned boundary.
 - Live external-session recovery and minimized-window timing still require integration evidence.
 

@@ -45,7 +45,9 @@ Only the fixed `events` slot accepts `append-self` by default. Hosts can declare
 An empty slot list disables append. Slot matching is exact and each writer retains its own event window.
 Rejected append updates preserve active observations and remain in diagnostic history.
 Spark tools put append observations in the fixed event slot. Their unique event identifiers remain separate from the slot identifier.
-The default counter uses UTF-8 bytes as a conservative text cost. Hosts can supply a tokenizer through `countTokens`.
+The default counter uses local `js-tiktoken/lite` with `o200k_base`. One encoder serves all registries and initializes on the first observation.
+This encoding defines pool budgets, not provider billing. Literal control-token markers count as ordinary text.
+Hosts can supply a different tokenizer through `countTokens`. The default loads no remote word list and sends no text over a network.
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
 Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.
 Each send captures one session-filtered snapshot for both the model request and its display events.

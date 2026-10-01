@@ -176,6 +176,37 @@ describe('createContextRegistry', () => {
     expect(registry.snapshot().sensor?.[0]?.text).toBe('small')
   })
 
+  // ROOT CAUSE:
+  // Byte cost rejected short observations, especially multibyte text, despite the pool's token budget.
+  // The default counter now uses one local o200k_base encoding for admission and retention.
+  it.each([
+    'The player is near the village, carrying wood and stone, with enough food to continue exploring safely.',
+    '玩家正在村庄附近探索，生命值正常，背包里有木头、石头和食物。',
+  ])('admits a short observation whose byte length exceeds its token budget: %s', (text) => {
+    const registry = createContextRegistry()
+
+    expect(new TextEncoder().encode(text).length).toBeGreaterThan(80)
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor?.[0]?.text).toBe(text)
+  })
+
+  it('accepts exactly 80 tokens and preserves that slot when a replacement costs 81', () => {
+    const registry = createContextRegistry()
+    const text = `hello${' hello'.repeat(79)}`
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text }))?.mutation).toBe('replace')
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text: `${text} hello` }))).toBeUndefined()
+    expect(registry.snapshot().sensor?.[0]?.text).toBe(text)
+  })
+
+  it('counts token marker text as ordinary untrusted observation content', () => {
+    const registry = createContextRegistry()
+    const text = 'Observed literal <|endoftext|> in a document'
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor?.[0]?.text).toBe(text)
+  })
+
   it('enforces a total token budget across many writers', () => {
     const registry = createContextRegistry({ maxTokens: 10, maxWriterTokens: 10, countTokens: text => text.length })
     for (let index = 0; index < 20; index++)
