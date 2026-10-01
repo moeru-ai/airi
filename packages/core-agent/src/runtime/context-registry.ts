@@ -65,6 +65,14 @@ export interface ContextRegistry {
   activeContexts: () => Record<string, ContextMessage[]>
   /** Returns cloned ingest history entries in chronological order. */
   contextHistory: () => ContextHistoryEntry[]
+  /** Captures trusted replication state without replaying admission or restarting lifetimes. */
+  checkpoint: () => ContextRegistryState
+}
+
+/** Trusted host replication state. Do not accept checkpoints from module transports. */
+export interface ContextRegistryState {
+  active: Record<string, StoredContext[]>
+  history: ContextHistoryEntry[]
 }
 
 interface CreateContextRegistryOptions {
@@ -96,6 +104,8 @@ interface CreateContextRegistryOptions {
   countTokens?: (text: string) => number
   /** Clock for observation expiry. @default Date.now */
   now?: () => number
+  /** A checkpoint from the same host policy, not an untrusted observation. */
+  initialState?: ContextRegistryState
 }
 
 interface StoredContext {
@@ -147,6 +157,18 @@ function isVisibleToReader(message: ContextMessage, sourceKey: string, reader: C
   return reader.ids.includes(sourceKey)
 }
 
+/** Reads a replicated checkpoint without mutating it or extending observation lifetimes. */
+export function projectContextRegistryState(state: ContextRegistryState, reader?: ContextReader, timestamp = Date.now()): Record<string, ContextMessage[]> {
+  return Object.fromEntries(
+    Object.entries(state.active).map(([sourceKey, entries]) => [
+      sourceKey,
+      structuredClone(entries
+        .filter(entry => entry.expiresAt > timestamp && (!reader || isVisibleToReader(entry.message, sourceKey, reader)))
+        .map(entry => entry.message)),
+    ] as const).filter(([, messages]) => messages.length > 0),
+  )
+}
+
 /**
  * Creates a context registry that owns active buckets and bounded ingest history.
  *
@@ -178,8 +200,9 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
       throw new RangeError('Context registry limits must be positive and finite')
   }
 
-  let currentActiveContexts = new Map<string, StoredContext[]>()
-  let currentContextHistory: ContextHistoryEntry[] = []
+  const initialState = options.initialState ? structuredClone(options.initialState) : undefined
+  let currentActiveContexts = new Map<string, StoredContext[]>(Object.entries(initialState?.active ?? {}))
+  let currentContextHistory: ContextHistoryEntry[] = (initialState?.history ?? []).slice(-historyLimit)
 
   function pruneExpired(timestamp: number) {
     for (const [sourceKey, entries] of currentActiveContexts) {
@@ -289,14 +312,14 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   }
 
   function snapshot(reader?: ContextReader) {
+    const timestamp = now()
+    pruneExpired(timestamp)
+    return projectContextRegistryState({ active: Object.fromEntries(currentActiveContexts), history: currentContextHistory }, reader, timestamp)
+  }
+
+  function checkpoint(): ContextRegistryState {
     pruneExpired(now())
-    return Object.fromEntries(
-      Array.from(currentActiveContexts, ([sourceKey, entries]) => {
-        const messages = entries.map(entry => entry.message)
-        const visible = reader ? messages.filter(message => isVisibleToReader(message, sourceKey, reader)) : messages
-        return [sourceKey, structuredClone(visible)] as const
-      }).filter(([, messages]) => !reader || messages.length > 0),
-    )
+    return structuredClone({ active: Object.fromEntries(currentActiveContexts), history: currentContextHistory })
   }
 
   return {
@@ -305,5 +328,6 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
     snapshot,
     activeContexts: snapshot,
     contextHistory: () => structuredClone(currentContextHistory),
+    checkpoint,
   }
 }

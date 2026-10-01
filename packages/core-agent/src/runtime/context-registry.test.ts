@@ -37,6 +37,23 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
  * registry.ingest({ strategy: ContextUpdateStrategy.ReplaceSelf, text: 'now' })
  */
 describe('createContextRegistry', () => {
+  it('restores a checkpoint without restarting expiry or replaying history', () => {
+    let timestamp = 1000
+    const registry = createContextRegistry({ now: () => timestamp })
+    registry.ingest(createContextMessage({ source: 'sensor', createdAt: timestamp, ttlMs: 100, text: 'short lived' }))
+    timestamp = 1050
+    const checkpoint = registry.checkpoint()
+    const restored = createContextRegistry({ initialState: checkpoint, now: () => timestamp })
+
+    expect(restored.snapshot()).toEqual(registry.snapshot())
+    expect(restored.contextHistory()).toEqual(registry.contextHistory())
+    checkpoint.active.sensor[0]!.message.text = 'outside mutation'
+    expect(restored.snapshot().sensor?.[0]?.text).toBe('short lived')
+    timestamp = 1100
+    expect(restored.snapshot()).toEqual({})
+    expect(restored.contextHistory()).toHaveLength(1)
+  })
+
   it('replaces one context slot without erasing another slot from the same writer', () => {
     const registry = createContextRegistry()
     registry.ingest(createContextMessage({ id: 'position-1', source: 'game', contextId: 'position', text: 'forest' }))

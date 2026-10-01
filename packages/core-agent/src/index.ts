@@ -26,8 +26,8 @@ export type {
   QueuedSendSnapshot,
 } from './runtime/chat-orchestrator-runtime'
 export { createChatOrchestratorRuntime } from './runtime/chat-orchestrator-runtime'
-export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRegistry } from './runtime/context-registry'
-export { createContextRegistry } from './runtime/context-registry'
+export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRegistry, ContextRegistryState } from './runtime/context-registry'
+export { createContextRegistry, projectContextRegistryState } from './runtime/context-registry'
 export { useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
   isContentArrayRelatedError,

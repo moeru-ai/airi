@@ -51,6 +51,9 @@ Hosts can supply a different tokenizer through `countTokens`. The default loads 
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
 Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.
 Each send captures one session-filtered snapshot for both the model request and its display events.
+`checkpoint()` captures active costs, original expiry times, and bounded history for trusted host replication.
+`initialState` restores that checkpoint without replaying observations. Do not accept checkpoints from module transports.
+`projectContextRegistryState` gives replicas a read-only projection without updating authoritative state.
 Each send also retains its host-selected `outputTarget`. Output hooks keep this return address separate from input content and context visibility.
 Request-owned instruction providers run once per send. They bypass the observation pool and cannot retain stale instructions between sends.
 
