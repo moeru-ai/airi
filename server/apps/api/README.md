@@ -126,6 +126,8 @@ the API and Auth container ports private.
 Run the load suite after changes to billing, request tracking, speech metering, or their database paths.
 The CI `Billing Load Test` job runs the same suite on every pull request and uploads its JSON report.
 This suite uses existing Vitest, pg, and ioredis dependencies. It does not call an LLM provider.
+The `billing.load.test.ts` file contains concurrent integration tests, not Vitest benchmarks.
+The regular test config excludes `*.load.test.ts`. The load config runs these files through `test:load`.
 
 From the repository root:
 

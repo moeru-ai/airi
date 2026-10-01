@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['src/services/domain/billing/tests/*.load.ts'],
+    include: ['src/services/domain/billing/tests/*.load.test.ts'],
     environment: 'node',
     silent: false,
     fileParallelism: false,

@@ -69,7 +69,7 @@ server/apps/api/
   src/services/adapters/llm/cost.ts
   src/services/adapters/config-kv/definitions.ts
   src/services/domain/billing/
-    tests/billing.load.ts
+    tests/billing.load.test.ts
   src/services/domain/llm-router/{router,types}.ts
   src/routes/openai/v1/{middlewares/billing,model-routing,operations}/
   src/schemas/{llm-request-settlement,flux,flux-transaction}.ts
