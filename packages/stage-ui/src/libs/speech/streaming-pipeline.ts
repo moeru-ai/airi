@@ -2,6 +2,7 @@ import type { SpeechAudio } from '@proj-airi/core-agent'
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { createPushStream } from '@proj-airi/pipelines-audio'
+import { nanoid } from 'nanoid/non-secure'
 
 import { getAuthToken } from '../auth'
 import { SERVER_URL } from '../server'
@@ -103,7 +104,7 @@ export interface StreamingTtsPipelineHandle {
 /** Connects the existing WebSocket protocol to SpeechStream. Normal text EOF flushes synthesis. Cancellation releases its reader and transport. */
 export function streamSpeech(options: Omit<StreamingTtsPipelineOptions, keyof StreamingTtsPipelineEvents>, text: ReadableStream<string>, signal: AbortSignal): ReadableStream<SpeechAudio> {
   const reader = text.getReader()
-  const sourceId = crypto.randomUUID()
+  const sourceId = nanoid()
   let frame = 0
   let closed = false
   let handle: StreamingTtsPipelineHandle | undefined

@@ -3,6 +3,7 @@ import type { TurnRef } from '@proj-airi/core-agent'
 import type { VoiceSpeechCommand } from './bus'
 
 import { defineInvoke } from '@moeru/eventa'
+import { nanoid } from 'nanoid/non-secure'
 
 import { getSpeechBusContext, voiceSnapshotChanged, voiceSpeechCommand } from './bus'
 
@@ -18,7 +19,7 @@ export class SpeechClient {
 
   constructor(turn: TurnRef, purpose: string) {
     // Each client opens one producer. The host matches all later commands with these same fields.
-    this.identity = { turn: { ...turn }, originId: crypto.randomUUID(), producerId: crypto.randomUUID() }
+    this.identity = { turn: { ...turn }, originId: nanoid(), producerId: nanoid() }
     this.stopHostListener = getSpeechBusContext().on(voiceSnapshotChanged, ({ body }) => {
       if (body && !body.connected)
         this.close('Speech host disconnected')

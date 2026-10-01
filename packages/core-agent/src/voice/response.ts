@@ -3,6 +3,7 @@ import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem
 import type { TurnRef } from './turn'
 
 import { createPushStream, createSpeechPipeline } from '@proj-airi/pipelines-audio'
+import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../utils/error'
 
@@ -168,7 +169,7 @@ export class SpeechStream {
           break
 
         const part = result.value
-        const clip = { id: crypto.randomUUID(), text: part.text ?? '' }
+        const clip = { id: nanoid(), text: part.text ?? '' }
         let started = false
         playing.push(this.response.playback.enqueue({
           id: clip.id,

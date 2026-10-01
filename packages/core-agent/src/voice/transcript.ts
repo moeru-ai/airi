@@ -1,3 +1,5 @@
+import { nanoid } from 'nanoid/non-secure'
+
 /** A write never starts another asynchronous operation. It checks and changes state synchronously. */
 export type WriteResult
   = { readonly status: 'applied' }
@@ -134,7 +136,7 @@ export class Transcript {
     if (!spans.length)
       return { status: 'rejected', reason: 'conflict' }
 
-    this.patches.push({ record: Object.freeze({ id: crypto.randomUUID(), author, manual, edits: Object.freeze(proposal.edits.map(edit => Object.freeze({ ...edit, range: Object.freeze({ ...edit.range }) }))), evidenceIds: Object.freeze([...proposal.evidenceIds]) }), spans, current, active: true })
+    this.patches.push({ record: Object.freeze({ id: nanoid(), author, manual, edits: Object.freeze(proposal.edits.map(edit => Object.freeze({ ...edit, range: Object.freeze({ ...edit.range }) }))), evidenceIds: Object.freeze([...proposal.evidenceIds]) }), spans, current, active: true })
     this.revision += 1
 
     return { status: 'applied' }

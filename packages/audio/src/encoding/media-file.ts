@@ -1,6 +1,7 @@
 import type { AudioInputSource, PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { ALL_FORMATS, AudioSample, AudioSampleSink, AudioSampleSource, BlobSource, BufferTarget, Input, Output, WavOutputFormat } from 'mediabunny'
+import { nanoid } from 'nanoid/non-secure'
 
 /** Output format for {@link encodeWav}. Providers usually expect 16 kHz mono. */
 export interface WavOptions {
@@ -74,7 +75,7 @@ export function fileSource(file: Blob): AudioInputSource {
   return {
     open(signal) {
       const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
-      const sourceId = crypto.randomUUID()
+      const sourceId = nanoid()
       let samples: AsyncGenerator<AudioSample> | undefined
       let frame = 0
       return new ReadableStream<PcmBlock>({

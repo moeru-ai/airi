@@ -1,3 +1,4 @@
+import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
 import { computed, onScopeDispose, ref } from 'vue'
 
@@ -18,7 +19,7 @@ export function useVoiceInput() {
   async function start() {
     if (isListening.value)
       return
-    const id = crypto.randomUUID()
+    const id = nanoid()
     requestId.value = id
     starting.value = true
     try {

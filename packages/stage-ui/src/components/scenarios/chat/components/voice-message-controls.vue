@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BasicButton, Button } from '@proj-airi/ui'
+import { nanoid } from 'nanoid/non-secure'
 import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -27,7 +28,7 @@ watch(() => recording.value?.phase, (phase) => {
 function start() {
   if (requestId.value || !sessions.activeSessionId)
     return
-  const id = crypto.randomUUID()
+  const id = nanoid()
   requestId.value = id
   starting = controls.messageCommand({ type: 'record', id, sessionId: sessions.activeSessionId }).catch(() => {
     if (requestId.value === id)

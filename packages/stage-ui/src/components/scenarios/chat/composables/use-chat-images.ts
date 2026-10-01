@@ -2,6 +2,7 @@ import type { ChatSendPayload } from '../../../../stores/chat'
 import type { ChatComposerController } from './use-chat-composer'
 
 import { errorMessageFrom } from '@moeru/std'
+import { nanoid } from 'nanoid/non-secure'
 import { onScopeDispose, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -140,7 +141,7 @@ export function useChatImages(composer: ChatComposerController<ChatImageAttachme
           reader.onerror = () => reject(new Error(t('stage.chat.images.read-failed')))
           reader.readAsDataURL(file)
         })
-        images.push({ type: 'image', data: dataUrl.slice(dataUrl.indexOf(',') + 1), mimeType: file.type, file, previewId: crypto.randomUUID() })
+        images.push({ type: 'image', data: dataUrl.slice(dataUrl.indexOf(',') + 1), mimeType: file.type, file, previewId: nanoid() })
       }
       if (!disposed && readGeneration === generation && sessionId === getSessionId())
         composer.addAttachments(...images)

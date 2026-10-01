@@ -20,6 +20,7 @@ import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicButton, BasicTextarea, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
+import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
@@ -318,7 +319,7 @@ async function restoreDraft(draft: ChatDraftHandover): Promise<boolean> {
     data: attachment.data,
     mimeType: attachment.mimeType,
     file: fileFromBase64(attachment),
-    previewId: crypto.randomUUID(),
+    previewId: nanoid(),
   })))
   return true
 }

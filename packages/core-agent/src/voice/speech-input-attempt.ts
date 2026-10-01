@@ -7,6 +7,7 @@ import type { BeginSpeechInput, Interruption, StreamingTranscriber, VoiceControl
 import type { SpeechSubscription } from './voice-plugin-types'
 
 import { capture, observe } from '@proj-airi/pipelines-audio'
+import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause } from '../utils/error'
 import { SpeechInput } from './speech-input'
@@ -30,7 +31,7 @@ export type { SpeechInputAttemptOutcome, SpeechInputAttemptState, TurnEvidence }
 
 /** Owns one admission, capture, provider request, and submission. Normal end never aborts the provider. */
 export class SpeechInputAttempt {
-  readonly id = crypto.randomUUID()
+  readonly id = nanoid()
   readonly sessionId: string
   readonly done: Promise<SpeechInputAttemptOutcome>
   private readonly completion = Promise.withResolvers<SpeechInputAttemptOutcome>()

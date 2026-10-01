@@ -6,6 +6,8 @@ import type { BeginSpeechInput, Interruption, VoiceControllerOptions } from './v
 import type { SpeakerEvidence, TranscriptEdit, VoicePlugin, VoicePluginHandle, WriteResult } from './voice-plugin-types'
 import type { VoicePluginSettings } from './voice-plugins'
 
+import { nanoid } from 'nanoid/non-secure'
+
 import { errorFromCause } from '../utils/error'
 import { VoiceResponse } from './response'
 import { SpeechInputAttempt } from './speech-input-attempt'
@@ -163,7 +165,7 @@ export class VoiceController {
   }
 
   interrupt(options: { turns: readonly TurnRef[], cause: string }): Interruption {
-    const id = crypto.randomUUID()
+    const id = nanoid()
     const fadeMs = this.options.fadeMs ?? 100
     const unique = new Map(options.turns.map(turn => [turnKey(turn), Object.freeze({ ...turn })]))
     const targets = [...unique.entries()]
@@ -172,7 +174,7 @@ export class VoiceController {
       const response = this.responses.get(key)
       let record = this.interruptions.get(key)
       if (!record && response && !response.closed) {
-        record = { eventId: crypto.randomUUID(), turn, cause: options.cause, silence: response.interrupt(options.cause, fadeMs) }
+        record = { eventId: nanoid(), turn, cause: options.cause, silence: response.interrupt(options.cause, fadeMs) }
         this.interruptions.set(key, record)
       }
 

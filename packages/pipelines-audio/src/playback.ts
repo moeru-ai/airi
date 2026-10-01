@@ -1,5 +1,7 @@
 import type { PcmBlock } from './audio-input'
 
+import { nanoid } from 'nanoid/non-secure'
+
 /** Estimated rendered position is not proof of perception or an exact spoken word boundary. */
 export interface PlaybackReceipt {
   readonly groupId: string
@@ -52,7 +54,7 @@ function releaseClip(clip: PlaybackClip) {
 }
 
 class OutputGroup implements PlaybackGroup {
-  readonly id = crypto.randomUUID()
+  readonly id = nanoid()
   private readonly completion = Promise.withResolvers<PlaybackReceipt>()
   private readonly pending: PendingClip[] = []
   private readonly played = new Map<string, number>()
