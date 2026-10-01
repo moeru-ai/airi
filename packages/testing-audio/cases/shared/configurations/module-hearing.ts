@@ -30,15 +30,13 @@ export function configureModuleHearing(resolve: HearingModuleResolver): AudioInp
       'settings/audio/input/enabled': String(configuration.microphoneEnabled ?? false),
     }
 
-    if (context.runtime.target === 'electron') {
-      const microphoneInput = await context.runtime.runtimePage.evaluate(async () => {
-        const devices = await navigator.mediaDevices.enumerateDevices()
-        return devices.find(device => device.kind === 'audioinput' && device.label.includes('Fake'))?.deviceId
-      })
-      if (!microphoneInput)
-        throw new Error('Chromium did not expose the file-backed fake microphone.')
-      settings['settings/audio/input'] = microphoneInput
-    }
+    const microphoneInput = await context.runtime.runtimePage.evaluate(async () => {
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      return devices.find(device => device.kind === 'audioinput' && device.label.includes('Fake'))?.deviceId
+    })
+    if (!microphoneInput)
+      throw new Error('Chromium did not expose the file-backed fake microphone.')
+    settings['settings/audio/input'] = microphoneInput
 
     await configureStorage(context.runtime, settings)
     context.runtime.transcriptionCaptureFormat = configuration.captureFormat
