@@ -133,7 +133,7 @@ export class MinecraftContextService {
         return
       }
 
-      this.publishStatus({ force: true, destinations })
+      void this.publishStatus({ force: true, destinations })
     })
   }
 
@@ -141,7 +141,7 @@ export class MinecraftContextService {
     this.runtimeBot = bot
     this.deps.airiBridge.setCommandAvailable(true)
     this.refreshStatusSnapshot()
-    this.publishStatus({ force: true })
+    void this.publishStatus({ force: true })
 
     if (this.refreshTimer) {
       clearInterval(this.refreshTimer)
@@ -149,7 +149,7 @@ export class MinecraftContextService {
 
     this.refreshTimer = setInterval(() => {
       // A live observation must renew even when its facts remain unchanged.
-      this.publishStatus({ force: true })
+      void this.publishStatus({ force: true })
     }, this.refreshIntervalMs)
   }
 
@@ -166,10 +166,10 @@ export class MinecraftContextService {
     this.currentSnapshot = null
 
     if (wasBound)
-      this.publishStatus({ force: true })
+      void this.publishStatus({ force: true })
   }
 
-  publishStatus(options: { force?: boolean, destinations?: string[] } = {}) {
+  async publishStatus(options: { force?: boolean, destinations?: string[] } = {}) {
     const snapshot = this.refreshStatusSnapshot()
     const text = snapshot
       ? buildStatusText(snapshot)
@@ -178,11 +178,13 @@ export class MinecraftContextService {
       return
     }
 
+    // Mark the text before the counter loads, so a concurrent unforced publish skips the same facts.
+    this.lastPublishedText = text
     const update: ContextUpdate = {
       id: nanoid(),
       contextId: STATUS_CONTEXT_ID,
       lane: STATUS_LANE,
-      ...createContextText(text, { refType: 'minecraft:status', targetId: STATUS_CONTEXT_ID }),
+      ...await createContextText(text, { refType: 'minecraft:status', targetId: STATUS_CONTEXT_ID }),
       // Three missed refreshes expire an unavailable producer without retaining stale online status.
       ttlMs: this.refreshIntervalMs * 3,
       hints: [
@@ -198,7 +200,6 @@ export class MinecraftContextService {
     }
 
     this.deps.airiBridge.sendContextUpdate(update)
-    this.lastPublishedText = text
   }
 
   getStatusSnapshot() {

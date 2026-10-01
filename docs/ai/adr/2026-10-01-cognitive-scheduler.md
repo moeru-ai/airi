@@ -100,6 +100,8 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Chat and Responses remove tool guidance after revocation. Request guidance stays outside shared observations and generation history.
 - History records keep identity and in-budget text only. Pool entries drop producer payloads and have a 2048-byte serialized limit.
 - Eviction applies the writer budget first, then evicts the lowest retention across all writers.
+- The o200k rank table loads on the first observation. A static import added 2.33 MB raw and 1.14 MB gzip to stage-web startup JavaScript.
+  With the lazy chunk, startup JavaScript measures 1,756,808 bytes gzip, against 1,756,522 bytes for a build without the rank table.
 
 ### Remaining P0 acceptance
 
@@ -107,7 +109,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
 - Other context producers still require budget verification. Origin handles do not yet expose a cross-module authorized query boundary.
 - Minecraft relay guidance has request-owned toolset coverage. Live model selection and delivery to a running bot still require validation.
-- Static tokenizer imports require production bundle measurements. Full-pool replication requires multi-window cost measurements under repeated status renewal.
+- Full-pool replication requires multi-window cost measurements under repeated status renewal.
 - Origin references retain details in modules, but models cannot resolve them yet. Player names and oversized page or subtitle details remain unavailable.
 - Directed output removes the devtools server broadcast feed. Local chat hooks remain, but cross-window observation still requires validation.
 - Live external-session recovery and minimized-window timing still require integration evidence.

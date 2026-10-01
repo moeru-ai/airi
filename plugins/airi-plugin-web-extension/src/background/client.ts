@@ -104,7 +104,12 @@ export function disconnectClient(state: ClientState) {
   state.connected = false
 }
 
-function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate, 'id' | 'sourceRef'>) {
+async function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate, 'id' | 'sourceRef'>) {
+  if (!state.client || !state.connected)
+    return
+
+  const observation = await createContextText(update.text, { refType: 'web-extension:context', targetId: update.contextId })
+  // The connection can close while the encoder loads.
   if (!state.client || !state.connected)
     return
 
@@ -113,7 +118,7 @@ function sendContextUpdate(state: ClientState, update: Omit<ContextUpdate, 'id' 
     data: {
       ...update,
       id: nanoid(),
-      ...createContextText(update.text, { refType: 'web-extension:context', targetId: update.contextId }),
+      ...observation,
     },
   })
 }
@@ -144,7 +149,7 @@ export function handlePageContext(state: ClientState, settings: ExtensionSetting
   if (!settings.enabled || !settings.sendPageContext)
     return
 
-  sendContextUpdate(state, {
+  void sendContextUpdate(state, {
     strategy: ContextUpdateStrategy.ReplaceSelf,
     contextId: 'web:page',
     lane: 'web:page',
@@ -194,7 +199,7 @@ export function handleVideoContext(
     })
   }
 
-  sendContextUpdate(state, {
+  void sendContextUpdate(state, {
     strategy: ContextUpdateStrategy.ReplaceSelf,
     contextId: 'web:video',
     lane: 'web:video',
@@ -230,7 +235,7 @@ export function handleSubtitle(state: ClientState, settings: ExtensionSettings, 
   if (!settings.enabled || !settings.sendSubtitles)
     return
 
-  sendContextUpdate(state, {
+  void sendContextUpdate(state, {
     strategy: ContextUpdateStrategy.ReplaceSelf,
     contextId: 'web:subtitle',
     lane: 'web:subtitle',

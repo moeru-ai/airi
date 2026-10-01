@@ -1,8 +1,9 @@
 import type { MetadataEventSource } from '@proj-airi/server-shared/types'
 
 import type { ContextMessage } from '../types/chat'
+import type { ContextTokenCounter } from './context-budget'
 
-import { CONTEXT_ENTRY_TOKEN_LIMIT, countContextTokens } from './context-budget'
+import { CONTEXT_ENTRY_TOKEN_LIMIT } from './context-budget'
 
 const CONTEXT_UPDATE_REPLACE_SELF = 'replace-self'
 const CONTEXT_UPDATE_APPEND_SELF = 'append-self'
@@ -95,8 +96,8 @@ interface CreateContextRegistryOptions {
   maxEntriesPerSlot?: number
   /** Fixed slots that accept append updates within each writer bucket. An empty list disables append. @default ['events'] */
   appendContextIds?: readonly string[]
-  /** Counts text cost for the pool, independently of provider billing. @default local o200k_base encoding */
-  countTokens?: (text: string) => number
+  /** Counts text cost for the pool, independently of provider billing. Required for ingest. See `loadContextTokenCounter`. */
+  countTokens?: ContextTokenCounter
   /** Clock for observation expiry. @default Date.now */
   now?: () => number
   /** A checkpoint from the same host policy, not an untrusted observation. */
@@ -197,7 +198,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   const maxEntriesPerSlot = options.maxEntriesPerSlot ?? 8
   const appendContextIds = new Set(options.appendContextIds ?? ['events'])
   const now = options.now ?? Date.now
-  const countTokens = options.countTokens ?? countContextTokens
+  const countTokens = options.countTokens
 
   for (const limit of [historyLimit, defaultTtlMs, maxTokens, maxWriterTokens, maxEntryTokens, maxEntryBytes, maxEntriesPerSlot]) {
     if (!Number.isFinite(limit) || limit <= 0)
@@ -226,6 +227,8 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
   }
 
   function ingest(envelope: ContextMessage): ContextIngestResult | undefined {
+    if (!countTokens)
+      throw new Error('Context registry needs a token counter to admit observations')
     const sourceKey = getSourceKey(envelope)
     const safeEnvelopeToStore = toPoolMessage(structuredClone(envelope))
     const timestamp = now()

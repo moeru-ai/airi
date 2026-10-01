@@ -59,7 +59,7 @@ export class Client {
     this.workspaceContext = context
     await this.send({ type: 'context:update', data: {
       strategy: ContextUpdateStrategy.ReplaceSelf,
-      ...createContextText(context, { refType: 'vscode:context', targetId: 'workspace' }),
+      ...await createContextText(context, { refType: 'vscode:context', targetId: 'workspace' }),
       id,
       contextId: 'workspace',
     } })
@@ -76,7 +76,7 @@ export class Client {
     }
     await this.send({ type: 'context:update', data: {
       strategy: ContextUpdateStrategy.AppendSelf,
-      ...createContextText(context, { refType: 'vscode:context', targetId: id }),
+      ...await createContextText(context, { refType: 'vscode:context', targetId: id }),
       id,
       contextId: 'events',
     } })

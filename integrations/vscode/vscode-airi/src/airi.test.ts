@@ -2,7 +2,7 @@ import type { WebSocketEventOptionalSource } from '@proj-airi/server-sdk'
 
 import type { Events } from './types'
 
-import { createContextRegistry } from '@proj-airi/core-agent'
+import { createContextRegistry, loadContextTokenCounter } from '@proj-airi/core-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Client } from './airi'
@@ -39,7 +39,7 @@ describe('vs Code context slots', () => {
     const event = send.mock.lastCall?.[0]
     if (!event || event.type !== 'context:update')
       throw new Error('Expected a context update')
-    const registry = createContextRegistry()
+    const registry = createContextRegistry({ countTokens: await loadContextTokenCounter() })
     expect(registry.ingest({ ...event.data, metadata: undefined, createdAt: Date.now() })?.mutation).toBe(slot === 'workspace' ? 'replace' : 'append')
     expect(event.data.text).not.toBe(details)
     if (!event.data.sourceRef)

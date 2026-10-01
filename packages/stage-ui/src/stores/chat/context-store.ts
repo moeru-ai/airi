@@ -1,8 +1,8 @@
-import type { ContextIngestResult, ContextMessage, ContextReader, ContextRegistryState } from '@proj-airi/core-agent'
+import type { ContextIngestResult, ContextMessage, ContextReader, ContextRegistryState, ContextTokenCounter } from '@proj-airi/core-agent'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createContextRegistry, projectContextRegistryState } from '@proj-airi/core-agent'
+import { createContextRegistry, loadContextTokenCounter, projectContextRegistryState } from '@proj-airi/core-agent'
 import { defineStore } from 'pinia'
 import { computed, onScopeDispose, readonly, ref, toRaw } from 'vue'
 
@@ -36,20 +36,23 @@ export const useChatContextStore = defineStore('chat-context', () => {
   let stopLeadershipListener: (() => void) | undefined
   let cleanupInterval: ReturnType<typeof setInterval> | undefined
 
-  function restoreRegistry() {
+  function restoreRegistry(countTokens?: ContextTokenCounter) {
     return createContextRegistry({
       historyLimit: CONTEXT_HISTORY_LIMIT,
       getSourceKey: getEventSourceKey,
       initialState: toRaw(registryState.value),
+      countTokens,
     })
   }
 
   async function ingestContextMessage(envelope: ContextMessage): Promise<ContextIngestResult | undefined> {
+    // The first observation loads the encoder. Hosts without observations never download it.
+    const countTokens = await loadContextTokenCounter()
     const sourceKey = getEventSourceKey(envelope)
     // Server and broadcast copies share an event identity. Only the first delivery changes the pool.
     if (registryState.value.history.some(entry => entry.sourceKey === sourceKey && entry.id === envelope.id && entry.contextId === envelope.contextId))
       return undefined
-    const registry = restoreRegistry()
+    const registry = restoreRegistry(countTokens)
     const result = registry.ingest(toRaw(envelope))
     registryState.value = registry.checkpoint()
     return result

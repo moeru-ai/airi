@@ -2,7 +2,7 @@ import type { ClientOptions, WebSocketEventOptionalSource } from '@proj-airi/ser
 
 import type { ExtensionSettings } from '../shared/types'
 
-import { createContextRegistry } from '@proj-airi/core-agent'
+import { createContextRegistry, loadContextTokenCounter } from '@proj-airi/core-agent'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { createClientState, ensureClient, handlePageContext, handleSubtitle, handleVideoContext } from './client'
@@ -79,7 +79,8 @@ describe('browser observation slots', () => {
       expect(state.lastSubtitle?.text).toBe(text)
     }
 
-    const registry = createContextRegistry()
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(2))
+    const registry = createContextRegistry({ countTokens: await loadContextTokenCounter() })
     for (const [event] of send.mock.calls) {
       if (event.type !== 'context:update')
         throw new Error('Expected a context update')
@@ -93,11 +94,12 @@ describe('browser observation slots', () => {
   it('replaces each domain slot without retaining previous page updates', async () => {
     const state = createClientState()
     await ensureClient(state, settings)
-    const registry = createContextRegistry()
+    const registry = createContextRegistry({ countTokens: await loadContextTokenCounter() })
     for (let index = 0; index < 3; index++)
       handlePageContext(state, settings, { site: 'unknown', url: 'https://example.org', title: `Page ${index}` })
     handleVideoContext(state, settings, { site: 'unknown', url: 'https://example.org', title: 'Video' })
     handleSubtitle(state, settings, { site: 'unknown', url: 'https://example.org', text: 'Subtitle' })
+    await vi.waitFor(() => expect(send).toHaveBeenCalledTimes(5))
     for (const [event] of send.mock.calls) {
       if (event.type !== 'context:update')
         throw new Error('Expected a context update')

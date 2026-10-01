@@ -1,9 +1,11 @@
 import type { ContextMessage } from '../types/chat'
+import type { ContextTokenCounter } from './context-budget'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
-import { createContextRegistry } from './context-registry'
+import { loadContextTokenCounter } from './context-budget'
+import { createContextRegistry as createRegistry } from './context-registry'
 
 type TestContextMessage = ContextMessage & { source?: string }
 
@@ -31,7 +33,24 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
   }
 }
 
+let poolTokenCounter: ContextTokenCounter
+
+beforeAll(async () => {
+  poolTokenCounter = await loadContextTokenCounter()
+})
+
+function createContextRegistry(options: Parameters<typeof createRegistry>[0] = {}) {
+  return createRegistry({ countTokens: poolTokenCounter, ...options })
+}
+
 describe('createContextRegistry', () => {
+  it('requires a token counter only to admit observations', () => {
+    const registry = createRegistry()
+
+    expect(() => registry.ingest(createContextMessage())).toThrow('token counter')
+    expect(registry.checkpoint()).toEqual({ active: {}, history: [] })
+  })
+
   it('removes all slots for one exact writer and retains history across checkpoints', () => {
     const registry = createContextRegistry()
     registry.ingest(createContextMessage({ id: 'status', contextId: 'status', metadata: createMetadata('weather', 'station') }))

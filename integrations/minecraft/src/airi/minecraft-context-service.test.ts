@@ -1,7 +1,8 @@
+import type { ContextTokenCounter } from '@proj-airi/core-agent'
 import type { ContextUpdate, ModuleAnnouncedEvent } from '@proj-airi/server-sdk'
 
-import { createContextRegistry } from '@proj-airi/core-agent'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { createContextRegistry, loadContextTokenCounter } from '@proj-airi/core-agent'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { MinecraftContextService } from './minecraft-context-service'
 
@@ -51,16 +52,23 @@ function makeService(masterUsername?: string, refreshIntervalMs?: number) {
   }
 }
 
+let countTokens: ContextTokenCounter
+
+beforeAll(async () => {
+  countTokens = await loadContextTokenCounter()
+})
+
 afterEach(() => vi.useRealTimers())
 
 describe('minecraftContextService desktop relay context', () => {
-  it('retains world details in the module while an oversized status becomes a reference', () => {
+  it('retains world details in the module while an oversized status becomes a reference', async () => {
     const { service, captured } = makeService('owner'.repeat(100))
     try {
       const bot = fakeBot()
       bot.bot.players = Object.fromEntries(Array.from({ length: 1000 }, (_, index) => [`player-${index}`, {}]))
       service.bindBot(bot)
-      const registry = createContextRegistry()
+      await vi.waitFor(() => expect(captured).toHaveLength(1))
+      const registry = createContextRegistry({ countTokens })
       const update = captured[0]!
 
       expect(update.text).toBe('Source details: minecraft:status/minecraft:status')
@@ -74,11 +82,11 @@ describe('minecraftContextService desktop relay context', () => {
     }
   })
 
-  it('sizes status expiry for the configured refresh cadence', () => {
+  it('sizes status expiry for the configured refresh cadence', async () => {
     const { service, captured } = makeService(undefined, 10_000)
     try {
       service.bindBot(fakeBot())
-      expect(captured[0]?.ttlMs).toBe(30_000)
+      await vi.waitFor(() => expect(captured[0]?.ttlMs).toBe(30_000))
     }
     finally {
       service.destroy()
@@ -92,11 +100,12 @@ describe('minecraftContextService desktop relay context', () => {
   // ROOT CAUSE:
   // Long relay instructions and player lists exceeded the receiving pool's 80-token entry limit.
   // Unchanged status also stopped refreshing, so a live bot disappeared when its observation expired.
-  it('admits the live status through the default observation budget', () => {
+  it('admits the live status through the default observation budget', async () => {
     const { service, captured } = makeService('dssadg')
     try {
       service.bindBot(fakeBot())
-      const registry = createContextRegistry()
+      await vi.waitFor(() => expect(captured).toHaveLength(1))
+      const registry = createContextRegistry({ countTokens })
       expect(registry.ingest({ ...captured[0]!, metadata: undefined, createdAt: Date.now() })?.mutation).toBe('replace')
     }
     finally {
@@ -104,7 +113,7 @@ describe('minecraftContextService desktop relay context', () => {
     }
   })
 
-  it('refreshes unchanged status before its observation expires', () => {
+  it('refreshes unchanged status before its observation expires', async () => {
     vi.useFakeTimers()
     const { service, captured, airiBridge } = makeService()
     try {
@@ -115,13 +124,14 @@ describe('minecraftContextService desktop relay context', () => {
         registry.ingest({ ...update, metadata: undefined, createdAt: Date.now() })
       })
       service.bindBot(fakeBot())
-      vi.advanceTimersByTime(65_000)
+      await vi.advanceTimersByTimeAsync(65_000)
       expect(registry.snapshot().unknown).toHaveLength(1)
       expect(captured.length).toBeGreaterThan(1)
       expect(captured.at(-1)?.ttlMs).toBe(15_000)
       service.unbindBot()
+      await vi.advanceTimersByTimeAsync(0)
       airiBridge.sendContextUpdate.mockClear()
-      vi.advanceTimersByTime(20_000)
+      await vi.advanceTimersByTimeAsync(20_000)
       expect(airiBridge.sendContextUpdate).not.toHaveBeenCalled()
       expect(registry.snapshot()).toEqual({})
     }
@@ -129,10 +139,11 @@ describe('minecraftContextService desktop relay context', () => {
       service.destroy()
     }
   })
-  it('publishes relay availability and configured master as status facts', () => {
+  it('publishes relay availability and configured master as status facts', async () => {
     const { airiBridge, service, captured } = makeService('dssadg')
 
     service.bindBot(fakeBot())
+    await vi.waitFor(() => expect(captured).toHaveLength(1))
 
     const update = captured[0]
     expect(update.lane).toBe('minecraft:status')
@@ -150,11 +161,12 @@ describe('minecraftContextService desktop relay context', () => {
     service.destroy()
   })
 
-  it('replaces the relay context with an offline capability when the bot unbinds', () => {
+  it('replaces the relay context with an offline capability when the bot unbinds', async () => {
     const { airiBridge, service, captured } = makeService()
     service.bindBot(fakeBot())
 
     service.unbindBot()
+    await vi.waitFor(() => expect(captured).toHaveLength(2))
 
     const update = captured[1]
     expect(update.text).toContain('Bot offline: no active Minecraft bot.')
@@ -166,7 +178,7 @@ describe('minecraftContextService desktop relay context', () => {
     service.destroy()
   })
 
-  it('replays the current relay capability to a newly announced Stage instance', () => {
+  it('replays the current relay capability to a newly announced Stage instance', async () => {
     const { service, captured, getModuleAnnouncedListener } = makeService()
     service.init()
 
@@ -178,6 +190,7 @@ describe('minecraftContextService desktop relay context', () => {
         plugin: { id: 'stage-tamagotchi' },
       },
     })
+    await vi.waitFor(() => expect(captured).toHaveLength(1))
 
     const update = captured[0]
     expect(update.text).toContain('Bot offline: no active Minecraft bot.')
