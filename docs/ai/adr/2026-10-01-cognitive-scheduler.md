@@ -78,7 +78,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0 is in progress. P1 through P10 have not started.
+- P0 code is complete and has deterministic tests. Live evidence for P0 remains open. P1 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -110,12 +110,26 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - The o200k rank table loads on the first observation. A static import added 2.33 MB raw and 1.14 MB gzip to stage-web startup JavaScript.
   With the lazy chunk, startup JavaScript measures 1,756,808 bytes gzip, against 1,756,522 bytes for a build without the rank table.
 
-### Remaining P0 acceptance
+### Open P0 evidence
+
+These checks need live models, bots, or windows. They are not verified.
+
+- Minecraft relay through a live model to a running bot, and a live `minecraft:status` source read.
+- Discord channel recovery across a restart, with replies only in the source channel.
+- Reminder timing in a minimized desktop window.
+- Devtools in a follower window during a live turn.
+
+### Known limits until P1
 
 - Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
+- A fork of a bound session has no bindings, so it reads the owner scene.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
-- Minecraft relay guidance has request-owned toolset coverage. Live model selection and delivery to a running bot still require validation.
-- Live external-session recovery and minimized-window timing still require integration evidence.
+
+### Findings outside P0
+
+- `chatStore.cleanup(sessionId)` resets the whole shared pool. Only devtools pages call it.
+- A producer's `ttlMs` has no host maximum. Budgets still bound the pool.
+- The server never returns an event to its sender. A renderer therefore never ingests its own vision observation. This behavior predates the branch.
 
 ### Replication cost
 
