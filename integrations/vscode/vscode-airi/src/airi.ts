@@ -45,14 +45,16 @@ export class Client {
     }
   }
 
+  /** Replaces the workspace observation without accumulating obsolete document slots. */
   async replaceContext(context: string): Promise<void> {
     const id = nanoid()
-    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.ReplaceSelf, text: context, id, contextId: id } })
+    await this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.ReplaceSelf, text: context, id, contextId: 'workspace' } })
   }
 
+  /** Publishes an event to the bounded append slot, separate from the workspace observation. */
   async appendContext(context: string): Promise<void> {
     const id = nanoid()
-    this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.AppendSelf, text: context, id, contextId: id } })
+    await this.send({ type: 'context:update', data: { strategy: ContextUpdateStrategy.AppendSelf, text: context, id, contextId: 'events' } })
   }
 
   isConnected(): boolean {

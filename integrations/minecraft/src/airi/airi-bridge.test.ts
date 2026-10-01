@@ -47,6 +47,27 @@ function createBridgeHarness(options: { commandAvailable?: boolean } = {}) {
  * bridge.setCommandAvailable(true) lets a generic `spark:command` wake the Minecraft brain.
  */
 describe('airiBridge spark command routing', () => {
+  // ROOT CAUSE:
+  // A random contextId on every observation bypassed per-slot event limits.
+  // Plain observations now share the fixed events slot within their writer bucket.
+  it('appends observations to a fixed event slot instead of creating a slot for each event', () => {
+    const { bridge, client } = createBridgeHarness()
+
+    bridge.sendContextUpdate('first observation')
+    bridge.sendContextUpdate('second observation')
+
+    expect(client.send).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      type: 'context:update',
+      data: expect.objectContaining({ contextId: 'events', strategy: 'append-self', text: 'first observation' }),
+    }))
+    expect(client.send).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      type: 'context:update',
+      data: expect.objectContaining({ contextId: 'events', strategy: 'append-self', text: 'second observation' }),
+    }))
+
+    bridge.destroy()
+  })
+
   /**
    * @example
    * expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'signal:airi_command' }))

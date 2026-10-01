@@ -2,6 +2,11 @@
 
 This workspace runs AIRI's dedicated Minecraft bot. It connects a Mineflayer runtime to a Minecraft server, loads the cognitive stack in `src/cognitive`, and bridges status, context, and command traffic back to AIRI so the Stage settings shell can observe the service.
 
+## Context slots
+
+Plain bridge observations append to the fixed `events` slot. The receiving context registry bounds this event window per writer.
+Structured status updates retain their own `contextId` and replacement strategy.
+
 ## Deprecation Notice
 
 This service is on a deprecation path. The current Mineflayer-based bot is expected to be replaced by a Fabric mod based runtime, which will become the primary Minecraft integration surface going forward.

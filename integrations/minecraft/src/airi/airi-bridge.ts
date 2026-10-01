@@ -137,6 +137,7 @@ export class AiriBridge {
     this.logger.log('Sent spark:notify', { headline, urgency })
   }
 
+  /** Appends plain observations to the fixed event slot. Structured updates retain their declared slot. */
   sendContextUpdate(text: string, hints?: string[], lane?: string): void
   sendContextUpdate(update: ContextUpdate): void
   sendContextUpdate(textOrUpdate: string | Omit<ContextUpdate, 'strategy' | 'id' | 'contextId'> & { contextId?: string }, hints?: string[], lane = 'game'): void {
@@ -152,7 +153,7 @@ export class AiriBridge {
           ...textOrUpdate,
         }
 
-    const contextId = update.contextId ?? nanoid()
+    const contextId = update.contextId ?? 'events'
     this.client.send({
       type: 'context:update',
       data: {
