@@ -96,7 +96,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0 code is complete and has deterministic tests. Live evidence for P0 remains open. P1 is in progress. P2 through P10 have not started.
+- P0 and P1 are Implemented with deterministic tests. Their live scenarios remain open. P2 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -155,9 +155,11 @@ These checks need live models, bots, or windows. They are not verified.
 - Reminder timing in a minimized desktop window.
 - Devtools in a follower window during a live turn.
 
-### Known limits until P1
+### Known limits after P1
 
-- P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
+- The `spark_command` tool can send contexts to modules outside the run envelope. P3 moves it behind admission.
+- A module without a declared scene speaks for the owner. Modules declare scenes and output audiences in the P3 `cognition` block.
+- Only assistant writes narrow the session audience. Derived results and memory writes get labels in P8 and P10.
 
 ### Findings outside P0
 
