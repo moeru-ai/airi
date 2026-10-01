@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, useVoiceInput, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, useVoiceInput, VoiceDrafts } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -177,7 +177,6 @@ watch(replyTarget, async (target) => {
 
 <template>
   <VoiceDrafts />
-  <VoiceMessageControls />
   <div ref="composer" h="<md:full" flex gap-2 class="ph-no-capture">
     <div
       :class="[

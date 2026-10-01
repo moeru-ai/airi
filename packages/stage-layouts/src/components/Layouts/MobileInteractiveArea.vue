@@ -3,7 +3,7 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory, HearingStatus, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components'
+import { CharacterSwitcherDrawer, ChatHistory, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -365,7 +365,6 @@ onUnmounted(() => {
         <div flex="~ col" gap-1>
           <slot name="status" />
           <VoiceDrafts />
-          <VoiceMessageControls />
           <HearingStatus />
         </div>
       </div>
