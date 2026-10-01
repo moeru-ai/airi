@@ -90,7 +90,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Local chat output stays inside the host. External replies target their server-assigned source connection and omit internal prompt snapshots.
 - Server routing rejects untargeted chat output. Broadcast and consumer delivery both preserve explicit destinations.
 - Pool admission and retention use local `o200k_base` token cost. Short multibyte observations no longer consume a byte budget.
-- Context mutations run in leader actions. Replicated checkpoints retain original expiry times and bounded delivery history.
+- Context mutations run in leader actions. Replicated checkpoints retain original expiry times. The leader keeps the delivery history.
 - One owner prunes idle contexts. Followers read projections without publishing state proposals.
 - Minecraft status and VS Code observations use the shared token counter. Oversized text becomes an origin handle with module-owned details.
 - Minecraft renews unchanged online status. Three missed refreshes expire it, and unbinding stops renewal.
@@ -115,8 +115,21 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 - Hidden task forks read owner-scene observations until P1 adds audience checks to recovery and derivation.
 - P1 must add information-flow labels beyond P0 transport isolation. Output targets alone do not authorize session recovery or private context reads.
 - Minecraft relay guidance has request-owned toolset coverage. Live model selection and delivery to a running bot still require validation.
-- Full-pool replication requires multi-window cost measurements under repeated status renewal.
 - Live external-session recovery and minimized-window timing still require integration evidence.
+
+### Replication cost
+
+Every synced commit sends the whole domain state to every renderer. A browser test measured two renderers.
+The workload simulated ten minutes of status renewal, page and subtitle slots, an unbudgeted writer, and vision frames.
+Totals cover 460 observations and 1,393 channel messages.
+
+| Version | Total sent | Largest message | Context state |
+| --- | --- | --- | --- |
+| Before history bounds | 811 MB | 3.10 MB | 3.03 MB |
+| Bounded history | 40 MB | 161 KB | 87 KB |
+| Leader-local history | 18 MB | 76 KB | 1.9 KB |
+
+The remaining messages carry the synchronization operation log. Its retention belongs to `pinia-plugin-synced`.
 
 ### Validation findings
 

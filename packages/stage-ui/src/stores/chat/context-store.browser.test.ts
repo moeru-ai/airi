@@ -86,7 +86,10 @@ describe('context registry ownership', () => {
     await leader.store.ingestContextMessage({ ...event, createdAt: event.createdAt + 1 })
     await vi.waitFor(() => expect(follower.store.activeContexts.sensor).toHaveLength(1))
     expect(leader.store.contextHistory).toHaveLength(1)
-    expect(follower.store.contextHistory).toHaveLength(1)
+    // ROOT CAUSE:
+    // Every commit sent 400 history records to every renderer, about 98% of the replicated state.
+    expect(follower.store.contextHistory).toEqual([])
+    expect(follower.store.registryState.history).toEqual([])
   })
 
   it('replicates snapshots without producing follower mutations from reads', async () => {
@@ -143,7 +146,7 @@ describe('context registry ownership', () => {
 
     await vi.waitFor(() => expect(follower.store.registryState.active).toEqual({}), { timeout: 3000 })
     expect(mutations).toBe(1)
-    expect(follower.store.contextHistory).toHaveLength(1)
+    expect(leader.store.contextHistory).toHaveLength(1)
     leader.store.dispose()
     await follower.store.ingestContextMessage(observation({ id: 'after-disposal', ttlMs: 100 }))
     await new Promise(resolve => setTimeout(resolve, 2100))
@@ -168,11 +171,12 @@ describe('context registry ownership', () => {
     leader.runtime.dispose()
     await vi.waitFor(() => expect(follower.runtime.isLeader()).toBe(true))
 
+    // Delivery history stays with the leader, so the promoted owner starts a new dedup window.
     await follower.store.ingestContextMessage(observation({ id: 'next' }))
-    expect(follower.store.contextHistory).toHaveLength(2)
-    expect(follower.store.registryState.active.sensor[0]?.expiresAt).toBe(expiresAt)
-    await follower.store.ingestContextMessage(event)
-    expect(follower.store.contextHistory).toHaveLength(2)
+    expect(follower.store.contextHistory).toHaveLength(1)
+    expect(follower.store.registryState.active.sensor.find(entry => entry.message.id === event.id)?.expiresAt).toBe(expiresAt)
+    await follower.store.ingestContextMessage(observation({ id: 'next' }))
+    expect(follower.store.contextHistory).toHaveLength(1)
     await follower.store.ingestContextMessage(observation({ id: 'returned', metadata: { source: { id: 'departed' } } }))
     expect(await follower.store.removeContextWriter('departed', 'before-promotion')).toBe(false)
     expect(follower.store.activeContexts.departed?.[0]?.id).toBe('returned')

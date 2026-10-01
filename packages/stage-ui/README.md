@@ -60,7 +60,8 @@ Other renderers, such as a devtools window, replay them as observation hooks. A 
 The synchronized context store routes ingestion, reset, pruning, and writer removal to the elected renderer.
 Server module removal clears only the exact extension and module instance. Bounded history prevents delayed copies from restoring removed observations.
 The leader retains the latest 400 removal identities. Duplicate notifications cannot erase reconnected observations within that window.
-Its checkpoint retains original expiry times and deduplicates repeated event identities within the bounded history.
+Its checkpoint retains original expiry times. Replicated state holds active slots only.
+The leader keeps the bounded delivery history and deduplicates repeated event identities. A promoted leader starts a new dedup window.
 Follower projections do not propose state changes. Initialize chat or its context store with the synchronization runtime to start owner-only idle cleanup.
 Leadership loss and disposal stop cleanup. Promotion continues from the replicated checkpoint without replaying observations.
 
