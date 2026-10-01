@@ -656,7 +656,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
 
         const normalizedContextUpdates = contextUpdates?.map((update) => {
           const id = update.id ?? nanoid()
-          const contextId = update.contextId ?? id
+          const contextId = update.contextId ?? (update.strategy === 'append-self' ? 'events' : id)
           return {
             ...update,
             id,

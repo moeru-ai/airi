@@ -57,7 +57,7 @@ export async function createSparkCommandTool(options: CreateSparkCommandToolOpti
             : undefined,
           contexts: payload.contexts?.map(context => ({
             id: nanoid(),
-            contextId: nanoid(),
+            contextId: context.strategy === 'append-self' ? 'events' : nanoid(),
             lane: normalizeSparkCommandStringValue(context.lane),
             ideas: normalizeSparkCommandStringList(context.ideas),
             hints: normalizeSparkCommandStringList(context.hints),

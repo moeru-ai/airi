@@ -339,11 +339,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
+  /** Uses the fixed event slot for undeclared append updates. Explicit slots remain subject to host admission. */
   function sendContextUpdate(message: InputContextUpdate) {
     const id = nanoid()
     send({
       type: 'context:update',
-      data: { id, contextId: id, ...message },
+      data: { ...message, id: message.id ?? id, contextId: message.contextId ?? (message.strategy === 'append-self' ? 'events' : id) },
     } as WebSocketEventOptionalSource<string | CommonContentPart[]>)
   }
 

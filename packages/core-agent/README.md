@@ -43,6 +43,7 @@ The default budgets are 800 units total, 200 per writer, and 80 per entry. Each 
 Only the fixed `events` slot accepts `append-self` by default. Hosts can declare other fixed slots through `appendContextIds`.
 An empty slot list disables append. Slot matching is exact and each writer retains its own event window.
 Rejected append updates preserve active observations and remain in diagnostic history.
+Spark tools put append observations in the fixed event slot. Their unique event identifiers remain separate from the slot identifier.
 The default counter uses UTF-8 bytes as a conservative text cost. Hosts can supply a tokenizer through `countTokens`.
 Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
 Rejected replacements preserve the previous slot. Rejected entries remain in bounded diagnostic history.

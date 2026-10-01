@@ -437,7 +437,7 @@ describe('context bridge contract', () => {
     })
     expect(chatOrchestratorMock.send.mock.calls[0]?.[0]?.input?.data.contextUpdates).toEqual([
       expect.objectContaining({
-        contextId: expect.any(String),
+        contextId: 'events',
         id: expect.any(String),
         text: 'input weather',
       }),

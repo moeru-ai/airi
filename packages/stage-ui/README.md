@@ -24,6 +24,8 @@ Conversation forks retain their parent session, reason, and hidden flag.
 
 Module observations enter chat through a session-filtered context snapshot. Minecraft owns its status and relay descriptions in its integration service.
 The frontend does not rebuild Minecraft prose or inject it into every request. Request-only providers contain application instructions, not module observations.
+Input side context and channel sends use the fixed `events` slot for append updates without a declared `contextId`.
+Explicit append slots still require host admission. Unique event identifiers do not create extra append windows.
 
 ## Notification ownership
 

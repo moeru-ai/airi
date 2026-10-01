@@ -225,6 +225,7 @@ describe('agents/spark-command/tools', () => {
         }],
       },
       contexts: [expect.objectContaining({
+        contextId: 'events',
         lane: 'game',
         strategy: ContextUpdateStrategy.AppendSelf,
         text: 'Zombie nearby',
