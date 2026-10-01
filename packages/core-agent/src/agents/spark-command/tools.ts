@@ -15,6 +15,19 @@ import {
   sparkCommandToolSchema,
 } from './schema'
 
+/** Toolset guidance for requests that grant the Spark command relay. Module observations supply current targets and availability. */
+export const SPARK_COMMAND_TOOLSET_PROMPT = [
+  'Use builtIn_emitSparkCommand to relay instructions to a connected module.',
+  'Use the destination declared by the module. Do not invent a target.',
+  'If the user requests an action, set intent to "action".',
+  'Set guidance.type to "instruction".',
+  'Put the instruction summary in guidance.options[0].label.',
+  'Put concrete action steps in guidance.options[0].steps.',
+  'If the module reports that its relay is unavailable, do not send an action.',
+  'Do not claim that an instruction was relayed before the tool call succeeds.',
+  'Tool success confirms submission. It does not confirm that the target completed the action.',
+].join('\n')
+
 /** Options for the Spark Command LLM tool. */
 export interface CreateSparkCommandToolOptions {
   /** Receives a protocol-ready `spark:command` event. */

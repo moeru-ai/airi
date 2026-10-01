@@ -75,6 +75,8 @@ export interface StreamOptions {
   /** Provider tool-selection directive for one request. */
   toolChoice?: ToolChoice
   tools?: Tool[] | (() => Promise<Tool[] | undefined>)
+  /** Renders trusted developer guidance from admitted tools before each provider request. Never called for an empty toolset. */
+  resolveToolsetPrompt?: (tools: readonly Tool[]) => string
   /**
    * Per-model runtime cache of whether the provider accepts content-part arrays
    * (e.g. `[{type:'text',...},{type:'image_url',...}]`) for `messages[].content`.

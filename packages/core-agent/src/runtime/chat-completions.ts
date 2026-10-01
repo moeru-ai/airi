@@ -10,7 +10,7 @@ import { streamText } from '@xsai/stream-text'
 
 import { chatContentToString, chatMessagesToProjectionEntries, conversationToChatMessages } from '../messages/chat-completions'
 import { createGeneration } from './generation'
-import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsContentArray, supportsTools } from './request-context'
+import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, resolveToolsetPrompt, supportsContentArray, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
 import { toAiriStreamEvent } from './xsai-events'
 
@@ -42,7 +42,10 @@ export function streamChatCompletions(input: {
       const resolveStep = input.options?.resolveStep
       if (!resolveStep) {
         scopes.push(input.scope)
-        return generation.prepareStep({ input: current })
+        generation.prepareStep({ input: current })
+        const prompt = resolveToolsetPrompt(input.tools, input.options)
+        // xsAI uses the returned input for this request only. Guidance never enters its persistent transcript.
+        return prompt ? { input: [{ role: 'developer' as const, content: prompt }, ...current] } : {}
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep
@@ -93,7 +96,12 @@ export function streamChatCompletions(input: {
         else if (next.systemPrompt)
           current.unshift({ role: 'system', content: next.systemPrompt })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? input.options?.toolChoice : undefined }
+        const prompt = resolveToolsetPrompt(toolsSupported ? next.tools : undefined, input.options)
+        return {
+          input: prompt ? [{ role: 'developer' as const, content: prompt }, ...current] : current,
+          model: next.model,
+          toolChoice: toolsSupported ? input.options?.toolChoice : undefined,
+        }
       })()
     },
     abortSignal: input.options?.abortSignal,

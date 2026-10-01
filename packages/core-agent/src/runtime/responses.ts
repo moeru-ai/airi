@@ -13,7 +13,7 @@ import { stepCountAtLeast } from '@xsai/shared-chat'
 import { renderSegmentText } from '../messages/render-context'
 import { projectInput, projectRound } from '../messages/turns'
 import { createGeneration } from './generation'
-import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsTools } from './request-context'
+import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, resolveToolsetPrompt, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
 import { toAiriStreamEvent } from './xsai-events'
 
@@ -151,7 +151,7 @@ function readOutput(items: ItemParam[]): ProjectionEntry[] {
   })
 }
 
-function toolChoice(choice: StreamOptions['toolChoice']): ResponsesOptions['toolChoice'] {
+function toolChoice(choice: StreamOptions['toolChoice']): NonNullable<ResponsesOptions['toolChoice']> | undefined {
   if (choice == null || typeof choice === 'string')
     return choice
   if (choice.type === 'function')
@@ -190,7 +190,9 @@ export function streamResponses(input: {
       const resolveStep = input.options?.resolveStep
       if (!resolveStep) {
         scopes.push(input.scope)
-        return generation.prepareStep({ input: current })
+        generation.prepareStep({ input: current })
+        const prompt = resolveToolsetPrompt(input.tools, input.options)
+        return prompt ? { input: [{ type: 'message' as const, role: 'developer' as const, content: prompt }, ...current] } : {}
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep
@@ -233,7 +235,12 @@ export function streamResponses(input: {
         else if (next.systemPrompt)
           current.unshift({ type: 'message', role: 'system', content: next.systemPrompt })
 
-        return { input: current, model: next.model, toolChoice: toolsSupported ? toolChoice(input.options?.toolChoice) : undefined }
+        const prompt = resolveToolsetPrompt(toolsSupported ? next.tools : undefined, input.options)
+        return {
+          input: prompt ? [{ type: 'message' as const, role: 'developer' as const, content: prompt }, ...current] : current,
+          model: next.model,
+          toolChoice: toolsSupported ? toolChoice(input.options?.toolChoice) : undefined,
+        }
       })()
     },
     input: items,

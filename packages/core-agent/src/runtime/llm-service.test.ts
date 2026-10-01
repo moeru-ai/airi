@@ -28,6 +28,33 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
+// ROOT CAUSE:
+// Toolset instructions were composed before tool admission. Disabled tools retained instructions, while Spark relay guidance was missing.
+it('projects request-owned toolset instructions only for admitted tools', async () => {
+  const tool: Tool = {
+    type: 'function',
+    function: { name: 'relay', description: 'Relay a command.', parameters: { type: 'object', properties: {} } },
+    execute: async () => 'sent',
+  }
+  const instructions = vi.fn(() => 'Relay only after a successful tool call.')
+  streamTextMock.mockImplementation((options: {
+    messages: Message[]
+    prepareStep: (step: { input: Message[], steps: CompletionStep[] }) => { input?: Message[] }
+  }) => {
+    const current = structuredClone(options.messages)
+    const prepared = options.prepareStep({ input: current, steps: [] })
+    expect(prepared.input?.[0]).toEqual({ role: 'developer', content: 'Relay only after a successful tool call.' })
+    expect(current).toEqual(options.messages)
+    return { steps: Promise.resolve([]), messages: Promise.resolve(current), usage: Promise.resolve(undefined), totalUsage: Promise.resolve(undefined) }
+  })
+  const conversation: Conversation = { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'Relay a command.' }] }] }
+  const original = structuredClone(conversation)
+  await streamFrom({ model: 'model-a', chatProvider: provider, conversation, options: { tools: [tool], resolveToolsetPrompt: instructions } })
+  expect(instructions).toHaveBeenCalledWith([tool])
+  expect(instructions).toHaveBeenCalledOnce()
+  expect(conversation).toEqual(original)
+})
+
 it('reads edited model, prompt, provider and tools before a tool continuation request', async () => {
   const live = { model: 'model-a', prompt: 'First prompt', baseURL: 'https://first.example/', toolName: 'first_tool', temperature: 0.2 }
   const liveProvider: GenerationProvider = {

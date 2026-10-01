@@ -1,9 +1,17 @@
 import type { GenerationRequest } from '@proj-airi/provider-inference'
+import type { Tool } from '@xsai/shared-chat'
 
 import type { StreamOptions } from '../types/llm'
 
 /** Settings for one model request. */
 export type ResolvedStep = Awaited<ReturnType<NonNullable<StreamOptions['resolveStep']>>>
+
+/** Resolves host-owned tool instructions after capability admission. Empty toolsets never receive guidance. */
+export function resolveToolsetPrompt(tools: readonly Tool[] | undefined, options?: StreamOptions): string | undefined {
+  if (!tools?.length)
+    return undefined
+  return options?.resolveToolsetPrompt?.(tools).trim() || undefined
+}
 
 /** Removes provider fields that the next request no longer defines. */
 export function replaceProviderConfig(target: object, previousKeys: readonly string[], next: object): string[] {

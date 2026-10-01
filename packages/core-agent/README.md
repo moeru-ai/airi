@@ -60,6 +60,9 @@ Each send captures one session-filtered snapshot for both the model request and 
 `removeWriter()` removes only the named writer's active slots. It preserves bounded history for host delivery deduplication.
 Each send also retains its host-selected `outputTarget`. Output hooks keep this return address separate from input content and context visibility.
 Request-owned instruction providers run once per send. They bypass the observation pool and cannot retain stale instructions between sends.
+`resolveToolsetPrompt` receives only admitted tools before each model request. Its trusted instructions enter a developer message, not shared context.
+Tool revocation removes the instructions from the next request. These instructions never enter the SDK transcript or stored generation rounds.
+The Spark command tool owns relay syntax guidance. Module observations supply current destination and availability facts.
 
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
