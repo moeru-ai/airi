@@ -60,10 +60,10 @@ Scenario tests must prove those behaviors. A mechanism alone does not prove them
 | --- | --- | --- |
 | P0 | Reader isolation, expiry, bounded contexts, external session creation, fork provenance, one ticker owner, module-owned context, background execution, directed output | Unrelated context never enters a request. Private replies never broadcast to modules. External conversations persist. One owner runs notifications. |
 | P1 | Session audience, bindings, lifecycle, digest, run table, execution envelopes, audience labels, and correlation | Recovery checks audience inclusion. Writes preserve read restrictions. Every run has a traceable identifier and envelope. |
-| P2 | Per-session queues, budget admission, cancellation, rollback, supervision | Background work cannot block another session. Cancellation cannot duplicate input or commit stale output. |
+| P2 | Per-session queues, capacity admission, cancellation, rollback, supervision | Background work cannot block another session. Cancellation cannot duplicate input or commit stale output. Queue growth stays bounded. |
 | P3 | Unified workloads, deterministic admission, JEV triage, module declarations, control leases | Only declared destinations receive work. Every command passes admission and control checks. |
 | P4 | Domain state slots, delivered speech history, spoken output, steering and input ownership | One voice owner speaks. Following turns distinguish generated text from delivered speech. |
-| P5 | Model profiles, requirements, user tiers, request routing | Each selected model satisfies task requirements and budget. Model switches retain portable history. |
+| P5 | Model profiles, requirements, user tiers, optional spending limit, experimental task routing | The user selects the conversation model. A router changes a model only with task evidence, and cost never silently lowers conversation quality. Model switches retain portable history. |
 | P6 | Mood evaluation, PAD state, smoothing, decay and expression composition | Mood remains stable under noisy scores. Persona mood and sentence expression have distinct ownership. |
 | P7 | Prompt recipes, history compaction, per-run persona identity | Prompt size remains bounded. Runtime identity follows the session rather than UI selection. |
 | P8 | Client memory, provenance, visibility, proposals and disclosure checks | Low-trust claims cannot become trusted memories. Retrieval enforces visibility before ranking. |
@@ -80,7 +80,7 @@ Web and Pocket can serve interactive sessions. Persistent background scheduling 
 Memory persists in IndexedDB, with local retrieval and optional cloud synchronization.
 Each record carries provenance, trust, audience, persona interoperability, and disclosure policy from its first write.
 Model quality tiers come from user configuration until task-specific evaluation supplies quality measurements.
-Hourly budget controls cost. Provider limits and exclusive module control also constrain admission.
+Capacity limits, provider limits, deadlines, and exclusive resources constrain admission. A user spending limit is one optional limit, not an optimization target.
 Scheduler, budget, context, and memory settings belong in Settings > Memory.
 
 ## Validation
@@ -145,6 +145,12 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`session-store.browser.test.ts`): a digest must end at a message in its session and keeps the session audience.
 - Implemented: Settings > Memory sets the dormant and retired thresholds. The leader applies them each minute.
 - Designed: digest generation belongs to P7 history compaction. P1 stores and validates digests only.
+
+### P2 progress
+
+- Observed (`chat-orchestrator-runs.test.ts`): every hook context carries its session, run, and envelope outputs. Cross-window relays label turns from that context.
+- Observed (`chat.contract.browser.test.ts`): only a local conversation run has the `voice` output. A reply with an output target never speaks.
+- Implemented: the stage drives speech, motion, and expression only for a run with the `voice` output. External replies are no longer read aloud locally.
 
 ### Open P0 evidence
 

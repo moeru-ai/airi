@@ -12,7 +12,7 @@ export interface ExecutionEnvelope {
   sessionId: string
   /** External scenes of that session. */
   bindings: readonly string[]
-  /** Output channels, for example `chat:owner` or `connection:<id>`. */
+  /** Output channels, for example `chat:owner`, `voice`, or `connection:<id>`. Only one run holds `voice` in practice: the local conversation. */
   outputs: readonly string[]
   /** Union of the output audiences. The run reads only records that reach all of it. */
   audience: Audience

@@ -1443,6 +1443,25 @@ describe('chat store contract', () => {
   })
 
   // ROOT CAUSE:
+  // Every send drove the character voice, so a channel reply could take over the owner's speech.
+  // Only a local conversation holds the voice. A domain reply goes to its scene and never speaks.
+  it('gives the voice only to a local conversation run', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const outputs: Array<readonly string[] | undefined> = []
+    const store = useChatStore()
+    store.onBeforeSend(async (_message, context) => {
+      outputs.push(context.outputs)
+    })
+
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+    await store.send({ sessionId: 'session-1', text: 'Hello from a module', outputTarget: 'module-connection' })
+
+    expect(outputs).toEqual([['chat:owner', 'voice'], ['chat:owner', 'connection:module-connection']])
+  })
+
+  // ROOT CAUSE:
   // The frontend Minecraft provider bypassed reader filtering through the request-only instruction path.
   // Minecraft now publishes its own context. Chat reads it through the filtered observation pool.
   it('does not inject frontend Minecraft context into an unrelated external scene', async () => {

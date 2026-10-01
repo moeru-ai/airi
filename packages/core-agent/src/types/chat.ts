@@ -100,6 +100,12 @@ export interface ChatStreamEventContext {
   input?: WebSocketEventInputs
   /** Server connection that receives the reply. An absent target keeps output inside the host. */
   outputTarget?: string
+  /** Session that owns the turn. The runtime always sets it, so concurrent turns stay apart. */
+  sessionId?: string
+  /** Run that produces the turn. */
+  runId?: string
+  /** Output channels of the run envelope. Only a run with `voice` drives speech. */
+  outputs?: readonly string[]
 }
 
 export type ChatStreamEvent

@@ -865,7 +865,15 @@ watch(speechMuted, (muted) => {
     stopSpeechOutput('muted')
 }, { immediate: true })
 
+// Only the run that holds the voice drives speech and expression. Domain replies, such as Discord, never speak here.
+function holdsVoice(context: { outputs?: readonly string[] }) {
+  return context.outputs?.includes('voice') ?? false
+}
+
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
+
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
@@ -880,15 +888,21 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   currentSession = openTtsSession(context.turnId)
 }))
 
-chatHookCleanups.push(onBeforeSend(async () => {
+chatHookCleanups.push(onBeforeSend(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   currentMotion.value = { group: EmotionThinkMotionName }
 }))
 
-chatHookCleanups.push(onTokenLiteral(async (literal) => {
+chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
+  if (!holdsVoice(context))
+    return
   currentSession?.appendText(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
+  if (!holdsVoice(context))
+    return
   // Muting speech must not suppress non-audio signals such as emotion, motion,
   // delay, or plugin calls that normally travel through the TTS session.
   if (speechMuted.value) {
@@ -899,11 +913,15 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
   currentSession?.appendSpecial(special)
 }))
 
-chatHookCleanups.push(onStreamEnd(async () => {
+chatHookCleanups.push(onStreamEnd(async (context) => {
+  if (!holdsVoice(context))
+    return
   currentSession?.finishInput()
 }))
 
-chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   currentSession?.end()
   // Streaming sessions null-out via the onDone hook; segmenter sessions
   // stay around until the next `onBeforeMessageComposed` cancels them

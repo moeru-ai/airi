@@ -301,7 +301,8 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * Builds the limits for one send. The owner chat shows every session, so every run reaches the owner.
-   * An external reply also reaches the session's scene. A module without a declared scene speaks for the owner.
+   * Only a local conversation holds the voice. An external reply goes to its scene and never speaks.
+   * A module without a declared scene speaks for the owner.
    */
   function createRunEnvelope(sessionId: string, options: ChatOrchestratorSendOptions): Omit<ExecutionEnvelope, 'sessionId'> {
     const meta = chatSession.sessionMetas[sessionId]
@@ -309,7 +310,7 @@ export const useChatStore = defineStore('chat', () => {
     const bindings = [...meta?.bindings ?? []]
     return {
       bindings,
-      outputs: options.outputTarget ? ['chat:owner', `connection:${options.outputTarget}`] : ['chat:owner'],
+      outputs: options.outputTarget ? ['chat:owner', `connection:${options.outputTarget}`] : ['chat:owner', 'voice'],
       audience: options.outputTarget ? unionAudiences(OWNER_AUDIENCE, audienceFromBindings(bindings)) : OWNER_AUDIENCE,
       personaId: meta?.characterId,
     }

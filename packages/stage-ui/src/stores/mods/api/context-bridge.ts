@@ -827,19 +827,19 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'before-compose', message, sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAfterMessageComposed(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'after-compose', message, sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onBeforeSend(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
+          const sessionId = context.sessionId ?? chatSession.activeSessionId
           localProducedStream = { sessionId, turnId: context.turnId }
           await contextChannel?.emitStream({ type: 'before-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
@@ -847,7 +847,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          const sessionId = chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId
+          const sessionId = context.sessionId ?? chatSession.activeSessionId
           await contextChannel?.emitStream({ type: 'after-send', message, sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
           if (localProducedStream?.sessionId === sessionId && localProducedStream.turnId === context.turnId)
             localProducedStream = undefined
@@ -856,32 +856,32 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-special', special, sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onStreamEnd(async (context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'stream-end', sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'stream-end', sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onAssistantResponseEnd(async (message, context) => {
           if (isProcessingRemoteStream)
             return
 
-          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'assistant-end', message, sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, messageText, context) => {
           if (isProcessingRemoteStream)
             return
           // Other renderers, such as a devtools window, observe the turn through the same-origin channel.
-          await contextChannel?.emitStream({ type: 'assistant-message', message: structuredClone(toRaw(message)), messageText, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'assistant-message', message: structuredClone(toRaw(message)), messageText, sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
           // Local turns have no external recipient. Internal prompt snapshots never leave the host through chat output.
           if (!context.outputTarget)
             return
@@ -900,7 +900,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         chatOrchestrator.onChatTurnComplete(async (chat, context) => {
           if (isProcessingRemoteStream)
             return
-          await contextChannel?.emitStream({ type: 'chat-turn-complete', chat: structuredClone(toRaw(chat)), sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'chat-turn-complete', chat: structuredClone(toRaw(chat)), sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
           if (!context.outputTarget)
             return
           serverChannelStore.send({

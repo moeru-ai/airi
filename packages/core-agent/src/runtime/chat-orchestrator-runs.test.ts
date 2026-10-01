@@ -80,6 +80,20 @@ describe('orchestrator runs', () => {
   })
 
   // ROOT CAUSE:
+  // Hook consumers labeled turns with the single active send. Concurrent sessions need each turn to carry its own owner.
+  it('gives every hook context its session, run, and envelope outputs', async () => {
+    const harness = createRunHarness()
+    const contexts: unknown[] = []
+    harness.runtime.hooks.onBeforeSend(async (_message, context) => {
+      contexts.push(context)
+    })
+
+    await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+
+    expect(contexts[0]).toMatchObject({ sessionId: 'session', runId: harness.runtime.getRuns()[0]?.runId, outputs: ['chat:owner'] })
+  })
+
+  // ROOT CAUSE:
   // A throwing run observer escaped into the send queue, and the send never settled.
   it('completes a send when a run observer throws', async () => {
     const harness = createRunHarness({ onRunChange: () => {

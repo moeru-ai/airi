@@ -275,7 +275,7 @@ export interface ChatOrchestratorRuntimeDeps {
   getSystemPromptSupplement?: () => string | undefined
   /**
    * Builds the limits for one send. The runtime records them in the run table.
-   * @default the session alone, with the owner chat as its only output
+   * @default the session alone, with the owner chat and the voice as its outputs
    */
   createEnvelope?: (sessionId: string, options: ChatOrchestratorSendOptions) => Omit<ExecutionEnvelope, 'sessionId'>
   /** Called whenever a run is admitted or changes state. */
@@ -598,6 +598,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       composedMessage: [],
       input: options.input,
       outputTarget: options.outputTarget,
+      sessionId,
+      runId: run.runId,
+      outputs: run.envelope.outputs,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -1137,7 +1140,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const generation = deps.session.getSessionGeneration(sessionId)
     const envelope: ExecutionEnvelope = {
       bindings: [],
-      outputs: ['chat:owner'],
+      outputs: ['chat:owner', 'voice'],
       audience: OWNER_AUDIENCE,
       ...deps.createEnvelope?.(sessionId, options),
       sessionId,

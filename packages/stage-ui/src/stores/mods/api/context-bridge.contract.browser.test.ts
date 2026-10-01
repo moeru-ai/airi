@@ -888,14 +888,16 @@ describe('context bridge contract', () => {
     const outgoingStreamMessages = collectChannelMessages<{ sessionId: string }>(CHAT_STREAM_CHANNEL_NAME)
     const store = useContextBridgeStore()
     await store.initialize()
+    // The context names its own session. Concurrent sends cannot borrow another send's owner.
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
       contexts: {},
       composedMessage: [],
+      sessionId: 'session-a',
     } satisfies ChatStreamEventContext
 
-    chatOrchestratorMock.activeSendSessionId = 'session-a'
+    chatOrchestratorMock.activeSendSessionId = 'session-c'
     activeSessionIdRef.value = 'session-b'
     await chatOrchestratorMock.emitTokenLiteralHooks('session A token', context)
     await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))

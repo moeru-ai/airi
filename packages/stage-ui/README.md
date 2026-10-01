@@ -26,6 +26,11 @@ A scene recovers only a root session whose audience still includes the scene aud
 Every chat run reaches the owner chat. A reply with an output target also reaches the session's scene. A module without a declared scene speaks for the owner.
 The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
 
+## Voice ownership
+
+Only a local conversation run has the `voice` output in its envelope. The stage drives speech, motion, and expression only for that run.
+A reply with an output target, such as a Discord message, goes to its scene and never speaks locally. Hook contexts carry `sessionId`, `runId`, and `outputs`.
+
 ## Session lifecycle
 
 A session is `active` while a run uses it and `idle` after the run ends. The leader moves idle sessions to `dormant`, then `retired`.
