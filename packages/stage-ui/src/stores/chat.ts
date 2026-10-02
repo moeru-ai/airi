@@ -819,6 +819,19 @@ export const useChatStore = defineStore('chat', () => {
     return runtime.cancelRun(runId, options)
   }
 
+  /**
+   * Records the speech that reached the listener before playback stopped. Later prompts read only that part.
+   * The chat keeps the generated text. A missing session or message changes nothing.
+   */
+  async function recordDeliveredSpeech(sessionId: string, messageId: string, deliveredSpeech: string) {
+    const messages = chatSession.getSessionMessagesIfLoaded(sessionId)
+    if (!messages?.some(message => message.id === messageId && message.role === 'assistant'))
+      return
+    chatSession.setSessionMessages(sessionId, messages.map(message => message.id === messageId && message.role === 'assistant'
+      ? { ...toRaw(message), deliveredSpeech }
+      : message))
+  }
+
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
@@ -840,6 +853,7 @@ export const useChatStore = defineStore('chat', () => {
     send,
     cancelPendingSends,
     cancelRun,
+    recordDeliveredSpeech,
     getPendingQueuedSendSnapshot,
 
     clearHooks: runtime.hooks.clearHooks,
@@ -868,7 +882,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['cancelPendingSends', 'cancelRun', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    actions: ['cancelPendingSends', 'cancelRun', 'cleanup', 'deleteSession', 'recordDeliveredSpeech', 'rerunToolCall', 'retry', 'send'],
     state: true,
   },
 })

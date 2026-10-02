@@ -202,6 +202,8 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runs.test.ts`, T2): a run that calls the silence tool ends `done` with `silent`, and leaves no assistant message or reply hook.
 - Observed (`chat-orchestrator-runs.test.ts`, T8): an empty reply without the tool and a provider failure never count as silence. Spoken text after the tool wins.
 - Implemented: every chat run offers the silence tool, so the tool list stays stable. The decision belongs to the run, not to intake.
+- Observed (`delivery.test.ts`, `chat-orchestrator-runs.test.ts`, `chat.contract.browser.test.ts`, T6): an interrupted voice reply records its finished segments. The next prompt reads only that delivered part, and the chat keeps the generated text.
+- Not provided: streaming speech providers bypass the segment pipeline, so their interruptions do not record delivered speech.
 
 ### Open P0 evidence
 

@@ -1547,6 +1547,28 @@ describe('chat store contract', () => {
     expect(prompts[1]).not.toContain('/settings/account')
   })
 
+  // T6: the next turn reads the delivered speech of an interrupted voice reply.
+  it('records delivered speech so the next prompt reads only what was heard', async () => {
+    const prompts: string[] = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, messages: Conversation, options: StreamOptions) => {
+      prompts.push(JSON.stringify(messages))
+      await options.onStreamEvent?.({ type: 'text-delta', text: prompts.length === 1 ? 'Heard part. Unheard part.' : 'ok' })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    const sessionId = activeSessionIdRef.value
+    await store.ingest('tell me', { model: 'gpt-test', chatProvider: provider })
+    const reply = sessionMessages[sessionId]?.find(message => message.role === 'assistant')
+
+    await store.recordDeliveredSpeech(sessionId, reply!.id!, 'Heard part. ')
+    await store.recordDeliveredSpeech(sessionId, 'missing-message', 'ignored')
+    await store.ingest('go on', { model: 'gpt-test', chatProvider: provider })
+
+    expect(sessionMessages[sessionId]?.find(message => message.id === reply!.id)).toMatchObject({ content: 'Heard part. Unheard part.', deliveredSpeech: 'Heard part. ' })
+    expect(prompts[1]).toContain('Heard part.…')
+    expect(prompts[1]).not.toContain('Unheard part')
+  })
+
   it('rejects cancelled queued sends before they start', async () => {
     let releaseFirstSend: (() => void) | undefined
     llmStreamMock.mockImplementationOnce(async () => {

@@ -126,6 +126,11 @@ A silent run appends no assistant message and emits no reply hooks, so no channe
 Silence needs the explicit tool call. An empty reply without it stays a normal result, and a failure stays `blocked` or `expired`.
 Spoken text after the tool call wins, and the reply is kept.
 
+## Delivered speech
+
+An assistant message can carry `deliveredSpeech`, the speech that reached the listener before playback stopped. It is present only for an interrupted voice reply.
+The next prompt reads only that part, with a cut mark. Tool calls stay. The chat keeps the generated text.
+
 ## Error bursts
 
 `ErrorBurstBreaker` watches run changes. Three `blocked` runs within one minute start a one-minute cooldown.

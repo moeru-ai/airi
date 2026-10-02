@@ -303,6 +303,33 @@ describe('orchestrator runs', () => {
     expect(harness.runtime.getRuns().map(run => [run.state, run.silent])).toEqual([['done', undefined], ['blocked', undefined]])
   })
 
+  // T6: the next turn reads the speech that the listener heard, not the full generated reply.
+  it('gives the next prompt only the delivered part of an interrupted voice reply', async () => {
+    const harness = createRunHarness()
+    const generated: AssistantTurn = {
+      type: 'assistant',
+      id: 'previous',
+      status: 'completed',
+      rounds: [{ id: 'round', content: [{ type: 'text', text: 'First sentence. Second sentence nobody heard.' }], toolInvocations: [], projectionIssues: [] }],
+    }
+    harness.messages.push(
+      { role: 'user', content: 'tell me', id: 'user-1' },
+      { role: 'assistant', content: 'First sentence. Second sentence nobody heard.', slices: [], tool_results: [], id: 'assistant-1', generationTranscript: generated, deliveredSpeech: 'First sentence.' },
+      { role: 'assistant', content: 'Plain reply that was cut.', slices: [], tool_results: [], id: 'assistant-2', deliveredSpeech: 'Plain' },
+    )
+
+    await harness.runtime.ingest('go on', { model: 'test', chatProvider: provider })
+
+    const conversation = harness.stream.mock.calls[0]?.[2]
+    const text = JSON.stringify(conversation)
+    expect(text).toContain('First sentence.…')
+    expect(text).not.toContain('Second sentence nobody heard')
+    expect(text).toContain('Plain…')
+    expect(text).not.toContain('Plain reply that was cut')
+    // The stored history keeps the generated text for the chat.
+    expect(harness.messages[1]).toMatchObject({ content: 'First sentence. Second sentence nobody heard.' })
+  })
+
   it('stops a run that repeats an identical tool call', async () => {
     const harness = createRunHarness()
     harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {

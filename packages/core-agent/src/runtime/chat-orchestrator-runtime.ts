@@ -16,6 +16,7 @@ import { createQueue } from '@proj-airi/stream-kit'
 
 import { chatMessagesToTurns } from '../messages/chat-completions'
 import { formatTimePrefix } from '../messages/datetime-prefix'
+import { deliveredSpeechText, deliveredSpeechTurn } from '../messages/delivered-speech'
 import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
 import { audienceIncludes, intersectAudiences, OWNER_AUDIENCE } from './audience'
@@ -628,8 +629,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
     const turns = history.flatMap((message, historyIndex): Turn[] => {
-      if (message.role === 'assistant' && message.generationTranscript)
-        return [structuredClone(unwrapMessage(message.generationTranscript))]
+      // An interrupted voice reply reaches the next prompt as the speech that was heard.
+      const delivered = message.role === 'assistant' ? message.deliveredSpeech : undefined
+      if (message.role === 'assistant' && message.generationTranscript) {
+        const turn = structuredClone(unwrapMessage(message.generationTranscript))
+        return [delivered === undefined ? turn : deliveredSpeechTurn(turn, delivered)]
+      }
+      if (message.role === 'assistant' && delivered !== undefined)
+        return chatMessagesToTurns([{ role: 'assistant', content: deliveredSpeechText(delivered) }], message.id ?? `history-${historyIndex}`)
       const source = message.role === 'user'
         ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)

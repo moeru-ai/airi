@@ -26,6 +26,11 @@ export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCal
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
   interrupted?: true
+  /**
+   * Speech that reached the listener before playback stopped. Present only for an interrupted voice reply.
+   * The chat keeps the generated text. Later prompts read only this delivered part.
+   */
+  deliveredSpeech?: string
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
