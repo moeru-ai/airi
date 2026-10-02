@@ -6,6 +6,8 @@ import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
+export type { DecisionAction, Recipe } from '@proj-airi/core-agent'
+
 /**
  * Recipes the owner keeps: built-in recipes with their switches, the owner's own, and model proposals.
  *

@@ -508,26 +508,6 @@ pages:
     upload: Upload
     upload_desc: Click or drag an AIRI card package to import
   memory:
-    recipes:
-      title: Recipes
-      description: Ways the character can handle a kind of task. A recipe only uses abilities that AIRI already has. Turn one off to stop it.
-      empty: No recipes yet.
-      sources:
-        builtin: Built-in
-        user: Yours
-        model: Proposed by the model
-      pending: Waiting for your approval. After one approval, it runs without asking again.
-      approve: Approve
-      remove: Remove
-      add:
-        title: Add a recipe
-        name: Name
-        description: When to use it
-        instructions: What to do
-        keywords:
-          label: Trigger keywords
-          description: Comma-separated. A message that contains one points the character to this recipe.
-        submit: Add
     advanced:
       title: Advanced
       description: Settings that rarely need a change. The defaults fit most setups.
@@ -910,6 +890,61 @@ pages:
               Your provider did not return verbose_json segments. Confidence
               filtering had no effect on the last transcription.
     memory-long-term:
+      recipes:
+        title: Recipes
+        description: Ways the character can handle a kind of task. A recipe only uses abilities that AIRI already has. Turn one off to stop it.
+        empty: No recipes yet.
+        sources:
+          builtin: Built-in
+          user: Yours
+          model: Proposed by the model
+        pending: Waiting for your approval. After one approval, it runs without asking again.
+        approve: Approve
+        remove: Remove
+        add:
+          title: Add a recipe
+          name: Name
+          description: When to use it
+          instructions: What to do
+          keywords:
+            label: Trigger keywords
+            description: Comma-separated. A message that contains one points the character to this recipe.
+          submit: Add
+        entry:
+          title: Recipes
+          description: Skills the character can use, triggers that start them, and proposals waiting for you.
+        add_button: Add recipe
+        types:
+          title: Choose a recipe type
+          instructions:
+            title: Instructions
+            description: Guidance the character follows when it fits, optionally pointed to by keywords.
+          decision:
+            title: Quick decision
+            description: A question for the attention classifier, answered before any reply. Each answer can lead to its own action.
+        decision:
+          question: Question
+          type:
+            label: Answer type
+            noul: Yes or no
+            choice: Choose one option
+            score: Score on levels
+          yes_means: Yes means
+          no_means: No means
+          option: Option meaning
+          level: Level meaning (lowest first)
+          add_option: Add an answer
+          remove_option: Remove
+          action:
+            label: Then
+            reply: Reply as usual
+            stay_quiet: Read without replying
+            hint: Add a hint to the reply
+            recipe: Point to another recipe
+          hint_text: Hint
+          target_recipe: Recipe
+          note: Each answer acts only when the classifier's confidence reaches the threshold in Attention. Otherwise the character replies as usual.
+        cancel: Cancel
       description: Long-term memory specific settings and management
       title: Long-Term Memory
       sessions:

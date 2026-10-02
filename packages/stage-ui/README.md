@@ -134,7 +134,8 @@ The spending ledger lives in the leader renderer's memory, so it starts empty af
 Each conversation prompt and notification reaction reads one mood sentence. With SSML on, each spoken segment shifts pitch and speed by the mood at synthesis time. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
 A chat run reads the identity of its session's persona when it starts, through `composeSystemPrompt` in the prompt recipe. Sessions store no system snapshot.
 Long sessions keep their newest exchanges within the core history budget. A session digest, when present, stands in for the rest.
-`useRecipesStore` keeps recipes: built-in ones with their switches, the owner's own, and model proposals waiting for approval. Settings > Memory lists them.
+`useRecipesStore` keeps recipes: built-in ones with their switches, the owner's own, and model proposals waiting for approval. The long-term memory module page links to the recipes page.
+Decision recipes ask the attention classifier before a reply, in one call with an 800 ms deadline. A late or unsure answer lets the run reply as usual.
 Usable instruction recipes join the system prompt, and a message that contains a recipe keyword marks that recipe in its context.
 Every chat run request carries the silence tool and its guidance. It comes from the built-in stay-quiet recipe, so turning that recipe off removes the tool. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 

@@ -589,6 +589,7 @@ export const useChatStore = defineStore('chat', () => {
     intake: scheduler.intake,
     leases: scheduler.leases,
     decideIntake: stimulus => triage.decideConnectionIntake(stimulus, mood.active ? mood.current(cardStore.activeCardId || 'default') : undefined),
+    decideBeforeReply: ({ message, signal }) => triage.decideRecipes(recipes.usable, message, signal),
     checkSpendingLimit: () => {
       const until = modelProfiles.spendingPausedUntil()
       return until === undefined ? undefined : t('stage.chat.spending-limit', { time: new Date(until).toLocaleTimeString() })

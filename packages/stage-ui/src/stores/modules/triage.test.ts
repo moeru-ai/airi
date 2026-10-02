@@ -1,4 +1,4 @@
-import type { Stimulus, StreamOptions } from '@proj-airi/core-agent'
+import type { Recipe, Stimulus, StreamOptions } from '@proj-airi/core-agent'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -70,5 +70,19 @@ describe('triage store', () => {
 
     expect(llm.stream.mock.calls[0]?.[0]).toBe('small-model')
     expect(appraisal).toMatchObject({ backend: 'llm', attend: 0.97, threshold: 0.8, urgency: expect.closeTo(0.5) })
+  })
+
+  // A decision recipe reads a message with the attention classifier and can choose silence without a model reply.
+  it('chooses silence for a confident decision recipe and nothing without a classifier', async () => {
+    const recipe: Recipe = { id: 'user:ack', name: 'Acknowledgements', description: 'Skips replies to plain acknowledgements.', style: { kind: 'decision', question: { type: 'noul', instructions: 'Is this only an acknowledgement?', criteria: { true: 'It needs no answer.', false: 'It asks something.' } }, actions: { true: { kind: 'stay-quiet' } } }, triggers: [], source: 'user', enabled: true, approved: true }
+    const signal = new AbortController().signal
+    expect(await useTriageStore().decideRecipes([recipe], 'ok', signal)).toBeUndefined()
+
+    const settings = useSettingsTriage()
+    settings.backend = 'decisions'
+    settings.decisionsApiKey = 'key'
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ answers: { 'user:ack': { type: 'noul', noul: 0.97 } } })))
+
+    expect(await useTriageStore().decideRecipes([recipe], 'ok', signal)).toEqual({ silent: { reason: 'Acknowledgements' }, hints: [] })
   })
 })

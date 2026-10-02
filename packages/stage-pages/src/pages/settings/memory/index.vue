@@ -10,7 +10,6 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import SettingsAdvanced from '../../../components/settings-advanced.vue'
-import RecipesSection from './components/recipes-section.vue'
 
 import { positiveNumberModel } from '../../../libs/number-model'
 
@@ -133,8 +132,6 @@ const appraisalIntervalModel = positiveNumberModel(appraisalIntervalMinutes, { i
         />
       </SettingsAdvanced>
     </section>
-
-    <RecipesSection />
 
     <section :class="['rounded-lg', 'bg-neutral-50 dark:bg-neutral-800', 'p-4']">
       <SettingsAdvanced

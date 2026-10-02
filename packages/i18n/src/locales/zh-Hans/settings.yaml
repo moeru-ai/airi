@@ -478,26 +478,6 @@ pages:
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
-    recipes:
-      title: 配方
-      description: 角色处理某类事情的方式。配方只能使用 AIRI 已有的能力。关闭后就不会再使用。
-      empty: 还没有配方。
-      sources:
-        builtin: 内置
-        user: 你创建的
-        model: 模型提议的
-      pending: 等待你批准。批准一次之后，使用时不再询问。
-      approve: 批准
-      remove: 删除
-      add:
-        title: 添加配方
-        name: 名称
-        description: 什么时候使用
-        instructions: 怎么做
-        keywords:
-          label: 触发关键词
-          description: 用逗号分隔。消息里出现其中一个时，会提示角色使用这个配方。
-        submit: 添加
     advanced:
       title: 高级
       description: 很少需要修改的设置，默认值适合大多数情况。
@@ -862,6 +842,61 @@ pages:
             verbose-json-unsupported: >-
               如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
     memory-long-term:
+      recipes:
+        title: 配方
+        description: 角色处理某类事情的方式。配方只能使用 AIRI 已有的能力。关闭后就不会再使用。
+        empty: 还没有配方。
+        sources:
+          builtin: 内置
+          user: 你创建的
+          model: 模型提议的
+        pending: 等待你批准。批准一次之后，使用时不再询问。
+        approve: 批准
+        remove: 删除
+        add:
+          title: 添加配方
+          name: 名称
+          description: 什么时候使用
+          instructions: 怎么做
+          keywords:
+            label: 触发关键词
+            description: 用逗号分隔。消息里出现其中一个时，会提示角色使用这个配方。
+          submit: 添加
+        entry:
+          title: 配方
+          description: 角色可以使用的技能、启动它们的触发器，以及等待你批准的提议。
+        add_button: 添加配方
+        types:
+          title: 选择配方类型
+          instructions:
+            title: 指令
+            description: 合适时角色会遵照的做法，可以用关键词提示。
+          decision:
+            title: 快速判断
+            description: 交给注意力分类器的一道题，在回复之前判断，每个回答可以对应不同的动作。
+        decision:
+          question: 问题
+          type:
+            label: 回答类型
+            noul: 是或否
+            choice: 从选项中选一个
+            score: 按等级打分
+          yes_means: “是”表示
+          no_means: “否”表示
+          option: 选项含义
+          level: 等级含义（从低到高）
+          add_option: 添加回答
+          remove_option: 删除
+          action:
+            label: 然后
+            reply: 照常回复
+            stay_quiet: 读了但不回复
+            hint: 给回复加一条提示
+            recipe: 指向另一个配方
+          hint_text: 提示
+          target_recipe: 配方
+          note: 只有分类器的置信度达到“注意力”里的阈值时，对应的回答才会生效，否则角色照常回复。
+        cancel: 取消
       description: 长期记忆
       title: 长期记忆
       sessions:

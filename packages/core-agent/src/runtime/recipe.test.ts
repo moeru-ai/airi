@@ -2,7 +2,7 @@ import type { Recipe } from './recipe'
 
 import { describe, expect, it } from 'vitest'
 
-import { BUILTIN_RECIPES, matchKeywordRecipes, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './recipe'
+import { applyRecipeDecisions, BUILTIN_RECIPES, decisionAnswerKey, decisionRecipes, matchKeywordRecipes, recipeDecisionRequest, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './recipe'
 
 function recipe(overrides: Partial<Recipe>): Recipe {
   return {
@@ -41,5 +41,48 @@ describe('recipes', () => {
     expect(matchKeywordRecipes(recipes, '今天想玩粥了').map(entry => entry.id)).toEqual(['user:play'])
     expect(matchKeywordRecipes(recipes, 'please play music').map(entry => entry.id)).toEqual(['user:music'])
     expect(matchKeywordRecipes(recipes, 'hello')).toEqual([])
+  })
+
+  describe('decision recipes', () => {
+    const ack = recipe({ id: 'user:ack', name: 'Acknowledgements', style: { kind: 'decision', question: { type: 'noul', instructions: 'Is this only an acknowledgement?', criteria: { true: 'It needs no answer.', false: 'It asks something.' } }, actions: { true: { kind: 'stay-quiet' } } }, triggers: [] })
+    const mood = recipe({
+      id: 'user:mood',
+      name: 'Owner mood',
+      style: {
+        kind: 'decision',
+        question: { type: 'choice', instructions: 'How does the owner seem?', criteria: { tired: 'Tired', excited: 'Excited', neutral: 'Neutral' } },
+        actions: { tired: { kind: 'hint', text: 'The owner seems tired. Keep it short.' }, excited: { kind: 'recipe', recipeId: 'user:play' }, neutral: { kind: 'reply' } },
+      },
+      triggers: [],
+    })
+    const urgency = recipe({ id: 'user:urgency', style: { kind: 'decision', question: { type: 'score', instructions: 'How urgent?', criteria: ['Low', 'Medium', 'High'] }, actions: { 2: { kind: 'hint', text: 'Answer first, chat later.' } } }, triggers: [] })
+
+    it('asks every decision recipe in one request, with any question type', () => {
+      const request = recipeDecisionRequest(decisionRecipes([ack, mood, urgency, recipe({})]), 'ok')
+
+      expect(Object.keys(request.questions)).toEqual(['user:ack', 'user:mood', 'user:urgency'])
+      expect(request.questions['user:mood']?.type).toBe('choice')
+      expect(request.untrusted).toBe('ok')
+    })
+
+    it('keys a confident answer by its type, and an unsure answer by nothing', () => {
+      expect(decisionAnswerKey({ type: 'noul', noul: 0.95 }, 0.8)).toBe('true')
+      expect(decisionAnswerKey({ type: 'noul', noul: 0.7 }, 0.8)).toBeUndefined()
+      expect(decisionAnswerKey({ type: 'choice', choice: 'tired', confidence: 0.9 }, 0.8)).toBe('tired')
+      expect(decisionAnswerKey({ type: 'score', score: 1.7, confidence: 0.9 }, 0.8)).toBe('2')
+      expect(decisionAnswerKey({ type: 'score', score: 1.7, confidence: 0.5 }, 0.8)).toBeUndefined()
+    })
+
+    it('applies the action of each confident answer, and silence wins', () => {
+      const outcome = applyRecipeDecisions([mood, urgency], {
+        'user:mood': { type: 'choice', choice: 'tired', confidence: 0.9 },
+        'user:urgency': { type: 'score', score: 2, confidence: 0.85 },
+      }, 0.8)
+      expect(outcome).toEqual({ hints: ['The owner seems tired. Keep it short.', 'Answer first, chat later.'], recipeIds: [] })
+
+      expect(applyRecipeDecisions([ack, mood], { 'user:ack': { type: 'noul', noul: 0.97 }, 'user:mood': { type: 'choice', choice: 'excited', confidence: 0.9 } }, 0.8))
+        .toEqual({ silent: { reason: 'Acknowledgements' }, hints: [], recipeIds: ['user:play'] })
+      expect(applyRecipeDecisions([ack], undefined, 0.8)).toEqual({ hints: [], recipeIds: [] })
+    })
   })
 })

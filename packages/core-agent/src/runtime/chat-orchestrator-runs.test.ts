@@ -20,7 +20,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], checkSpendingLimit?: ChatOrchestratorRuntimeDeps['checkSpendingLimit'], getSystemPrompt?: ChatOrchestratorRuntimeDeps['getSystemPrompt'], getHistoryDigest?: ChatOrchestratorRuntimeDeps['getHistoryDigest'], personaOf?: (sessionId: string) => string, leases?: LeaseTable, runs?: RunTable } = {}) {
+function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], checkSpendingLimit?: ChatOrchestratorRuntimeDeps['checkSpendingLimit'], getSystemPrompt?: ChatOrchestratorRuntimeDeps['getSystemPrompt'], getHistoryDigest?: ChatOrchestratorRuntimeDeps['getHistoryDigest'], decideBeforeReply?: ChatOrchestratorRuntimeDeps['decideBeforeReply'], personaOf?: (sessionId: string) => string, leases?: LeaseTable, runs?: RunTable } = {}) {
   const messages: ChatHistoryItem[] = []
   const runChanges: AgentRun[] = []
   let sessionAudience = options.sessionAudience ?? OWNER_AUDIENCE
@@ -62,6 +62,7 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     checkSpendingLimit: options.checkSpendingLimit,
     getSystemPrompt: options.getSystemPrompt,
     getHistoryDigest: options.getHistoryDigest,
+    decideBeforeReply: options.decideBeforeReply,
     leases: options.leases,
     runs: options.runs,
   })
@@ -284,6 +285,28 @@ describe('orchestrator runs', () => {
     const prompt = JSON.stringify(harness.stream.mock.calls[0]![2])
     expect(prompt).not.toContain('huge result')
     expect(prompt).toContain('recent answer')
+  })
+
+  // A decision recipe can read a message and stay quiet without a model call. A failed decision never blocks the reply.
+  it('ends silently before generation when a decision recipe chooses silence', async () => {
+    const quiet = createRunHarness({ decideBeforeReply: async () => ({ silent: { reason: 'nothing to answer' } }) })
+    await quiet.runtime.ingest('ok', { model: 'test', chatProvider: provider })
+
+    expect(quiet.stream).not.toHaveBeenCalled()
+    expect(quiet.runtime.getRuns()[0]).toMatchObject({ state: 'done', silent: { reason: 'nothing to answer' } })
+    expect(quiet.messages.map(message => message.role)).toEqual(['user'])
+
+    const hinted = createRunHarness({ decideBeforeReply: async () => ({ hints: ['The owner seems tired. Keep it short.'] }) })
+    await hinted.runtime.ingest('long day', { model: 'test', chatProvider: provider })
+    expect(JSON.stringify(hinted.stream.mock.calls[0]![2].turns.at(-1))).toContain('The owner seems tired. Keep it short.')
+
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const failing = createRunHarness({ decideBeforeReply: async () => {
+      throw new Error('classifier down')
+    } })
+    await failing.runtime.ingest('ok', { model: 'test', chatProvider: provider })
+    expect(failing.stream).toHaveBeenCalledOnce()
+    consoleWarn.mockRestore()
   })
 
   // T3: work without the voice output neither waits for the voice nor reserves it.

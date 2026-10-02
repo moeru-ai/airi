@@ -1,8 +1,8 @@
-import type { ChatIntakeDecision, Classifier, IntakeAppraisal, Pad, Stimulus } from '@proj-airi/core-agent'
+import type { ChatIntakeDecision, Classifier, IntakeAppraisal, Pad, Recipe, Stimulus } from '@proj-airi/core-agent'
 
 import type { ClassifierCompletion } from '../../libs/classifier/llm'
 
-import { appraiseStimulus, capSceneSalience, CLASSIFIER_DEADLINE_MS, decideByAppraisal } from '@proj-airi/core-agent'
+import { applyRecipeDecisions, appraiseStimulus, askWithin, capSceneSalience, CLASSIFIER_DEADLINE_MS, decideByAppraisal, decisionRecipes, recipeDecisionRequest } from '@proj-airi/core-agent'
 import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
 import { computed, markRaw } from 'vue'
@@ -98,8 +98,28 @@ export const useTriageStore = defineStore('triage', () => {
     return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, { mood, attendCriteria: 'The event is the current state of the owner\'s scene, and nobody asked anything. Answer yes only when something in it is worth raising with the owner now.' })
   }
 
+  /**
+   * Asks every usable decision recipe about one message in a single classifier call.
+   * A late, failed, or unsure answer chooses nothing, so the run replies.
+   */
+  async function decideRecipes(recipes: readonly Recipe[], message: string, signal: AbortSignal): Promise<{ silent?: { reason?: string }, hints: string[] } | undefined> {
+    const current = classifier.value
+    const deciding = decisionRecipes(recipes)
+    if (!current || !deciding.length)
+      return undefined
+    const answers = await askWithin(current, recipeDecisionRequest(deciding, message), { deadlineMs: CLASSIFIER_DEADLINE_MS, signal })
+    const outcome = applyRecipeDecisions(deciding, answers, settings.effectiveThreshold)
+    // A decision can point to another recipe. The run sees it like a keyword trigger.
+    const pointed = recipes.filter(recipe => outcome.recipeIds.includes(recipe.id)).map(recipe => recipe.name)
+    return {
+      silent: outcome.silent,
+      hints: pointed.length ? [...outcome.hints, `This message matches these recipes: ${pointed.join(', ')}.`] : outcome.hints,
+    }
+  }
+
   return {
     classifier,
+    decideRecipes,
     decideConnectionIntake,
     appraiseNotification,
     appraiseIdle,

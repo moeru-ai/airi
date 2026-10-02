@@ -356,6 +356,12 @@ export interface ChatOrchestratorRuntimeDeps {
    * The limit stops new runs and shows why. It never selects a cheaper model.
    */
   checkSpendingLimit?: () => string | undefined
+  /**
+   * Runs decision recipes after the user turn is stored and before generation.
+   * A silent answer ends the run as an intentional silence without a model call. Hints join the message as context.
+   * A late or failed decision lets the run reply.
+   */
+  decideBeforeReply?: (input: { sessionId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) => Promise<{ silent?: { reason?: string }, hints?: string[] } | undefined>
   /** Called for every intake decision, including ignored and rejected input. */
   onIntakeRecord?: (record: IntakeRecord) => void
   /** Reads the current capacity limits. Invalid values use the defaults. */
@@ -1028,119 +1034,137 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let llmFirstTokenEmitted = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
       let generatedTurn: AssistantTurn | undefined
-      deps.onLlmRequestStarted?.({
-        ...correlation,
-        model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
-        hasVoice,
-      })
+      // A decision recipe can choose silence before any generation, for example a classifier that sees nothing to answer.
+      const decided = await deps.decideBeforeReply?.({ sessionId, message: sendingMessage, envelope: run.envelope, signal: abortSignal })
+        .catch((error: unknown) => {
+          console.warn('Decision recipe failed, so the run replies:', errorMessageFrom(error))
+          return undefined
+        })
+      if (shouldAbort())
+        return
+      if (decided?.hints?.length) {
+        const lastTurn = context.turns.at(-1)
+        if (lastTurn?.type === 'user')
+          lastTurn.content.push({ type: 'runtime-context', entries: decided.hints.map(text => ({ source: 'recipe-decision', text })) })
+      }
+      if (decided?.silent) {
+        quiet = { reason: decided.silent.reason }
+      }
+      else {
+        deps.onLlmRequestStarted?.({
+          ...correlation,
+          model: options.model,
+          provider: deps.getActiveProvider() || 'unknown',
+          hasVoice,
+        })
 
-      await deps.llm.stream(options.model, options.chatProvider, context, {
-        headers,
-        providerId: activeProvider,
-        abortSignal,
-        onGeneratedTurn: (turn) => { generatedTurn = { ...structuredClone(turn), runId: run.runId } },
-        requestCorrelation: {
-          conversationId: correlation.conversationId,
-          turnId: correlation.roundId,
-          runId: run.runId,
-        },
-        tools: options.tools,
-        temperature: options.temperature,
-        topP: options.topP,
-        waitForTools: true,
-        onUsage: (usage) => {
-          if (shouldAbort())
-            return
+        await deps.llm.stream(options.model, options.chatProvider, context, {
+          headers,
+          providerId: activeProvider,
+          abortSignal,
+          onGeneratedTurn: (turn) => { generatedTurn = { ...structuredClone(turn), runId: run.runId } },
+          requestCorrelation: {
+            conversationId: correlation.conversationId,
+            turnId: correlation.roundId,
+            runId: run.runId,
+          },
+          tools: options.tools,
+          temperature: options.temperature,
+          topP: options.topP,
+          waitForTools: true,
+          onUsage: (usage) => {
+            if (shouldAbort())
+              return
 
-          generationUsage = usage
-          deps.onLlmGeneration?.({
-            ...correlation,
-            model: options.model,
-            provider: activeProvider,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            totalTokens: usage.totalTokens,
-            usageSource: usage.source,
-          })
-        },
-        onStreamEvent: async (event: StreamEvent) => {
-          if (shouldAbort())
-            return
-          run.onActivity()
+            generationUsage = usage
+            deps.onLlmGeneration?.({
+              ...correlation,
+              model: options.model,
+              provider: activeProvider,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
+              usageSource: usage.source,
+            })
+          },
+          onStreamEvent: async (event: StreamEvent) => {
+            if (shouldAbort())
+              return
+            run.onActivity()
 
-          switch (event.type) {
-            case 'search':
-              buildingMessage.search = { id: event.id, status: event.status }
-              updateStream(sessionId, buildingMessage)
-              break
-            case 'citations':
-              buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
-              updateStream(sessionId, buildingMessage)
-              break
-            case 'tool-call':
-              run.onToolCall(`${event.toolName}\u0000${event.args}`)
-              if (event.toolName === STAY_QUIET_TOOL_NAME)
-                quiet = { reason: stayQuietReason(event.args) }
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
-
-              break
-            case 'tool-result':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                result: event.result,
-              })
-
-              break
-            case 'tool-error':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                isError: true,
-                result: event.result,
-              })
-
-              break
-            case 'text-delta':
-              if (!llmFirstTokenEmitted) {
-                llmFirstTokenEmitted = true
-                deps.onLlmFirstToken?.({
-                  ...correlation,
-                  model: options.model,
-                  ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
-                })
-              }
-              fullText += event.text
-              await parser.consume(event.text)
-              break
-            case 'reasoning-delta': {
-              if (shouldAbort())
-                return
-
-              const { reasoning = '' } = buildingMessage.categorization ?? {}
-              const nextReasoning = reasoning + event.text
-              buildingMessage.categorization = {
-                speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
-                reasoning: nextReasoning,
-              }
-              const crossesBoundary
-                = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-                  > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-              if (!reasoning || crossesBoundary)
+            switch (event.type) {
+              case 'search':
+                buildingMessage.search = { id: event.id, status: event.status }
                 updateStream(sessionId, buildingMessage)
-              break
+                break
+              case 'citations':
+                buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
+                updateStream(sessionId, buildingMessage)
+                break
+              case 'tool-call':
+                run.onToolCall(`${event.toolName}\u0000${event.args}`)
+                if (event.toolName === STAY_QUIET_TOOL_NAME)
+                  quiet = { reason: stayQuietReason(event.args) }
+                toolCallQueue.enqueue({
+                  type: 'tool-call',
+                  toolCall: event,
+                })
+
+                break
+              case 'tool-result':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  result: event.result,
+                })
+
+                break
+              case 'tool-error':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  isError: true,
+                  result: event.result,
+                })
+
+                break
+              case 'text-delta':
+                if (!llmFirstTokenEmitted) {
+                  llmFirstTokenEmitted = true
+                  deps.onLlmFirstToken?.({
+                    ...correlation,
+                    model: options.model,
+                    ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
+                  })
+                }
+                fullText += event.text
+                await parser.consume(event.text)
+                break
+              case 'reasoning-delta': {
+                if (shouldAbort())
+                  return
+
+                const { reasoning = '' } = buildingMessage.categorization ?? {}
+                const nextReasoning = reasoning + event.text
+                buildingMessage.categorization = {
+                  speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
+                  reasoning: nextReasoning,
+                }
+                const crossesBoundary
+                  = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                    > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                if (!reasoning || crossesBoundary)
+                  updateStream(sessionId, buildingMessage)
+                break
+              }
+              case 'finish':
+                break
+              case 'error':
+                throw event.error ?? new Error('Stream error')
             }
-            case 'finish':
-              break
-            case 'error':
-              throw event.error ?? new Error('Stream error')
-          }
-        },
-      })
+          },
+        })
+      }
 
       // Session generation is the lifecycle correlation key. Re-check it
       // after every awaited completion boundary so deleting a session while a
