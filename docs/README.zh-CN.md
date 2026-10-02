@@ -265,6 +265,13 @@
 
 ## 开发
 
+在仓库根目录安装固定版本的工具和依赖：
+
+```shell
+mise install
+mise exec -- pnpm install
+```
+
 > 开发本项目的详细指南请参阅 [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]

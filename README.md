@@ -268,6 +268,13 @@ Capable of
 
 ## Development
 
+Install the pinned tools and dependencies from the repository root:
+
+```shell
+mise install
+mise exec -- pnpm install
+```
+
 > For detailed instructions to develop this project, follow [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
 
 > [!NOTE]

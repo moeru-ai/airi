@@ -266,6 +266,13 @@ Khả năng:
 
 ## Phát Triển
 
+Cài đặt các công cụ và phần phụ thuộc đã cố định phiên bản từ thư mục gốc của kho lưu trữ:
+
+```shell
+mise install
+mise exec -- pnpm install
+```
+
 > Để xem hướng dẫn chi tiết phát triển, tham khảo [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
 
 > [!NOTE]
