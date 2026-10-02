@@ -234,6 +234,12 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: every model request reports its first-token delay and estimated cost. Settings > Memory holds model tiers and the optional hourly limit.
 - Not provided: the ledger lives in leader memory and restarts empty. Decisions API classifier calls report no token usage, so they are not counted.
 
+### P6 progress
+
+- Observed (`mood.test.ts`): classifier jitter of about ±0.04 moves the settled baseline expression by less than 0.04 per update, and its name stays the same. Mood returns to the persona baseline by its half-life.
+- Observed (`mood.test.ts`): anger and fear differ by dominance. A sentence expression that opposes the mood in pleasure loses up to half of its intensity. Thinking keeps its intensity.
+- Observed (`triage.test.ts`): the same event gets different classifier decisions under different moods, and the appraisal records the mood in effect.
+
 ### Open P0 evidence
 
 These checks need live models, bots, or windows. They are not verified.

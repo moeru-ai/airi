@@ -65,6 +65,8 @@ export { checkRequirements, createModelProfile, estimateRequestCost, MODEL_TIER_
 export type { ModelLatency, ModelObservations, ModelProfile, ModelRequirements, ModelTier, RequestCost, RequirementsCheck } from './runtime/model-profile'
 export { MIN_TASK_EVIDENCE, MIN_TASK_PASS_RATE, routeModel } from './runtime/model-routing'
 export type { RoutingDecision, RoutingRejection, RoutingTask, TaskEvidence } from './runtime/model-routing'
+export { applyMoodAppraisal, appraisalTarget, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, describeMood, EXPRESSION_ANCHORS, MOOD_DIMENSION_VECTORS, moodAppraisalInterval, moodExpression, moodIntensity, moodQuestions } from './runtime/mood'
+export type { MoodDimension, MoodExpressionName, MoodProfile, MoodState, Pad } from './runtime/mood'
 export {
   categorizeResponse,
   createStreamingCategorizer,

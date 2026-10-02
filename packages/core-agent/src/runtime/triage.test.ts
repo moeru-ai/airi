@@ -93,4 +93,21 @@ describe('stimulus triage', () => {
     expect(await appraiseStimulus(stimulus, failing)).toBeUndefined()
     expect(await appraiseStimulus(stimulus, malformed)).toBeUndefined()
   })
+
+  // A3: the same event can get different decisions under different moods, and the trace records the mood in effect.
+  it('gives the classifier the mood and records it with the appraisal', async () => {
+    const classifier: Classifier = {
+      backend: 'fake',
+      // A tense mood pays attention to small things. A calm one lets them pass.
+      ask: async request => ({ attend: { type: 'noul', noul: ((request.state.mood as { arousal: number } | undefined)?.arousal ?? 0) > 0.3 ? 0.95 : 0.02 } }),
+    }
+    const tense = { pleasure: -0.3, arousal: 0.6, dominance: -0.2 }
+    const calm = { pleasure: 0.1, arousal: -0.4, dominance: 0 }
+
+    const whenTense = decideByAppraisal(stimulus, await appraiseStimulus(stimulus, classifier, { mood: tense }))
+    const whenCalm = decideByAppraisal(stimulus, await appraiseStimulus(stimulus, classifier, { mood: calm }))
+
+    expect(whenTense).toMatchObject({ outcome: 'admitted', appraisal: { mood: tense } })
+    expect(whenCalm).toMatchObject({ outcome: 'ignored', appraisal: { mood: calm } })
+  })
 })

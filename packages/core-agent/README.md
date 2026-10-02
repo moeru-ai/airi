@@ -173,6 +173,14 @@ A chat runtime with `checkSpendingLimit` rejects new input while the limit is re
 A candidate needs the task requirements, the user tier, the timing target, and at least five quality test results with an 80% pass rate.
 The fastest accepted candidate wins, and price never ranks candidates. Without one, the configured model stays, with `fallback`.
 
+## Mood
+
+Mood is per-persona state in pleasure, arousal, and dominance. A classifier scores five dimensions in one call with `moodQuestions`, and code keeps the state.
+`applyMoodAppraisal` decays mood toward the persona baseline for the elapsed time, then moves it a `sensitivity` share toward the appraisal. One noisy score cannot jump the expression.
+`moodExpression` gives the baseline expression. `composeExpression` weighs a sentence expression by the mood, so mood owns the baseline and the sentence owns its moment.
+`describeMood` is the text of the conversation's mood slot. `moodAppraisalInterval` scales the idle check interval by arousal.
+An appraisal with `mood` gives the classifier the mood and records it as the effective state.
+
 ## Spark notification cancellation
 
 The host supplies an `abortSignal` to the notification agent and its model runner.

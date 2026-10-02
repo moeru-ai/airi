@@ -1,3 +1,5 @@
+import type { Pad } from './mood'
+
 /** Where a stimulus comes from. An internal proposal gets no extra authority from its origin. */
 export type StimulusOrigin = 'external' | 'internal'
 
@@ -74,6 +76,8 @@ export interface IntakeAppraisal {
   threshold: number
   /** Salience from the classifier's urgency score, before it is combined with the prior. */
   urgency?: number
+  /** The persona mood that the classifier read. */
+  mood?: Pad
 }
 
 /** A policy result. The host turns it into a record. */

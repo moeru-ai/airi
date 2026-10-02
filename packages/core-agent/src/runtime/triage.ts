@@ -1,5 +1,6 @@
 import type { Classifier, ClassifierRequest } from './classifier'
 import type { IntakeAppraisal, IntakeDecision, Stimulus } from './intake'
+import type { Pad } from './mood'
 
 import { askWithin, CLASSIFIER_TRUST_THRESHOLD, noulConfidence } from './classifier'
 
@@ -19,6 +20,8 @@ export interface AppraiseOptions {
   threshold?: number
   /** What a yes means for the attention question, for example from a module declaration. */
   attendCriteria?: string
+  /** The persona's current mood. The classifier reads it, and the appraisal records it as the effective state. */
+  mood?: Pad
   signal?: AbortSignal
 }
 
@@ -30,7 +33,14 @@ export function capSceneSalience(stimulus: Stimulus, salience: number) {
 /** Builds the single request for one stimulus. Its text goes into the untrusted field only. */
 export function triageRequest(stimulus: Stimulus, options: AppraiseOptions = {}): ClassifierRequest {
   return {
-    state: { kind: stimulus.kind, source: stimulus.source, event: stimulus.event, origin: stimulus.origin, fromScene: stimulus.fromScene === true },
+    state: {
+      kind: stimulus.kind,
+      source: stimulus.source,
+      event: stimulus.event,
+      origin: stimulus.origin,
+      fromScene: stimulus.fromScene === true,
+      ...(options.mood ? { mood: options.mood } : {}),
+    },
     untrusted: stimulus.text,
     questions: {
       attend: {
@@ -67,7 +77,7 @@ export async function appraiseStimulus(stimulus: Stimulus, classifier: Classifie
   const urgencySalience = urgency?.type === 'score' && Number.isFinite(urgency.score) && urgency.confidence >= threshold
     ? 0.3 + Math.min(Math.max(urgency.score, 0), URGENCY_LEVELS.length - 1) / (URGENCY_LEVELS.length - 1) * 0.6
     : undefined
-  return { backend: classifier.backend, attend: attend.noul, confidence: noulConfidence(attend), threshold, urgency: urgencySalience }
+  return { backend: classifier.backend, attend: attend.noul, confidence: noulConfidence(attend), threshold, urgency: urgencySalience, ...(options.mood ? { mood: options.mood } : {}) }
 }
 
 /**
