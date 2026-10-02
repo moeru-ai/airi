@@ -1,6 +1,21 @@
 allow-visible-on-all-workspaces:
   title: Cross-Space Visibility
   description: Allow the window to be visible on all workspaces, macOS only.
+microphone-permission:
+  prompt:
+    title: Allow microphone access?
+    description: AIRI uses your microphone for voice input and transcription. This choice remains active until you reset it in Settings.
+    allow: Allow
+    deny: Deny
+  states:
+    not-determined: Not set
+    granted: Allowed
+    denied: Denied
+  settings:
+    title: Microphone
+    description: Control whether AIRI can use the microphone. Resetting this choice stops the current microphone stream and asks again next time.
+    revoke: Revoke access
+    reset: Reset decision
 spotlight:
   errors:
     unknown: Unknown error
@@ -49,6 +64,19 @@ devtools:
   pages:
     context-flow:
       title: Context Flow
+    presence-bubble:
+      title: Presence Bubble
+      description: Drive the bubble above the character and watch it in the main window
+      override:
+        title: Drive the bubble from here
+        description: While this is off the stage shows no bubble unless a chat turn is running.
+      thinking:
+        title: Thinking
+        description: Shows the dots. Takes precedence over the unread count.
+      unread:
+        title: Unread messages
+        description: Shown as a panel on the head, with a mark and the count.
+      main-window-note: Changes appear in the main AIRI window.
     live2d-ambient-light:
       title: Live2D Ambient Light
       description: Tune screen sampling and the Live2D color-light shader

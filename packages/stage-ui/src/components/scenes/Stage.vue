@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Live2DLipSync, Live2DLipSyncOptions } from '@proj-airi/model-driver-lipsync'
 import type { Profile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
+import type { CaptionChannelEvent, PresenceBubbleState } from '@proj-airi/stage-shared'
 import type { VrmInteractionTarget } from '@proj-airi/stage-ui-three'
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 import type { UnElevenLabsOptions } from 'unspeech'
@@ -11,10 +11,11 @@ import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from 
 import type { StageSpeechSessionOptions } from '../../services/stage-speech-session-host'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { sleep } from '@moeru/std'
+import { errorMessageFrom, sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
+import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
 import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
 import { SpineScene } from '@proj-airi/stage-ui-spine'
@@ -50,6 +51,7 @@ import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
+import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
 import { useProviderConfigStore } from '../../stores/providers/config'
 import { useProviderStore } from '../../stores/providers/provider'
 import { useSettings } from '../../stores/settings'
@@ -66,6 +68,7 @@ const props = withDefaults(defineProps<{
   paused: false,
 })
 
+const emit = defineEmits<{ error: [error: Error] }>()
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const { getDb } = useDuckDb()
@@ -190,6 +193,12 @@ const viewUpdateCleanups: Array<() => void> = []
 
 function handleStageRenderError(error: Error) {
   stageRenderError.value = error
+  emit('error', error)
+}
+
+function reportStageRenderError(error: unknown) {
+  console.error(error)
+  handleStageRenderError(new Error(errorMessageFrom(error) ?? 'Failed to render stage'))
 }
 
 async function retryStageRenderer() {
@@ -261,6 +270,16 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
+const { sending: chatSending } = storeToRefs(useChatStore())
+const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
+
+// `sending` is raised before the request leaves and cleared once the send
+// settles, which is the span the character has nothing to say yet.
+//
+// Unread stays at zero: nothing reports whether the chat window is showing, so
+// there is no read cursor to count against.
+const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? presenceBubbleThinking : presenceBubbleIdle)
+const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
 const { ssmlEnabled, activeSpeechProvider, activeSpeechModel, activeSpeechVoice, pitch } = storeToRefs(speechStore)
@@ -1195,6 +1214,7 @@ defineExpose({
         v-if="stageModelRenderer === 'live2d' && showStage"
         ref="live2dSceneRef"
         v-model:state="componentState"
+        :presence="presenceBubble"
         min-w="50% <lg:full"
         h-full w-full flex-1
         :model-src="stageModelSelectedUrl"
@@ -1215,6 +1235,7 @@ defineExpose({
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         v-model:state="componentState"
+        :presence="presenceBubble"
         :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" h-full w-full flex-1
         :model-id="stageModelSelected"
@@ -1226,7 +1247,7 @@ defineExpose({
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
-        @error="console.error"
+        @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
       />
       <SpineScene
@@ -1244,6 +1265,7 @@ defineExpose({
         :idle-animation-enabled="spineIdleAnimationEnabled"
         :max-fps="spineMaxFps"
         :render-scale="spineRenderScale"
+        @error="reportStageRenderError"
       />
       <TachieScene
         v-if="stageModelRenderer === 'tachie' && showStage"
@@ -1257,7 +1279,7 @@ defineExpose({
         :paused="paused"
         :theme-colors-hue="themeColorsHue"
         :theme-colors-hue-dynamic="themeColorsHueDynamic"
-        @error="console.error"
+        @error="reportStageRenderError"
       />
       <MMDScene
         v-if="stageModelRenderer === 'mmd' && showStage"
@@ -1273,7 +1295,7 @@ defineExpose({
         :enable-orbit-controls="props.enableOrbitControls"
         :audio-context="audioContext"
         :current-audio-source="currentAudioSource"
-        @error="console.error"
+        @error="reportStageRenderError"
       />
       <div
         v-if="stageModelRenderer === 'godot'"
@@ -1299,7 +1321,7 @@ defineExpose({
       <StageRenderError
         v-if="stageRenderError"
         :error="stageRenderError"
-        renderer="Live2D"
+        :renderer="stageModelRenderer === 'live2d' ? 'Live2D' : stageModelRenderer ?? 'Model'"
         :model-id="stageModelSelected"
         @retry="retryStageRenderer"
       />

@@ -25,8 +25,6 @@ dialogs:
     validationPartial: 配置部分验证
     validationFailed: 配置验证失败
     validationError: '验证错误：{error}'
-    testGeneration: Ping API
-    testGenerationRunning: Ping...
     testGenerationFailed: Ping 测试失败
     retryPingCheck: 重试
     skipForNow: 暂时跳过
@@ -107,7 +105,7 @@ model-select:
   panel-callout:
     support-status-header: 我们同时支持 2D 和 3D 模型
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      点击 {select-button} 选择或导入模型。目前支持 {zip}（适用于 Live2D 和 Spine 模型）、{vrm}（适用于 VRM 模型）和 {mmd}（适用于 MMD 模型，需与贴图一起压缩）。
     model-type-example: >
       Neuro-sama 使用由 Live2D Inc 开发的框架驱动的 2D 模型；Grok Ani（Grok Companion 中的角色）则使用由 VRM / MMD 开放格式驱动的 3D 模型。
   select-model:
@@ -164,8 +162,6 @@ live2d:
   scale-and-position:
     title: 缩放与位置
     scale: 缩放
-    x: X
-    'y': 'Y'
   switch-to-vrm:
     title: 想切换至3D虚拟形象？
     change-to-vrm: 切换至3D虚拟形象设定页面（VRM）
@@ -470,7 +466,6 @@ pages:
     description: 存放记忆的地方，以及策略
     title: 记忆体
   data:
-    title: Data
     description: 管理存储 AIRI 数据、导出和重置
     sections:
       chats:
@@ -527,10 +522,8 @@ pages:
     sections:
       section:
         live2d:
-          title: Live2D
           description: 配置 Live2D 模型
         vrm:
-          title: VRM
           description: 配置 3D VRM 模型
         scene: 场景
   modules:
@@ -780,7 +773,6 @@ pages:
       title: 短期记忆
     messaging-discord:
       description: Discord 发消息和语音聊天
-      title: Discord
       enable: 启用Discord集成
       enable-description: 允许AIRI通过Discord进行互动
       token: 机器人令牌
@@ -836,9 +828,34 @@ pages:
     vision:
       description: 视觉
       title: 视觉
+      tool-images:
+        label: 使用视觉模型理解工具图片
+        description: 工具返回的图片（例如“使用电脑”的截图）会先由视觉模型读取，再由当前聊天模型回复。聊天模型的服务来源声明支持图片输入时，直接交给它。文字描述不包含像素坐标。
+      capture:
+        title: 视觉捕获频率
+        description: 调整视觉定时器捕获画面的频率。
+        interval:
+          label: 捕获间隔
+          description: 数值越小，捕获越频繁，占用的资源也越多。
+      stats:
+        captures: 捕获次数
+        context-updates: 上下文更新
+        inferences: 图像识别调用
+        inferences-description: 视觉模型的每一次调用，包括聊天图片
+        failed-inferences: 失败次数
+        last-inference: 上次调用
+        error: '错误：'
+        last-update: 上次更新 {time}
+        since-start: 自应用启动以来
+        never: 从未
+      ollama:
+        title: 提供商请求开关
+        description: 控制视觉推理请求中提供商特有的参数。
+        thinking:
+          label: 思考（Ollama）
+          description: '开启时，通过 Ollama 发送的视觉请求带有 `think: true`；关闭时带有 `think: false`。'
     x:
       description: X / Twitter 的浏览和使用
-      title: X / Twitter
       enable: 启用X / Twitter集成
       enable-description: 允许AIRI与X / Twitter互动
       api-key: API密钥
@@ -946,7 +963,6 @@ pages:
         json-applied: JSON 已经解析完成了，点「保存并重启」就写到磁盘上啦。
         restarted: 重启好啦！启动了 {started} 个，失败 {failed} 个，跳过 {skipped} 个
   flux:
-    title: Flux
     buy: 充值
     currency: 币种
     description: 充值 Flux
@@ -1007,7 +1023,7 @@ pages:
                   description: API 密钥用于授权此服务来源的请求
                   placeholder: sk-……
                 base-url:
-                  label: Base URL
+                  label: 基础 URL
                   description: >-
                     用于连接远程服务的 baseUrl。通常看起来像是 http://localhost:11434/v1 或 https://example.com/v1。
                   placeholder: 基础 Url……
@@ -1045,6 +1061,9 @@ pages:
               title: 能够列出模型
             check-supports-chat-completion:
               title: 能够处理 Chat Completion（聊天补全）请求
+          apple-vision:
+            check-availability:
+              title: 可用性
           prompt-api:
             check-availability:
               title: 可用性
@@ -1145,6 +1164,9 @@ pages:
         model:
           label: 模型
           description: 选择可用模型，自动识别模型支持的语言。更改后会重新启动当前识别会话。
+      apple-vision:
+        title: Apple 视觉理解
+        description: 使用 macOS 27 或更高版本的设备端 Apple 基础模型理解图片，无需 API 密钥。
       apple-speech-transcription:
         title: Apple 语音识别
         description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。
@@ -1155,18 +1177,13 @@ pages:
             placeholder: zh-CN
       app-local-audio-transcription:
         title: 应用内（本地）
-        description: https://github.com/moeru-ai/xsai-transformers
       app-local-audio-speech:
         title: 应用内（本地）
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-transcription:
         title: 浏览器内（本地）
-        description: https://github.com/moeru-ai/xsai-transformers
       browser-local-audio-speech:
         title: 浏览器内（本地）
-        description: https://github.com/moeru-ai/xsai-transformers
       alibaba-cloud-model-studio:
-        description: bailian.console.aliyun.com
         title: 阿里百炼
       amazon-bedrock:
         config:
@@ -1177,8 +1194,6 @@ pages:
             label: AWS 区域
             description: Bedrock 激活的 AWS 区域（例如：us-east-1，us-west-2）
       anthropic:
-        description: anthropic.com
-        title: Anthropic | Claude
         helpinfo:
           title: 开始之前
           description:
@@ -1217,9 +1232,6 @@ pages:
             volume:
               description: 调节语音的响度
               label: 响度
-      deepgram-tts:
-        description: deepgram.com
-        title: Deepgram
       speech-noop:
         title: 无
         description: 不使用语音合成
@@ -1380,9 +1392,7 @@ pages:
         title: Kokoro TTS (本地)
       fireworks:
         description: Fireworks.ai
-        title: Fireworks.ai
       microsoft-speech:
-        description: speech.microsoft.com
         fields:
           field:
             region:
@@ -1390,105 +1400,35 @@ pages:
               label: Endpoint 地区
         title: Microsoft / Azure 语音服务
       index-tts-vllm:
-        description: https://index-tts.github.io/
-        title: Bilibili / IndexTTS
         callout_indextts2_unavailable_title: 暂不支持
         callout_indextts2_unavailable: 目前尚未支持 IndexTTS2，请使用 IndexTTS。
-      azure-ai-foundry:
-        description: Azure AI Foundry
-        title: Azure AI Foundry
-      minimax:
-        description: minimaxi.com
-        title: MiniMax
-      minimax-global:
-        description: minimax.io
-        title: MiniMax Global
-      mistral:
-        description: mistral.ai
-        title: Mistral
       moonshot:
         description: Moonshot.ai
         title: 月之暗面
       modelscope:
-        description: modelscope.cn
         title: 魔搭社区 ModelScope
-      novita:
-        description: novita.ai
-        title: Novita
-      ollama:
-        description: ollama.ai
-        title: Ollama
       openai:
         description: OpenAi.com
-        title: OpenAI
-      azure-openai:
-        description: Azure OpenAI API
-        title: Azure OpenAI
       openai-compatible:
         description: OpenAI 兼容 API
         title: OpenAI 兼容 API
-      nvidia:
-        description: build.nvidia.com
-        title: NVIDIA NIM
       n1n:
         description: n1n.ai - 高性能的 AI API 提供商
-        title: n1n
       openrouter:
         description: OpenRouter.ai
-        title: OpenRouter
-      openrouter-audio-speech:
-        description: openrouter.ai
-        title: OpenRouter
-      perplexity:
-        description: perplexity.ai
-        title: Perplexity
-      player2:
-        description: player2.game
-        title: Player2
-      together:
-        description: together.ai
-        title: Together.ai
-      google-generative-ai:
-        description: gemini.google.com
-        title: Google Gemini
-      groq:
-        description: groq.com
-        title: Groq
-      featherless:
-        description: featherless.ai
-        title: Featherless AI
-      lm-studio:
-        description: lmstudio.ai
-        title: LM Studio
-      vllm:
-        description: vllm.ai
-        title: vLLM
       volcengine:
-        description: volcengine.com
         fields:
           field:
             appId:
               description: 可在控制台获取的 App ID
-              label: App ID
         title: 火山引擎
       volcengine-coding-plan:
         description: 火山引擎 Coding Plan
         title: 火山引擎 Coding Plan
       xai:
         description: X.AI
-        title: xAI
       zai:
         description: 智谱大模型
-        title: Z.ai
-      302-ai:
-        description: 302.AI
-        title: 302.AI
-      comet-api:
-        description: CometAPI.com
-        title: Comet API
-      cerebras:
-        description: cerebras.ai
-        title: Cerebras
       aliyun-nls:
         description: Aliyun 智能语音服务
         title: Aliyun 智能语音服务
@@ -1510,7 +1450,6 @@ pages:
         playground:
           title: 实验平台
       aihubmix:
-        title: AIHubMix
         description: https://aihubmix.com (九折优惠)
     title: 服务来源
   connection:
@@ -1519,7 +1458,6 @@ pages:
     websocket-url:
       description: 此应用连接本地服务器时使用的地址。
       label: 服务器地址
-      placeholder: ws://localhost:6121/ws
     server-hostname:
       label: 向所有设备开放
       description: 允许本地网络中的其他设备连接此服务器。
@@ -1583,7 +1521,6 @@ pages:
                 title: 性能可视化工具
                 description: 显示 FPS、帧时间、长任务和浏览器支持的内存指标
               markdown-stress:
-                title: Markdown Stress
                 description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
               plugin-host:
                 actions:
@@ -1654,8 +1591,6 @@ pages:
         theme-presets:
           presets:
             default:
-              colors:
-                color-1: AIRI Green
               description: 默认的绿色主题，由 AIRI 为您带来！
               title: 默认颜色
             morandi:
@@ -1851,3 +1786,6 @@ wip:
   title: 正在开发中
   description: >-
     此功能正在开发中，尚未公开发布。请在未来的更新中再次查看此功能。
+streamer-mode:
+  title: 直播模式
+  description: 隐藏角色窗口中的麦克风和登录提示。

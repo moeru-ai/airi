@@ -45,7 +45,6 @@ chat:
     stop: 停止回复
   message:
     character-name:
-      airi: AIRI
       core-system: 核心系统
       you: 你
   reply:
@@ -79,11 +78,29 @@ render-error:
     {renderer} 无法渲染选中的模型。
     模型 ID：{modelId}
     错误：{error}
+startup:
+  failed: 启动失败
+  failed-resource: 无法加载{resource}
+  recover: 请重试。如果仍然失败，请查看下方的错误详情。
+  recover-model: 重新启动 AIRI 再试一次，或暂不加载角色，稍后选择其他模型。
+  details: 发生了什么？
+  close-details: 关闭详情
+  retry: 重新启动 AIRI
+  continue-without-model: 暂不加载角色
+  resources:
+    auth: 账户设置
+    modelIndex: 模型列表
+    card: 角色设置
+    chat: 聊天记录
+    services: 应用服务
+    modelData: 已保存的模型
+    modelSelection: 模型设置
+    audio: 音频设置
+    route: 页面
+    model: 角色模型
 message: 说点什么...
 send-mode:
   title: 发送键值
-  enter: Enter
-  ctrl-enter: Ctrl + Enter
   double-enter: 双击Enter
 speech-output:
   mute: 静音语音
@@ -163,3 +180,17 @@ websocket-status:
 computer-use:
   label: 使用电脑
   description: 允许此聊天窗口查看和操作本机应用。
+status:
+  preparing: 正在准备麦克风
+  listening: 正在听
+  paused: AIRI 说话时暂停聆听
+  transcribing: 正在转写
+  hearing-error: 语音转写出错了
+  no-transcript: 识别到的内容会显示在这里。
+  signing-in: 请在浏览器中完成登录
+  confirming: 正在确认登录
+  signed-in: 登录成功
+  sign-in-error: 登录失败
+  sign-in-unconfirmed: 未能确认登录会话，请重新登录。
+  dismiss: 关闭提示
+  configure-hearing: 请先在设置中选择并配置听觉服务。

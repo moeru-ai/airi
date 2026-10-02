@@ -68,7 +68,7 @@ controls-island:
 model-select:
   panel-callout:
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      點擊 {select-button} 選擇或匯入模型。目前支援 {zip}（適用於 Live2D 與 Spine 模型）、{vrm}（適用於 VRM 模型）和 {mmd}（適用於 MMD 模型，需與貼圖一起壓縮）。
 live2d:
   change-model:
     from-file: 從檔案載入
@@ -127,10 +127,7 @@ live2d:
     render-scale:
       title: 渲染縮放
     fps:
-      title: FPS
       description: 限制渲染影格率
-      options:
-        unlimited: '∞'
     shadow: 陰影
     reset-parameters: 重設為預設參數
   clear-model-cache: 清除模型快取

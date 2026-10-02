@@ -82,7 +82,7 @@ analytics:
 model-select:
   panel-callout:
     support-status: >
-      Click {select-button} to select or import models. Currently, {zip} (for Live2D and Spine models) and {vrm} (for VRM models) are supported.
+      Cliquez sur {select-button} pour sélectionner ou importer des modèles. Actuellement, les formats {zip} (pour les modèles Live2D et Spine), {vrm} (pour les modèles VRM) et {mmd} (pour les modèles MMD, compressés avec leurs textures) sont pris en charge.
 live2d:
   change-model:
     from-file: Charger depuis un Fichier

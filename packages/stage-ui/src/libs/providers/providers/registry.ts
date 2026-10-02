@@ -5,6 +5,7 @@ import type { $ZodType } from 'zod/v4/core'
 import type { ProviderConfigContext, ProviderDefinition } from '../types'
 import type { providerAliyunNlsTranscription } from './aliyun-nls'
 import type { providerAppleSpeechTranscription } from './apple-speech'
+import type { providerAppleVision } from './apple-vision'
 import type { providerKokoroLocal } from './kokoro-local'
 import type {
   providerAppLocalAudioSpeech,
@@ -29,6 +30,7 @@ type StageOnlyProviderId
   = | typeof providerSherpawTranscription.id
     | typeof providerAliyunNlsTranscription.id
     | typeof providerAppleSpeechTranscription.id
+    | typeof providerAppleVision.id
     | typeof providerAppLocalAudioSpeech.id
     | typeof providerAppLocalAudioTranscription.id
     | typeof providerBrowserLocalAudioSpeech.id

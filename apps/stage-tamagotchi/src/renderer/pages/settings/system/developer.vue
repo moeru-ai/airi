@@ -109,6 +109,12 @@ const menu = computed(() => [
     icon: 'i-solar:keyboard-bold-duotone',
     to: '/devtools/global-shortcut',
   },
+  {
+    title: t('tamagotchi.settings.devtools.pages.presence-bubble.title'),
+    description: t('tamagotchi.settings.devtools.pages.presence-bubble.description'),
+    icon: 'i-solar:chat-line-line-duotone',
+    to: '/devtools/presence-bubble',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)
