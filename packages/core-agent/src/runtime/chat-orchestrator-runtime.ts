@@ -24,6 +24,7 @@ import { LeaseTable } from './lease-table'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
 import { RunTable } from './run-table'
+import { STAY_QUIET_TOOL_NAME, stayQuietReason } from './stay-quiet'
 
 const REASONING_UI_FLUSH_CHUNK_SIZE = 24
 
@@ -160,6 +161,8 @@ interface QueuedSend {
   cancellation?: { rollback: boolean }
   /** Set when supervision ends the run. */
   supervision?: { state: 'expired' | 'blocked', reason: string }
+  /** Set when the run chose silence. */
+  silent?: { reason?: string }
   /** Keep provider identity paired with the client captured at enqueue time. */
   providerId: string
   sendingMessage: string
@@ -651,6 +654,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       onToolCall: (key: string) => void
       /** Records a message that a rollback can remove. */
       onWrite: (messageId: string) => void
+      /** Records that the run chose silence. */
+      onSilent: (reason?: string) => void
     },
   ) {
     if (!sendingMessage && !options.attachments?.length)
@@ -940,6 +945,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitBeforeSendHooks(sendingMessage, streamingMessageContext)
 
       let fullText = ''
+      // Set when the model calls the silence tool. Silence needs this explicit choice, so an empty reply alone stays a normal result.
+      let quiet: { reason?: string } | undefined
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
       if (shouldAbort())
@@ -1001,6 +1008,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               break
             case 'tool-call':
               run.onToolCall(`${event.toolName}\u0000${event.args}`)
+              if (event.toolName === STAY_QUIET_TOOL_NAME)
+                quiet = { reason: stayQuietReason(event.args) }
               toolCallQueue.enqueue({
                 type: 'tool-call',
                 toolCall: event,
@@ -1084,7 +1093,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         console.error('Assistant response observer failed:', error)
       }
 
-      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
+      // A chosen silence with no spoken text leaves no assistant message and no reply hooks.
+      const silent = quiet !== undefined && !fullText.trim()
+      if (silent)
+        run.onSilent(quiet?.reason)
+      if (!silent && !shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
         appendAssistantMessage(finalAssistant)
         assistantStored = true
@@ -1107,7 +1120,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
       if (shouldAbort())
         return
-      await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
+      if (!silent)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
       if (shouldAbort())
         return
       await hooks.emitChatTurnCompleteHooks({
@@ -1234,12 +1248,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             supervise('blocked', 'Run repeated an identical tool call')
         },
         onWrite: messageId => queuedSend.writtenMessageIds.push(messageId),
+        onSilent: (reason) => {
+          queuedSend.silent = { reason }
+        },
       })
       if (queuedSend.supervision) {
         runs.transition(runId, queuedSend.supervision.state, queuedSend.supervision.reason)
         return { ok: false, error: new Error(queuedSend.supervision.reason) }
       }
-      runs.transition(runId, controller.signal.aborted || deps.session.getSessionGeneration(sessionId) !== generation ? 'dropped' : 'done')
+      runs.transition(runId, controller.signal.aborted || deps.session.getSessionGeneration(sessionId) !== generation ? 'dropped' : 'done', undefined, { silent: queuedSend.silent })
       return { ok: true }
     }
     catch (error) {

@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceFromBindings, createChatOrchestratorRuntime, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
+import { audienceFromBindings, createChatOrchestratorRuntime, createStayQuietTool, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -338,8 +338,11 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  /** Adds the source reader, authorized by the session and run that own the request. */
-  function withContextSourceTool(tools: StreamOptions['tools'], correlation: StreamOptions['requestCorrelation']): StreamOptions['tools'] {
+  /**
+   * Adds the run tools: the source reader, authorized by the session and run that own the request, and the silence choice.
+   * Both stay in every run request, so the tool list stays stable across turns.
+   */
+  function withRunTools(tools: StreamOptions['tools'], correlation: StreamOptions['requestCorrelation']): StreamOptions['tools'] {
     if (!correlation)
       return tools
     const { conversationId: sessionId, runId } = correlation
@@ -347,6 +350,7 @@ export const useChatStore = defineStore('chat', () => {
     return async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
+      createStayQuietTool(),
     ]
   }
 
@@ -455,7 +459,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
-        tools: withContextSourceTool(options?.tools, options?.requestCorrelation),
+        tools: withRunTools(options?.tools, options?.requestCorrelation),
         headers,
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {

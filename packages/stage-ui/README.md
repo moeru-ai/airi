@@ -111,6 +111,7 @@ Notifications and chat sends wait in one voice line. The tick offers the first d
 An admitted notification still decides inside its run whether to speak.
 Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.
 After three blocked runs within a minute, notifications and idle appraisal wait for a one-minute cooldown. Owner input still runs and shows its failure.
+Every chat run request carries the silence tool and its guidance. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling
 

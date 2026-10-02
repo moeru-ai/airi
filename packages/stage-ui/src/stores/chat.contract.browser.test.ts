@@ -364,8 +364,8 @@ describe('chat store contract', () => {
     expect(() => structuredClone(result)).not.toThrow()
     // Each request also receives the source reader, authorized by its own session.
     expect(resolvedToolNames).toEqual([
-      ['stage_widgets', 'builtIn_readContextSource'],
-      ['stage_widgets', 'builtIn_readContextSource'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet'],
     ])
   })
 

@@ -197,6 +197,12 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Designed: persona and mood change appraisal cadence in P6. P3 uses the user's idle check interval, and a short interval changes how often the character looks, not how often it speaks.
 - Experimental: whether either backend improves attention decisions. Live evidence after P10 must compare decisions and latency against fixed rules.
 
+### P4 progress
+
+- Observed (`chat-orchestrator-runs.test.ts`, T2): a run that calls the silence tool ends `done` with `silent`, and leaves no assistant message or reply hook.
+- Observed (`chat-orchestrator-runs.test.ts`, T8): an empty reply without the tool and a provider failure never count as silence. Spoken text after the tool wins.
+- Implemented: every chat run offers the silence tool, so the tool list stays stable. The decision belongs to the run, not to intake.
+
 ### Open P0 evidence
 
 These checks need live models, bots, or windows. They are not verified.

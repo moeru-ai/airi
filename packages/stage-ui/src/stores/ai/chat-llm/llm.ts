@@ -3,7 +3,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import type { DescribeToolImage } from './tool-images'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey, STAY_QUIET_TOOL_NAME, STAY_QUIET_TOOLSET_PROMPT } from '@proj-airi/core-agent'
 import { SPARK_COMMAND_TOOLSET_PROMPT } from '@proj-airi/core-agent/agents/spark-command'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
@@ -29,6 +29,12 @@ export const useLLM = defineStore('llm', () => {
     title: 'Command relay',
     requiredTools: ['builtIn_emitSparkCommand'],
     content: SPARK_COMMAND_TOOLSET_PROMPT,
+  }])
+  toolsetPrompts.registerToolsetPrompts('stay-quiet', [{
+    id: 'stay-quiet',
+    title: 'Silence',
+    requiredTools: [STAY_QUIET_TOOL_NAME],
+    content: STAY_QUIET_TOOLSET_PROMPT,
   }])
   toolsetPrompts.registerToolsetPrompts('context-source', [{
     id: 'context-source',

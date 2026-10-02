@@ -33,6 +33,8 @@ export interface AgentRun {
   startedAt?: number
   endedAt?: number
   error?: string
+  /** Set on a `done` run that chose silence. Silence is a successful outcome, never a failure. */
+  silent?: { reason?: string }
 }
 
 const FINAL_STATES = new Set<AgentRunState>(['done', 'dropped', 'blocked', 'expired'])
@@ -81,7 +83,7 @@ export class RunTable {
   }
 
   /** Moves a run to a later state. Calls on a finished or unknown run do nothing. */
-  transition(runId: string, state: Exclude<AgentRunState, 'queued'>, error?: string) {
+  transition(runId: string, state: Exclude<AgentRunState, 'queued'>, error?: string, outcome?: { silent?: { reason?: string } }) {
     const run = this.runs.get(runId)
     if (!run || FINAL_STATES.has(run.state))
       return
@@ -92,6 +94,8 @@ export class RunTable {
       run.endedAt = this.now()
       if (error !== undefined)
         run.error = error
+      if (state === 'done' && outcome?.silent)
+        run.silent = outcome.silent
       this.trimFinished()
     }
     this.notify(run)

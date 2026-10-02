@@ -72,6 +72,7 @@ export type {
 } from './runtime/response-categoriser'
 export type { AgentRun, AgentRunState, ExecutionEnvelope } from './runtime/run-table'
 export { RunTable } from './runtime/run-table'
+export { createStayQuietTool, STAY_QUIET_TOOL_NAME, STAY_QUIET_TOOLSET_PROMPT, stayQuietReason } from './runtime/stay-quiet'
 export type { AppraiseOptions } from './runtime/triage'
 export { appraiseStimulus, capSceneSalience, decideByAppraisal, SCENE_SALIENCE_CAP, triageRequest } from './runtime/triage'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'

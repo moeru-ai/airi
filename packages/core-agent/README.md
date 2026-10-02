@@ -119,6 +119,13 @@ Three identical consecutive tool calls end a run as `blocked`. A supervised end 
 `cancelRun(runId, { rollback })` stops a waiting or running run. Its late output never commits.
 With `rollback`, the run's user turn and partial reply leave the session through `removeSessionMessages`. A requeued input therefore appears once.
 
+## Silence
+
+A conversation run can choose silence by calling `builtIn_stayQuiet` from `createStayQuietTool`. The run ends `done` with `silent` and its private reason.
+A silent run appends no assistant message and emits no reply hooks, so no channel receives an empty reply.
+Silence needs the explicit tool call. An empty reply without it stays a normal result, and a failure stays `blocked` or `expired`.
+Spoken text after the tool call wins, and the reply is kept.
+
 ## Error bursts
 
 `ErrorBurstBreaker` watches run changes. Three `blocked` runs within one minute start a one-minute cooldown.
