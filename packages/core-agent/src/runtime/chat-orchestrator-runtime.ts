@@ -132,6 +132,8 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /** Receives each model stream event before the orchestrator stores it. */
+  onStreamEvent?: (event: StreamEvent) => void | Promise<void>
 }
 
 interface QueuedSend {
@@ -219,15 +221,18 @@ export interface ChatOrchestratorPromptProjection {
 
 /**
  * Reactive state mirrored by UI facades.
+ *
+ * Several sessions can own an in-flight send at once. A session id appears in
+ * `sendingSessionIds` only while that session's send is inside `performSend`.
+ * `streamingMessagesBySessionId` holds that session's latest assistant snapshot.
+ * Queued work for the same session stays ordered and is not in this map yet.
  */
 export interface ChatOrchestratorRuntimeState {
-  /** Whether the runtime currently owns an active send. */
-  sending: boolean
-  /** Session that owns the active send; undefined while the queue is idle. */
-  activeSendSessionId?: string
-  /** Latest assistant stream snapshot owned by the active send session. */
-  activeStreamingMessage?: StreamingAssistantMessage
-  /** Number of sends waiting behind the active one. */
+  /** Session ids that currently own an in-flight send, in start order. */
+  sendingSessionIds: readonly string[]
+  /** Latest assistant stream snapshot for each in-flight session. */
+  streamingMessagesBySessionId: Readonly<Record<string, StreamingAssistantMessage>>
+  /** Number of sends waiting behind an in-flight send. */
   pendingQueuedSendCount: number
 }
 
@@ -381,7 +386,10 @@ export interface ChatOrchestratorRuntimeDeps {
  * Platform-agnostic chat orchestrator runtime API.
  */
 export interface ChatOrchestratorRuntime {
-  /** Enqueues a user send for the target session, preserving FIFO order. */
+  /**
+   * Enqueues a user send for the target session.
+   * One session keeps FIFO order. Different sessions can run together.
+   */
   ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
   /** Rejects queued sends that have not started yet. */
   cancelPendingSends: (sessionId?: string) => void
@@ -389,10 +397,6 @@ export interface ChatOrchestratorRuntime {
   getPendingQueuedSendSnapshot: () => QueuedSendSnapshot[]
   /** Returns the current queued send count. */
   getPendingQueuedSendCount: () => number
-  /** Reads the writable sending flag. */
-  getSending: () => boolean
-  /** Updates the writable sending flag and notifies facade mirrors. */
-  setSending: (next: boolean) => void
   /** Hook registry preserved from the previous stage-ui store API. */
   hooks: ReturnType<typeof createChatHooks>
 }
@@ -413,7 +417,7 @@ function defaultCreateId() {
  * - `foregroundStream.patch` replaces the visible streaming assistant message.
  *
  * Returns:
- * - A runtime with send queue APIs, hook registry, writable sending state, and queue snapshots.
+ * - A runtime with per-session send queues, hook registry, and queue snapshots.
  */
 export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps): ChatOrchestratorRuntime {
   // A queued send owns one controller until performSend settles. Session reset
@@ -425,31 +429,21 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const createId = deps.createId ?? defaultCreateId
   const unwrapMessage = deps.unwrapMessage ?? (<T>(message: T) => message)
 
-  let sending = false
-  let activeSendSessionId: string | undefined
-  let activeStreamingMessage: StreamingAssistantMessage | undefined
+  /** In-flight assistant snapshots. Key presence means that session is sending. */
+  const streamingMessagesBySessionId = new Map<string, StreamingAssistantMessage>()
+  const sendingSessionIds: string[] = []
   let pendingQueuedSends: QueuedSend[] = []
 
   function emitStateChange() {
+    const snapshots: Record<string, StreamingAssistantMessage> = {}
+    for (const [sessionId, message] of streamingMessagesBySessionId)
+      snapshots[sessionId] = message
+
     deps.onStateChange?.({
-      sending,
-      activeSendSessionId,
-      activeStreamingMessage,
+      sendingSessionIds: [...sendingSessionIds],
+      streamingMessagesBySessionId: snapshots,
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
-  }
-
-  function setSending(next: boolean) {
-    const nextActiveSendSessionId = next
-      ? activeSendSessionId ?? deps.getActiveSessionId()
-      : undefined
-    if (sending === next && activeSendSessionId === nextActiveSendSessionId)
-      return
-    sending = next
-    activeSendSessionId = nextActiveSendSessionId
-    if (!next)
-      activeStreamingMessage = undefined
-    emitStateChange()
   }
 
   function isForegroundSession(sessionId: string) {
@@ -457,9 +451,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function beginStream(sessionId: string, message: StreamingAssistantMessage) {
-    sending = true
-    activeSendSessionId = sessionId
-    activeStreamingMessage = cloneStreamingMessage(message)
+    if (!sendingSessionIds.includes(sessionId))
+      sendingSessionIds.push(sessionId)
+    streamingMessagesBySessionId.set(sessionId, cloneStreamingMessage(message))
     emitStateChange()
 
     if (isForegroundSession(sessionId))
@@ -467,13 +461,24 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function updateStream(sessionId: string, message: StreamingAssistantMessage) {
-    if (sessionId === activeSendSessionId) {
-      activeStreamingMessage = cloneStreamingMessage(message)
-      emitStateChange()
-    }
+    if (!streamingMessagesBySessionId.has(sessionId))
+      return
+
+    streamingMessagesBySessionId.set(sessionId, cloneStreamingMessage(message))
+    emitStateChange()
 
     if (isForegroundSession(sessionId))
       deps.foregroundStream.patch(cloneStreamingMessage(message))
+  }
+
+  function endStream(sessionId: string) {
+    const index = sendingSessionIds.indexOf(sessionId)
+    if (index < 0)
+      return
+
+    sendingSessionIds.splice(index, 1)
+    streamingMessagesBySessionId.delete(sessionId)
+    emitStateChange()
   }
 
   function resetForegroundStream(sessionId: string) {
@@ -538,6 +543,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
     ingestRuntimeContexts()
+    // Taken before the first await. Later sends can ingest into the shared
+    // registry while this send is suspended, and must not change this prompt.
+    const promptContexts = deps.context.snapshot()
 
     const sendingCreatedAt = now()
 
@@ -549,6 +557,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const roundId = createId()
     const streamingMessageContext: ChatStreamEventContext = {
       turnId: roundId,
+      sessionId,
       message: {
         role: 'user',
         content: sendingMessage,
@@ -556,7 +565,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: streamContextMessageId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
       },
-      contexts: deps.context.snapshot(),
+      contexts: promptContexts,
       composedMessage: [],
       input: options.input,
     }
@@ -765,7 +774,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
-      const contextsSnapshot = deps.context.snapshot()
+      const contextsSnapshot = promptContexts
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
         const lastMessage = context.turns.at(-1)
@@ -840,6 +849,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           })
         },
         onStreamEvent: async (event: StreamEvent) => {
+          await options.onStreamEvent?.(event)
           if (shouldAbort())
             return
 
@@ -1038,49 +1048,65 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
         resetForegroundStream(sessionId)
       }
-      setSending(false)
+      endStream(sessionId)
       deps.onSendSettled?.({ sessionId })
     }
   }
 
-  const sendQueue = createQueue<QueuedSend>({
-    handlers: [
-      async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
+  const sendQueues = new Map<string, ReturnType<typeof createQueue<QueuedSend>>>()
 
-        if (cancelled)
-          return
+  function queueFor(sessionId: string) {
+    const existing = sendQueues.get(sessionId)
+    if (existing)
+      return existing
 
-        if (deps.session.getSessionGeneration(sessionId) !== generation) {
-          deferred.reject(new Error('Chat session was reset before send could start'))
-          return
-        }
+    const queue = createQueue<QueuedSend>({
+      handlers: [
+        async ({ data }) => {
+          const { sendingMessage, options, generation, deferred, sessionId: queuedSessionId, cancelled, providerId } = data
 
-        const controller = new AbortController()
-        activeSends.set(sessionId, controller)
-        try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
-          deferred.resolve()
-        }
-        catch (error) {
-          deferred.reject(error)
-        }
-        finally {
-          activeSends.delete(sessionId)
-        }
-      },
-    ],
-  })
+          if (cancelled)
+            return
 
-  sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.push(queuedSend)
-    emitStateChange()
-  })
+          if (deps.session.getSessionGeneration(queuedSessionId) !== generation) {
+            deferred.reject(new Error('Chat session was reset before send could start'))
+            return
+          }
 
-  sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
-    emitStateChange()
-  })
+          const controller = new AbortController()
+          activeSends.set(queuedSessionId, controller)
+          try {
+            await performSend(sendingMessage, options, generation, queuedSessionId, controller.signal, providerId)
+            deferred.resolve()
+          }
+          catch (error) {
+            deferred.reject(error)
+          }
+          finally {
+            activeSends.delete(queuedSessionId)
+          }
+        },
+      ],
+    })
+
+    queue.on('enqueue', (queuedSend) => {
+      pendingQueuedSends.push(queuedSend)
+      emitStateChange()
+    })
+
+    queue.on('dequeue', (queuedSend) => {
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+      emitStateChange()
+    })
+
+    queue.on('drain', () => {
+      if (!streamingMessagesBySessionId.has(sessionId))
+        sendQueues.delete(sessionId)
+    })
+
+    sendQueues.set(sessionId, queue)
+    return queue
+  }
 
   function ingest(
     sendingMessage: string,
@@ -1091,7 +1117,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const generation = deps.session.getSessionGeneration(sessionId)
 
     return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+      queueFor(sessionId).enqueue({
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
         options,
@@ -1138,8 +1164,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
     getPendingQueuedSendCount: () => pendingQueuedSends.length,
-    getSending: () => sending,
-    setSending,
     hooks,
   }
 }

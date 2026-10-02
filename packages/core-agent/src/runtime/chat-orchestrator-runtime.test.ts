@@ -183,6 +183,21 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.foregroundPatches.some(message => message.content === '1234')).toBe(true)
   })
 
+  it('forwards stream events to the send listener', async () => {
+    const harness = createHarness()
+    const events: string[] = []
+
+    await harness.runtime.ingest('hello', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      onStreamEvent: (event) => {
+        events.push(event.type)
+      },
+    })
+
+    expect(events).toEqual(['text-delta', 'finish'])
+  })
+
   // ROOT CAUSE:
   //
   // A transport failure cleared the foreground stream before the assistant
@@ -1083,24 +1098,54 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps sending externally writable for UI facades', () => {
+  it('runs different sessions together and keeps one session in order', async () => {
     const harness = createHarness()
-
-    harness.runtime.setSending(true)
-    expect(harness.runtime.getSending()).toBe(true)
-    expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: 'session-1',
-      activeStreamingMessage: undefined,
-      sending: true,
-      pendingQueuedSendCount: 0,
+    const releases = new Map<string, () => void>()
+    const started: string[] = []
+    harness.stream.mockImplementation(async (_model, _chatProvider, _messages, options) => {
+      const sessionId = options?.requestCorrelation?.conversationId ?? ''
+      const earlier = started.filter(id => id === sessionId).length
+      started.push(sessionId)
+      if (earlier === 0) {
+        await new Promise<void>((resolve) => {
+          releases.set(sessionId, resolve)
+        })
+      }
+      const text = sessionId === 'session-2' ? 'second' : 'first'
+      await options?.onStreamEvent?.({ type: 'text-delta', text })
+      await options?.onStreamEvent?.({ type: 'finish' })
     })
 
-    harness.runtime.setSending(false)
-    expect(harness.runtime.getSending()).toBe(false)
+    const firstSend = harness.runtime.ingest('first session', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, 'session-1')
+    const secondSend = harness.runtime.ingest('second session', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, 'session-2')
+    const queuedSend = harness.runtime.ingest('queued on first', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    }, 'session-1')
+
+    await vi.waitFor(() => {
+      expect(harness.stream).toHaveBeenCalledTimes(2)
+    })
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(1)
+    expect(harness.stateChanges.at(-1)).toEqual(expect.objectContaining({
+      sendingSessionIds: ['session-1', 'session-2'],
+      pendingQueuedSendCount: 1,
+    }))
+
+    releases.get('session-1')?.()
+    releases.get('session-2')?.()
+    await Promise.all([firstSend, secondSend, queuedSend])
+    expect(harness.stream).toHaveBeenCalledTimes(3)
+    expect(started.filter(id => id === 'session-1')).toHaveLength(2)
     expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: undefined,
-      activeStreamingMessage: undefined,
-      sending: false,
+      sendingSessionIds: [],
+      streamingMessagesBySessionId: {},
       pendingQueuedSendCount: 0,
     })
   })
@@ -1128,12 +1173,13 @@ describe('createChatOrchestratorRuntime', () => {
 
     await vi.waitFor(() => {
       expect(harness.stateChanges).toContainEqual(expect.objectContaining({
-        activeSendSessionId: 'session-2',
-        activeStreamingMessage: expect.objectContaining({
-          role: 'assistant',
-          createdAt: expect.any(Number),
-        }),
-        sending: true,
+        sendingSessionIds: ['session-2'],
+        streamingMessagesBySessionId: {
+          'session-2': expect.objectContaining({
+            role: 'assistant',
+            createdAt: expect.any(Number),
+          }),
+        },
         pendingQueuedSendCount: 0,
       }))
     })
@@ -1142,18 +1188,20 @@ describe('createChatOrchestratorRuntime', () => {
     })
     await vi.waitFor(() => {
       expect(harness.stateChanges).toContainEqual(expect.objectContaining({
-        activeSendSessionId: 'session-2',
-        activeStreamingMessage: expect.objectContaining({ content: expect.stringContaining('background') }),
+        sendingSessionIds: ['session-2'],
+        streamingMessagesBySessionId: {
+          'session-2': expect.objectContaining({ content: expect.stringContaining('background') }),
+        },
       }))
     })
+    expect(harness.foregroundPatches).toEqual([])
 
     finishSend?.()
     await pendingSend
 
     expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: undefined,
-      activeStreamingMessage: undefined,
-      sending: false,
+      sendingSessionIds: [],
+      streamingMessagesBySessionId: {},
       pendingQueuedSendCount: 0,
     })
   })

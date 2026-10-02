@@ -485,7 +485,7 @@ describe('chat store contract', () => {
       await sending
 
       expect(leaderSignal?.aborted).toBe(true)
-      expect(leaderStore.sending).toBe(false)
+      expect(leaderStore.sendingSessionIds).toEqual([])
     }
     finally {
       followerRuntime.dispose()
@@ -1217,7 +1217,7 @@ describe('chat store contract', () => {
       chatProvider: provider,
     })
 
-    expect(store.sending).toBe(false)
+    expect(store.sendingSessionIds).toEqual([])
     expect(trackFirstMessageMock).toHaveBeenCalledOnce()
     // Datetime is no longer pushed through ingestContextMessage; it is now
     // applied at message-assembly time as per-message [HH:MM] prefixes. The
@@ -1308,20 +1308,20 @@ describe('chat store contract', () => {
     // that follower's unrelated local selection.
     const store = useChatStore()
     store.$patch({
-      sending: true,
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        role: 'assistant',
-        content: 'authority stream',
-        slices: [],
-        tool_results: [],
+      sendingSessionIds: ['session-b'],
+      streamingMessagesBySessionId: {
+        'session-b': {
+          role: 'assistant',
+          content: 'authority stream',
+          slices: [],
+          tool_results: [],
+        },
       },
     })
     await nextTick()
 
-    expect(store.sending).toBe(true)
-    expect(store.activeSendSessionId).toBe('session-b')
-    expect(store.activeStreamingMessage?.content).toBe('authority stream')
+    expect(store.sendingSessionIds).toEqual(['session-b'])
+    expect(store.streamingMessagesBySessionId['session-b']?.content).toBe('authority stream')
   })
 
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {
@@ -1339,7 +1339,7 @@ describe('chat store contract', () => {
     })
 
     await vi.waitFor(() => {
-      expect(store.sending).toBe(true)
+      expect(store.sendingSessionIds.length).toBeGreaterThan(0)
     })
     await vi.waitFor(() => {
       expect(ioTracerMocks.spans.some(span => span.name === IOSpanNames.InteractionTurn)).toBe(true)
@@ -1349,7 +1349,7 @@ describe('chat store contract', () => {
     if (!turnSpan)
       throw new Error('Expected the chat facade to create an interaction turn span')
 
-    store.sending = false
+    store.sendingSessionIds = []
     await nextTick()
 
     expect(turnSpan.end).not.toHaveBeenCalled()
