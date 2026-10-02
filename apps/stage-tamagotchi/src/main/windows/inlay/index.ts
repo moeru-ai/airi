@@ -25,6 +25,8 @@ export function setupInlayWindowReusable(params: {
     const window = new BrowserWindow({
       ...transparentWindowConfig(),
       ...spotlightLikeWindowConfig(),
+      // transparentWindowConfig removes the shadow. The inlay is a native vibrancy panel, so it keeps the system shadow.
+      hasShadow: true,
       title: 'Inlay',
       width: 450,
       height: INLAY_WINDOW_HEIGHT,
@@ -33,8 +35,6 @@ export function setupInlayWindowReusable(params: {
       maximizable: false,
       minimizable: false,
       skipTaskbar: true,
-      // The inlay opens without focus, so it must stay above the app that the user works in.
-      alwaysOnTop: true,
       icon,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
