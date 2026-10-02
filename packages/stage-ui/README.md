@@ -130,7 +130,7 @@ The Consciousness page holds the optional spending limit per rolling hour and th
 While the limit is reached, owner and connection input fails with a message, and notifications and idle checks wait. No model is swapped for a cheaper one.
 The spending ledger lives in the leader renderer's memory, so it starts empty after a restart.
 `useCharacterMoodStore` keeps each persona's mood. Its motion follows the temperament that the card editor sets with `TemperamentPad`. With a classifier configured, finished turns and urgent notifications move it. Without one, mood rests and nothing changes.
-Each conversation prompt and notification reaction reads one mood sentence. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
+Each conversation prompt and notification reaction reads one mood sentence. With SSML on, each spoken segment shifts pitch and speed by the mood at synthesis time. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
 Every chat run request carries the silence tool and its guidance. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling

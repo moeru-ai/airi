@@ -284,3 +284,14 @@ export function describeMood(pad: Pad) {
 export function moodAppraisalInterval(baseMs: number, pad: Pad) {
   return baseMs * 2 ** -pad.arousal
 }
+
+/**
+ * Prosody offsets for one spoken sentence: pleasure raises the pitch, and arousal speeds the voice.
+ * The offsets stay small, so mood colors the voice without changing who speaks.
+ */
+export function moodProsody(pad: Pad): { pitchPercent: number, rateScale: number } {
+  return {
+    pitchPercent: Math.round(pad.pleasure * 8),
+    rateScale: Math.round((1 + 0.1 * pad.arousal) * 100) / 100,
+  }
+}

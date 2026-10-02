@@ -11,7 +11,7 @@ import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from 
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom, sleep } from '@moeru/std'
-import { composeExpression, moodExpression } from '@proj-airi/core-agent'
+import { composeExpression, moodExpression, moodProsody } from '@proj-airi/core-agent'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeakableTextFilter, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
@@ -311,6 +311,19 @@ const mood = useCharacterMoodStore()
 const airiCardStore = useAiriCardStore()
 const moodPersona = computed(() => airiCardStore.activeCardId || 'default')
 
+/**
+ * SSML prosody for one segment. With a mood update path, the mood at synthesis time shifts the pitch and speed of this sentence.
+ */
+function speechProsody(providerConfig: Record<string, unknown>) {
+  if (!ssmlEnabled.value)
+    return { pitch: undefined }
+  if (!mood.active)
+    return { pitch: pitch.value }
+  const prosody = moodProsody(mood.current(moodPersona.value))
+  const speed = typeof providerConfig.speed === 'number' ? providerConfig.speed : 1
+  return { pitch: pitch.value + prosody.pitchPercent, speed: Math.round(speed * prosody.rateScale * 100) / 100 }
+}
+
 /** Shows the mood's baseline expression. Without a mood update path, the stage keeps its current expression. */
 function showMoodBaseline() {
   if (!mood.active)
@@ -579,7 +592,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         voice,
         providerConfig: {
           ...providerConfig,
-          pitch: ssmlEnabled.value ? pitch.value : undefined,
+          ...speechProsody(providerConfig),
         },
         forceSSML: ssmlEnabled.value,
         supportsSSML: speechStore.supportsSSML,

@@ -98,7 +98,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0 through P5 are Implemented with deterministic tests. Their live scenarios remain open. P6 through P10 have not started.
+- P0 through P6 are Implemented with deterministic tests. Their live scenarios remain open. P7 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -239,6 +239,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`mood.test.ts`): classifier jitter of about ±0.04 moves the settled baseline expression by less than 0.04 per update, and its name stays the same. Mood returns to the persona baseline by its half-life.
 - Observed (`mood.test.ts`): each feeling fades by its own half-life, so anger fades before sorrow. Feeling probabilities are the weights of one appraisal.
 - Observed (`mood.test.ts`, `airi-card-editor.test.ts`, stage-ui `mood.test.ts`): the temperament on a character card sets how far and how long mood moves. The center is rational, and the edge is emotional.
+- Implemented: with SSML on, each segment's pitch follows pleasure and its speed follows arousal, read at synthesis time. Without SSML, the voice is unchanged.
 - Implemented: mood reuses the attention classifier. The temperament is set with a four-quadrant control in the card editor, separate from the mood that analysis moves.
 - Observed (`mood.test.ts`): anger and fear differ by dominance. A sentence expression that opposes the mood in pleasure loses up to half of its intensity. Thinking keeps its intensity.
 - Observed (`triage.test.ts`): the same event gets different classifier decisions under different moods, and the appraisal records the mood in effect.

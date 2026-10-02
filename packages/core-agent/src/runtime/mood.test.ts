@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyMoodAppraisal, calmMood, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, describeMood, moodAppraisalInterval, moodExpression, moodIntensitiesFromAnswers, moodIntensity, moodPad, moodProfileFromTemperament, padFromIntensities } from './mood'
+import { applyMoodAppraisal, calmMood, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, describeMood, moodAppraisalInterval, moodExpression, moodIntensitiesFromAnswers, moodIntensity, moodPad, moodProfileFromTemperament, moodProsody, padFromIntensities } from './mood'
 
 const profile = DEFAULT_MOOD_PROFILE
 
@@ -112,5 +112,10 @@ describe('mood', () => {
       expect(moodIntensitiesFromAnswers({ feeling: { type: 'choice', choice: 'joy', confidence: 1 } })).toBeUndefined()
       expect(moodIntensitiesFromAnswers(undefined)).toBeUndefined()
     })
+  })
+
+  it('colors the voice by mood with small prosody offsets', () => {
+    expect(moodProsody({ pleasure: 1, arousal: 1, dominance: 0 })).toEqual({ pitchPercent: 8, rateScale: 1.1 })
+    expect(moodProsody({ pleasure: -0.5, arousal: -1, dominance: 0 })).toEqual({ pitchPercent: -4, rateScale: 0.9 })
   })
 })
