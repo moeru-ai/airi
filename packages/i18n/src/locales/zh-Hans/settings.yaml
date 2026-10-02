@@ -831,7 +831,7 @@ pages:
         inferences-description: 视觉模型的每一次调用，包括聊天图片
         failed-inferences: 失败次数
         last-inference: 上次调用
-        error: 错误：
+        error: '错误：'
         last-update: 上次更新 {time}
         since-start: 自应用启动以来
         never: 从未
