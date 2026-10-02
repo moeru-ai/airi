@@ -43,7 +43,7 @@ export const useLLM = defineStore('llm', () => {
     const key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage, runId: streamOptions.requestCorrelation?.runId })
 
     const runStream = () => coreStreamFrom({
       model,

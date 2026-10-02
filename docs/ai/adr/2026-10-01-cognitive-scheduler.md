@@ -177,6 +177,10 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`context-bridge.contract.browser.test.ts`): a module with declared scenes cannot name an owner session. Its input reaches only the bound session of a declared scene.
 - Observed (`context-bridge.contract.browser.test.ts`): a scene outside the module's namespace invalidates the declaration and rejects its input.
 - Implemented: Discord declares the `discord:channel:` scene.
+- Observed (`command-admission.test.ts`): a command needs a working run and declared destinations that accept its intent. Broadcasts and scene modules are rejected.
+- Observed (`command-admission.test.ts`): module control is a session lease. Another session is rejected until expiry, and critical higher-salience work takes it over.
+- Observed (`spark-command.test.ts`, `orchestrator/index.test.ts`): chat tool and notification commands pass admission and carry their holder. A rejected command never reaches the channel.
+- Observed (`airi-bridge.test.ts`): Minecraft drops commands without a holder and contradictory commands from another session during the lease.
 
 ### Open P0 evidence
 
@@ -189,7 +193,7 @@ These checks need live models, bots, or windows. They are not verified.
 
 ### Known limits after P1
 
-- The `spark_command` tool can send contexts to modules outside the run envelope. P3 moves it behind admission.
+- Resolved in P3: the command tool and notification commands pass admission. The tool can no longer broadcast.
 - A module without a declared scene speaks for the owner. Modules that serve other people declare scenes in the P3 `cognition` block. Public scenes wait for a caller, for example live streaming.
 - Only assistant writes narrow the session audience. Derived results and memory writes get labels in P8 and P10.
 

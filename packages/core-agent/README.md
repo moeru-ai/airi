@@ -115,6 +115,14 @@ Three identical consecutive tool calls end a run as `blocked`. A supervised end 
 `cancelRun(runId, { rollback })` stops a waiting or running run. Its late output never commits.
 With `rollback`, the run's user turn and partial reply leave the session through `removeSessionMessages`. A requeued input therefore appears once.
 
+## Command admission
+
+`admitCommand` checks every `spark:command` before it leaves the host. The issuing run must be `working`, and the command must name destinations.
+Each destination must be a connected module whose `cognition.accepts` lists the intent. A module with scenes receives no commands.
+A module with exclusive control gets a `module:<name>` lease for the run's session, with the declared expiry. Another session's live lease rejects the command.
+A `critical` command with higher salience takes the lease over. An admitted command carries `holder`, the session that controls the module.
+`createSparkCommandTool` reports a rejection to the model, so the model never claims a relay that admission refused.
+
 ## Spark notification cancellation
 
 The host supplies an `abortSignal` to the notification agent and its model runner.

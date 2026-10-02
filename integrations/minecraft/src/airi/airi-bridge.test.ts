@@ -5,7 +5,7 @@ import type { EventBus } from '../cognitive/event-bus'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { describe, expect, it, vi } from 'vitest'
 
-import { AiriBridge } from './airi-bridge'
+import { AiriBridge, MINECRAFT_CONTROL_LEASE_MS } from './airi-bridge'
 
 interface TestCommandEvent {
   data: {
@@ -13,6 +13,7 @@ interface TestCommandEvent {
     intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
     interrupt: 'force' | 'soft' | false
     priority: 'critical' | 'high' | 'normal' | 'low'
+    holder?: string
     guidance?: {
       options?: Array<{ label: string, steps: string[] }>
     }
@@ -124,6 +125,7 @@ describe('airiBridge spark command routing', () => {
         intent: 'action',
         interrupt: false,
         priority: 'normal',
+        holder: 'session-a',
         guidance: {
           options: [
             {
@@ -191,5 +193,31 @@ describe('airiBridge spark command routing', () => {
     expect(eventBus.emit).not.toHaveBeenCalled()
 
     bridge.destroy()
+  })
+
+  // The host grants control to one session. A stale holder must not steer the bot after a handoff.
+  it('drops commands from another session while the control lease lasts', () => {
+    vi.useFakeTimers({ now: 0 })
+    const { bridge, client, eventBus, handlers } = createBridgeHarness()
+    const commandHandler = handlers.get('spark:command')
+    const command = (commandId: string, holder: string | undefined, priority: TestCommandEvent['data']['priority'] = 'normal') => commandHandler?.({
+      data: { commandId, intent: 'action', interrupt: false, priority, holder, guidance: { options: [{ label: commandId, steps: [] }] } },
+    })
+    const dropped = () => client.send.mock.calls.filter(([event]) => event.data.state === 'dropped').map(([event]) => [event.data.eventId, event.data.note])
+
+    command('first', 'session-a')
+    command('missing-holder', undefined)
+    command('contradiction', 'session-b')
+    command('critical', 'session-b', 'critical')
+    vi.advanceTimersByTime(MINECRAFT_CONTROL_LEASE_MS)
+    command('after-expiry', 'session-a')
+
+    expect(dropped()).toEqual([
+      ['missing-holder', 'Command has no control holder'],
+      ['contradiction', 'Another AIRI session controls the bot'],
+    ])
+    expect(eventBus.emit).toHaveBeenCalledTimes(3)
+    bridge.destroy()
+    vi.useRealTimers()
   })
 })

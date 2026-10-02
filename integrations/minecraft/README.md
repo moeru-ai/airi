@@ -2,6 +2,9 @@
 
 This workspace runs AIRI's dedicated Minecraft bot. It connects a Mineflayer runtime to a Minecraft server, loads the cognitive stack in `src/cognitive`, and bridges status, context, and command traffic back to AIRI so the Stage settings shell can observe the service.
 
+The module declares every command intent and exclusive control with a 60-second lease. AIRI admits commands for one session at a time.
+The bridge also drops a command without a holder, and a non-critical command from another session while the last holder's lease lasts.
+
 ## Context slots
 
 Plain bridge observations append to the fixed `events` slot. The receiving context registry bounds this event window per writer.

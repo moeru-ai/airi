@@ -41,6 +41,8 @@ export type {
   QueuedSendSnapshot,
 } from './runtime/chat-orchestrator-runtime'
 export { createChatOrchestratorRuntime, decideDirectInput } from './runtime/chat-orchestrator-runtime'
+export type { CommandAdmission, CommandDestination, CommandRejection } from './runtime/command-admission'
+export { admitCommand, moduleControlResource } from './runtime/command-admission'
 export { CONTEXT_SOURCE_TOKEN_LIMIT, limitContextText, loadContextTokenCounter } from './runtime/context-budget'
 export type { ContextTokenCounter } from './runtime/context-budget'
 export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRegistry, ContextRegistryState } from './runtime/context-registry'

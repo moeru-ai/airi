@@ -20,7 +20,9 @@ import { ref } from 'vue'
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useModuleDirectoryStore } from '../../mods/api/module-directory'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
 import { useSchedulerStore } from '../../scheduler'
@@ -279,6 +281,7 @@ describe('store character-orchestrator', () => {
     mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = onDelta
     mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = onEnd
 
+    useModuleDirectoryStore(pinia).modules = [{ name: 'minecraft', connectionId: 'minecraft-connection', cognition: { accepts: ['action'], control: { exclusive: true } } }]
     const store = useCharacterOrchestratorStore(pinia)
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
@@ -307,12 +310,39 @@ describe('store character-orchestrator', () => {
       waitForTools: true,
     })
     expect(result?.commands?.length).toBe(1)
+    // Admission stamps the session that holds control of the module.
     expect(sendSparkCommandMock).toHaveBeenCalledWith({
       type: 'spark:command',
-      data: result?.commands[0],
+      data: { ...result?.commands[0], holder: useChatSessionStore(pinia).activeSessionId },
     })
+    expect(useSchedulerStore(pinia).leases.holder('module:minecraft')?.holder).toBe(useChatSessionStore(pinia).activeSessionId)
     expect(onDelta).not.toHaveBeenCalled()
     expect(onEnd).toHaveBeenCalledWith(event.data.id, '')
+  })
+
+  // ROOT CAUSE:
+  // Notification commands went straight to the channel. Any destination that the model named received work.
+  it('never sends a notification command to an undeclared module', async () => {
+    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      const sparkCommandTool = options?.tools?.find((tool: any) => tool.function?.name === 'builtIn_sparkCommand')
+      await sparkCommandTool.execute({
+        commands: [{ destinations: ['vscode'], intent: 'action', priority: 'high', interrupt: 'false', ack: 'go', guidance: null }],
+      } satisfies z.infer<typeof sparkNotifyCommandSchema>)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    }) as any
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const store = useCharacterOrchestratorStore(pinia)
+
+    const result = await store.handleSparkNotify({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Open editor', destinations: ['character'] },
+    }, { forceSparkCommandResponse: true })
+
+    expect(result?.commands).toHaveLength(1)
+    expect(sendSparkCommandMock).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith('Spark notify command rejected:', expect.stringContaining('unknown-destination (vscode)'))
+    warn.mockRestore()
   })
 
   // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
@@ -387,14 +417,14 @@ describe('store character-orchestrator', () => {
       expect(store.scheduledNotifies.map(item => item.event.data.id)).toEqual([event.data.id])
       expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'resource-busy', salience: 0.9 }])
       expect(scheduler.runs.snapshot()).toEqual([])
-      expect(scheduler.leases.holder('voice')?.holderRunId).toBe('conversation-run')
+      expect(scheduler.leases.holder('voice')?.holder).toBe('conversation-run')
     })
 
     it('runs an admitted notification as a run that holds and releases the voice', async () => {
       replyWith('Watch out!')
       const scheduler = useSchedulerStore(pinia)
       const voiceHolders: Array<string | undefined> = []
-      scheduler.leases.subscribe(() => voiceHolders.push(scheduler.leases.holder('voice')?.holderRunId))
+      scheduler.leases.subscribe(() => voiceHolders.push(scheduler.leases.holder('voice')?.holder))
       const store = useCharacterOrchestratorStore(pinia)
       const event = notify()
 

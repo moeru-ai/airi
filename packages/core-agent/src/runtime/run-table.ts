@@ -27,6 +27,8 @@ export interface AgentRun {
   parentRunId?: string
   state: AgentRunState
   envelope: ExecutionEnvelope
+  /** Salience from intake. It orders lease takeovers. */
+  salience?: number
   queuedAt: number
   startedAt?: number
   endedAt?: number
@@ -63,13 +65,14 @@ export class RunTable {
   }
 
   /** Admits a run in the `queued` state. */
-  admit(run: Pick<AgentRun, 'runId' | 'envelope' | 'parentRunId'>): AgentRun {
+  admit(run: Pick<AgentRun, 'runId' | 'envelope' | 'parentRunId' | 'salience'>): AgentRun {
     const record: AgentRun = {
       runId: run.runId,
       sessionId: run.envelope.sessionId,
       parentRunId: run.parentRunId,
       state: 'queued',
       envelope: structuredClone(run.envelope),
+      salience: run.salience,
       queuedAt: this.now(),
     }
     this.runs.set(record.runId, record)

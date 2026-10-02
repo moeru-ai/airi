@@ -26,6 +26,7 @@ A scene recovers only a root session whose audience still includes the scene aud
 Every chat run reaches the owner chat. A reply with an output target also reaches the session's scene. A module without a declared scene speaks for the owner.
 `useModuleDirectoryStore` keeps the server's module list with validated declarations. Input from a module with scenes needs a matching binding and cannot name a session.
 An invalid declaration, for example a scene outside the module's namespace, rejects the module's input. The intake trace records each rejection.
+`sendAdmittedSparkCommand` admits chat tool and notification commands for their run, then sends them. A rejection names the modules that accept the intent.
 The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
 
 ## Voice ownership

@@ -9,6 +9,7 @@ import { pathfinder as MineflayerPathfinder } from 'mineflayer-pathfinder'
 import { plugin as MineflayerPVP } from 'mineflayer-pvp'
 import { plugin as MineflayerTool } from 'mineflayer-tool'
 
+import { MINECRAFT_CONTROL_LEASE_MS } from './airi/airi-bridge'
 import { startAiriClientConnection } from './airi/start-background-client'
 import { CognitiveEngine } from './cognitive'
 import { config, initEnv } from './composables/config'
@@ -76,6 +77,11 @@ async function main() {
     url: config.airi.wsBaseUrl,
     token: config.airi.token || undefined,
     possibleEvents: ['module:configure', 'module:announced', 'spark:command', 'context:update', 'context:source:request'],
+    // The bot turns every command intent into a directive. One session controls it at a time.
+    cognition: {
+      accepts: ['plan', 'proposal', 'action', 'pause', 'resume', 'reroute', 'context'],
+      control: { exclusive: true, leaseMs: MINECRAFT_CONTROL_LEASE_MS },
+    },
     autoConnect: false,
     // NOTICE:
     // The bot's Node event loop occasionally goes quiet for ~30s (busy mineflayer packet handling /

@@ -17,6 +17,7 @@ import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prom
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { sendAdmittedSparkCommand } from '../../mods/api/spark-command'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useSchedulerStore } from '../../scheduler'
 import { useCharacterNotifyQueueStore } from './queue'
@@ -67,6 +68,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           waitForTools: request.policy.waitForTools,
           toolChoice: request.policy.toolChoice,
           onStreamEvent: request.onStreamEvent,
+          // The run id lets the command tool admit commands for this notification run.
+          requestCorrelation: activeNotify ? { conversationId: `spark:${activeNotify.eventId}`, turnId: activeNotify.eventId, runId: activeNotify.runId } : undefined,
         },
       ),
     },
@@ -118,12 +121,14 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   async function runNotify(stimulus: Stimulus, event: WebSocketEventOf<'spark:notify'>, decision: IntakeDecision, control?: SparkNotifyResponseControl) {
     const runId = nanoid()
     const sessionId = chatSession.activeSessionId
+    const salience = decision.salience ?? stimulus.salience
     scheduler.runs.admit({
       runId,
+      salience,
       envelope: { sessionId, bindings: [], outputs: ['voice'], audience: OWNER_AUDIENCE, personaId: chatSession.sessionMetas[sessionId]?.characterId },
     })
     scheduler.intake.record(stimulus, { ...decision, runId })
-    scheduler.leases.acquire('voice', runId, { salience: decision.salience ?? stimulus.salience })
+    scheduler.leases.acquire('voice', runId, { salience })
     scheduler.runs.transition(runId, 'working')
     try {
       const result = await processSparkNotify(runId, event, control)
@@ -197,11 +202,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       if (!result.commands.length)
         return result
 
+      // Every command passes admission for this run. A rejected command never reaches a module.
       for (const command of result.commands) {
-        modsServerChannelStore.send({
-          type: 'spark:command',
-          data: command,
-        })
+        const delivery = sendAdmittedSparkCommand(runId, command)
+        if (delivery?.rejected)
+          console.warn('Spark notify command rejected:', delivery.rejected)
       }
 
       return result

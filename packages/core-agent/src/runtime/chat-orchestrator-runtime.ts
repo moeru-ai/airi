@@ -1359,14 +1359,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     // Run identity uses its own factory, so deterministic message id sequences stay unchanged.
     const runId = defaultCreateId()
-    runs.admit({ runId, envelope })
+    const salience = decision.salience ?? stimulus.salience
+    runs.admit({ runId, envelope, salience })
     intake.record(stimulus, { ...decision, runId })
 
     await new Promise<void>((resolve, reject) => {
       pendingQueuedSends.push({
         runId,
         envelope,
-        salience: decision.salience ?? stimulus.salience,
+        salience,
         writtenMessageIds: [],
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,

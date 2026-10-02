@@ -1,8 +1,9 @@
-/** One exclusive resource held by one run. */
+/** One exclusive resource with one holder. */
 export interface Lease {
   /** For example `voice` or `module:minecraft`. */
   resource: string
-  holderRunId: string
+  /** A run id for the voice, which ends with its run. A session id for module control, which spans the session's runs. */
+  holder: string
   grantedAt: number
   /** An expired lease is free. Without it, the lease lasts until release. */
   expiresAt?: number
@@ -13,7 +14,7 @@ export interface Lease {
 /** Result of a lease request. `previous` names the holder that lost it to higher salience. */
 export type LeaseGrant
   = | { granted: true, lease: Lease, previous?: Lease }
-    | { granted: false, holder: Lease }
+    | { granted: false, current: Lease }
 
 /**
  * Grants exclusive resources to runs: the voice, the expression baseline, or module control.
@@ -37,38 +38,38 @@ export class LeaseTable {
   /**
    * Grants a free or expired resource, renews the holder's own lease, or takes it over with `preempt` and strictly higher salience.
    */
-  acquire(resource: string, holderRunId: string, options: { salience: number, ttlMs?: number, preempt?: boolean }): LeaseGrant {
+  acquire(resource: string, holder: string, options: { salience: number, ttlMs?: number, preempt?: boolean }): LeaseGrant {
     const current = this.holder(resource)
-    if (current && current.holderRunId !== holderRunId && (!options.preempt || !(options.salience > current.salience)))
-      return { granted: false, holder: current }
+    if (current && current.holder !== holder && (!options.preempt || !(options.salience > current.salience)))
+      return { granted: false, current }
 
     const now = this.now()
     const lease: Lease = {
       resource,
-      holderRunId,
-      grantedAt: current?.holderRunId === holderRunId ? current.grantedAt : now,
+      holder,
+      grantedAt: current?.holder === holder ? current.grantedAt : now,
       expiresAt: options.ttlMs === undefined ? undefined : now + options.ttlMs,
       salience: options.salience,
     }
     this.leases.set(resource, lease)
     this.notify()
-    const previous = current && current.holderRunId !== holderRunId ? current : undefined
+    const previous = current && current.holder !== holder ? current : undefined
     return { granted: true, lease: structuredClone(lease), previous }
   }
 
   /** Releases one lease. A release by a run that no longer holds it does nothing. */
-  release(resource: string, holderRunId: string) {
-    if (this.leases.get(resource)?.holderRunId !== holderRunId)
+  release(resource: string, holder: string) {
+    if (this.leases.get(resource)?.holder !== holder)
       return
     this.leases.delete(resource)
     this.notify()
   }
 
-  /** Releases every lease of a run, for example when it reaches a final state. */
-  releaseAll(holderRunId: string) {
+  /** Releases every lease of a holder, for example when its run reaches a final state. */
+  releaseAll(holder: string) {
     let changed = false
     for (const [resource, lease] of this.leases) {
-      if (lease.holderRunId === holderRunId) {
+      if (lease.holder === holder) {
         this.leases.delete(resource)
         changed = true
       }

@@ -6,11 +6,16 @@ import { useLogg } from '@guiiai/logg'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { nanoid } from 'nanoid'
 
+/** How long one AIRI session keeps control after its last command. The module announces the same value. */
+export const MINECRAFT_CONTROL_LEASE_MS = 60_000
+
 interface SparkCommandData {
   commandId: string
   intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
   interrupt: 'force' | 'soft' | false
   priority: 'critical' | 'high' | 'normal' | 'low'
+  /** AIRI session that holds control of the bot. */
+  holder?: string
   guidance?: {
     options?: Array<{ label: string, steps: string[] }>
   }
@@ -33,6 +38,7 @@ interface SparkCommandData {
 export class AiriBridge {
   private readonly logger = useLogg('airi-bridge').useGlobalConfig()
   private commandAvailable = false
+  private control: { holder: string, until: number } | undefined
   private commandHandler: ((event: { data: SparkCommandData }) => void) | null = null
   private contextUpdateHandler: ((event: { data: ContextUpdate }) => void) | null = null
   private moduleAnnouncedHandler: ((event: { data: ModuleAnnouncedEvent }) => void) | null = null
@@ -52,6 +58,18 @@ export class AiriBridge {
         this.sendEmit(cmd.commandId, 'dropped', 'Minecraft bot is offline')
         return
       }
+
+      // The host grants control. This check keeps a stale holder from steering the bot after a handoff.
+      if (!cmd.holder) {
+        this.sendEmit(cmd.commandId, 'dropped', 'Command has no control holder')
+        return
+      }
+      const now = Date.now()
+      if (this.control && this.control.holder !== cmd.holder && now < this.control.until && cmd.priority !== 'critical') {
+        this.sendEmit(cmd.commandId, 'dropped', 'Another AIRI session controls the bot')
+        return
+      }
+      this.control = { holder: cmd.holder, until: now + MINECRAFT_CONTROL_LEASE_MS }
 
       this.sendEmit(cmd.commandId, 'queued', 'Command received')
 
