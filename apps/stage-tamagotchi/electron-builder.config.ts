@@ -81,6 +81,11 @@ export default {
     // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
     '!**/node_modules/electron{,/**}',
     '!**/.vscode/*',
+    // The renderer uses the browser ONNX backend. The node package and its
+    // platform binaries are not loaded by the packaged renderer.
+    '!**/node_modules/onnxruntime-node{,/**}',
+    // Vite bundles the browser runtime and its WASM assets into `out/renderer`.
+    '!**/node_modules/onnxruntime-web{,/**}',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
     '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',
