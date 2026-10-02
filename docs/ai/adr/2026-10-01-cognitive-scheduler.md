@@ -192,6 +192,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`lease-table.test.ts`): candidates for one resource rank by salience tier, then deadline, then waiting time. Other resources never wait for them.
 - Observed (`orchestrator/index.test.ts`): an urgent waiting notification goes ahead of a later chat send for the voice. An expired notification is ignored before any classifier call.
 - Observed (`chat-orchestrator-runs.test.ts`, `orchestrator/index.test.ts`, T20): the run limit counts working runs of every owner. A limit of one serializes chat sends and notifications with the normal envelopes and traces.
+- Observed (`orchestrator/index.test.ts`): notification runs follow the same stall and deadline limits as chat runs. A stalled request expires, its reaction speech stops, and the voice is released.
 - Observed (`error-burst.test.ts`, `orchestrator/index.test.ts`): three blocked runs within a minute pause notifications and idle appraisal for a minute. Paused work is deferred, never dropped. Direct owner input does not wait.
 - Implemented: intake applies hard constraints, then resource order. Rules decide who gets a chance now. The run, and later mood and persona, decide whether to speak.
 - Designed: persona and mood change appraisal cadence in P6. P3 uses the user's idle check interval, and a short interval changes how often the character looks, not how often it speaks.

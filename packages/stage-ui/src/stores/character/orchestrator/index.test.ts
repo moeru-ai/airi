@@ -269,6 +269,33 @@ describe('store character-orchestrator', () => {
     expect(chatSession.appendSessionMessage).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // Stall and deadline supervision covered chat runs only. A stalled notification request kept its run working
+  // and held the voice until the provider gave up.
+  //
+  // We fixed this by applying the same limits to notification runs.
+  it('expires a stalled notification run and releases the voice', async () => {
+    let signal: AbortSignal | undefined
+    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      signal = options?.abortSignal
+      await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal?.reason), { once: true }))
+    })
+    useSettingsRunLimits(pinia).stallTimeoutSeconds = 1
+
+    const handled = useCharacterOrchestratorStore(pinia).handleSparkNotify({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Hit by zombie', destinations: ['character'] },
+    }).catch((error: unknown) => error)
+
+    await vi.waitFor(() => expect(signal?.aborted).toBe(true), { timeout: 3_000 })
+    await handled
+    const scheduler = useSchedulerStore(pinia)
+    expect(scheduler.runs.snapshot()).toMatchObject([{ state: 'expired', error: 'Run stalled without stream activity' }])
+    expect(scheduler.leases.holder('voice')).toBeUndefined()
+  })
+
   // A5: a reached spending limit defers background work before any model or classifier request. It never drops it.
   it('defers a notification while the spending limit is reached', async () => {
     const stream = vi.fn()

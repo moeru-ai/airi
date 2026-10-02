@@ -74,7 +74,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   let initialized = false
   let leadership: SyncedPiniaRuntime | undefined
   let stopLeadershipListener: (() => void) | undefined
-  let activeNotify: { runId: string, eventId: string, controller: AbortController, interrupts: boolean } | undefined
+  let activeNotify: { runId: string, eventId: string, controller: AbortController, interrupts: boolean, onActivity: () => void } | undefined
   const eventUnsubscribes: Array<() => void> = []
   const sparkNotifyAgent = createSparkNotifyAgent({
     runner: {
@@ -89,7 +89,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           supportsTools: request.policy.supportsTools,
           waitForTools: request.policy.waitForTools,
           toolChoice: request.policy.toolChoice,
-          onStreamEvent: request.onStreamEvent,
+          onStreamEvent: async (event) => {
+            // Stream activity keeps a notification run alive, like a chat run.
+            activeNotify?.onActivity()
+            await request.onStreamEvent?.(event)
+          },
           // The run id lets the command tool admit commands for this notification run.
           requestCorrelation: activeNotify ? { conversationId: `spark:${activeNotify.eventId}`, turnId: activeNotify.eventId, runId: activeNotify.runId } : undefined,
         },
@@ -283,7 +287,28 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
 
     const controller = new AbortController()
-    activeNotify = { runId, eventId: event.data.id, controller, interrupts: (scheduler.runs.get(runId)?.salience ?? 0) >= INTERRUPT_SALIENCE }
+    // Notification runs follow the same stall and deadline limits as chat runs, so a stalled provider never keeps the voice.
+    const { stallTimeoutMs, runDeadlineMs } = runLimits.limits
+    let expiry: string | undefined
+    const expire = (reason: string) => {
+      if (controller.signal.aborted)
+        return
+      expiry = reason
+      characterStore.cancelSparkNotifyReaction(event.data.id)
+      controller.abort(new Error(reason))
+    }
+    const deadline = setTimeout(expire, runDeadlineMs, 'Run exceeded its deadline')
+    let stall = setTimeout(expire, stallTimeoutMs, 'Run stalled without stream activity')
+    activeNotify = {
+      runId,
+      eventId: event.data.id,
+      controller,
+      interrupts: (scheduler.runs.get(runId)?.salience ?? 0) >= INTERRUPT_SALIENCE,
+      onActivity: () => {
+        clearTimeout(stall)
+        stall = setTimeout(expire, stallTimeoutMs, 'Run stalled without stream activity')
+      },
+    }
     processing.value = true
 
     try {
@@ -316,7 +341,15 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
       return result
     }
+    catch (error) {
+      // Supervision ends the run as expired. The caller keeps that final state.
+      if (expiry)
+        scheduler.runs.transition(runId, 'expired', expiry)
+      throw error
+    }
     finally {
+      clearTimeout(deadline)
+      clearTimeout(stall)
       if (activeNotify?.controller === controller) {
         activeNotify = undefined
         processing.value = false
