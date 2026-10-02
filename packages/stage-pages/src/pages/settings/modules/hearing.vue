@@ -611,6 +611,7 @@ onUnmounted(() => {
                 :label="t('settings.pages.modules.hearing.sections.section.rephrase.provider')"
                 :description="t('settings.pages.modules.hearing.sections.section.rephrase.provider-description')"
                 :options="rephraseProviderOptions"
+                :placeholder="t('settings.pages.modules.hearing.sections.section.rephrase.same-as-chat')"
                 layout="vertical"
               />
               <FieldCombobox
