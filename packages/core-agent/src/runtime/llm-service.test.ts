@@ -43,7 +43,9 @@ it('projects request-owned toolset instructions only for admitted tools', async 
   }) => {
     const current = structuredClone(options.messages)
     const prepared = options.prepareStep({ input: current, steps: [] })
-    expect(prepared.input?.[0]).toEqual({ role: 'developer', content: 'Relay only after a successful tool call.' })
+    // Guidance joins the system message. Some Chat Completions providers reject a `developer` message.
+    expect(prepared.input?.filter(message => message.role === 'developer')).toEqual([])
+    expect(prepared.input?.[0]).toEqual({ role: 'system', content: 'Relay only after a successful tool call.' })
     expect(current).toEqual(options.messages)
     return { steps: Promise.resolve([]), messages: Promise.resolve(current), usage: Promise.resolve(undefined), totalUsage: Promise.resolve(undefined) }
   })

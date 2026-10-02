@@ -14,6 +14,12 @@ interface RequestBody {
   tools?: unknown[]
 }
 
+/** Request items that carry the guidance: a `developer` item for Responses, and the system message for Chat Completions. */
+function guidanceOf(protocol: string, items: Array<{ role?: string, content?: unknown }> | undefined, guidance: string) {
+  const role = protocol === 'responses' ? 'developer' : 'system'
+  return (items ?? []).filter(item => item.role === role && JSON.stringify(item.content).includes(JSON.stringify(guidance).slice(1, 60)))
+}
+
 const relay: Tool = {
   type: 'function',
   function: { name: 'builtIn_emitSparkCommand', parameters: { type: 'object', properties: {} } },
@@ -86,8 +92,8 @@ for (const protocol of ['chat-completions', 'responses'] as const) {
     expect(requests).toHaveLength(2)
     const first = protocol === 'responses' ? requests[0].input : requests[0].messages
     const second = protocol === 'responses' ? requests[1].input : requests[1].messages
-    expect(first?.filter(item => item.role === 'developer')).toHaveLength(1)
-    expect(second?.filter(item => item.role === 'developer')).toHaveLength(revoked ? 0 : 1)
+    expect(guidanceOf(protocol, first, SPARK_COMMAND_TOOLSET_PROMPT)).toHaveLength(1)
+    expect(guidanceOf(protocol, second, SPARK_COMMAND_TOOLSET_PROMPT)).toHaveLength(revoked ? 0 : 1)
     expect(requests[1].tools?.length ?? 0).toBe(revoked ? 0 : 1)
     expect(prompt).toHaveBeenCalledTimes(revoked ? 1 : 2)
     expect(generated?.rounds[0].toolInvocations[0].execution.status).toBe('succeeded')
@@ -126,9 +132,10 @@ for (const protocol of ['chat-completions', 'responses'] as const) {
         },
       })
       const input = protocol === 'responses' ? requests[0].input : requests[0].messages
-      expect(input?.filter(item => item.role === 'developer')).toEqual(admission === 'granted'
-        ? [expect.objectContaining({ role: 'developer', content: SPARK_COMMAND_TOOLSET_PROMPT })]
-        : [])
+      expect(guidanceOf(protocol, input, SPARK_COMMAND_TOOLSET_PROMPT)).toHaveLength(admission === 'granted' ? 1 : 0)
+      // Chat Completions never sends a `developer` message, because some providers reject the role.
+      if (protocol === 'chat-completions')
+        expect(input?.filter(item => item.role === 'developer')).toEqual([])
       expect(requests[0].tools?.length ?? 0).toBe(admission === 'granted' ? 1 : 0)
       expect(prompt).toHaveBeenCalledTimes(admission === 'granted' ? 1 : 0)
       expect(conversation).toEqual(original)

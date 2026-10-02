@@ -14,6 +14,22 @@ import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, re
 import { RequestSwitch } from './request-switch'
 import { toAiriStreamEvent } from './xsai-events'
 
+/**
+ * Adds request-owned toolset guidance to this request's system message.
+ * Chat Completions providers disagree on the `developer` role, and some reject the request for it, so guidance joins the system message that every provider accepts.
+ * The guidance follows the system prompt, so it stays in the cacheable prefix while the tool list is stable.
+ */
+export function withToolsetGuidance(messages: Message[], guidance: string): Message[] {
+  const index = messages.findIndex(message => message.role === 'system')
+  if (index < 0)
+    return [{ role: 'system', content: guidance }, ...messages]
+  const system = messages[index] as Extract<Message, { role: 'system' }>
+  const content = typeof system.content === 'string'
+    ? `${system.content}\n\n${guidance}`
+    : [...system.content, { type: 'text' as const, text: `\n\n${guidance}` }]
+  return messages.map((message, position) => position === index ? { ...system, content } : message)
+}
+
 /** Projects one context snapshot and returns only the newly generated turn. */
 export function streamChatCompletions(input: {
   config: ReturnType<ChatProvider['chat']>
@@ -45,7 +61,7 @@ export function streamChatCompletions(input: {
         generation.prepareStep({ input: current })
         const prompt = resolveToolsetPrompt(input.tools, input.options)
         // xsAI uses the returned input for this request only. Guidance never enters its persistent transcript.
-        return prompt ? { input: [{ role: 'developer' as const, content: prompt }, ...current] } : {}
+        return prompt ? { input: withToolsetGuidance(current, prompt) } : {}
       }
       return (async () => {
         const firstStep = scopes.length === 0 && input.initialStep
@@ -98,7 +114,7 @@ export function streamChatCompletions(input: {
 
         const prompt = resolveToolsetPrompt(toolsSupported ? next.tools : undefined, input.options)
         return {
-          input: prompt ? [{ role: 'developer' as const, content: prompt }, ...current] : current,
+          input: prompt ? withToolsetGuidance(current, prompt) : current,
           model: next.model,
           toolChoice: toolsSupported ? input.options?.toolChoice : undefined,
         }
