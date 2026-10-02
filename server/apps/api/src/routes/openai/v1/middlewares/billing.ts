@@ -6,6 +6,7 @@ import type { LlmBillingService } from '../../../../services/domain/billing/llm-
 import type { SpeechBilling } from '../../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../../services/domain/flux'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
+import type { SubscriptionService } from '../../../../services/domain/subscriptions'
 
 import { safeParse } from 'valibot'
 
@@ -55,6 +56,7 @@ export interface OpenAiRouteBilling {
 export function createOpenAiRouteBilling(deps: {
   llmBilling: LlmBillingService
   billingService: BillingService
+  subscriptions?: SubscriptionService
   configKV: ConfigKVService
   fluxService: FluxService
   revenue?: RevenueMetrics | null
@@ -67,8 +69,16 @@ export function createOpenAiRouteBilling(deps: {
     if (!parsed.success)
       throw createServiceUnavailableError('LLM pricing configuration is incomplete', 'LLM_BILLING_UNAVAILABLE')
     await deps.fluxService.getFlux(userId)
+    // Plan quota counts as coverage. The Flux gate applies only when the
+    // wallet balance plus usable plan quota cannot cover the minimum.
     const flux = await deps.billingService.getWallet(userId)
-    if (availableMicroFlux(flux) < BigInt(parsed.output.minimumBalance) * BigInt(MICRO_FLUX_PER_FLUX))
+    let effectiveMicroFlux = availableMicroFlux(flux)
+    if (deps.subscriptions) {
+      const planStatus = await deps.subscriptions.getStatus(userId)
+      const planRemaining = planStatus.allowances.reduce((sum, allowance) => sum + allowance.remainingAmount, 0)
+      effectiveMicroFlux += BigInt(planRemaining) * BigInt(MICRO_FLUX_PER_FLUX)
+    }
+    if (effectiveMicroFlux < BigInt(parsed.output.minimumBalance) * BigInt(MICRO_FLUX_PER_FLUX))
       throw createPaymentRequiredError('Insufficient flux')
     return parsed.output
   }
@@ -91,11 +101,48 @@ export function createOpenAiRouteBilling(deps: {
   }
 
   async function settleChat(input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>): Promise<number> {
-    return debitChatFlux({
+    // Zero-fee and pending requests settle through the wallet path below so
+    // usage records keep the upstream reconciliation semantics.
+    let quotaCharged = 0
+    if (input.amount > 0 && deps.subscriptions) {
+      // Plan quota is spent first in whole Flux credits; fractional fees round
+      // up. The pre-read avoids forfeiting a partial tail: quota is touched
+      // only when it covers the whole request.
+      const quotaAmount = Math.ceil(input.amount)
+      const planStatus = await deps.subscriptions.getStatus(input.userId)
+      const planRemaining = planStatus.allowances.reduce((sum, allowance) => sum + allowance.remainingAmount, 0)
+      if (planRemaining >= quotaAmount) {
+        const plan = await deps.subscriptions.consumeQuota({
+          userId: input.userId,
+          amount: quotaAmount,
+          requestId: input.requestId,
+        })
+        if (plan.charged >= quotaAmount)
+          return input.amount
+        // Concurrent requests may have drained quota between the read and the
+        // debit; fall through to the wallet so the request is still settled.
+        quotaCharged = plan.charged
+      }
+    }
+
+    if (deps.subscriptions) {
+      const fallbackToFlux = await deps.subscriptions.getFallbackPreference(input.userId)
+      if (!fallbackToFlux) {
+        deps.revenue?.fluxUnbilled.add(input.amount - quotaCharged, {
+          [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+          reason: 'plan_quota_exhausted',
+          stage: input.stage,
+        })
+        return quotaCharged
+      }
+    }
+
+    const feeFlux = await debitChatFlux({
       ...input,
       llmBilling: deps.llmBilling,
       revenue: deps.revenue,
     })
+    return feeFlux
   }
 
   function recordChatDebitFailure(input: {

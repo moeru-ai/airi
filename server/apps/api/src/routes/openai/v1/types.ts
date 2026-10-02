@@ -9,6 +9,7 @@ import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { RequestLogService } from '../../../services/domain/request-log'
+import type { SubscriptionService } from '../../../services/domain/subscriptions'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
 
 import { startChatGeneration, startTtsGeneration } from '../../../services/domain/llm-tracing'
@@ -22,6 +23,7 @@ export interface V1RouteDeps {
   fluxService: FluxService
   llmBilling: LlmBillingService
   billingService: BillingService
+  subscriptions: SubscriptionService
   configKV: ConfigKVService
   requestLogService: RequestLogService
   productEventService: ProductEventService
