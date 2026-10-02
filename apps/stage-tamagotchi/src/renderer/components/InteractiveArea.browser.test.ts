@@ -866,7 +866,8 @@ describe('interactive area synchronized state', () => {
     // store, but InteractiveArea passed its unrelated foreground stream to
     // ChatHistory. Mocking either store or component hid that broken binding.
     const { chat, chatStream, screen } = await renderArea()
-    chat.$patch({
+    // pinia-plugin-synced assigns whole values. An object patch would merge in place, and the shallow per-session stream ref would not update.
+    chat.$patch(state => Object.assign(state, {
       runningSessionIds: ['session-b'],
       streamingMessages: {
         'session-b': {
@@ -878,7 +879,7 @@ describe('interactive area synchronized state', () => {
           createdAt: 2,
         },
       },
-    })
+    }))
     chatStream.$patch({
       streamingMessage: {
         id: 'leader-a-stream',
@@ -903,7 +904,7 @@ describe('interactive area synchronized state', () => {
     // foreground stream directly to ChatHistory. A mobile window on session B
     // therefore rendered the live response from a send targeting session A.
     const { chat, chatStream, screen } = await renderArea(MobileInteractiveArea)
-    chat.$patch({
+    chat.$patch(state => Object.assign(state, {
       runningSessionIds: ['session-a'],
       streamingMessages: {
         'session-a': {
@@ -915,7 +916,7 @@ describe('interactive area synchronized state', () => {
           createdAt: 2,
         },
       },
-    })
+    }))
     chatStream.$patch({
       streamingMessage: {
         id: 'session-a-foreground',
@@ -929,7 +930,7 @@ describe('interactive area synchronized state', () => {
     await nextTick()
     await expect.element(screen.getByText('Session A live response')).not.toBeInTheDocument()
 
-    chat.$patch({
+    chat.$patch(state => Object.assign(state, {
       runningSessionIds: ['session-b'],
       streamingMessages: {
         'session-b': {
@@ -941,7 +942,7 @@ describe('interactive area synchronized state', () => {
           createdAt: 3,
         },
       },
-    })
+    }))
     await nextTick()
     await expect.element(screen.getByText('Session B live response')).toBeVisible()
   })
@@ -954,7 +955,7 @@ describe('interactive area synchronized state', () => {
     // still passed the leader foreground stream to ChatHistory. A web window
     // on B could therefore append A's live response.
     const { chat, chatStream, screen } = await renderArea(SharedInteractiveArea)
-    chat.$patch({
+    chat.$patch(state => Object.assign(state, {
       runningSessionIds: ['session-b'],
       streamingMessages: {
         'session-b': {
@@ -966,7 +967,7 @@ describe('interactive area synchronized state', () => {
           createdAt: 2,
         },
       },
-    })
+    }))
     chatStream.$patch({
       streamingMessage: {
         id: 'session-a-web-foreground',
