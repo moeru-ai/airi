@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { BasicButton, BasicTextarea, Button, GhostButton } from '@proj-airi/ui'
-import { computed, ref } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { useChatSessionStore } from '../../../../stores/chat/session-store'
@@ -34,7 +34,41 @@ const text = computed({
       void controls.command({ type: 'edit-draft', draftId: draft.value.id, text: value }).catch(() => {})
   },
 })
-const canSend = computed(() => !sending.value && !!text.value.trim() && controls.snapshot.connected)
+/** Speech that the host is still transcribing. It is shown read-only until it becomes part of a draft. */
+const liveInput = computed(() => {
+  const input = controls.snapshot.input
+  if (!input || (input.phase !== 'capturing' && input.phase !== 'finalizing'))
+    return undefined
+  return input.segments.some(segment => segment.text.trim()) ? input : undefined
+})
+/**
+ * Final text uses the body color. Interim text uses the theme color, and the newest interim segment is stronger.
+ */
+const liveSegments = computed(() => {
+  const segments = liveInput.value?.segments ?? []
+  const latest = segments.findLastIndex(segment => !segment.final)
+  return segments.map((segment, index) => ({
+    id: segment.id,
+    text: segment.text,
+    tier: segment.final ? 'final' as const : index === latest ? 'latest' as const : 'interim' as const,
+  }))
+})
+const scroller = useTemplateRef<HTMLElement>('scroller')
+
+// New speech and host draft updates keep the newest text visible. Edits in the textarea do not scroll.
+watch(
+  () => [draft.value?.id, draft.value?.rawText, liveInput.value?.phase, liveSegments.value.map(segment => segment.text).join('')],
+  () => {
+    // BasicTextarea sets its new height in an animation frame. This frame runs after it.
+    requestAnimationFrame(() => {
+      if (scroller.value)
+        scroller.value.scrollTop = scroller.value.scrollHeight
+    })
+  },
+  { flush: 'post' },
+)
+
+const canSend = computed(() => !sending.value && !liveInput.value && !!text.value.trim() && controls.snapshot.connected)
 
 async function send() {
   if (!draft.value || !canSend.value)
@@ -71,22 +105,46 @@ function handleKeydown(event: KeyboardEvent) {
 
 <template>
   <section
-    v-if="draft && props.variant === 'composer'"
+    v-if="(draft || liveInput) && props.variant === 'composer'"
     :aria-label="t('stage.chat.voice-draft.title')"
     :class="['h-full min-h-0 w-full flex flex-col gap-1']"
   >
-    <BasicTextarea
-      v-model="text"
-      :submit-on-enter="false"
-      :disabled="sending || !controls.snapshot.connected"
-      :aria-label="t('stage.chat.voice-draft.title')"
+    <!-- The editable draft and the read-only live speech share one scroll area, so they read as one text. -->
+    <div
+      ref="scroller"
+      data-testid="voice-draft-scroller"
       :class="[
-        'min-h-0 w-full flex-1 resize-none overflow-y-auto border-0 bg-transparent px-2 py-2 font-medium outline-none [scrollbar-gutter:stable]',
+        'min-h-0 w-full flex-1 overflow-y-auto px-2 py-2 font-medium [scrollbar-gutter:stable]',
         'text-neutral-700 dark:text-neutral-200',
-        '[-webkit-app-region:no-drag]',
       ]"
-      @keydown="handleKeydown"
-    />
+    >
+      <BasicTextarea
+        v-if="draft"
+        v-model="text"
+        :submit-on-enter="false"
+        :disabled="sending || !controls.snapshot.connected"
+        :aria-label="t('stage.chat.voice-draft.title')"
+        :class="[
+          'block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none',
+          '[-webkit-app-region:no-drag]',
+        ]"
+        @keydown="handleKeydown"
+      />
+      <!-- v-text keeps template whitespace out of this pre-wrap block. -->
+      <p v-if="liveInput" data-testid="voice-draft-live" :class="['m-0 whitespace-pre-wrap break-words']">
+        <span
+          v-for="segment in liveSegments"
+          :key="segment.id"
+          :data-tier="segment.tier"
+          :class="[
+            'transition-colors duration-300 motion-reduce:transition-none',
+            segment.tier === 'interim' ? 'text-primary-200/70 dark:text-primary-700/70' : '',
+            segment.tier === 'latest' ? 'text-primary-600 dark:text-primary-300' : '',
+          ]"
+          v-text="segment.text"
+        />
+      </p>
+    </div>
     <p v-if="controls.error" role="alert" :class="['px-2 text-sm text-red-600 dark:text-red-400']">
       {{ controls.error }}
     </p>
@@ -94,7 +152,7 @@ function handleKeydown(event: KeyboardEvent) {
       <span v-if="characterName" :class="['max-w-32 truncate px-2 text-xs text-neutral-500 dark:text-neutral-400']">
         {{ characterName }}
       </span>
-      <div v-if="controls.snapshot.drafts.length > 1" :class="['min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none', '[-webkit-app-region:no-drag]']">
+      <div v-if="controls.snapshot.drafts.length > 1 && draft" :class="['min-w-0 flex items-center gap-1 overflow-x-auto scrollbar-none', '[-webkit-app-region:no-drag]']">
         <GhostButton
           v-for="(item, index) in controls.snapshot.drafts"
           :key="item.id"
@@ -109,17 +167,10 @@ function handleKeydown(event: KeyboardEvent) {
           {{ index + 1 }}
         </GhostButton>
       </div>
+      <span v-if="liveInput?.phase === 'finalizing'" role="status" :class="['px-2 text-xs text-neutral-500 dark:text-neutral-400']">
+        {{ t('stage.chat.voice-draft.finalizing') }}
+      </span>
       <div :class="['ml-auto flex shrink-0 items-center gap-1', '[-webkit-app-region:no-drag]']">
-        <GhostButton
-          size="unset"
-          :class="['size-9']"
-          :disabled="sending"
-          :title="t('stage.chat.voice-draft.discard')"
-          :aria-label="t('stage.chat.voice-draft.discard')"
-          @click="discard"
-        >
-          <span :class="['i-solar:trash-bin-minimalistic-linear size-5']" />
-        </GhostButton>
         <BasicButton
           size="unset"
           :disabled="!canSend"
