@@ -199,9 +199,8 @@ export const useChatStore = defineStore('chat', () => {
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
-  const sending = shallowRef(false)
-  const activeSendSessionId = shallowRef<string>()
-  const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
+  const sendingSessionIds = shallowRef<string[]>([])
+  const streamingMessagesBySessionId = shallowRef<Record<string, StreamingAssistantMessage>>({})
   const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
@@ -384,9 +383,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
-    sending.value = state.sending
-    activeSendSessionId.value = state.activeSendSessionId
-    activeStreamingMessage.value = state.activeStreamingMessage
+    sendingSessionIds.value = [...state.sendingSessionIds]
+    streamingMessagesBySessionId.value = { ...state.streamingMessagesBySessionId }
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -698,9 +696,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   return {
-    sending,
-    activeSendSessionId,
-    activeStreamingMessage,
+    sendingSessionIds,
+    streamingMessagesBySessionId,
     pendingQueuedSendCount,
 
     initialize,

@@ -44,10 +44,18 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
 
   const responseActive = computed(() => options.generating.value || showStopSpeakingButton.value)
   const showStopAction = computed(() => responseActive.value && !options.hasSubmission.value && !preparingReplacement.value)
-  const responseSessionId = computed(() => (replacementSendStarted.value ? replacementSessionId.value : undefined)
-    ?? contextBridgeStore.remoteStreamSessionId
-    ?? chatStore.activeSendSessionId
-    ?? options.sessionId.value)
+  const responseSessionId = computed(() => {
+    if (replacementSendStarted.value && replacementSessionId.value)
+      return replacementSessionId.value
+    if (contextBridgeStore.remoteStreamSessionId)
+      return contextBridgeStore.remoteStreamSessionId
+    if (chatStore.sendingSessionIds.includes(options.sessionId.value))
+      return options.sessionId.value
+    const [onlySendingSessionId] = chatStore.sendingSessionIds
+    if (chatStore.sendingSessionIds.length === 1 && onlySendingSessionId)
+      return onlySendingSessionId
+    return options.sessionId.value
+  })
 
   async function cancelGeneration(sessionId: string) {
     await Promise.all([
