@@ -356,6 +356,7 @@ describe('context bridge contract', () => {
       composedMessage: [{ role: 'system', content: 'private system prompt' }],
       input: { type: 'input:text', data: { text: 'channel question', discord: { channelId: 'channel-a' }, secret: 'input-only' } },
       outputTarget: 'discord:instance-a',
+      outputs: ['chat:owner', 'connection:discord:instance-a'],
     }
     const message = { role: 'assistant', content: 'channel reply' }
 
@@ -372,6 +373,30 @@ describe('context bridge contract', () => {
     expect(output.data).not.toHaveProperty('gen-ai:chat')
     expect(output.data).not.toHaveProperty('secret')
     expect(output.data).not.toHaveProperty('text')
+  })
+
+  // A voice device reply is spoken in the channel. Posting the same text there would repeat it.
+  it.each(['message', 'complete'] as const)('posts no %s output when the envelope speaks to a voice device instead', async (kind) => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    serverSendMock.mockClear()
+    const context = {
+      turnId: 'voice-turn',
+      message: { role: 'user', content: 'spoken question' },
+      contexts: {},
+      composedMessage: [],
+      input: { type: 'input:text', data: { text: 'spoken question', discord: { channelId: 'voice-a' } } },
+      outputTarget: 'discord:instance-a',
+      outputs: ['chat:owner', 'voice', 'voice-device:discord:channel:voice-a'],
+    }
+    const message = { role: 'assistant', content: 'spoken reply' }
+
+    if (kind === 'message')
+      await emitHooks(assistantMessageHooks, message, message.content, context)
+    else
+      await emitHooks(turnCompleteHooks, { output: message }, context)
+
+    expect(serverSendMock).not.toHaveBeenCalled()
   })
 
   // ROOT CAUSE:

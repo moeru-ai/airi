@@ -23,6 +23,7 @@ import {
 } from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useSpeechDeviceStore } from './mods/api/speech-device'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 
 const ioTracerMocks = vi.hoisted(() => {
@@ -1459,6 +1460,25 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'session-1', text: 'Hello from a module', outputTarget: 'module-connection' })
 
     expect(outputs).toEqual([['chat:owner', 'voice'], ['chat:owner', 'connection:module-connection']])
+  })
+
+  // The voice reaches every active device. A private reply must not be spoken where channel members hear it.
+  it('speaks only for the device scene while a voice device is active', async () => {
+    sessionMetas['voice-session'] = { sessionId: 'voice-session', userId: 'local', characterId: 'default', bindings: ['discord:channel:voice-a'], createdAt: 1, updatedAt: 1 }
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    useSpeechDeviceStore().devices = [{ binding: 'discord:channel:voice-a', connectionId: 'discord-connection' }]
+    const outputs: Array<readonly string[] | undefined> = []
+    const store = useChatStore()
+    store.onBeforeSend(async (_message, context) => {
+      outputs.push(context.outputs)
+    })
+
+    await store.send({ sessionId: 'session-1', text: 'Private question' })
+    await store.send({ sessionId: 'voice-session', text: 'Spoken question', outputTarget: 'discord-connection' })
+
+    expect(outputs).toEqual([['chat:owner'], ['chat:owner', 'voice', 'voice-device:discord:channel:voice-a']])
   })
 
   // ROOT CAUSE:

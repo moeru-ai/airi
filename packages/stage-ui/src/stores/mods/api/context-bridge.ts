@@ -27,6 +27,7 @@ import { useModsServerChannelStore } from './channel-server'
 import { createContextChannel } from './context-channel'
 import { useContextSourceStore } from './context-source'
 import { resolveInputScene, useModuleDirectoryStore } from './module-directory'
+import { useSpeechDeviceStore } from './speech-device'
 
 export function normalizeContextSnapshot<C extends Pick<ChatStreamEventContext, 'contexts'>>(contexts: C): C {
   return {
@@ -66,6 +67,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
   const contextObservability = useContextObservabilityStore()
   const contextSource = useContextSourceStore()
   const moduleDirectory = useModuleDirectoryStore()
+  const speechDevices = useSpeechDeviceStore()
   const scheduler = useSchedulerStore()
 
   /**
@@ -616,6 +618,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
       // Every renderer answers reads for the handles it wrote.
       disposeHookFns.value.push(contextSource.listen())
       disposeHookFns.value.push(moduleDirectory.listen())
+      disposeHookFns.value.push(speechDevices.listen())
 
       disposeHookFns.value.push(serverChannelStore.onEvent('extension:module:de-announced', async (event) => {
         const sourceKey = getMetadataSourceLabel(event.data.identity)
@@ -905,7 +908,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           // Other renderers, such as a devtools window, observe the turn through the same-origin channel.
           await contextChannel?.emitStream({ type: 'assistant-message', message: structuredClone(toRaw(message)), messageText, sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
           // Local turns have no external recipient. Internal prompt snapshots never leave the host through chat output.
-          if (!context.outputTarget)
+          // A reply reaches its connection only when the run envelope grants it. A voice device reply is spoken, not posted.
+          if (!context.outputTarget || !context.outputs?.includes(`connection:${context.outputTarget}`))
             return
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
@@ -923,7 +927,8 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           if (isProcessingRemoteStream)
             return
           await contextChannel?.emitStream({ type: 'chat-turn-complete', chat: structuredClone(toRaw(chat)), sessionId: context.sessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
-          if (!context.outputTarget)
+          // A reply reaches its connection only when the run envelope grants it. A voice device reply is spoken, not posted.
+          if (!context.outputTarget || !context.outputs?.includes(`connection:${context.outputTarget}`))
             return
           serverChannelStore.send({
             type: 'output:gen-ai:chat:complete',

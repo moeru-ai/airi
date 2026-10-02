@@ -40,6 +40,7 @@ import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useContextSourceStore } from './mods/api/context-source'
+import { speechDeviceOutput, useSpeechDeviceStore } from './mods/api/speech-device'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
@@ -209,6 +210,7 @@ export const useChatStore = defineStore('chat', () => {
   const contextObservability = useContextObservabilityStore()
   const scheduler = useSchedulerStore()
   const triage = useTriageStore()
+  const speechDevices = useSpeechDeviceStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -309,16 +311,22 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * Builds the limits for one send. The owner chat shows every session, so every run reaches the owner.
-   * Only a local conversation holds the voice. An external reply goes to its scene and never speaks.
+   * The voice reaches every active speech device. While a device is active, only a run of that device's scene speaks,
+   * and a local conversation answers in text, so private replies never reach the device's audience.
+   * Without a device, only a local conversation speaks. An external reply goes to its scene as text.
    * A module without a declared scene speaks for the owner.
    */
   function createRunEnvelope(sessionId: string, options: ChatOrchestratorSendOptions): Omit<ExecutionEnvelope, 'sessionId'> {
     const meta = chatSession.sessionMetas[sessionId]
     // Session metadata is reactive. The run table clones a plain copy.
     const bindings = [...meta?.bindings ?? []]
+    const device = options.outputTarget ? speechDevices.forBindings(bindings) : undefined
+    const outputs = options.outputTarget
+      ? device ? ['chat:owner', 'voice', speechDeviceOutput(device.binding)] : ['chat:owner', `connection:${options.outputTarget}`]
+      : speechDevices.devices.length ? ['chat:owner'] : ['chat:owner', 'voice']
     return {
       bindings,
-      outputs: options.outputTarget ? ['chat:owner', `connection:${options.outputTarget}`] : ['chat:owner', 'voice'],
+      outputs,
       audience: options.outputTarget ? unionAudiences(OWNER_AUDIENCE, audienceFromBindings(bindings)) : OWNER_AUDIENCE,
       personaId: meta?.characterId,
     }
