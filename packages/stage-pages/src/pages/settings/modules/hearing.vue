@@ -35,9 +35,25 @@ const {
   autoSendEnabled,
   autoSendDelay,
   confidenceThreshold,
+  rephraseEnabled,
+  rephraseProvider,
+  rephraseModel,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
 const providersStore = useProviderStore()
+const { configuredChatProvidersMetadata } = storeToRefs(providersStore)
+const rephraseProviderOptions = computed(() => [
+  { label: t('settings.pages.modules.hearing.sections.section.rephrase.same-as-chat'), value: '' },
+  ...configuredChatProvidersMetadata.value.map(provider => ({ label: provider.localizedName, value: provider.id })),
+])
+const rephraseModelOptions = computed(() => providersStore.getModelsForProvider(rephraseProvider.value).map(model => ({ label: model.name, value: model.id })))
+
+watch(rephraseProvider, (providerId, previous) => {
+  if (previous !== undefined && providerId !== previous)
+    rephraseModel.value = ''
+  if (providerId && providersStore.supportsModelListing(providerId))
+    void providersStore.fetchModelsForProvider(providerId)
+}, { immediate: true })
 const providerStore = useProviderConfigStore()
 const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
@@ -569,6 +585,49 @@ onUnmounted(() => {
               :step="100"
               :format-value="value => value === 0 ? 'Immediate' : `${(value / 1000).toFixed(1)}s`"
             />
+          </div>
+        </div>
+
+        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              {{ t('settings.pages.modules.hearing.sections.section.rephrase.title') }}
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              {{ t('settings.pages.modules.hearing.sections.section.rephrase.description') }}
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <FieldCheckbox
+              v-model="rephraseEnabled"
+              :label="t('settings.pages.modules.hearing.sections.section.rephrase.enabled')"
+              :description="t('settings.pages.modules.hearing.sections.section.rephrase.enabled-description')"
+            />
+
+            <template v-if="rephraseEnabled">
+              <FieldCombobox
+                v-model="rephraseProvider"
+                :label="t('settings.pages.modules.hearing.sections.section.rephrase.provider')"
+                :description="t('settings.pages.modules.hearing.sections.section.rephrase.provider-description')"
+                :options="rephraseProviderOptions"
+                layout="vertical"
+              />
+              <FieldCombobox
+                v-if="rephraseProvider && rephraseModelOptions.length"
+                v-model="rephraseModel"
+                :label="t('settings.pages.modules.hearing.sections.section.rephrase.model')"
+                :options="rephraseModelOptions"
+                :placeholder="t('settings.pages.modules.hearing.sections.section.rephrase.model-placeholder')"
+                layout="vertical"
+              />
+              <FieldInput
+                v-else-if="rephraseProvider"
+                v-model="rephraseModel"
+                :label="t('settings.pages.modules.hearing.sections.section.rephrase.model')"
+                :placeholder="t('settings.pages.modules.hearing.sections.section.rephrase.model-placeholder')"
+              />
+            </template>
           </div>
         </div>
       </div>

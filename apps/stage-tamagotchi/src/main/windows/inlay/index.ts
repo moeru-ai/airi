@@ -33,6 +33,8 @@ export function setupInlayWindowReusable(params: {
       maximizable: false,
       minimizable: false,
       skipTaskbar: true,
+      // The inlay opens without focus, so it must stay above the app that the user works in.
+      alwaysOnTop: true,
       icon,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
@@ -72,7 +74,6 @@ export function setupInlayWindowReusable(params: {
       ),
     })
 
-    window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 
     await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
