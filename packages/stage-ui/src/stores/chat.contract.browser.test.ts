@@ -22,6 +22,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { useChatStore } from './chat'
+import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useSpeechDeviceStore } from './mods/api/speech-device'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
@@ -219,9 +220,14 @@ vi.mock('./modules/consciousness', () => ({
   })),
 }))
 
+const cardPrompt = vi.hoisted(() => ({ value: 'system prompt' }))
+
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: undefined,
+    activeCardId: 'default',
+    systemPromptOf: () => cardPrompt.value,
+    getCard: () => undefined,
   }),
 }))
 
@@ -267,6 +273,7 @@ function storedToolImageMessage(): ChatHistoryItem {
 
 describe('chat store contract', () => {
   beforeEach(() => {
+    cardPrompt.value = 'system prompt'
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
       switch (event.name) {
@@ -1153,6 +1160,29 @@ describe('chat store contract', () => {
     expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // The card prompt was snapshotted into the session's first message and rewritten on card edits.
+  // A switch rewrote the visible session, and other sessions kept stale identities.
+  //
+  // We fixed this by reading the session persona's prompt when each run starts. History stores no identity.
+  // https://github.com/moeru-ai/airi/issues/1995
+  it('reads an edited card prompt for the next run without touching the history', async () => {
+    const systemTexts: string[] = []
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
+      const system = context.turns.find(turn => turn.type === 'system')
+      systemTexts.push(system?.type === 'system' && system.content[0]?.type === 'text' ? system.content[0].text : '')
+      await options.onStreamEvent({ type: 'finish' })
+    })
+    const store = useChatStore()
+
+    await store.ingest('first', { model: 'gpt-test', chatProvider: provider })
+    cardPrompt.value = 'edited prompt'
+    await store.ingest('second', { model: 'gpt-test', chatProvider: provider })
+
+    expect(systemTexts).toEqual([`${CHAT_FORMAT_RULES}system prompt`, `${CHAT_FORMAT_RULES}edited prompt`])
+  })
+
   it('keeps hook order and composes context prompt after system message', async () => {
     const contextsSnapshot = {
       'system:weather': [
@@ -1251,12 +1281,12 @@ describe('chat store contract', () => {
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMOutputChunkLengths, [5])
     expect(llmSpan.setAttribute).toHaveBeenCalledWith(IOAttributes.LLMTextLength, 5)
 
-    // The persisted system message stays unchanged. Per-message time prefixes
-    // keep the static card prompt cacheable across day boundaries.
+    // Identity comes from the session's persona at request time, after the format rules.
+    // Per-message time prefixes keep the static card prompt cacheable across day boundaries.
     if (composedMessages[0].type !== 'system' || composedMessages[1].type !== 'user')
       throw new Error('Expected system and user turns')
     expect(composedMessages[0].content).toEqual([
-      { type: 'text', text: 'system prompt' },
+      { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt` },
       { type: 'text', text: '\n\nPlugin toolset guidance.' },
     ])
     expect(composedMessages[1].content[0]).toMatchObject({

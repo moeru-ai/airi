@@ -307,8 +307,9 @@ describe('chat session synchronization', () => {
       content: 'Hello',
     })
 
-    await vi.waitFor(() => expect(leaderChatStore.sessionMessages[newSessionId]).toHaveLength(2))
-    await vi.waitFor(() => expect(followerChatStore.sessionMessages[newSessionId]).toHaveLength(2))
+    // A session stores no system snapshot, so its first message is the user's.
+    await vi.waitFor(() => expect(leaderChatStore.sessionMessages[newSessionId]).toHaveLength(1))
+    await vi.waitFor(() => expect(followerChatStore.sessionMessages[newSessionId]).toHaveLength(1))
 
     expect(previousSessionId).not.toBe(newSessionId)
     expect(followerChatStore.activeSessionId).toBe(newSessionId)

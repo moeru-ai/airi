@@ -247,6 +247,13 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`mood.test.ts` in stage-ui): mood moves only after confident scores for every dimension, only for the appraised persona, and rests at the baseline without a classifier.
 - Implemented: finished turns and urgent events appraise mood beside the work. Idle checks scale by arousal. The stage composes sentence expressions with the mood and returns to the mood baseline after speech.
 
+### P7 progress
+
+- Observed (`chat-orchestrator-runs.test.ts`, `chat.contract.browser.test.ts`): each run reads the identity of its session persona when it starts. A card edit reaches the next run, and a switch never rewrites another session's history.
+- Implemented: sessions no longer store a system snapshot. Format rules live in the stage-ui prompt recipe, and notification reactions speak as the session persona.
+- Observed (`history-budget.test.ts`, `chat-orchestrator-runs.test.ts`): long history stays within the token budget. Omitted exchanges give way to a covering digest or a count, and the stored history keeps every message.
+- Not provided: nothing writes session digests yet, so long sessions show the count. Summaries need a model call and belong with memory in P8.
+
 ### Open P0 evidence
 
 These checks need live models, bots, or windows. They are not verified.

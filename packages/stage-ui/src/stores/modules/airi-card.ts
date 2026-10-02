@@ -652,6 +652,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       } satisfies AiriExtension['modules']
     }),
     systemPrompt: computed(() => resolveSystemPrompt(activeCard.value)),
+    /** Identity text of one card. A run reads it for its own persona, not for the selected card. */
+    systemPromptOf: (cardId: string) => resolveSystemPrompt(cards.value.get(cardId)),
   }
 }, {
   synced: {

@@ -65,7 +65,7 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
-  const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const { activeCardId } = storeToRefs(useAiriCardStore())
 
   const chatSessionSelection = useChatSessionSelectionStore()
   // The selected conversation belongs to one window. Expose it through the
@@ -122,16 +122,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   // Single-flight guard for outbox drain so concurrent `reconcile end` +
   // `pushMessageToCloud post-enqueue` triggers don't double-send.
   let outboxDrainTask: Promise<void> | undefined
-
-  // I know this nu uh, better than loading all language on rehypeShiki
-  const codeBlockSystemPrompt = '- For any programming code block, always specify the programming language that supported on @shikijs/rehype on the rendered markdown, eg. ```python ... ```\n'
-  const mathSyntaxSystemPrompt = `${[
-    '- Use $$...$$ for inline math.',
-    '- Use a separate multiline $$ block for each display equation.',
-    '- Use a latex fence for a list of independent one-line equations.',
-    '- Use a math fence for one multiline equation or LaTeX environment.',
-    '- Do not use single dollar signs as math delimiters.',
-  ].join('\n')}\n`
 
   function getCurrentUserId() {
     return userId.value || 'local'
@@ -193,54 +183,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       sessionMessages.value[sessionId] = next
 
     return next
-  }
-
-  function generateInitialMessageFromPrompt(prompt: string) {
-    const content = codeBlockSystemPrompt + mathSyntaxSystemPrompt + prompt
-
-    return {
-      role: 'system',
-      content,
-      id: nanoid(),
-      createdAt: Date.now(),
-    } satisfies ChatHistoryItem
-  }
-
-  function generateInitialMessage() {
-    return generateInitialMessageFromPrompt(systemPrompt.value)
-  }
-
-  function refreshActiveSessionSystemMessage() {
-    const sessionId = activeSessionId.value
-    const meta = sessionMetas.value[sessionId]
-
-    // A card switch updates `systemPrompt` before its character session has
-    // necessarily finished loading. Never rewrite the previous character's
-    // session or persist an empty in-memory placeholder over an IDB history
-    // that is still being hydrated.
-    if (!sessionId || !loadedSessions.has(sessionId) || meta?.characterId !== getCurrentCharacterId())
-      return
-
-    const currentMessages = sessionMessages.value[sessionId] ?? []
-    const systemMessageIndex = currentMessages.findIndex(message => message.role === 'system')
-    const currentSystemMessage = currentMessages[systemMessageIndex]
-    const resolvedSystemMessage = generateInitialMessage()
-
-    if (currentSystemMessage?.content === resolvedSystemMessage.content)
-      return
-
-    if (currentSystemMessage) {
-      const nextMessages = [...currentMessages]
-      nextMessages[systemMessageIndex] = {
-        ...currentSystemMessage,
-        role: 'system',
-        content: resolvedSystemMessage.content,
-      }
-      replaceSessionMessages(sessionId, nextMessages)
-      return
-    }
-
-    replaceSessionMessages(sessionId, [resolvedSystemMessage, ...currentMessages])
   }
 
   function ensureGeneration(sessionId: string) {
@@ -415,8 +357,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           }
           staleSessions.delete(sessionId)
           loadedSessions.add(sessionId)
-          if (activeSessionId.value === sessionId)
-            refreshActiveSessionSystemMessage()
         }
 
         // Local and cloud hydration are separate. A failed cloud pull leaves
@@ -503,7 +443,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : []
 
     sessionMetas.value[sessionId] = meta
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
@@ -918,7 +858,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           cloudChatId: remote.id,
         }
         sessionMetas.value[remote.id] = adoptedMeta
-        sessionMessages.value[remote.id] = [generateInitialMessage()]
+        sessionMessages.value[remote.id] = []
         ensureGeneration(remote.id)
 
         if (!index.value)
@@ -1344,7 +1284,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function ensureSession(sessionId: string) {
     ensureGeneration(sessionId)
     if (!sessionMessages.value[sessionId] || sessionMessages.value[sessionId].length === 0) {
-      replaceSessionMessages(sessionId, [generateInitialMessage()], { persist: false })
+      replaceSessionMessages(sessionId, [], { persist: false })
     }
   }
 
@@ -1431,7 +1371,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    setSessionMessages(sessionId, [])
   }
 
   function getAllSessions() {
@@ -1747,11 +1687,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       console.error('[chat-session] Failed to activate the current user:', error)
     }
   })
-
-  // Keep the active conversation aligned with edits to the active card. The
-  // active session id is included because card switching resolves the target
-  // session asynchronously after the card prompt itself has already changed.
-  watch([systemPrompt, activeSessionId], refreshActiveSessionSystemMessage)
 
   return {
     isReady,

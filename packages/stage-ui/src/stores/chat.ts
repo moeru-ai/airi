@@ -37,6 +37,7 @@ import { useCharacterMoodStore } from './character/mood'
 import { createMoodContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
+import { composeSystemPrompt } from './chat/prompt-recipe'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
@@ -601,6 +602,13 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    // A digest stands in for older history that no longer fits the request budget.
+    getHistoryDigest: (sessionId) => {
+      const digest = chatSession.sessionMetas[sessionId]?.digest
+      return digest ? { text: digest.text, upToMessageId: digest.upToMessageId } : undefined
+    },
+    // Identity follows the session's persona at request time, so a card switch never rewrites another session.
+    getSystemPrompt: envelope => composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default')),
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.

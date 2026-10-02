@@ -45,7 +45,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
-  const { systemPrompt } = storeToRefs(characterStore)
   const runtimePrompt = useAiriRuntimePrompt()
   const modsServerChannelStore = useModsServerChannelStore()
   const chatSession = useChatSessionStore()
@@ -296,7 +295,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           model,
           provider,
         },
-        systemPrompt: systemPrompt.value,
+        // The reaction speaks as the persona of the session it joins, not the card selected in the UI.
+        systemPrompt: airiCard.systemPromptOf(personaOf(chatSession.activeSessionId)),
         // A reaction speaks in the same mood as the conversation.
         runtimePrompt: [runtimePrompt.value, mood.active ? describeMood(mood.current(personaOf(chatSession.activeSessionId))) : ''].filter(Boolean).join('\n'),
         control,

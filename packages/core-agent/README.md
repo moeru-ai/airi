@@ -173,6 +173,13 @@ A chat runtime with `checkSpendingLimit` rejects new input while the limit is re
 A candidate needs the task requirements, the user tier, the timing target, and at least five quality test results with an 80% pass rate.
 The fastest accepted candidate wins, and price never ranks candidates. Without one, the configured model stays, with `fallback`.
 
+## Identity and history budget
+
+With `getSystemPrompt`, each run reads the identity of its own persona when it starts. History stores no identity, and stored system messages are skipped.
+`fitHistoryToBudget` keeps the newest exchanges within `historyTokenBudget`, 32,000 tokens by default. It cuts only before a user message, and the newest exchange always stays.
+Omitted history gives way to the session digest from `getHistoryDigest` when the digest covers it. Otherwise a short note counts the omitted messages. Both enter as context, never as instructions.
+Text length bounds the token count, so the tokenizer loads only for history that can exceed the budget.
+
 ## Mood
 
 Mood is per-persona state. It keeps an intensity for each of six feelings: joy, contentment, anger, sadness, fear, and boredom.

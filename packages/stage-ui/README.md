@@ -131,6 +131,8 @@ While the limit is reached, owner and connection input fails with a message, and
 The spending ledger lives in the leader renderer's memory, so it starts empty after a restart.
 `useCharacterMoodStore` keeps each persona's mood. Its motion follows the temperament that the card editor sets with `TemperamentPad`. With a classifier configured, finished turns and urgent notifications move it. Without one, mood rests and nothing changes.
 Each conversation prompt and notification reaction reads one mood sentence. With SSML on, each spoken segment shifts pitch and speed by the mood at synthesis time. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
+A chat run reads the identity of its session's persona when it starts, through `composeSystemPrompt` in the prompt recipe. Sessions store no system snapshot.
+Long sessions keep their newest exchanges within the core history budget. A session digest, when present, stands in for the rest.
 Every chat run request carries the silence tool and its guidance. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling

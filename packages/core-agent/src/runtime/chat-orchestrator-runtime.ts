@@ -20,6 +20,8 @@ import { deliveredSpeechText, deliveredSpeechTurn } from '../messages/delivered-
 import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
 import { audienceIncludes, intersectAudiences, OWNER_AUDIENCE } from './audience'
+import { loadContextTokenCounter } from './context-budget'
+import { fitHistoryToBudget } from './history-budget'
 import { IntakeLog, salienceFromUrgency } from './intake'
 import { LeaseTable } from './lease-table'
 import { useLlmmarkerParser } from './llm-marker-parser'
@@ -278,6 +280,8 @@ export interface ChatOrchestratorRuntimeLimits {
   stallTimeoutMs: number
   /** A running send expires after this total time. @default 600000 */
   runDeadlineMs: number
+  /** Tokens of session history in one request. Older exchanges give way to a short note. @default 32000 */
+  historyTokenBudget: number
 }
 
 /** Identical consecutive tool calls that end a run. Supervision stops a loop instead of waiting for the deadline. */
@@ -311,6 +315,13 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /**
+   * Returns the identity and format rules for the run's persona, read when the run starts.
+   * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next run of its own sessions only.
+   */
+  getSystemPrompt?: (envelope: ExecutionEnvelope) => string | undefined
+  /** Returns the session digest, which can stand in for history that no longer fits the budget. */
+  getHistoryDigest?: (sessionId: string) => { text: string, upToMessageId: string } | undefined
   /**
    * Builds the limits for one send. The runtime records them in the run table.
    * @default the session alone, with the owner chat and the voice as its outputs
@@ -574,6 +585,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       maxQueuedPerSession: positiveInteger(limits.maxQueuedPerSession, 8),
       stallTimeoutMs: positiveInteger(limits.stallTimeoutMs, 60_000),
       runDeadlineMs: positiveInteger(limits.runDeadlineMs, 600_000),
+      historyTokenBudget: positiveInteger(limits.historyTokenBudget, 32_000),
     }
   }
 
@@ -630,6 +642,31 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
     message.createdAt = fallbackCreatedAt
     return fallbackCreatedAt
+  }
+
+  /**
+   * Fits session history into the token budget. Older exchanges give way to the session digest when it covers them, or to a count.
+   * Text length bounds its token count, so the tokenizer loads only for history that can exceed the budget.
+   */
+  async function fitSessionHistory(sessionId: string, history: ChatHistoryItem[]): Promise<{ kept: ChatHistoryItem[], note?: string }> {
+    const budget = getLimits().historyTokenBudget
+    const roughSize = history.reduce((sum, item) => sum + (typeof item.content === 'string' ? item.content.length : JSON.stringify(item.content ?? '').length), 0)
+    if (roughSize <= budget)
+      return { kept: history }
+
+    const { kept, omitted } = fitHistoryToBudget(history, await loadContextTokenCounter(), budget)
+    if (!omitted.length)
+      return { kept }
+    const digest = deps.getHistoryDigest?.(sessionId)
+    const lastOmitted = omitted.at(-1)?.id
+    const digestIndex = digest ? history.findIndex(item => item.id === digest.upToMessageId) : -1
+    const covered = digest && lastOmitted && digestIndex >= history.findIndex(item => item.id === lastOmitted)
+    return {
+      kept,
+      note: covered
+        ? `Summary of the earlier conversation in this session: ${digest.text}`
+        : `${omitted.length} earlier messages of this session are not shown.`,
+    }
   }
 
   function buildContext(history: ChatHistoryItem[]): Conversation {
@@ -919,7 +956,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      // Identity comes from the run's persona at request time. Without a host identity, the stored history keeps its own system message.
+      const systemPrompt = deps.getSystemPrompt?.(run.envelope)
+      const projected = deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend
+      const { kept, note } = await fitSessionHistory(sessionId, projected)
+      const context = buildContext(kept)
+      if (note)
+        context.turns.unshift({ id: 'history-omitted', type: 'system', authority: 'context', content: [{ type: 'text', text: note }] })
+      if (systemPrompt?.trim())
+        context.turns.unshift({ id: 'system-identity', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPrompt }] })
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')

@@ -20,7 +20,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], checkSpendingLimit?: ChatOrchestratorRuntimeDeps['checkSpendingLimit'], leases?: LeaseTable, runs?: RunTable } = {}) {
+function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], checkSpendingLimit?: ChatOrchestratorRuntimeDeps['checkSpendingLimit'], getSystemPrompt?: ChatOrchestratorRuntimeDeps['getSystemPrompt'], getHistoryDigest?: ChatOrchestratorRuntimeDeps['getHistoryDigest'], personaOf?: (sessionId: string) => string, leases?: LeaseTable, runs?: RunTable } = {}) {
   const messages: ChatHistoryItem[] = []
   const runChanges: AgentRun[] = []
   let sessionAudience = options.sessionAudience ?? OWNER_AUDIENCE
@@ -55,11 +55,13 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     llm: { stream },
     getActiveSessionId: () => 'session',
     getActiveProvider: () => 'mock',
-    createEnvelope: () => ({ bindings: [], outputs: options.outputs ?? ['chat:owner'], audience: options.runAudience ?? OWNER_AUDIENCE, personaId: 'airi' }),
+    createEnvelope: sessionId => ({ bindings: [], outputs: options.outputs ?? ['chat:owner'], audience: options.runAudience ?? OWNER_AUDIENCE, personaId: options.personaOf?.(sessionId) ?? 'airi' }),
     onRunChange: options.onRunChange ?? (run => runChanges.push(run)),
     decideIntake: options.decideIntake,
     decideDirectIntake: options.decideDirectIntake,
     checkSpendingLimit: options.checkSpendingLimit,
+    getSystemPrompt: options.getSystemPrompt,
+    getHistoryDigest: options.getHistoryDigest,
     leases: options.leases,
     runs: options.runs,
   })
@@ -184,6 +186,48 @@ describe('orchestrator runs', () => {
     message = undefined
     await harness.runtime.ingest('hello', { model: 'strong', chatProvider: provider })
     expect(harness.stream.mock.calls[0]?.[0]).toBe('strong')
+  })
+
+  // P7: identity follows the session's persona at request time. History carries none.
+  it('gives each run the identity of its session persona and skips stored system snapshots', async () => {
+    const harness = createRunHarness({
+      personaOf: sessionId => sessionId === 'cat-session' ? 'cat' : 'airi',
+      getSystemPrompt: envelope => envelope.personaId === 'cat' ? 'You are a cat.' : 'You are AIRI.',
+    })
+    harness.messages.push({ role: 'system', content: 'Stale snapshot of another card.', id: 'snapshot' })
+
+    await harness.runtime.ingest('hi', { model: 'test', chatProvider: provider }, 'cat-session')
+    await harness.runtime.ingest('hi', { model: 'test', chatProvider: provider }, 'airi-session')
+
+    const systemTexts = (call: number) => harness.stream.mock.calls[call]![2].turns.filter(turn => turn.type === 'system').map(turn => JSON.stringify(turn.content))
+    expect(systemTexts(0)).toEqual([JSON.stringify([{ type: 'text', text: 'You are a cat.' }])])
+    expect(systemTexts(1)).toEqual([JSON.stringify([{ type: 'text', text: 'You are AIRI.' }])])
+  })
+
+  // P7 acceptance: prompt size stays bounded. Older exchanges give way to the digest when it covers them.
+  it('keeps long history within the budget and puts the digest or a count in its place', async () => {
+    const old = 'old words '.repeat(200)
+    const fill = (harness: ReturnType<typeof createRunHarness>) => harness.messages.push(
+      { role: 'user', content: old, id: 'u1' },
+      { role: 'assistant', content: old, slices: [], tool_results: [], id: 'a1' },
+      { role: 'user', content: 'recent question', id: 'u2' },
+      { role: 'assistant', content: 'recent answer', slices: [], tool_results: [], id: 'a2' },
+    )
+    const withDigest = createRunHarness({ limits: { historyTokenBudget: 100 }, getHistoryDigest: () => ({ text: 'They talked about old things.', upToMessageId: 'a1' }) })
+    fill(withDigest)
+    const withoutDigest = createRunHarness({ limits: { historyTokenBudget: 100 } })
+    fill(withoutDigest)
+
+    await withDigest.runtime.ingest('new', { model: 'test', chatProvider: provider })
+    await withoutDigest.runtime.ingest('new', { model: 'test', chatProvider: provider })
+
+    const digestPrompt = JSON.stringify(withDigest.stream.mock.calls[0]![2])
+    expect(digestPrompt).not.toContain('old words')
+    expect(digestPrompt).toContain('recent answer')
+    expect(digestPrompt).toContain('Summary of the earlier conversation in this session: They talked about old things.')
+    expect(JSON.stringify(withoutDigest.stream.mock.calls[0]![2])).toContain('2 earlier messages of this session are not shown.')
+    // The stored history keeps every message.
+    expect(withDigest.messages.map(message => message.id)).toContain('u1')
   })
 
   // T3: work without the voice output neither waits for the voice nor reserves it.
