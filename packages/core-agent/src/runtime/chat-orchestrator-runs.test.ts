@@ -216,9 +216,9 @@ describe('orchestrator runs', () => {
       { role: 'user', content: 'recent question', id: 'u2' },
       { role: 'assistant', content: 'recent answer', slices: [], tool_results: [], id: 'a2' },
     )
-    const withDigest = createRunHarness({ limits: { historyTokenBudget: 100 }, getHistoryDigest: () => ({ text: 'They talked about old things.', upToMessageId: 'a1' }) })
+    const withDigest = createRunHarness({ limits: { historyTokenBudget: 300 }, getHistoryDigest: () => ({ text: 'They talked about old things.', upToMessageId: 'a1' }) })
     fill(withDigest)
-    const withoutDigest = createRunHarness({ limits: { historyTokenBudget: 100 } })
+    const withoutDigest = createRunHarness({ limits: { historyTokenBudget: 300 } })
     fill(withoutDigest)
 
     await withDigest.runtime.ingest('new', { model: 'test', chatProvider: provider })
@@ -261,6 +261,29 @@ describe('orchestrator runs', () => {
     await expect(second).rejects.toThrow('The session audience narrowed below the run audience')
     expect(harness.stream).toHaveBeenCalledOnce()
     expect(harness.runtime.getRuns().at(-1)).toMatchObject({ state: 'blocked' })
+  })
+
+  // The quick size check used to read only message text, so a large tool result in an old transcript slipped through.
+  it('drops an old exchange whose tool results exceed the budget', async () => {
+    const harness = createRunHarness({ limits: { historyTokenBudget: 2_000 } })
+    const transcript: AssistantTurn = {
+      type: 'assistant',
+      id: 'old-turn',
+      status: 'completed',
+      rounds: [{ id: 'round', content: [{ type: 'text', text: 'searched' }], toolInvocations: [{ id: 'call', callId: 'call', name: 'search', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'text', text: 'huge result '.repeat(5_000) }] } }], projectionIssues: [] }],
+    }
+    harness.messages.push(
+      { role: 'user', content: 'search something', id: 'u1' },
+      { role: 'assistant', content: 'searched', slices: [], tool_results: [], id: 'a1', generationTranscript: transcript },
+      { role: 'user', content: 'recent question', id: 'u2' },
+      { role: 'assistant', content: 'recent answer', slices: [], tool_results: [], id: 'a2' },
+    )
+
+    await harness.runtime.ingest('new', { model: 'test', chatProvider: provider })
+
+    const prompt = JSON.stringify(harness.stream.mock.calls[0]![2])
+    expect(prompt).not.toContain('huge result')
+    expect(prompt).toContain('recent answer')
   })
 
   // T3: work without the voice output neither waits for the voice nor reserves it.

@@ -21,7 +21,7 @@ import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
 import { audienceIncludes, intersectAudiences, OWNER_AUDIENCE } from './audience'
 import { loadContextTokenCounter } from './context-budget'
-import { fitHistoryToBudget } from './history-budget'
+import { estimateTurnsTokens, fitHistoryToBudget, projectedTurnsSizeBound } from './history-budget'
 import { IntakeLog, salienceFromUrgency } from './intake'
 import { LeaseTable } from './lease-table'
 import { useLlmmarkerParser } from './llm-marker-parser'
@@ -653,34 +653,36 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   /**
-   * Fits session history into the token budget. Older exchanges give way to the session digest when it covers them, or to a count.
-   * Text length bounds its token count, so the tokenizer loads only for history that can exceed the budget.
+   * Projects session history and fits it into the token budget. Older exchanges give way to the session digest when it covers them, or to a count.
+   * Each message costs what its projection sends, including tool results and turn transcripts.
+   * Text length bounds the token count, so the tokenizer loads only for history that can exceed the budget.
    */
-  async function fitSessionHistory(sessionId: string, history: ChatHistoryItem[]): Promise<{ kept: ChatHistoryItem[], note?: string }> {
+  async function fitSessionHistory(sessionId: string, history: ChatHistoryItem[]): Promise<{ turns: Turn[], note?: string }> {
     const budget = getLimits().historyTokenBudget
-    const roughSize = history.reduce((sum, item) => sum + (typeof item.content === 'string' ? item.content.length : JSON.stringify(item.content ?? '').length), 0)
-    if (roughSize <= budget)
-      return { kept: history }
+    const projected = projectHistory(history)
+    if (projected.reduce((sum, turns) => sum + projectedTurnsSizeBound(turns), 0) <= budget)
+      return { turns: projected.flat() }
 
-    const { kept, omitted } = fitHistoryToBudget(history, await loadContextTokenCounter(), budget)
-    if (!omitted.length)
-      return { kept }
+    const countTokens = await loadContextTokenCounter()
+    const firstKept = fitHistoryToBudget(history, projected.map(turns => estimateTurnsTokens(turns, countTokens)), budget)
+    const turns = projected.slice(firstKept).flat()
+    if (firstKept === 0)
+      return { turns }
     const digest = deps.getHistoryDigest?.(sessionId)
-    const lastOmitted = omitted.at(-1)?.id
     const digestIndex = digest ? history.findIndex(item => item.id === digest.upToMessageId) : -1
-    const covered = digest && lastOmitted && digestIndex >= history.findIndex(item => item.id === lastOmitted)
     return {
-      kept,
-      note: covered
+      turns,
+      note: digest && digestIndex >= firstKept - 1
         ? `Summary of the earlier conversation in this session: ${digest.text}`
-        : `${omitted.length} earlier messages of this session are not shown.`,
+        : `${firstKept} earlier messages of this session are not shown.`,
     }
   }
 
-  function buildContext(history: ChatHistoryItem[]): Conversation {
+  /** Projects each stored message into the turns that a request sends for it. */
+  function projectHistory(history: ChatHistoryItem[]): Turn[][] {
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
-    const turns = history.flatMap((message, historyIndex): Turn[] => {
+    return history.map((message, historyIndex): Turn[] => {
       // An interrupted voice reply reaches the next prompt as the speech that was heard.
       const delivered = message.role === 'assistant' ? message.deliveredSpeech : undefined
       if (message.role === 'assistant' && message.generationTranscript) {
@@ -694,7 +696,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         : unwrapMessage(message)
       return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
     })
-    return { turns }
   }
 
   async function performSend(
@@ -970,8 +971,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       // Identity comes from the run's persona at request time. Without a host identity, the stored history keeps its own system message.
       const systemPrompt = deps.getSystemPrompt?.(run.envelope)
       const projected = deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend
-      const { kept, note } = await fitSessionHistory(sessionId, projected)
-      const context = buildContext(kept)
+      const { turns, note } = await fitSessionHistory(sessionId, projected)
+      const context: Conversation = { turns }
       if (note)
         context.turns.unshift({ id: 'history-omitted', type: 'system', authority: 'context', content: [{ type: 'text', text: note }] })
       if (systemPrompt?.trim())
