@@ -15,6 +15,10 @@
     "directory": "packages/audio"
   },
   "exports": {
+    "./browser": {
+      "types": "./dist/browser/index.d.mts",
+      "default": "./dist/browser/index.mjs"
+    },
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
@@ -55,7 +59,10 @@
   },
   "dependencies": {
     "@alexanderolsen/libsamplerate-js": "catalog:",
-    "@moeru/std": "catalog:"
+    "@moeru/std": "catalog:",
+    "@proj-airi/pipelines-audio": "workspace:*",
+    "mediabunny": "catalog:",
+    "nanoid": "catalog:"
   },
   "devDependencies": {
     "@types/audioworklet": "catalog:",
