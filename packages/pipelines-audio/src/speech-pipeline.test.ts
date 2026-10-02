@@ -310,4 +310,31 @@ describe('createSpeechPipeline', () => {
 
     expect(scheduled.map(item => item.text)).toEqual(['first'])
   })
+
+  // An urgent intent waits for the sentence that is playing, then the rest of the old intent never plays.
+  it('lets the playing segment finish when a new intent interrupts at a boundary', async () => {
+    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: (_tokens, meta) => createSegmenter(meta.intentId === 'urgent' ? ['urgent'] : ['first', 'second'])(_tokens, meta),
+      playback,
+      async tts(request) {
+        return request.text
+      },
+    })
+
+    const chat = pipeline.openIntent({ intentId: 'chat', turnId: 'chat-turn', priority: 'normal' })
+    chat.end()
+    await delay(0)
+    expect(scheduled.map(item => item.text)).toEqual(['first'])
+
+    const urgent = pipeline.openIntent({ intentId: 'urgent', priority: 'high', behavior: 'interrupt-at-boundary' })
+    urgent.end()
+    await delay(0)
+    expect(playback.stopByIntent).toHaveBeenCalledWith('chat', 'interrupt', { keepPlaying: true })
+    expect(scheduled.map(item => item.text)).toEqual(['first'])
+
+    end(scheduled[0]!)
+    await delay(0)
+    expect(scheduled.map(item => item.text)).toEqual(['first', 'urgent'])
+  })
 })

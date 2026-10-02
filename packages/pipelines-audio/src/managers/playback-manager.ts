@@ -362,11 +362,15 @@ export function createPlaybackManager<TAudio>(
     handleBlocked(item, blocked)
   }
 
-  function stopByIntent(intentId: string, reason = 'stop-by-intent') {
+  /** Stops an intent's playback. With `keepPlaying`, the playing item finishes and only waiting items leave. */
+  function stopByIntent(intentId: string, reason = 'stop-by-intent', options?: { keepPlaying?: boolean }) {
     for (let i = waiting.length - 1; i >= 0; i--) {
       if (waiting[i]?.item.intentId === intentId)
         waiting.splice(i, 1)
     }
+
+    if (options?.keepPlaying)
+      return
 
     for (const entry of [...active.values()]) {
       if (entry.item.intentId === intentId)

@@ -215,7 +215,7 @@ describe('store character-orchestrator', () => {
     expect((mockStream.mock.calls[0][2] as Conversation).turns).toHaveLength(2)
     expect(mockStream.mock.calls[0][3]).toHaveProperty('tools')
 
-    expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!')
+    expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!', { interrupt: true })
     expect(mockOnSparkNotifyReactionStreamEnd).toHaveBeenCalledTimes(1)
   })
 
@@ -327,13 +327,14 @@ describe('store character-orchestrator', () => {
   // ROOT CAUSE:
   // Notification commands went straight to the channel. Any destination that the model named received work.
   it('never sends a notification command to an undeclared module', async () => {
-    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
-      const sparkCommandTool = options?.tools?.find((tool: any) => tool.function?.name === 'builtIn_sparkCommand')
-      await sparkCommandTool.execute({
+    mockedStore(useLLM, pinia).stream = vi.fn<ReturnType<typeof useLLM>['stream']>(async (_model, _provider, _messages, options) => {
+      const tools = typeof options?.tools === 'function' ? await options.tools() : options?.tools
+      const sparkCommandTool = tools?.find(tool => tool.function.name === 'builtIn_sparkCommand')
+      await sparkCommandTool?.execute({
         commands: [{ destinations: ['vscode'], intent: 'action', priority: 'high', interrupt: 'false', ack: 'go', guidance: null }],
-      } satisfies z.infer<typeof sparkNotifyCommandSchema>)
+      } satisfies z.infer<typeof sparkNotifyCommandSchema>, { messages: [], toolCallId: 'command' })
       await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
-    }) as any
+    })
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const store = useCharacterOrchestratorStore(pinia)
 
@@ -398,20 +399,20 @@ describe('store character-orchestrator', () => {
     })
 
     function replyWith(text: string) {
-      const mockStream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      const mockStream = vi.fn<ReturnType<typeof useLLM>['stream']>(async (_model, _provider, _messages, options) => {
         await options?.onStreamEvent?.({ type: 'text-delta', text } satisfies StreamEvent)
         await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
       })
-      mockedStore(useLLM, pinia).stream = mockStream as any
+      mockedStore(useLLM, pinia).stream = mockStream
       return mockStream
     }
 
     // ROOT CAUSE:
     // A notification reaction opened an interrupting speech intent, so it spoke over the conversation run.
-    it('defers an immediate notification while another run holds the voice', async () => {
+    it('defers an immediate notification while equally urgent speech holds the voice', async () => {
       const mockStream = replyWith('Watch out!')
       const scheduler = useSchedulerStore(pinia)
-      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.5 })
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.9 })
       const store = useCharacterOrchestratorStore(pinia)
       const event = notify()
 
@@ -428,7 +429,7 @@ describe('store character-orchestrator', () => {
     it('puts an urgent waiting notification ahead of a later chat send in the voice line', async () => {
       replyWith('Watch out!')
       const scheduler = useSchedulerStore(pinia)
-      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.5 })
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.9 })
       const store = useCharacterOrchestratorStore(pinia)
       const event = notify()
 
@@ -485,6 +486,26 @@ describe('store character-orchestrator', () => {
 
       expect(mockStream).not.toHaveBeenCalled()
       expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'error-cooldown', retryAt: scheduler.errorBurst.coolingUntil() }])
+    })
+
+    // Urgent work interrupts lower-salience speech at a sentence boundary. Other notifications wait for it.
+    it('takes the voice from calmer speech and interrupts it at a boundary', async () => {
+      replyWith('Creeper behind you!')
+      const reactions: Array<{ interrupt?: boolean }> = []
+      mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn<ReturnType<typeof useCharacterStore>['onSparkNotifyReactionStreamEvent']>((_eventId, _text, options) => {
+        reactions.push({ interrupt: options?.interrupt })
+      })
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.5 })
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.handleSparkNotify(notify())
+      await store.handleSparkNotify(notify({ urgency: 'soon' }))
+
+      expect(scheduler.runs.snapshot()).toMatchObject([{ state: 'done' }])
+      expect(reactions).toEqual([{ interrupt: true }])
+      // The calmer notification waits in line instead of cutting in.
+      expect(store.scheduledNotifies).toHaveLength(1)
     })
 
     it('runs an admitted notification as a run that holds and releases the voice', async () => {
@@ -552,7 +573,7 @@ describe('store character-orchestrator', () => {
     })
 
     function observe(text: string) {
-      mockedStore(useChatContextStore, pinia).getContextsSnapshot = vi.fn(() => ({ minecraft: [{ id: 'status', contextId: 'status', strategy: ContextUpdateStrategy.ReplaceSelf, text, createdAt: 0 }] })) as any
+      mockedStore(useChatContextStore, pinia).getContextsSnapshot = vi.fn<ReturnType<typeof useChatContextStore>['getContextsSnapshot']>(() => ({ minecraft: [{ id: 'status', contextId: 'status', strategy: ContextUpdateStrategy.ReplaceSelf, text, createdAt: 0 }] }))
     }
 
     function decideWith(noul: number) {

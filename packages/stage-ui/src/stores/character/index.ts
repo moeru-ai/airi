@@ -68,7 +68,10 @@ export const useCharacterStore = defineStore('character', () => {
     intent.end()
   }
 
-  function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown> }) {
+  /**
+   * Streams one notification reaction into speech. An urgent reaction interrupts at the next segment boundary. Others wait for current speech.
+   */
+  function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown>, interrupt?: boolean }) {
     if (!streamingReactions.value.has(sparkEventId)) {
       const newReaction = reactive({
         id: nanoid(),
@@ -83,7 +86,7 @@ export const useCharacterStore = defineStore('character', () => {
         intentId: `spark:${sparkEventId}`,
         ownerId: ownerId.value,
         priority: 'high',
-        behavior: 'interrupt',
+        behavior: options?.interrupt ? 'interrupt-at-boundary' : 'queue',
       }))
 
       const parser = parserFactory({

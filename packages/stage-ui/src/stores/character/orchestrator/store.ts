@@ -31,6 +31,9 @@ export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-not
 /** Internal proposals can propose further work only this many levels deep. */
 export const MAX_PROPOSAL_DEPTH = 2
 
+/** Salience at which a notification interrupts current speech at a sentence boundary. */
+export const INTERRUPT_SALIENCE = 0.85
+
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
   const consciousnessStore = useConsciousnessStore()
@@ -63,7 +66,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   let initialized = false
   let leadership: SyncedPiniaRuntime | undefined
   let stopLeadershipListener: (() => void) | undefined
-  let activeNotify: { runId: string, eventId: string, controller: AbortController } | undefined
+  let activeNotify: { runId: string, eventId: string, controller: AbortController, interrupts: boolean } | undefined
   const eventUnsubscribes: Array<() => void> = []
   const sparkNotifyAgent = createSparkNotifyAgent({
     runner: {
@@ -86,7 +89,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     },
     plugins: [
       createSparkNotifyReactionPlugin({
-        onDelta: (eventId, text) => characterStore.onSparkNotifyReactionStreamEvent(eventId, text),
+        // Only urgent work cuts in, and only at a sentence boundary.
+        onDelta: (eventId, text) => characterStore.onSparkNotifyReactionStreamEvent(eventId, text, { interrupt: activeNotify?.interrupts === true }),
         onEnd: (eventId, text) => characterStore.onSparkNotifyReactionStreamEnd(eventId, text),
       }),
     ],
@@ -120,7 +124,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     // Notification runs count against the shared run capacity, like chat sends.
     if (processing.value || scheduler.runs.countWorking() >= runLimits.limits.maxConcurrentRuns)
       return false
-    return scheduler.leases.acquire('voice', entry.runId, { salience: entry.stimulus.salience, deadlineAt: entry.stimulus.deadlineAt, waitingSince: entry.enqueuedAt }).granted
+    // Urgent work takes the voice from lower-salience speech. Scene sources stay below this level.
+    const preempt = entry.stimulus.salience >= INTERRUPT_SALIENCE
+    return scheduler.leases.acquire('voice', entry.runId, { salience: entry.stimulus.salience, deadlineAt: entry.stimulus.deadlineAt, waitingSince: entry.enqueuedAt, preempt }).granted
   }
 
   function removePending(eventId: string) {
@@ -197,7 +203,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
 
     const controller = new AbortController()
-    activeNotify = { runId, eventId: event.data.id, controller }
+    activeNotify = { runId, eventId: event.data.id, controller, interrupts: (scheduler.runs.get(runId)?.salience ?? 0) >= INTERRUPT_SALIENCE }
     processing.value = true
 
     try {

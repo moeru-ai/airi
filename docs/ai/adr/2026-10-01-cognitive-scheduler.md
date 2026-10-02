@@ -204,6 +204,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: every chat run offers the silence tool, so the tool list stays stable. The decision belongs to the run, not to intake.
 - Observed (`delivery.test.ts`, `chat-orchestrator-runs.test.ts`, `chat.contract.browser.test.ts`, T6): an interrupted voice reply records its finished segments. The next prompt reads only that delivered part, and the chat keeps the generated text.
 - Not provided: streaming speech providers bypass the segment pipeline, so their interruptions do not record delivered speech.
+- Observed (`speech-pipeline.test.ts`, `playback-manager.test.ts`): an intent can interrupt at a segment boundary. The playing sentence finishes, and the rest of the old intent never plays.
+- Observed (`orchestrator/index.test.ts`): a notification at 0.85 or more takes the voice from calmer speech and interrupts at a boundary. A calmer notification waits in line.
+- Not provided: the voice lease ends with generation, while playback can continue. A queued reaction waits for playback in the speech pipeline instead.
 
 ### Open P0 evidence
 

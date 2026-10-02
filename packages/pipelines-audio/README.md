@@ -14,6 +14,12 @@ Shared audio-pipeline orchestration for AIRI. The package owns reusable streamin
 - Provider credentials and product-specific error UI.
 - Raw audio encoding utilities, which belong in `@proj-airi/audio`.
 
+## Intent behavior
+
+A new intent can `queue`, `replace`, `interrupt`, or `interrupt-at-boundary` the active one.
+`interrupt` cuts the playing segment. `interrupt-at-boundary` lets the playing segment finish, drops the rest of the active intent, and then plays the new one.
+`stopByIntent` accepts `keepPlaying` for the same boundary stop.
+
 ## Transcript buffering
 
 ```ts
