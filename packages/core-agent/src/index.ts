@@ -49,6 +49,7 @@ export { CONTEXT_SOURCE_TOKEN_LIMIT, limitContextText, loadContextTokenCounter }
 export type { ContextTokenCounter } from './runtime/context-budget'
 export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRegistry, ContextRegistryState } from './runtime/context-registry'
 export { createContextRegistry, projectContextRegistryState } from './runtime/context-registry'
+export { ERROR_BURST_COOLDOWN_MS, ERROR_BURST_LIMIT, ERROR_BURST_WINDOW_MS, ErrorBurstBreaker } from './runtime/error-burst'
 export type { IntakeAppraisal, IntakeDecider, IntakeDecision, IntakeOutcome, IntakeRecord, Stimulus, StimulusOrigin } from './runtime/intake'
 export { decideByPrior, deferDelayMs, IntakeLog, salienceFromUrgency } from './runtime/intake'
 export type { Lease, LeaseCandidate, LeaseGrant } from './runtime/lease-table'

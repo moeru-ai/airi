@@ -110,6 +110,7 @@ Intake checks hard constraints first: coalescing and deadlines. Only then can a 
 Notifications and chat sends wait in one voice line. The tick offers the first due notification in line order, and a released voice triggers it at once.
 An admitted notification still decides inside its run whether to speak.
 Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.
+After three blocked runs within a minute, notifications and idle appraisal wait for a one-minute cooldown. Owner input still runs and shows its failure.
 
 ## Chat sampling
 

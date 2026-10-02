@@ -119,6 +119,11 @@ Three identical consecutive tool calls end a run as `blocked`. A supervised end 
 `cancelRun(runId, { rollback })` stops a waiting or running run. Its late output never commits.
 With `rollback`, the run's user turn and partial reply leave the session through `removeSessionMessages`. A requeued input therefore appears once.
 
+## Error bursts
+
+`ErrorBurstBreaker` watches run changes. Three `blocked` runs within one minute start a one-minute cooldown.
+Background owners defer work during the cooldown. Direct owner input never waits for it, so the owner sees each failure.
+
 ## Classifier triage
 
 A `Classifier` answers typed questions with probabilities: `noul` for yes or no, `choice` for one option, and `score` for an ordered scale. It never generates text.

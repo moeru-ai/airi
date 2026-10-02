@@ -277,6 +277,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       scheduler.intake.record(ranked, timing)
       return undefined
     }
+    const coolingUntil = scheduler.errorBurst.coolingUntil()
+    if (timing.outcome === 'admitted' && coolingUntil) {
+      await defer(entry, { ...timing, outcome: 'deferred', reason: 'error-cooldown', retryAt: coolingUntil })
+      return undefined
+    }
     if (timing.outcome === 'admitted') {
       if (requestVoice(entry))
         return await runNotify(entry.runId, ranked, event, timing, control)
@@ -339,7 +344,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    */
   async function appraiseIdle(now = Date.now()) {
     const intervalMs = triageSettings.appraisalIntervalMinutes * 60_000
-    if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs)
+    if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs || scheduler.errorBurst.coolingUntil())
       return
     if (processing.value || scheduler.leases.holder('voice') || scheduler.runs.snapshot().some(run => run.state === 'queued' || run.state === 'working'))
       return
@@ -421,7 +426,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return
 
     const decision = decideByPrior(next.stimulus, { now, busy: false, retryAt: next.nextRunAt })
-    if (decision.outcome !== 'ignored' && !requestVoice(next))
+    // During an error burst, due work stays in the queue until the cooldown ends.
+    if (decision.outcome !== 'ignored' && (scheduler.errorBurst.coolingUntil() || !requestVoice(next)))
       return
 
     scheduledNotifies.value = scheduledNotifies.value.filter(item => item !== next)

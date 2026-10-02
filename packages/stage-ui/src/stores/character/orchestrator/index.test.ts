@@ -471,6 +471,22 @@ describe('store character-orchestrator', () => {
       expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'resource-busy' }])
     })
 
+    it('defers a notification during an error burst instead of failing again', async () => {
+      const mockStream = replyWith('unused')
+      const scheduler = useSchedulerStore(pinia)
+      for (const runId of ['a', 'b', 'c']) {
+        scheduler.runs.admit({ runId, envelope: { sessionId: 'session', bindings: [], outputs: ['chat:owner'], audience: OWNER_AUDIENCE } })
+        scheduler.runs.transition(runId, 'blocked', 'provider down')
+      }
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'error-cooldown', retryAt: scheduler.errorBurst.coolingUntil() }])
+    })
+
     it('runs an admitted notification as a run that holds and releases the voice', async () => {
       replyWith('Watch out!')
       const scheduler = useSchedulerStore(pinia)
