@@ -24,10 +24,12 @@ const props = defineProps<{
   recipe?: Recipe
   /** Recipes that an answer can point to. */
   targets: readonly Recipe[]
+  /** Writes an instructions recipe that starts on an idle or schedule trigger instead of keywords. */
+  autoRun?: boolean
 }>()
 
 const emit = defineEmits<{
-  (e: 'save', fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers'>): void
+  (e: 'save', fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate'>): void
   (e: 'cancel'): void
 }>()
 
@@ -64,6 +66,10 @@ const name = ref(props.recipe?.name ?? '')
 const description = ref(props.recipe?.description ?? '')
 const instructions = ref(style?.kind === 'instructions' ? style.instructions : '')
 const keywords = ref(props.recipe?.triggers.flatMap(trigger => trigger.kind === 'keyword' ? trigger.keywords : []).join(', ') ?? '')
+const storedTrigger = props.recipe?.triggers.find(trigger => trigger.kind === 'idle' || trigger.kind === 'schedule')
+const triggerKind = ref<'idle' | 'schedule'>(storedTrigger?.kind === 'schedule' ? 'schedule' : 'idle')
+const triggerMinutes = ref(storedTrigger?.kind === 'schedule' ? storedTrigger.everyMinutes : storedTrigger?.kind === 'idle' ? storedTrigger.afterMinutes : 60)
+const gate = ref(props.recipe?.gate ?? '')
 const question = ref(decision?.question.instructions ?? '')
 const questionType = ref<QuestionType>(decision?.question.type ?? 'noul')
 const answers = ref<AnswerRow[]>(decision ? rowsFrom(decision) : [emptyRow(), emptyRow()])
@@ -73,6 +79,12 @@ function setQuestionType(type: QuestionType) {
   questionType.value = type
   answers.value = [emptyRow(), emptyRow()]
 }
+
+const triggerOptions = computed(() => [
+  { label: t(`${KEY}.auto_run.when.idle`), value: 'idle' },
+  { label: t(`${KEY}.auto_run.when.schedule`), value: 'schedule' },
+])
+const minutesValid = computed(() => Number.isInteger(triggerMinutes.value) && triggerMinutes.value >= 1 && triggerMinutes.value <= 10_080)
 
 const questionTypeOptions = computed(() => (['noul', 'choice', 'score'] as const).map(type => ({ label: t(`${KEY}.decision.type.${type}`), value: type })))
 const actionOptions = computed(() => [
@@ -124,7 +136,7 @@ const canSave = computed(() => {
   if (!name.value.trim())
     return false
   if (props.type === 'instructions')
-    return Boolean(instructions.value.trim())
+    return Boolean(instructions.value.trim()) && (!props.autoRun || minutesValid.value)
   return Boolean(question.value.trim())
     && answers.value.every(row => row.meaning.trim() && (row.action !== 'hint' || row.hint.trim()) && (row.action !== 'recipe' || row.recipeId))
 })
@@ -133,11 +145,17 @@ function save() {
   if (!canSave.value)
     return
   const words = keywords.value.split(/[,，]/).map(word => word.trim()).filter(Boolean)
+  const triggers: Recipe['triggers'] = props.type !== 'instructions'
+    ? []
+    : props.autoRun
+      ? [triggerKind.value === 'idle' ? { kind: 'idle', afterMinutes: triggerMinutes.value } : { kind: 'schedule', everyMinutes: triggerMinutes.value }]
+      : words.length ? [{ kind: 'keyword', keywords: words }] : []
   emit('save', {
     name: name.value.trim(),
     description: description.value.trim(),
     style: props.type === 'instructions' ? { kind: 'instructions', instructions: instructions.value.trim() } : decisionStyle(),
-    triggers: props.type === 'instructions' && words.length ? [{ kind: 'keyword', keywords: words }] : [],
+    triggers,
+    gate: props.autoRun && gate.value.trim() ? gate.value.trim() : undefined,
   })
 }
 </script>
@@ -148,7 +166,12 @@ function save() {
     <FieldInput v-model="description" :label="t(`${KEY}.add.description`)" />
     <template v-if="type === 'instructions'">
       <FieldTextArea v-model="instructions" :rows="5" :required="false" :label="t(`${KEY}.add.instructions`)" />
-      <FieldInput v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.add.keywords.description`)" />
+      <template v-if="autoRun">
+        <FieldSelect v-model="triggerKind" :label="t(`${KEY}.auto_run.when.label`)" :options="triggerOptions" />
+        <FieldInput v-model="triggerMinutes" type="number" :label="t(`${KEY}.auto_run.minutes.label`)" :description="t(`${KEY}.auto_run.minutes.${triggerKind}`)" />
+        <FieldInput v-model="gate" :label="t(`${KEY}.auto_run.gate.label`)" :description="t(`${KEY}.auto_run.gate.description`)" :placeholder="t(`${KEY}.auto_run.gate.placeholder`)" />
+      </template>
+      <FieldInput v-else v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.add.keywords.description`)" />
     </template>
     <template v-else>
       <FieldInput v-model="question" :label="t(`${KEY}.decision.question`)" />

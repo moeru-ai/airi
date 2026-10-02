@@ -53,10 +53,20 @@ export interface Recipe {
    * A model proposal waits unauthorized until the user approves it.
    */
   approved: boolean
+  /**
+   * A yes-or-no question for an auto-run recipe. When its trigger fires, the classifier answers it first, and a confident no skips the run.
+   * For example, "Is it late at night and the owner seems away?"
+   */
+  gate?: string
 }
 
 /** Id of the built-in recipe that lets a run read a message and stay quiet. */
 export const STAY_QUIET_RECIPE_ID = 'builtin:stay-quiet'
+/**
+ * Id of the built-in recipe that looks at the owner's scene while nothing runs and raises what seems worth it.
+ * Each look costs one classifier request, so it starts off.
+ */
+export const IDLE_LOOK_RECIPE_ID = 'builtin:idle-look'
 
 /** Recipes that every host starts with. The user can turn them off. */
 export const BUILTIN_RECIPES: readonly Recipe[] = [
@@ -68,6 +78,17 @@ export const BUILTIN_RECIPES: readonly Recipe[] = [
     triggers: [],
     source: 'builtin',
     enabled: true,
+    approved: true,
+  },
+  {
+    id: IDLE_LOOK_RECIPE_ID,
+    name: 'Look around when idle',
+    description: 'Looks at the owner\'s scene while nothing runs, and speaks up when something seems worth raising.',
+    style: { kind: 'instructions', instructions: '' },
+    // The attention interval paces each look, so the idle trigger names no minutes.
+    triggers: [{ kind: 'idle', afterMinutes: 0 }],
+    source: 'builtin',
+    enabled: false,
     approved: true,
   },
 ]
@@ -84,6 +105,73 @@ export function usableRecipes(recipes: readonly Recipe[]) {
 export function recipeTools(recipe: Recipe, granted: readonly string[]) {
   const named = recipe.style.kind === 'instructions' || recipe.style.kind === 'run' ? recipe.style.tools ?? [] : []
   return named.filter(tool => granted.includes(tool))
+}
+
+/** Whether a recipe starts on its own, without a message: any trigger other than a keyword. */
+export function isAutoRunRecipe(recipe: Recipe) {
+  return recipe.triggers.some(trigger => trigger.kind !== 'keyword')
+}
+
+/** What the scheduler knows when it checks auto-run triggers. */
+export interface RecipeTriggerState {
+  now: number
+  /** When the scheduler started checking. A trigger never counts time before it. */
+  startedAt: number
+  /** The owner's last message in the active owner session. */
+  lastOwnerMessageAt?: number
+  /** When each recipe last started on its trigger. */
+  firedAt: Readonly<Record<string, number>>
+}
+
+/**
+ * Usable auto-run recipes with steps whose idle or schedule trigger is due.
+ * An idle trigger fires once per owner silence, so it waits for the owner to speak before it fires again.
+ * A schedule trigger fires each period. Event and mood triggers are not checked here.
+ */
+export function dueTriggeredRecipes(recipes: readonly Recipe[], state: RecipeTriggerState) {
+  const minute = 60_000
+  return usableRecipes(recipes).filter((recipe) => {
+    if (recipe.style.kind !== 'instructions' || !recipe.style.instructions.trim())
+      return false
+    const firedAt = state.firedAt[recipe.id]
+    return recipe.triggers.some((trigger) => {
+      if (trigger.kind === 'idle' && trigger.afterMinutes > 0) {
+        const silentSince = Math.max(state.lastOwnerMessageAt ?? state.startedAt, state.startedAt)
+        return state.now - silentSince >= trigger.afterMinutes * minute && (firedAt === undefined || firedAt < silentSince)
+      }
+      if (trigger.kind === 'schedule' && trigger.everyMinutes > 0)
+        return state.now - (firedAt ?? state.startedAt) >= trigger.everyMinutes * minute
+      return false
+    })
+  })
+}
+
+/**
+ * One classifier request that asks the gate of each due recipe at once. Recipes without a gate are not asked.
+ * The state is the scene that the scheduler sees, such as the time and the owner's silence.
+ */
+export function recipeGateRequest(recipes: readonly Recipe[], state: string): ClassifierRequest {
+  return {
+    state: { task: 'Decide for each question whether its recipe should run now.', scene: state },
+    questions: Object.fromEntries(recipes.flatMap(recipe => recipe.gate?.trim()
+      ? [[recipe.id, { type: 'noul', instructions: recipe.gate.trim(), criteria: { true: 'Run it now.', false: 'Not now.' } } satisfies ClassifierQuestion]]
+      : [])),
+  }
+}
+
+/**
+ * Due recipes that pass their gate. A recipe without a gate passes.
+ * Without answers, for example without a classifier, every recipe passes, because the owner set its trigger.
+ * With answers, only a confident yes passes, so an unsure gate saves the run.
+ */
+export function passGates(recipes: readonly Recipe[], answers: Record<string, ClassifierAnswer> | undefined, threshold: number) {
+  if (!answers)
+    return [...recipes]
+  return recipes.filter((recipe) => {
+    if (!recipe.gate?.trim())
+      return true
+    return decisionAnswerKey(answers[recipe.id], threshold) === 'true'
+  })
 }
 
 /** Usable recipes whose keyword trigger appears in the text. Matching ignores letter case. */

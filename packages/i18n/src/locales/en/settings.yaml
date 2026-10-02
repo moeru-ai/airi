@@ -556,9 +556,6 @@ pages:
       llm_model:
         label: Classifier model
         description: Use a fast model. A slow answer is ignored, and fixed rules decide.
-      appraisal_interval:
-        label: Idle check interval (minutes)
-        description: While no reply runs, the character looks at the current observations this often and can raise something unprompted. This sets how often it looks, not how often it speaks. 0 turns it off.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
@@ -892,7 +889,6 @@ pages:
     memory-long-term:
       recipes:
         title: Recipes
-        description: Ways the character can handle a kind of task. A recipe only uses abilities that AIRI already has. Turn one off to stop it.
         empty: No recipes yet.
         sources:
           builtin: Built-in
@@ -948,6 +944,30 @@ pages:
         edit: Edit
         save: Save
         enabled: 'Use {name}'
+        keywords_summary: 'Keywords: {words}'
+        tabs:
+          conversation: In conversation
+          auto_run: Auto-run
+          conversation_description: Recipes the character uses in a conversation. They act only when a message arrives.
+          auto_run_description: Recipes that start on their own when a trigger fires, without your message. Each run costs a model call. With all of them off, nothing is called.
+        auto_run:
+          title: Auto-run recipe
+          when:
+            label: When it starts
+            idle: After I send no message for a while
+            schedule: On a schedule
+          minutes:
+            label: Minutes
+            idle: Starts after this many minutes without your message. It starts once per silence and waits for your next message.
+            schedule: Starts every this many minutes.
+          gate:
+            label: Decide before running (optional)
+            description: When the trigger fires, the attention classifier answers this yes-or-no question first. A confident no skips the run and costs only the classifier call. Without a classifier, the recipe always runs.
+            placeholder: 'For example: Is it late at night?'
+          summary:
+            idle: 'After {minutes} min of silence'
+            schedule: 'Every {minutes} min'
+            look: 'Looks every {minutes} min'
         styles:
           instructions: Instructions
           decision: Quick decision
@@ -957,6 +977,12 @@ pages:
           stay-quiet:
             name: Read without replying
             description: Lets the character read a message and choose not to answer when nothing needs saying.
+          idle-look:
+            name: Look around when idle
+            description: While no reply runs, the character looks at the current observations and raises something worth it. Each look costs one classifier request.
+            interval:
+              label: Look interval (minutes)
+              description: This sets how often the character looks, not how often it speaks.
       description: Long-term memory specific settings and management
       title: Long-Term Memory
       sessions:

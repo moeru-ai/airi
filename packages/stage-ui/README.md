@@ -140,6 +140,8 @@ Decision recipes ask the attention classifier before a reply, in one call with a
 A run loads an instruction recipe through `builtIn_useRecipe`. The recipe list is that tool's guidance, and a message that contains a recipe keyword asks the run to load it.
 The chat shows each loaded recipe as a label with its steps. A reply that a decision recipe changed names that recipe.
 The owner can edit owner and model recipes on the recipes page. Built-in recipes only switch on and off.
+The recipes page has two tabs. In conversation lists recipes that act on a message. Auto-run lists recipes that start on a trigger, including the built-in idle look, which starts off.
+The character orchestrator checks auto-run triggers on each tick. A due recipe asks its gate, then starts as a proposal.
 Every chat run request carries the silence tool and its guidance. It comes from the built-in stay-quiet recipe, so turning that recipe off removes the tool. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling

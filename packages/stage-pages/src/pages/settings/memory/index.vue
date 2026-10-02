@@ -15,7 +15,7 @@ import { positiveNumberModel } from '../../../libs/number-model'
 
 const { t } = useI18n()
 const { maxConcurrentRuns, maxQueuedPerSession, stallTimeoutSeconds, runDeadlineMinutes } = storeToRefs(useSettingsRunLimits())
-const { backend, threshold, decisionsApiKey, decisionsEndpoint, decisionsModel, llmProvider, llmModel, appraisalIntervalMinutes } = storeToRefs(useSettingsTriage())
+const { backend, threshold, decisionsApiKey, decisionsEndpoint, decisionsModel, llmProvider, llmModel } = storeToRefs(useSettingsTriage())
 const providersStore = useProviderStore()
 const { configuredChatProvidersMetadata, isLoadingModels } = storeToRefs(providersStore)
 const { activeProvider: conversationProvider } = storeToRefs(useConsciousnessStore())
@@ -48,8 +48,6 @@ const maxConcurrentRunsModel = positiveNumberModel(maxConcurrentRuns, { integer:
 const maxQueuedPerSessionModel = positiveNumberModel(maxQueuedPerSession, { integer: true })
 const stallTimeoutSecondsModel = positiveNumberModel(stallTimeoutSeconds, { integer: true })
 const runDeadlineMinutesModel = positiveNumberModel(runDeadlineMinutes, { integer: true })
-// Zero turns idle appraisal off, so this field accepts it.
-const appraisalIntervalModel = positiveNumberModel(appraisalIntervalMinutes, { integer: true, allowZero: true })
 </script>
 
 <template>
@@ -123,12 +121,6 @@ const appraisalIntervalModel = positiveNumberModel(appraisalIntervalMinutes, { i
           :max="MAX_TRIAGE_THRESHOLD"
           :step="0.01"
           :format-value="value => value.toFixed(2)"
-        />
-        <FieldInput
-          v-model="appraisalIntervalModel"
-          type="number"
-          :label="t('settings.pages.memory.triage.appraisal_interval.label')"
-          :description="t('settings.pages.memory.triage.appraisal_interval.description')"
         />
       </SettingsAdvanced>
     </section>

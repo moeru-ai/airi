@@ -2,7 +2,7 @@ import type { Recipe } from './recipe'
 
 import { describe, expect, it } from 'vitest'
 
-import { applyRecipeDecisions, BUILTIN_RECIPES, decisionAnswerKey, decisionRecipes, matchKeywordRecipes, recipeDecisionRequest, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './recipe'
+import { applyRecipeDecisions, BUILTIN_RECIPES, decisionAnswerKey, decisionRecipes, dueTriggeredRecipes, IDLE_LOOK_RECIPE_ID, isAutoRunRecipe, matchKeywordRecipes, passGates, recipeDecisionRequest, recipeGateRequest, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './recipe'
 
 function recipe(overrides: Partial<Recipe>): Recipe {
   return {
@@ -19,8 +19,10 @@ function recipe(overrides: Partial<Recipe>): Recipe {
 }
 
 describe('recipes', () => {
-  it('offers read-without-replying as an enabled built-in recipe', () => {
+  // Looking around while idle costs a classifier request each time, so it starts off.
+  it('offers read-without-replying on and looking around while idle off', () => {
     expect(usableRecipes(BUILTIN_RECIPES).map(entry => entry.id)).toEqual([STAY_QUIET_RECIPE_ID])
+    expect(BUILTIN_RECIPES.filter(isAutoRunRecipe).map(entry => entry.id)).toEqual([IDLE_LOOK_RECIPE_ID])
   })
 
   // A recipe never grants itself a capability. It only narrows the tools the host granted.
@@ -85,6 +87,44 @@ describe('recipes', () => {
       expect(applyRecipeDecisions([ack], undefined, 0.8)).toEqual({ hints: [], recipeIds: [], applied: [] })
       // A reply answer changes nothing, so the reply does not name its recipe.
       expect(applyRecipeDecisions([mood], { 'user:mood': { type: 'choice', choice: 'neutral', confidence: 0.9 } }, 0.8).applied).toEqual([])
+    })
+  })
+  describe('auto-run triggers', () => {
+    const minute = 60_000
+    const greet = recipe({ id: 'user:greet', style: { kind: 'instructions', instructions: 'Greet the owner softly.' }, triggers: [{ kind: 'idle', afterMinutes: 30 }] })
+    const hourly = recipe({ id: 'user:hourly', style: { kind: 'instructions', instructions: 'Check the weather.' }, triggers: [{ kind: 'schedule', everyMinutes: 60 }] })
+    const due = (state: { now: number, lastOwnerMessageAt?: number, firedAt?: Record<string, number> }) =>
+      dueTriggeredRecipes([greet, hourly], { startedAt: 0, firedAt: {}, ...state }).map(entry => entry.id)
+
+    it('greets once per owner silence and waits for the owner before greeting again', () => {
+      expect(due({ now: 29 * minute, lastOwnerMessageAt: 0 })).toEqual([])
+      expect(due({ now: 30 * minute, lastOwnerMessageAt: 0 })).toEqual(['user:greet'])
+      expect(due({ now: 90 * minute, lastOwnerMessageAt: 0, firedAt: { 'user:greet': 30 * minute, 'user:hourly': 60 * minute } })).toEqual([])
+      expect(due({ now: 130 * minute, lastOwnerMessageAt: 100 * minute, firedAt: { 'user:greet': 30 * minute, 'user:hourly': 120 * minute } })).toEqual(['user:greet'])
+    })
+
+    it('runs a schedule each period, counted from start or the last run', () => {
+      expect(due({ now: 60 * minute, lastOwnerMessageAt: 59 * minute })).toEqual(['user:hourly'])
+      expect(due({ now: 100 * minute, lastOwnerMessageAt: 99 * minute, firedAt: { 'user:hourly': 60 * minute } })).toEqual([])
+    })
+
+    it('skips recipes that are off, unapproved, keyword-only, or without steps', () => {
+      const recipes = [{ ...greet, enabled: false }, { ...greet, id: 'model:x', approved: false }, recipe({}), ...BUILTIN_RECIPES.map(entry => ({ ...entry, enabled: true }))]
+      expect(dueTriggeredRecipes(recipes, { now: 1_000 * minute, startedAt: 0, firedAt: {} })).toEqual([])
+    })
+
+    // A gate is a nested decision: the classifier answers whether a due recipe should run, so a needless run costs no reply.
+    it('asks the gate of each due recipe once, and runs only on a confident yes', () => {
+      const lateNight = { ...greet, gate: 'Is it late at night?' }
+      const request = recipeGateRequest([lateNight, hourly], 'Local time: 23:40.')
+
+      expect(Object.keys(request.questions)).toEqual(['user:greet'])
+      expect(request.state.scene).toBe('Local time: 23:40.')
+      expect(passGates([lateNight, hourly], { 'user:greet': { type: 'noul', noul: 0.95 } }, 0.8).map(entry => entry.id)).toEqual(['user:greet', 'user:hourly'])
+      expect(passGates([lateNight, hourly], { 'user:greet': { type: 'noul', noul: 0.6 } }, 0.8).map(entry => entry.id)).toEqual(['user:hourly'])
+      expect(passGates([lateNight, hourly], { 'user:greet': { type: 'noul', noul: 0.05 } }, 0.8).map(entry => entry.id)).toEqual(['user:hourly'])
+      // Without a classifier the owner's trigger stands.
+      expect(passGates([lateNight], undefined, 0.8).map(entry => entry.id)).toEqual(['user:greet'])
     })
   })
 })

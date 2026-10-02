@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, superviseRun, useLlmmarkerParser } from '@proj-airi/core-agent'
+import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, dueTriggeredRecipes, IDLE_LOOK_RECIPE_ID, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, superviseRun, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -24,6 +24,7 @@ import { useAiriCardStore } from '../../modules/airi-card'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useModelProfilesStore } from '../../modules/model-profiles'
 import { useTriageStore } from '../../modules/triage'
+import { useRecipesStore } from '../../recipes'
 import { useSchedulerStore } from '../../scheduler'
 import { useSettingsRunLimits } from '../../settings/run-limits'
 import { useSettingsTriage } from '../../settings/triage'
@@ -57,6 +58,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const triageSettings = useSettingsTriage()
   const runLimits = useSettingsRunLimits()
   const chatContext = useChatContextStore()
+  const recipes = useRecipesStore()
 
   const processing = ref(false)
   // The queue survives leader handoff. A follower enqueue reaches the leader ticker.
@@ -465,6 +467,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    * The timer only starts an appraisal. It never schedules speech, and unchanged observations are not appraised again.
    */
   async function appraiseIdle(now = Date.now()) {
+    // Looking around is a built-in auto-run recipe. Each look costs a classifier request, so it runs only while the owner keeps it on.
+    if (!recipes.isUsable(IDLE_LOOK_RECIPE_ID))
+      return
     const persona = personaOf(chatSession.activeSessionId)
     const currentMood = moodOf(persona)
     // Mood changes how often the character looks. The user interval is the base, and looking never forces speech.
@@ -497,6 +502,38 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       coalesceKey: 'idle-appraisal',
       parentRunId: undefined,
     })
+  }
+
+  let triggersStartedAt: number | undefined
+  const triggerFiredAt: Record<string, number> = {}
+
+  /**
+   * Starts the owner's auto-run recipes whose idle or schedule trigger is due.
+   * Each start is a proposal, so it waits for the voice, pauses at the spending limit, and writes only to an owner-private session.
+   */
+  async function runRecipeTriggers(now: number) {
+    triggersStartedAt ??= now
+    // A paused budget or a cooling error burst holds the triggers. They fire after the pause, and no gate is asked meanwhile.
+    if (modelProfiles.spendingPausedUntil() !== undefined || scheduler.errorBurst.coolingUntil())
+      return
+    const lastOwnerMessageAt = chatSession.getSessionMessagesIfLoaded(chatSession.activeSessionId)?.findLast(message => message.role === 'user')?.createdAt
+    // Without a due recipe, nothing runs and nothing is asked.
+    const due = dueTriggeredRecipes(recipes.recipes, { now, startedAt: triggersStartedAt, lastOwnerMessageAt, firedAt: triggerFiredAt })
+    if (!due.length)
+      return
+    // A trigger fires once whether its gate allows the run or not, so a gate never asks again in the same period.
+    for (const recipe of due)
+      triggerFiredAt[recipe.id] = now
+    const silentMinutes = Math.round((now - (lastOwnerMessageAt ?? triggersStartedAt)) / 60_000)
+    const scene = `Local time: ${new Date(now).toLocaleString()}. The owner's last message was ${silentMinutes} minutes ago.`
+    for (const recipe of await triage.passRecipeGates(due, scene)) {
+      await propose({
+        headline: `The owner's recipe "${recipe.name}" started on its trigger.`,
+        note: recipe.style.kind === 'instructions' ? `Follow its steps now:\n${recipe.style.instructions.trim()}` : undefined,
+        urgency: 'soon',
+        coalesceKey: `recipe:${recipe.id}`,
+      })
+    }
   }
 
   async function enqueueDueTasks(now: number) {
@@ -537,6 +574,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
     const now = Date.now()
     await enqueueDueTasks(now)
+    await runRecipeTriggers(now)
     await appraiseIdle(now)
 
     // Due entries compete for the voice by the lease line order, not by arrival.
@@ -707,6 +745,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     handleSparkNotify: handleIncomingSparkNotify,
     propose,
     appraiseIdle,
+    runRecipeTriggers,
     handleSparkNotifyWithReaction,
     handleSparkEmit,
   }

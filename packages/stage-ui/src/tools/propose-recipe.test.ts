@@ -26,6 +26,7 @@ describe('recipe proposal tool', () => {
       question: null,
       answerType: null,
       answers: null,
+      autoRun: null,
     })
 
     expect(tool.function.name).toBe(PROPOSE_RECIPE_TOOL_NAME)
@@ -51,6 +52,7 @@ describe('recipe proposal tool', () => {
         { meaning: 'Tired', action: 'hint', hint: 'Keep it short.' },
         { meaning: 'Fine', action: 'reply', hint: null },
       ],
+      autoRun: null,
     })
 
     expect(proposals[0]?.style).toEqual({
@@ -61,11 +63,31 @@ describe('recipe proposal tool', () => {
   })
 
   it('explains what is missing instead of saving an incomplete recipe', async () => {
-    const nulls = { instructions: null, keywords: null, question: null, answerType: null, answers: null }
+    const nulls = { instructions: null, keywords: null, question: null, answerType: null, answers: null, autoRun: null }
     expect((await proposeWith({ ...nulls, name: 'Empty', description: '', style: 'instructions' })).result).toBe('Recipe not saved: An instructions recipe needs instructions.')
     expect((await proposeWith({ ...nulls, name: 'Odd', description: '', style: 'decision', question: 'Yes?', answerType: 'noul', answers: [{ meaning: 'a', action: 'reply', hint: null }, { meaning: 'b', action: 'reply', hint: null }, { meaning: 'c', action: 'reply', hint: null }] })).result)
       .toBe('Recipe not saved: A yes-or-no decision needs exactly two answers, yes first.')
+    expect((await proposeWith({ ...nulls, name: 'Spam', description: '', style: 'instructions', instructions: 'Say hi.', autoRun: { when: 'schedule', minutes: 0.5, gate: null } })).result)
+      .toBe('Recipe not saved: autoRun minutes must be a whole number from 1 to 10080.')
     expect((await proposeWith({ style: 'nonsense' })).proposals).toEqual([])
+  })
+
+  // The owner can ask for a greeting after a silence. The recipe then starts on its own.
+  it('saves an auto-run recipe with an idle trigger', async () => {
+    const { proposals } = await proposeWith({
+      name: 'Check in',
+      description: 'Greets the owner after a long silence.',
+      style: 'instructions',
+      instructions: 'Greet softly. Late at night, only remind the owner to rest.',
+      keywords: null,
+      question: null,
+      answerType: null,
+      answers: null,
+      autoRun: { when: 'idle', minutes: 60, gate: 'Is the owner likely still awake?' },
+    })
+
+    expect(proposals[0]?.triggers).toEqual([{ kind: 'idle', afterMinutes: 60 }])
+    expect(proposals[0]?.gate).toBe('Is the owner likely still awake?')
   })
 
   // Strict function calling rejects a schema whose objects leave a property out of `required`.
@@ -77,5 +99,8 @@ describe('recipe proposal tool', () => {
     expect(parameters.required.sort()).toEqual(Object.keys(parameters.properties).sort())
     expect(parameters.additionalProperties).toBe(false)
     expect(answerItems.required.sort()).toEqual(Object.keys(answerItems.properties).sort())
+    const autoRun = (parameters.properties.autoRun as { anyOf: Array<{ required?: string[], properties?: Record<string, unknown>, additionalProperties?: boolean }> }).anyOf[0]!
+    expect(autoRun.required?.sort()).toEqual(Object.keys(autoRun.properties ?? {}).sort())
+    expect(autoRun.additionalProperties).toBe(false)
   })
 })

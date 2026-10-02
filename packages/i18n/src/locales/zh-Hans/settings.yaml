@@ -526,9 +526,6 @@ pages:
       llm_model:
         label: 分类器模型
         description: 请使用速度快的模型。回答太慢时会被忽略，由固定规则决定。
-      appraisal_interval:
-        label: 空闲检查间隔（分钟）
-        description: 没有回复在生成时，角色每隔这段时间看一次当前的观察，可以主动提起一件事。这里设置的是看的频率，不是说话的频率。0 表示关闭。
   data:
     description: 管理存储 AIRI 数据、导出和重置
     sections:
@@ -844,7 +841,6 @@ pages:
     memory-long-term:
       recipes:
         title: 配方
-        description: 角色处理某类事情的方式。配方只能使用 AIRI 已有的能力。关闭后就不会再使用。
         empty: 还没有配方。
         sources:
           builtin: 内置
@@ -900,6 +896,30 @@ pages:
         edit: 编辑
         save: 保存
         enabled: '使用{name}'
+        keywords_summary: '关键词：{words}'
+        tabs:
+          conversation: 对话中
+          auto_run: 自动运行
+          conversation_description: 角色在对话里使用的配方。它们只在有消息时起作用。
+          auto_run_description: 不用你发消息、按触发条件自己开始的配方。每次运行都会调用一次模型。全部关闭时，不会有任何调用。
+        auto_run:
+          title: 自动运行的配方
+          when:
+            label: 什么时候开始
+            idle: 我一段时间没发消息后
+            schedule: 定时
+          minutes:
+            label: 分钟
+            idle: 你多少分钟没发消息后开始。每段沉默只开始一次，你再发消息后重新计时。
+            schedule: 每隔多少分钟开始一次。
+          gate:
+            label: 运行前先判断（可选）
+            description: 触发时先让注意力分类器回答这个是或否的问题，有把握地回答“否”就不运行，只花一次分类器调用。没有设置分类器时总会运行。
+            placeholder: 例如：现在是深夜吗？
+          summary:
+            idle: '{minutes} 分钟没消息后'
+            schedule: '每 {minutes} 分钟'
+            look: '每 {minutes} 分钟看一次'
         styles:
           instructions: 指令
           decision: 快速判断
@@ -909,6 +929,12 @@ pages:
           stay-quiet:
             name: 已读不回
             description: 角色读完消息后，如果没什么要说的，可以选择不回复。
+          idle-look:
+            name: 空闲时看看周围
+            description: 没有回复在生成时，看一看当前的观察，有值得说的就主动提起。每次都会调用一次分类器。
+            interval:
+              label: 看一次的间隔（分钟）
+              description: 这里设置的是看的频率，不是说话的频率。
       description: 长期记忆
       title: 长期记忆
       sessions:

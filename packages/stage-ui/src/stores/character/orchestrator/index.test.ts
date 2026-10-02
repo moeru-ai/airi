@@ -10,7 +10,7 @@ import type z from 'zod'
 import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
-import { audienceFromBindings, OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
+import { audienceFromBindings, IDLE_LOOK_RECIPE_ID, OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
@@ -27,6 +27,7 @@ import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useModuleDirectoryStore } from '../../mods/api/module-directory'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
+import { useRecipesStore } from '../../recipes'
 import { useSchedulerStore } from '../../scheduler'
 import { useSettingsModels } from '../../settings/models'
 import { useSettingsRunLimits } from '../../settings/run-limits'
@@ -688,6 +689,7 @@ describe('store character-orchestrator', () => {
       const mockStream = replyWith('By the way, the creeper is gone.')
       decideWith(0.97)
       observe('Creeper left the base')
+      useRecipesStore(pinia).setEnabled(IDLE_LOOK_RECIPE_ID, true)
       const store = useCharacterOrchestratorStore(pinia)
       const scheduler = useSchedulerStore(pinia)
 
@@ -708,6 +710,7 @@ describe('store character-orchestrator', () => {
       const mockStream = replyWith('unused')
       const fetch = decideWith(0.03)
       observe('Nothing changed')
+      useRecipesStore(pinia).setEnabled(IDLE_LOOK_RECIPE_ID, true)
       const store = useCharacterOrchestratorStore(pinia)
 
       await store.appraiseIdle()
@@ -718,6 +721,61 @@ describe('store character-orchestrator', () => {
       expect(mockStream).not.toHaveBeenCalled()
       expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ event: 'appraisal', outcome: 'ignored', reason: 'not-attending', decidedBy: 'classifier' }])
       expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
+      vi.unstubAllGlobals()
+    })
+
+    // Each look costs a classifier request, so looking around waits for the owner to turn its recipe on.
+    it('does not look around while its built-in recipe is off', async () => {
+      const fetch = decideWith(0.97)
+      observe('Creeper left the base')
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.appraiseIdle()
+
+      expect(fetch).not.toHaveBeenCalled()
+      expect(useSchedulerStore(pinia).intake.snapshot()).toEqual([])
+      vi.unstubAllGlobals()
+    })
+
+    // An owner recipe with an idle trigger greets once per silence, through the proactive reaction path.
+    it('starts an owner idle recipe once the owner has been silent long enough, and once per silence', async () => {
+      const mockStream = replyWith('Still busy? Rest if you are tired.')
+      useRecipesStore(pinia).add({ name: 'Check in', description: 'Greets after a silence.', style: { kind: 'instructions', instructions: 'Greet the owner softly.' }, triggers: [{ kind: 'idle', afterMinutes: 30 }], enabled: true })
+      const store = useCharacterOrchestratorStore(pinia)
+      const start = Date.now()
+
+      await store.runRecipeTriggers(start)
+      await store.runRecipeTriggers(start + 29 * 60_000)
+      expect(mockStream).not.toHaveBeenCalled()
+
+      await store.runRecipeTriggers(start + 30 * 60_000)
+      await store.runRecipeTriggers(start + 90 * 60_000)
+
+      expect(mockStream).toHaveBeenCalledOnce()
+      expect(JSON.stringify(mockStream.mock.calls[0]?.[2])).toContain('Greet the owner softly.')
+      expect(useSchedulerStore(pinia).intake.snapshot().map(record => [record.event, record.outcome])).toEqual([['proposal', 'admitted']])
+    })
+
+    // A gate is a classifier question before the run. A confident no skips the run, and only the classifier request is spent.
+    it('skips a due auto-run recipe when its gate answers no', async () => {
+      const mockStream = replyWith('unused')
+      const settings = useSettingsTriage(pinia)
+      settings.backend = 'decisions'
+      settings.decisionsApiKey = 'key'
+      useRecipesStore(pinia).add({ name: 'Late check', description: '', style: { kind: 'instructions', instructions: 'Remind the owner to rest.' }, triggers: [{ kind: 'schedule', everyMinutes: 30 }], gate: 'Is it late at night?', enabled: true })
+      const gateId = useRecipesStore(pinia).autoRun.find(recipe => recipe.name === 'Late check')!.id
+      const fetch = vi.fn(async () => Response.json({ answers: { [gateId]: { type: 'noul', noul: 0.02 } } }))
+      vi.stubGlobal('fetch', fetch)
+      const store = useCharacterOrchestratorStore(pinia)
+      const start = Date.now()
+
+      await store.runRecipeTriggers(start)
+      await store.runRecipeTriggers(start + 30 * 60_000)
+      // The same period does not ask the gate again.
+      await store.runRecipeTriggers(start + 31 * 60_000)
+
+      expect(fetch).toHaveBeenCalledOnce()
+      expect(mockStream).not.toHaveBeenCalled()
       vi.unstubAllGlobals()
     })
 

@@ -1,6 +1,6 @@
 import type { Recipe } from '@proj-airi/core-agent'
 
-import { BUILTIN_RECIPES, usableRecipes } from '@proj-airi/core-agent'
+import { BUILTIN_RECIPES, isAutoRunRecipe, usableRecipes } from '@proj-airi/core-agent'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
@@ -29,6 +29,10 @@ export const useRecipesStore = defineStore('recipes', () => {
     ...custom.value,
   ])
   const usable = computed(() => usableRecipes(recipes.value))
+  /** Recipes that a conversation uses: no trigger, or keyword triggers only. */
+  const conversation = computed(() => recipes.value.filter(recipe => !isAutoRunRecipe(recipe)))
+  /** Recipes that start on their own on an idle, schedule, event, or mood trigger. Each start costs a model call. */
+  const autoRun = computed(() => recipes.value.filter(isAutoRunRecipe))
 
   /** Whether a recipe may run now. */
   function isUsable(id: string) {
@@ -64,7 +68,7 @@ export const useRecipesStore = defineStore('recipes', () => {
    * Changes what an owner or model recipe does. Its source, switch, and approval stay.
    * Built-in recipes keep their definition, so only their switch changes.
    */
-  function update(id: string, fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers'>) {
+  function update(id: string, fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate'>) {
     custom.value = custom.value.map(recipe => recipe.id === id ? { ...recipe, ...fields } : recipe)
   }
 
@@ -80,6 +84,8 @@ export const useRecipesStore = defineStore('recipes', () => {
   return {
     recipes,
     usable,
+    conversation,
+    autoRun,
     isUsable,
     setEnabled,
     approve,

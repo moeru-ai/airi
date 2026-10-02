@@ -38,12 +38,16 @@ describe('recipe use tool', () => {
   })
 
   it('lists usable recipes, self-running decisions, and waiting proposals as the current state', () => {
-    const prompt = describeRecipesForRun([recipe({}), quiet, decision, recipe({ id: 'model:new', name: 'Summaries', approved: false, enabled: false })])
+    const greet = recipe({ id: 'user:greet', name: 'Check in', style: { kind: 'instructions', instructions: 'Greet softly.' }, triggers: [{ kind: 'idle', afterMinutes: 30 }] })
+    const prompt = describeRecipesForRun([recipe({}), quiet, decision, greet, recipe({ id: 'model:new', name: 'Summaries', approved: false, enabled: false })])
 
     expect(prompt).toContain('- i-have-adhd: ADHD-friendly answers.')
     expect(prompt).not.toContain('Read without replying')
     expect(prompt).not.toContain('Start with the next step.')
     expect(prompt).toContain('run by themselves before you reply: Acknowledgements.')
+    // An auto-run recipe starts on its trigger, so the conversation does not load it.
+    expect(prompt).toContain('start on their own when their trigger fires, for example after a silence: Check in.')
+    expect(prompt).not.toContain('- Check in')
     expect(prompt).toContain('wait for the owner\'s approval, so you cannot use them yet: Summaries.')
     expect(prompt).toContain('overrides earlier messages about approval')
     expect(describeRecipesForRun([])).toContain('You have no usable recipes now.')

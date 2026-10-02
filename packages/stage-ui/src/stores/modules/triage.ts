@@ -2,7 +2,7 @@ import type { ChatIntakeDecision, Classifier, IntakeAppraisal, Pad, Recipe, Stim
 
 import type { ClassifierCompletion } from '../../libs/classifier/llm'
 
-import { applyRecipeDecisions, appraiseStimulus, askWithin, capSceneSalience, CLASSIFIER_DEADLINE_MS, decideByAppraisal, decisionRecipes, recipeDecisionRequest } from '@proj-airi/core-agent'
+import { applyRecipeDecisions, appraiseStimulus, askWithin, capSceneSalience, CLASSIFIER_DEADLINE_MS, decideByAppraisal, decisionRecipes, passGates, recipeDecisionRequest, recipeGateRequest } from '@proj-airi/core-agent'
 import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
 import { computed, markRaw } from 'vue'
@@ -119,9 +119,22 @@ export const useTriageStore = defineStore('triage', () => {
     }
   }
 
+  /**
+   * Keeps the due auto-run recipes whose gate allows a run, in one classifier call.
+   * Without a classifier or a gate, the recipes run. A late answer also lets them run, because the owner set the trigger.
+   */
+  async function passRecipeGates(recipes: readonly Recipe[], scene: string): Promise<Recipe[]> {
+    const current = classifier.value
+    const request = recipeGateRequest(recipes, scene)
+    if (!current || !Object.keys(request.questions).length)
+      return [...recipes]
+    return passGates(recipes, await askWithin(current, request, { deadlineMs: NOTIFICATION_TRIAGE_DEADLINE_MS }), settings.effectiveThreshold)
+  }
+
   return {
     classifier,
     decideRecipes,
+    passRecipeGates,
     decideConnectionIntake,
     appraiseNotification,
     appraiseIdle,

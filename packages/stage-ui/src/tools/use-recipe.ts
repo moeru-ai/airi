@@ -1,6 +1,7 @@
 import type { Recipe } from '@proj-airi/core-agent'
 import type { Tool } from '@xsai/shared-chat'
 
+import { isAutoRunRecipe } from '@proj-airi/core-agent'
 import { rawTool } from '@xsai/tool'
 import { array, description, literal, maxLength, minLength, object, picklist, pipe, safeParse, strictObject, string, union } from 'valibot'
 import { toJsonSchema } from 'xsschema'
@@ -45,9 +46,9 @@ export function readRecipeUse(args: string, result: unknown): { name: string, ou
   }
 }
 
-/** Instruction recipes with steps. Other styles run without this tool. */
+/** Instruction recipes with steps that a conversation loads. Auto-run recipes and other styles run without this tool. */
 function hasSteps(recipe: Recipe) {
-  return recipe.style.kind === 'instructions' && recipe.style.instructions.trim().length > 0
+  return recipe.style.kind === 'instructions' && recipe.style.instructions.trim().length > 0 && !isAutoRunRecipe(recipe)
 }
 
 function isUsable(recipe: Recipe) {
@@ -61,6 +62,7 @@ function isUsable(recipe: Recipe) {
 export function describeRecipesForRun(recipes: readonly Recipe[]) {
   const usable = recipes.filter(recipe => isUsable(recipe) && hasSteps(recipe))
   const decisions = recipes.filter(recipe => isUsable(recipe) && recipe.style.kind === 'decision')
+  const autoRun = recipes.filter(recipe => isUsable(recipe) && isAutoRunRecipe(recipe))
   const pending = recipes.filter(recipe => !recipe.approved)
   const lines = [
     `Recipes are your skills. To use one, call ${USE_RECIPE_TOOL_NAME} with its name before you reply. The result gives its steps, and the owner sees that you used it.`,
@@ -72,6 +74,8 @@ export function describeRecipesForRun(recipes: readonly Recipe[]) {
     : 'You have no usable recipes now.')
   if (decisions.length)
     lines.push(`These recipes run by themselves before you reply: ${decisions.map(recipe => recipe.name).join(', ')}.`)
+  if (autoRun.length)
+    lines.push(`These recipes start on their own when their trigger fires, for example after a silence: ${autoRun.map(recipe => recipe.name).join(', ')}.`)
   if (pending.length)
     lines.push(`Proposals that wait for the owner's approval, so you cannot use them yet: ${pending.map(recipe => recipe.name).join(', ')}.`)
   return lines.join('\n')
