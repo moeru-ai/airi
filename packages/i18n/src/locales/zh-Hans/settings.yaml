@@ -711,19 +711,6 @@ pages:
         spending_limit_currency:
           label: 货币
           description: 用其他货币计价的请求不计入。
-        tiers:
-          label: 模型档位
-          description: 标注一个模型对你来说有多好用。实验性的路由会在对话以外的任务里参考这些标注。没有标注的模型不会参与。
-          provider: 提供商
-          model: 模型
-          tier: 档位
-          add: 添加
-          remove: 移除
-          empty: 还没有标注任何模型。
-          options:
-            fast: 快速
-            default: 默认
-            strong: 强
       description: 人格设定、使用的模型等配置
       sections:
         section:

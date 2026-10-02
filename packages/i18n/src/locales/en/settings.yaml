@@ -749,19 +749,6 @@ pages:
         spending_limit_currency:
           label: Currency
           description: Requests priced in another currency are not counted.
-        tiers:
-          label: Model tiers
-          description: Mark how well a model serves you. An experimental router reads these marks for tasks other than the conversation. Unmarked models never take part.
-          provider: Provider
-          model: Model
-          tier: Tier
-          add: Add
-          remove: Remove
-          empty: No marked models yet.
-          options:
-            fast: Fast
-            default: Default
-            strong: Strong
       description: Personality, desired model, etc.
       sections:
         section:

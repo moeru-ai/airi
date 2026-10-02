@@ -11,7 +11,7 @@ import { ref } from 'vue'
 
 import { CONTEXT_SOURCE_TOOL_NAME, CONTEXT_SOURCE_TOOLSET_PROMPT } from '../../../tools/context-source'
 import { PROPOSE_RECIPE_TOOL_NAME, PROPOSE_RECIPE_TOOLSET_PROMPT } from '../../../tools/propose-recipe'
-import { useModelProfilesStore } from '../../modules/model-profiles'
+import { useSpendingStore } from '../../modules/spending'
 import { resolveLlmTools, toolNameFrom } from './tool-resolver'
 import { useLlmToolsetPromptsStore } from './toolset-prompts'
 
@@ -26,7 +26,7 @@ export interface LlmStreamOptions extends StreamOptions {
 
 export const useLLM = defineStore('llm', () => {
   const toolsetPrompts = useLlmToolsetPromptsStore()
-  const modelProfiles = useModelProfilesStore()
+  const spending = useSpendingStore()
   toolsetPrompts.registerToolsetPrompts('spark-command', [{
     id: 'spark-command',
     title: 'Command relay',
@@ -57,8 +57,6 @@ export const useLLM = defineStore('llm', () => {
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
     const key = modelKey(model, chatProvider.generation(model))
     let toolExecutionStarted = false
-    const startedAt = performance.now()
-    let firstTokenSeen = false
     const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
     const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage, runId: streamOptions.requestCorrelation?.runId })
 
@@ -77,17 +75,12 @@ export const useLLM = defineStore('llm', () => {
         onStreamEvent: async (event) => {
           if (event.type === 'tool-call')
             toolExecutionStarted = true
-          // The first text or tool call measures the model's first-token delay for its profile.
-          if (!firstTokenSeen && streamOptions.providerId && (event.type === 'text-delta' || event.type === 'tool-call')) {
-            firstTokenSeen = true
-            modelProfiles.observeFirstToken(streamOptions.providerId, model, performance.now() - startedAt)
-          }
           await streamOptions.onStreamEvent?.(event)
         },
         // Every request counts toward the optional spending limit, including notifications and the classifier.
         onUsage: async (usage) => {
           if (streamOptions.providerId)
-            modelProfiles.recordUsage(streamOptions.providerId, model, usage, streamOptions.requestCorrelation?.runId)
+            spending.recordUsage(streamOptions.providerId, model, usage, streamOptions.requestCorrelation?.runId)
           await streamOptions.onUsage?.(usage)
         },
         toolsCompatibility: toolsCompatibility.value,
