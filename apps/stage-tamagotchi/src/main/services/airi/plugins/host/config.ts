@@ -38,6 +38,8 @@ export interface ExtensionHostConfigStore {
   setup: () => void
   get: () => ExtensionConfig
   update: (config: ExtensionConfig) => void
+  /** Completes configuration writes before host shutdown or fixture teardown. */
+  flush: () => Promise<void>
 }
 
 /**
@@ -59,6 +61,7 @@ export function createExtensionHostConfigStore(): ExtensionHostConfigStore {
   })
 
   return {
+    flush: extensionConfig.flush,
     setup() {
       extensionConfig.setup()
     },

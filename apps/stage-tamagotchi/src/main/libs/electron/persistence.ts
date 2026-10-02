@@ -59,27 +59,36 @@ export interface Config<TSchema extends PersistedSchema> {
   get: () => InferOutput<TSchema> | undefined
   update: (newData: InferOutput<TSchema>) => void
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
+  /** Runs scheduled saves and awaits active writes before the owner removes its data directory. */
+  flush: () => Promise<void>
 }
 
+/** Creates a store bound to the current user data file. Stores for the same file share cached state. */
 export function createConfig<TSchema extends PersistedSchema>(
   namespace: string,
   filename: string,
   schema: TSchema,
   options?: CreateConfigOptions<InferOutput<TSchema>>,
 ): Config<TSchema> {
-  const key = `${namespace}:${filename}`
+  // A delayed save must retain its owner even if another host changes userData.
+  const path = createConfigPath(namespace, filename)
+  const key = path
   const autoHeal = options?.autoHeal ?? Boolean(options?.default)
 
-  const configPath = () => createConfigPath(namespace, filename)
+  const pendingWrites = new Set<Promise<unknown>>()
+
+  const trackWrite = (write: Promise<unknown>) => {
+    pendingWrites.add(write)
+    void write.finally(() => pendingWrites.delete(write))
+  }
 
   const recordDiagnostics = (diagnostics: ConfigDiagnostics<InferOutput<TSchema>>) => {
     diagnosticsMap.set(key, diagnostics)
     return diagnostics
   }
 
-  const save = throttle(async () => {
+  const writeConfig = async () => {
     try {
-      const path = configPath()
       await ensureConfigDirectory(path)
       const tmpPath = `${path}.${randomUUID()}.tmp`
       await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
@@ -88,11 +97,12 @@ export function createConfig<TSchema extends PersistedSchema>(
     catch (error) {
       console.error('Failed to save config', error)
     }
-  }, 250)
+  }
+
+  const save = throttle(() => trackWrite(writeConfig()), 250)
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
     try {
-      const path = configPath()
       await ensureConfigDirectory(path)
       if (existsSync(path)) {
         await copyFile(path, `${path}.bak`).catch(err => console.warn('Failed to create backup for config:', path, err))
@@ -107,7 +117,6 @@ export function createConfig<TSchema extends PersistedSchema>(
   }
 
   const setup = () => {
-    const path = configPath()
     if (!existsSync(path)) {
       const diagnostics = recordDiagnostics({
         status: 'missing',
@@ -143,11 +152,11 @@ export function createConfig<TSchema extends PersistedSchema>(
       persistenceMap.set(key, fallback)
 
       if (autoHeal && fallback !== undefined) {
-        void writeHealingConfig(fallback).then((healed) => {
+        trackWrite(writeHealingConfig(fallback).then((healed) => {
           if (healed) {
             diagnosticsMap.set(key, { ...diagnostics, healed })
           }
-        })
+        }))
       }
       return diagnostics
     }
@@ -179,5 +188,9 @@ export function createConfig<TSchema extends PersistedSchema>(
     get,
     update,
     getDiagnostics,
+    async flush() {
+      save.flush()
+      await Promise.all(pendingWrites)
+    },
   }
 }
