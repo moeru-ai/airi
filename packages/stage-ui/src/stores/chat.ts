@@ -53,6 +53,7 @@ import { useWebSearchStore } from './modules/web-search'
 import { useSchedulerStore } from './scheduler'
 import { useSettingsRunLimits } from './settings/run-limits'
 import { useSettingsSessionLifecycle } from './settings/session-lifecycle'
+import { useSpeechRuntimeStore } from './speech-runtime'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -211,6 +212,7 @@ export const useChatStore = defineStore('chat', () => {
   const contextSource = useContextSourceStore()
   const cardStore = useAiriCardStore()
   const mood = useCharacterMoodStore()
+  const speechRuntime = useSpeechRuntimeStore()
 
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
@@ -330,10 +332,11 @@ export const useChatStore = defineStore('chat', () => {
     const meta = chatSession.sessionMetas[sessionId]
     // Session metadata is reactive. The run table clones a plain copy.
     const bindings = [...meta?.bindings ?? []]
-    const device = options.outputTarget ? speechDevices.forBindings(bindings) : undefined
+    // A device speaks only when the speech host can forward this voice. Otherwise the scene gets text, so a reply is never lost.
+    const device = options.outputTarget && speechRuntime.forwardsToDevices ? speechDevices.forBindings(bindings) : undefined
     const outputs = options.outputTarget
       ? device ? ['chat:owner', 'voice', speechDeviceOutput(device.binding)] : ['chat:owner', `connection:${options.outputTarget}`]
-      : speechDevices.devices.length ? ['chat:owner'] : ['chat:owner', 'voice']
+      : speechDevices.devices.length && speechRuntime.forwardsToDevices ? ['chat:owner'] : ['chat:owner', 'voice']
     return {
       bindings,
       outputs,

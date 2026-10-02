@@ -26,6 +26,7 @@ import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useSpeechDeviceStore } from './mods/api/speech-device'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
+import { useSpeechRuntimeStore } from './speech-runtime'
 
 const ioTracerMocks = vi.hoisted(() => {
   const activeTurnSpan = { value: undefined as any }
@@ -1500,6 +1501,7 @@ describe('chat store contract', () => {
       await options.onStreamEvent?.({ type: 'finish' })
     })
     useSpeechDeviceStore().devices = [{ binding: 'discord:channel:voice-a', connectionId: 'discord-connection' }]
+    useSpeechRuntimeStore().setForwardsToDevices(true)
     const outputs: Array<readonly string[] | undefined> = []
     const store = useChatStore()
     store.onBeforeSend(async (_message, context) => {
@@ -1510,6 +1512,31 @@ describe('chat store contract', () => {
     await store.send({ sessionId: 'voice-session', text: 'Spoken question', outputTarget: 'discord-connection' })
 
     expect(outputs).toEqual([['chat:owner'], ['chat:owner', 'voice', 'voice-device:discord:channel:voice-a']])
+  })
+
+  // ROOT CAUSE:
+  //
+  // A device turn dropped its text reply, but streaming speech never reached the device forwarder.
+  // The scene then got neither voice nor text.
+  //
+  // We fixed this by routing the voice to a device only while the speech host can forward it.
+  it('answers a device scene in text while the speech path cannot reach devices', async () => {
+    sessionMetas['voice-session'] = { sessionId: 'voice-session', userId: 'local', characterId: 'default', bindings: ['discord:channel:voice-a'], createdAt: 1, updatedAt: 1 }
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    useSpeechDeviceStore().devices = [{ binding: 'discord:channel:voice-a', connectionId: 'discord-connection' }]
+    useSpeechRuntimeStore().setForwardsToDevices(false)
+    const outputs: Array<readonly string[] | undefined> = []
+    const store = useChatStore()
+    store.onBeforeSend(async (_message, context) => {
+      outputs.push(context.outputs)
+    })
+
+    await store.send({ sessionId: 'session-1', text: 'Private question' })
+    await store.send({ sessionId: 'voice-session', text: 'Spoken question', outputTarget: 'discord-connection' })
+
+    expect(outputs).toEqual([['chat:owner', 'voice'], ['chat:owner', 'connection:discord-connection']])
   })
 
   // ROOT CAUSE:

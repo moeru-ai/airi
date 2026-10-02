@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 
 import { recordVoiceTurnDelivery } from '../services/speech/delivery'
 import { createSpeechPipelineRuntime } from '../services/speech/pipeline-runtime'
@@ -10,6 +11,11 @@ export const useSpeechRuntimeStore = defineStore('speech-runtime', () => {
   const scheduler = useSchedulerStore()
   let playback: ReturnType<typeof holdVoiceDuringPlayback> | undefined
   let voiceTurns: ReturnType<typeof recordVoiceTurnDelivery> | undefined
+  /**
+   * Whether this renderer's speech reaches speech devices. Only the segment pipeline forwards audio, so a streaming
+   * transport or muted speech cannot. Runs read it to decide between a device voice and a text reply.
+   */
+  const forwardsToDevices = ref(false)
 
   function openIntent(options?: Parameters<typeof runtime.openIntent>[0]) {
     return runtime.openIntent(options)
@@ -48,7 +54,13 @@ export const useSpeechRuntimeStore = defineStore('speech-runtime', () => {
     return runtime.isHost()
   }
 
+  /** The speech host reports whether its current speech path can reach devices. */
+  function setForwardsToDevices(value: boolean) {
+    forwardsToDevices.value = value
+  }
+
   async function dispose() {
+    forwardsToDevices.value = false
     playback?.stop()
     playback = undefined
     voiceTurns?.stop()
@@ -57,6 +69,8 @@ export const useSpeechRuntimeStore = defineStore('speech-runtime', () => {
   }
 
   return {
+    forwardsToDevices,
+    setForwardsToDevices,
     openIntent,
     registerHost,
     holdPlayback,

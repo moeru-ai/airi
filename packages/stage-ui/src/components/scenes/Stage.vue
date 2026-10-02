@@ -647,6 +647,11 @@ chatHookCleanups.push(deviceForwarder.attach(speechPipeline))
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
+// Device speech uses the segment pipeline. A streaming transport or muted speech never reaches a device.
+watch([activeSpeechProvider, speechMuted], ([provider, muted]) => {
+  speechRuntimeStore.setForwardsToDevices(!muted && resolveSpeechTransport(provider) !== 'bidirectional-ws')
+}, { immediate: true })
+
 void speechRuntimeStore.registerHost(speechPipeline, {
   recordDeliveredSpeech: (sessionId, messageId, deliveredSpeech) => {
     void chatStore.recordDeliveredSpeech(sessionId, messageId, deliveredSpeech).catch((error) => {

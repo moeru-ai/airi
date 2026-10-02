@@ -211,6 +211,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`speech-device.test.ts`): a module can offer a speech device only for its declared scenes. A device leaves with its module.
 - Observed (`chat.contract.browser.test.ts`, `context-bridge.contract.browser.test.ts`): while a device is active, a local conversation answers in text, and only the device scene's run speaks. Its reply is spoken, not posted as text.
 - Observed (`device-forwarding.test.ts`): a device turn's segments reach the device in local playback order. A local interruption stops the device and drops later segments.
+- Observed (`chat.contract.browser.test.ts`): a device scene gets the voice only while the speech host can forward it. With streaming speech or muted speech, the scene gets a text reply instead, so no reply is lost.
 - Implemented: Discord offers each joined voice channel as a speech device, plays forwarded segments in order, and stops on `speech:stop`. It offers its channels again after AIRI reconnects. Live playback is unverified.
 - Implemented before P4: domain state reaches the conversation through fixed, replacing context slots (P0). Owner input reaches the conversation run, and domain work goes through admitted commands (P3).
 - Implemented: input ownership needs no classifier handoff. Direct conversation stays free of synchronous classifier triage, so the conversation run hands domain intent to modules through admitted commands.
