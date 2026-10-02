@@ -70,6 +70,8 @@ const mocks = vi.hoisted(() => {
 })
 
 vi.mock('electron', () => ({
+  // No Dock on this platform: the test runs with `isMacOS: false`.
+  app: {},
   BrowserWindow: mocks.FakeBrowserWindow,
   ipcMain: {
     off: vi.fn(),
