@@ -508,6 +508,26 @@ pages:
     upload: Upload
     upload_desc: Click or drag an AIRI card package to import
   memory:
+    recipes:
+      title: Recipes
+      description: Ways the character can handle a kind of task. A recipe only uses abilities that AIRI already has. Turn one off to stop it.
+      empty: No recipes yet.
+      sources:
+        builtin: Built-in
+        user: Yours
+        model: Proposed by the model
+      pending: Waiting for your approval. After one approval, it runs without asking again.
+      approve: Approve
+      remove: Remove
+      add:
+        title: Add a recipe
+        name: Name
+        description: When to use it
+        instructions: What to do
+        keywords:
+          label: Trigger keywords
+          description: Comma-separated. A message that contains one points the character to this recipe.
+        submit: Add
     advanced:
       title: Advanced
       description: Settings that rarely need a change. The defaults fit most setups.

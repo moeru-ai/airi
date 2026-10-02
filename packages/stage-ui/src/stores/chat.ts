@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceFromBindings, createChatOrchestratorRuntime, createStayQuietTool, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
+import { audienceFromBindings, createChatOrchestratorRuntime, createStayQuietTool, matchKeywordRecipes, OWNER_AUDIENCE, renderConversationPreview, STAY_QUIET_RECIPE_ID, unionAudiences } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -34,7 +34,7 @@ import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
 import { useCharacterMoodStore } from './character/mood'
-import { createMoodContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createMoodContext, createRecipeTriggerContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
 import { composeSystemPrompt } from './chat/prompt-recipe'
@@ -50,6 +50,7 @@ import { useModelProfilesStore } from './modules/model-profiles'
 import { useTriageStore } from './modules/triage'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useRecipesStore } from './recipes'
 import { useSchedulerStore } from './scheduler'
 import { useSettingsRunLimits } from './settings/run-limits'
 import { useSettingsSessionLifecycle } from './settings/session-lifecycle'
@@ -213,6 +214,7 @@ export const useChatStore = defineStore('chat', () => {
   const cardStore = useAiriCardStore()
   const mood = useCharacterMoodStore()
   const speechRuntime = useSpeechRuntimeStore()
+  const recipes = useRecipesStore()
 
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
@@ -371,7 +373,8 @@ export const useChatStore = defineStore('chat', () => {
     return async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
-      createStayQuietTool(),
+      // Reading without replying is a recipe. The owner can turn it off.
+      ...(recipes.isUsable(STAY_QUIET_RECIPE_ID) ? [createStayQuietTool()] : []),
     ]
   }
 
@@ -611,11 +614,16 @@ export const useChatStore = defineStore('chat', () => {
       return digest ? { text: digest.text, upToMessageId: digest.upToMessageId } : undefined
     },
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
-    getSystemPrompt: envelope => composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default')),
+    getSystemPrompt: envelope => composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default'), recipes.usable),
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.
       sessionId => mood.active ? createMoodContext(mood.describe(personaOf(sessionId))) : undefined,
+      // A keyword trigger marks the recipes this message asks for. The run still decides how to use them.
+      (_sessionId, message) => {
+        const triggered = matchKeywordRecipes(recipes.usable, message)
+        return triggered.length ? createRecipeTriggerContext(triggered.map(recipe => recipe.name)) : undefined
+      },
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),

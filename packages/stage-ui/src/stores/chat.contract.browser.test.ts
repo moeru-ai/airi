@@ -8,7 +8,7 @@ import type { ChatSessionMeta } from '../types/chat-session'
 import type { LlmStreamOptions } from './ai/chat-llm/llm'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceFromBindings } from '@proj-airi/core-agent'
+import { audienceFromBindings, STAY_QUIET_RECIPE_ID } from '@proj-airi/core-agent'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
@@ -26,6 +26,7 @@ import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
 import { useContextObservabilityStore } from './devtools/context-observability'
 import { useSpeechDeviceStore } from './mods/api/speech-device'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
+import { useRecipesStore } from './recipes'
 import { useSpeechRuntimeStore } from './speech-runtime'
 
 const ioTracerMocks = vi.hoisted(() => {
@@ -103,6 +104,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
   createMoodContext: (text: string) => ({ id: 'mood', contextId: 'system:airi-mood', strategy: 'replace-self', text, createdAt: 0 }),
+  createRecipeTriggerContext: (names: string[]) => ({ id: 'recipe', contextId: 'system:airi-recipe-trigger', strategy: 'replace-self', text: `This message matches the trigger of these recipes: ${names.join(', ')}.`, createdAt: 0 }),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
   createUserAccountContext: () => createUserAccountContextMock(),
 }))
@@ -275,6 +277,9 @@ function storedToolImageMessage(): ChatHistoryItem {
 describe('chat store contract', () => {
   beforeEach(() => {
     cardPrompt.value = 'system prompt'
+    // Recipes persist in local storage. Each test starts from the built-in recipes.
+    localStorage.removeItem('recipes/custom')
+    localStorage.removeItem('recipes/builtin-enabled')
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
       switch (event.name) {
@@ -377,6 +382,42 @@ describe('chat store contract', () => {
       ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet'],
       ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet'],
     ])
+  })
+
+  // Reading without replying is a recipe. A run offers the silence tool only while the owner keeps it on.
+  it('drops the silence tool when the stay-quiet recipe is off', async () => {
+    const toolNames: string[][] = []
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: any) => {
+      const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
+      toolNames.push(tools.map((tool: Tool) => tool.function.name))
+      await options.onStreamEvent({ type: 'finish' })
+    })
+    useRecipesStore().setEnabled(STAY_QUIET_RECIPE_ID, false)
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'hello' })
+
+    expect(toolNames).toEqual([['builtIn_readContextSource']])
+  })
+
+  // A keyword trigger works like a smart shortcut: the run sees which recipe the message asks for.
+  it('lists instruction recipes in the system prompt and marks a keyword trigger in the message context', async () => {
+    let prompt = ''
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
+      prompt = JSON.stringify(context)
+      await options.onStreamEvent({ type: 'finish' })
+    })
+    useRecipesStore().add({
+      name: 'Game night',
+      description: 'Starts a game when the owner wants to play.',
+      style: { kind: 'instructions', instructions: 'Ask which game, then start it.' },
+      triggers: [{ kind: 'keyword', keywords: ['想玩粥了'] }],
+      enabled: true,
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: '今天想玩粥了' })
+
+    expect(prompt).toContain('Game night: Starts a game when the owner wants to play.')
+    expect(prompt).toContain('This message matches the trigger of these recipes: Game night.')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {

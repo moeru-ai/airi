@@ -15,4 +15,16 @@ describe('chat prompt recipe', () => {
     expect(content).not.toContain('eg: $ x^3 $')
     expect(content.endsWith('You are AIRI.')).toBe(true)
   })
+
+  it('lists only instruction recipes with instructions', () => {
+    const content = composeSystemPrompt('You are AIRI.', [
+      { id: 'a', name: 'Game night', description: 'Starts a game.', style: { kind: 'instructions', instructions: 'Ask which game.' }, triggers: [], source: 'user', enabled: true, approved: true },
+      { id: 'b', name: 'Quiet', description: 'Stays quiet.', style: { kind: 'instructions', instructions: '' }, triggers: [], source: 'builtin', enabled: true, approved: true },
+      { id: 'c', name: 'Helper', description: 'Runs apart.', style: { kind: 'run', instructions: 'Work alone.' }, triggers: [], source: 'user', enabled: true, approved: true },
+    ])
+
+    expect(content).toContain('- Game night: Starts a game.\n  How: Ask which game.')
+    expect(content).not.toContain('Quiet')
+    expect(content).not.toContain('Helper')
+  })
 })

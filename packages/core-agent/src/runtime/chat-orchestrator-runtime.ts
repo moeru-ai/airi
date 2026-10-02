@@ -359,8 +359,8 @@ export interface ChatOrchestratorRuntimeDeps {
   onIntakeRecord?: (record: IntakeRecord) => void
   /** Reads the current capacity limits. Invalid values use the defaults. */
   getLimits?: () => Partial<ChatOrchestratorRuntimeLimits>
-  /** Request-owned context providers evaluated once per send for its session, outside the shared pool. */
-  runtimeContextProviders?: Array<(sessionId: string) => ContextMessage | null | undefined>
+  /** Request-owned context providers evaluated once per send for its session and message, outside the shared pool. */
+  runtimeContextProviders?: Array<(sessionId: string, message: string) => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -633,11 +633,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
    * Projects pool observations for the run's audience, then adds request-owned providers.
    * The read label covers pool entries only. Request-owned providers carry host instructions, not shared records.
    */
-  function getRequestContexts(sessionId: string, audience: Audience) {
+  function getRequestContexts(sessionId: string, audience: Audience, message: string) {
     const snapshot = deps.context.snapshot(sessionId, audience)
     const readAudience = intersectAudiences(...Object.values(snapshot).flat().map(message => message.audience ?? OWNER_AUDIENCE))
     for (const provider of deps.runtimeContextProviders ?? []) {
-      const context = provider(sessionId)
+      const context = provider(sessionId, message)
       if (context)
         snapshot[context.contextId] = [context]
     }
@@ -736,7 +736,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    const { contexts: requestContexts, readAudience } = getRequestContexts(sessionId, run.envelope.audience)
+    const { contexts: requestContexts, readAudience } = getRequestContexts(sessionId, run.envelope.audience, sendingMessage)
     // Output derives from everything the run read, so the history label narrows before each write.
     const appendAssistantMessage = (message: ChatHistoryItem) => {
       deps.session.narrowSessionAudience?.(sessionId, readAudience)

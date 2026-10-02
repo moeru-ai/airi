@@ -256,6 +256,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: sessions no longer store a system snapshot. Format rules live in the stage-ui prompt recipe, and notification reactions speak as the session persona.
 - Observed (`history-budget.test.ts`, `chat-orchestrator-runs.test.ts`): long history stays within the token budget, priced by what each message projects, tool results and transcripts included. Omitted exchanges give way to a covering digest or a count, and the stored history keeps every message.
 - Observed (`chat-orchestrator-runs.test.ts`): a waiting run whose session narrowed below its audience is blocked when it starts and again when it reads history. A spoken reaction joins only a session that only the owner reads.
+- Observed (`recipes.test.ts`, `chat.contract.browser.test.ts`, `prompt-recipe.test.ts`): recipes are the user's skills. Reading without replying is a built-in recipe that the owner can turn off, and the run then gets no silence tool. A model proposal waits for one owner approval.
+- Observed (`chat.contract.browser.test.ts`): instruction recipes sit in the cacheable system prompt, and a keyword trigger marks the matching recipe in the message context. The run still decides.
+- Designed: run-style recipes start an isolated child run from a condensed prompt. The child can report to the scheduler as an internal stimulus, write urgent state to its slot in the shared pool, and return a short result to its parent as context. This is the P10 derived run, brought forward.
 - Not provided: nothing writes session digests yet, so long sessions show the count. Summaries need a model call and belong with memory in P8.
 
 ### Open P0 evidence

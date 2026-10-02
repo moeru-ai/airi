@@ -478,6 +478,26 @@ pages:
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
+    recipes:
+      title: 配方
+      description: 角色处理某类事情的方式。配方只能使用 AIRI 已有的能力。关闭后就不会再使用。
+      empty: 还没有配方。
+      sources:
+        builtin: 内置
+        user: 你创建的
+        model: 模型提议的
+      pending: 等待你批准。批准一次之后，使用时不再询问。
+      approve: 批准
+      remove: 删除
+      add:
+        title: 添加配方
+        name: 名称
+        description: 什么时候使用
+        instructions: 怎么做
+        keywords:
+          label: 触发关键词
+          description: 用逗号分隔。消息里出现其中一个时，会提示角色使用这个配方。
+        submit: 添加
     advanced:
       title: 高级
       description: 很少需要修改的设置，默认值适合大多数情况。
