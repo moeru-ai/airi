@@ -1,8 +1,8 @@
-import type { ChatIntakeDecision, Classifier, IntakeAppraisal, Pad, Recipe, Stimulus } from '@proj-airi/core-agent'
+import type { Classifier, Recipe } from '@proj-airi/core-agent'
 
 import type { ClassifierCompletion } from '../../libs/classifier/llm'
 
-import { applyRecipeDecisions, appraiseStimulus, askWithin, capSceneSalience, CLASSIFIER_DEADLINE_MS, decideByAppraisal, decisionRecipes, passGates, recipeDecisionRequest, recipeGateRequest } from '@proj-airi/core-agent'
+import { applyRecipeDecisions, askWithin, CLASSIFIER_DEADLINE_MS, decisionRecipes, passGates, recipeDecisionRequest, recipeGateRequest } from '@proj-airi/core-agent'
 import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
 import { computed, markRaw } from 'vue'
@@ -13,20 +13,20 @@ import { useLLM } from '../ai/chat-llm/llm'
 import { useSettingsTriage } from '../settings/triage'
 import { useConsciousnessStore } from './consciousness'
 
-/** Background notifications tolerate a slower appraisal than conversation input. */
-export const NOTIFICATION_TRIAGE_DEADLINE_MS = 3_000
+/** Recipe gates run in the background, so they tolerate a slower answer than a decision before a reply. */
+export const GATE_DEADLINE_MS = 3_000
 
 /**
- * Classifier triage for intake, from the configured backend.
+ * The optional classifier from the configured backend, and the recipe decisions that ask it.
  *
  * Use when:
- * - Input from a connection or a background notification needs an attention decision.
+ * - Decision recipes answer before a reply, or an auto-run recipe asks its gate.
  *
  * Expects:
- * - Direct owner input never comes here. A synchronous local policy decides it.
+ * - The owner chose a backend. Without one, nothing is asked.
  *
  * Returns:
- * - Decisions and appraisals. Without a backend, a late answer, or an answer below the threshold, the prior decides.
+ * - Recipe outcomes. A late answer or an answer below the threshold decides nothing.
  */
 export const useTriageStore = defineStore('triage', () => {
   const settings = useSettingsTriage()
@@ -73,26 +73,6 @@ export const useTriageStore = defineStore('triage', () => {
     }
   })
 
-  /** Appraises a stimulus with the configured backend, or returns nothing without one. The mood, when given, goes to the classifier and the trace. */
-  async function appraise(stimulus: Stimulus, deadlineMs: number, options: { attendCriteria?: string, mood?: Pad } = {}): Promise<IntakeAppraisal | undefined> {
-    const current = classifier.value
-    if (!current)
-      return undefined
-    return appraiseStimulus(stimulus, current, { deadlineMs, threshold: settings.effectiveThreshold, ...options })
-  }
-
-  /** Intake policy for input from a connection. Without a backend, the input is admitted by rule. */
-  async function decideConnectionIntake(stimulus: Stimulus, mood?: Pad): Promise<ChatIntakeDecision> {
-    if (!classifier.value)
-      return { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule', salience: capSceneSalience(stimulus, stimulus.salience) }
-    return decideByAppraisal(stimulus, await appraise(stimulus, CLASSIFIER_DEADLINE_MS, { mood }))
-  }
-
-  /** Appraisal for a background notification, with the longer deadline. */
-  function appraiseNotification(stimulus: Stimulus, mood?: Pad) {
-    return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, { mood })
-  }
-
   /**
    * Asks every usable decision recipe about one message in a single classifier call.
    * A late, failed, or unsure answer chooses nothing, so the run replies.
@@ -116,14 +96,12 @@ export const useTriageStore = defineStore('triage', () => {
     const request = recipeGateRequest(recipes, scene)
     if (!current || !Object.keys(request.questions).length)
       return [...recipes]
-    return passGates(recipes, await askWithin(current, request, { deadlineMs: NOTIFICATION_TRIAGE_DEADLINE_MS }), settings.effectiveThreshold)
+    return passGates(recipes, await askWithin(current, request, { deadlineMs: GATE_DEADLINE_MS }), settings.effectiveThreshold)
   }
 
   return {
     classifier,
     decideRecipes,
     passRecipeGates,
-    decideConnectionIntake,
-    appraiseNotification,
   }
 })

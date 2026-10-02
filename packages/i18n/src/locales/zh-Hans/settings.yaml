@@ -500,7 +500,7 @@ pages:
         description: 回复运行超过这段时间时会停止，并报告失败。
     triage:
       title: 注意力
-      description: 可以用一个快速分类器，决定别人发来的哪些消息、哪些模块事件值得关注。你自己的消息总会送到角色那里。不使用分类器时，由固定规则决定。
+      description: 可选的快速分类器，用来回答快速判断配方、运行前判断和心情评估的问题。不设置时，这些功能不会启用，也不会有额外的调用。
       backend:
         label: 分类器
         description: Decisions API 模型（例如 OpenRouter 上的 Mercury Decide，或 JEV）速度快、价格低。聊天模型也可以用结构化格式回答同样的问题。分类器永远不会授予权限。

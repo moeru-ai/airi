@@ -530,7 +530,7 @@ pages:
         description: A reply that runs longer than this stops and reports a failure.
     triage:
       title: Attention
-      description: A fast classifier can decide which messages from other people and which module events deserve attention. Your own messages always reach the character. Without a classifier, fixed rules decide.
+      description: An optional fast classifier answers quick questions for decision recipes, recipe gates, and mood. Without one, those features stay off and nothing extra is called.
       backend:
         label: Classifier
         description: A Decisions API model, such as Mercury Decide on OpenRouter or JEV, is fast and cheap. A chat model can answer the same questions in a structured form. A classifier never grants permissions.

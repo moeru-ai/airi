@@ -570,20 +570,15 @@ describe('store character-orchestrator', () => {
       expect(scheduler.leases.acquire('voice', 'next-chat-send', { salience: 0.5 })).toEqual({ granted: false, ahead: waiting?.runId })
     })
 
-    it('ignores an expired notification before asking a classifier', async () => {
-      const settings = useSettingsTriage(pinia)
-      settings.backend = 'decisions'
-      settings.decisionsApiKey = 'key'
-      const fetch = vi.fn(async () => Response.json({ answers: {} }))
-      vi.stubGlobal('fetch', fetch)
+    it('ignores an expired notification without a run', async () => {
+      const mockStream = replyWith('unused')
       const store = useCharacterOrchestratorStore(pinia)
       const event = notify({ ttlMs: 0 })
 
       await store.handleSparkNotify(event)
 
-      expect(fetch).not.toHaveBeenCalled()
+      expect(mockStream).not.toHaveBeenCalled()
       expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'expired', decidedBy: 'rule' }])
-      vi.unstubAllGlobals()
     })
 
     // T20: a notification run counts against the shared run capacity, so a limit of one serializes all active work.
@@ -682,24 +677,6 @@ describe('store character-orchestrator', () => {
         { outcome: 'deferred', retryAt: expect.any(Number) },
         { outcome: 'merged', mergedInto: newer.data.id },
       ])
-    })
-
-    it('ignores a notification that a confident classifier skips, without a run', async () => {
-      const mockStream = replyWith('Should not speak')
-      const settings = useSettingsTriage(pinia)
-      settings.backend = 'decisions'
-      settings.decisionsApiKey = 'key'
-      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ answers: { attend: { type: 'noul', noul: 0.01 } } })))
-      const store = useCharacterOrchestratorStore(pinia)
-      const event = notify({ urgency: 'later', headline: 'A cow mooed' })
-
-      await store.handleSparkNotify(event)
-
-      expect(mockStream).not.toHaveBeenCalled()
-      expect(store.scheduledNotifies).toEqual([])
-      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'not-attending', decidedBy: 'classifier', appraisal: { backend: 'decisions' } }])
-      expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
-      vi.unstubAllGlobals()
     })
 
     function observe(text: string, createdAt: number) {

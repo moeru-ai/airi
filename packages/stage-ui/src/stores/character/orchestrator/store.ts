@@ -7,7 +7,7 @@ import type { RecipeRunSettled } from '../../chat'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, dueTriggeredRecipes, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, superviseRun, useLlmmarkerParser } from '@proj-airi/core-agent'
+import { audienceIncludes, compareLeaseCandidates, decideByPrior, deferDelayMs, dueTriggeredRecipes, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, superviseRun, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -134,11 +134,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
     return chatSession.sessionMetas[sessionId]?.characterId || airiCard.activeCardId || 'default'
-  }
-
-  /** The persona's mood, while mood has an update path. */
-  function moodOf(personaId: string) {
-    return mood.active ? mood.current(personaId) : undefined
   }
 
   /**
@@ -387,18 +382,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return undefined
     }
 
-    // A classifier can ignore the notification or reorder it. Its answer never grants authority.
-    const appraisal = triage.classifier && stimulus.origin === 'external' ? await triage.appraiseNotification(stimulus, moodOf(personaOf(chatSession.activeSessionId))) : undefined
-    const appraised = appraisal ? decideByAppraisal(stimulus, appraisal) : undefined
-    if (appraised?.outcome === 'ignored') {
-      scheduler.intake.record(stimulus, appraised)
-      return undefined
-    }
-    const ranked: Stimulus = { ...stimulus, salience: appraised?.salience ?? stimulus.salience }
+    const ranked = stimulus
     const now = Date.now()
     const entry = { runId: nanoid(), stimulus: ranked, event, control, enqueuedAt: now, attempts: 0, maxAttempts: attentionConfig.value.maxAttempts, reason: 'spark:notify' }
     // A proposal's source already chose its moment, so it waits only for the voice.
-    const timing = { ...decideByPrior(ranked, { now, busy: false, retryAt: ranked.event === 'proposal' ? now : undefined }), appraisal }
+    const timing = decideByPrior(ranked, { now, busy: false, retryAt: ranked.event === 'proposal' ? now : undefined })
     if (timing.outcome === 'ignored') {
       scheduler.intake.record(ranked, timing)
       return undefined

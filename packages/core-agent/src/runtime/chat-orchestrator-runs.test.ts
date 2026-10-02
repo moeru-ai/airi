@@ -21,7 +21,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], checkSpendingLimit?: ChatOrchestratorRuntimeDeps['checkSpendingLimit'], getSystemPrompt?: ChatOrchestratorRuntimeDeps['getSystemPrompt'], getHistoryDigest?: ChatOrchestratorRuntimeDeps['getHistoryDigest'], decideBeforeReply?: ChatOrchestratorRuntimeDeps['decideBeforeReply'], personaOf?: (sessionId: string) => string, leases?: LeaseTable, runs?: RunTable } = {}) {
+function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], checkSpendingLimit?: ChatOrchestratorRuntimeDeps['checkSpendingLimit'], getSystemPrompt?: ChatOrchestratorRuntimeDeps['getSystemPrompt'], getHistoryDigest?: ChatOrchestratorRuntimeDeps['getHistoryDigest'], decideBeforeReply?: ChatOrchestratorRuntimeDeps['decideBeforeReply'], personaOf?: (sessionId: string) => string, leases?: LeaseTable, runs?: RunTable } = {}) {
   const messages: ChatHistoryItem[] = []
   const runChanges: AgentRun[] = []
   let sessionAudience = options.sessionAudience ?? OWNER_AUDIENCE
@@ -58,7 +58,6 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     getActiveProvider: () => 'mock',
     createEnvelope: sessionId => ({ bindings: [], outputs: options.outputs ?? ['chat:owner'], audience: options.runAudience ?? OWNER_AUDIENCE, personaId: options.personaOf?.(sessionId) ?? 'airi' }),
     onRunChange: options.onRunChange ?? (run => runChanges.push(run)),
-    decideIntake: options.decideIntake,
     decideDirectIntake: options.decideDirectIntake,
     checkSpendingLimit: options.checkSpendingLimit,
     getSystemPrompt: options.getSystemPrompt,
@@ -113,31 +112,23 @@ describe('orchestrator runs', () => {
     expect(harness.runtime.getIntakeRecords()[0]?.runId).toBeUndefined()
   })
 
-  // ROOT CAUSE:
-  // `ingest` admitted a run for every input, so the host could not ignore a stimulus without faking a run.
-  it('records an ignored connection input without a run, a provider call, or a message', async () => {
-    const decideIntake = vi.fn(() => ({ outcome: 'ignored' as const, reason: 'not-addressed', decidedBy: 'rule' as const }))
-    const harness = createRunHarness({ decideIntake })
+  // Connection input needs no classifier. The rule admits it and records where it came from.
+  it('admits connection input by rule and records its source', async () => {
+    const harness = createRunHarness()
 
     const result = await harness.runtime.ingest('chatter', { model: 'test', chatProvider: provider, outputTarget: 'discord-connection' })
 
-    expect(result).toEqual({ stimulusId: expect.any(String), outcome: 'ignored' })
-    expect(decideIntake).toHaveBeenCalledWith(expect.objectContaining({ source: 'connection:discord-connection', direct: false, origin: 'external' }))
-    expect(harness.runtime.getRuns()).toEqual([])
-    expect(harness.stream).not.toHaveBeenCalled()
-    expect(harness.messages).toEqual([])
-    expect(harness.runtime.getIntakeRecords()).toMatchObject([{ stimulusId: result.stimulusId, outcome: 'ignored', reason: 'not-addressed' }])
+    expect(result.outcome).toBe('admitted')
+    expect(harness.runtime.getIntakeRecords()).toMatchObject([{ source: 'connection:discord-connection', origin: 'external', outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }])
   })
 
   // The supplement requires an intake decision for direct input, without automatic admission or a remote wait.
-  it('decides direct owner input with the local policy, never the remote one', async () => {
-    const decideIntake = vi.fn(() => ({ outcome: 'admitted' as const, reason: 'remote', decidedBy: 'classifier' as const }))
+  it('decides direct owner input with the local policy', async () => {
     const decideDirectIntake = vi.fn(() => ({ outcome: 'ignored' as const, reason: 'busy-persona', decidedBy: 'rule' as const }))
-    const harness = createRunHarness({ decideIntake, decideDirectIntake })
+    const harness = createRunHarness({ decideDirectIntake })
 
     const result = await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
 
-    expect(decideIntake).not.toHaveBeenCalled()
     expect(decideDirectIntake).toHaveBeenCalledWith(expect.objectContaining({ direct: true, source: 'owner', text: 'hello' }))
     expect(result.outcome).toBe('ignored')
     expect(harness.runtime.getRuns()).toEqual([])
@@ -357,17 +348,6 @@ describe('orchestrator runs', () => {
     await send
     expect(harness.stream).toHaveBeenCalledOnce()
     expect(runs.snapshot().map(run => run.state)).toEqual(['done', 'done'])
-  })
-
-  it('admits connection input when the intake policy fails', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const harness = createRunHarness({ decideIntake: () => Promise.reject(new Error('classifier down')) })
-
-    const result = await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider, outputTarget: 'discord-connection' })
-
-    expect(result.outcome).toBe('admitted')
-    expect(harness.runtime.getIntakeRecords()).toMatchObject([{ outcome: 'admitted', reason: 'policy-failed', decidedBy: 'fallback' }])
-    consoleError.mockRestore()
   })
 
   // ROOT CAUSE:

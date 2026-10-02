@@ -367,12 +367,6 @@ export interface ChatOrchestratorRuntimeDeps {
    */
   decideDirectIntake?: (stimulus: Stimulus) => ChatIntakeDecision
   /**
-   * Decides whether input from a connection becomes a run. It can ask a remote classifier.
-   * A failure admits the input as the fallback, so a broken policy cannot lose input.
-   * @default admit every input
-   */
-  decideIntake?: (stimulus: Stimulus) => ChatIntakeDecision | Promise<ChatIntakeDecision>
-  /**
    * Returns a rejection message while the optional user spending limit is reached.
    * The limit stops new runs and shows why. It never selects a cheaper model.
    */
@@ -1429,16 +1423,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     }
   }
 
-  async function decideByPolicy(stimulus: Stimulus, decideIntake: NonNullable<ChatOrchestratorRuntimeDeps['decideIntake']>): Promise<ChatIntakeDecision> {
-    try {
-      return await decideIntake(stimulus)
-    }
-    catch (error) {
-      console.error('Intake policy failed:', error)
-      return { outcome: 'admitted', reason: 'policy-failed', decidedBy: 'fallback' }
-    }
-  }
-
   async function ingest(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
@@ -1503,9 +1487,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       ? { outcome: 'admitted', reason: 'derived', decidedBy: 'rule' }
       : stimulus.direct
         ? decideDirect(stimulus)
-        : deps.decideIntake
-          ? await decideByPolicy(stimulus, deps.decideIntake)
-          : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
+        : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
     if (decision.outcome === 'ignored') {
       intake.record(stimulus, decision)
       return { stimulusId: stimulus.id, outcome: 'ignored' }

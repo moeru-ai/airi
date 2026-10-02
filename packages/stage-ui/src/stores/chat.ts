@@ -737,7 +737,6 @@ export const useChatStore = defineStore('chat', () => {
     runs: scheduler.runs,
     intake: scheduler.intake,
     leases: scheduler.leases,
-    decideIntake: stimulus => triage.decideConnectionIntake(stimulus, mood.active ? mood.current(cardStore.activeCardId || 'default') : undefined),
     decideBeforeReply: decideRecipesBeforeReply,
     checkSpendingLimit: () => {
       const until = spending.spendingPausedUntil()

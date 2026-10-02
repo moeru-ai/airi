@@ -1,4 +1,4 @@
-import type { Recipe, Stimulus, StreamOptions } from '@proj-airi/core-agent'
+import type { Recipe, StreamOptions } from '@proj-airi/core-agent'
 
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -11,18 +11,7 @@ const llm = vi.hoisted(() => ({ stream: vi.fn() }))
 vi.mock('../ai/chat-llm/llm', () => ({ useLLM: () => ({ stream: llm.stream }) }))
 vi.mock('./consciousness', () => ({ useConsciousnessStore: () => ({ getChatProviderInstance: async () => ({ generation: () => ({}) }) }) }))
 
-const stimulus: Stimulus = {
-  id: 'message',
-  kind: 'input:text',
-  origin: 'external',
-  source: 'connection:discord',
-  event: 'input:text',
-  bindings: ['discord:channel:a'],
-  salience: 0.9,
-  receivedAt: 0,
-  text: 'hello',
-  fromScene: true,
-}
+const ackRecipe: Recipe = { id: 'user:ack', name: 'Acknowledgements', description: 'Skips replies to plain acknowledgements.', style: { kind: 'decision', question: { type: 'noul', instructions: 'Is this only an acknowledgement?', criteria: { true: 'It needs no answer.', false: 'It asks something.' } }, actions: { true: { kind: 'stay-quiet' } } }, triggers: [], source: 'user', enabled: true, approved: true }
 
 describe('triage store', () => {
   beforeEach(() => {
@@ -32,24 +21,6 @@ describe('triage store', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
-  })
-
-  it('admits connection input by rule without a backend and keeps scene sources below interruption', async () => {
-    expect(await useTriageStore().decideConnectionIntake(stimulus)).toEqual({ outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule', salience: 0.8 })
-  })
-
-  it('ignores connection input when a Decisions endpoint is confident and records the threshold in effect', async () => {
-    const settings = useSettingsTriage()
-    settings.backend = 'decisions'
-    settings.decisionsApiKey = 'key'
-    settings.threshold = 0.9
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ answers: { attend: { type: 'noul', noul: 0.02 } } })))
-
-    expect(await useTriageStore().decideConnectionIntake(stimulus)).toMatchObject({
-      outcome: 'ignored',
-      decidedBy: 'classifier',
-      appraisal: { backend: 'decisions', threshold: 0.9 },
-    })
   })
 
   it('gives the classifier model only its own tool and system prompt', async () => {
@@ -63,13 +34,13 @@ describe('triage store', () => {
       expect(step?.tools).toHaveLength(1)
       expect(step?.systemPrompt).toContain('decision classifier')
       expect(options.toolChoice).toEqual({ type: 'function', function: { name: 'submit_answers' } })
-      await tool?.execute({ attend: 0.97, urgency: { score: 1, confidence: 0.9 } }, { messages: [], toolCallId: 'call' })
+      await tool?.execute({ 'user:ack': 0.97 }, { messages: [], toolCallId: 'call' })
     })
 
-    const appraisal = await useTriageStore().appraiseNotification({ ...stimulus, fromScene: false, salience: 0.5 })
+    const decided = await useTriageStore().decideRecipes([ackRecipe], 'ok', new AbortController().signal)
 
     expect(llm.stream.mock.calls[0]?.[0]).toBe('small-model')
-    expect(appraisal).toMatchObject({ backend: 'llm', attend: 0.97, threshold: 0.8, urgency: expect.closeTo(0.5) })
+    expect(decided).toMatchObject({ silent: { reason: 'Acknowledgements' } })
   })
 
   // A decision recipe reads a message with the attention classifier and can choose silence without a model reply.

@@ -1,5 +1,3 @@
-import type { Pad } from './mood'
-
 /** Where a stimulus comes from. An internal proposal gets no extra authority from its origin. */
 export type StimulusOrigin = 'external' | 'internal'
 
@@ -65,21 +63,6 @@ export interface IntakeRecord {
   mergedInto?: string
   parentRunId?: string
   depth?: number
-  appraisal?: IntakeAppraisal
-}
-
-/** Classifier answers behind a decision, kept so tests and devtools can explain it. */
-export interface IntakeAppraisal {
-  backend: string
-  /** Probability that the stimulus deserves attention now. */
-  attend: number
-  confidence: number
-  /** Trust threshold in effect. Answers below it did not decide. */
-  threshold: number
-  /** Salience from the classifier's urgency score, before it is combined with the prior. */
-  urgency?: number
-  /** The persona mood that the classifier read. */
-  mood?: Pad
 }
 
 /** A policy result. The host turns it into a record. */
@@ -87,11 +70,10 @@ export interface IntakeDecision {
   outcome: Exclude<IntakeOutcome, 'rejected'>
   reason: string
   decidedBy: IntakeDecider
-  /** Final salience after appraisal. @default the stimulus prior */
+  /** Final salience. @default the stimulus prior */
   salience?: number
   retryAt?: number
   mergedInto?: string
-  appraisal?: IntakeAppraisal
 }
 
 const URGENCY_SALIENCE: Record<string, number> = {
@@ -161,7 +143,6 @@ export class IntakeLog {
       mergedInto: decision.mergedInto,
       parentRunId: stimulus.parentRunId,
       depth: stimulus.depth,
-      appraisal: decision.appraisal,
     }
     this.records.push(record)
     const limit = this.options.limit ?? 200
