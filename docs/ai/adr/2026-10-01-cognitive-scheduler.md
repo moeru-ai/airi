@@ -98,7 +98,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0 through P3 are Implemented with deterministic tests. Their live scenarios remain open. P4 through P10 have not started.
+- P0 through P4 are Implemented with deterministic tests. Their live scenarios remain open. P5 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -213,6 +213,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`device-forwarding.test.ts`): a device turn's segments reach the device in local playback order. A local interruption stops the device and drops later segments.
 - Implemented: Discord offers each joined voice channel as a speech device, plays forwarded segments in order, and stops on `speech:stop`. It offers its channels again after AIRI reconnects. Live playback is unverified.
 - Implemented before P4: domain state reaches the conversation through fixed, replacing context slots (P0). Owner input reaches the conversation run, and domain work goes through admitted commands (P3).
+- Implemented: input ownership needs no classifier handoff. Direct conversation stays free of synchronous classifier triage, so the conversation run hands domain intent to modules through admitted commands.
 - Observed (`voice-playback.test.ts`, `lease-table.test.ts`, `chat-orchestrator-runs.test.ts`): a run's speech keeps the voice after the run ends, until its turn ends. Calm work waits. Owner input cuts in.
 - Observed (`speech-pipeline.test.ts`): a turn cancelled before it started still reports its cancellation, so its playback lease is released.
 - Not provided: streaming speech providers bypass the segment pipeline. Their voice lease still ends with generation.
