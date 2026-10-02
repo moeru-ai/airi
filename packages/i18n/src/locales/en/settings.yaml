@@ -519,6 +519,34 @@ pages:
       deadline:
         label: Reply time limit (minutes)
         description: A reply that runs longer than this stops and reports a failure.
+    triage:
+      title: Attention
+      description: A fast classifier can decide which messages from other people and which module events deserve attention. Your own messages always reach the character. Without a classifier, fixed rules decide.
+      backend:
+        label: Classifier
+        description: JEV is fast and cheap. A chat model can answer the same questions in a structured form. A classifier never grants permissions.
+        options:
+          none: None (fixed rules)
+          jev: JEV
+          llm: Chat model
+      threshold:
+        label: Trust threshold
+        description: A classifier answer decides only when its confidence reaches this value. A lower value lets the classifier decide more often. Below the threshold, fixed rules decide.
+      jev_api_key:
+        label: JEV API key
+        description: The key for the TypeSafe System One API.
+      jev_base_url:
+        label: JEV base URL
+        description: The API address. Change it only for a proxy or a gateway.
+      jev_model:
+        label: JEV model
+        description: The model name, for example jev-latest.
+      llm_provider:
+        label: Classifier provider
+        description: A configured chat provider that answers the classifier questions. The conversation model does not change.
+      llm_model:
+        label: Classifier model
+        description: Use a fast model. A slow answer is ignored, and fixed rules decide.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

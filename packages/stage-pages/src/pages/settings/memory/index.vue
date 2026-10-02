@@ -1,8 +1,10 @@
 <script setup lang="ts">
+import type { TriageBackend } from '@proj-airi/stage-ui/stores/settings'
 import type { Ref } from 'vue'
 
-import { useSettingsRunLimits, useSettingsSessionLifecycle } from '@proj-airi/stage-ui/stores/settings'
-import { FieldInput } from '@proj-airi/ui'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { MAX_TRIAGE_THRESHOLD, MIN_TRIAGE_THRESHOLD, useSettingsRunLimits, useSettingsSessionLifecycle, useSettingsTriage } from '@proj-airi/stage-ui/stores/settings'
+import { FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -10,6 +12,15 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const { dormantAfterMinutes, retireAfterDays } = storeToRefs(useSettingsSessionLifecycle())
 const { maxConcurrentRuns, maxQueuedPerSession, stallTimeoutSeconds, runDeadlineMinutes } = storeToRefs(useSettingsRunLimits())
+const { backend, threshold, jevApiKey, jevBaseUrl, jevModel, llmProvider, llmModel } = storeToRefs(useSettingsTriage())
+const { configuredChatProvidersMetadata } = storeToRefs(useProviderStore())
+
+const backendOptions = computed<Array<{ label: string, value: TriageBackend }>>(() => [
+  { label: t('settings.pages.memory.triage.backend.options.none'), value: 'none' },
+  { label: t('settings.pages.memory.triage.backend.options.jev'), value: 'jev' },
+  { label: t('settings.pages.memory.triage.backend.options.llm'), value: 'llm' },
+])
+const providerOptions = computed(() => configuredChatProvidersMetadata.value.map(metadata => ({ label: metadata.localizedName ?? metadata.name, value: metadata.id })))
 
 /** Keeps the stored value when the field is empty, not positive, or not whole when a whole number is required. */
 function positiveModel(source: Ref<number>, options: { integer?: boolean } = {}) {
@@ -90,6 +101,64 @@ const runDeadlineMinutesModel = positiveModel(runDeadlineMinutes, { integer: tru
         type="number"
         :label="t('settings.pages.memory.runs.deadline.label')"
         :description="t('settings.pages.memory.runs.deadline.description')"
+      />
+    </section>
+
+    <section :class="['rounded-lg', 'bg-neutral-50 dark:bg-neutral-800', 'p-4', 'flex flex-col', 'gap-4']">
+      <div :class="['flex flex-col', 'gap-1']">
+        <h2 :class="['text-lg font-medium']">
+          {{ t('settings.pages.memory.triage.title') }}
+        </h2>
+        <p :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.pages.memory.triage.description') }}
+        </p>
+      </div>
+      <FieldSelect
+        v-model="backend"
+        :label="t('settings.pages.memory.triage.backend.label')"
+        :description="t('settings.pages.memory.triage.backend.description')"
+        :options="backendOptions"
+      />
+      <template v-if="backend === 'jev'">
+        <FieldInput
+          v-model="jevApiKey"
+          type="password"
+          :label="t('settings.pages.memory.triage.jev_api_key.label')"
+          :description="t('settings.pages.memory.triage.jev_api_key.description')"
+        />
+        <FieldInput
+          v-model="jevBaseUrl"
+          :label="t('settings.pages.memory.triage.jev_base_url.label')"
+          :description="t('settings.pages.memory.triage.jev_base_url.description')"
+        />
+        <FieldInput
+          v-model="jevModel"
+          :label="t('settings.pages.memory.triage.jev_model.label')"
+          :description="t('settings.pages.memory.triage.jev_model.description')"
+        />
+      </template>
+      <template v-if="backend === 'llm'">
+        <FieldSelect
+          v-model="llmProvider"
+          :label="t('settings.pages.memory.triage.llm_provider.label')"
+          :description="t('settings.pages.memory.triage.llm_provider.description')"
+          :options="providerOptions"
+        />
+        <FieldInput
+          v-model="llmModel"
+          :label="t('settings.pages.memory.triage.llm_model.label')"
+          :description="t('settings.pages.memory.triage.llm_model.description')"
+        />
+      </template>
+      <FieldRange
+        v-if="backend !== 'none'"
+        v-model="threshold"
+        :label="t('settings.pages.memory.triage.threshold.label')"
+        :description="t('settings.pages.memory.triage.threshold.description')"
+        :min="MIN_TRIAGE_THRESHOLD"
+        :max="MAX_TRIAGE_THRESHOLD"
+        :step="0.01"
+        :format-value="value => value.toFixed(2)"
       />
     </section>
   </div>

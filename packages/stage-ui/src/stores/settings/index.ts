@@ -23,6 +23,7 @@ export * from './stage-model'
 export * from './theme'
 // Export constants
 export { DEFAULT_THEME_COLORS_HUE } from './theme'
+export * from './triage'
 
 /**
  * Unified settings store for backward compatibility.

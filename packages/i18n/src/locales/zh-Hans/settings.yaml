@@ -489,6 +489,34 @@ pages:
       deadline:
         label: 回复时限（分钟）
         description: 回复运行超过这段时间时会停止，并报告失败。
+    triage:
+      title: 注意力
+      description: 可以用一个快速分类器，决定别人发来的哪些消息、哪些模块事件值得关注。你自己的消息总会送到角色那里。不使用分类器时，由固定规则决定。
+      backend:
+        label: 分类器
+        description: JEV 速度快、价格低。聊天模型也可以用结构化格式回答同样的问题。分类器永远不会授予权限。
+        options:
+          none: 不使用（固定规则）
+          jev: JEV
+          llm: 聊天模型
+      threshold:
+        label: 信任阈值
+        description: 分类器的回答只有在置信度达到这个值时才生效。值越低，分类器做决定的次数越多。低于阈值时，由固定规则决定。
+      jev_api_key:
+        label: JEV API 密钥
+        description: TypeSafe System One API 的密钥。
+      jev_base_url:
+        label: JEV 接口地址
+        description: API 地址。只有使用代理或网关时才需要修改。
+      jev_model:
+        label: JEV 模型
+        description: 模型名称，例如 jev-latest。
+      llm_provider:
+        label: 分类器提供商
+        description: 一个已配置的聊天提供商，用来回答分类器的问题。对话模型不会改变。
+      llm_model:
+        label: 分类器模型
+        description: 请使用速度快的模型。回答太慢时会被忽略，由固定规则决定。
   data:
     description: 管理存储 AIRI 数据、导出和重置
     sections:

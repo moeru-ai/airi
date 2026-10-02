@@ -183,7 +183,10 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`airi-bridge.test.ts`): Minecraft drops commands without a holder and contradictory commands from another session during the lease.
 - Observed (`triage.test.ts`): one classifier call asks about attention and urgency. A late classifier is aborted at the deadline, and the prior decides.
 - Observed (`triage.test.ts`): only answers at or above the user threshold decide. Scene sources stay below interruption whatever the classifier says.
-- Designed: JEV and a structured-output model are interchangeable classifier backends. Both use the same threshold, and each record keeps the backend and threshold.
+- Observed (`classifier.test.ts`, `triage.test.ts` in stage-ui): JEV and a chat model are interchangeable backends. External text stays in its own field, and invalid answers are dropped.
+- Observed (`orchestrator/index.test.ts`): a notification that a confident classifier skips creates no run. Each record keeps the backend and the threshold in effect.
+- Implemented: Settings > Memory selects the backend and the trust threshold. The default is no classifier.
+- Experimental: whether either backend improves attention decisions. Live evidence after P10 must compare decisions and latency against fixed rules.
 
 ### Open P0 evidence
 

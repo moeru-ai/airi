@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { decideByPrior, deferDelayMs, OWNER_AUDIENCE, salienceFromUrgency } from '@proj-airi/core-agent'
+import { decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, salienceFromUrgency } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -19,6 +19,7 @@ import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { sendAdmittedSparkCommand } from '../../mods/api/spark-command'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { useTriageStore } from '../../modules/triage'
 import { useSchedulerStore } from '../../scheduler'
 import { useCharacterNotifyQueueStore } from './queue'
 
@@ -35,6 +36,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const modsServerChannelStore = useModsServerChannelStore()
   const chatSession = useChatSessionStore()
   const scheduler = useSchedulerStore()
+  const triage = useTriageStore()
 
   const processing = ref(false)
   // The queue survives leader handoff. A follower enqueue reaches the leader ticker.
@@ -95,6 +97,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       salience: salienceFromUrgency(event.data.urgency),
       receivedAt,
       deadlineAt: event.data.ttlMs !== undefined ? receivedAt + event.data.ttlMs : undefined,
+      text: [event.data.headline, event.data.note].filter(Boolean).join('\n'),
       // Keys stay inside their source, so two modules never replace each other's work.
       coalesceKey: event.data.coalesceKey ? `${source}:${event.data.coalesceKey}` : undefined,
     }
@@ -230,16 +233,24 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         scheduler.intake.record(replaced.stimulus, { outcome: 'merged', reason: 'coalesced', decidedBy: 'rule', mergedInto: stimulus.id })
     }
 
-    const decision = decideByPrior(stimulus, { now: Date.now(), busy: isBusy() })
+    // A classifier can ignore the notification or reorder it. Its answer never grants authority.
+    const appraisal = triage.classifier ? await triage.appraiseNotification(stimulus) : undefined
+    const appraised = appraisal ? decideByAppraisal(stimulus, appraisal) : undefined
+    if (appraised?.outcome === 'ignored') {
+      scheduler.intake.record(stimulus, appraised)
+      return undefined
+    }
+    const ranked: Stimulus = { ...stimulus, salience: appraised?.salience ?? stimulus.salience }
+    const decision = { ...decideByPrior(ranked, { now: Date.now(), busy: isBusy() }), appraisal }
     if (decision.outcome === 'admitted')
-      return await runNotify(stimulus, event, decision, control)
+      return await runNotify(ranked, event, decision, control)
     if (decision.outcome === 'ignored') {
-      scheduler.intake.record(stimulus, decision)
+      scheduler.intake.record(ranked, decision)
       return undefined
     }
 
     await defer({
-      stimulus,
+      stimulus: ranked,
       event,
       control,
       enqueuedAt: Date.now(),

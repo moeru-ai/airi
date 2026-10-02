@@ -26,6 +26,7 @@ import { useModuleDirectoryStore } from '../../mods/api/module-directory'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
 import { useSchedulerStore } from '../../scheduler'
+import { useSettingsTriage } from '../../settings/triage'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -464,6 +465,24 @@ describe('store character-orchestrator', () => {
         { outcome: 'deferred', retryAt: expect.any(Number) },
         { outcome: 'merged', mergedInto: newer.data.id },
       ])
+    })
+
+    it('ignores a notification that a confident classifier skips, without a run', async () => {
+      const mockStream = replyWith('Should not speak')
+      const settings = useSettingsTriage(pinia)
+      settings.backend = 'jev'
+      settings.jevApiKey = 'key'
+      vi.stubGlobal('fetch', vi.fn(async () => Response.json({ answers: { attend: { type: 'noul', noul: 0.01 } } })))
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify({ urgency: 'later', headline: 'A cow mooed' })
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(store.scheduledNotifies).toEqual([])
+      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'not-attending', decidedBy: 'classifier', appraisal: { backend: 'jev' } }])
+      expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
+      vi.unstubAllGlobals()
     })
 
     it('ignores a notification whose time to live has passed', async () => {

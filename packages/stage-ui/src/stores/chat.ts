@@ -43,6 +43,7 @@ import { useContextSourceStore } from './mods/api/context-source'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useTriageStore } from './modules/triage'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { useSchedulerStore } from './scheduler'
@@ -207,6 +208,7 @@ export const useChatStore = defineStore('chat', () => {
   const cardStore = useAiriCardStore()
   const contextObservability = useContextObservabilityStore()
   const scheduler = useSchedulerStore()
+  const triage = useTriageStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
@@ -558,6 +560,7 @@ export const useChatStore = defineStore('chat', () => {
     runs: scheduler.runs,
     intake: scheduler.intake,
     leases: scheduler.leases,
+    decideIntake: stimulus => triage.decideConnectionIntake(stimulus),
     onRunChange: trackRun,
     foregroundStream: {
       patch: (message) => {

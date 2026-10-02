@@ -27,6 +27,9 @@ Every chat run reaches the owner chat. A reply with an output target also reache
 `useModuleDirectoryStore` keeps the server's module list with validated declarations. Input from a module with scenes needs a matching binding and cannot name a session.
 An invalid declaration, for example a scene outside the module's namespace, rejects the module's input. The intake trace records each rejection.
 `sendAdmittedSparkCommand` admits chat tool and notification commands for their run, then sends them. A rejection names the modules that accept the intent.
+Settings > Memory > Attention selects a classifier: none, JEV, or a chat model that answers in a forced tool call. Users set its trust threshold.
+`useTriageStore` decides connection input within 800 ms and appraises notifications within 3 seconds. Without a backend, fixed rules decide.
+The chat model classifier receives only its own tool and system prompt, never the built-in tools.
 The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
 
 ## Voice ownership
