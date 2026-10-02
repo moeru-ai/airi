@@ -34,6 +34,8 @@ export interface Stimulus {
   parentRunId?: string
   /** Number of internal proposals before this one in its chain. */
   depth?: number
+  /** Session that an internal proposal continues, for example the conversation that started a recipe. Without it, the active owner session. */
+  sessionId?: string
 }
 
 /** What intake chose. `rejected` is an inability, never a choice: audience, capacity, or authority. */

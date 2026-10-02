@@ -165,7 +165,7 @@ describe('chat history', () => {
     })
   })
 
-  // The owner must see when a reply used a recipe, both a recipe that the model loaded and one that a decision applied.
+  // The owner must see when a reply used a recipe, both a task handed to a recipe and a decision recipe that changed the reply.
   it('names the recipes that a reply used', async () => {
     const screen = await render(ChatHistory, {
       props: {
@@ -176,10 +176,10 @@ describe('chat history', () => {
             content: 'Next step: open the editor.',
             recipes: ['Owner mood'],
             slices: [
-              { type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'builtIn_useRecipe', args: '{"name":"i-have-adhd"}' } },
+              { type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'builtIn_useRecipe', args: '{"name":"Research","task":"Compare PC builds for 3000 yuan."}' } },
               { type: 'text', text: 'Next step: open the editor.' },
             ],
-            tool_results: [{ id: 'call-1', result: JSON.stringify({ status: 'used', name: 'i-have-adhd', steps: 'Start with the next step.' }) }],
+            tool_results: [{ id: 'call-1', result: JSON.stringify({ status: 'started', name: 'Research', task: 'Compare PC builds for 3000 yuan.' }) }],
           },
         ],
         style: 'height: 240px; width: 320px;',
@@ -191,16 +191,17 @@ describe('chat history', () => {
 
     await vi.waitFor(() => {
       const bubble = screen.container.querySelector<HTMLElement>('.chat-message-item-container')
-      expect(bubble?.textContent).toContain('Used recipe')
-      expect(bubble?.textContent).toContain('i-have-adhd')
+      expect(bubble?.textContent).toContain('Handed to recipe')
+      expect(bubble?.textContent).toContain('Research')
       expect(bubble?.textContent).toContain('Recipe applied')
       expect(bubble?.textContent).toContain('Owner mood')
-      expect(bubble?.textContent).not.toContain('Start with the next step.')
+      expect(bubble?.textContent).not.toContain('Compare PC builds for 3000 yuan.')
     })
 
-    screen.getByRole('button', { name: /i-have-adhd/ }).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    // The details show the task handed over. The recipe's steps stay in its own space.
+    screen.getByRole('button', { name: /Research/ }).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await vi.waitFor(() => {
-      expect(screen.container.textContent).toContain('Start with the next step.')
+      expect(screen.container.textContent).toContain('Compare PC builds for 3000 yuan.')
     })
   })
 

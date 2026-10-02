@@ -27,6 +27,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useSpeechDeviceStore } from './mods/api/speech-device'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 import { useRecipesStore } from './recipes'
+import { useSchedulerStore } from './scheduler'
 import { useSpeechRuntimeStore } from './speech-runtime'
 
 const ioTracerMocks = vi.hoisted(() => {
@@ -70,6 +71,7 @@ const createMinecraftContextMock = vi.fn()
 const createUserAccountContextMock = vi.fn()
 const persistSessionMessagesMock = vi.fn()
 const forkSessionMock = vi.fn()
+const createSessionMock = vi.fn()
 const ensureSessionMock = vi.fn()
 const loadSessionMock = vi.fn()
 const deleteSessionMock = vi.fn()
@@ -104,7 +106,6 @@ vi.mock('../composables/use-io-tracer', () => ({
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
   createMoodContext: (text: string) => ({ id: 'mood', contextId: 'system:airi-mood', strategy: 'replace-self', text, createdAt: 0 }),
-  createRecipeTriggerContext: (names: string[]) => ({ id: 'recipe', contextId: 'system:airi-recipe-trigger', strategy: 'replace-self', text: `This message matches the trigger of these recipes: ${names.join(', ')}.`, createdAt: 0 }),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
   createUserAccountContext: () => createUserAccountContextMock(),
 }))
@@ -180,6 +181,7 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] = messages
     },
     forkSession: forkSessionMock,
+    createSession: createSessionMock,
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
     pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
@@ -323,6 +325,12 @@ describe('chat store contract', () => {
     forkSessionMock.mockReset()
     ensureSessionMock.mockReset()
     loadSessionMock.mockReset().mockResolvedValue(true)
+    createSessionMock.mockReset().mockImplementation(async (characterId: string, options: Partial<ChatSessionMeta>) => {
+      const sessionId = `created-${createSessionMock.mock.calls.length}`
+      sessionMetas[sessionId] = { sessionId, userId: 'local', characterId, createdAt: 1, updatedAt: 1, ...options }
+      sessionMessages[sessionId] = []
+      return sessionId
+    })
     deleteSessionMock.mockReset().mockResolvedValue(undefined)
     initializeSessionMock.mockReset().mockResolvedValue(undefined)
     disposeSessionMock.mockReset()
@@ -404,12 +412,17 @@ describe('chat store contract', () => {
     expect(toolNames).toEqual([['builtIn_readContextSource', 'builtIn_useRecipe', 'builtIn_proposeRecipe']])
   })
 
-  // A keyword trigger works like a smart shortcut: the run sees which recipe the message asks for.
-  // The recipe list belongs to the use tool, so only a run that can load a recipe reads it.
-  it('lists recipes with the use tool and marks a keyword trigger in the message context', async () => {
-    let prompt = ''
+  // A keyword trigger works like a smart shortcut. The recipe runs in its own session, so its steps never enter the conversation.
+  // The conversation only learns that the recipe started, and the result returns through the scheduler.
+  it('runs a keyword-triggered recipe in its own session without voice, and reports its result', async () => {
+    // Two runs stream at once, so each request records its prompt and tools together.
+    const requests: Array<{ prompt: string, tools: string[] }> = []
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
-      prompt = JSON.stringify(context)
+      const prompt = JSON.stringify(context)
+      const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
+      requests.push({ prompt, tools: tools.map((tool: Tool) => tool.function.name) })
+      if (prompt.includes('Ask which game, then start it.'))
+        await options.onStreamEvent({ type: 'text-delta', text: 'The owner wants porridge games.' })
       await options.onStreamEvent({ type: 'finish' })
     })
     useRecipesStore().add({
@@ -419,13 +432,26 @@ describe('chat store contract', () => {
       triggers: [{ kind: 'keyword', keywords: ['想玩粥了'] }],
       enabled: true,
     })
+    const settled = vi.fn()
+    const store = useChatStore()
+    store.onRecipeRunSettled(settled)
 
-    await useChatStore().send({ sessionId: 'session-1', text: '今天想玩粥了' })
+    // The owner granted computer use to this message, so the recipe may use it. Derived work never gets more.
+    await store.send({ sessionId: 'session-1', text: '今天想玩粥了', tools: [{ name: 'computer_use' }] })
+    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce())
 
-    expect(registeredToolsetPrompts['use-recipe']?.[0]).toMatchObject({ requiredTools: ['builtIn_useRecipe'] })
+    const recipeSession = await createSessionMock.mock.results[0]?.value
+    const conversation = requests.find(request => !request.prompt.includes('Ask which game, then start it.'))!.prompt
+    const recipeRun = requests.find(request => request.prompt.includes('Ask which game, then start it.'))!
+    expect(createSessionMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ recipeId: expect.stringMatching(/^user:/), hidden: true, setActive: false, parentSessionId: 'session-1' }))
+    expect(conversation).toContain('These recipes started for this message in their own space: Game night.')
+    expect(recipeRun.prompt).toContain('The owner said: 今天想玩粥了')
+    expect(recipeRun.prompt).not.toContain('These recipes started')
+    // The recipe space cannot start recipes, save them, or choose silence.
+    expect(recipeRun.tools).toEqual(['computer_use', 'builtIn_readContextSource'])
     expect(registeredToolsetPrompts['use-recipe']?.[0]?.content).toContain('- Game night: Starts a game when the owner wants to play.')
-    expect(prompt).not.toContain('Ask which game, then start it.')
-    expect(prompt).toContain('This message matches the trigger of these recipes: Game night.')
+    expect(settled).toHaveBeenCalledWith(expect.objectContaining({ ok: true, parentSessionId: 'session-1', text: 'The owner wants porridge games.', recipe: expect.objectContaining({ name: 'Game night' }) }))
+    expect(useSchedulerStore().runs.snapshot().find(run => run.sessionId === recipeSession)).toMatchObject({ envelope: { outputs: [] }, parentRunId: expect.any(String) })
   })
 
   // Members of a scene cannot save recipes for the owner. Only owner-private runs get the proposal tool.

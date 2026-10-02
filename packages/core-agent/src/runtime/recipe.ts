@@ -54,6 +54,11 @@ export interface Recipe {
    */
   approved: boolean
   /**
+   * The recipe takes over the conversation as its own persona, for example a way of talking, and hands back when it ends.
+   * Without it, the recipe runs a task in its own session and returns a result to the conversation.
+   */
+  handover?: boolean
+  /**
    * A yes-or-no question for an auto-run recipe. When its trigger fires, the classifier answers it first, and a confident no skips the run.
    * For example, "Is it late at night and the owner seems away?"
    */

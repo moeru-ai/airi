@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { composeSystemPrompt } from './prompt-recipe'
+import { composeRecipeSpacePrompt, composeSystemPrompt } from './prompt-recipe'
 
 describe('chat prompt recipe', () => {
   // https://github.com/moeru-ai/airi/discussions/2239
@@ -14,5 +14,13 @@ describe('chat prompt recipe', () => {
     expect(content).toContain('Do not use single dollar signs as math delimiters.')
     expect(content).not.toContain('eg: $ x^3 $')
     expect(content.endsWith('You are AIRI.')).toBe(true)
+  })
+  // A recipe runs in its own session, so its steps join that session's prefix and never the conversation's.
+  it('describes a task recipe space and a handover mode', () => {
+    const recipe = { id: 'user:look', name: 'Look', description: '', style: { kind: 'instructions' as const, instructions: 'Read the screen slot.' }, triggers: [], source: 'user' as const, enabled: true, approved: true }
+
+    expect(composeRecipeSpacePrompt(recipe)).toContain('Your reply is the recipe\'s result')
+    expect(composeRecipeSpacePrompt(recipe)).toContain('Recipe steps:\nRead the screen slot.')
+    expect(composeRecipeSpacePrompt({ ...recipe, handover: true })).toContain('You are in the mode "Look"')
   })
 })

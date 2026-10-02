@@ -192,6 +192,7 @@ Only the scheduler derives a run. It calls `ingest` with `derivation`, which nam
 A derived run has no voice and no owner output. It reads within its parent's audience, and intake admits it by rule without a classifier.
 Derivation stops at `MAX_DERIVATION_DEPTH` levels and `MAX_DERIVED_CHILDREN` active children per parent. A parent that ended cannot derive.
 `cancelRun` cancels a run's derived children first, so no child outlives its cancelled parent.
+`onAdmitted` hands the run id to the proposer as a ticket before the run works. A recipe with `handover` takes over the conversation instead of running a task.
 
 ## Recipes
 

@@ -222,6 +222,36 @@ describe('store character-orchestrator', () => {
   })
 
   // T11: a proactive reaction joins the session as the character's turn, keeps its run link, and adds no user turn.
+  // P10 result routing: a task recipe's result returns to the conversation that started it, with a reference to the recipe run.
+  it('returns a recipe result to its parent conversation as an internal stimulus', async () => {
+    const stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'You are reading the scheduler ADR.' } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
+    mockedStore(useLLM, pinia).stream = stream
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn()
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = vi.fn()
+    const chatSession = mockedStore(useChatSessionStore, pinia)
+    chatSession.loadSession = vi.fn(async () => true)
+    chatSession.appendSessionMessage = vi.fn()
+    const store = useCharacterOrchestratorStore(pinia)
+
+    await store.relayRecipeResult({
+      recipe: { id: 'user:look', name: 'Look at me', description: '', style: { kind: 'instructions', instructions: 'Read the screen.' }, triggers: [], source: 'user', enabled: true, approved: true },
+      runId: 'recipe-run',
+      sessionId: 'recipe-session',
+      parentSessionId: 'parent-session',
+      ok: true,
+      text: 'The owner is reading the scheduler ADR.',
+      messageId: 'recipe-reply',
+    })
+
+    expect(JSON.stringify(stream.mock.calls[0]?.[2])).toContain('The owner is reading the scheduler ADR.')
+    expect(JSON.stringify(stream.mock.calls[0]?.[2])).toContain('Source: recipe run recipe-run, message recipe-reply in session recipe-session.')
+    expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ event: 'proposal', outcome: 'admitted', parentRunId: 'recipe-run' }])
+    expect(chatSession.appendSessionMessage).toHaveBeenCalledExactlyOnceWith('parent-session', expect.objectContaining({ role: 'assistant', content: 'You are reading the scheduler ADR.' }))
+  })
+
   it('writes a spoken reaction into the session without a user turn', async () => {
     mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: '<|ACT:{"emotion":"surprised"}|>A creeper is behind you!' } satisfies StreamEvent)

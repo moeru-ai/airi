@@ -25,6 +25,8 @@ export interface ChatSessionMeta {
   forkReason?: string
   /** Excludes task branches from conversation navigation. */
   hidden?: boolean
+  /** The recipe whose own space this session is. Its runs read the recipe's steps, and only the scheduler starts them. */
+  recipeId?: string
   title?: string
   createdAt: number
   updatedAt: number

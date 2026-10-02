@@ -1,4 +1,4 @@
-import type { AgentRun, Audience, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, ExecutionEnvelope, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { AgentRun, Audience, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, ExecutionEnvelope, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
@@ -36,10 +36,10 @@ import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
 import { useCharacterMoodStore } from './character/mood'
-import { createMoodContext, createRecipeTriggerContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createMoodContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
-import { composeSystemPrompt } from './chat/prompt-recipe'
+import { composeRecipeSpacePrompt, composeSystemPrompt } from './chat/prompt-recipe'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
@@ -86,6 +86,31 @@ export interface ChatSendPayload {
   temperature?: number
   /** Request-specific top_p override. */
   topP?: number
+}
+
+/** A task recipe run that finished or failed in its own session. */
+export interface RecipeRunSettled {
+  recipe: Recipe
+  /** The derived run. */
+  runId: string
+  /** The recipe's own session. */
+  sessionId: string
+  /** The conversation that started the recipe. Its result returns there. */
+  parentSessionId: string
+  ok: boolean
+  /** The recipe's reply, or the failure reason. */
+  text: string
+  /** The reply message in the recipe's session, for a reference back to the source. */
+  messageId?: string
+}
+
+/** Text of a stored reply, without tool calls. */
+function replyTextOf(message: ChatHistoryItem) {
+  if (typeof message.content === 'string')
+    return message.content
+  if ('slices' in message && message.slices?.length)
+    return message.slices.flatMap(slice => slice.type === 'text' ? [slice.text] : []).join('')
+  return ''
 }
 
 /** The durable messages appended while one chat request executes. */
@@ -372,6 +397,108 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
+  const recipeRunListeners = new Set<(settled: RecipeRunSettled) => void>()
+
+  /** Listens for task recipes that finished or failed. The scheduler routes each result back to its conversation. */
+  function onRecipeRunSettled(listener: (settled: RecipeRunSettled) => void) {
+    recipeRunListeners.add(listener)
+    return () => recipeRunListeners.delete(listener)
+  }
+
+  /**
+   * The recipe's own session for a persona. Recovery is a deterministic lookup by recipe, persona, and audience.
+   * A new space starts empty: the identity and the recipe steps come from its prompt, and each task arrives as its own message.
+   */
+  async function recipeSessionFor(recipe: Recipe, parentSessionId: string) {
+    const personaId = personaOf(parentSessionId)
+    const existing = Object.values(chatSession.sessionMetas).find(meta => meta.recipeId === recipe.id
+      && meta.characterId === personaId
+      && meta.status !== 'retired'
+      && audienceIncludes(meta.audience ?? OWNER_AUDIENCE, OWNER_AUDIENCE))
+    if (existing)
+      return existing.sessionId
+    return await chatSession.createSession(personaId, { setActive: false, hidden: !recipe.handover, title: recipe.name, audience: OWNER_AUDIENCE, parentSessionId, recipeId: recipe.id })
+  }
+
+  /**
+   * Proposes a task recipe to the scheduler. It runs as derived work in the recipe's own session, without voice.
+   * Resolves once the run is admitted or refused. The result reaches the recipe-run listeners when the run settles.
+   */
+  async function startRecipe(recipe: Recipe, request: { parentSessionId: string, parentRunId?: string, task: string }): Promise<{ status: 'started' } | { status: 'refused', reason: string }> {
+    const tools = recipeToolsFor(recipe, request.parentSessionId)
+    let sessionId: string
+    try {
+      sessionId = await recipeSessionFor(recipe, request.parentSessionId)
+    }
+    catch (error) {
+      return { status: 'refused', reason: errorMessageFrom(error) ?? 'The recipe space could not open' }
+    }
+    return await new Promise((resolve) => {
+      let runId: string | undefined
+      const settle = (settled: Omit<RecipeRunSettled, 'recipe' | 'sessionId' | 'parentSessionId' | 'runId'>) => {
+        for (const listener of recipeRunListeners)
+          listener({ ...settled, recipe, sessionId, parentSessionId: request.parentSessionId, runId: runId! })
+      }
+      void executeSend({ sessionId, text: request.task, tools }, {
+        derivation: {
+          parentRunId: request.parentRunId,
+          source: `recipe:${recipe.id}`,
+          onAdmitted: (id) => {
+            runId = id
+            resolve({ status: 'started' })
+          },
+        },
+      }).then((result) => {
+        const reply = result.messages.findLast(message => message.role === 'assistant')
+        settle({ ok: true, text: reply ? replyTextOf(reply) : '', messageId: reply?.id })
+      }).catch((error: unknown) => {
+        const reason = errorMessageFrom(error) ?? 'The recipe run failed'
+        // A refusal before admission is the proposer's answer. A failure after it is a result the conversation must hear.
+        if (runId === undefined)
+          resolve({ status: 'refused', reason })
+        else
+          settle({ ok: false, text: reason })
+      })
+    })
+  }
+
+  /**
+   * Tools that a recipe run may use: those granted to the owner's latest message in the parent conversation, narrowed by the recipe's own list.
+   * A selected tool such as computer use reaches the recipe only when the owner granted it to that message, so derived work never widens access.
+   */
+  function recipeToolsFor(recipe: Recipe, parentSessionId: string): ChatToolReference[] {
+    const granted = chatSession.getSessionMessages(parentSessionId).findLast(message => message.role === 'user')?.tools ?? []
+    const allowed = recipe.style.kind === 'instructions' ? recipe.style.tools : undefined
+    return granted.filter(tool => !allowed || allowed.includes(tool.name)).map(tool => ({ name: tool.name }))
+  }
+
+  /**
+   * Decides recipes before a reply. Decision recipes answer in one classifier call. Keyword triggers and decisions start task recipes in their own space.
+   * Only an owner-only run starts recipes, so a scene message cannot spend the owner's recipes.
+   */
+  async function decideRecipesBeforeReply(input: { sessionId: string, runId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) {
+    if (chatSession.sessionMetas[input.sessionId]?.recipeId)
+      return undefined
+    const decided = await triage.decideRecipes(recipes.usable, input.message, input.signal)
+    if (decided?.silent || !audienceIncludes(OWNER_AUDIENCE, input.envelope.audience))
+      return decided
+    const triggered = [...matchKeywordRecipes(recipes.usable, input.message), ...recipes.usable.filter(recipe => decided?.recipeIds.includes(recipe.id))]
+      .filter((recipe, index, list) => list.indexOf(recipe) === index && recipe.style.kind === 'instructions' && !recipe.handover)
+    const started: string[] = []
+    for (const recipe of triggered) {
+      const outcome = await startRecipe(recipe, { parentSessionId: input.sessionId, parentRunId: input.runId, task: `The owner said: ${input.message}` })
+      if (outcome.status === 'started')
+        started.push(recipe.name)
+    }
+    if (!started.length)
+      return decided
+    return {
+      silent: decided?.silent,
+      hints: [...decided?.hints ?? [], `These recipes started for this message in their own space: ${started.join(', ')}. Their results reach you later. Reply briefly and do not do their tasks yourself.`],
+      applied: [...decided?.applied ?? [], ...started],
+    }
+  }
+
   /**
    * Adds the run tools: the source reader, authorized by the session and run that own the request, and the silence choice.
    * Both stay in every run request, so the tool list stays stable across turns.
@@ -381,15 +508,22 @@ export const useChatStore = defineStore('chat', () => {
       return tools
     const { conversationId: sessionId, runId } = correlation
     const audience = (runId ? activeRuns.get(runId)?.audience : undefined) ?? OWNER_AUDIENCE
-    return async () => [
+    const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
-      // Using a recipe is a visible call. It stays in every run, so the tool list stays stable when recipes change.
-      ...await createUseRecipeTool({ recipes: () => recipes.recipes }),
+    ]
+    // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
+    if (chatSession.sessionMetas[sessionId]?.recipeId)
+      return sourceTools
+    // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
+    const ownerOnly = audienceIncludes(OWNER_AUDIENCE, audience)
+    return async () => [
+      ...await sourceTools(),
+      ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, parentRunId: runId, task }) }) : []),
       // Reading without replying is a recipe. The owner can turn it off.
       ...(recipes.isUsable(STAY_QUIET_RECIPE_ID) ? [createStayQuietTool()] : []),
-      // Only the owner's private conversations can save recipes, and every proposal waits for the owner's approval.
-      ...(audienceIncludes(OWNER_AUDIENCE, audience) ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
+      // Every proposal waits for the owner's approval.
+      ...(ownerOnly ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
     ]
   }
 
@@ -604,7 +738,7 @@ export const useChatStore = defineStore('chat', () => {
     intake: scheduler.intake,
     leases: scheduler.leases,
     decideIntake: stimulus => triage.decideConnectionIntake(stimulus, mood.active ? mood.current(cardStore.activeCardId || 'default') : undefined),
-    decideBeforeReply: ({ message, signal }) => triage.decideRecipes(recipes.usable, message, signal),
+    decideBeforeReply: decideRecipesBeforeReply,
     checkSpendingLimit: () => {
       const until = modelProfiles.spendingPausedUntil()
       return until === undefined ? undefined : t('stage.chat.spending-limit', { time: new Date(until).toLocaleTimeString() })
@@ -630,16 +764,17 @@ export const useChatStore = defineStore('chat', () => {
       return digest ? { text: digest.text, upToMessageId: digest.upToMessageId } : undefined
     },
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
-    getSystemPrompt: envelope => composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default')),
+    // A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
+    getSystemPrompt: (envelope) => {
+      const identity = composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default'))
+      const recipeId = chatSession.sessionMetas[envelope.sessionId]?.recipeId
+      const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
+      return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
+    },
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.
       sessionId => mood.active ? createMoodContext(mood.describe(personaOf(sessionId))) : undefined,
-      // A keyword trigger marks the recipes this message asks for. The run loads them with the use tool.
-      (_sessionId, message) => {
-        const triggered = matchKeywordRecipes(recipes.usable, message)
-        return triggered.length ? createRecipeTriggerContext(triggered.map(recipe => recipe.name)) : undefined
-      },
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
@@ -728,7 +863,7 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
+  async function executeSend(payload: ChatSendPayload, extra: Pick<ChatOrchestratorSendOptions, 'derivation'> = {}): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
@@ -752,6 +887,7 @@ export const useChatStore = defineStore('chat', () => {
       toolReferences: payload.tools,
       temperature: payload.temperature ?? consciousnessStore.activeTemperature,
       topP: payload.topP ?? consciousnessStore.activeTopP,
+      derivation: extra.derivation,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
@@ -909,6 +1045,7 @@ export const useChatStore = defineStore('chat', () => {
     rerunToolCall,
     retry,
     send,
+    onRecipeRunSettled,
     cancelPendingSends,
     cancelRun,
     recordDeliveredSpeech,

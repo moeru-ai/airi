@@ -1,3 +1,5 @@
+import type { Recipe } from '@proj-airi/core-agent'
+
 /** Format rules that the chat renderer needs from every reply. */
 export const CHAT_FORMAT_RULES = `${[
   // Only listed languages load in the renderer, so every code block names its language.
@@ -17,4 +19,15 @@ export const CHAT_FORMAT_RULES = `${[
  */
 export function composeSystemPrompt(identity: string) {
   return CHAT_FORMAT_RULES + identity
+}
+
+/**
+ * Prompt part of a session that is a recipe's own space. It follows the identity and stays the same for every run there, so the prefix stays cacheable.
+ * A task recipe reports a result to the conversation. A handover recipe talks with the owner in its own way until the owner ends it.
+ */
+export function composeRecipeSpacePrompt(recipe: Recipe) {
+  const steps = recipe.style.kind === 'instructions' ? recipe.style.instructions.trim() : ''
+  if (recipe.handover)
+    return `\n\nYou are in the mode "${recipe.name}". It shapes how you talk with the owner until the owner ends it.\n\nMode steps:\n${steps}`
+  return `\n\nYou run the recipe "${recipe.name}" in its own space for your conversation with the owner. Each message here is a task from that conversation. Your reply is the recipe's result: the conversation receives it and decides what to tell the owner, so report what you found or did, briefly.\n\nRecipe steps:\n${steps}`
 }

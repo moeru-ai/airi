@@ -157,6 +157,8 @@ export interface ChatOrchestratorSendOptions {
     parentRunId?: string
     /** What derived the work, for the intake trace. For example `recipe:<id>`. */
     source: string
+    /** Called once the run is admitted, before it runs. The scheduler hands its id to the proposer as a ticket. */
+    onAdmitted?: (runId: string) => void
   }
 }
 
@@ -380,7 +382,7 @@ export interface ChatOrchestratorRuntimeDeps {
    * A silent answer ends the run as an intentional silence without a model call. Hints join the message as context.
    * `applied` names the recipes that changed the run, and the reply records them. A late or failed decision lets the run reply.
    */
-  decideBeforeReply?: (input: { sessionId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) => Promise<{ silent?: { reason?: string }, hints?: string[], applied?: string[] } | undefined>
+  decideBeforeReply?: (input: { sessionId: string, runId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) => Promise<{ silent?: { reason?: string }, hints?: string[], applied?: string[] } | undefined>
   /** Called for every intake decision, including ignored and rejected input. */
   onIntakeRecord?: (record: IntakeRecord) => void
   /** Reads the current capacity limits. Invalid values use the defaults. */
@@ -1054,7 +1056,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let generationUsage: LlmUsage = { source: 'unavailable' }
       let generatedTurn: AssistantTurn | undefined
       // A decision recipe can choose silence before any generation, for example a classifier that sees nothing to answer.
-      const decided = await deps.decideBeforeReply?.({ sessionId, message: sendingMessage, envelope: run.envelope, signal: abortSignal })
+      const decided = await deps.decideBeforeReply?.({ sessionId, runId: run.runId, message: sendingMessage, envelope: run.envelope, signal: abortSignal })
         .catch((error: unknown) => {
           console.warn('Decision recipe failed, so the run replies:', errorMessageFrom(error))
           return undefined
@@ -1522,6 +1524,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const salience = decision.salience ?? stimulus.salience
     runs.admit({ runId, envelope, salience, parentRunId: derivation?.parentRunId })
     intake.record(stimulus, { ...decision, runId })
+    derivation?.onAdmitted?.(runId)
 
     await new Promise<void>((resolve, reject) => {
       pendingQueuedSends.push({

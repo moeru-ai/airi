@@ -621,9 +621,12 @@ describe('orchestrator runs', () => {
       workingRun(runs, 'parent')
       const harness = createRunHarness({ runs, runAudience: PUBLIC_AUDIENCE, sessionAudience: OWNER_AUDIENCE })
 
-      await harness.runtime.ingest('Look at the owner screen.', { model: 'test', chatProvider: provider, derivation: { parentRunId: 'parent', source: 'recipe:look' } }, 'recipe-session')
+      const admitted = vi.fn()
+      await harness.runtime.ingest('Look at the owner screen.', { model: 'test', chatProvider: provider, derivation: { parentRunId: 'parent', source: 'recipe:look', onAdmitted: admitted } }, 'recipe-session')
 
       const child = runs.snapshot().find(run => run.runId !== 'parent')
+      // The proposer gets the run id as a ticket before the run works.
+      expect(admitted).toHaveBeenCalledExactlyOnceWith(child?.runId)
       expect(child).toMatchObject({ parentRunId: 'parent', sessionId: 'recipe-session', state: 'done', envelope: { outputs: [], audience: OWNER_AUDIENCE } })
       expect(harness.runtime.getIntakeRecords()).toMatchObject([{ origin: 'internal', source: 'recipe:look', event: 'derived', outcome: 'admitted', reason: 'derived', runId: child?.runId }])
     })

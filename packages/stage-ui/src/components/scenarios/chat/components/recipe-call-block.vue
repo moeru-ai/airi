@@ -17,12 +17,18 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const use = computed(() => readRecipeUse(props.args, props.result))
-const steps = computed(() => use.value.outcome?.status === 'used' ? use.value.outcome.steps : '')
+// The details are the task handed to the recipe, or why it did not start. The recipe's steps stay in its own space.
+const details = computed(() => {
+  const outcome = use.value.outcome
+  if (outcome?.status === 'refused')
+    return outcome.reason ?? ''
+  return use.value.task
+})
 const tone = computed(() => {
   const outcome = use.value.outcome
   if (!outcome)
     return props.state === 'executing' ? 'executing' : 'blocked'
-  return outcome.status === 'used' ? 'used' : 'blocked'
+  return outcome.status === 'started' || outcome.status === 'switched' ? 'used' : 'blocked'
 })
 const label = computed(() => {
   const outcome = use.value.outcome
@@ -37,14 +43,14 @@ const label = computed(() => {
     <template #trigger="{ visible, setVisible }">
       <button
         type="button"
-        :disabled="!steps"
-        :aria-expanded="steps ? visible : undefined"
-        :class="['max-w-full rounded-full', 'outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60', steps ? 'cursor-pointer' : 'cursor-default']"
+        :disabled="!details"
+        :aria-expanded="details ? visible : undefined"
+        :class="['max-w-full rounded-full', 'outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60', details ? 'cursor-pointer' : 'cursor-default']"
         @click="setVisible(!visible)"
       >
         <RecipePill :label="label" :name="use.name" :tone="tone">
           <span
-            v-if="steps"
+            v-if="details"
             :class="['i-solar:alt-arrow-down-linear', 'shrink-0 text-sm', 'transition-transform duration-200', visible ? 'rotate-180' : '']"
             aria-hidden="true"
           />
@@ -52,14 +58,14 @@ const label = computed(() => {
       </button>
     </template>
     <div
-      v-if="steps"
+      v-if="details"
       :class="[
         'w-full rounded-lg p-2.5',
         'whitespace-pre-wrap break-words text-xs',
         'bg-neutral-100/80 text-neutral-700 dark:bg-neutral-900/80 dark:text-neutral-200',
       ]"
     >
-      {{ steps }}
+      {{ details }}
     </div>
   </Collapsible>
 </template>

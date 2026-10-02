@@ -9,7 +9,6 @@ import { computed, markRaw } from 'vue'
 
 import { createDecisionsClassifier } from '../../libs/classifier/decisions'
 import { createLlmClassifier } from '../../libs/classifier/llm'
-import { USE_RECIPE_TOOL_NAME } from '../../tools/use-recipe'
 import { useLLM } from '../ai/chat-llm/llm'
 import { useSettingsTriage } from '../settings/triage'
 import { useConsciousnessStore } from './consciousness'
@@ -103,20 +102,14 @@ export const useTriageStore = defineStore('triage', () => {
    * Asks every usable decision recipe about one message in a single classifier call.
    * A late, failed, or unsure answer chooses nothing, so the run replies.
    */
-  async function decideRecipes(recipes: readonly Recipe[], message: string, signal: AbortSignal): Promise<{ silent?: { reason?: string }, hints: string[], applied: string[] } | undefined> {
+  async function decideRecipes(recipes: readonly Recipe[], message: string, signal: AbortSignal): Promise<{ silent?: { reason?: string }, hints: string[], applied: string[], recipeIds: string[] } | undefined> {
     const current = classifier.value
     const deciding = decisionRecipes(recipes)
     if (!current || !deciding.length)
       return undefined
     const answers = await askWithin(current, recipeDecisionRequest(deciding, message), { deadlineMs: CLASSIFIER_DEADLINE_MS, signal })
-    const outcome = applyRecipeDecisions(deciding, answers, settings.effectiveThreshold)
-    // A decision can point to another recipe. The run sees it like a keyword trigger.
-    const pointed = recipes.filter(recipe => outcome.recipeIds.includes(recipe.id)).map(recipe => recipe.name)
-    return {
-      silent: outcome.silent,
-      hints: pointed.length ? [...outcome.hints, `This message matches these recipes: ${pointed.join(', ')}. Call ${USE_RECIPE_TOOL_NAME} for each before you reply.`] : outcome.hints,
-      applied: outcome.applied,
-    }
+    // A decision can point to another recipe. The caller starts it like a keyword trigger.
+    return applyRecipeDecisions(deciding, answers, settings.effectiveThreshold)
   }
 
   /**

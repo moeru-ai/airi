@@ -137,8 +137,8 @@ Long sessions keep their newest exchanges within the core history budget. A sess
 `useRecipesStore` keeps recipes: built-in ones with their switches, the owner's own, and model proposals waiting for approval. The long-term memory module page links to the recipes page.
 In owner-private conversations, the character can save a recipe the owner asks for through `builtIn_proposeRecipe`. The proposal waits for one approval on the recipes page.
 Decision recipes ask the attention classifier before a reply, in one call with an 800 ms deadline. A late or unsure answer lets the run reply as usual.
-A run loads an instruction recipe through `builtIn_useRecipe`. The recipe list is that tool's guidance, and a message that contains a recipe keyword asks the run to load it.
-The chat shows each loaded recipe as a label with its steps. A reply that a decision recipe changed names that recipe.
+Each recipe runs in its own space: a hidden session with `recipeId` whose prompt adds the recipe steps after the identity. `builtIn_useRecipe` and keyword triggers start it as derived work, and its result returns to the conversation through the character orchestrator.
+The chat shows each handed task as a recipe label. A reply that a decision recipe changed names that recipe.
 The owner can edit owner and model recipes on the recipes page. Built-in recipes only switch on and off.
 The recipes page has two tabs. In conversation lists recipes that act on a message. Auto-run lists recipes that start on a trigger, including the built-in idle look, which starts off.
 The character orchestrator checks auto-run triggers on each tick. A due recipe asks its gate, then starts as a proposal.

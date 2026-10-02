@@ -426,6 +426,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     parentSessionId?: string
     forkReason?: string
     hidden?: boolean
+    recipeId?: string
   }) {
     const currentUserId = getCurrentUserId()
     const sessionId = nanoid()
@@ -440,6 +441,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       parentSessionId: options?.parentSessionId,
       forkReason: options?.forkReason,
       hidden: options?.hidden,
+      recipeId: options?.recipeId,
       createdAt: now,
       updatedAt: now,
     }
