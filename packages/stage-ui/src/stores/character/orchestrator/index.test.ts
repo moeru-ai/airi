@@ -219,6 +219,35 @@ describe('store character-orchestrator', () => {
     expect(mockOnSparkNotifyReactionStreamEnd).toHaveBeenCalledTimes(1)
   })
 
+  // T11: a proactive reaction joins the session as the character's turn, keeps its run link, and adds no user turn.
+  it('writes a spoken reaction into the session without a user turn', async () => {
+    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '<|ACT:{"emotion":"surprised"}|>A creeper is behind you!' } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn()
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = vi.fn()
+    const chatSession = mockedStore(useChatSessionStore, pinia)
+    chatSession.loadSession = vi.fn(async () => true)
+    chatSession.narrowSessionAudience = vi.fn(async () => {})
+    chatSession.appendSessionMessage = vi.fn()
+
+    const store = useCharacterOrchestratorStore(pinia)
+    await store.handleSparkNotifyWithReaction({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Creeper nearby', destinations: ['character'] },
+    }, { forceTextResponse: true })
+
+    const [run] = useSchedulerStore(pinia).runs.snapshot()
+    expect(chatSession.narrowSessionAudience).toHaveBeenCalledWith(chatSession.activeSessionId, OWNER_AUDIENCE)
+    expect(chatSession.appendSessionMessage).toHaveBeenCalledExactlyOnceWith(chatSession.activeSessionId, expect.objectContaining({
+      role: 'assistant',
+      content: 'A creeper is behind you!',
+      proactive: { runId: run?.runId, source: 'minecraft' },
+    }))
+  })
+
   it('supports forcing text-only spark:notify responses', async () => {
     const mockStream = vi.fn()
     mockedStore(useLLM, pinia).stream = mockStream

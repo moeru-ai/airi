@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency } from '@proj-airi/core-agent'
+import { compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -154,8 +154,12 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     })
     scheduler.intake.record(stimulus, { ...decision, runId })
     scheduler.runs.transition(runId, 'working')
+    const turnId = sparkReactionTurnId(event.data.id)
+    speechRuntime.startVoiceTurn(turnId, sessionId)
     try {
       const result = await processSparkNotify(runId, event, control)
+      if (result?.reaction)
+        await writeReaction({ runId, sessionId, turnId, source: stimulus.source, reaction: result.reaction })
       // A missing model is an unavailable capability, never a silent choice.
       if (result)
         scheduler.runs.transition(runId, 'done')
@@ -170,8 +174,46 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
     finally {
       // A reaction that still plays keeps the voice until its speech ends.
-      speechRuntime.holdPlayback(sparkReactionTurnId(event.data.id), runId)
+      speechRuntime.holdPlayback(turnId, runId)
       scheduler.leases.releaseAll(runId)
+    }
+  }
+
+  /**
+   * Writes a spoken reaction into the run's session as the character's own turn. No user turn is added.
+   * Later turns in the session read it, or only its heard part after an interruption.
+   */
+  async function writeReaction(options: { runId: string, sessionId: string, turnId: string, source: string, reaction: string }) {
+    let text = ''
+    // History keeps the words only. Expression markers drive the stage and never reach later prompts.
+    const parser = useLlmmarkerParser({ onLiteral: (literal) => {
+      text += literal
+    } })
+    await parser.consume(options.reaction)
+    await parser.end()
+    text = text.trim()
+    if (!text)
+      return
+
+    try {
+      if (!await chatSession.loadSession(options.sessionId))
+        throw new Error('Failed to load the reaction session')
+      // The reaction read owner context, so the history label narrows like any assistant write.
+      await chatSession.narrowSessionAudience(options.sessionId, OWNER_AUDIENCE)
+      const messageId = nanoid()
+      chatSession.appendSessionMessage(options.sessionId, {
+        role: 'assistant',
+        id: messageId,
+        createdAt: Date.now(),
+        content: text,
+        slices: [{ type: 'text', text }],
+        tool_results: [],
+        proactive: { runId: options.runId, source: options.source },
+      })
+      speechRuntime.attachVoiceTurnMessage(options.turnId, messageId)
+    }
+    catch (error) {
+      console.warn('[character-orchestrator] Failed to record the reaction in its session:', errorMessageFrom(error))
     }
   }
 

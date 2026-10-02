@@ -82,3 +82,60 @@ export function trackSpeechDelivery(pipeline: SpeechDeliverySource, onInterrupte
       stop()
   }
 }
+
+/** Voice turns kept while they wait for their message or their delivery report. */
+const VOICE_TURN_LIMIT = 32
+
+/**
+ * Records the delivered part of interrupted voice turns on their chat messages.
+ *
+ * Use when:
+ * - A voice turn writes a chat message, and later prompts must read only the speech that was heard.
+ *
+ * Expects:
+ * - `start` runs when a voice turn begins. `attach` runs when its message exists. The message and the delivery report arrive in either order.
+ *
+ * Returns:
+ * - Turn functions and a stop function. `record` receives the session, the message, and its delivered speech once per interrupted turn.
+ */
+export function recordVoiceTurnDelivery(pipeline: SpeechDeliverySource, record: (sessionId: string, messageId: string, deliveredSpeech: string) => void) {
+  const turns = new Map<string, { sessionId: string, messageId?: string, deliveredSpeech?: string }>()
+
+  function flush(turnId: string) {
+    const entry = turns.get(turnId)
+    if (!entry?.messageId || entry.deliveredSpeech === undefined)
+      return
+    turns.delete(turnId)
+    record(entry.sessionId, entry.messageId, entry.deliveredSpeech)
+  }
+
+  const stop = trackSpeechDelivery(pipeline, (turnId, deliveredSpeech) => {
+    const entry = turns.get(turnId)
+    if (!entry)
+      return
+    entry.deliveredSpeech = deliveredSpeech
+    flush(turnId)
+  })
+
+  return {
+    /** Starts following one voice turn of a session. */
+    start(turnId: string, sessionId: string) {
+      turns.set(turnId, { sessionId })
+      const oldest = turns.keys().next().value
+      if (turns.size > VOICE_TURN_LIMIT && oldest)
+        turns.delete(oldest)
+    },
+    /** Names the message that the turn wrote. */
+    attach(turnId: string, messageId: string) {
+      const entry = turns.get(turnId)
+      if (!entry)
+        return
+      entry.messageId = messageId
+      flush(turnId)
+    },
+    stop() {
+      stop()
+      turns.clear()
+    },
+  }
+}

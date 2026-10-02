@@ -2,7 +2,7 @@ import type { SpeechDeliverySource } from './delivery'
 
 import { describe, expect, it, vi } from 'vitest'
 
-import { trackSpeechDelivery } from './delivery'
+import { recordVoiceTurnDelivery, trackSpeechDelivery } from './delivery'
 
 function fakePipeline() {
   const listeners = new Map<string, (payload: unknown) => void>()
@@ -46,5 +46,32 @@ describe('speech delivery', () => {
     emit('onTurnCancel', { turnId: 'muted' })
 
     expect(onInterrupted).not.toHaveBeenCalled()
+  })
+
+  it('records the delivered speech on the turn message, whichever arrives first', () => {
+    const { pipeline, emit, item } = fakePipeline()
+    const record = vi.fn()
+    const turns = recordVoiceTurnDelivery(pipeline, record)
+
+    turns.start('chat-turn', 'session')
+    turns.attach('chat-turn', 'chat-message')
+    emit('onPlaybackStart', item('chat-turn', 'Heard. '))
+    emit('onPlaybackEnd', item('chat-turn', 'Heard. '))
+    emit('onTurnCancel', { turnId: 'chat-turn' })
+
+    turns.start('spark:event', 'session')
+    emit('onPlaybackStart', item('spark:event', 'Look! '))
+    emit('onPlaybackEnd', item('spark:event', 'Look! '))
+    emit('onTurnCancel', { turnId: 'spark:event' })
+    expect(record).toHaveBeenCalledTimes(1)
+    turns.attach('spark:event', 'reaction-message')
+
+    // An unknown turn records nothing.
+    emit('onPlaybackStart', item('other', 'Other. '))
+    emit('onTurnCancel', { turnId: 'other' })
+    expect(record.mock.calls).toEqual([
+      ['session', 'chat-message', 'Heard. '],
+      ['session', 'reaction-message', 'Look! '],
+    ])
   })
 })

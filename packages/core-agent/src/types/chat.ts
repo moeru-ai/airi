@@ -31,6 +31,11 @@ export interface ChatAssistantMessage extends AssistantMessage {
    * The chat keeps the generated text. Later prompts read only this delivered part.
    */
   deliveredSpeech?: string
+  /**
+   * Set on a reply that a notification or idle check started without a user turn.
+   * `runId` links the message to its intake and run trace. `source` names the event source.
+   */
+  proactive?: { runId: string, source: string }
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }

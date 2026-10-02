@@ -120,7 +120,9 @@ A run's speech keeps the voice lease after the run ends, until its turn stops pl
 The owner's next message cuts in. Calm notifications, idle checks, and scene runs wait until the speech ends.
 Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.
 After three blocked runs within a minute, notifications and idle appraisal wait for a one-minute cooldown. Owner input still runs and shows its failure.
-`trackSpeechDelivery` follows segment playback for each turn. When playback stops early, the stage records the finished segments through `recordDeliveredSpeech`.
+`trackSpeechDelivery` follows segment playback for each turn. When playback stops early, the speech host records the finished segments through `recordDeliveredSpeech`.
+`useSpeechRuntimeStore` keeps the turn-to-message map. Chat turns and notification reactions both register there.
+A spoken notification reaction joins the active session as an assistant message with `proactive`, without a user turn. Expression markers stay out of it.
 A partly played segment counts as not delivered. A turn that played nothing, for example while speech is muted, records nothing.
 Streaming speech providers bypass the segment pipeline, so their interruptions are not recorded yet.
 Every chat run request carries the silence tool and its guidance. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.

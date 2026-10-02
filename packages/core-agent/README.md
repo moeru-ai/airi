@@ -133,6 +133,7 @@ Spoken text after the tool call wins, and the reply is kept.
 ## Delivered speech
 
 An assistant message can carry `deliveredSpeech`, the speech that reached the listener before playback stopped. It is present only for an interrupted voice reply.
+A reply that a notification started carries `proactive` with its run id and source. It has no user turn before it, and later prompts read it like any assistant turn.
 The next prompt reads only that part, with a cut mark. Tool calls stay. The chat keeps the generated text.
 
 ## Error bursts
@@ -163,6 +164,7 @@ A `critical` command with higher salience takes the lease over. An admitted comm
 The host supplies an `abortSignal` to the notification agent and its model runner.
 Cancellation blocks new model work, late reaction deltas, and command completion, even when a runner ignores transport cancellation.
 An asynchronous reaction sink remains part of the run until its stream closes. Completed audio playback has a separate host lifecycle.
+`handle` returns the commands and the reaction text. The reaction is empty when the agent chose no response.
 
 ## Verify
 

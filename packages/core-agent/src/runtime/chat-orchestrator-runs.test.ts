@@ -170,6 +170,18 @@ describe('orchestrator runs', () => {
     expect(leases.holder('voice')).toBeUndefined()
   })
 
+  // T3: work without the voice output neither waits for the voice nor reserves it.
+  it('runs domain work while another run holds the voice', async () => {
+    const leases = new LeaseTable()
+    leases.acquire('voice', 'conversation-run', { salience: 0.7 })
+    const harness = createRunHarness({ leases, outputs: ['connection:minecraft'] })
+
+    await harness.runtime.ingest('chop a tree', { model: 'test', chatProvider: provider, outputTarget: 'minecraft' })
+
+    expect(harness.stream).toHaveBeenCalledOnce()
+    expect(leases.holder('voice')?.holder).toBe('conversation-run')
+  })
+
   // The voice stays held while speech plays after its run. Owner input cuts in. Scene input waits for the speech to end.
   it('lets owner input interrupt speech that outlived its run, while connection input waits for it', async () => {
     const leases = new LeaseTable()
@@ -346,6 +358,23 @@ describe('orchestrator runs', () => {
     expect(text).not.toContain('Plain reply that was cut')
     // The stored history keeps the generated text for the chat.
     expect(harness.messages[1]).toMatchObject({ content: 'First sentence. Second sentence nobody heard.' })
+  })
+
+  // T11: the next owner turn resumes the session with the proactive reply in place, and no user turn appears for it.
+  it('gives the next prompt a proactive reply as the character turn, without a fabricated user turn', async () => {
+    const harness = createRunHarness()
+    harness.messages.push(
+      { role: 'user', content: 'let us play', id: 'user-1' },
+      { role: 'assistant', content: 'Sure.', slices: [], tool_results: [], id: 'assistant-1' },
+      { role: 'assistant', content: 'A creeper is behind you!', slices: [{ type: 'text', text: 'A creeper is behind you!' }], tool_results: [], id: 'reaction-1', proactive: { runId: 'notification-run', source: 'minecraft' } },
+    )
+
+    await harness.runtime.ingest('where?', { model: 'test', chatProvider: provider })
+
+    const turns = harness.stream.mock.calls[0]?.[2].turns ?? []
+    const nonSystem = turns.filter(turn => turn.type !== 'system')
+    expect(nonSystem.map(turn => turn.type)).toEqual(['user', 'assistant', 'assistant', 'user'])
+    expect(JSON.stringify(nonSystem[2])).toContain('A creeper is behind you!')
   })
 
   it('stops a run that repeats an identical tool call', async () => {

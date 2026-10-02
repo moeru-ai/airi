@@ -216,6 +216,10 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`voice-playback.test.ts`, `lease-table.test.ts`, `chat-orchestrator-runs.test.ts`): a run's speech keeps the voice after the run ends, until its turn ends. Calm work waits. Owner input cuts in.
 - Observed (`speech-pipeline.test.ts`): a turn cancelled before it started still reports its cancellation, so its playback lease is released.
 - Not provided: streaming speech providers bypass the segment pipeline. Their voice lease still ends with generation.
+- Observed (`orchestrator/index.test.ts`, `chat-orchestrator-runs.test.ts`, T11): a spoken notification reaction joins the owner session with its run id and source, and adds no user turn. The next owner turn reads it.
+- Observed (`delivery.test.ts`): an interrupted reaction records its heard part on that message, like a chat reply.
+- Not provided: the reaction prompt does not read the session history yet. Prompt recipes in P7 own that assembly.
+- Observed (`chat-orchestrator-runs.test.ts`, T3): work without the voice output runs while another run holds the voice, and never reserves it.
 
 ### Open P0 evidence
 

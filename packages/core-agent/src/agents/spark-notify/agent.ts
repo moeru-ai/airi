@@ -41,6 +41,8 @@ export type SparkNotifyCommandEvent = Pick<
 /** Result from one complete Spark Notify turn. */
 export interface SparkNotifyHandleResult {
   commands: SparkNotifyCommandEvent[]
+  /** Text the character said. Empty when the agent chose no response or wrote no text. */
+  reaction: string
 }
 
 /** Input that the host gives to a Spark Notify agent for one execution. */
@@ -285,7 +287,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
 
     await emit({ type: 'result', payload: { eventId: request.event.data.eventId, reaction: finalReaction, commandCount: expandedCommands.length, noResponse } })
     request.abortSignal?.throwIfAborted()
-    return { commands: expandedCommands }
+    return { commands: expandedCommands, reaction: finalReaction }
   }
 
   return { handle }

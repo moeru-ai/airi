@@ -42,7 +42,6 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } fr
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
-import { trackSpeechDelivery } from '../../services/speech/delivery'
 import { createSpeechDeviceForwarder } from '../../services/speech/device-forwarding'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -614,7 +613,13 @@ chatHookCleanups.push(deviceForwarder.attach(speechPipeline))
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
-void speechRuntimeStore.registerHost(speechPipeline)
+void speechRuntimeStore.registerHost(speechPipeline, {
+  recordDeliveredSpeech: (sessionId, messageId, deliveredSpeech) => {
+    void chatStore.recordDeliveredSpeech(sessionId, messageId, deliveredSpeech).catch((error) => {
+      console.warn('[Stage] Failed to record delivered speech:', error)
+    })
+  },
+})
 
 speechPipeline.on('onSpecial', (segment) => {
   if (segment.special) {
@@ -890,34 +895,10 @@ function holdsVoice(context: { outputs?: readonly string[] }) {
 // Code and markup stay in the chat. Speech reads only the speakable text.
 let speakableText = createSpeakableTextFilter()
 
-// Voice turns, so an interrupted reply can record the speech that was heard. The reply message and the playback end arrive in either order.
-const voiceTurns = new Map<string, { sessionId: string, messageId?: string, deliveredSpeech?: string }>()
-const VOICE_TURN_LIMIT = 32
-
-function recordVoiceTurn(turnId: string) {
-  const entry = voiceTurns.get(turnId)
-  if (!entry?.messageId || entry.deliveredSpeech === undefined)
-    return
-  voiceTurns.delete(turnId)
-  void chatStore.recordDeliveredSpeech(entry.sessionId, entry.messageId, entry.deliveredSpeech).catch((error) => {
-    console.warn('[Stage] Failed to record delivered speech:', error)
-  })
-}
-
-chatHookCleanups.push(trackSpeechDelivery(speechPipeline, (turnId, deliveredSpeech) => {
-  const entry = voiceTurns.get(turnId)
-  if (!entry)
-    return
-  entry.deliveredSpeech = deliveredSpeech
-  recordVoiceTurn(turnId)
-}))
-
+// An interrupted reply records the speech that was heard on its message.
 chatHookCleanups.push(onAssistantMessage(async (message, _text, context) => {
-  const entry = voiceTurns.get(context.turnId)
-  if (!entry || !message.id)
-    return
-  entry.messageId = message.id
-  recordVoiceTurn(context.turnId)
+  if (holdsVoice(context) && message.id)
+    speechRuntimeStore.attachVoiceTurnMessage(context.turnId, message.id)
 }))
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
@@ -929,12 +910,8 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (device)
     deviceForwarder.startTurn(context.turnId, device)
 
-  if (context.sessionId) {
-    voiceTurns.set(context.turnId, { sessionId: context.sessionId })
-    const oldest = voiceTurns.keys().next().value
-    if (voiceTurns.size > VOICE_TURN_LIMIT && oldest)
-      voiceTurns.delete(oldest)
-  }
+  if (context.sessionId)
+    speechRuntimeStore.startVoiceTurn(context.turnId, context.sessionId)
 
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
