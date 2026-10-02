@@ -266,6 +266,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (orchestrator `index.test.ts`): looking around while idle is the built-in `builtin:idle-look` recipe. It starts off, so idle looks cost nothing until the owner turns it on.
 - Designed: event and mood triggers. `appraiseIdle` stays until recipe triggers replace it.
 - Observed (`propose-recipe.test.ts`, `chat.contract.browser.test.ts`): the owner can create a recipe in conversation. Owner-private runs get `builtIn_proposeRecipe`, scene runs do not, and the proposal waits for one approval.
+- Observed (`chat-orchestrator-runs.test.ts`): a derived run has no voice or owner output, reads within its parent audience, and records an internal intake with its parent. Depth, fan-out, and an ended parent reject derivation before a run exists. Cancelling a parent cancels its derived runs.
 - Designed: run-style recipes start an isolated child run from a condensed prompt. The child can report to the scheduler as an internal stimulus, write urgent state to its slot in the shared pool, and return a short result to its parent as context. This is the P10 derived run, brought forward.
 - Not provided: nothing writes session digests yet, so long sessions show the count. Summaries need a model call and belong with memory in P8.
 

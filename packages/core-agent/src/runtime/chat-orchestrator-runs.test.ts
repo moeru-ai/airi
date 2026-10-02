@@ -11,8 +11,8 @@ import type { AgentRun } from './run-table'
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
 
-import { audienceFromBindings, intersectAudiences, OWNER_AUDIENCE } from './audience'
-import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
+import { audienceFromBindings, intersectAudiences, OWNER_AUDIENCE, PUBLIC_AUDIENCE } from './audience'
+import { createChatOrchestratorRuntime, MAX_DERIVATION_DEPTH, MAX_DERIVED_CHILDREN } from './chat-orchestrator-runtime'
 import { LeaseTable } from './lease-table'
 import { RunTable } from './run-table'
 import { STAY_QUIET_TOOL_NAME } from './stay-quiet'
@@ -607,5 +607,63 @@ describe('orchestrator runs', () => {
     await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
 
     expect(harness.getSessionAudience()).toEqual(OWNER_AUDIENCE)
+  })
+
+  // P10: only the scheduler derives runs. A derived run has no voice, reads within its parent, and follows its parent's cancellation.
+  describe('derived runs', () => {
+    function workingRun(runs: RunTable, runId: string, parentRunId?: string, audience = OWNER_AUDIENCE) {
+      runs.admit({ runId, parentRunId, salience: 0.5, envelope: { sessionId: 'session', bindings: [], outputs: ['chat:owner', 'voice'], audience } })
+      runs.transition(runId, 'working')
+    }
+
+    it('runs derived work without voice or owner output, within its parent audience', async () => {
+      const runs = new RunTable()
+      workingRun(runs, 'parent')
+      const harness = createRunHarness({ runs, runAudience: PUBLIC_AUDIENCE, sessionAudience: OWNER_AUDIENCE })
+
+      await harness.runtime.ingest('Look at the owner screen.', { model: 'test', chatProvider: provider, derivation: { parentRunId: 'parent', source: 'recipe:look' } }, 'recipe-session')
+
+      const child = runs.snapshot().find(run => run.runId !== 'parent')
+      expect(child).toMatchObject({ parentRunId: 'parent', sessionId: 'recipe-session', state: 'done', envelope: { outputs: [], audience: OWNER_AUDIENCE } })
+      expect(harness.runtime.getIntakeRecords()).toMatchObject([{ origin: 'internal', source: 'recipe:look', event: 'derived', outcome: 'admitted', reason: 'derived', runId: child?.runId }])
+    })
+
+    it('rejects derivation beyond the depth limit, over the fan-out limit, or from an ended parent', async () => {
+      const runs = new RunTable()
+      const chain = Array.from({ length: MAX_DERIVATION_DEPTH + 1 }, (_value, index) => `run-${index}`)
+      chain.forEach((runId, index) => workingRun(runs, runId, index ? chain[index - 1] : undefined))
+      workingRun(runs, 'busy-parent')
+      for (let index = 0; index < MAX_DERIVED_CHILDREN; index++)
+        workingRun(runs, `child-${index}`, 'busy-parent')
+      runs.admit({ runId: 'ended', salience: 0.5, envelope: { sessionId: 'session', bindings: [], outputs: [], audience: OWNER_AUDIENCE } })
+      runs.transition('ended', 'done')
+      const harness = createRunHarness({ runs })
+      const derive = (parentRunId: string) => harness.runtime.ingest('task', { model: 'test', chatProvider: provider, derivation: { parentRunId, source: 'recipe:x' } }, 'recipe-session')
+
+      await expect(derive(chain.at(-1)!)).rejects.toThrow('Derived work exceeds the depth limit')
+      await expect(derive('busy-parent')).rejects.toThrow('The parent run has too many derived runs')
+      await expect(derive('ended')).rejects.toThrow('The parent run is no longer active')
+      expect(harness.stream).not.toHaveBeenCalled()
+    })
+
+    it('cancels derived work when its parent is cancelled', async () => {
+      const harness = createRunHarness()
+      let child: Promise<unknown> | undefined
+      harness.stream.mockImplementation(async (_model, _provider, _conversation, streamOptions) => {
+        const runId = streamOptions?.requestCorrelation?.runId
+        if (!child && runId)
+          child = harness.runtime.ingest('task', { model: 'test', chatProvider: provider, derivation: { parentRunId: runId, source: 'recipe:x' } }, 'recipe-session').catch(error => error)
+        await untilAborted(streamOptions)
+      })
+
+      const parent = harness.runtime.ingest('hello', { model: 'test', chatProvider: provider }).catch(error => error)
+      await vi.waitFor(() => expect(harness.runtime.getRuns().filter(run => run.state === 'working')).toHaveLength(2))
+      const parentRun = harness.runtime.getRuns().find(run => !run.parentRunId)!
+      harness.runtime.cancelRun(parentRun.runId)
+      await parent
+      await child
+
+      expect(harness.runtime.getRuns().map(run => run.state)).toEqual(['dropped', 'dropped'])
+    })
   })
 })

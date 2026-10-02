@@ -40,7 +40,7 @@ export type {
   ChatOrchestratorSessionPort,
   QueuedSendSnapshot,
 } from './runtime/chat-orchestrator-runtime'
-export { createChatOrchestratorRuntime, decideDirectInput } from './runtime/chat-orchestrator-runtime'
+export { createChatOrchestratorRuntime, decideDirectInput, MAX_DERIVATION_DEPTH, MAX_DERIVED_CHILDREN } from './runtime/chat-orchestrator-runtime'
 export type { ChoiceAnswer, ChoiceQuestion, Classifier, ClassifierAnswer, ClassifierQuestion, ClassifierRequest, NoulAnswer, NoulQuestion, ScoreAnswer, ScoreQuestion } from './runtime/classifier'
 export { askWithin, CLASSIFIER_DEADLINE_MS, CLASSIFIER_TRUST_THRESHOLD, noulConfidence } from './runtime/classifier'
 export type { CommandAdmission, CommandDestination, CommandRejection } from './runtime/command-admission'

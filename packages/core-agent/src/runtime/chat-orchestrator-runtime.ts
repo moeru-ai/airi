@@ -147,6 +147,17 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /**
+   * Work that the scheduler derived, for example a task recipe in its own session.
+   * It has no voice and no owner output, reads within its parent's audience, and needs no intake classifier.
+   * Cancelling the parent run cancels it.
+   */
+  derivation?: {
+    /** The run that asked for this work. A trigger-started run has none. */
+    parentRunId?: string
+    /** What derived the work, for the intake trace. For example `recipe:<id>`. */
+    source: string
+  }
 }
 
 interface QueuedSend {
@@ -284,6 +295,11 @@ export interface ChatOrchestratorRuntimeLimits {
   /** Tokens of session history in one request. Older exchanges give way to a short note. @default 32000 */
   historyTokenBudget: number
 }
+
+/** Longest chain of derived runs below one root. Deeper derivation is rejected. */
+export const MAX_DERIVATION_DEPTH = 2
+/** Derived runs that one parent can have queued or working at once. */
+export const MAX_DERIVED_CHILDREN = 3
 
 /** Failure reason of a run whose session narrowed below its audience after admission. */
 const SESSION_NARROWED = 'The session audience narrowed below the run audience'
@@ -1428,22 +1444,30 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   ): Promise<ChatIngestResult> {
     const sessionId = targetSessionId || deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
-    const envelope: ExecutionEnvelope = {
+    const derivation = options.derivation
+    const parent = derivation?.parentRunId ? runs.get(derivation.parentRunId) : undefined
+    const created: ExecutionEnvelope = {
       bindings: [],
       outputs: ['chat:owner', 'voice'],
       audience: OWNER_AUDIENCE,
       ...deps.createEnvelope?.(sessionId, options),
       sessionId,
     }
+    // A derived run outputs only to its own session and reads no wider than its parent.
+    const envelope: ExecutionEnvelope = derivation
+      ? { ...created, outputs: [], audience: parent ? intersectAudiences(created.audience, parent.envelope.audience) : created.audience }
+      : created
+    const depth = derivation ? derivationDepth(derivation.parentRunId) + 1 : 0
     const stimulus: Stimulus = {
       id: defaultCreateId(),
-      kind: options.input?.type ?? 'input:text',
-      origin: 'external',
-      source: options.outputTarget ? `connection:${options.outputTarget}` : 'owner',
-      event: options.input?.type ?? 'input:text',
+      kind: derivation ? 'derived' : options.input?.type ?? 'input:text',
+      origin: derivation ? 'internal' : 'external',
+      source: derivation?.source ?? (options.outputTarget ? `connection:${options.outputTarget}` : 'owner'),
+      event: derivation ? 'derived' : options.input?.type ?? 'input:text',
       bindings: envelope.bindings,
       salience: salienceFromUrgency(),
-      direct: !options.outputTarget,
+      direct: !options.outputTarget && !derivation,
+      ...(derivation ? { parentRunId: derivation.parentRunId, depth } : {}),
       // A bound session with a return connection speaks with other people.
       fromScene: Boolean(options.outputTarget) && envelope.bindings.length > 0,
       text: sendingMessage,
@@ -1461,13 +1485,25 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     if (!audienceIncludes(sessionAudience, envelope.audience))
       rejectStimulus('audience', 'Run audience exceeds the session audience')
 
+    // Only the scheduler derives runs, and bounds keep one proposal from growing an unbounded tree.
+    if (derivation) {
+      if (derivation.parentRunId && (!parent || (parent.state !== 'queued' && parent.state !== 'working')))
+        rejectStimulus('parent-ended', 'The parent run is no longer active')
+      if (depth > MAX_DERIVATION_DEPTH)
+        rejectStimulus('depth-limit', 'Derived work exceeds the depth limit')
+      if (derivation.parentRunId && activeChildren(derivation.parentRunId).length >= MAX_DERIVED_CHILDREN)
+        rejectStimulus('fan-out-limit', 'The parent run has too many derived runs')
+    }
+
     // Direct owner input gets a synchronous local decision, so queue order follows call order.
-    // Connection input can wait for a remote classifier.
-    const decision: ChatIntakeDecision = stimulus.direct
-      ? decideDirect(stimulus)
-      : deps.decideIntake
-        ? await decideByPolicy(stimulus, deps.decideIntake)
-        : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
+    // Connection input can wait for a remote classifier. Derived work was already chosen by the scheduler.
+    const decision: ChatIntakeDecision = derivation
+      ? { outcome: 'admitted', reason: 'derived', decidedBy: 'rule' }
+      : stimulus.direct
+        ? decideDirect(stimulus)
+        : deps.decideIntake
+          ? await decideByPolicy(stimulus, deps.decideIntake)
+          : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
     if (decision.outcome === 'ignored') {
       intake.record(stimulus, decision)
       return { stimulusId: stimulus.id, outcome: 'ignored' }
@@ -1484,7 +1520,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // Run identity uses its own factory, so deterministic message id sequences stay unchanged.
     const runId = defaultCreateId()
     const salience = decision.salience ?? stimulus.salience
-    runs.admit({ runId, envelope, salience })
+    runs.admit({ runId, envelope, salience, parentRunId: derivation?.parentRunId })
     intake.record(stimulus, { ...decision, runId })
 
     await new Promise<void>((resolve, reject) => {
@@ -1505,6 +1541,21 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       pump()
     })
     return { stimulusId: stimulus.id, outcome: 'admitted', runId }
+  }
+
+  /** Number of derived ancestors above a run. A root run has depth 0. */
+  function derivationDepth(runId: string | undefined): number {
+    let depth = 0
+    let current = runId ? runs.get(runId) : undefined
+    while (current?.parentRunId) {
+      depth++
+      current = runs.get(current.parentRunId)
+    }
+    return runId && runs.get(runId) ? depth : -1
+  }
+
+  function activeChildren(runId: string) {
+    return runs.snapshot().filter(run => run.parentRunId === runId && (run.state === 'queued' || run.state === 'working'))
   }
 
   function cancelPendingSends(sessionId?: string) {
@@ -1534,6 +1585,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
    * With rollback, the run's user turn and partial reply leave the session, so a requeued input cannot duplicate them.
    */
   function cancelRun(runId: string, options: { rollback?: boolean } = {}) {
+    // Cancellation reaches derived work first, so no child outlives its cancelled parent.
+    for (const child of activeChildren(runId))
+      cancelRun(child.runId)
     const waiting = pendingQueuedSends.find(item => item.runId === runId)
     if (waiting) {
       pendingQueuedSends = pendingQueuedSends.filter(item => item !== waiting)

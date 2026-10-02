@@ -186,6 +186,13 @@ The serialized length bounds the token count, so the tokenizer loads only for hi
 `superviseRun` watches one run for a stall and for its deadline. Chat runs and notification runs share it, and each keeps its own failure handling.
 `guardRepeatedToolCalls` wraps the tools of one run. The call that reaches the limit returns a correction instead of running, and one more identical call ends the run.
 
+## Derived runs
+
+Only the scheduler derives a run. It calls `ingest` with `derivation`, which names the parent run and the source, such as `recipe:<id>`.
+A derived run has no voice and no owner output. It reads within its parent's audience, and intake admits it by rule without a classifier.
+Derivation stops at `MAX_DERIVATION_DEPTH` levels and `MAX_DERIVED_CHILDREN` active children per parent. A parent that ended cannot derive.
+`cancelRun` cancels a run's derived children first, so no child outlives its cancelled parent.
+
 ## Recipes
 
 A recipe is one way to handle a kind of task. Its style says how it runs: `instructions` for the conversation run, `decision` for one classifier question, `run` for an isolated child run, or `mcp` for one MCP tool call.
