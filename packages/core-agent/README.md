@@ -167,6 +167,7 @@ An absent fact is unknown, never false. `checkRequirements` lists missing and un
 
 `SpendingLedger` counts costs within a rolling window for an optional user limit. Requests it cannot price are listed as uncounted.
 The limit is one admission constraint. It never selects a cheaper model.
+A chat runtime with `checkSpendingLimit` rejects new input while the limit is reached. The intake trace records `spending-limit`, and the input fails with the host's message.
 
 `routeModel` is experimental. It serves a named task, never the conversation.
 A candidate needs the task requirements, the user tier, the timing target, and at least five quality test results with an 80% pass rate.

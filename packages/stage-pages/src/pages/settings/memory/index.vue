@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import type { TriageBackend } from '@proj-airi/stage-ui/stores/settings'
+import type { ModelTier, SpendingCurrency, TriageBackend } from '@proj-airi/stage-ui/stores/settings'
 import type { Ref } from 'vue'
 
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { MAX_TRIAGE_THRESHOLD, MIN_TRIAGE_THRESHOLD, useSettingsRunLimits, useSettingsSessionLifecycle, useSettingsTriage } from '@proj-airi/stage-ui/stores/settings'
-import { FieldCombobox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { MAX_TRIAGE_THRESHOLD, MIN_TRIAGE_THRESHOLD, useSettingsModels, useSettingsRunLimits, useSettingsSessionLifecycle, useSettingsTriage } from '@proj-airi/stage-ui/stores/settings'
+import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -17,6 +17,8 @@ const { backend, threshold, decisionsApiKey, decisionsEndpoint, decisionsModel, 
 const providersStore = useProviderStore()
 const { configuredChatProvidersMetadata, isLoadingModels } = storeToRefs(providersStore)
 const { activeProvider: conversationProvider } = storeToRefs(useConsciousnessStore())
+const modelSettings = useSettingsModels()
+const { tiers, spendingLimitEnabled, spendingLimitAmount, spendingLimitCurrency } = storeToRefs(modelSettings)
 
 const backendOptions = computed<Array<{ label: string, value: TriageBackend }>>(() => [
   { label: t('settings.pages.memory.triage.backend.options.none'), value: 'none' },
@@ -42,6 +44,34 @@ watch(llmProvider, async (provider) => {
   llmModel.value = providersStore.getDefaultModelForProvider(provider) ?? modelOptions.value[0]?.value ?? llmModel.value
 }, { immediate: true })
 
+const tierOptions = computed<Array<{ label: string, value: ModelTier }>>(() => [
+  { label: t('settings.pages.memory.models.tiers.options.fast'), value: 'fast' },
+  { label: t('settings.pages.memory.models.tiers.options.default'), value: 'default' },
+  { label: t('settings.pages.memory.models.tiers.options.strong'), value: 'strong' },
+])
+const currencyOptions: Array<{ label: string, value: SpendingCurrency }> = [
+  { label: 'USD', value: 'USD' },
+  { label: 'CNY', value: 'CNY' },
+]
+const tierProvider = ref('')
+const tierModel = ref('')
+const tierValue = ref<ModelTier>('default')
+const tierModelOptions = computed(() => providersStore.getModelsForProvider(tierProvider.value).map(model => ({ label: model.name || model.id, value: model.id, description: model.description })))
+const markedModels = computed(() => Object.entries(tiers.value).flatMap(([key, tier]) => {
+  const [providerId, model] = JSON.parse(key) as [string, string]
+  return [{ key, providerId, model, tier }]
+}))
+
+watch(tierProvider, async (provider) => {
+  if (provider && providersStore.supportsModelListing(provider))
+    await providersStore.fetchModelsForProvider(provider)
+})
+
+function addTier() {
+  if (tierProvider.value && tierModel.value.trim())
+    modelSettings.setTier(tierProvider.value, tierModel.value.trim(), tierValue.value)
+}
+
 /** Keeps the stored value when the field is empty, not positive, or not whole when a whole number is required. */
 function positiveModel(source: Ref<number>, options: { integer?: boolean } = {}) {
   return computed({
@@ -62,6 +92,7 @@ const maxConcurrentRunsModel = positiveModel(maxConcurrentRuns, { integer: true 
 const maxQueuedPerSessionModel = positiveModel(maxQueuedPerSession, { integer: true })
 const stallTimeoutSecondsModel = positiveModel(stallTimeoutSeconds, { integer: true })
 const runDeadlineMinutesModel = positiveModel(runDeadlineMinutes, { integer: true })
+const spendingLimitAmountModel = positiveModel(spendingLimitAmount)
 // Zero turns idle appraisal off, so this field accepts it.
 const appraisalIntervalModel = computed({
   get: () => appraisalIntervalMinutes.value,
@@ -204,6 +235,79 @@ const appraisalIntervalModel = computed({
         :label="t('settings.pages.memory.triage.appraisal_interval.label')"
         :description="t('settings.pages.memory.triage.appraisal_interval.description')"
       />
+    </section>
+
+    <section :class="['rounded-lg', 'bg-neutral-50 dark:bg-neutral-800', 'p-4', 'flex flex-col', 'gap-4']">
+      <div :class="['flex flex-col', 'gap-1']">
+        <h2 :class="['text-lg font-medium']">
+          {{ t('settings.pages.memory.models.title') }}
+        </h2>
+        <p :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.pages.memory.models.description') }}
+        </p>
+      </div>
+      <FieldCheckbox
+        v-model="spendingLimitEnabled"
+        :label="t('settings.pages.memory.models.spending_limit_enabled.label')"
+        :description="t('settings.pages.memory.models.spending_limit_enabled.description')"
+      />
+      <template v-if="spendingLimitEnabled">
+        <FieldInput
+          v-model="spendingLimitAmountModel"
+          type="number"
+          :label="t('settings.pages.memory.models.spending_limit_amount.label')"
+          :description="t('settings.pages.memory.models.spending_limit_amount.description')"
+        />
+        <FieldSelect
+          v-model="spendingLimitCurrency"
+          :label="t('settings.pages.memory.models.spending_limit_currency.label')"
+          :description="t('settings.pages.memory.models.spending_limit_currency.description')"
+          :options="currencyOptions"
+        />
+      </template>
+      <div :class="['flex flex-col', 'gap-1']">
+        <div :class="['text-sm font-medium']">
+          {{ t('settings.pages.memory.models.tiers.label') }}
+        </div>
+        <div :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
+          {{ t('settings.pages.memory.models.tiers.description') }}
+        </div>
+      </div>
+      <ul v-if="markedModels.length" :class="['flex flex-col', 'gap-2']">
+        <li v-for="entry in markedModels" :key="entry.key" :class="['flex flex-wrap items-center', 'gap-2', 'text-sm']">
+          <span :class="['flex-1', 'min-w-0', 'break-all']">{{ entry.providerId }} / {{ entry.model }}</span>
+          <span :class="['text-neutral-500 dark:text-neutral-400']">{{ tierOptions.find(option => option.value === entry.tier)?.label }}</span>
+          <Button size="sm" :label="t('settings.pages.memory.models.tiers.remove')" @click="modelSettings.setTier(entry.providerId, entry.model, undefined)" />
+        </li>
+      </ul>
+      <p v-else :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
+        {{ t('settings.pages.memory.models.tiers.empty') }}
+      </p>
+      <FieldSelect
+        v-model="tierProvider"
+        :label="t('settings.pages.memory.models.tiers.provider')"
+        :options="providerOptions"
+      />
+      <FieldCombobox
+        v-if="tierModelOptions.length"
+        v-model="tierModel"
+        :label="t('settings.pages.memory.models.tiers.model')"
+        :options="tierModelOptions"
+        :disabled="isLoadingModels[tierProvider]"
+      />
+      <FieldInput
+        v-else
+        v-model="tierModel"
+        :label="t('settings.pages.memory.models.tiers.model')"
+      />
+      <FieldSelect
+        v-model="tierValue"
+        :label="t('settings.pages.memory.models.tiers.tier')"
+        :options="tierOptions"
+      />
+      <div>
+        <Button size="sm" :label="t('settings.pages.memory.models.tiers.add')" :disabled="!tierProvider || !tierModel.trim()" @click="addTier" />
+      </div>
     </section>
   </div>
 </template>

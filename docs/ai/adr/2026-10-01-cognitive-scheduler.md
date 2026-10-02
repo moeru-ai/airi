@@ -229,6 +229,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`spending.test.ts`): the ledger counts costs in a rolling window and reports when spending falls under the limit.
 - Observed (`model-routing.test.ts`): without task evidence, the router keeps the configured model. It never ranks by price.
 - Designed: no production task routes yet. Quality tests need live task traffic, which waits for the timing measurements after P10.
+- Observed (`chat-orchestrator-runs.test.ts`, `orchestrator/index.test.ts`, `model-profiles.test.ts`): a reached spending limit rejects owner input with a message and defers notifications before any model or classifier request. No model is swapped.
+- Implemented: every model request reports its first-token delay and estimated cost. Settings > Memory holds model tiers and the optional hourly limit.
+- Not provided: the ledger lives in leader memory and restarts empty. Decisions API classifier calls report no token usage, so they are not counted.
 
 ### Open P0 evidence
 

@@ -550,6 +550,31 @@ pages:
       appraisal_interval:
         label: Idle check interval (minutes)
         description: While no reply runs, the character looks at the current observations this often and can raise something unprompted. This sets how often it looks, not how often it speaks. 0 turns it off.
+    models:
+      title: Models and spending
+      description: You choose the conversation model on the Consciousness page. Nothing here changes it. A spending limit stops new work and never switches to a cheaper model.
+      spending_limit_enabled:
+        label: Spending limit
+        description: Stops new replies, notification reactions, and idle checks when the estimated cost in the last hour reaches the limit. Your message shows why it was refused.
+      spending_limit_amount:
+        label: Limit per hour
+        description: The estimate uses the provider's catalog prices and reported token usage.
+      spending_limit_currency:
+        label: Currency
+        description: Requests priced in another currency are not counted.
+      tiers:
+        label: Model tiers
+        description: Mark how well a model serves you. An experimental router reads these marks for tasks other than the conversation. Unmarked models never take part.
+        provider: Provider
+        model: Model
+        tier: Tier
+        add: Add
+        remove: Remove
+        empty: No marked models yet.
+        options:
+          fast: Fast
+          default: Default
+          strong: Strong
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

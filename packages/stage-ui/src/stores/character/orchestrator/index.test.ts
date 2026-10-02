@@ -28,6 +28,7 @@ import { useModuleDirectoryStore } from '../../mods/api/module-directory'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
 import { useSchedulerStore } from '../../scheduler'
+import { useSettingsModels } from '../../settings/models'
 import { useSettingsRunLimits } from '../../settings/run-limits'
 import { useSettingsTriage } from '../../settings/triage'
 
@@ -246,6 +247,27 @@ describe('store character-orchestrator', () => {
       content: 'A creeper is behind you!',
       proactive: { runId: run?.runId, source: 'minecraft' },
     }))
+  })
+
+  // A5: a reached spending limit defers background work before any model or classifier request. It never drops it.
+  it('defers a notification while the spending limit is reached', async () => {
+    const stream = vi.fn()
+    mockedStore(useLLM, pinia).stream = stream
+    const models = useSettingsModels(pinia)
+    models.spendingLimitEnabled = true
+    models.spendingLimitAmount = 1
+    useSchedulerStore(pinia).spending.record({ amount: 2, currency: 'USD' })
+
+    const store = useCharacterOrchestratorStore(pinia)
+    await store.handleSparkNotify({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Hit by zombie', destinations: ['character'] },
+    })
+
+    expect(stream).not.toHaveBeenCalled()
+    expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ outcome: 'deferred', reason: 'spending-limit' }])
+    expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
   })
 
   it('supports forcing text-only spark:notify responses', async () => {

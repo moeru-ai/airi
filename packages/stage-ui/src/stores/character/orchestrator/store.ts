@@ -20,6 +20,7 @@ import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { sendAdmittedSparkCommand } from '../../mods/api/spark-command'
 import { useConsciousnessStore } from '../../modules/consciousness'
+import { useModelProfilesStore } from '../../modules/model-profiles'
 import { useTriageStore } from '../../modules/triage'
 import { useSchedulerStore } from '../../scheduler'
 import { useSettingsRunLimits } from '../../settings/run-limits'
@@ -47,6 +48,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const chatSession = useChatSessionStore()
   const scheduler = useSchedulerStore()
   const speechRuntime = useSpeechRuntimeStore()
+  const modelProfiles = useModelProfilesStore()
   const triage = useTriageStore()
   const triageSettings = useSettingsTriage()
   const runLimits = useSettingsRunLimits()
@@ -313,6 +315,13 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return undefined
     }
 
+    // A reached spending limit pauses background work before any classifier request costs more. The work waits, never dropped.
+    const spendingPausedUntil = modelProfiles.spendingPausedUntil()
+    if (spendingPausedUntil !== undefined) {
+      await defer({ runId: nanoid(), stimulus, event, control, enqueuedAt: Date.now(), attempts: 0, maxAttempts: attentionConfig.value.maxAttempts, reason: 'spark:notify' }, { outcome: 'deferred', reason: 'spending-limit', decidedBy: 'rule', retryAt: spendingPausedUntil })
+      return undefined
+    }
+
     // A classifier can ignore the notification or reorder it. Its answer never grants authority.
     const appraisal = triage.classifier && stimulus.origin === 'external' ? await triage.appraiseNotification(stimulus) : undefined
     const appraised = appraisal ? decideByAppraisal(stimulus, appraisal) : undefined
@@ -396,7 +405,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    */
   async function appraiseIdle(now = Date.now()) {
     const intervalMs = triageSettings.appraisalIntervalMinutes * 60_000
-    if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs || scheduler.errorBurst.coolingUntil())
+    if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs || scheduler.errorBurst.coolingUntil() || modelProfiles.spendingPausedUntil() !== undefined)
       return
     if (processing.value || scheduler.leases.holder('voice') || scheduler.runs.snapshot().some(run => run.state === 'queued' || run.state === 'working'))
       return
@@ -478,8 +487,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       return
 
     const decision = decideByPrior(next.stimulus, { now, busy: false, retryAt: next.nextRunAt })
-    // During an error burst, due work stays in the queue until the cooldown ends.
-    if (decision.outcome !== 'ignored' && (scheduler.errorBurst.coolingUntil() || !requestVoice(next)))
+    // During an error burst or a reached spending limit, due work stays in the queue.
+    if (decision.outcome !== 'ignored' && (scheduler.errorBurst.coolingUntil() || modelProfiles.spendingPausedUntil() !== undefined || !requestVoice(next)))
       return
 
     scheduledNotifies.value = scheduledNotifies.value.filter(item => item !== next)

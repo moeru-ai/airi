@@ -336,6 +336,11 @@ export interface ChatOrchestratorRuntimeDeps {
    * @default admit every input
    */
   decideIntake?: (stimulus: Stimulus) => ChatIntakeDecision | Promise<ChatIntakeDecision>
+  /**
+   * Returns a rejection message while the optional user spending limit is reached.
+   * The limit stops new runs and shows why. It never selects a cheaper model.
+   */
+  checkSpendingLimit?: () => string | undefined
   /** Called for every intake decision, including ignored and rejected input. */
   onIntakeRecord?: (record: IntakeRecord) => void
   /** Reads the current capacity limits. Invalid values use the defaults. */
@@ -1386,6 +1391,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       intake.record(stimulus, decision)
       return { stimulusId: stimulus.id, outcome: 'ignored' }
     }
+
+    const spendingRejection = deps.checkSpendingLimit?.()
+    if (spendingRejection)
+      rejectStimulus('spending-limit', spendingRejection)
 
     // A full session queue rejects before a run exists, so waiting work stays bounded.
     if (pendingQueuedSends.filter(item => item.sessionId === sessionId).length >= getLimits().maxQueuedPerSession)

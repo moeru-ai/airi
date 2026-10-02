@@ -125,6 +125,10 @@ After three blocked runs within a minute, notifications and idle appraisal wait 
 A spoken notification reaction joins the active session as an assistant message with `proactive`, without a user turn. Expression markers stay out of it.
 A partly played segment counts as not delivered. A turn that played nothing, for example while speech is muted, records nothing.
 Streaming speech providers bypass the segment pipeline, so their interruptions are not recorded yet.
+Every model request reports through `useLLM`. `useModelProfilesStore` records first-token delay and estimated cost for each provider and model.
+Settings > Memory holds model tiers and the optional spending limit per rolling hour. The conversation model stays the user's choice on the Consciousness page.
+While the limit is reached, owner and connection input fails with a message, and notifications and idle checks wait. No model is swapped for a cheaper one.
+The spending ledger lives in the leader renderer's memory, so it starts empty after a restart.
 Every chat run request carries the silence tool and its guidance. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling

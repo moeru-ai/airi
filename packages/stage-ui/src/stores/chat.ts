@@ -44,6 +44,7 @@ import { speechDeviceOutput, useSpeechDeviceStore } from './mods/api/speech-devi
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useModelProfilesStore } from './modules/model-profiles'
 import { useTriageStore } from './modules/triage'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
@@ -210,6 +211,7 @@ export const useChatStore = defineStore('chat', () => {
   const contextObservability = useContextObservabilityStore()
   const scheduler = useSchedulerStore()
   const triage = useTriageStore()
+  const modelProfiles = useModelProfilesStore()
   const speechDevices = useSpeechDeviceStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
@@ -573,6 +575,10 @@ export const useChatStore = defineStore('chat', () => {
     intake: scheduler.intake,
     leases: scheduler.leases,
     decideIntake: stimulus => triage.decideConnectionIntake(stimulus),
+    checkSpendingLimit: () => {
+      const until = modelProfiles.spendingPausedUntil()
+      return until === undefined ? undefined : t('stage.chat.spending-limit', { time: new Date(until).toLocaleTimeString() })
+    },
     onRunChange: trackRun,
     foregroundStream: {
       patch: (message) => {

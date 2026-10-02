@@ -520,6 +520,31 @@ pages:
       appraisal_interval:
         label: 空闲检查间隔（分钟）
         description: 没有回复在生成时，角色每隔这段时间看一次当前的观察，可以主动提起一件事。这里设置的是看的频率，不是说话的频率。0 表示关闭。
+    models:
+      title: 模型与花费
+      description: 对话模型在“意识”页面选择，这里的设置不会改变它。花费上限只会停止新的工作，不会换成更便宜的模型。
+      spending_limit_enabled:
+        label: 花费上限
+        description: 过去一小时的估算花费达到上限后，新的回复、通知反应和空闲检查都会停止。被拒绝的消息会显示原因。
+      spending_limit_amount:
+        label: 每小时上限
+        description: 估算依据提供商目录里的价格和返回的 token 用量。
+      spending_limit_currency:
+        label: 货币
+        description: 用其他货币计价的请求不计入。
+      tiers:
+        label: 模型档位
+        description: 标注一个模型对你来说有多好用。实验性的路由会在对话以外的任务里参考这些标注。没有标注的模型不会参与。
+        provider: 提供商
+        model: 模型
+        tier: 档位
+        add: 添加
+        remove: 移除
+        empty: 还没有标注任何模型。
+        options:
+          fast: 快速
+          default: 默认
+          strong: 强
   data:
     description: 管理存储 AIRI 数据、导出和重置
     sections:
