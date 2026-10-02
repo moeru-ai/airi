@@ -6,7 +6,8 @@ export interface StreamController<T> {
   isClosed: () => boolean
 }
 
-export function createPushStream<T>(): StreamController<T> {
+/** The optional cancellation handler owns resources that feed this readable output. */
+export function createPushStream<T>(onCancel?: (reason: unknown) => void): StreamController<T> {
   let closed = false
   let controller: ReadableStreamDefaultController<T> | null = null
 
@@ -14,8 +15,9 @@ export function createPushStream<T>(): StreamController<T> {
     start(ctrl) {
       controller = ctrl
     },
-    cancel() {
+    cancel(reason) {
       closed = true
+      onCancel?.(reason)
     },
   })
 
