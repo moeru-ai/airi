@@ -36,4 +36,23 @@ describe('recipes store', () => {
 
     expect(recipes.usable.map(recipe => recipe.name)).toEqual(['Read without replying', 'Music'])
   })
+
+  // Editing changes what a recipe does, never who wrote it or whether the owner approved it.
+  it('edits a recipe and keeps its source, switch, and approval', () => {
+    const recipes = useRecipesStore()
+    const proposal = recipes.propose({ name: 'Summaries', description: 'Recaps.', style: { kind: 'instructions', instructions: 'List goals.' }, triggers: [] })
+
+    recipes.update(proposal.id, { name: 'Recap', description: 'When the owner asks.', style: { kind: 'instructions', instructions: 'List goals and decisions.' }, triggers: [{ kind: 'keyword', keywords: ['总结'] }] })
+
+    expect(recipes.recipes.find(recipe => recipe.id === proposal.id)).toEqual({
+      id: proposal.id,
+      name: 'Recap',
+      description: 'When the owner asks.',
+      style: { kind: 'instructions', instructions: 'List goals and decisions.' },
+      triggers: [{ kind: 'keyword', keywords: ['总结'] }],
+      source: 'model',
+      enabled: false,
+      approved: false,
+    })
+  })
 })

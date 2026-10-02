@@ -137,7 +137,9 @@ Long sessions keep their newest exchanges within the core history budget. A sess
 `useRecipesStore` keeps recipes: built-in ones with their switches, the owner's own, and model proposals waiting for approval. The long-term memory module page links to the recipes page.
 In owner-private conversations, the character can save a recipe the owner asks for through `builtIn_proposeRecipe`. The proposal waits for one approval on the recipes page.
 Decision recipes ask the attention classifier before a reply, in one call with an 800 ms deadline. A late or unsure answer lets the run reply as usual.
-Usable instruction recipes join the system prompt, and a message that contains a recipe keyword marks that recipe in its context.
+A run loads an instruction recipe through `builtIn_useRecipe`. The recipe list is that tool's guidance, and a message that contains a recipe keyword asks the run to load it.
+The chat shows each loaded recipe as a label with its steps. A reply that a decision recipe changed names that recipe.
+The owner can edit owner and model recipes on the recipes page. Built-in recipes only switch on and off.
 Every chat run request carries the silence tool and its guidance. It comes from the built-in stay-quiet recipe, so turning that recipe off removes the tool. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling

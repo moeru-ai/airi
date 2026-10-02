@@ -359,9 +359,9 @@ export interface ChatOrchestratorRuntimeDeps {
   /**
    * Runs decision recipes after the user turn is stored and before generation.
    * A silent answer ends the run as an intentional silence without a model call. Hints join the message as context.
-   * A late or failed decision lets the run reply.
+   * `applied` names the recipes that changed the run, and the reply records them. A late or failed decision lets the run reply.
    */
-  decideBeforeReply?: (input: { sessionId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) => Promise<{ silent?: { reason?: string }, hints?: string[] } | undefined>
+  decideBeforeReply?: (input: { sessionId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) => Promise<{ silent?: { reason?: string }, hints?: string[], applied?: string[] } | undefined>
   /** Called for every intake decision, including ignored and rejected input. */
   onIntakeRecord?: (record: IntakeRecord) => void
   /** Reads the current capacity limits. Invalid values use the defaults. */
@@ -1047,6 +1047,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         if (lastTurn?.type === 'user')
           lastTurn.content.push({ type: 'runtime-context', entries: decided.hints.map(text => ({ source: 'recipe-decision', text })) })
       }
+      // The reply names the decision recipes that changed it, so the owner can see them work.
+      if (decided?.applied?.length)
+        buildingMessage.recipes = [...decided.applied]
       if (decided?.silent) {
         quiet = { reason: decided.silent.reason }
       }

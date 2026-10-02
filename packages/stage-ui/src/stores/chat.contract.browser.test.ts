@@ -206,9 +206,14 @@ vi.mock('./ai/chat-llm/tools', () => ({
   }),
 }))
 
+const registeredToolsetPrompts: Record<string, Array<{ content: string, requiredTools?: string[] }>> = {}
+
 vi.mock('./ai/chat-llm/toolset-prompts', () => ({
   useLlmToolsetPromptsStore: () => ({
     activeToolsetPrompt: 'Plugin toolset guidance.',
+    registerToolsetPrompts: (provider: string, prompts: Array<{ content: string, requiredTools?: string[] }>) => {
+      registeredToolsetPrompts[provider] = prompts
+    },
   }),
 }))
 
@@ -379,8 +384,8 @@ describe('chat store contract', () => {
     expect(() => structuredClone(result)).not.toThrow()
     // Each request also receives the source reader, authorized by its own session.
     expect(resolvedToolNames).toEqual([
-      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
-      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_useRecipe', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_useRecipe', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
     ])
   })
 
@@ -396,11 +401,12 @@ describe('chat store contract', () => {
 
     await useChatStore().send({ sessionId: 'session-1', text: 'hello' })
 
-    expect(toolNames).toEqual([['builtIn_readContextSource', 'builtIn_proposeRecipe']])
+    expect(toolNames).toEqual([['builtIn_readContextSource', 'builtIn_useRecipe', 'builtIn_proposeRecipe']])
   })
 
   // A keyword trigger works like a smart shortcut: the run sees which recipe the message asks for.
-  it('lists instruction recipes in the system prompt and marks a keyword trigger in the message context', async () => {
+  // The recipe list belongs to the use tool, so only a run that can load a recipe reads it.
+  it('lists recipes with the use tool and marks a keyword trigger in the message context', async () => {
     let prompt = ''
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
       prompt = JSON.stringify(context)
@@ -416,7 +422,9 @@ describe('chat store contract', () => {
 
     await useChatStore().send({ sessionId: 'session-1', text: '今天想玩粥了' })
 
-    expect(prompt).toContain('Game night: Starts a game when the owner wants to play.')
+    expect(registeredToolsetPrompts['use-recipe']?.[0]).toMatchObject({ requiredTools: ['builtIn_useRecipe'] })
+    expect(registeredToolsetPrompts['use-recipe']?.[0]?.content).toContain('- Game night: Starts a game when the owner wants to play.')
+    expect(prompt).not.toContain('Ask which game, then start it.')
     expect(prompt).toContain('This message matches the trigger of these recipes: Game night.')
   })
 

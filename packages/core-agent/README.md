@@ -189,6 +189,7 @@ The serialized length bounds the token count, so the tokenizer loads only for hi
 
 A recipe is one way to handle a kind of task. Its style says how it runs: `instructions` for the conversation run, `decision` for one classifier question, `run` for an isolated child run, or `mcp` for one MCP tool call.
 A decision recipe asks a yes-or-no, choice, or score question. Each confident answer leads to its own action: reply, stay quiet, add a hint as context, or point to another recipe. Silence wins over the other actions.
+`applyRecipeDecisions` also names the recipes that changed the run, and the runtime records them on the reply as `recipes`.
 Triggers start a recipe on their own: keywords, a schedule, an event source, idle time, or a mood level. Without triggers, the conversation run chooses it.
 `usableRecipes` keeps enabled and approved recipes. A model proposal waits unapproved until the owner approves it once.
 `recipeTools` keeps only the tools that the host granted, so a recipe never adds a capability. Reading without replying is the built-in `builtin:stay-quiet` recipe.

@@ -22,6 +22,14 @@ mobile-tools:
 chat:
   voice-input: 语音输入
   spending-limit: '本小时的花费已达到上限。{time} 之后才能开始新的回复。你可以在“设置 → 记忆”中修改上限。'
+  recipe:
+    using: 正在使用配方
+    used: 使用了配方
+    applied: 配方生效
+    pending: 配方等待批准
+    disabled: 配方已关闭
+    unknown: 没有这个配方
+    failed: 配方没有载入
   error-details:
     show: 查看详情
     hide: 收起详情

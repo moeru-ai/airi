@@ -918,7 +918,7 @@ pages:
           title: Choose a recipe type
           instructions:
             title: Instructions
-            description: Guidance the character follows when it fits, optionally pointed to by keywords.
+            description: Steps the character loads when they fit. Keywords can point to it, and the chat shows each use.
           decision:
             title: Quick decision
             description: A question for the attention classifier, answered before any reply. Each answer can lead to its own action.
@@ -945,6 +945,18 @@ pages:
           target_recipe: Recipe
           note: Each answer acts only when the classifier's confidence reaches the threshold in Attention. Otherwise the character replies as usual.
         cancel: Cancel
+        edit: Edit
+        save: Save
+        enabled: 'Use {name}'
+        styles:
+          instructions: Instructions
+          decision: Quick decision
+          run: Separate run
+          mcp: MCP tool
+        builtin:
+          stay-quiet:
+            name: Read without replying
+            description: Lets the character read a message and choose not to answer when nothing needs saying.
       description: Long-term memory specific settings and management
       title: Long-Term Memory
       sessions:

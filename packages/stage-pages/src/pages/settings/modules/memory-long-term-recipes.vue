@@ -1,145 +1,98 @@
 <script setup lang="ts">
-import type { DecisionAction, Recipe } from '@proj-airi/stage-ui/stores/recipes'
+import type { Recipe } from '@proj-airi/stage-ui/stores/recipes'
 
 import { useRecipesStore } from '@proj-airi/stage-ui/stores/recipes'
-import { Button, FieldCheckbox, FieldInput, FieldSelect } from '@proj-airi/ui'
+import { Button, Checkbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-/** Recipe types that the add flow offers. Each one runs once it is added. */
-type AddableType = 'instructions' | 'decision'
-type QuestionType = 'noul' | 'choice' | 'score'
-type ActionKind = DecisionAction['kind']
-
-/** One answer row of a decision recipe and the action it leads to. */
-interface AnswerRow {
-  meaning: string
-  action: ActionKind
-  hint: string
-  recipeId: string
-}
+import RecipeEditor from './components/recipe-editor.vue'
 
 const { t } = useI18n()
 const recipesStore = useRecipesStore()
 const { recipes } = storeToRefs(recipesStore)
 
+/** Recipe types that the owner can write. */
+type EditableRecipeType = Extract<Recipe['style']['kind'], 'instructions' | 'decision'>
+
 const KEY = 'settings.pages.modules.memory-long-term.recipes'
-const addableTypes: AddableType[] = ['instructions', 'decision']
+const addableTypes: EditableRecipeType[] = ['instructions', 'decision']
 
-// The add flow first picks a type, then shows that type's fields.
-const adding = ref<AddableType | 'choosing' | undefined>()
-const name = ref('')
-const description = ref('')
-const instructions = ref('')
-const keywords = ref('')
-const question = ref('')
-const questionType = ref<QuestionType>('noul')
-const answers = ref<AnswerRow[]>([])
-
-function emptyRow(): AnswerRow {
-  return { meaning: '', action: 'reply', hint: '', recipeId: '' }
+const STYLE_ICONS: Record<Recipe['style']['kind'], string> = {
+  instructions: 'i-solar:document-text-bold-duotone',
+  decision: 'i-solar:branching-paths-up-bold-duotone',
+  run: 'i-solar:rocket-2-bold-duotone',
+  mcp: 'i-solar:plug-circle-bold-duotone',
 }
 
-// Yes or no has two fixed answers. Choices and levels start with two and can grow.
-watch(questionType, () => {
-  answers.value = [emptyRow(), emptyRow()]
-}, { immediate: true })
+// One form is open at a time: the type picker, a new recipe, or one recipe in edit.
+const adding = ref<EditableRecipeType | 'choosing' | undefined>()
+const editingId = ref<string>()
 
-const questionTypeOptions = computed(() => (['noul', 'choice', 'score'] as const).map(type => ({ label: t(`${KEY}.decision.type.${type}`), value: type })))
-const actionOptions = computed(() => [
-  { label: t(`${KEY}.decision.action.reply`), value: 'reply' },
-  { label: t(`${KEY}.decision.action.stay_quiet`), value: 'stay-quiet' },
-  { label: t(`${KEY}.decision.action.hint`), value: 'hint' },
-  { label: t(`${KEY}.decision.action.recipe`), value: 'recipe' },
-])
-const recipeOptions = computed(() => recipes.value.map(recipe => ({ label: recipe.name, value: recipe.id })))
-
-function answerLabel(index: number) {
-  if (questionType.value === 'noul')
-    return t(index === 0 ? `${KEY}.decision.yes_means` : `${KEY}.decision.no_means`)
-  return t(questionType.value === 'choice' ? `${KEY}.decision.option` : `${KEY}.decision.level`)
+function startAdding() {
+  editingId.value = undefined
+  adding.value = 'choosing'
 }
 
-/** Answer keys follow the classifier: true and false, option names, or level indexes. */
-function answerKey(index: number) {
-  if (questionType.value === 'noul')
-    return index === 0 ? 'true' : 'false'
-  return questionType.value === 'choice' ? `option_${index + 1}` : String(index)
-}
-
-function rowAction(row: AnswerRow): DecisionAction {
-  switch (row.action) {
-    case 'hint':
-      return { kind: 'hint', text: row.hint.trim() }
-    case 'recipe':
-      return { kind: 'recipe', recipeId: row.recipeId }
-    case 'stay-quiet':
-      return { kind: 'stay-quiet' }
-    default:
-      return { kind: 'reply' }
-  }
-}
-
-function decisionStyle(): Recipe['style'] {
-  const rows = answers.value
-  const instructionsText = question.value.trim()
-  const questionShape = questionType.value === 'noul'
-    ? { type: 'noul' as const, instructions: instructionsText, criteria: { true: rows[0]!.meaning.trim(), false: rows[1]!.meaning.trim() } }
-    : questionType.value === 'choice'
-      ? { type: 'choice' as const, instructions: instructionsText, criteria: Object.fromEntries(rows.map((row, index) => [answerKey(index), row.meaning.trim()])) }
-      : { type: 'score' as const, instructions: instructionsText, criteria: rows.map(row => row.meaning.trim()) }
-  return { kind: 'decision', question: questionShape, actions: Object.fromEntries(rows.map((row, index) => [answerKey(index), rowAction(row)])) }
-}
-
-function resetForm() {
+function startEditing(id: string) {
   adding.value = undefined
-  name.value = ''
-  description.value = ''
-  instructions.value = ''
-  keywords.value = ''
-  question.value = ''
-  questionType.value = 'noul'
-  answers.value = [emptyRow(), emptyRow()]
+  editingId.value = id
 }
 
-const canSubmit = computed(() => {
-  if (!name.value.trim())
-    return false
-  if (adding.value === 'instructions')
-    return Boolean(instructions.value.trim())
-  return Boolean(question.value.trim())
-    && answers.value.every(row => row.meaning.trim() && (row.action !== 'hint' || row.hint.trim()) && (row.action !== 'recipe' || row.recipeId))
-})
+function closeForms() {
+  adding.value = undefined
+  editingId.value = undefined
+}
 
-function submit() {
-  if (!canSubmit.value)
-    return
-  const words = keywords.value.split(/[,，]/).map(word => word.trim()).filter(Boolean)
-  recipesStore.add({
-    name: name.value.trim(),
-    description: description.value.trim(),
-    style: adding.value === 'instructions' ? { kind: 'instructions', instructions: instructions.value.trim() } : decisionStyle(),
-    triggers: adding.value === 'instructions' && words.length ? [{ kind: 'keyword', keywords: words }] : [],
-    enabled: true,
-  })
-  resetForm()
+/** Built-in recipes keep their definition in code, so their text comes from the locale. */
+function nameOf(recipe: Recipe) {
+  return recipe.source === 'builtin' ? t(`${KEY}.builtin.${recipe.id.replace('builtin:', '')}.name`) : recipe.name
+}
+
+function descriptionOf(recipe: Recipe) {
+  if (recipe.source === 'builtin')
+    return t(`${KEY}.builtin.${recipe.id.replace('builtin:', '')}.description`)
+  if (recipe.description)
+    return recipe.description
+  return recipe.style.kind === 'decision' ? recipe.style.question.instructions : ''
+}
+
+function keywordsOf(recipe: Recipe) {
+  return recipe.triggers.flatMap(trigger => trigger.kind === 'keyword' ? trigger.keywords : [])
+}
+
+/** Only owner and model recipes in the styles that the form writes can change. */
+function editableType(recipe: Recipe): EditableRecipeType | undefined {
+  if (recipe.source === 'builtin')
+    return undefined
+  return recipe.style.kind === 'instructions' || recipe.style.kind === 'decision' ? recipe.style.kind : undefined
+}
+
+function addRecipe(fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers'>) {
+  recipesStore.add({ ...fields, enabled: true })
+  closeForms()
+}
+
+function saveRecipe(id: string, fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers'>) {
+  recipesStore.update(id, fields)
+  closeForms()
+}
+
+function removeRecipe(id: string) {
+  recipesStore.remove(id)
+  closeForms()
 }
 </script>
 
 <template>
   <div :class="['flex flex-col', 'gap-4']">
-    <section :class="['rounded-lg', 'bg-neutral-50 dark:bg-neutral-800', 'p-4', 'flex flex-col', 'gap-4']">
+    <section :class="['rounded-xl', 'bg-neutral-50 dark:bg-neutral-800/60', 'p-5', 'flex flex-col', 'gap-4']">
       <div :class="['flex flex-wrap items-start justify-between', 'gap-3']">
-        <div :class="['flex flex-col', 'gap-1', 'min-w-0 flex-1']">
-          <h2 :class="['text-lg font-medium']">
-            {{ t(`${KEY}.title`) }}
-          </h2>
-          <p :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
-            {{ t(`${KEY}.description`) }}
-          </p>
-        </div>
-        <Button v-if="!adding" size="sm" variant="primary" icon="i-solar:add-circle-linear" :label="t(`${KEY}.add_button`)" @click="adding = 'choosing'" />
+        <p :class="['min-w-0 flex-1', 'text-sm', 'text-neutral-500 dark:text-neutral-400']">
+          {{ t(`${KEY}.description`) }}
+        </p>
+        <Button v-if="!adding" size="sm" variant="primary" icon="i-solar:add-circle-linear" :label="t(`${KEY}.add_button`)" @click="startAdding" />
       </div>
 
       <!-- Add flow: choose a type, then fill in its fields. -->
@@ -150,72 +103,116 @@ function submit() {
             v-for="type in addableTypes"
             :key="type"
             type="button"
-            :class="['flex flex-col', 'gap-1', 'text-left', 'rounded-md', 'border border-neutral-200 dark:border-neutral-700', 'p-3', 'transition-colors', 'hover:border-primary-400 dark:hover:border-primary-500', 'outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60']"
+            :class="[
+              'flex items-start', 'gap-3', 'text-left',
+              'rounded-xl', 'p-4',
+              'bg-white dark:bg-neutral-900/60',
+              'border-2 border-transparent', 'transition-colors duration-200',
+              'hover:border-primary-300 dark:hover:border-primary-500/60',
+              'outline-none focus-visible:border-primary-400',
+            ]"
             @click="adding = type"
           >
-            <span :class="['text-sm font-medium']">{{ t(`${KEY}.types.${type}.title`) }}</span>
-            <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ t(`${KEY}.types.${type}.description`) }}</span>
+            <span :class="[STYLE_ICONS[type], 'shrink-0 text-2xl', 'text-primary-500 dark:text-primary-400']" aria-hidden="true" />
+            <span :class="['flex flex-col', 'gap-1']">
+              <span :class="['text-sm font-medium']">{{ t(`${KEY}.types.${type}.title`) }}</span>
+              <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">{{ t(`${KEY}.types.${type}.description`) }}</span>
+            </span>
           </button>
         </div>
-        <div>
-          <Button size="sm" :label="t(`${KEY}.cancel`)" @click="resetForm" />
+        <div :class="['flex justify-end']">
+          <Button size="sm" :label="t(`${KEY}.cancel`)" @click="closeForms" />
         </div>
       </div>
 
-      <div v-else-if="adding" :class="['flex flex-col', 'gap-3', 'rounded-md', 'border border-neutral-200 dark:border-neutral-700', 'p-3']">
-        <span :class="['text-sm font-medium']">{{ t(`${KEY}.types.${adding}.title`) }}</span>
-        <FieldInput v-model="name" :label="t(`${KEY}.add.name`)" />
-        <FieldInput v-model="description" :label="t(`${KEY}.add.description`)" />
-        <template v-if="adding === 'instructions'">
-          <FieldInput v-model="instructions" :single-line="false" :label="t(`${KEY}.add.instructions`)" />
-          <FieldInput v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.add.keywords.description`)" />
-        </template>
-        <template v-else>
-          <FieldInput v-model="question" :label="t(`${KEY}.decision.question`)" />
-          <FieldSelect v-model="questionType" :label="t(`${KEY}.decision.type.label`)" :options="questionTypeOptions" />
-          <div v-for="(row, index) in answers" :key="index" :class="['flex flex-col', 'gap-2', 'rounded-md', 'bg-neutral-100 dark:bg-neutral-900', 'p-3']">
-            <FieldInput v-model="row.meaning" :label="answerLabel(index)" />
-            <FieldSelect v-model="row.action" :label="t(`${KEY}.decision.action.label`)" :options="actionOptions" />
-            <FieldInput v-if="row.action === 'hint'" v-model="row.hint" :label="t(`${KEY}.decision.hint_text`)" />
-            <FieldSelect v-if="row.action === 'recipe'" v-model="row.recipeId" :label="t(`${KEY}.decision.target_recipe`)" :options="recipeOptions" />
-            <div v-if="questionType !== 'noul' && answers.length > 2">
-              <Button size="sm" :label="t(`${KEY}.decision.remove_option`)" @click="answers.splice(index, 1)" />
+      <div v-else-if="adding" :class="['flex flex-col', 'gap-4', 'rounded-xl', 'bg-white dark:bg-neutral-900/60', 'p-4']">
+        <span :class="['flex items-center', 'gap-2', 'text-sm font-medium']">
+          <span :class="[STYLE_ICONS[adding], 'text-lg', 'text-primary-500 dark:text-primary-400']" aria-hidden="true" />
+          {{ t(`${KEY}.types.${adding}.title`) }}
+        </span>
+        <RecipeEditor :type="adding" :targets="recipes" @save="addRecipe" @cancel="closeForms" />
+      </div>
+    </section>
+
+    <ul v-if="recipes.length" :class="['flex flex-col', 'gap-3']">
+      <li
+        v-for="recipe in recipes"
+        :key="recipe.id"
+        :class="[
+          'flex flex-col', 'gap-3',
+          'rounded-xl', 'p-4',
+          'bg-neutral-50 dark:bg-neutral-800/60',
+          'border-2', editingId === recipe.id ? 'border-primary-300 dark:border-primary-500/60' : 'border-transparent',
+          'transition-colors duration-200',
+        ]"
+      >
+        <div :class="['flex items-start', 'gap-3']">
+          <span
+            :class="[
+              'size-10 shrink-0', 'rounded-lg', 'flex items-center justify-center',
+              'bg-primary-100 text-primary-600 dark:bg-primary-900/50 dark:text-primary-300',
+            ]"
+            aria-hidden="true"
+          >
+            <span :class="[STYLE_ICONS[recipe.style.kind], 'text-xl']" />
+          </span>
+          <div :class="['min-w-0 flex-1', 'flex flex-col', 'gap-1']">
+            <div :class="['flex flex-wrap items-center', 'gap-x-2 gap-y-1']">
+              <span :class="['font-medium', 'break-words']">{{ nameOf(recipe) }}</span>
+              <span :class="['rounded-full', 'px-2 py-0.5', 'text-xs', 'bg-neutral-200/70 text-neutral-600 dark:bg-neutral-700/70 dark:text-neutral-300']">
+                {{ t(`${KEY}.styles.${recipe.style.kind}`) }}
+              </span>
+              <span :class="['text-xs', 'text-neutral-400 dark:text-neutral-500']">
+                {{ t(`${KEY}.sources.${recipe.source}`) }}
+              </span>
+            </div>
+            <p v-if="descriptionOf(recipe)" :class="['text-sm', 'text-neutral-500 dark:text-neutral-400', 'line-clamp-2']">
+              {{ descriptionOf(recipe) }}
+            </p>
+            <div v-if="keywordsOf(recipe).length" :class="['flex flex-wrap', 'gap-1.5', 'pt-1']">
+              <span
+                v-for="keyword in keywordsOf(recipe)"
+                :key="keyword"
+                :class="['inline-flex items-center', 'gap-1', 'rounded-full', 'px-2 py-0.5', 'text-xs', 'bg-primary-100/70 text-primary-700 dark:bg-primary-900/50 dark:text-primary-200']"
+              >
+                <span :class="['i-solar:hashtag-linear']" aria-hidden="true" />
+                {{ keyword }}
+              </span>
             </div>
           </div>
-          <div v-if="questionType !== 'noul'">
-            <Button size="sm" icon="i-solar:add-circle-linear" :label="t(`${KEY}.decision.add_option`)" @click="answers.push(emptyRow())" />
-          </div>
-          <p :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
-            {{ t(`${KEY}.decision.note`) }}
-          </p>
-        </template>
-        <div :class="['flex', 'gap-2']">
-          <Button size="sm" variant="primary" :label="t(`${KEY}.add.submit`)" :disabled="!canSubmit" @click="submit" />
-          <Button size="sm" :label="t(`${KEY}.cancel`)" @click="resetForm" />
-        </div>
-      </div>
-
-      <ul v-if="recipes.length" :class="['flex flex-col', 'gap-3']">
-        <li v-for="recipe in recipes" :key="recipe.id" :class="['flex flex-col', 'gap-2', 'rounded-md', 'border border-neutral-200 dark:border-neutral-700', 'p-3']">
-          <FieldCheckbox
+          <Checkbox
             :model-value="recipe.enabled"
             :disabled="!recipe.approved"
-            :label="recipe.name"
-            :description="recipe.description"
+            :aria-label="t(`${KEY}.enabled`, { name: nameOf(recipe) })"
             @update:model-value="value => recipesStore.setEnabled(recipe.id, value)"
           />
-          <div :class="['flex flex-wrap items-center', 'gap-2', 'text-xs', 'text-neutral-500 dark:text-neutral-400']">
-            <span>{{ t(`${KEY}.sources.${recipe.source}`) }}</span>
-            <span v-if="!recipe.approved">{{ t(`${KEY}.pending`) }}</span>
-            <Button v-if="!recipe.approved" size="sm" variant="primary" :label="t(`${KEY}.approve`)" @click="recipesStore.approve(recipe.id)" />
-            <Button v-if="recipe.source !== 'builtin'" size="sm" :label="t(`${KEY}.remove`)" @click="recipesStore.remove(recipe.id)" />
-          </div>
-        </li>
-      </ul>
-      <p v-else :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
-        {{ t(`${KEY}.empty`) }}
-      </p>
-    </section>
+        </div>
+
+        <div
+          v-if="!recipe.approved"
+          :class="[
+            'flex flex-wrap items-center', 'gap-3',
+            'rounded-lg', 'px-3 py-2.5',
+            'bg-amber-50 text-amber-800 dark:bg-amber-900/25 dark:text-amber-200',
+          ]"
+        >
+          <span :class="['i-solar:shield-check-linear', 'shrink-0 text-lg']" aria-hidden="true" />
+          <span :class="['min-w-0 flex-1', 'text-sm']">{{ t(`${KEY}.pending`) }}</span>
+          <Button size="sm" variant="primary" :label="t(`${KEY}.approve`)" @click="recipesStore.approve(recipe.id)" />
+        </div>
+
+        <div v-if="editingId === recipe.id && editableType(recipe)" :class="['rounded-xl', 'bg-white dark:bg-neutral-900/60', 'p-4']">
+          <RecipeEditor :type="editableType(recipe)!" :recipe="recipe" :targets="recipes" @save="fields => saveRecipe(recipe.id, fields)" @cancel="closeForms" />
+        </div>
+        <div v-else-if="recipe.source !== 'builtin'" :class="['flex flex-wrap justify-end', 'gap-2']">
+          <Button v-if="editableType(recipe)" size="sm" icon="i-solar:pen-2-linear" :label="t(`${KEY}.edit`)" @click="startEditing(recipe.id)" />
+          <Button size="sm" color="red" icon="i-solar:trash-bin-minimalistic-linear" :label="t(`${KEY}.remove`)" @click="removeRecipe(recipe.id)" />
+        </div>
+      </li>
+    </ul>
+    <p v-else :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
+      {{ t(`${KEY}.empty`) }}
+    </p>
   </div>
 </template>
 

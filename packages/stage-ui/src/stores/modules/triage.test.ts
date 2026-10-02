@@ -83,6 +83,6 @@ describe('triage store', () => {
     settings.decisionsApiKey = 'key'
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ answers: { 'user:ack': { type: 'noul', noul: 0.97 } } })))
 
-    expect(await useTriageStore().decideRecipes([recipe], 'ok', signal)).toEqual({ silent: { reason: 'Acknowledgements' }, hints: [] })
+    expect(await useTriageStore().decideRecipes([recipe], 'ok', signal)).toEqual({ silent: { reason: 'Acknowledgements' }, hints: [], applied: ['Acknowledgements'] })
   })
 })

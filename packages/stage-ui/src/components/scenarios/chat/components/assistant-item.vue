@@ -6,12 +6,16 @@ import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import RecipeCallBlock from './recipe-call-block.vue'
+import RecipePill from './recipe-pill.vue'
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
+import { USE_RECIPE_TOOL_NAME } from '../../../../tools/use-recipe'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -43,6 +47,13 @@ const emit = defineEmits<{
   (e: 'reply'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
+
+const { t } = useI18n()
+
+/** Renderers that every chat surface shares. A runtime registry can still replace them. */
+const builtinToolCallRenderers: ChatToolCallRendererRegistry = {
+  [USE_RECIPE_TOOL_NAME]: RecipeCallBlock,
+}
 
 const resolvedSlices = computed<ChatSlices[]>(() => {
   if (props.message.slices?.length) {
@@ -101,7 +112,7 @@ function getToolCallRenderer(slice: ChatSlices) {
     return ChatToolCallBlock
   }
 
-  return props.toolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock
+  return props.toolCallRenderers[slice.toolCall.toolName] ?? builtinToolCallRenderers[slice.toolCall.toolName] ?? ChatToolCallBlock
 }
 
 const showLoader = computed(() => props.showPlaceholder && resolvedSlices.value.length === 0)
@@ -152,6 +163,10 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           />
           <div class="<sm:hidden">
             <span text-sm text="black/60 dark:white/65" font-normal>{{ label }}</span>
+          </div>
+          <!-- Decision recipes changed this reply before generation, so the reply names them. -->
+          <div v-if="message.recipes?.length" :class="['flex flex-wrap', 'gap-1.5']">
+            <RecipePill v-for="name in message.recipes" :key="name" :label="t('stage.chat.recipe.applied')" :name="name" tone="used" />
           </div>
           <div v-if="resolvedSlices.length > 0" class="flex flex-col gap-2 break-words" text="primary-700 dark:primary-100">
             <template v-for="(slice, sliceIndex) in resolvedSlices" :key="sliceIndex">

@@ -12,7 +12,7 @@ import { audienceFromBindings, audienceIncludes, createChatOrchestratorRuntime, 
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { shallowRef, toRaw } from 'vue'
+import { shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
@@ -29,6 +29,7 @@ import {
 } from '../libs/product-signals/headers'
 import { createContextSourceTool } from '../tools/context-source'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createUseRecipeTool, describeRecipesForRun, USE_RECIPE_TOOL_NAME } from '../tools/use-recipe'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
@@ -216,6 +217,15 @@ export const useChatStore = defineStore('chat', () => {
   const mood = useCharacterMoodStore()
   const speechRuntime = useSpeechRuntimeStore()
   const recipes = useRecipesStore()
+  // The recipe list reaches only runs that hold the use tool, so a run without tools never claims a recipe.
+  watch(() => recipes.recipes, (list) => {
+    llmToolsetPromptsStore.registerToolsetPrompts('use-recipe', [{
+      id: 'use-recipe',
+      title: 'Recipes',
+      requiredTools: [USE_RECIPE_TOOL_NAME],
+      content: describeRecipesForRun(list),
+    }])
+  }, { immediate: true })
 
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
@@ -374,6 +384,8 @@ export const useChatStore = defineStore('chat', () => {
     return async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
+      // Using a recipe is a visible call. It stays in every run, so the tool list stays stable when recipes change.
+      ...await createUseRecipeTool({ recipes: () => recipes.recipes }),
       // Reading without replying is a recipe. The owner can turn it off.
       ...(recipes.isUsable(STAY_QUIET_RECIPE_ID) ? [createStayQuietTool()] : []),
       // Only the owner's private conversations can save recipes, and every proposal waits for the owner's approval.
@@ -618,12 +630,12 @@ export const useChatStore = defineStore('chat', () => {
       return digest ? { text: digest.text, upToMessageId: digest.upToMessageId } : undefined
     },
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
-    getSystemPrompt: envelope => composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default'), recipes.usable),
+    getSystemPrompt: envelope => composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default')),
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.
       sessionId => mood.active ? createMoodContext(mood.describe(personaOf(sessionId))) : undefined,
-      // A keyword trigger marks the recipes this message asks for. The run still decides how to use them.
+      // A keyword trigger marks the recipes this message asks for. The run loads them with the use tool.
       (_sessionId, message) => {
         const triggered = matchKeywordRecipes(recipes.usable, message)
         return triggered.length ? createRecipeTriggerContext(triggered.map(recipe => recipe.name)) : undefined

@@ -165,6 +165,45 @@ describe('chat history', () => {
     })
   })
 
+  // The owner must see when a reply used a recipe, both a recipe that the model loaded and one that a decision applied.
+  it('names the recipes that a reply used', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          {
+            id: 'assistant-1',
+            role: 'assistant',
+            content: 'Next step: open the editor.',
+            recipes: ['Owner mood'],
+            slices: [
+              { type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'builtIn_useRecipe', args: '{"name":"i-have-adhd"}' } },
+              { type: 'text', text: 'Next step: open the editor.' },
+            ],
+            tool_results: [{ id: 'call-1', result: JSON.stringify({ status: 'used', name: 'i-have-adhd', steps: 'Start with the next step.' }) }],
+          },
+        ],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      const bubble = screen.container.querySelector<HTMLElement>('.chat-message-item-container')
+      expect(bubble?.textContent).toContain('Used recipe')
+      expect(bubble?.textContent).toContain('i-have-adhd')
+      expect(bubble?.textContent).toContain('Recipe applied')
+      expect(bubble?.textContent).toContain('Owner mood')
+      expect(bubble?.textContent).not.toContain('Start with the next step.')
+    })
+
+    screen.getByRole('button', { name: /i-have-adhd/ }).element().dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await vi.waitFor(() => {
+      expect(screen.container.textContent).toContain('Start with the next step.')
+    })
+  })
+
   // ROOT CAUSE:
   //
   // ChatHistoryMessageFrame always applied opacity-0, then added opacity-100

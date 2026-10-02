@@ -60,6 +60,14 @@ export const useRecipesStore = defineStore('recipes', () => {
     return proposal
   }
 
+  /**
+   * Changes what an owner or model recipe does. Its source, switch, and approval stay.
+   * Built-in recipes keep their definition, so only their switch changes.
+   */
+  function update(id: string, fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers'>) {
+    custom.value = custom.value.map(recipe => recipe.id === id ? { ...recipe, ...fields } : recipe)
+  }
+
   function remove(id: string) {
     custom.value = custom.value.filter(recipe => recipe.id !== id)
   }
@@ -77,6 +85,7 @@ export const useRecipesStore = defineStore('recipes', () => {
     approve,
     add,
     propose,
+    update,
     remove,
     resetState,
   }

@@ -36,6 +36,8 @@ export interface ChatAssistantMessage extends AssistantMessage {
    * `runId` links the message to its intake and run trace. `source` names the event source.
    */
   proactive?: { runId: string, source: string }
+  /** Names of the decision recipes that changed this reply before generation. */
+  recipes?: string[]
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }

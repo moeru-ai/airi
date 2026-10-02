@@ -129,13 +129,15 @@ export interface RecipeDecisionOutcome {
   hints: string[]
   /** Recipes that the decisions marked for the run. */
   recipeIds: string[]
+  /** Names of the decision recipes whose answer changed the run. The reply shows them. */
+  applied: string[]
 }
 
 /**
  * Applies the action of each confident answer. A missing or unsure answer does nothing, so the run replies.
  */
 export function applyRecipeDecisions(recipes: readonly Recipe[], answers: Record<string, ClassifierAnswer> | undefined, threshold: number): RecipeDecisionOutcome {
-  const outcome: RecipeDecisionOutcome = { hints: [], recipeIds: [] }
+  const outcome: RecipeDecisionOutcome = { hints: [], recipeIds: [], applied: [] }
   for (const recipe of recipes) {
     if (recipe.style.kind !== 'decision')
       continue
@@ -147,6 +149,9 @@ export function applyRecipeDecisions(recipes: readonly Recipe[], answers: Record
       outcome.hints.push(action.text.trim())
     else if (action?.kind === 'recipe')
       outcome.recipeIds.push(action.recipeId)
+    else
+      continue
+    outcome.applied.push(recipe.name)
   }
   return outcome
 }

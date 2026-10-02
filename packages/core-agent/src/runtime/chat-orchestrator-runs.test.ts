@@ -296,9 +296,11 @@ describe('orchestrator runs', () => {
     expect(quiet.runtime.getRuns()[0]).toMatchObject({ state: 'done', silent: { reason: 'nothing to answer' } })
     expect(quiet.messages.map(message => message.role)).toEqual(['user'])
 
-    const hinted = createRunHarness({ decideBeforeReply: async () => ({ hints: ['The owner seems tired. Keep it short.'] }) })
+    const hinted = createRunHarness({ decideBeforeReply: async () => ({ hints: ['The owner seems tired. Keep it short.'], applied: ['Owner mood'] }) })
     await hinted.runtime.ingest('long day', { model: 'test', chatProvider: provider })
     expect(JSON.stringify(hinted.stream.mock.calls[0]![2].turns.at(-1))).toContain('The owner seems tired. Keep it short.')
+    // The reply names the recipe that changed it.
+    expect(hinted.messages.find(message => message.role === 'assistant')).toMatchObject({ recipes: ['Owner mood'] })
 
     const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const failing = createRunHarness({ decideBeforeReply: async () => {

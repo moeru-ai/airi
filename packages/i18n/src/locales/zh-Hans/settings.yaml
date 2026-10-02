@@ -870,7 +870,7 @@ pages:
           title: 选择配方类型
           instructions:
             title: 指令
-            description: 合适时角色会遵照的做法，可以用关键词提示。
+            description: 合适时角色会载入的做法。可以用关键词提示，聊天里会显示每次使用。
           decision:
             title: 快速判断
             description: 交给注意力分类器的一道题，在回复之前判断，每个回答可以对应不同的动作。
@@ -897,6 +897,18 @@ pages:
           target_recipe: 配方
           note: 只有分类器的置信度达到“注意力”里的阈值时，对应的回答才会生效，否则角色照常回复。
         cancel: 取消
+        edit: 编辑
+        save: 保存
+        enabled: '使用{name}'
+        styles:
+          instructions: 指令
+          decision: 快速判断
+          run: 独立运行
+          mcp: MCP 工具
+        builtin:
+          stay-quiet:
+            name: 已读不回
+            description: 角色读完消息后，如果没什么要说的，可以选择不回复。
       description: 长期记忆
       title: 长期记忆
       sessions:
