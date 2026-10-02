@@ -379,8 +379,8 @@ describe('chat store contract', () => {
     expect(() => structuredClone(result)).not.toThrow()
     // Each request also receives the source reader, authorized by its own session.
     expect(resolvedToolNames).toEqual([
-      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet'],
-      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
     ])
   })
 
@@ -396,7 +396,7 @@ describe('chat store contract', () => {
 
     await useChatStore().send({ sessionId: 'session-1', text: 'hello' })
 
-    expect(toolNames).toEqual([['builtIn_readContextSource']])
+    expect(toolNames).toEqual([['builtIn_readContextSource', 'builtIn_proposeRecipe']])
   })
 
   // A keyword trigger works like a smart shortcut: the run sees which recipe the message asks for.
@@ -418,6 +418,21 @@ describe('chat store contract', () => {
 
     expect(prompt).toContain('Game night: Starts a game when the owner wants to play.')
     expect(prompt).toContain('This message matches the trigger of these recipes: Game night.')
+  })
+
+  // Members of a scene cannot save recipes for the owner. Only owner-private runs get the proposal tool.
+  it('offers the recipe proposal tool only to owner-private runs', async () => {
+    sessionMetas['scene-session'] = { sessionId: 'scene-session', userId: 'local', characterId: 'default', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 1 }
+    const toolNames: string[][] = []
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: any) => {
+      const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
+      toolNames.push(tools.map((tool: Tool) => tool.function.name))
+      await options.onStreamEvent({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me', outputTarget: 'discord-connection' })
+
+    expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {

@@ -10,6 +10,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 import { CONTEXT_SOURCE_TOOL_NAME, CONTEXT_SOURCE_TOOLSET_PROMPT } from '../../../tools/context-source'
+import { PROPOSE_RECIPE_TOOL_NAME, PROPOSE_RECIPE_TOOLSET_PROMPT } from '../../../tools/propose-recipe'
 import { useModelProfilesStore } from '../../modules/model-profiles'
 import { resolveLlmTools, toolNameFrom } from './tool-resolver'
 import { useLlmToolsetPromptsStore } from './toolset-prompts'
@@ -37,6 +38,12 @@ export const useLLM = defineStore('llm', () => {
     title: 'Silence',
     requiredTools: [STAY_QUIET_TOOL_NAME],
     content: STAY_QUIET_TOOLSET_PROMPT,
+  }])
+  toolsetPrompts.registerToolsetPrompts('propose-recipe', [{
+    id: 'propose-recipe',
+    title: 'Recipes',
+    requiredTools: [PROPOSE_RECIPE_TOOL_NAME],
+    content: PROPOSE_RECIPE_TOOLSET_PROMPT,
   }])
   toolsetPrompts.registerToolsetPrompts('context-source', [{
     id: 'context-source',

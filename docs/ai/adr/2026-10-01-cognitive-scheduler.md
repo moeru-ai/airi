@@ -259,6 +259,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`recipes.test.ts`, `chat.contract.browser.test.ts`, `prompt-recipe.test.ts`): recipes are the user's skills. Reading without replying is a built-in recipe that the owner can turn off, and the run then gets no silence tool. A model proposal waits for one owner approval.
 - Observed (`recipe.test.ts`, `chat-orchestrator-runs.test.ts`, stage-ui `triage.test.ts`): decision recipes ask yes-or-no, choice, or score questions before a reply. Each confident answer has its own action, silence wins, and hints join the message as context. A failed decision lets the run reply.
 - Observed (`chat.contract.browser.test.ts`): instruction recipes sit in the cacheable system prompt, and a keyword trigger marks the matching recipe in the message context. The run still decides.
+- Observed (`propose-recipe.test.ts`, `chat.contract.browser.test.ts`): the owner can create a recipe in conversation. Owner-private runs get `builtIn_proposeRecipe`, scene runs do not, and the proposal waits for one approval.
 - Designed: run-style recipes start an isolated child run from a condensed prompt. The child can report to the scheduler as an internal stimulus, write urgent state to its slot in the shared pool, and return a short result to its parent as context. This is the P10 derived run, brought forward.
 - Not provided: nothing writes session digests yet, so long sessions show the count. Summaries need a model call and belong with memory in P8.
 
