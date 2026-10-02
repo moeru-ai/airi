@@ -32,6 +32,7 @@ interface ChatInterruptionSubmissionHooks {
  *
  * A response owned by another session counts as active. Switching the visible
  * chat keeps cancellation available for the response that is still running.
+ * A completed remote response does not count as active.
  */
 export function useChatInterruption(options: ChatInterruptionOptions) {
   const chatStore = useChatStore()
@@ -50,12 +51,11 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
     ?? chatStore.activeSendSessionId
     ?? options.sessionId.value)
   // A response owned by another session stays cancellable from this composer.
-  // `generating` only covers the visible session, and `nowSpeaking` drops to false
-  // in the gap between two speech segments. Both conditions then read false while
-  // the owner is still generating text or still has speech pending, which hid the
-  // stop action. A known owner on another session proves a response is still live.
+  // `generating` covers only the visible session, and `nowSpeaking` drops to false
+  // between two speech segments. Both read false while the owner still runs,
+  // which hid the stop action.
   const responseOwnedByAnotherSession = computed(() => {
-    const owner = contextBridgeStore.remoteStreamSessionId ?? chatStore.activeSendSessionId
+    const owner = contextBridgeStore.liveRemoteStreamSessionId ?? chatStore.activeSendSessionId
     return !!owner && owner !== options.sessionId.value
   })
   const responseActive = computed(() => options.generating.value
