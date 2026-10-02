@@ -2142,6 +2142,9 @@ importers:
       mediabunny:
         specifier: 'catalog:'
         version: 1.55.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -2687,6 +2690,9 @@ importers:
       mediabunny:
         specifier: 'catalog:'
         version: 1.55.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -5596,6 +5602,9 @@ importers:
       localforage:
         specifier: 'catalog:'
         version: 1.10.0
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
