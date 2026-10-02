@@ -46,5 +46,3 @@ blog:
   no-posts: No se encontraron publicaciones en esta categoría.
   categories:
     all: Todo
-    devlog: DevLog
-    dreamlog: DreamLog

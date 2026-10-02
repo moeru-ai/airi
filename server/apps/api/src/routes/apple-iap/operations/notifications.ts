@@ -9,6 +9,7 @@ import { minLength, object, pipe, safeParse, string } from 'valibot'
 
 import { createBadRequestError } from '../../../utils/error'
 import {
+  canCreditTransaction,
   evidenceReceiptFromTransaction,
   findLiveAccount,
   grantableConsumableTransaction,
@@ -31,6 +32,7 @@ export function createNotificationsOperation(
   db: Database,
   verifier: Verifier | null,
   configKV: ConfigKVService,
+  sandboxUserIds: readonly string[] = [],
 ) {
   return async (body: unknown): Promise<{ received: true }> => {
     const apple = requireVerifier(verifier)
@@ -52,6 +54,9 @@ export function createNotificationsOperation(
     }
 
     const payload = await apple.verifyTransaction(signedTransaction)
+    if (payload.bundleId !== notification.data?.bundleId || payload.environment !== notification.data?.environment)
+      throw createBadRequestError('Notification transaction identity mismatch', 'NOTIFICATION_TRANSACTION_MISMATCH')
+
     const grantable = grantableConsumableTransaction(payload)
     if (!grantable.ok) {
       logger.withFields({
@@ -67,6 +72,11 @@ export function createNotificationsOperation(
     const account = await findLiveAccount(db, { token: fields.appAccountToken })
     if (!account) {
       logger.withFields({ transactionId: fields.transactionId }).warn('ONE_TIME_CHARGE token is unknown')
+      return { received: true }
+    }
+
+    if (!canCreditTransaction(payload, account.userId, sandboxUserIds)) {
+      logger.withField('transactionId', fields.transactionId).warn('Sandbox account is not allowed')
       return { received: true }
     }
 

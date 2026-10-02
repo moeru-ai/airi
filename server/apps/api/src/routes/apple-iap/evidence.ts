@@ -4,7 +4,7 @@ import type { Database } from '../../libs/db'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { EvidenceReceipt } from '../../services/domain/payment'
 
-import { Type } from '@apple/app-store-server-library'
+import { Environment, Type } from '@apple/app-store-server-library'
 import { and, eq, isNull } from 'drizzle-orm'
 
 import * as schema from '../../schemas/payment'
@@ -71,6 +71,15 @@ export async function resolveAppleIapPack(configKV: ConfigKVService, productId: 
   return applePacks?.[productId]
 }
 
+/** Sandbox grants require a dedicated account, including on a sandbox-only deployment. */
+export function canCreditTransaction(
+  payload: JWSTransactionDecodedPayload,
+  userId: string,
+  sandboxUserIds: readonly string[],
+): boolean {
+  return payload.environment !== Environment.SANDBOX || sandboxUserIds.includes(userId)
+}
+
 /** Live `payment_customer` for this Apple `appAccountToken`. */
 export async function findLiveAccount(
   db: Database,
@@ -106,7 +115,10 @@ export function evidenceReceiptFromTransaction(
   return {
     kind: 'evidence',
     processor: APPLE_IAP_PROCESSOR,
-    processorOrderId: fields.transactionId,
+    // Keep Production order IDs stable. Both Sandbox ingress paths share this namespace.
+    processorOrderId: payload.environment === Environment.SANDBOX
+      ? `sandbox:${payload.bundleId}:${fields.transactionId}`
+      : fields.transactionId,
     userId,
     packKey: fields.productId,
     fluxAmount: pack.fluxAmount,

@@ -1,6 +1,7 @@
 import type Redis from 'ioredis'
 
 import type { RevenueMetrics } from '../../../otel'
+import type { SubscriptionService } from '../subscriptions'
 import type { BillingService } from './billing-service'
 
 import { useLogger } from '@guiiai/logg'
@@ -94,6 +95,7 @@ export function createFluxMeter(
   billingService: BillingService,
   config: FluxMeterConfig,
   metrics?: RevenueMetrics | null,
+  subscriptions?: SubscriptionService | null,
 ) {
   async function getRuntime(): Promise<FluxMeterRuntime> {
     const runtime = await config.resolveRuntime()
@@ -123,17 +125,23 @@ export function createFluxMeter(
 
   /**
    * Pre-flight balance check. Throws 402 if the user cannot afford the worst-case
-   * Flux consumption implied by current debt + new units. Call before invoking
-   * the upstream service so we fail fast and refuse to render unbillable usage.
+   * Flux consumption implied by current debt + new units. Plan quota counts as
+   * coverage, so callers keep passing the Flux balance unchanged. Call before
+   * invoking the upstream service so we fail fast and refuse to render
+   * unbillable usage.
    */
   async function assertCanAfford(userId: string, newUnits: number, currentBalance: number): Promise<void> {
     const runtime = await getRuntime()
     const existingDebt = await readDebt(userId)
     const projectedFlux = Math.floor((existingDebt + newUnits) / runtime.unitsPerFlux)
+    const planRemaining = subscriptions
+      ? (await subscriptions.getStatus(userId)).allowances.reduce((sum, allowance) => sum + allowance.remainingAmount, 0)
+      : 0
+    const effectiveBalance = currentBalance + planRemaining
     // At minimum require the user can cover a single Flux crossing; avoids
     // letting zero-balance users accumulate indefinitely on the boundary.
-    const required = Math.max(projectedFlux, currentBalance <= 0 ? 1 : 0)
-    if (currentBalance < required) {
+    const required = Math.max(projectedFlux, effectiveBalance <= 0 ? 1 : 0)
+    if (effectiveBalance < required) {
       metrics?.ttsPreflightRejections.add(1, { meter: config.name, reason: 'insufficient_balance' })
       throw createPaymentRequiredError('Insufficient flux')
     }
@@ -165,16 +173,42 @@ export function createFluxMeter(
       return { fluxDebited: 0, debtAfter: debtAfterSettlement, balanceAfter: input.currentBalance, unbilledFlux: 0 }
     }
 
-    let result: Awaited<ReturnType<typeof billingService.consumeFluxForLLM>>
+    let result: { charged: number, requested: number, flux: number }
+    let fluxAttempted = false
     try {
-      result = await billingService.consumeFluxForLLM({
-        userId: input.userId,
-        amount: fluxRequested,
-        requestId: input.requestId,
-        description: `${config.name}_request`,
-        turnId: input.turnId,
-        ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
-      })
+      // Plan quota is spent first. Flux covers the rest only when the user
+      // enabled the fallback; otherwise the remainder stays unbilled.
+      const plan = subscriptions
+        ? await subscriptions.consumeQuota({ userId: input.userId, amount: fluxRequested, requestId: input.requestId })
+        : { charged: 0, requested: fluxRequested }
+      if (plan.charged >= fluxRequested) {
+        result = { charged: plan.charged, requested: fluxRequested, flux: input.currentBalance }
+      }
+      else {
+        const rest = fluxRequested - plan.charged
+        const fallbackToFlux = subscriptions
+          ? await subscriptions.getFallbackPreference(input.userId)
+          : true
+        if (!fallbackToFlux) {
+          result = { charged: plan.charged, requested: fluxRequested, flux: input.currentBalance }
+        }
+        else {
+          fluxAttempted = true
+          const fluxResult = await billingService.consumeFluxForLLM({
+            userId: input.userId,
+            amount: rest,
+            requestId: input.requestId,
+            description: `${config.name}_request`,
+            turnId: input.turnId,
+            ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
+          })
+          result = {
+            charged: plan.charged + fluxResult.charged,
+            requested: fluxRequested,
+            flux: fluxResult.flux,
+          }
+        }
+      }
     }
     catch (error) {
       // The billing call threw (balance <= 0 hard floor, transient DB error,
@@ -238,7 +272,7 @@ export function createFluxMeter(
       metrics?.fluxUnbilled.add(unbilledFlux, {
         source: 'tts_meter',
         meter: config.name,
-        reason: 'partial_debit_drained',
+        reason: fluxAttempted ? 'partial_debit_drained' : 'plan_quota_exhausted',
         ...(typeof input.metadata?.model === 'string' && { [GEN_AI_ATTR_REQUEST_MODEL]: input.metadata.model }),
       })
 

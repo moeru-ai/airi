@@ -20,8 +20,10 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
+import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
+import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'vite'
 
 // import { isEnvTruthy } from '@proj-airi/stage-shared'
@@ -115,6 +117,7 @@ export default defineConfig({
         })())],
 
     Info(),
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8], cacheDir: sharedCacheDir }),
 
     Yaml(),
 

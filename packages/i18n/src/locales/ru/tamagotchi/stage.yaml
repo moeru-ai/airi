@@ -18,8 +18,6 @@ docs:
   'center-main-window': Переместить в центр экрана
   'open-hearing-controls': Управление слухом
   'drag-to-move-window': Перетащите окно
-  'stop-speaking': Остановить воспроизведение
-  'speaker-idle': Динамик
   'switch-to-light-mode': Переключить на светлую тему
   'switch-to-dark-mode': Переключить на темную тему
   'pin-on-top': Прикрепить на верх
@@ -47,7 +45,6 @@ notice:
     toggle: Можно выключить, наведя на {controls} и снова нажав на {icon}.
     controls-label: Остров управления
     icon-label: значок перечёркнутого глаза
-    value: '0'
     targets: Персонажа и интерфейса
     confirm: Понятно
     dont-show-again: Больше не показывать
@@ -63,7 +60,6 @@ about:
     title: Ссылки
     home: Главная
     documentation: Документация
-    github: GitHub
   update:
     lane:
       label: Канал обновления
@@ -74,8 +70,6 @@ about:
       stable: Стабильный
       alpha: Альфа
       beta: Бета
-      nightly: Nightly
-      canary: Canary
     status:
       downloading: Загрузка обновления...
       error-prefix: Ошибка

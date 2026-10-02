@@ -1,3 +1,4 @@
+import type { SubscriptionService } from '../../subscriptions'
 import type { BillingService } from '../billing-service'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,6 +33,34 @@ function createMockMetrics() {
 
 function staticRuntime(unitsPerFlux = 1000, debtTtlSeconds = 60) {
   return vi.fn(async () => ({ unitsPerFlux, debtTtlSeconds }))
+}
+
+function createMockSubscriptions(overrides?: {
+  remaining?: number
+  fallback?: boolean
+  charged?: number
+}): SubscriptionService {
+  const remaining = overrides?.remaining ?? 0
+  return {
+    getStatus: vi.fn(async () => ({
+      subscriptions: [],
+      allowances: remaining > 0
+        ? [{
+            entitlementId: 'airi_go',
+            periodStart: new Date().toISOString(),
+            periodEnd: null,
+            grantedAmount: remaining,
+            usedAmount: 0,
+            remainingAmount: remaining,
+          }]
+        : [],
+    })),
+    consumeQuota: vi.fn(async (input: { amount: number }) => ({
+      charged: overrides?.charged ?? Math.min(input.amount, remaining),
+      requested: input.amount,
+    })),
+    getFallbackPreference: vi.fn(async () => overrides?.fallback ?? true),
+  } as unknown as SubscriptionService
 }
 
 describe('fluxMeter', () => {
@@ -220,5 +249,35 @@ describe('fluxMeter', () => {
     expect(result.fluxDebited).toBe(1)
     expect(result.unbilledFlux).toBe(0)
     expect(fluxUnbilled.add).not.toHaveBeenCalled()
+  })
+
+  it('spends plan quota before flux when quota covers the whole crossing', async () => {
+    const subscriptions = createMockSubscriptions({ remaining: 50 })
+    const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() }, null, subscriptions)
+
+    const result = await meter.accumulate({ userId: 'u1', units: 1500, currentBalance: 0, requestId: 'plan-full' })
+
+    expect(result).toEqual({ fluxDebited: 1, debtAfter: 500, balanceAfter: 0, unbilledFlux: 0 })
+    expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
+  })
+
+  it('leaves the remainder unbilled when quota is short and fallback is off', async () => {
+    const { metrics, fluxUnbilled } = createMockMetrics()
+    const subscriptions = createMockSubscriptions({ remaining: 0, fallback: false, charged: 0 })
+    const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() }, metrics, subscriptions)
+
+    const result = await meter.accumulate({ userId: 'u1', units: 2500, currentBalance: 0, requestId: 'plan-short' })
+
+    expect(result.fluxDebited).toBe(0)
+    expect(result.unbilledFlux).toBe(2)
+    expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
+    expect(fluxUnbilled.add).toHaveBeenCalledWith(2, expect.objectContaining({ reason: 'plan_quota_exhausted' }))
+  })
+
+  it('passes pre-flight on plan quota with zero flux balance', async () => {
+    const subscriptions = createMockSubscriptions({ remaining: 10 })
+    const meter = createFluxMeter(redis, billing, { name: 'tts', resolveRuntime: staticRuntime() }, null, subscriptions)
+
+    await expect(meter.assertCanAfford('u1', 200, 0)).resolves.toBeUndefined()
   })
 })

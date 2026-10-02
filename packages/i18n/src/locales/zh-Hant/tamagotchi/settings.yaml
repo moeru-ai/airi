@@ -424,10 +424,7 @@ devtools:
       title: 效能顯示器
       description: 切換 FPS/長任務/記憶體覆蓋
     markdown-stress:
-      title: Markdown Stress
       description: 使用大量聊天負載來進行 Markdown 解析與渲染的壓力測試
-    io-tracer:
-      title: IO Tracer
     widgets-calling:
       title: 小工具調用
 screen-capture:

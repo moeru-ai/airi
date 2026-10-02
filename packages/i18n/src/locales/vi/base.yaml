@@ -47,4 +47,3 @@ toaster:
     message: Có phiên bản mới, tải lại ngay?
     action:
       notNow: Để sau
-      ok: OK

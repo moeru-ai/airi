@@ -14,6 +14,7 @@ docs:
     disable: 总是显示
   'open-settings': 打开设置
   'open-chat': 打开聊天
+  'hide-chat': 收起聊天
   'refresh': 刷新
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
@@ -32,6 +33,16 @@ docs:
   'logging-in': 登录中...
   'account': 账号
   'logout': 退出登录
+'chat-window':
+  style:
+    title: 聊天窗口样式
+    legacy: 经典窗口
+    floating-attached: 悬浮，吸附在角色旁
+    floating-free: 悬浮，自由摆放
+    pinned: 保持置顶
+  resize: 拖动以调整聊天大小
+  move: 拖动以移动聊天
+  fold: 收起聊天
 widgets:
   close: 关闭小部件
   empty:
@@ -39,10 +50,8 @@ widgets:
     description: 工具或插件生成的小部件将会出现在这里。
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
-
 inlay:
   close: 关闭
-
 notice:
   'fade-on-hover':
     title: 悬停淡出
@@ -51,7 +60,6 @@ notice:
     toggle: 可以通过将光标移动到 {controls} 区域，再次点击 {icon} 来关闭此功能。
     controls-label: 控制岛
     icon-label: 隐藏图标
-    value: '0'
     targets: 角色和界面
     confirm: 知道了
     dont-show-again: 不再提示
@@ -67,7 +75,6 @@ about:
     title: 网址
     home: 首页
     documentation: 文档
-    github: GitHub
   update:
     lane:
       label: 更新频道

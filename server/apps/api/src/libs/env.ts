@@ -5,7 +5,9 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, intersect, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
+
+import { S3EnvironmentSchema } from '../services/adapters/s3-config'
 
 const AdditionalTrustedOriginsSchema = pipe(
   string(),
@@ -63,7 +65,7 @@ function optionalNumberFromString(defaultValue: number, envKey: string, minimum:
   )
 }
 
-const EnvSchema = object({
+const EnvSchema = intersect([S3EnvironmentSchema, object({
   // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
   // Prefer this over broad private-IP regex heuristics in production-like configs.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
@@ -76,6 +78,11 @@ const EnvSchema = object({
   // mounted and returns 503 APPLE_IAP_DISABLED.
   APPLE_IAP_APPS: optional(AppleIapAppsSchema, ''),
   APPLE_IAP_ENV: optional(picklist(['sandbox', 'production', 'xcode']), 'sandbox'),
+  // Exact internal IDs of dedicated accounts that can receive Sandbox Flux.
+  APPLE_IAP_SANDBOX_USER_IDS: optional(pipe(
+    string(),
+    transform(raw => [...new Set(raw.split(',').map(id => id.trim()).filter(Boolean))]),
+  ), ''),
 
   AUTH_SERVER_INTERNAL_URL: optional(string()),
   AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
@@ -135,6 +142,15 @@ const EnvSchema = object({
   STRIPE_SECRET_KEY: optional(string()),
 
   STRIPE_WEBHOOK_SECRET: optional(string()),
+  // RevenueCat webhooks. Either the dashboard authorization header value or
+  // the HMAC signing secret verifies the sender. Routes stay mounted and
+  // return 503 when both are unset.
+  REVENUECAT_WEBHOOK_AUTH: optional(string()),
+  REVENUECAT_WEBHOOK_SECRET: optional(string()),
+  // RevenueCat Developer API v2 for lazy entitlement reconciliation.
+  // Unset disables reconciliation; webhooks keep working.
+  REVENUECAT_API_SECRET: optional(string()),
+  REVENUECAT_PROJECT_ID: optional(string()),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.
@@ -148,7 +164,7 @@ const EnvSchema = object({
   // file:// and sends no usable web origin. Web/mobile requests keep returning to
   // their own origin; only origin-less clients fall back to this.
   WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
-})
+})])
 
 export type Env = InferOutput<typeof EnvSchema>
 
