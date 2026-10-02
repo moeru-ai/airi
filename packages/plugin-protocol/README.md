@@ -29,6 +29,8 @@ The `connection` route expression matches exact server connection IDs. It does n
 `extension:module:announce` can carry a `cognition` declaration. `scenes` lists binding prefixes that the module serves, inside its own `<name>:` namespace.
 A module with scenes can send input only with a matching binding. It can never name a session. A module without scenes speaks for the owner.
 `registry:modules:sync` lists each module with its `connectionId` and `cognition`. Only the server sends it.
+`speech:device` lets a module offer or withdraw a speech device for one of its declared scenes, for example a Discord voice channel.
+`speech:audio` carries one encoded speech segment to a device, and `speech:stop` stops it. Both need explicit route destinations.
 `spark:notify.coalesceKey` lets a newer notification replace waiting ones from the same source. Use it only for state whose older version has no remaining meaning.
 
 - You need canonical protocol contracts for plugin <-> host communication.

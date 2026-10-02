@@ -895,7 +895,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     }
 
     // Chat output and source details can contain private text. Missing routes never authorize broadcast, even for devtools or configured middleware.
-    const isDirectedOnly = event.type.startsWith('output:gen-ai:chat:') || event.type === 'context:source:request' || event.type === 'context:source:response'
+    const isDirectedOnly = event.type.startsWith('output:gen-ai:chat:') || event.type === 'context:source:request' || event.type === 'context:source:response' || event.type === 'speech:audio' || event.type === 'speech:stop'
     if (isDirectedOnly && !event.route?.destinations?.length)
       return
 

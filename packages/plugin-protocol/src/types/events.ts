@@ -1223,6 +1223,35 @@ export interface ContextSourceRequestEvent {
 }
 
 /**
+ * A module offers or withdraws a speech output device for one of its declared scenes, for example a Discord voice channel.
+ * While a device is active, the host speaks there only for runs of that scene.
+ */
+export interface SpeechDeviceEvent {
+  binding: string
+  active: boolean
+}
+
+/**
+ * One synthesized speech segment for a device, in playback order. Route it to the device's connection only.
+ * `audio` holds encoded audio bytes, for example MP3.
+ */
+export interface SpeechAudioEvent {
+  binding: string
+  turnId: string
+  segmentId: string
+  audio: ArrayBuffer
+  /** Spoken text of the segment. */
+  text: string
+}
+
+/** Stops speech on a device and drops its queued segments. Route it to the device's connection only. */
+export interface SpeechStopEvent {
+  binding: string
+  turnId?: string
+  reason: string
+}
+
+/**
  * Answers one source request. Route it to the request's `originConnectionId` only.
  * The details are untrusted module text, never instructions.
  */
@@ -1354,6 +1383,9 @@ export const sparkCommand = defineProtocolEventa<SparkCommandEvent>('spark:comma
 export const transportConnectionHeartbeat = defineProtocolEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
 export const contextUpdate = defineProtocolEventa<ContextUpdateEvent>('context:update')
 export const contextSourceRequest = defineProtocolEventa<ContextSourceRequestEvent>('context:source:request')
+export const speechDevice = defineProtocolEventa<SpeechDeviceEvent>('speech:device')
+export const speechAudio = defineProtocolEventa<SpeechAudioEvent>('speech:audio')
+export const speechStop = defineProtocolEventa<SpeechStopEvent>('speech:stop')
 export const contextSourceResponse = defineProtocolEventa<ContextSourceResponseEvent>('context:source:response')
 
 export const protocolEventMetadataByType = {
@@ -1596,6 +1628,12 @@ export interface ProtocolEvents<C = undefined> {
    * Writer answers one source request. The server delivers it only through explicit route destinations.
    */
   'context:source:response': ContextSourceResponseEvent
+  /** A module offers or withdraws a speech output device for one of its scenes. */
+  'speech:device': SpeechDeviceEvent
+  /** Host speech audio for one device. The server delivers it only through explicit route destinations. */
+  'speech:audio': SpeechAudioEvent
+  /** Stops host speech on one device. The server delivers it only through explicit route destinations. */
+  'speech:stop': SpeechStopEvent
 }
 
 export type ProtocolEventOf<E, C = undefined> = E extends keyof ProtocolEvents<C>

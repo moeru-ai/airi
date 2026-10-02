@@ -22,6 +22,7 @@ These transport rules do not assign audience labels or authorize access to priva
 
 Module removal notifications come from server-owned disconnect and liveness cleanup.
 Client-authored `extension:module:de-announced` events never enter peer routing, so a module cannot revoke another writer's observations.
+`speech:audio` and `speech:stop` follow the directed-event rule. Without explicit destinations, the server drops them.
 The module list in `registry:modules:sync` carries each module's connection and `cognition` declaration. Client-authored module lists never enter peer routing.
 
 ## Validation

@@ -469,4 +469,28 @@ describe('setupApp websocket liveness', () => {
       runtime.dispose()
     }
   })
+
+  // Speech for a voice device reaches only that device. A missing destination must not broadcast audio to every module.
+  it('delivers speech audio and stop events only through explicit destinations', () => {
+    const runtime = setupApp()
+    try {
+      const handler = wsHandler()
+      const host = createPeer('host')
+      const device = createPeer('device')
+      const observer = createPeer('observer')
+      for (const client of [host, device, observer])
+        handler.open?.(client.peer)
+      const metadata = { source: { id: 'host', extension: { id: 'host' } }, event: { id: 'speech' } }
+
+      sendEvent(handler, host.peer, { type: 'speech:audio', data: { binding: 'discord:channel:a', turnId: 't', segmentId: 's', audio: new ArrayBuffer(0), text: 'hi' }, metadata } as WebSocketEvent)
+      sendEvent(handler, host.peer, { type: 'speech:stop', data: { binding: 'discord:channel:a', reason: 'untargeted' }, metadata } as WebSocketEvent)
+      sendEvent(handler, host.peer, { type: 'speech:stop', data: { binding: 'discord:channel:a', reason: 'targeted' }, route: { destinations: [{ type: 'connection', connections: ['device'] }] }, metadata } as WebSocketEvent)
+
+      expect(decodeEvents(device.sent).flatMap(event => event.type === 'speech:stop' || event.type === 'speech:audio' ? [event.type] : [])).toEqual(['speech:stop'])
+      expect(decodeEvents(observer.sent).filter(event => event.type.startsWith('speech:'))).toEqual([])
+    }
+    finally {
+      runtime.dispose()
+    }
+  })
 })
