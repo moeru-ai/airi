@@ -95,12 +95,8 @@ const isSpotlightWindow = initialRoutePath === '/spotlight'
 // The floating chat resizes from its own grip, which keeps the corner beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
-const supportsIOTraceRecording = initialRoutePath === '/' || isSettingsWindow || initialRoutePath.startsWith('/devtools/')
-const stopIOTraceRecordingBridge = supportsIOTraceRecording
-  ? initializeIOTraceRecordingBridge({
-      context: context.value,
-      forwardLocalSpans: initialRoutePath === '/',
-    })
+const stopIOTraceRecordingBridge = initialRoutePath === '/'
+  ? initializeIOTraceRecordingBridge(context.value)
   : undefined
 
 async function refreshPluginRuntimeTools() {

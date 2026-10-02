@@ -1,96 +1,84 @@
 import type { SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import { IOTraceRecordingService } from '.'
-import { readLatestIOTraceCapture } from './capture'
 
-const temporaryDirectories: string[] = []
+const directories: string[] = []
 
-function endedSpan(): SerializedIOSpan {
+function span(spanId: string): SerializedIOSpan {
   return {
     attributes: {},
     ended: true,
-    endTimeNano: '2',
+    endTimeNano: '3000000',
     events: [],
     kind: 0,
-    name: 'interaction.turn',
+    name: 'llm.stream',
     parentSpanId: '',
-    spanId: 'span-1',
-    startTimeNano: '1',
+    spanId,
+    startTimeNano: '1000000',
     status: { code: 1, message: '' },
     traceId: 'trace-1',
   }
 }
 
-async function temporaryDirectory() {
-  const directory = await mkdtemp(join(tmpdir(), 'airi-io-trace-service-'))
-  temporaryDirectories.push(directory)
-  return directory
+async function createService(initiallyEnabled = false) {
+  const root = await mkdtemp(join(tmpdir(), 'airi-io-trace-'))
+  directories.push(root)
+  const directory = join(root, 'io-traces')
+  let stored = initiallyEnabled
+  const service = new IOTraceRecordingService({
+    directory,
+    getStoredEnabled: () => stored,
+    setStoredEnabled: (enabled) => {
+      stored = enabled
+    },
+  })
+  return { directory, service, stored: () => stored }
 }
 
 afterEach(async () => {
-  await Promise.all(temporaryDirectories.splice(0).map(path => rm(path, { force: true, recursive: true })))
+  await Promise.all(directories.splice(0).map(path => rm(path, { force: true, recursive: true })))
 })
 
 describe('iOTraceRecordingService', () => {
-  it('restores the persisted preference, records spans, and keeps the preference during shutdown', async () => {
-    const capturesDirectory = await temporaryDirectory()
-    const setStoredEnabled = vi.fn()
-    const stateListener = vi.fn()
-    const service = new IOTraceRecordingService({
-      capturesDirectory,
-      getStoredEnabled: () => true,
-      setStoredEnabled,
-    })
-    service.onStateChange(stateListener)
+  it('appends ended spans as JSON Lines only while recording and keeps the setting on dispose', async () => {
+    const { directory, service, stored } = await createService()
 
-    await service.restore()
-    expect(service.getState()).toMatchObject({
-      capturesDirectory,
-      enabled: true,
-    })
-    expect(setStoredEnabled).not.toHaveBeenCalled()
+    await service.recordSpan(span('before'))
+    const started = await service.setEnabled(true)
+    await Promise.all([service.recordSpan(span('first')), service.recordSpan(span('second'))])
+    await service.setEnabled(false)
+    await service.recordSpan(span('after'))
 
-    await expect(service.recordSpan(endedSpan())).resolves.toBe(true)
-    await expect(service.getRecordedSpans()).resolves.toEqual([endedSpan()])
-    await expect(readLatestIOTraceCapture(capturesDirectory)).resolves.toMatchObject({ spanCount: 1 })
+    expect(started.filePath).toBeDefined()
+    const lines = (await readFile(started.filePath!, 'utf8')).trim().split('\n').map(line => JSON.parse(line))
+    expect(lines.map(line => line.spanId)).toEqual(['first', 'second'])
+    expect(await readdir(directory)).toHaveLength(1)
+    expect(stored()).toBe(false)
 
+    await service.setEnabled(true)
     await service.dispose()
-    expect(setStoredEnabled).not.toHaveBeenCalled()
-    expect(stateListener).toHaveBeenCalledWith(expect.objectContaining({ enabled: true }))
-    await expect(readLatestIOTraceCapture(capturesDirectory)).resolves.toMatchObject({
-      active: false,
-      spanCount: 1,
-    })
+    expect(stored()).toBe(true)
+    expect(service.getState().enabled).toBe(false)
   })
 
-  it('uses one main-owned switch and explicitly rejects a late span after recording stops', async () => {
-    const capturesDirectory = await temporaryDirectory()
-    let storedEnabled = false
-    const service = new IOTraceRecordingService({
-      capturesDirectory,
-      getStoredEnabled: () => storedEnabled,
-      setStoredEnabled: (enabled) => {
-        storedEnabled = enabled
-      },
-    })
+  it('restores the stored setting and removes files older than seven days', async () => {
+    const { directory, service } = await createService()
+    await service.setEnabled(true)
+    await service.dispose()
+    const stale = join(directory, 'stale.jsonl')
+    await writeFile(stale, '{}\n')
+    const old = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000)
+    await utimes(stale, old, old)
 
-    const enabled = await service.setEnabled(true)
-    expect(enabled.enabled).toBe(true)
-    expect(enabled.captureId).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-    expect(storedEnabled).toBe(true)
+    await service.restore()
 
-    const disabled = await service.setEnabled(false)
-    expect(disabled).toEqual({
-      capturesDirectory,
-      enabled: false,
-    })
-    expect(storedEnabled).toBe(false)
-    await expect(service.recordSpan(endedSpan())).resolves.toBe(false)
+    expect(service.getState().enabled).toBe(true)
+    expect(await readdir(directory)).not.toContain('stale.jsonl')
   })
 })

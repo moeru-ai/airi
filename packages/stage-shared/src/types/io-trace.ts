@@ -18,9 +18,8 @@ export interface SerializedIOSpan {
 
 /** Runtime state for Electron-owned IO trace recording. */
 export interface IOTraceRecordingState {
-  captureId?: string
-  capturePath?: string
-  capturesDirectory: string
+  directory: string
   enabled: boolean
   error?: string
+  filePath?: string
 }

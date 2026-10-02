@@ -1,37 +1,33 @@
 import type { IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 
-import { randomUUID } from 'node:crypto'
+import { appendFile, mkdir, readdir, rm, stat } from 'node:fs/promises'
+import { join } from 'node:path'
 
 import { errorMessageFrom } from '@moeru/std'
+import { Mutex } from 'async-mutex'
 
-import { IOTraceCaptureWriter } from './capture'
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
 interface IOTraceRecordingServiceOptions {
-  capturesDirectory: string
+  directory: string
   getStoredEnabled: () => boolean
   setStoredEnabled: (enabled: boolean) => void
-  now?: () => Date
-}
-
-function createCaptureId(now: Date) {
-  return `${now.toISOString().replace(/[:.]/g, '-')}-${randomUUID()}`
 }
 
 export class IOTraceRecordingService {
   private readonly listeners = new Set<(state: IOTraceRecordingState) => void>()
-  private capture: IOTraceCaptureWriter | undefined
+  private readonly mutex = new Mutex()
+  private filePath: string | undefined
   private error: string | undefined
-  private transition = Promise.resolve()
 
   constructor(private readonly options: IOTraceRecordingServiceOptions) {}
 
   getState(): IOTraceRecordingState {
     return {
-      captureId: this.capture?.captureId,
-      capturePath: this.capture?.captureDirectory,
-      capturesDirectory: this.options.capturesDirectory,
-      enabled: this.capture !== undefined,
+      directory: this.options.directory,
+      enabled: this.filePath !== undefined,
       error: this.error,
+      filePath: this.filePath,
     }
   }
 
@@ -41,91 +37,64 @@ export class IOTraceRecordingService {
   }
 
   async restore(): Promise<void> {
-    if (!this.options.getStoredEnabled())
-      return
-    await this.start()
+    if (this.options.getStoredEnabled())
+      await this.setEnabled(true, false)
   }
 
-  setEnabled(enabled: boolean): Promise<IOTraceRecordingState> {
-    return this.runTransition(async () => {
+  async setEnabled(enabled: boolean, persist = true): Promise<IOTraceRecordingState> {
+    return await this.mutex.runExclusive(async () => {
       if (enabled)
         await this.start()
       else
-        await this.stop()
+        this.filePath = undefined
 
-      this.options.setStoredEnabled(enabled)
-      return this.getState()
+      if (persist)
+        this.options.setStoredEnabled(enabled)
+      const state = this.getState()
+      for (const listener of this.listeners)
+        listener(state)
+      return state
     })
   }
 
-  async recordSpan(span: SerializedIOSpan): Promise<boolean> {
-    const capture = this.capture
-    if (!capture)
-      return false
-
-    try {
-      await capture.appendSpan(span)
-      return true
-    }
-    catch (error) {
-      this.error = errorMessageFrom(error) ?? 'Failed to record an IO trace span.'
-      this.emitState()
-      throw error
-    }
-  }
-
-  async getRecordedSpans(): Promise<SerializedIOSpan[]> {
-    const capture = this.capture
-    if (!capture)
-      return []
-    return (await capture.read()).spans.map(item => item.span)
+  async recordSpan(span: SerializedIOSpan): Promise<void> {
+    await this.mutex.runExclusive(async () => {
+      if (!this.filePath)
+        return
+      await appendFile(this.filePath, `${JSON.stringify(span)}\n`, { mode: 0o600 })
+    })
   }
 
   async dispose(): Promise<void> {
-    await this.runTransition(() => this.stop())
-  }
-
-  private runTransition<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.transition.then(operation, operation)
-    this.transition = result.then(() => undefined, () => undefined)
-    return result
+    await this.mutex.runExclusive(() => {
+      this.filePath = undefined
+    })
   }
 
   private async start(): Promise<void> {
-    if (this.capture)
+    if (this.filePath)
       return
 
-    this.error = undefined
-    const now = this.options.now?.() ?? new Date()
     try {
-      this.capture = await IOTraceCaptureWriter.start({
-        captureId: createCaptureId(now),
-        capturesDirectory: this.options.capturesDirectory,
-        now: this.options.now,
-      })
-      this.emitState()
+      await mkdir(this.options.directory, { mode: 0o700, recursive: true })
+      await this.pruneExpiredFiles()
+      this.filePath = join(this.options.directory, `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`)
+      this.error = undefined
     }
     catch (error) {
       this.error = errorMessageFrom(error) ?? 'Failed to start IO trace recording.'
-      this.emitState()
       throw error
     }
   }
 
-  private async stop(): Promise<void> {
-    const capture = this.capture
-    if (!capture)
-      return
-
-    await capture.stop()
-    this.capture = undefined
-    this.error = undefined
-    this.emitState()
-  }
-
-  private emitState() {
-    const state = this.getState()
-    for (const listener of this.listeners)
-      listener(state)
+  private async pruneExpiredFiles(): Promise<void> {
+    const cutoff = Date.now() - RETENTION_MS
+    for (const name of await readdir(this.options.directory)) {
+      if (!name.endsWith('.jsonl'))
+        continue
+      const path = join(this.options.directory, name)
+      if ((await stat(path)).mtimeMs < cutoff)
+        await rm(path)
+    }
   }
 }

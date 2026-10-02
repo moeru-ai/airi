@@ -44,9 +44,8 @@ export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windo
 
 export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('eventa:event:electron:io-trace-recording:changed')
 export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
-export const ioTraceRecordingGetSpans = defineInvokeEventa<SerializedIOSpan[]>('eventa:invoke:electron:io-trace-recording:get-spans')
 export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
-export const ioTraceRecordingRecordSpan = defineInvokeEventa<boolean, SerializedIOSpan>('eventa:invoke:electron:io-trace-recording:record-span')
+export const ioTraceRecordingRecordSpan = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-recording:record-span')
 
 /**
  * Which window the Controls Island chat button opens.

@@ -535,7 +535,7 @@ devtools:
       title: IO Tracer
       recording:
         title: Record IO traces automatically
-        description: Start recording when AIRI launches and save ended spans locally for CLI analysis. The IO Tracer window uses this same switch.
+        description: Save ended IO spans as JSON Lines in the app data folder so coding agents can analyze them. Files older than seven days are removed.
     widgets-calling:
       title: Widget Calling
 

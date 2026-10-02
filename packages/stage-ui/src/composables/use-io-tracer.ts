@@ -78,6 +78,7 @@ export function serializeSpan(span: ReadableSpan): SerializedIOSpan {
 }
 
 let provider: BasicTracerProvider | undefined
+let spanCallback: SpanCallback | undefined
 const spanSubscribers = new Set<SpanCallback>()
 let broadcastChannel: BroadcastChannel | undefined
 
@@ -85,6 +86,7 @@ export function createCallbackSpanExporter(): SpanExporter {
   return {
     export: (spans, resultCallback) => {
       for (const span of spans) {
+        spanCallback?.(span)
         for (const subscriber of spanSubscribers)
           subscriber(span)
 
@@ -122,6 +124,10 @@ export function initIOTracer() {
 export function subscribeIOSpan(subscriber: SpanCallback): () => void {
   spanSubscribers.add(subscriber)
   return () => spanSubscribers.delete(subscriber)
+}
+
+export function onIOSpan(cb: SpanCallback | undefined) {
+  spanCallback = cb
 }
 
 export function onRemoteIOSpan(cb: SpanCallback): () => void {

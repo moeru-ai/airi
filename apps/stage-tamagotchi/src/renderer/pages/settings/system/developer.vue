@@ -1,18 +1,41 @@
 <script setup lang="ts">
-import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import type { IOTraceRecordingState } from '@proj-airi/stage-shared/types/io-trace'
+
+import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ButtonBar, CheckBar, IconItem } from '@proj-airi/stage-ui/components'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
-import { computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
-import IOTraceRecordingSetting from '../../../components/settings/IOTraceRecordingSetting.vue'
-
-import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools } from '../../../../shared/eventa'
+import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools, ioTraceRecordingChanged, ioTraceRecordingGet, ioTraceRecordingSetEnabled } from '../../../../shared/eventa'
 
 const { t } = useI18n()
 const settings = useSettings()
 const router = useRouter()
+const eventaContext = useElectronEventaContext()
+const getIOTraceRecording = useElectronEventaInvoke(ioTraceRecordingGet)
+const setIOTraceRecordingEnabled = useElectronEventaInvoke(ioTraceRecordingSetEnabled)
+const ioTraceRecording = ref<IOTraceRecordingState>()
+const ioTraceRecordingBusy = ref(false)
+
+const stopIOTraceRecordingListener = eventaContext.value.on(ioTraceRecordingChanged, (event) => {
+  ioTraceRecording.value = event.body
+})
+onMounted(async () => {
+  ioTraceRecording.value = await getIOTraceRecording()
+})
+onUnmounted(stopIOTraceRecordingListener)
+
+async function updateIOTraceRecording(enabled: boolean | undefined) {
+  ioTraceRecordingBusy.value = true
+  try {
+    ioTraceRecording.value = await setIOTraceRecordingEnabled({ enabled: enabled === true })
+  }
+  finally {
+    ioTraceRecordingBusy.value = false
+  }
+}
 
 const menu = computed(() => [
   {
@@ -159,7 +182,17 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   >
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
-  <IOTraceRecordingSetting />
+  <CheckBar
+    :model-value="ioTraceRecording?.enabled ?? false"
+    :disabled="ioTraceRecording === undefined || ioTraceRecordingBusy"
+    :class="['mb-2']"
+    icon-on="i-solar:record-circle-bold-duotone"
+    icon-off="i-solar:record-circle-line-duotone"
+    text="tamagotchi.settings.devtools.pages.io-tracer.recording.title"
+    description="tamagotchi.settings.devtools.pages.io-tracer.recording.description"
+    transition="all ease-in-out duration-250"
+    @update:model-value="updateIOTraceRecording"
+  />
   <ButtonBar
     :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     icon="i-solar:chart-square-bold-duotone"

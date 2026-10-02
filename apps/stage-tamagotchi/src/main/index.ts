@@ -235,7 +235,7 @@ app.whenReady().then(async () => {
     dependsOn: { config: ioTraceRecordingConfig, lifecycle },
     build: ({ dependsOn }) => {
       const service = new IOTraceRecordingService({
-        capturesDirectory: join(app.getPath('userData'), 'io-traces'),
+        directory: join(app.getPath('userData'), 'io-traces'),
         getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
         setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
       })
@@ -270,10 +270,7 @@ app.whenReady().then(async () => {
   // Beat Sync uses a background renderer because Web Audio processing needs a DOM runtime.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
-  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', {
-    dependsOn: { ioTraceRecording },
-    build: ({ dependsOn }) => setupDevtoolsWindow(dependsOn),
-  })
+  const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
 
   const onboardingWindowManager = injeca.provide('windows:onboarding', {
     dependsOn: { serverChannel, i18n },
