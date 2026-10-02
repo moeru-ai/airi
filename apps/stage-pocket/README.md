@@ -6,6 +6,11 @@
 
 > Heavily inspired by [Neuro-sama](https://www.youtube.com/@Neurosama)
 
+## Local Hearing
+
+Stage Pocket exposes Sherpaw models through the shared Vite plugin. The models load from pinned remote URLs when selected.
+Chinese and English start with Paraformer. Other languages use an available model that supports them.
+
 ## WebSocket Bridge
 
 Stage Pocket adds a host-backed WebSocket bridge for `@proj-airi/server-sdk`.

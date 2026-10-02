@@ -1030,6 +1030,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       throw error
     }
     finally {
+      if (!assistantStored
+        && !generationCompleted
+        && abortSignal.aborted
+        && !isStaleGeneration()
+        && hasAssistantOutput(buildingMessage)) {
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        resetForegroundStream(sessionId)
+      }
       setSending(false)
       deps.onSendSettled?.({ sessionId })
     }

@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import messages from '@proj-airi/i18n/locales'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
@@ -17,8 +18,11 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
+import { localeRemap, serializeStartupFallbackLocales } from '@proj-airi/i18n'
+import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
+import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -120,6 +124,10 @@ export default defineConfig({
   },
 
   plugins: [
+    {
+      name: 'airi-startup-locales',
+      transformIndexHtml: html => html.replace('__AIRI_STARTUP_LOCALES__', serializeStartupFallbackLocales(messages, localeRemap)),
+    },
     ...(
       hasFlagEnableMkcert()
         ? [Mkcert((() => {
@@ -242,6 +250,8 @@ export default defineConfig({
     // after the test app is gone, so only load this plugin for the real app.
     ...(env.VITEST ? [] : [VueDevTools()]),
 
+    // Web exposes pinned remote models. The browser downloads only the selected model.
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8], cacheDir: sharedCacheDir }),
     DownloadLive2DSDK(),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_free_zh.zip', 'hiyori_free_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
     Download('https://dist.ayaka.moe/live2d-models/hiyori_pro_zh.zip', 'hiyori_pro_zh.zip', 'live2d/models', { parentDir: stageUIAssetsRoot, cacheDir: sharedCacheDir }),
@@ -299,7 +309,7 @@ export default defineConfig({
       : [
           Basemove({
             prefix: env.STAGE_WEB_WARP_DRIVE_PREFIX || 'proj-airi/stage-web/main/',
-            include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i], // in existing assets, wasm, ttf, vrm files are the largest ones
+            include: [/\.wasm$/i, /\.ttf$/i, /\.vrm$/i, /\.zip$/i, /\.(?:data|metadata)$/i],
             manifest: true,
             clean: false,
             contentTypeBy: (filename: string) => {
@@ -309,7 +319,10 @@ export default defineConfig({
               if (filename.endsWith('.ttf')) {
                 return 'font/ttf'
               }
-              if (filename.endsWith('.vrm')) {
+              if (filename.endsWith('.metadata')) {
+                return 'application/json'
+              }
+              if (filename.endsWith('.vrm') || filename.endsWith('.data')) {
                 return 'application/octet-stream'
               }
               if (filename.endsWith('.zip')) {

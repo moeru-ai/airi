@@ -1,9 +1,9 @@
 import type { RevenueMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../../services/adapters/config-kv'
-import type { UsageInfo } from '../../../../services/domain/billing/billing'
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
 import type { FluxMeter } from '../../../../services/domain/billing/flux-meter'
 import type { FluxService } from '../../../../services/domain/flux'
+import type { UsageInfo } from '../../../../services/domain/generation-usage'
 
 import { calculateFluxFromUsage } from '../../../../services/domain/billing/billing'
 import { createPaymentRequiredError } from '../../../../utils/error'

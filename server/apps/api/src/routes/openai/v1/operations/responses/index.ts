@@ -1,13 +1,16 @@
 import type { InferOutput } from 'valibot'
 
+import type { RequestObservation } from '../../../../../services/domain/generation-observation'
+import type { UsageInfo } from '../../../../../services/domain/generation-usage'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
 import { errorMessageFrom } from '@moeru/std'
 import { EventSourceParserStream } from '@xsai/shared-stream'
-import { array, integer, looseObject, minValue, nullable, number, object, optional, picklist, pipe, regex, safeParse, string, unknown } from 'valibot'
+import { array, integer, looseObject, minValue, nullable, number, optional, picklist, pipe, regex, safeParse, string, unknown } from 'valibot'
 
+import { extractUsageFromBody } from '../../../../../services/domain/generation-usage'
 import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders } from '../../http/response'
@@ -20,7 +23,7 @@ const responseSchema = looseObject({
   id: string(),
   status: picklist(['completed', 'failed', 'incomplete', 'in_progress', 'queued', 'cancelled']),
   output: array(unknown()),
-  usage: optional(nullable(object({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
+  usage: optional(nullable(looseObject({ input_tokens: tokens, output_tokens: tokens, total_tokens: tokens }))),
 })
 const eventSchema = looseObject({
   type: pipe(string(), regex(/^[^\r\n]+$/, 'Responses event types cannot contain line breaks')),
@@ -111,6 +114,8 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const { requiresWebSearch } = input.policy
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
+    const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
     const startTrace = () => deps.llmTracing.startChatGeneration({
@@ -132,6 +137,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         protocol: 'responses',
         requiresWebSearch,
         abortSignal: input.abortSignal,
+        attempts,
       }))
       upstream = routed.response
       routeCtx = routed.routeCtx
@@ -147,7 +153,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       startTrace().fail('Responses routing failed')
       const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, model, status, durationMs, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs, fluxConsumed: 0 })
       throw error
     }
 
@@ -155,15 +161,30 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     // One request has one terminal outcome. A delivered terminal frame owns settlement;
     // cancellation before delivery and unexpected EOF own the failure path.
     let terminal = false
+    let lastUsage: UsageInfo = {}
+    let timeToFirstTokenMs: number | undefined
+    const observation: RequestObservation = {
+      startedAt: new Date(startedAt),
+      attemptId: routeCtx.attemptId,
+      status: upstream.status,
+      durationMs: Date.now() - startedAt,
+      protocol: 'responses',
+      stream: input.policy.stream,
+      requestedModel: input.policy.model,
+      sessionId: input.sessionId,
+      gateway: routeCtx.provider,
+      upstreamModel: routeCtx.upstreamModel,
+      routing: { triedUpstreams: routeCtx.triedUpstreams, triedKeys: routeCtx.triedKeys, lastStatus: routeCtx.lastStatus ?? undefined },
+    }
     function fail(status: number, message: string) {
       if (terminal)
         return
       terminal = true
+      const durationMs = Date.now() - startedAt
       generation.fail(message)
       telemetry.failSpan(span, message)
-      const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, model, status, durationMs, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ ...observation, ...lastUsage, timeToFirstTokenMs, userId: input.userId, requestId, model, status, durationMs, fluxConsumed: 0 })
     }
 
     async function complete(response: InferOutput<typeof responseSchema>) {
@@ -174,12 +195,14 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         return
       }
       terminal = true
-      const usage = { promptTokens: response.usage?.input_tokens, completionTokens: response.usage?.output_tokens }
-      const amount = billing.priceChatUsage(usage, policy)
+      const usage = { ...lastUsage, ...Object.fromEntries(Object.entries(extractUsageFromBody(response, 'responses')).filter(([, value]) => value != null)) }
+      const durationMs = Date.now() - startedAt
+      const price = { amount: billing.priceChatUsage(usage, policy) }
+      const amount = price.amount
       const stage = input.policy.stream ? 'streaming' : 'non_streaming'
       let charged = 0
       try {
-        charged = await billing.settleChat({ ...usage, userId: input.userId, requestId, model, amount, stage, logger })
+        charged = await billing.settleChat({ ...usage, ...price, userId: input.userId, requestId, model, stage, logger })
       }
       catch (error) {
         // Generation has completed. A debit failure is revenue telemetry, not a new provider attempt.
@@ -189,9 +212,8 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       telemetry.recordUsageOnSpan(span, { ...usage, fluxConsumed: charged })
       telemetry.endSpan(span)
       generation.succeed({ ...usage, output: response.output, fluxConsumed: charged })
-      const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ ...usage, model, status: upstream.status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: charged })
-      telemetry.recordRequestLog({ ...usage, userId: input.userId, model, status: upstream.status, durationMs, fluxConsumed: charged })
+      telemetry.recordRequestLog({ ...observation, ...usage, timeToFirstTokenMs, userId: input.userId, requestId, model, status: upstream.status, durationMs, fluxConsumed: charged })
     }
 
     telemetry.setHttpStatus(span, upstream.status)
@@ -209,6 +231,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         // Abort the body pipe too: the router's header timeout no longer owns this stream.
         const body = upstream.body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>(), { signal: input.abortSignal })
         const value: unknown = await new Response(body).json()
+        lastUsage = extractUsageFromBody(value, 'responses')
         const parsed = safeParse(responseSchema, value)
         if (!parsed.success)
           throw createBadGatewayError('Invalid Responses JSON response')
@@ -275,10 +298,17 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
           if (!event.success)
             throw new Error('Invalid Responses SSE event')
           const type = event.output.type
+          if (event.output.response !== undefined) {
+            const usage = extractUsageFromBody(event.output.response, 'responses')
+            if (lastUsage.generationId && usage.generationId && lastUsage.generationId !== usage.generationId)
+              throw new Error('Responses generation ID changed during the stream')
+            lastUsage = { ...lastUsage, ...Object.fromEntries(Object.entries(usage).filter(([, value]) => value != null)) }
+          }
           if (openRouterStream)
             observeOpenRouterEvent(openRouterStream, event.output)
           if (firstOutputDelta && type.endsWith('.delta')) {
             firstOutputDelta = false
+            timeToFirstTokenMs = Date.now() - startedAt
             telemetry.recordFirstToken({ model, provider: routeCtx.provider, startedAt, firstChunkAt: Date.now(), operation: 'responses' })
           }
           const terminalEvent = ['response.completed', 'response.failed', 'response.incomplete'].includes(type)

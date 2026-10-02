@@ -6,8 +6,10 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
 
+import { useProviderStore } from '../providers/provider'
 import { useAiriCardStore } from './airi-card'
 import { useConsciousnessStore } from './consciousness'
+import { useVisionStore } from './vision'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({ locale: { value: 'en' }, t: (key: string) => key }),
@@ -59,6 +61,33 @@ describe('persisted and replicated card defaults', () => {
     expect(cards.moduleDefaults?.consciousness.provider).toBe('ollama')
     await cards.initialize()
     expect(consciousness.activeModel).toBe('global-model')
+  })
+
+  it('stores the catalog default when a follower selects a vision provider', async () => {
+    // ROOT CAUSE:
+    //
+    // Selecting a vision provider stored an empty model on the card before the
+    // catalog loaded, so applying the card again restored the empty model.
+    //
+    // We fixed this with a leader command that stores the catalog default.
+    const namespace = `card-vision-${crypto.randomUUID()}`
+    const leaderRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'leader-only' })
+    const leader = createContext(leaderRuntime)
+    await expect.poll(() => leaderRuntime.isLeader()).toBe(true)
+    await leader.cards.initialize()
+    // The browser test has no Electron addon, so the leader holds the catalog state.
+    useProviderStore(leader.pinia).providerRuntimeState = {
+      'apple-vision': { models: [], defaultModel: 'system', modelStatus: 'ready', modelError: null },
+    }
+
+    const followerRuntime = createSyncedPiniaPlugin({ namespace, leadership: 'follower-only' })
+    const follower = createContext(followerRuntime)
+    await expect.poll(() => follower.cards.activeCard).toBeDefined()
+
+    await follower.cards.selectActiveCardVisionProvider('apple-vision')
+
+    await expect.poll(() => leader.cards.activeCard?.extensions.airi.modules.vision).toEqual({ provider: 'apple-vision', model: 'system' })
+    await expect.poll(() => useVisionStore(follower.pinia).activeModel).toBe('system')
   })
 
   it('does not publish a follower state proposal after a card snapshot', async () => {

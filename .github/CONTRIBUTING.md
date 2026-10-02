@@ -5,45 +5,27 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 ## Prerequisites
 
 - [Git](https://git-scm.com/downloads)
-- [Node.js 23+](https://nodejs.org/en/download/)
-- [corepack](https://github.com/nodejs/corepack)
-- [pnpm](https://pnpm.io/installation)
+- [mise](https://mise.jdx.dev/installing-mise.html), or another version manager that reads `.tool-versions`
+
+The repository pins tool versions in [`.tool-versions`](../.tool-versions), including Node.js and pnpm.
+The `packageManager` field in [`package.json`](../package.json) also specifies the pnpm version.
+After you clone the repository, install these versions with mise.
 
 <details>
 <summary>Windows setup</summary>
 
-0. Download [Visual Studio](https://visualstudio.microsoft.com/downloads/) and follow the instructions here: https://rust-lang.github.io/rustup/installation/windows-msvc.html#walkthrough-installing-visual-studio-2022
-
-   > Make sure to install Windows SDK and C++ build tools when installing Visual Studio.
-
-1. Open PowerShell
-2. Install [`scoop`](https://scoop.sh/)
+1. Open PowerShell.
+2. Install [`scoop`](https://scoop.sh/).
 
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
    ```
 
-3. Install `git`, Node.js, `rustup`, `msvc` through `scoop`
+3. Install Git and mise with Scoop.
 
    ```powershell
-   scoop install git nodejs rustup
-
-   # For Rust dependencies
-   # Not required if you are not going to develop on either crates or apps/tamagotchi
-   scoop install main/rust-msvc
-   # Rust & Windows specific
-   rustup toolchain install stable-x86_64-pc-windows-msvc
-   rustup default stable-x86_64-pc-windows-msvc
-   ```
-
-   > https://stackoverflow.com/a/64121601
-
-4. Install `pnpm` through `corepack`
-
-   ```powershell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   scoop install git mise
    ```
 
 </details>
@@ -51,18 +33,11 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>macOS setup</summary>
 
-0. Open Terminal (or iTerm2, Ghostty, Kitty, etc.)
-1. Install `git`, `node` through `brew`
+1. Open Terminal, iTerm2, Ghostty, Kitty, or another terminal.
+2. Install Git and mise with Homebrew.
 
    ```shell
-   brew install git node
-   ```
-
-2. Install `pnpm` through `corepack`
-
-   ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
+   brew install git mise
    ```
 
 </details>
@@ -70,26 +45,9 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 <details>
 <summary>Linux setup</summary>
 
-0. Open terminal
-1. Follow [nodesource/distributions: NodeSource Node.js Binary Distributions](https://github.com/nodesource/distributions?tab=readme-ov-file#table-of-contents) to install `node`
-2. Follow [Git](https://git-scm.com/downloads/linux) to install `git`
-3. Install `pnpm` through `corepack`
-
-   ```shell
-   corepack enable
-   corepack prepare pnpm@latest --activate
-   ```
-
-4. If you would love to help to develop the desktop version, you will need those dependencies:
-
-   ```shell
-   sudo apt install \
-      libssl-dev \
-      libglib2.0-dev \
-      libgtk-3-dev \
-      libjavascriptcoregtk-4.1-dev \
-      libwebkit2gtk-4.1-dev
-   ```
+1. Open a terminal.
+2. Use the [Git installation instructions for Linux](https://git-scm.com/downloads/linux).
+3. Install mise using the [package or installation method for your distribution](https://mise.jdx.dev/installing-mise.html).
 
 </details>
 
@@ -99,7 +57,13 @@ Hello! Thank you for your interest in contributing to this project. This guide w
 >
 > If you haven't cloned this repository, skip this section.
 
-Make sure your local repository is up to date with the upstream repository:
+If the `upstream` remote is not configured, add the Project AIRI repository before you fetch changes:
+
+```shell
+git remote add upstream https://github.com/moeru-ai/airi.git
+```
+
+Fetch upstream changes and rebase your local `main` branch:
 
 ```shell
 git fetch --all
@@ -133,30 +97,44 @@ git checkout -b <your-branch-name>
 
 ## Install dependencies
 
-```shell
-corepack enable
-pnpm install
+From the repository root, install the tools recorded in `.tool-versions`:
 
-# For Rust dependencies
-# Not required if you are not going to develop on either crates or apps/tamagotchi
-cargo fetch
+```shell
+mise install
 ```
 
-> [!NOTE]
->
-> We would recommend to install [@antfu/ni](https://github.com/antfu-collective/ni) to make your script simpler.
->
-> ```shell
-> corepack enable
-> npm i -g @antfu/ni
-> ```
->
-> Once installed, you can
->
-> - use `ni` for `pnpm install`, `npm install` and `yarn install`.
-> - use `nr` for `pnpm run`, `npm run` and `yarn run`.
->
-> You don't need to care about the package manager, `ni` will help you choose the right one.
+Make sure that the Node.js and pnpm versions match `.tool-versions`:
+
+```shell
+mise exec -- node --version
+mise exec -- pnpm --version
+```
+
+The pnpm version must also match the `packageManager` field in `package.json`.
+
+mise installs pnpm directly, so this setup does not require Corepack.
+
+Install the project dependencies:
+
+```shell
+mise exec -- pnpm install
+```
+
+The remaining examples assume that [mise is activated for your shell](https://mise.jdx.dev/dev-tools/shims.html).
+Otherwise, run package-manager commands through `mise exec --`, for example `mise exec -- pnpm typecheck`.
+
+### Optional package-manager shortcuts
+
+[@antfu/ni](https://github.com/antfu-collective/ni) detects the package manager used by the repository.
+
+To use these shortcuts, install `@antfu/ni`:
+
+```shell
+mise exec -- npm install --global @antfu/ni
+```
+
+- Use `ni` instead of `pnpm install`, `npm install`, or `yarn install`.
+- Use `nr` instead of `pnpm run`, `npm run`, or `yarn run`.
 
 ## Choose the application you want to develop on
 
@@ -354,14 +332,6 @@ git push origin <your-branch-name> -u
 ```
 
 You should be able to browse the branch on your fork repository.
-
-> [!NOTE]
->
-> If this is your first time contributing to this project, you need to add the upstream repository too:
->
-> ```shell
-> git remote add upstream https://github.com/moeru-ai/airi.git
-> ```
 
 ## Creating Pull Request
 
