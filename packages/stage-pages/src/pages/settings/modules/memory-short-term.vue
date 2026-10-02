@@ -19,15 +19,19 @@ const cards = useAiriCardStore()
 // Mood fades between appraisals, so the view reads it again every half minute.
 const now = useNow({ interval: 30_000 })
 const persona = computed(() => cards.activeCardId || 'default')
-const expression = computed(() => {
+// A mood is usually a blend, so the view lists each present feeling with its share.
+const feelings = computed(() => {
   // Reading the stored state keeps this view current when an appraisal lands.
   void mood.states[persona.value]
-  return mood.expressionOf(persona.value, now.value.getTime())
+  return mood.feelingsOf(persona.value, now.value.getTime()).map(entry => ({
+    key: entry.feeling,
+    text: t('settings.pages.modules.memory-short-term.mood.feeling', {
+      label: t(`settings.pages.modules.memory-short-term.mood.feelings.${entry.feeling}`),
+      percent: Math.round(entry.intensity * 100),
+    }),
+    width: `${Math.round(entry.intensity * 100)}%`,
+  }))
 })
-const moodLabel = computed(() => t('settings.pages.modules.memory-short-term.mood.strength', {
-  label: t(`settings.pages.modules.memory-short-term.mood.labels.${expression.value.name}`),
-  percent: Math.round(expression.value.intensity * 100),
-}))
 </script>
 
 <template>
@@ -41,9 +45,19 @@ const moodLabel = computed(() => t('settings.pages.modules.memory-short-term.moo
           {{ t('settings.pages.modules.memory-short-term.mood.description') }}
         </p>
       </div>
-      <div v-if="mood.active" :class="['flex flex-wrap items-center', 'gap-3']">
-        <span :class="['text-base font-medium']">{{ moodLabel }}</span>
-        <Button size="sm" :label="t('settings.pages.modules.memory-short-term.mood.reset')" @click="mood.reset(persona)" />
+      <div v-if="mood.active" :class="['flex flex-col', 'gap-3']">
+        <ul v-if="feelings.length" :class="['flex flex-col', 'gap-2']">
+          <li v-for="entry in feelings" :key="entry.key" :class="['flex flex-col', 'gap-1']">
+            <span :class="['text-sm']">{{ entry.text }}</span>
+            <div :class="['h-1.5', 'w-full', 'rounded-full', 'bg-neutral-200 dark:bg-neutral-700']">
+              <div :class="['h-full', 'rounded-full', 'bg-primary-500 dark:bg-primary-400']" :style="{ width: entry.width }" />
+            </div>
+          </li>
+        </ul>
+        <span v-else :class="['text-base font-medium']">{{ t('settings.pages.modules.memory-short-term.mood.calm') }}</span>
+        <div>
+          <Button size="sm" :label="t('settings.pages.modules.memory-short-term.mood.reset')" @click="mood.reset(persona)" />
+        </div>
       </div>
       <p v-else :class="['text-sm', 'text-neutral-500 dark:text-neutral-400']">
         {{ t('settings.pages.modules.memory-short-term.mood.inactive') }}

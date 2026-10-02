@@ -73,10 +73,13 @@ describe('mood', () => {
     expect(composeExpression({ name: 'unknown', intensity: 0.5 }, angry)).toEqual({ name: 'unknown', intensity: 0.5 })
   })
 
-  it('describes the mood in one sentence without numbers', () => {
-    expect(describeMood(profile.baseline)).toBe('Current mood: calm.')
-    expect(describeMood(padFromIntensities(profile.baseline, { anger: 1 }))).toBe('Current mood: very irritated.')
-    expect(describeMood(padFromIntensities(profile.baseline, { joy: 0.15 }))).toBe('Current mood: slightly cheerful.')
+  it('describes the mood as a blend in one sentence without numbers', () => {
+    expect(describeMood({})).toBe('Current mood: calm.')
+    expect(describeMood({ anger: 0.8 })).toBe('Current mood: very irritated.')
+    expect(describeMood({ joy: 0.1 })).toBe('Current mood: slightly happy.')
+    expect(describeMood({ contentment: 0.5, fear: 0.2 })).toBe('Current mood: mostly at ease, a little anxious.')
+    // A faint second feeling does not change the words.
+    expect(describeMood({ contentment: 0.5, fear: 0.06 })).toBe('Current mood: at ease.')
   })
 
   it('looks more often when aroused and less often when calm', () => {

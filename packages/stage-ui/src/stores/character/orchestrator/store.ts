@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, describeMood, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
+import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -300,7 +300,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         // The reaction speaks as the persona of the session it joins, not the card selected in the UI.
         systemPrompt: airiCard.systemPromptOf(personaOf(chatSession.activeSessionId)),
         // A reaction speaks in the same mood as the conversation.
-        runtimePrompt: [runtimePrompt.value, mood.active ? describeMood(mood.current(personaOf(chatSession.activeSessionId))) : ''].filter(Boolean).join('\n'),
+        runtimePrompt: [runtimePrompt.value, mood.active ? mood.describe(personaOf(chatSession.activeSessionId)) : ''].filter(Boolean).join('\n'),
         control,
       })
       controller.signal.throwIfAborted()

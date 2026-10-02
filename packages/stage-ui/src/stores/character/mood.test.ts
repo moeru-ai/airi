@@ -82,4 +82,15 @@ describe('character mood store', () => {
     const shift = (persona: string) => mood.profileOf(persona).baseline.pleasure - mood.current(persona).pleasure
     expect(shift('emotional')).toBeGreaterThan(shift('rational'))
   })
+
+  // A mood is a blend, so prompts and displays name more than one feeling.
+  it('describes a mixed appraisal as a blend', async () => {
+    triage.classifier = { backend: 'fake', ask: async () => feeling('contentment', { contentment: 0.6, fear: 0.3, none: 0.1 }) }
+    const mood = useCharacterMoodStore()
+
+    await mood.appraise('emotional', { interaction: 'Owner: the exam is tomorrow, but I am ready' })
+
+    expect(mood.describe('emotional')).toBe('Current mood: mostly at ease, a little anxious.')
+    expect(mood.feelingsOf('emotional').map(entry => entry.feeling)).toEqual(['contentment', 'fear'])
+  })
 })

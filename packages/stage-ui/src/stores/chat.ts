@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceFromBindings, createChatOrchestratorRuntime, createStayQuietTool, describeMood, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
+import { audienceFromBindings, createChatOrchestratorRuntime, createStayQuietTool, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -615,7 +615,7 @@ export const useChatStore = defineStore('chat', () => {
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.
-      sessionId => mood.active ? createMoodContext(describeMood(mood.current(personaOf(sessionId)))) : undefined,
+      sessionId => mood.active ? createMoodContext(mood.describe(personaOf(sessionId))) : undefined,
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),

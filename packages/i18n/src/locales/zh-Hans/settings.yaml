@@ -448,14 +448,19 @@ pages:
     sort_by: 排序方式
     temperament:
       label: 性格倾向
-      description: 在喜、怒、哀、乐的十字里拖动这个点。方向是这个角色偏向的一侧，那一侧的情绪会持续得更久。越靠近中心越理性，情绪起伏小、平复快。越靠近边缘越感性，感受更强、更持久。只有在“注意力”里设置了分类器，心情才会变化。
-      joy: 喜
-      anger: 怒
-      sorrow: 哀
-      contentment: 乐
-      rational: 理性
-      balanced: 平衡
-      summary: '偏向{leaning} · 感性程度 {emotional}%'
+      description: 拖动这个点。越往右越积极，越往左越消极；越往上越活跃，越往下越平静。越靠近中心，情绪越平稳、平复越快；越靠近边缘，感受越强、越持久。只有在“注意力”里设置了分类器，心情才会变化。
+      positive: 积极
+      negative: 消极
+      energetic: 活跃
+      calm: 平静
+      center: 平和
+      summary: '{valence}、{arousal} · 感性程度 {emotional}%'
+      leaning_positive: 偏积极
+      leaning_negative: 偏消极
+      leaning_neutral: 基调中性
+      energy_high: 偏活跃
+      energy_low: 偏平静
+      energy_neutral: 能量平稳
     body-model: 身体 / 显示模型
     speech:
       provider: 语音 / 提供商
@@ -856,16 +861,18 @@ pages:
           description: 聊天会话在没有活动的情况下经过多少分钟后进入休眠。
       mood:
         title: 当前心情
-        description: 角色此刻的心情。它会在对话和紧急事件之后变化，再按角色卡上的性格倾向逐渐回落。
+        description: 角色此刻的心情，通常是几种感受的混合。它会在对话和紧急事件之后变化，再按角色卡上的性格倾向逐渐回落。
         inactive: 在“设置 → 记忆 → 注意力”中设置分类器之前，心情保持平静。
         reset: 重置心情
-        labels:
-          neutral: 平静
-          happy: 愉快
-          sad: 低落
-          angry: 烦躁
-          awkward: 不安
-        strength: '{label}（{percent}%）'
+        calm: 平静
+        feeling: '{label} {percent}%'
+        feelings:
+          joy: 愉快
+          contentment: 安心
+          anger: 烦躁
+          sadness: 低落
+          fear: 不安
+          boredom: 无聊
     messaging-discord:
       description: Discord 发消息和语音聊天
       enable: 启用Discord集成

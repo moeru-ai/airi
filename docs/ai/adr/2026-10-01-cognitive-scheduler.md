@@ -241,7 +241,8 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`mood.test.ts`): each feeling fades by its own half-life, so anger fades before sorrow. Feeling probabilities are the weights of one appraisal.
 - Observed (`mood.test.ts`, `airi-card-editor.test.ts`, stage-ui `mood.test.ts`): the temperament on a character card sets how far and how long mood moves. The center is rational, and the edge is emotional.
 - Implemented: with SSML on, each segment's pitch follows pleasure and its speed follows arousal, read at synthesis time. Without SSML, the voice is unchanged.
-- Implemented: mood reuses the attention classifier. The temperament is set with a four-quadrant control in the card editor, separate from the mood that analysis moves.
+- Implemented: mood reuses the attention classifier. The temperament is set in the card editor with a point on two axes, tone and energy, around an even center. The control shows degrees, not emotion categories, after maintainer review found four emotion corners too black and white.
+- Observed (`mood.test.ts`): prompts name the mood as a blend, and the short-term memory page lists each present feeling with its share.
 - Observed (`mood.test.ts`): anger and fear differ by dominance. A sentence expression that opposes the mood in pleasure loses up to half of its intensity. Thinking keeps its intensity.
 - Observed (`triage.test.ts`): the same event gets different classifier decisions under different moods, and the appraisal records the mood in effect.
 - Observed (`chat-orchestrator-runtime.test.ts`, `mood.test.ts`): each run's prompt carries one mood sentence, such as "Current mood: slightly irritated.", for the persona of its own session. Notification reactions read the same sentence.

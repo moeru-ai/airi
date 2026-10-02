@@ -478,14 +478,19 @@ pages:
     sort_by: Sort by
     temperament:
       label: Temperament
-      description: Drag the point in the cross of joy, anger, sorrow, and contentment. The direction is the side this character leans to, and those feelings last longer. Near the center, it stays rational and calms down quickly. Near the edge, it feels more and longer. Mood changes only when a classifier is set in Attention.
-      joy: Joy
-      anger: Anger
-      sorrow: Sorrow
-      contentment: Contentment
-      rational: Rational
-      balanced: Balanced
-      summary: 'Leans to {leaning} · {emotional}% emotional'
+      description: Drag the point. Right is more positive and left more negative. Up is more energetic and down calmer. Near the center, the character stays even and calms down quickly. Toward the edge, it feels more and longer. Mood changes only when a classifier is set in Attention.
+      positive: Positive
+      negative: Negative
+      energetic: Energetic
+      calm: Calm
+      center: Even
+      summary: '{valence}, {arousal} · {emotional}% emotional'
+      leaning_positive: Leans positive
+      leaning_negative: Leans negative
+      leaning_neutral: Neutral tone
+      energy_high: energetic
+      energy_low: calm
+      energy_neutral: steady
     body-model: Body / Display Model
     speech:
       provider: Speech / Provider
@@ -904,16 +909,18 @@ pages:
           description: Minutes without activity before a chat session becomes dormant.
       mood:
         title: Current mood
-        description: The character's mood right now. It moves after conversations and urgent events, then fades back by the temperament on its character card.
+        description: The character's mood right now, usually a blend of feelings. It moves after conversations and urgent events, then fades back by the temperament on its character card.
         inactive: Mood stays calm until a classifier is set in Settings → Memory → Attention.
         reset: Reset mood
-        labels:
-          neutral: Calm
-          happy: Cheerful
-          sad: Down
-          angry: Irritated
-          awkward: Uneasy
-        strength: '{label} ({percent}%)'
+        calm: Calm
+        feeling: '{label} {percent}%'
+        feelings:
+          joy: Happy
+          contentment: At ease
+          anger: Irritated
+          sadness: Down
+          fear: Anxious
+          boredom: Bored
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

@@ -264,17 +264,39 @@ export function composeExpression(sentence: { name: string, intensity: number },
   return { name: sentence.name, intensity: sentence.intensity * (1 - 0.5 * conflict) }
 }
 
+const FEELING_WORDS: Record<MoodDimension, string> = {
+  joy: 'happy',
+  contentment: 'at ease',
+  anger: 'irritated',
+  sadness: 'down',
+  fear: 'anxious',
+  boredom: 'bored',
+}
+
+/** Feelings weaker than this do not count as present. */
+const FEELING_FLOOR = 0.05
+
+/** Present feelings, strongest first. A mood is usually a blend, so callers show more than one. */
+export function presentFeelings(intensities: Partial<Record<MoodDimension, number>>): Array<{ feeling: MoodDimension, intensity: number }> {
+  return MOOD_DIMENSIONS
+    .map(feeling => ({ feeling, intensity: intensities[feeling] ?? 0 }))
+    .filter(entry => entry.intensity >= FEELING_FLOOR)
+    .sort((a, b) => b.intensity - a.intensity)
+}
+
 /**
  * One sentence that tells the conversation model the current mood, so its tone and choices can follow it.
- * The model reads words better than coordinates, so the sentence carries no numbers.
+ * It names the blend of the strongest feelings in words, without numbers, for example "mostly at ease, a little anxious".
  */
-export function describeMood(pad: Pad) {
-  const expression = moodExpression(pad)
-  if (expression.name === 'neutral')
+export function describeMood(intensities: Partial<Record<MoodDimension, number>>) {
+  const [first, second] = presentFeelings(intensities)
+  if (!first)
     return 'Current mood: calm.'
-  const label = { happy: 'cheerful', sad: 'down', angry: 'irritated', awkward: 'uneasy' }[expression.name]
-  const strength = expression.intensity > 0.66 ? 'very ' : expression.intensity > 0.33 ? '' : 'slightly '
-  return `Current mood: ${strength}${label}.`
+  const strength = first.intensity >= 0.6 ? 'very ' : first.intensity >= 0.3 ? '' : 'slightly '
+  const main = second ? `mostly ${FEELING_WORDS[first.feeling]}` : `${strength}${FEELING_WORDS[first.feeling]}`
+  // A second feeling counts when it is at least a third of the first.
+  const blend = second && second.intensity >= first.intensity / 3 ? `, a little ${FEELING_WORDS[second.feeling]}` : ''
+  return `Current mood: ${second && !blend ? `${strength}${FEELING_WORDS[first.feeling]}` : main}${blend}.`
 }
 
 /**

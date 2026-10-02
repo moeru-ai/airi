@@ -1,6 +1,6 @@
 import type { MoodProfile, MoodState, Pad } from '@proj-airi/core-agent'
 
-import { applyMoodAppraisal, askWithin, calmMood, decayMood, moodExpression, moodIntensitiesFromAnswers, moodPad, moodProfileFromTemperament, moodQuestions } from '@proj-airi/core-agent'
+import { applyMoodAppraisal, askWithin, calmMood, decayMood, describeMood, moodExpression, moodIntensitiesFromAnswers, moodPad, moodProfileFromTemperament, moodQuestions, presentFeelings } from '@proj-airi/core-agent'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
@@ -47,6 +47,22 @@ export const useCharacterMoodStore = defineStore('character-mood', () => {
     return moodPad(state ? decayMood(state, profile, now) : calmMood(now), profile)
   }
 
+  /** The persona's feelings now, after decay. */
+  function feelingsNow(personaId: string, now: number) {
+    const state = states.value[personaId]
+    return state ? decayMood(state, profileOf(personaId), now).intensities : calmMood(now).intensities
+  }
+
+  /** Present feelings of the persona now, strongest first. A mood is usually a blend. */
+  function feelingsOf(personaId: string, now = Date.now()) {
+    return presentFeelings(feelingsNow(personaId, now))
+  }
+
+  /** One sentence about the persona's mood for prompts, naming its blend in words. */
+  function describe(personaId: string, now = Date.now()) {
+    return describeMood(feelingsNow(personaId, now))
+  }
+
   /** The baseline expression of the persona's mood now, for displays. */
   function expressionOf(personaId: string, now = Date.now()) {
     return moodExpression(current(personaId, now))
@@ -91,6 +107,8 @@ export const useCharacterMoodStore = defineStore('character-mood', () => {
     profileOf,
     current,
     expressionOf,
+    feelingsOf,
+    describe,
     appraise,
     reset,
   }

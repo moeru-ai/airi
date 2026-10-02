@@ -61,15 +61,16 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 const emotionality = computed(() => Math.min(Math.hypot(modelValue.value.valence, modelValue.value.arousal), 1))
-const leaning = computed(() => {
-  const { valence, arousal } = modelValue.value
-  if (emotionality.value < 0.1)
-    return t('settings.pages.card.temperament.balanced')
-  if (arousal >= 0)
-    return valence >= 0 ? t('settings.pages.card.temperament.joy') : t('settings.pages.card.temperament.anger')
-  return valence >= 0 ? t('settings.pages.card.temperament.contentment') : t('settings.pages.card.temperament.sorrow')
-})
-const summary = computed(() => t('settings.pages.card.temperament.summary', { leaning: leaning.value, emotional: Math.round(emotionality.value * 100) }))
+// Small offsets read as neutral, so the words follow the position as a degree, not as a category.
+const NEUTRAL_BAND = 0.15
+const valenceText = computed(() => modelValue.value.valence > NEUTRAL_BAND
+  ? t('settings.pages.card.temperament.leaning_positive')
+  : modelValue.value.valence < -NEUTRAL_BAND ? t('settings.pages.card.temperament.leaning_negative') : t('settings.pages.card.temperament.leaning_neutral'))
+const arousalText = computed(() => modelValue.value.arousal > NEUTRAL_BAND
+  ? t('settings.pages.card.temperament.energy_high')
+  : modelValue.value.arousal < -NEUTRAL_BAND ? t('settings.pages.card.temperament.energy_low') : t('settings.pages.card.temperament.energy_neutral'))
+const summary = computed(() => t('settings.pages.card.temperament.summary', { valence: valenceText.value, arousal: arousalText.value, emotional: Math.round(emotionality.value * 100) }))
+const labelClasses = ['text-xs font-medium', 'text-neutral-500 dark:text-neutral-400', 'pointer-events-none']
 const dotStyle = computed(() => ({
   left: `${(modelValue.value.valence + 1) * 50}%`,
   top: `${(1 - modelValue.value.arousal) * 50}%`,
@@ -87,7 +88,7 @@ const dotStyle = computed(() => ({
       :aria-disabled="props.disabled"
       :class="[
         'relative', 'aspect-square', 'w-full max-w-72',
-        'rounded-xl', 'bg-neutral-100 dark:bg-neutral-900',
+        'rounded-xl', 'bg-neutral-100 dark:bg-neutral-900', 'overflow-hidden',
         'select-none touch-none',
         'outline-none focus-visible:ring-2 focus-visible:ring-primary-400/60',
         props.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-crosshair',
@@ -98,15 +99,17 @@ const dotStyle = computed(() => ({
       @pointercancel="onPointerUp"
       @keydown="onKeydown"
     >
-      <!-- The circle marks the most emotional edge. The center is the most rational. -->
+      <!-- Tone shades from negative to positive. Position is a degree, not a category. -->
+      <div :class="['absolute inset-0', 'bg-gradient-to-r from-sky-500/15 via-transparent to-amber-400/20']" />
+      <!-- The circle marks the most emotional edge. The center is the most even. -->
       <div :class="['absolute inset-0', 'rounded-full', 'border border-dashed border-neutral-300 dark:border-neutral-700']" />
       <div :class="['absolute left-1/2 top-0 bottom-0', 'w-px', 'bg-neutral-300 dark:bg-neutral-700']" />
       <div :class="['absolute top-1/2 left-0 right-0', 'h-px', 'bg-neutral-300 dark:bg-neutral-700']" />
-      <span :class="['absolute left-2 top-2', 'text-sm font-medium', 'text-neutral-500 dark:text-neutral-400']">{{ t('settings.pages.card.temperament.anger') }}</span>
-      <span :class="['absolute right-2 top-2', 'text-sm font-medium', 'text-neutral-500 dark:text-neutral-400']">{{ t('settings.pages.card.temperament.joy') }}</span>
-      <span :class="['absolute left-2 bottom-2', 'text-sm font-medium', 'text-neutral-500 dark:text-neutral-400']">{{ t('settings.pages.card.temperament.sorrow') }}</span>
-      <span :class="['absolute right-2 bottom-2', 'text-sm font-medium', 'text-neutral-500 dark:text-neutral-400']">{{ t('settings.pages.card.temperament.contentment') }}</span>
-      <span :class="['absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-1', 'text-xs', 'text-neutral-400 dark:text-neutral-500']">{{ t('settings.pages.card.temperament.rational') }}</span>
+      <span :class="['absolute left-1/2 top-2 -translate-x-1/2', labelClasses]">{{ t('settings.pages.card.temperament.energetic') }}</span>
+      <span :class="['absolute left-1/2 bottom-2 -translate-x-1/2', labelClasses]">{{ t('settings.pages.card.temperament.calm') }}</span>
+      <span :class="['absolute left-2 top-1/2 -translate-y-1/2', labelClasses]">{{ t('settings.pages.card.temperament.negative') }}</span>
+      <span :class="['absolute right-2 top-1/2 -translate-y-1/2', labelClasses]">{{ t('settings.pages.card.temperament.positive') }}</span>
+      <span :class="['absolute left-1/2 top-1/2 -translate-x-1/2 translate-y-1', 'text-xs', 'text-neutral-400 dark:text-neutral-500']">{{ t('settings.pages.card.temperament.center') }}</span>
       <div
         :class="[
           'absolute', 'size-4', '-translate-x-1/2 -translate-y-1/2',
