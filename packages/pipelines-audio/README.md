@@ -20,6 +20,11 @@ A new intent can `queue`, `replace`, `interrupt`, or `interrupt-at-boundary` the
 `interrupt` cuts the playing segment. `interrupt-at-boundary` lets the playing segment finish, drops the rest of the active intent, and then plays the new one.
 `stopByIntent` accepts `keepPlaying` for the same boundary stop.
 
+## Speakable text
+
+`createSpeakableTextFilter` removes written-only markup from streamed text before speech. Fenced code is dropped, and inline code keeps its text.
+Heading, quote, and list markers at a line start are dropped. A link keeps its text and drops its address. Call `flush` after the last chunk.
+
 ## Transcript buffering
 
 ```ts

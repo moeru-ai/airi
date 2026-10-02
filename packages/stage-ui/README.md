@@ -109,6 +109,7 @@ A missing chat model ends the run as `blocked`. A stopped owner ends it as `drop
 Intake checks hard constraints first: coalescing and deadlines. Only then can a classifier appraise the notification.
 Notifications and chat sends wait in one voice line. The tick offers the first due notification in line order, and a released voice triggers it at once.
 An admitted notification still decides inside its run whether to speak.
+The stage speaks only speakable text. Code blocks, markup markers, and link addresses stay in the chat and never reach speech.
 A notification at 0.85 salience or more takes the voice from calmer speech. Its reaction interrupts at the next segment boundary, so the playing sentence finishes.
 Other notification reactions queue behind current speech. Scene sources never reach 0.85.
 Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.

@@ -13,7 +13,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom, sleep } from '@moeru/std'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
+import { createPlaybackManager, createSpeakableTextFilter, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
 import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
 import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
@@ -873,6 +873,9 @@ function holdsVoice(context: { outputs?: readonly string[] }) {
   return context.outputs?.includes('voice') ?? false
 }
 
+// Code and markup stay in the chat. Speech reads only the speakable text.
+let speakableText = createSpeakableTextFilter()
+
 // Voice turns, so an interrupted reply can record the speech that was heard. The reply message and the playback end arrive in either order.
 const voiceTurns = new Map<string, { sessionId: string, messageId?: string, deliveredSpeech?: string }>()
 const VOICE_TURN_LIMIT = 32
@@ -926,6 +929,7 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   setupAnalyser()
   await setupLipSync()
   currentSession = openTtsSession(context.turnId)
+  speakableText = createSpeakableTextFilter()
 }))
 
 chatHookCleanups.push(onBeforeSend(async (_message, context) => {
@@ -937,7 +941,9 @@ chatHookCleanups.push(onBeforeSend(async (_message, context) => {
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
   if (!holdsVoice(context))
     return
-  currentSession?.appendText(literal)
+  const speakable = speakableText.push(literal)
+  if (speakable)
+    currentSession?.appendText(speakable)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
@@ -956,6 +962,9 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
 chatHookCleanups.push(onStreamEnd(async (context) => {
   if (!holdsVoice(context))
     return
+  const rest = speakableText.flush()
+  if (rest)
+    currentSession?.appendText(rest)
   currentSession?.finishInput()
 }))
 

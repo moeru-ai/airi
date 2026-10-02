@@ -206,6 +206,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Not provided: streaming speech providers bypass the segment pipeline, so their interruptions do not record delivered speech.
 - Observed (`speech-pipeline.test.ts`, `playback-manager.test.ts`): an intent can interrupt at a segment boundary. The playing sentence finishes, and the rest of the old intent never plays.
 - Observed (`orchestrator/index.test.ts`): a notification at 0.85 or more takes the voice from calmer speech and interrupts at a boundary. A calmer notification waits in line.
+- Observed (`speakable-text.test.ts`): speech drops fenced code, markup markers, and link addresses, even across chunk boundaries. The chat keeps the full text.
+- Experimental: a classifier check and a fast model rewrite for other unspeakable text wait for P5 model tiers. The markup filter is the deterministic fallback.
+- Implemented before P4: domain state reaches the conversation through fixed, replacing context slots (P0). Owner input reaches the conversation run, and domain work goes through admitted commands (P3).
 - Not provided: the voice lease ends with generation, while playback can continue. A queued reaction waits for playback in the speech pipeline instead.
 
 ### Open P0 evidence
