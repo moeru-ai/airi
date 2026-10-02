@@ -7,6 +7,8 @@ import { generateKeyPairSync } from 'node:crypto'
 import { decodeJwt } from 'jose'
 import { describe, expect, it, vi } from 'vitest'
 
+import { createAuth } from '../auth'
+import { parseAuthEnv } from '../env'
 import { createSocialAuthorizationRevoker } from '../social-authorization'
 
 interface SocialAccount {
@@ -233,9 +235,24 @@ describe('social authorization revocation', () => {
     expect(fetchRequest).not.toHaveBeenCalled()
   })
 
-  it('aborts deletion when a social account has no revocable token', async () => {
+  // ROOT CAUSE:
+  // Native Google ID token sign-in stores no access or refresh token.
+  // Requiring either token blocked deletion before resource cleanup.
+  it('continues deletion for Google ID token accounts without a revocation request', async () => {
+    const fetchRequest = vi.fn<typeof fetch>()
     const revoker = createSocialAuthorizationRevoker(
       createAccountDb([{ providerId: 'google', accessToken: null, refreshToken: null }]),
+      createCredentials(),
+      fetchRequest,
+    )
+
+    await expect(revoker.revokeForUser('user-1')).resolves.toBeUndefined()
+    expect(fetchRequest).not.toHaveBeenCalled()
+  })
+
+  it.each(['apple', 'github'])('still aborts deletion when %s has no revocable token', async (providerId) => {
+    const revoker = createSocialAuthorizationRevoker(
+      createAccountDb([{ providerId, accessToken: null, refreshToken: null }]),
       createCredentials(),
       vi.fn<typeof fetch>(),
     )
@@ -243,8 +260,51 @@ describe('social authorization revocation', () => {
     await expect(revoker.revokeForUser('user-1')).rejects.toMatchObject({
       statusCode: 503,
       errorCode: 'oauth/revocation_token_missing',
-      details: { providerId: 'google' },
+      details: { providerId },
     })
+  })
+
+  it.each([200, 503])('applies linked Google revocation policy before resource cleanup (status %s)', async (status) => {
+    const db = createAccountDb([
+      { providerId: 'google', accessToken: null, refreshToken: null },
+      { providerId: 'google', accessToken: 'saved-access-token', refreshToken: null },
+    ])
+    const credentials = createCredentials()
+    const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status }))
+    const softDeleteUserData = vi.fn(async () => {})
+    const auth = createAuth(db, parseAuthEnv({
+      ...credentials,
+      DATABASE_URL: 'postgres://localhost/test',
+      REDIS_URL: 'redis://localhost:6379',
+      PUBLIC_URL: 'http://localhost:3000',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+    }), undefined, undefined, {
+      softDeleteUserData,
+      trackAuthEvent: vi.fn(async () => {}),
+    }, createSocialAuthorizationRevoker(db, credentials, fetchRequest))
+    const beforeDelete = auth.options.user?.deleteUser?.beforeDelete
+    if (!beforeDelete)
+      throw new TypeError('Expected account-deletion hook')
+
+    const deletion = beforeDelete({
+      id: 'user-1',
+      name: 'User One',
+      email: 'user@example.com',
+      emailVerified: true,
+      image: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }, new Request('http://localhost:3000/api/auth/delete-user'))
+    if (status === 200) {
+      await deletion
+      expect(softDeleteUserData).toHaveBeenCalledWith({ userId: 'user-1', reason: 'user-requested' })
+    }
+    else {
+      await expect(deletion).rejects.toMatchObject({ statusCode: 502 })
+      expect(softDeleteUserData).not.toHaveBeenCalled()
+    }
+    expect(fetchRequest).toHaveBeenCalledTimes(1)
+    expect(new URLSearchParams(fetchRequest.mock.calls[0][1]?.body?.toString()).get('token')).toBe('saved-access-token')
   })
 
   it('aborts deletion for an external provider without a revocation policy', async () => {

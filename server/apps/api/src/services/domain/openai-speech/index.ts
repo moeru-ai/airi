@@ -28,6 +28,11 @@ const SAFE_RESPONSE_HEADERS = new Set([
   'cache-control',
 ])
 
+const SAFE_ERROR_RESPONSE_HEADERS = new Set([
+  'content-type',
+  'retry-after',
+])
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value == null || Array.isArray(value))
     return undefined
@@ -66,6 +71,7 @@ type TtsTrigger = 'auto' | 'manual'
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  turnId?: string
 }
 
 /**
@@ -199,7 +205,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         .warn('tts speech delivered with upstream error status')
       return new Response(response.body, {
         status: response.status,
-        headers: buildSafeResponseHeaders(response),
+        headers: buildSafeErrorResponseHeaders(response),
       })
     }
 
@@ -211,6 +217,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         currentBalance: flux.flux,
         requestId,
         metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        turnId: analytics.turnId,
       })
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
@@ -284,7 +291,8 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
-  return { trigger, source }
+  const turnId = typeof analytics?.turn_id === 'string' ? analytics.turn_id : undefined
+  return { trigger, source, turnId }
 }
 
 async function voicePackRequestOptions(
@@ -379,6 +387,15 @@ function buildSafeResponseHeaders(response: Response): Headers {
   const headers = new Headers()
   response.headers.forEach((value, key) => {
     if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
+      headers.set(key, value)
+  })
+  return headers
+}
+
+function buildSafeErrorResponseHeaders(response: Response): Headers {
+  const headers = new Headers()
+  response.headers.forEach((value, key) => {
+    if (SAFE_ERROR_RESPONSE_HEADERS.has(key.toLowerCase()))
       headers.set(key, value)
   })
   return headers

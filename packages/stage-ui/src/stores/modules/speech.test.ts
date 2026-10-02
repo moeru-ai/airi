@@ -1,8 +1,11 @@
+import type { Session, User } from 'better-auth'
+
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
-import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, providerOfficialSpeech } from '../../libs/providers/providers/official'
+import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, pickOfficialSpeechVoice } from '../../libs/providers/providers/official'
+import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { toSignedPercent, useSpeechStore } from './speech'
@@ -18,10 +21,35 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
+/** Configures the authenticated state required by official provider requests. */
+function authenticateOfficialProvider(): void {
+  const user: User = {
+    id: 'user-1',
+    name: 'AIRI User',
+    email: 'user@example.com',
+    emailVerified: true,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  const session: Session = {
+    id: 'session-1',
+    token: 'server-session-token',
+    userId: user.id,
+    expiresAt: new Date('2026-12-01T00:00:00.000Z'),
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  }
+  useAuthStore().$patch({ session, token: 'restored-access-token', user })
+}
+
 describe('speech store helpers', () => {
   beforeEach(() => {
     i18nState.locale.value = 'en-US'
     setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('formats positive percentages with a plus sign', () => {
@@ -70,8 +98,8 @@ describe('speech store helpers', () => {
   // object. The voice watcher then assigned undefined to an undefined ref.
   // refManualReset reported that no-op assignment as another Pinia mutation.
   //
-  // We fixed this by writing the selected voice only when a matching voice
-  // exists and its identity differs from the current selection.
+  // Catalog refreshes now stay outside the speech settings snapshot. They
+  // must not publish settings when no selected voice needs an update.
   it('does not publish a second mutation for an unresolved voice', async () => {
     const providersStore = useProviderStore()
     vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
@@ -79,16 +107,18 @@ describe('speech store helpers', () => {
     speechStore.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
     speechStore.activeSpeechVoiceId = 'missing-voice'
     speechStore.activeSpeechVoice = undefined
-    speechStore.availableVoices = {}
+    await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     await nextTick()
+    // The startup watcher now enters through the deferred public action.
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
 
     let mutations = 0
     speechStore.$subscribe(() => mutations += 1, { flush: 'sync' })
 
-    speechStore.availableVoices = {}
+    await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
     await nextTick()
 
-    expect(mutations).toBe(1)
+    expect(mutations).toBe(0)
   })
 
   // ROOT CAUSE:
@@ -207,6 +237,9 @@ describe('speech store helpers', () => {
   it('does not load streaming voices before server availability is confirmed', async () => {
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
+    // Let the initial no-speech request finish before observing streaming calls.
+    await nextTick()
+    await vi.waitFor(() => expect(speechStore.isLoadingSpeechProviderVoices).toBe(false))
     const listVoices = vi.spyOn(providersStore, 'listProviderVoices')
     providersStore.setProviderUnconfigured(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
 
@@ -217,6 +250,53 @@ describe('speech store helpers', () => {
 
     expect(voices).toEqual([])
     expect(listVoices).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Streaming discovery kept its default model in one renderer's module
+  // variable. Another renderer received the synchronized models but selected
+  // the first entry instead of the operator default.
+  //
+  // Before: read getDefaultStreamingModel() from renderer-local memory.
+  //
+  // We fixed this by storing the default beside the synchronized model catalog.
+  it('selects the synchronized streaming default instead of the first model', async () => {
+    const providersStore = useProviderStore()
+    vi.spyOn(providersStore, 'listProviderVoices').mockResolvedValue([])
+    const speechStore = useSpeechStore()
+    await providersStore.initializeProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    providersStore.providerRuntimeState[OFFICIAL_SPEECH_STREAMING_PROVIDER_ID] = {
+      models: [
+        { id: 'volcengine/seed-tts-1.0', name: 'Seed TTS 1.0', provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID },
+        { id: 'volcengine/seed-tts-2.0', name: 'Seed TTS 2.0', provider: OFFICIAL_SPEECH_STREAMING_PROVIDER_ID },
+      ],
+      defaultModel: 'volcengine/seed-tts-2.0',
+      modelStatus: 'ready',
+      modelError: null,
+    }
+    speechStore.activeSpeechProvider = OFFICIAL_SPEECH_STREAMING_PROVIDER_ID
+    speechStore.activeSpeechModel = ''
+
+    speechStore.ensureActiveSpeechModel()
+
+    expect(speechStore.activeSpeechModel).toBe('volcengine/seed-tts-2.0')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949224
+  // ROOT CAUSE: The consumer read a realm-local default instead of the received snapshot.
+  it('selects the HTTP default from a provider snapshot', async () => {
+    const providers = useProviderStore()
+    const speech = useSpeechStore()
+    await providers.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
+    providers.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID] = {
+      models: ['first', 'snapshot-default'].map(id => ({ id, name: id, provider: OFFICIAL_SPEECH_PROVIDER_ID })),
+      defaultModel: 'snapshot-default',
+      modelStatus: 'ready',
+      modelError: null,
+    }
+    await speech.selectProviderModel(OFFICIAL_SPEECH_PROVIDER_ID, '')
+    expect(speech.activeSpeechModel).toBe('snapshot-default')
   })
 
   /**
@@ -281,11 +361,7 @@ describe('speech store helpers', () => {
     }
     try {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
-      const provider = await providerOfficialSpeech.createProvider({})
-      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
-        {},
-        provider,
-      )
+      await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
       speechStore.ensureActiveSpeechModel()
 
@@ -332,6 +408,7 @@ describe('speech store helpers', () => {
         recommended: { 'en-US': 'en-US-AvaMultilingualNeural' },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
+    authenticateOfficialProvider()
 
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
@@ -341,17 +418,13 @@ describe('speech store helpers', () => {
 
     try {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
-      const provider = await providerOfficialSpeech.createProvider({})
-      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
-        {},
-        provider,
-      )
+      await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
       speechStore.ensureActiveSpeechModel()
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
 
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
-      expect(speechStore.activeSpeechVoiceId).toBe('en-US-AvaMultilingualNeural')
+      await vi.waitFor(() => expect(speechStore.activeSpeechVoiceId).toBe('en-US-AvaMultilingualNeural'))
     }
     finally {
       vi.unstubAllGlobals()
@@ -393,6 +466,7 @@ describe('speech store helpers', () => {
         recommended: { 'zh-CN': 'zh-CN-XiaochenNeural' },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     }) as typeof fetch)
+    authenticateOfficialProvider()
 
     const providersStore = useProviderStore()
     const speechStore = useSpeechStore()
@@ -400,17 +474,13 @@ describe('speech store helpers', () => {
 
     try {
       await providersStore.initializeProvider(OFFICIAL_SPEECH_PROVIDER_ID)
-      const provider = await providerOfficialSpeech.createProvider({})
-      providersStore.providerRuntimeState[OFFICIAL_SPEECH_PROVIDER_ID].models = await providerOfficialSpeech.extraMethods!.listModels!(
-        {},
-        provider,
-      )
+      await providersStore.fetchModelsForProvider(OFFICIAL_SPEECH_PROVIDER_ID)
 
       speechStore.ensureActiveSpeechModel()
       await speechStore.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, speechStore.activeSpeechModel)
 
       expect(speechStore.activeSpeechModel).toBe('microsoft/v1')
-      expect(speechStore.activeSpeechVoiceId).toBe('zh-CN-XiaochenNeural')
+      await vi.waitFor(() => expect(speechStore.activeSpeechVoiceId).toBe('zh-CN-XiaochenNeural'))
     }
     finally {
       vi.unstubAllGlobals()
@@ -449,6 +519,20 @@ describe('single model speech providers', () => {
     speechStore.ensureActiveSpeechModel()
 
     expect(speechStore.activeSpeechModel).toBe('default')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967236129
+  // ROOT CAUSE: Single-model defaults overwrote explicit names from the manual field.
+  it('preserves a manually entered model through selection and catalog loading', async () => {
+    const providers = useProviderStore()
+    await providers.initializeProvider('openai-compatible-audio-speech')
+    providers.providerRuntimeState['openai-compatible-audio-speech'].models = [
+      { id: 'discovered', name: 'Discovered', provider: 'openai-compatible-audio-speech' },
+    ]
+    const speech = useSpeechStore()
+    await speech.selectProviderModel('openai-compatible-audio-speech', 'manual-model')
+    await speech.loadVoicesForProvider('openai-compatible-audio-speech', 'manual-model')
+    expect(speech.activeSpeechModel).toBe('manual-model')
   })
 
   it('keeps the voice when it seeds the model, because voices belong to the provider', async () => {
@@ -503,5 +587,238 @@ describe('vOICEVOX provider defaults', () => {
 
     expect(providerConfigStore.getProviderConfig('voicevox')?.voiceSettings)
       .toEqual({ speed: 1, pitch: 0, intonation: 1, volume: 1 })
+  })
+  // ROOT CAUSE: Model reloads lived in the settings page, so card changes bypassed them.
+  it('refreshes voices when only the active model changes outside settings', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speech.activeSpeechModel = 'model-a'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    loads.mockClear()
+    speech.activeSpeechModel = 'model-b'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(loads).toHaveBeenCalledWith(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b', expect.anything())
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964660980
+  // ROOT CAUSE: Every refresh cleared the catalog, even when its identity did
+  // not change. A temporary failure then removed valid cached choices.
+  it('retains the same catalog on refresh failure but clears it for a different model', async () => {
+    const providers = useProviderStore()
+    const voices = [{ id: 'cached', name: 'Cached', languages: [], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-a')
+    loads.mockRejectedValue(new Error('temporary outage'))
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-a')
+    expect(speech.availableVoices['microsoft-speech']).toEqual(voices)
+    expect(speech.voiceCatalogStatus['microsoft-speech']?.error).toBe('temporary outage')
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-b')
+    expect(speech.availableVoices['microsoft-speech']).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3966034981
+  // ROOT CAUSE: Synthesis settings changed the catalog fingerprint and cleared
+  // a valid selection. Each adapter must identify its discovery inputs.
+  it.each(['elevenlabs', 'voicevox', 'microsoft-speech'])('retains %s selection after synthesis settings change', async (provider) => {
+    const voices = [{ id: 'selected', name: 'Selected', languages: [], provider }]
+    vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.selectProviderModel(provider, 'model')
+    await vi.waitFor(() => expect(speech.isLoadingSpeechProviderVoices).toBe(false))
+    const config = { apiKey: 'key', baseUrl: 'https://voices.invalid/', region: 'eastasia' }
+    await speech.loadVoiceCatalog(provider, 'model', { definitionId: provider, config })
+    speech.activeSpeechVoiceId = 'selected'
+    await speech.ensureActiveSpeechVoice()
+    await speech.loadVoiceCatalog(provider, 'model', {
+      definitionId: provider,
+      config: { ...config, pitch: 1, speed: 1.2, volume: 0.8, style: 'happy', voiceSettings: { stability: 0.7 } },
+    })
+    expect(speech.activeSpeechVoiceId).toBe('selected')
+    expect(speech.activeSpeechVoice?.id).toBe('selected')
+    expect(speech.configured).toBe(true)
+  })
+
+  it('invalidates cached voices when configuration changes or the provider session expires', async () => {
+    const providers = useProviderStore()
+    const voices = [{ id: 'cached', name: 'Cached', languages: [], provider: 'microsoft-speech' }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    const original = { definitionId: 'microsoft-speech', config: { baseUrl: 'https://old.invalid/' } }
+    const changed = { definitionId: 'microsoft-speech', config: { baseUrl: 'https://new.invalid/' } }
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', original)
+    loads.mockRejectedValue(new Error('configuration unavailable'))
+    await expect(speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)).rejects.toThrow('configuration unavailable')
+    expect(speech.availableVoices['microsoft-speech']).toEqual([])
+    loads.mockResolvedValue(voices)
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)
+    loads.mockResolvedValue(undefined)
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', changed)
+    expect(speech.availableVoices['microsoft-speech']).toEqual([])
+    expect(speech.voiceCatalogIdentities['microsoft-speech']).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964866479
+  // ROOT CAUSE: Completed catalogs outlived their owner because only pending
+  // requests observed session invalidation. Logout must invalidate cached data.
+  it('clears completed owned catalogs on logout while preserving user-provider catalogs', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ flux: 0 })))
+    authenticateOfficialProvider()
+    const providers = useProviderStore()
+    const voices = [{ id: 'old-owner', name: 'Old owner', languages: [], provider: OFFICIAL_SPEECH_PROVIDER_ID }]
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    await speech.loadVoicesForProvider('microsoft-speech', 'model-a')
+    useAuthStore().$patch({ user: null, session: null, token: null })
+    await vi.waitFor(() => expect(speech.availableVoices[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual([]))
+    expect(speech.availableVoices['microsoft-speech']).toEqual(voices)
+    authenticateOfficialProvider()
+    useAuthStore().user = { ...useAuthStore().user!, id: 'new-owner' }
+    loads.mockRejectedValue(new Error('new account unavailable'))
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    expect(speech.availableVoices[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964866488
+  it('retains completed catalogs across token renewal and same-ID session objects', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ flux: 0 })))
+    authenticateOfficialProvider()
+    const providers = useProviderStore()
+    const voices = [{ id: 'retained', name: 'Retained', languages: [], provider: OFFICIAL_SPEECH_PROVIDER_ID }]
+    vi.spyOn(providers, 'listProviderVoices').mockResolvedValue(voices)
+    const speech = useSpeechStore()
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    const identity = speech.voiceCatalogIdentities[OFFICIAL_SPEECH_PROVIDER_ID]
+    const auth = useAuthStore()
+    auth.$patch({ token: 'renewed-token', user: { ...auth.user! }, session: { ...auth.session! } })
+    await nextTick()
+    await speech.invalidateVoiceCatalogs()
+    expect(speech.availableVoices[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual(voices)
+    expect(speech.voiceCatalogIdentities[OFFICIAL_SPEECH_PROVIDER_ID]).toEqual(identity)
+  })
+
+  it('discards a request reset while its configuration fingerprint is pending', async () => {
+    const providers = useProviderStore()
+    const original = providers.getVoiceCatalogIdentity.bind(providers)
+    let finish!: () => void
+    const barrier = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    vi.spyOn(providers, 'getVoiceCatalogIdentity').mockImplementation(async (model, configuration) => {
+      const identity = await original(model, configuration)
+      if (model === 'delayed')
+        await barrier
+      return identity
+    })
+    const requests = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    const pending = speech.loadVoiceCatalog('microsoft-speech', 'delayed', { definitionId: 'microsoft-speech', config: {} })
+    await speech.resetState()
+    finish()
+    await expect(pending).resolves.toEqual([])
+    expect(requests.mock.calls.some(([, model]) => model === 'delayed')).toBe(false)
+    expect(speech.availableVoices['microsoft-speech']).toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3964866488
+  it('keeps large provider samples out of replicated speech state', async () => {
+    vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    await speech.loadVoiceCatalog('microsoft-speech', 'model-a', {
+      definitionId: 'microsoft-speech',
+      config: { voiceSample: 'private-sample'.repeat(100000) },
+    })
+    const state = JSON.stringify({ settings: speech.$state, identities: speech.voiceCatalogIdentities })
+    expect(state.length).toBeLessThan(2000)
+    expect(state).not.toContain('private-sample')
+  })
+
+  // ROOT CAUSE: The adapter wrote recommendations before the store discarded stale responses.
+  it('rejects old recommendation side effects together with the old catalog', async () => {
+    authenticateOfficialProvider()
+    const speech = useSpeechStore()
+    const { promise: oldResponse, resolve: finishOld } = Promise.withResolvers<Response>()
+    const voices = [
+      { id: 'old', name: 'Old', languages: [{ code: 'en-US', title: 'English' }] },
+      { id: 'new', name: 'New', languages: [{ code: 'en-US', title: 'English' }] },
+    ]
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+      if (String(input).includes('model=model-a'))
+        return oldResponse
+      return Response.json({ voices, recommended: { 'en-US': 'new' } })
+    }))
+    const oldLoad = speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    await new Promise(resolve => setTimeout(resolve, 20))
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-b')
+    finishOld(Response.json({ voices, recommended: { 'en-US': 'old' } }))
+    await oldLoad
+    expect(pickOfficialSpeechVoice({
+      activeSpeechProvider: OFFICIAL_SPEECH_PROVIDER_ID,
+      activeSpeechVoiceId: '',
+      availableVoices: speech.availableVoices,
+      uiLocale: 'en-US',
+    })).toBe('new')
+  })
+  // ROOT CAUSE: Clearing a card's voice could auto-pick from the previous model while its replacement loaded.
+  it('does not auto-pick from the old model while loading the new catalog', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = OFFICIAL_SPEECH_PROVIDER_ID
+    speech.activeSpeechModel = 'model-a'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    loads.mockResolvedValue([
+      { id: 'old', name: 'Old', languages: [], provider: OFFICIAL_SPEECH_PROVIDER_ID, recommendedFor: ['en-US'] },
+    ])
+    await speech.loadVoicesForProvider(OFFICIAL_SPEECH_PROVIDER_ID, 'model-a')
+    await speech.ensureActiveSpeechVoice()
+    let finish!: () => void
+    loads.mockImplementation(() => new Promise((resolve) => {
+      finish = () => resolve([])
+    }))
+    speech.activeSpeechModel = 'model-b'
+    speech.activeSpeechVoiceId = ''
+    try {
+      await vi.waitFor(() => expect(finish).toBeDefined())
+      expect(speech.activeSpeechVoiceId).toBe('')
+    }
+    finally {
+      finish?.()
+    }
+  })
+  // https://github.com/moeru-ai/airi/pull/2490#discussion_r3963756330
+  // ROOT CAUSE: A background provider's newer request hid the active provider's pending state and error.
+  it('keeps active provider status when another provider finishes first', async () => {
+    const providers = useProviderStore()
+    const loads = vi.spyOn(providers, 'listProviderVoices').mockResolvedValue([])
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = 'microsoft-speech'
+    await new Promise(resolve => setTimeout(resolve, 20))
+    let rejectActive!: (error: Error) => void
+    loads.mockImplementation(async (provider) => {
+      if (provider === 'microsoft-speech') {
+        return new Promise((_resolve, reject) => {
+          rejectActive = reject
+        })
+      }
+      return []
+    })
+    const active = speech.loadVoicesForProvider('microsoft-speech')
+    try {
+      await vi.waitFor(() => expect(rejectActive).toBeDefined())
+      await speech.loadVoicesForProvider('speech-noop')
+      expect(speech.isLoadingSpeechProviderVoices).toBe(true)
+      rejectActive(new Error('active provider failed'))
+      await active
+      expect(speech.speechProviderError).toBe('active provider failed')
+      expect(speech.isLoadingSpeechProviderVoices).toBe(false)
+    }
+    finally {
+      rejectActive?.(new Error('test cleanup'))
+      await active
+    }
   })
 })

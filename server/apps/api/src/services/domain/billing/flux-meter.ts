@@ -63,6 +63,7 @@ interface AccumulateInput {
   currentBalance: number
   requestId: string
   metadata?: Record<string, unknown>
+  turnId?: string
 }
 
 interface AccumulateResult {
@@ -171,6 +172,7 @@ export function createFluxMeter(
         amount: fluxRequested,
         requestId: input.requestId,
         description: `${config.name}_request`,
+        turnId: input.turnId,
         ...(typeof input.metadata?.model === 'string' && { model: input.metadata.model }),
       })
     }

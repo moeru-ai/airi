@@ -1,4 +1,5 @@
-import type { HistoryItem, Message, RawMessage } from './types'
+import type { ProjectionEntry } from './turns'
+import type { HistoryItem, RawMessage } from './types'
 
 /**
  * Projection payload for one user-authored session turn.
@@ -136,7 +137,7 @@ function toReferenceSegment(refType: string, targetId: string, note?: string) {
  * Returns:
  * - Provider-ready raw messages or structured messages in stable order
  */
-export function projectProjection(projection: Projection): Array<Message | RawMessage> {
+export function projectProjection(projection: Projection): Array<ProjectionEntry | RawMessage> {
   if (projection.type === 'session-user-turn') {
     return [{
       role: 'user',
@@ -238,9 +239,9 @@ export function projectProjection(projection: Projection): Array<Message | RawMe
  * - The original entries followed by projection-derived entries
  */
 export function projectConversationEntries(input: {
-  entries: Array<Message | RawMessage>
+  entries: Array<ProjectionEntry | RawMessage>
   projections: Projection[]
-}): Array<Message | RawMessage> {
+}): Array<ProjectionEntry | RawMessage> {
   return [
     ...input.entries,
     ...input.projections.flatMap(projectProjection),

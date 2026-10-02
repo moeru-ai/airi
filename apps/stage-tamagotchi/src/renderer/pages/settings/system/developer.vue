@@ -92,6 +92,12 @@ const menu = computed(() => [
     to: '/devtools/screen-capture',
   },
   {
+    title: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.title'),
+    description: t('tamagotchi.settings.devtools.pages.live2d-ambient-light.description'),
+    icon: 'i-solar:lightbulb-bolt-bold-duotone',
+    to: '/devtools/live2d-ambient-light',
+  },
+  {
     title: 'Vision Capture',
     description: 'Capture a screen frame and inspect the output payload',
     icon: 'i-solar:eye-closed-bold-duotone',
@@ -102,6 +108,12 @@ const menu = computed(() => [
     description: 'Register/unregister global shortcuts and watch trigger events fire',
     icon: 'i-solar:keyboard-bold-duotone',
     to: '/devtools/global-shortcut',
+  },
+  {
+    title: t('tamagotchi.settings.devtools.pages.presence-bubble.title'),
+    description: t('tamagotchi.settings.devtools.pages.presence-bubble.description'),
+    icon: 'i-solar:chat-line-line-duotone',
+    to: '/devtools/presence-bubble',
   },
 ])
 

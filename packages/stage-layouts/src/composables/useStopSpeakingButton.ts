@@ -7,7 +7,8 @@ import { computed } from 'vue'
 /**
  * Connects chat speech controls to the active Stage output host.
  *
- * Manual stops affect current playback without cancelling text generation.
+ * Manual speech stops affect current playback. The chat interruption control
+ * combines them with generation cancellation when the user stops a response.
  * Mute is persisted by the shared store and also blocks future TTS sessions.
  */
 export function useStopSpeakingButton(options: {
@@ -27,6 +28,10 @@ export function useStopSpeakingButton(options: {
 
   function stopSpeakingFromChat() {
     trackTtsStopClicked({ reason: 'manual-chat' })
+    speechOutputControlStore.requestStopSpeaking('manual-chat')
+  }
+
+  function interruptSpeakingFromChat() {
     speechOutputControlStore.requestStopSpeaking('manual-chat')
   }
 
@@ -59,6 +64,7 @@ export function useStopSpeakingButton(options: {
   return {
     showStopSpeakingButton,
     speechMuted,
+    interruptSpeakingFromChat,
     stopSpeakingFromChat,
     stopAllSpeaking,
     toggleSpeechMuted,

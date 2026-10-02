@@ -8,6 +8,7 @@
 */
 
 import type { VRM } from '@pixiv/three-vrm'
+import type { PresenceBubblePalette, PresenceBubbleState } from '@proj-airi/stage-shared'
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
@@ -15,9 +16,11 @@ import type { VrmInteractionTarget } from '../composables/vrm/interaction'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 import type { VrmLifecycleReason } from '../trace'
 
+import { coverRect, presenceBubbleIdle } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
+import { useResizeObserver } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
@@ -27,10 +30,14 @@ import {
   MathUtils,
   PerspectiveCamera,
   Raycaster,
+  SRGBColorSpace,
+  TextureLoader,
   Vector2,
   Vector3,
 } from 'three'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
+
+import PresenceBubble from './presence-bubble.vue'
 
 // From stage-ui-three package
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
@@ -50,10 +57,22 @@ import {
 import { OrbitControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
+import { presenceBubblePaletteKey } from './presence-bubble-palette'
 
 const props = withDefaults(defineProps<{
+  /** Drives the bubble above the character. */
+  presence?: PresenceBubbleState
+  /** The context that owns `currentAudioSource`. */
+  audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
   cursorPosition?: { x: number, y: number }
+  /**
+   * Scene painted behind the model, inside this canvas rather than under it, so one
+   * readback answers for the whole stage.
+   */
+  backgroundUrl?: string | null
+  /** Stable display model identity. Runtime resource URLs can change across reloads. */
+  modelId: string
   modelSrc?: string
   skyBoxSrc?: string
   /**
@@ -75,6 +94,7 @@ const props = withDefaults(defineProps<{
   idleAnimation?: string
   paused?: boolean
 }>(), {
+  presence: () => presenceBubbleIdle,
   enableOrbitControls: true,
   showAxes: false,
   idleAnimation: new URL('../assets/vrm/animations/idle_loop.vrma', import.meta.url).href,
@@ -86,8 +106,48 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
   (e: 'vrmInteract', value: VrmInteractionTarget): void
 }>()
+/**
+ * Colours for the presence bubble, read from elements carrying the project's own
+ * utilities.
+ *
+ * They live here rather than in the bubble because the bubble is mounted by the
+ * Tres renderer, which turns a template into Three objects and cannot build a
+ * plain element.
+ */
+const presencePanelProbe = useTemplateRef<HTMLDivElement>('presencePanelProbe')
+const presenceShadowProbe = useTemplateRef<HTMLDivElement>('presenceShadowProbe')
+const presenceInkProbe = useTemplateRef<HTMLDivElement>('presenceInkProbe')
+const presenceBadgeProbe = useTemplateRef<HTMLDivElement>('presenceBadgeProbe')
+const presenceBadgeInkProbe = useTemplateRef<HTMLDivElement>('presenceBadgeInkProbe')
+
+const presenceFallbackPalette: PresenceBubblePalette = {
+  panel: '#fafafa',
+  shadow: '#171717',
+  ink: '#404040',
+  badge: '#404040',
+  badgeInk: '#fafafa',
+}
+
+function readPresenceProbe(element: HTMLDivElement | null, fallback: string) {
+  if (!element)
+    return fallback
+
+  return formatHex(getComputedStyle(element).backgroundColor) ?? fallback
+}
+
+provide(presenceBubblePaletteKey, (): PresenceBubblePalette => ({
+  panel: readPresenceProbe(presencePanelProbe.value, presenceFallbackPalette.panel),
+  shadow: readPresenceProbe(presenceShadowProbe.value, presenceFallbackPalette.shadow),
+  ink: readPresenceProbe(presenceInkProbe.value, presenceFallbackPalette.ink),
+  badge: readPresenceProbe(presenceBadgeProbe.value, presenceFallbackPalette.badge),
+  badgeInk: readPresenceProbe(presenceBadgeInkProbe.value, presenceFallbackPalette.badgeInk),
+}))
 
 type ModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
+interface ModelLoadIdentity {
+  modelId: string
+  modelSrc: string
+}
 type SceneTracePhaseCause
   = | 'binding:complete'
     | 'binding:start'
@@ -116,7 +176,7 @@ const {
   scenePhase,
   sceneTransactionDepth,
 
-  lastCommittedModelSrc,
+  lastCommittedModelId,
   modelSize,
   modelOrigin,
   modelOffset,
@@ -156,8 +216,131 @@ const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
 const tresContextRef = shallowRef<TresContext>()
-const screenRef = ref<InstanceType<typeof Screen>>()
+
+const backgroundTexture = shallowRef<Texture>()
+
 const skyBoxEnvRef = ref<InstanceType<typeof SkyBox>>()
+// The composer owns render targets of its own and follows TresCanvas's debounced sizing,
+// so it has to be resized alongside the renderer or it draws nothing for those frames.
+const effectComposerRef = ref<{ composer?: { setSize: (width: number, height: number, updateStyle?: boolean) => void, render: () => void } }>()
+
+/** Last size handed to the renderer, so an unchanged box does not reallocate the buffer. */
+let rendererWidth = 0
+let rendererHeight = 0
+
+/**
+ * Fits the scene over the canvas, matching the `cover` framing it had as a CSS layer.
+ *
+ * A background texture covers the viewport whatever its own shape, so the fit is
+ * expressed by sampling a smaller window of it rather than by placing a rectangle.
+ *
+ * Nothing is marked dirty: a background rebuilds its own texture matrix each frame,
+ * while marking the texture would re-upload it and recompile the background shader.
+ */
+function layoutBackground() {
+  const texture = backgroundTexture.value
+  const renderer = tresContextRef.value?.renderer.instance
+  if (!texture || !renderer)
+    return
+
+  // `Texture.image` is whatever the loader produced; a decoded image carries its size.
+  const image = texture.image as { width?: number, height?: number } | undefined
+  if (!image?.width || !image?.height)
+    return
+
+  const size = renderer.getSize(new Vector2())
+  if (!size.x || !size.y)
+    return
+
+  const rect = coverRect({ width: size.x, height: size.y }, { width: image.width, height: image.height })
+  texture.repeat.set(size.x / rect.width, size.y / rect.height)
+  texture.offset.set(-rect.x / rect.width, -rect.y / rect.height)
+}
+
+async function syncBackground() {
+  const context = tresContextRef.value
+  const scene = context?.scene.value
+  if (!scene)
+    return
+
+  const url = props.backgroundUrl
+  if (!url) {
+    scene.background = null
+    backgroundTexture.value?.dispose()
+    backgroundTexture.value = undefined
+    // The skybox shares this slot and steps aside while a scene is set. Handing it
+    // back costs nothing, where reloading the HDRI would.
+    skyBoxEnvRef.value?.restoreBackground()
+    return
+  }
+
+  // A scene that cannot decode leaves the stage as it is, rather than throwing where
+  // nothing is waiting to catch it.
+  let texture: Texture
+  try {
+    texture = await new TextureLoader().loadAsync(url)
+  }
+  catch {
+    return
+  }
+
+  // Scene art is authored in sRGB. Saying so keeps the renderer from encoding it a
+  // second time, and marks the background as already display-referred so tone mapping
+  // leaves it alone.
+  texture.colorSpace = SRGBColorSpace
+
+  // A later scene wins, and so does a later context: both can be replaced while the
+  // texture loads.
+  if (props.backgroundUrl !== url || tresContextRef.value !== context) {
+    texture.dispose()
+    return
+  }
+
+  backgroundTexture.value?.dispose()
+  backgroundTexture.value = texture
+  scene.background = texture
+  layoutBackground()
+}
+
+watch(() => props.backgroundUrl, () => void syncBackground())
+// TresCanvas pins the canvas to 100% of its parent but debounces its own sizing, so a
+// drag leaves the element at the new size and the buffer at the old one, scaled to fill
+// it. Sizing here closes that gap; the debounced pass reaches the same values.
+useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, ([entry]) => {
+  const context = tresContextRef.value
+  const renderer = context?.renderer.instance
+  if (!renderer || !entry)
+    return
+
+  const { width, height } = entry.contentRect
+  if (width > 0 && height > 0 && (width !== rendererWidth || height !== rendererHeight)) {
+    rendererWidth = width
+    rendererHeight = height
+
+    // The canvas keeps its own styled size; only the drawing buffer is being corrected.
+    renderer.setSize(width, height, false)
+    const composer = effectComposerRef.value?.composer
+    // EffectComposer forwards this flag to renderer.setSize, where three defaults it to
+    // true and writes pixel sizes onto the canvas. Saying false keeps that off whatever
+    // order these two run in.
+    composer?.setSize(width, height, false)
+    for (const camera of context.camera.cameras.value) {
+      if (camera instanceof PerspectiveCamera) {
+        camera.aspect = width / height
+        camera.updateProjectionMatrix()
+      }
+    }
+
+    layoutBackground()
+    // Resizing reallocates the drawing buffer and leaves it empty. Drawing now means the
+    // frame the compositor picks up during a drag is never the blank one.
+    composer?.render()
+    return
+  }
+
+  layoutBackground()
+})
+const screenRef = ref<InstanceType<typeof Screen>>()
 const dirLightRef = ref<InstanceType<typeof DirectionalLight>>()
 const stageThreeRuntimeTraceContext = getStageThreeRuntimeTraceContext()
 const stageThreeSceneTraceOriginId = `three-scene:${Math.random().toString(36).slice(2, 10)}`
@@ -165,7 +348,11 @@ const latestScenePhaseTraceCause = ref<SceneTracePhaseCause>('props:model-src')
 const latestSceneTransactionReason = ref<SceneTraceTransactionReason>('unknown')
 const activeModelSrc = ref<string>()
 const bindingRevision = ref(0)
-const pendingCommittedModelSrc = ref<string>()
+// A selection ID can change while its URL is still resolving. The URL change owns
+// the request snapshot, so an in-flight load keeps the ID that requested its URL.
+const requestedModelIdentity = shallowRef<ModelLoadIdentity>()
+const loadingModelIdentity = shallowRef<ModelLoadIdentity>()
+const pendingCommittedModelIdentity = shallowRef<ModelLoadIdentity>()
 const pendingCommittedModelRevision = ref<number>()
 const pendingSceneBootstrap = shallowRef<SceneBootstrap>()
 
@@ -253,12 +440,13 @@ function toVec3(value: Vector3): Vec3 {
 }
 
 function clearPendingCommittedModel() {
-  pendingCommittedModelSrc.value = undefined
+  pendingCommittedModelIdentity.value = undefined
   pendingCommittedModelRevision.value = undefined
 }
 
 function invalidateBindingRevision() {
   bindingRevision.value += 1
+  loadingModelIdentity.value = undefined
   clearPendingCommittedModel()
 }
 
@@ -370,23 +558,25 @@ function setScenePhaseWithTrace(phase: ScenePhase, cause: SceneTracePhaseCause) 
   setScenePhase(phase)
 }
 
-function commitLastCommittedModelSrc(expectedRevision: number, nextPhase: ScenePhase) {
+function commitLastCommittedModelId(expectedRevision: number, nextPhase: ScenePhase) {
   if (nextPhase !== 'mounted')
     return
 
   if (expectedRevision !== bindingRevision.value)
     return
 
-  if (!pendingCommittedModelSrc.value || pendingCommittedModelRevision.value !== expectedRevision)
+  const completedModel = pendingCommittedModelIdentity.value
+  if (!completedModel || pendingCommittedModelRevision.value !== expectedRevision)
     return
 
-  if (!activeModelSrc.value || pendingCommittedModelSrc.value !== activeModelSrc.value)
+  if (!activeModelSrc.value || completedModel.modelSrc !== activeModelSrc.value)
     return
 
-  if (props.modelSrc !== activeModelSrc.value)
+  const activeRequest = requestedModelIdentity.value
+  if (activeRequest?.modelId !== completedModel.modelId || activeRequest.modelSrc !== completedModel.modelSrc)
     return
 
-  lastCommittedModelSrc.value = pendingCommittedModelSrc.value
+  lastCommittedModelId.value = completedModel.modelId
   clearPendingCommittedModel()
 }
 
@@ -444,7 +634,7 @@ async function completeSceneBinding(expectedRevision = bindingRevision.value) {
 
     const nextPhase = resolveScenePhaseAfterBinding()
     setScenePhaseWithTrace(nextPhase, 'binding:complete')
-    commitLastCommittedModelSrc(expectedRevision, nextPhase)
+    commitLastCommittedModelId(expectedRevision, nextPhase)
   }
   finally {
     isCompletingBinding.value = false
@@ -468,6 +658,7 @@ function onVRMModelLoadStart(reason: VrmLifecycleReason) {
   modelPhase.value = 'loading'
   pendingSceneBootstrap.value = undefined
   beginSceneBindingCycle(toSceneLoadTransactionReason(reason))
+  loadingModelIdentity.value = requestedModelIdentity.value
 }
 
 function onVRMSceneBootstrap(value: SceneBootstrap) {
@@ -476,8 +667,12 @@ function onVRMSceneBootstrap(value: SceneBootstrap) {
 
 function onVRMModelLoaded(value: string) {
   activeModelSrc.value = value
-  pendingCommittedModelSrc.value = value
+  const completedModel = loadingModelIdentity.value
+  pendingCommittedModelIdentity.value = completedModel?.modelSrc === value
+    ? completedModel
+    : undefined
   pendingCommittedModelRevision.value = bindingRevision.value
+  loadingModelIdentity.value = undefined
   modelPhase.value = 'ready'
   void completeSceneBinding(bindingRevision.value)
 }
@@ -505,6 +700,10 @@ function onSkyBoxReady(EnvPayload: {
 // === Tres Canvas ===
 function onTresReady(context: TresContext) {
   tresContextRef.value = context
+  // The size memo below describes one renderer. A new context starts with none.
+  rendererWidth = 0
+  rendererHeight = 0
+  void syncBackground()
   canvasReady.value = true
   context.renderer.instance.domElement.addEventListener('pointerdown', onCanvasPointerDown)
   context.renderer.instance.domElement.addEventListener('pointerup', onCanvasPointerUp)
@@ -606,6 +805,8 @@ onUnmounted(() => {
   emitSceneTransactionTrace('reset', 'component-unmount')
   setScenePhaseWithTrace('pending', 'component:unmount')
   disposeRenderTarget()
+  backgroundTexture.value?.dispose()
+  backgroundTexture.value = undefined
 })
 
 const effectProps = {
@@ -617,6 +818,12 @@ const effectProps = {
 function applyVrmFrameRuntimeHook() {
   modelRef.value?.setVrmFrameHook(vrmFrameRuntimeHook.value)
 }
+
+watch(() => props.modelSrc, (modelSrc) => {
+  requestedModelIdentity.value = modelSrc
+    ? { modelId: props.modelId, modelSrc }
+    : undefined
+}, { flush: 'sync', immediate: true })
 
 watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
@@ -789,6 +996,13 @@ defineExpose({
 
 <template>
   <Screen ref="screenRef" v-slot="{ width, height }" relative>
+    <div hidden>
+      <div ref="presencePanelProbe" :class="['bg-neutral-50 dark:bg-neutral-800']" />
+      <div ref="presenceShadowProbe" :class="['bg-neutral-900 dark:bg-neutral-950']" />
+      <div ref="presenceInkProbe" :class="['bg-neutral-700 dark:bg-neutral-200']" />
+      <div ref="presenceBadgeProbe" :class="['bg-primary-500 dark:bg-primary-400']" />
+      <div ref="presenceBadgeInkProbe" :class="['bg-neutral-50 dark:bg-neutral-900']" />
+    </div>
     <TresCanvas
       :width="width"
       :height="height"
@@ -813,7 +1027,7 @@ defineExpose({
         v-if="envSelect === 'skyBox'"
         ref="skyBoxEnvRef"
         :sky-box-src="skyBoxSrc"
-        :as-background="true"
+        :as-background="!backgroundUrl"
         @sky-box-ready="onSkyBoxReady"
       />
       <TresHemisphereLight
@@ -837,16 +1051,18 @@ defineExpose({
         cast-shadow
       />
       <Suspense>
-        <EffectComposerPmndrs :multisampling="multisampling">
+        <EffectComposerPmndrs ref="effectComposerRef" :multisampling="multisampling">
           <HueSaturationPmndrs v-bind="effectProps" />
         </EffectComposerPmndrs>
       </Suspense>
       <VRMModel
         ref="modelRef"
+        :audio-context="props.audioContext"
         :current-audio-source="props.currentAudioSource"
         :cursor-position="props.cursorPosition"
-        :last-committed-model-src="lastCommittedModelSrc"
-        :model-src="props.modelSrc"
+        :last-committed-model-id="lastCommittedModelId"
+        :model-id="requestedModelIdentity?.modelId ?? props.modelId"
+        :model-src="requestedModelIdentity?.modelSrc"
         :idle-animation="props.idleAnimation"
         :paused="props.paused"
         :env-select="envSelect"
@@ -864,7 +1080,13 @@ defineExpose({
         @scene-bootstrap="onVRMSceneBootstrap"
         @error="onVRMModelError"
         @loaded="onVRMModelLoaded"
-      />
+      >
+        <PresenceBubble
+          :head-anchor="() => modelRef?.headAnchor()"
+          :state="props.presence"
+          :resolution="renderScale"
+        />
+      </VRMModel>
       <TresAxesHelper v-if="props.showAxes" :size="1" />
     </TresCanvas>
   </Screen>

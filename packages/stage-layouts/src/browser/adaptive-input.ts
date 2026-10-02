@@ -1,7 +1,6 @@
-import type { AdaptiveInputFocusPhase, ViewportProfile, ViewportSample } from './adaptive-input-geometry'
+import type { AdaptiveInputFocusPhase } from './adaptive-input-geometry'
 
 import {
-  calculateCachedViewportHeight,
   calculateKeyboardShift,
   calculateVisualViewportLayout,
   toViewportRectangle,
@@ -19,6 +18,8 @@ export interface AdaptiveInputLayout {
    * If false, the input region can use the normal viewport layout.
    */
   keyboardVisible: boolean
+  /** The layout viewport height before the software keyboard changes the visible area. */
+  stableViewportHeight: number
   /** The height that remains visible above the keyboard, in CSS pixels. */
   visibleHeight: number
   /** The bottom edge to assign to the adaptive viewport, in document coordinates and CSS pixels. */
@@ -31,6 +32,12 @@ export interface AdaptiveInputLayout {
 export interface AdaptiveInputOptions {
   /** The region that contains editable controls and moves above the keyboard. */
   area: HTMLElement
+  /**
+   * Lets the virtual keyboard cover page content so this controller can position the input area.
+   *
+   * @default true
+   */
+  overlayVirtualKeyboard?: boolean
   /** The region whose height follows the available viewport. */
   viewport: HTMLElement
   /**
@@ -54,14 +61,8 @@ const TEXT_ENTRY_SELECTOR = [
   '[contenteditable]:not([contenteditable="false"])',
 ].join(',')
 
-function readViewportProfile(targetWindow: Window): ViewportProfile {
-  return {
-    displayMode: targetWindow.matchMedia('(display-mode: standalone)').matches
-      ? 'standalone'
-      : 'browser',
-    height: targetWindow.document.documentElement.clientHeight,
-    width: targetWindow.document.documentElement.clientWidth,
-  }
+function readLayoutHeight(targetWindow: Window): number {
+  return targetWindow.document.documentElement.clientHeight
 }
 
 function isTextEntry(element: Element): boolean {
@@ -70,14 +71,13 @@ function isTextEntry(element: Element): boolean {
 }
 
 /**
- * Owns keyboard measurements and focus timing for one adaptive input region.
+ * Owns keyboard measurements and layout timing for one adaptive input region.
  *
  * Construction starts event measurement. Call {@link dispose} when the owner releases the region.
  * The controller reports each new layout through {@link ADAPTIVE_INPUT_LAYOUT_EVENT}.
  *
- * The Safari pre-focus path writes one synchronous inline height to `viewport`. This write must
- * finish before `focus()`. The controller restores the previous height during disposal if the
- * consumer has not replaced the value.
+ * The focus-out path writes one synchronous inline height to `viewport`. The controller restores
+ * the previous height during disposal if the consumer has not replaced the value.
  */
 export class AdaptiveInput extends EventTarget {
   private readonly abortController = new AbortController()
@@ -95,14 +95,11 @@ export class AdaptiveInput extends EventTarget {
   private focusPhase: AdaptiveInputFocusPhase = 'idle'
   private layoutValue: AdaptiveInputLayout
   private pendingWindowScrollRepair = false
-  private predictedViewportHeight: number | undefined
-  private predictionTimeout: number | undefined
   private referenceLayoutHeight: number
-  private synchronousHeightBeforePrediction: string | undefined
+  private synchronousHeightBeforeWrite: string | undefined
   private synchronousHeightValue: string | undefined
-  private viewportSample: ViewportSample | undefined
 
-  private readonly overlaysContentBeforeStart: boolean | undefined
+  private readonly overlaysContentBeforeStart?: boolean
 
   constructor(options: AdaptiveInputOptions) {
     super()
@@ -117,6 +114,7 @@ export class AdaptiveInput extends EventTarget {
     this.referenceLayoutHeight = initialHeight
     this.layoutValue = {
       keyboardVisible: false,
+      stableViewportHeight: initialHeight,
       visibleHeight: initialHeight,
       viewportBottom: initialHeight,
       viewportOffsetTop: 0,
@@ -124,9 +122,10 @@ export class AdaptiveInput extends EventTarget {
 
     // TypeScript 5.9 does not include this experimental browser API in lib.dom.d.ts.
     this.virtualKeyboard = Reflect.get(targetWindow.navigator, 'virtualKeyboard')
-    this.overlaysContentBeforeStart = this.virtualKeyboard?.overlaysContent
-    if (this.virtualKeyboard)
+    if (this.virtualKeyboard && options.overlayVirtualKeyboard !== false) {
+      this.overlaysContentBeforeStart = this.virtualKeyboard.overlaysContent
       this.virtualKeyboard.overlaysContent = true
+    }
 
     const activeElement = targetWindow.document.activeElement
     this.focusPhase = activeElement !== null
@@ -136,17 +135,13 @@ export class AdaptiveInput extends EventTarget {
       : 'idle'
 
     const listenerOptions = { signal: this.abortController.signal }
-    this.area.addEventListener('pointerdown', this.onPointerDown, {
-      capture: true,
-      signal: this.abortController.signal,
-    })
     targetWindow.document.addEventListener('focusin', this.onFocusIn, listenerOptions)
     targetWindow.document.addEventListener('focusout', this.onFocusOut, listenerOptions)
     this.virtualKeyboard?.addEventListener('geometrychange', this.requestMeasurement, listenerOptions)
     this.visualViewport?.addEventListener('resize', this.requestMeasurement, listenerOptions)
     this.visualViewport?.addEventListener('scroll', this.requestMeasurement, listenerOptions)
     targetWindow.addEventListener('resize', this.requestMeasurement, listenerOptions)
-    targetWindow.addEventListener('orientationchange', this.onOrientationChange, listenerOptions)
+    targetWindow.addEventListener('orientationchange', this.requestMeasurement, listenerOptions)
 
     this.requestMeasurement()
   }
@@ -163,17 +158,14 @@ export class AdaptiveInput extends EventTarget {
     if (this.animationFrame !== undefined)
       this.targetWindow.cancelAnimationFrame(this.animationFrame)
 
-    if (this.predictionTimeout !== undefined)
-      this.targetWindow.clearTimeout(this.predictionTimeout)
-
     if (this.virtualKeyboard && this.overlaysContentBeforeStart !== undefined)
       this.virtualKeyboard.overlaysContent = this.overlaysContentBeforeStart
 
     if (
-      this.synchronousHeightBeforePrediction !== undefined
+      this.synchronousHeightBeforeWrite !== undefined
       && this.viewport.style.height === this.synchronousHeightValue
     ) {
-      this.viewport.style.height = this.synchronousHeightBeforePrediction
+      this.viewport.style.height = this.synchronousHeightBeforeWrite
     }
   }
 
@@ -187,8 +179,7 @@ export class AdaptiveInput extends EventTarget {
   private readonly measure = () => {
     this.animationFrame = undefined
 
-    const currentProfile = readViewportProfile(this.targetWindow)
-    const currentLayoutHeight = currentProfile.height
+    const currentLayoutHeight = readLayoutHeight(this.targetWindow)
     if (this.focusPhase === 'idle' && !this.pendingWindowScrollRepair)
       this.referenceLayoutHeight = currentLayoutHeight
 
@@ -197,8 +188,6 @@ export class AdaptiveInput extends EventTarget {
     let visibleHeight = currentLayoutHeight
     let viewportBottom = currentLayoutHeight
     let viewportOffsetTop = 0
-    let updateViewportNow = false
-
     if (this.visualViewport) {
       // WORKAROUND:
       // NOTICE:
@@ -214,35 +203,10 @@ export class AdaptiveInput extends EventTarget {
         pageTop: this.visualViewport.pageTop,
       }, stableLayoutHeight, this.focusPhase)
 
-      const predictedHeight = this.predictedViewportHeight
-      const predictionIsActive = predictedHeight !== undefined && this.focusPhase === 'focused'
-      if (predictionIsActive && !viewportLayout.heightLossExceedsThreshold) {
-        keyboardVisible = true
-        visibleHeight = predictedHeight
-        viewportBottom = predictedHeight
-      }
-      else {
-        keyboardVisible = viewportLayout.keyboardVisible
-        visibleHeight = viewportLayout.height
-        viewportBottom = viewportLayout.visibleBottom
-        viewportOffsetTop = viewportLayout.offsetTop
-
-        if (viewportLayout.keyboardVisible) {
-          this.viewportSample = {
-            bottomHiddenByKeyboard: Math.max(0, stableLayoutHeight - viewportLayout.height),
-            measuredAt: Date.now(),
-            profile: currentProfile,
-          }
-        }
-
-        if (predictionIsActive && viewportLayout.heightLossExceedsThreshold) {
-          this.predictedViewportHeight = undefined
-          if (this.predictionTimeout !== undefined)
-            this.targetWindow.clearTimeout(this.predictionTimeout)
-          this.predictionTimeout = undefined
-          updateViewportNow = true
-        }
-      }
+      keyboardVisible = viewportLayout.keyboardVisible
+      visibleHeight = viewportLayout.height
+      viewportBottom = viewportLayout.visibleBottom
+      viewportOffsetTop = viewportLayout.offsetTop
 
       if (viewportLayout.heightLossExceedsThreshold)
         this.pendingWindowScrollRepair = true
@@ -287,18 +251,12 @@ export class AdaptiveInput extends EventTarget {
 
     this.layoutValue = {
       keyboardVisible,
+      stableViewportHeight: stableLayoutHeight,
       visibleHeight,
       viewportBottom,
       viewportOffsetTop,
     }
     this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
-
-    if (updateViewportNow) {
-      if (this.synchronousHeightBeforePrediction === undefined)
-        this.synchronousHeightBeforePrediction = this.viewport.style.height
-      this.synchronousHeightValue = `${viewportBottom}px`
-      this.viewport.style.height = this.synchronousHeightValue
-    }
   }
 
   private readonly onFocusIn = (event: FocusEvent) => {
@@ -309,7 +267,7 @@ export class AdaptiveInput extends EventTarget {
       return
 
     this.focusPhase = 'focused'
-    this.referenceLayoutHeight = readViewportProfile(this.targetWindow).height
+    this.referenceLayoutHeight = readLayoutHeight(this.targetWindow)
     this.requestMeasurement()
   }
 
@@ -321,130 +279,27 @@ export class AdaptiveInput extends EventTarget {
       return
 
     this.focusPhase = 'closing'
-    this.predictedViewportHeight = undefined
-    if (this.predictionTimeout !== undefined)
-      this.targetWindow.clearTimeout(this.predictionTimeout)
-    this.predictionTimeout = undefined
 
     // NOTICE:
     // Why: The input region must follow the keyboard as soon as its owned input loses focus.
     // Root cause: Safari keeps the keyboard-sized Visual Viewport until its close animation ends.
     // Source: https://bugs.webkit.org/show_bug.cgi?id=265578
     // Removal condition: Safari reports each intermediate keyboard close frame through a keyboard API.
-    const normalHeight = this.referenceLayoutHeight || readViewportProfile(this.targetWindow).height
+    const normalHeight = this.referenceLayoutHeight || readLayoutHeight(this.targetWindow)
     this.layoutValue = {
       keyboardVisible: false,
+      stableViewportHeight: normalHeight,
       visibleHeight: normalHeight,
       viewportBottom: normalHeight,
       viewportOffsetTop: this.visualViewport?.offsetTop ?? 0,
     }
     this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
 
-    if (this.synchronousHeightBeforePrediction === undefined)
-      this.synchronousHeightBeforePrediction = this.viewport.style.height
+    if (this.synchronousHeightBeforeWrite === undefined)
+      this.synchronousHeightBeforeWrite = this.viewport.style.height
     this.synchronousHeightValue = `${normalHeight}px`
     this.viewport.style.height = this.synchronousHeightValue
 
-    this.requestMeasurement()
-  }
-
-  private readonly onOrientationChange = () => {
-    this.viewportSample = undefined
-    this.predictedViewportHeight = undefined
-    if (this.predictionTimeout !== undefined)
-      this.targetWindow.clearTimeout(this.predictionTimeout)
-    this.predictionTimeout = undefined
-    this.requestMeasurement()
-  }
-
-  private readonly onPointerDown = (event: PointerEvent) => {
-    if (this.virtualKeyboard || !this.visualViewport || !this.viewportSample)
-      return
-
-    if (event.defaultPrevented || !event.cancelable || !event.isPrimary || event.button !== 0 || event.pointerType === 'mouse')
-      return
-
-    if (!(event.target instanceof Element))
-      throw new TypeError('The pointerdown event target must be an Element.')
-
-    const editable = event.target.closest(TEXT_ENTRY_SELECTOR)
-    if (!editable || !this.area.contains(editable) || editable.matches(':disabled, [readonly]'))
-      return
-
-    if (!(editable instanceof HTMLElement))
-      throw new TypeError('The matched text-entry target must be an HTMLElement.')
-
-    if (this.targetWindow.document.activeElement === editable)
-      return
-
-    // NOTICE:
-    // Why: Safari must own a second touch while its software keyboard closes.
-    // Root cause: Canceling this touch leaves only programmatic focus, but the native dismissal can
-    // still finish and leave the input focused without a keyboard.
-    // Source/context: See the closing-focus regression in adaptive-input.test.ts.
-    // Removal condition: Safari exposes a keyboard lifecycle that can cancel an active dismissal.
-    if (this.focusPhase === 'closing')
-      return
-
-    const currentProfile = readViewportProfile(this.targetWindow)
-    const cachedHeight = calculateCachedViewportHeight(this.viewportSample, currentProfile, Date.now())
-    if (cachedHeight === undefined)
-      return
-
-    // WORKAROUND:
-    // NOTICE:
-    // Why: The input region must clear the keyboard before Safari applies its focus pan.
-    // Root cause: Safari decides whether to pan the page before it reports keyboard geometry.
-    // Source: https://craft.rkm.mx/b/1FD194A1-0DDD-4F79-B0FD-ABEC08F88A3F/iOS-%E9%94%AE%E7%9B%98%E9%9A%BE%E9%A2%98%E4%B8%8E%E5%8F%AF%E8%A7%81%E8%A7%86%E5%8F%A3%EF%BC%88VisualViewport%EF%BC%89API
-    // Code reference: https://github.com/morethanwords/tweb/blob/b21491cfdec248127cfb6a1e6617e26826021ff4/src/helpers/dom/fixSafariStickyInput.ts#L1-L23
-    // Removal condition: Safari provides keyboard geometry before its focus policy runs.
-    event.preventDefault()
-    this.referenceLayoutHeight = currentProfile.height
-    this.predictedViewportHeight = cachedHeight
-    this.layoutValue = {
-      keyboardVisible: true,
-      visibleHeight: cachedHeight,
-      viewportBottom: cachedHeight,
-      viewportOffsetTop: 0,
-    }
-    this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
-
-    if (this.synchronousHeightBeforePrediction === undefined)
-      this.synchronousHeightBeforePrediction = this.viewport.style.height
-    this.synchronousHeightValue = `${cachedHeight}px`
-    this.viewport.style.height = this.synchronousHeightValue
-
-    this.viewport.getBoundingClientRect()
-    editable.focus({ preventScroll: true })
-
-    if (this.targetWindow.document.activeElement === editable) {
-      if (this.predictionTimeout !== undefined)
-        this.targetWindow.clearTimeout(this.predictionTimeout)
-
-      // WORKAROUND:
-      // NOTICE:
-      // Why: A cached height must not keep the viewport compressed when no software keyboard opens.
-      // Root cause: An external keyboard produces no keyboard-sized Visual Viewport event.
-      // Code context: The pre-focus pointer handler applies a cached height before focus.
-      // Removal condition: Browsers expose keyboard visibility before focus.
-      this.predictionTimeout = this.targetWindow.setTimeout(() => {
-        this.predictedViewportHeight = undefined
-        this.predictionTimeout = undefined
-        this.requestMeasurement()
-      }, 1_000)
-      return
-    }
-
-    this.predictedViewportHeight = undefined
-    this.layoutValue = {
-      keyboardVisible: false,
-      visibleHeight: currentProfile.height,
-      viewportBottom: currentProfile.height,
-      viewportOffsetTop: 0,
-    }
-    this.dispatchEvent(new Event(ADAPTIVE_INPUT_LAYOUT_EVENT))
-    this.synchronousHeightValue = `${currentProfile.height}px`
-    this.viewport.style.height = this.synchronousHeightValue
     this.requestMeasurement()
   }
 }

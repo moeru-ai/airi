@@ -47,3 +47,5 @@ export function resolveSupportedLocale(
     ? normalizedLocale
     : fallbackLocale
 }
+
+export { serializeStartupFallbackLocales } from './startup-fallback'

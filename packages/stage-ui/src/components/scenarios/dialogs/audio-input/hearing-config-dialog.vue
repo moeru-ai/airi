@@ -12,7 +12,8 @@ import { useSettingsAudioDevice } from '../../../../stores'
 const props = defineProps<{
   overlayDim?: boolean
   overlayBlur?: boolean
-  granted?: boolean
+  /** Runs only when the user enables microphone input in this dialog. */
+  beforeEnable?: () => Promise<void>
 }>()
 
 const showDialog = defineModel('show', { type: Boolean, default: false, required: false })
@@ -49,7 +50,7 @@ onMounted(() => screenSafeArea.update())
         </VisuallyHidden>
         <HearingConfig
           v-model:auto-send="autoSend"
-          :granted="props.granted"
+          :before-enable="props.beforeEnable"
         />
         <slot name="extra" />
       </DialogContent>
@@ -79,7 +80,7 @@ onMounted(() => screenSafeArea.update())
         />
         <HearingConfig
           v-model:auto-send="autoSend"
-          :granted="props.granted"
+          :before-enable="props.beforeEnable"
         />
         <slot name="extra" />
       </DrawerContent>

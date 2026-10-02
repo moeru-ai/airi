@@ -68,6 +68,11 @@ const environment = ref<DataTexture | CanvasTexture>()
 let _pmrem: PMREMGenerator | null = null
 let _envRT: WebGLRenderTarget | null = null // WebGLRenderTarget from PMREM
 
+// ThreeScene also writes scene.background to show the card's scene, and yields the
+// slot to whichever the user picked. Remembering what this component installed keeps
+// it from clearing a background it does not own.
+let installedBackground: Texture | null = null
+
 const { scene, renderer } = useTres()
 
 // Remove the sky box
@@ -76,10 +81,12 @@ function clearEnvironment() {
   if (!scn)
     return
   scn.environment = null
-  scn.background = null
-  // Do not forcibly clear background; caller/prop controls that intent.
-  // scn.background = null
-  // Lilia: background must be cleared when switching to hemisphere light
+  if (installedBackground && scn.background === installedBackground) {
+    scn.background = null
+    scn.backgroundBlurriness = 0
+    scn.backgroundIntensity = 1
+  }
+  installedBackground = null
   _envRT?.dispose?.()
   _pmrem?.dispose?.()
   _envRT = null
@@ -130,11 +137,10 @@ async function loadEnvironment(skyBoxSrc: string) {
     environment.value = hdrTex
     const scn = scene.value as Scene
     scn.environment = rt.texture // drives PBR materials (Standard/Physical)
+    // The blur and intensity controls apply to whatever sits in the background slot,
+    // so they are set only while this component is the one filling it.
     if (props.asBackground)
-      scn.background = rt.texture // optional: also show as background
-    // r152+: background controls (no-ops on older versions)
-    scn.backgroundBlurriness = props.backgroundBlurriness
-    scn.backgroundIntensity = props.backgroundIntensity
+      showAsBackground(scn, rt.texture)
 
     // emit irrSH for NPR IBL
     emit('skyBoxReady', { irrSH: probe.sh })
@@ -161,8 +167,23 @@ onMounted(async () => {
   )
 })
 
+function showAsBackground(scn: Scene, texture: Texture) {
+  scn.background = texture
+  // r152+: background controls (no-ops on older versions)
+  scn.backgroundBlurriness = props.backgroundBlurriness
+  scn.backgroundIntensity = props.backgroundIntensity
+  installedBackground = texture
+}
+
 defineExpose({
   reload: async (skyBoxSrc: string) => await loadEnvironment(skyBoxSrc),
+  /** Puts the loaded HDRI back in the background slot after a card scene releases it. */
+  restoreBackground: () => {
+    const scn = scene.value as Scene | null
+    const texture = _envRT?.texture
+    if (scn && texture)
+      showAsBackground(scn, texture)
+  },
 })
 
 onUnmounted(async () => {

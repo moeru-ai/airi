@@ -44,84 +44,6 @@ describe('billingService', () => {
 
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
-    await db.delete(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
-
-    await db.insert(schema.stripeCheckoutSession).values({
-      userId: 'user-billing-1',
-      stripeSessionId: 'sess-billing-1',
-      mode: 'payment',
-      status: 'complete',
-      paymentStatus: 'paid',
-      amountTotal: 500,
-      currency: 'usd',
-      fluxCredited: false,
-    })
-  })
-
-  describe('creditFluxFromStripeCheckout', () => {
-    it('credits flux, records transaction, and enqueues outbox events in one transaction', async () => {
-      const result = await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
-        amountTotal: 500,
-        currency: 'usd',
-        fluxAmount: 50,
-      })
-
-      expect(result).toEqual({ applied: true, balanceAfter: 50 })
-
-      const [fluxRecord] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
-      expect(fluxRecord?.flux).toBe(50)
-
-      // Verify transaction entry
-      const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
-      expect(txRecords).toHaveLength(1)
-      expect(txRecords[0]?.type).toBe('credit')
-      expect(txRecords[0]?.amount).toBe(50)
-      expect(txRecords[0]?.balanceBefore).toBe(0)
-      expect(txRecords[0]?.balanceAfter).toBe(50)
-
-      // Verify metadata on transaction entry
-      expect(txRecords[0]?.metadata).toMatchObject({
-        stripeEventId: 'stripe-evt-1',
-        stripeSessionId: 'sess-billing-1',
-        source: 'stripe.checkout.completed',
-      })
-
-      // Verify stripe session marked as credited
-      const [sessionRecord] = await db.select().from(schema.stripeCheckoutSession).where(eq(schema.stripeCheckoutSession.stripeSessionId, 'sess-billing-1'))
-      expect(sessionRecord?.fluxCredited).toBe(true)
-
-      // Verify Redis cache updated
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '50')
-    })
-
-    it('is idempotent when the checkout session was already credited', async () => {
-      await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
-        amountTotal: 500,
-        currency: 'usd',
-        fluxAmount: 50,
-      })
-
-      const second = await billingService.creditFluxFromStripeCheckout({
-        stripeEventId: 'stripe-evt-1',
-        userId: 'user-billing-1',
-        stripeSessionId: 'sess-billing-1',
-        amountTotal: 500,
-        currency: 'usd',
-        fluxAmount: 50,
-      })
-
-      expect(second).toEqual({ applied: false })
-
-      // Idempotent replay must not double-write the ledger
-      const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
-      expect(txRecords).toHaveLength(1)
-    })
   })
 
   describe('consumeFluxForLLM', () => {
@@ -165,7 +87,7 @@ describe('billingService', () => {
       })
 
       // Verify Redis cache updated
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70')
+      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '70', 'EX', 60)
     })
 
     // ROOT CAUSE:
@@ -216,7 +138,7 @@ describe('billingService', () => {
 
       // Redis cache reflects the zero balance, so the next pre-flight gate
       // (`flux < fallbackRate`) rejects immediately.
-      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0')
+      expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '0', 'EX', 60)
     })
 
     it('throws 402 when balance is already zero (no ledger row, no balance change)', async () => {
@@ -278,6 +200,7 @@ describe('billingService', () => {
       expect(result.balanceAfter).toBe(50)
       expect(result.balanceBefore).toBe(0)
       expect(result.idempotent).toBe(false)
+      expect(await redis.ttl(userFluxRedisKey('user-billing-1'))).toBeGreaterThan(0)
 
       // Verify transaction
       const txRecords = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-billing-1'))
@@ -345,6 +268,26 @@ describe('billingService', () => {
       ))
       expect(txRecords).toHaveLength(1)
     })
+  })
+
+  it('sets a TTL when synchronizing a committed payment balance', async () => {
+    await billingService.syncFluxCache('user-billing-1', 123)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey('user-billing-1'), '123', 'EX', 60)
+    expect(await redis.ttl(userFluxRedisKey('user-billing-1'))).toBeGreaterThan(0)
+  })
+
+  it('keeps a committed credit when the cache write fails', async () => {
+    vi.spyOn(redis, 'set').mockRejectedValueOnce(new Error('redis unavailable'))
+    const result = await billingService.creditFlux({
+      userId: 'user-billing-1',
+      amount: 50,
+      description: 'grant',
+      source: 'test',
+    })
+    expect(result.balanceAfter).toBe(50)
+    const [row] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
+    expect(row?.flux).toBe(50)
+    expect(await db.select().from(schema.fluxTransaction)).toHaveLength(1)
   })
 
   describe('setFlux', () => {

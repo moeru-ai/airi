@@ -1,6 +1,6 @@
-import { useLocalStorage } from '@vueuse/core'
+import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
 export type SpeechOutputStopReason = 'manual-chat' | 'manual-all' | 'muted'
 
@@ -19,7 +19,15 @@ export const useSpeechOutputControlStore = defineStore('speech-output-control', 
     window: typeof window === 'undefined' ? undefined : window,
   })
   const latestStopRequest = ref<SpeechOutputStopRequest>()
+  const { data: incomingStopRequest, post: broadcastStopRequest } = useBroadcastChannel<SpeechOutputStopRequest, SpeechOutputStopRequest>({
+    name: 'airi-speech-output-control',
+  })
   let nextRequestId = 1
+
+  watch(incomingStopRequest, (request) => {
+    if (request)
+      latestStopRequest.value = request
+  })
 
   /**
    * Requests that the active speech output host stops assistant audio playback.
@@ -34,10 +42,12 @@ export const useSpeechOutputControlStore = defineStore('speech-output-control', 
    * - Nothing. The latest request is published for the Stage host to consume.
    */
   function requestStopSpeaking(reason: SpeechOutputStopReason) {
-    latestStopRequest.value = {
+    const request = {
       id: nextRequestId++,
       reason,
     }
+    latestStopRequest.value = request
+    broadcastStopRequest(request)
   }
 
   /**

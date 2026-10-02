@@ -8,6 +8,7 @@ import { computedAsync } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { useProviderConfigStore } from '../../../../stores/providers/config'
 import { useProviderStore } from '../../../../stores/providers/provider'
 import { Alert } from '../../../misc'
 import { ProviderAccountIdInput } from '../../../scenarios/providers'
@@ -22,6 +23,7 @@ interface Props {
 const props = defineProps<Props>()
 const { t } = useI18n()
 const providersStore = useProviderStore()
+const providerConfigStore = useProviderConfigStore()
 
 const apiKey = ref('')
 const baseUrl = ref('')
@@ -34,21 +36,30 @@ const validationError = ref<any>()
 
 const hasOnboardingFields = computed(() => (props.selectedProvider?.onboardingFields?.length ?? 0) > 0)
 
-// Initialize form with default values when provider changes
+// Initialize form with default values when provider changes, rehydrating from
+// the configuration saved on a previous visit to this step (for example after
+// going back from model selection) so step navigation does not wipe user input
 function initializeForm() {
   const provider = props.selectedProvider
   if (!provider)
     return
 
   const defaultOptions = provider.defaultConfig
-  baseUrl.value = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
-  apiKey.value = ''
-  accountId.value = ''
+  const defaultBaseUrl = ('baseUrl' in defaultOptions ? String(defaultOptions.baseUrl) : '') || ''
+  const savedConfig = providerConfigStore.getProviderConfig(provider.id)
+  const savedBaseUrl = typeof savedConfig?.baseUrl === 'string' ? savedConfig.baseUrl : ''
+  const savedApiKey = typeof savedConfig?.apiKey === 'string' ? savedConfig.apiKey : ''
+  const savedAccountId = typeof savedConfig?.accountId === 'string' ? savedConfig.accountId : ''
 
-  // Initialize custom fields with their default values
+  baseUrl.value = savedBaseUrl || defaultBaseUrl
+  apiKey.value = savedApiKey
+  accountId.value = savedAccountId
+
+  // Initialize custom fields with their saved or default values
   const fields: Record<string, string> = {}
   for (const field of provider.onboardingFields ?? []) {
-    fields[field.key] = field.defaultValue ?? ''
+    const savedValue = savedConfig?.[field.key]
+    fields[field.key] = typeof savedValue === 'string' ? savedValue : (field.defaultValue ?? '')
   }
   customFieldValues.value = fields
 
@@ -176,13 +187,14 @@ async function handleContinueAnyway() {
   if (!props.selectedProvider)
     return
 
+  // onNext saves the configuration and marks the provider configured, so a
+  // failed validation does not need a separate force-configured call here.
   await props.onNext({
     apiKey: apiKey.value,
     baseUrl: baseUrl.value,
     accountId: accountId.value,
     customFields: hasOnboardingFields.value ? { ...customFieldValues.value } : undefined,
   })
-  providersStore.forceProviderConfigured(props.selectedProvider.id)
 }
 
 // Placeholder helpers

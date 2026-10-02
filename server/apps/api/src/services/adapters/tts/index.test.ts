@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../../utils/error'
 import { getAdapter } from './index'
+import { TtsUpstreamResponseError } from './types'
 
 describe('getAdapter', () => {
   it('returns the azure adapter by id', () => {
@@ -280,20 +281,31 @@ describe('azureAdapter.send', () => {
     expect(fetchImpl).not.toHaveBeenCalled()
   })
 
-  it('throws Error with .status when unspeech non-2xx', async () => {
+  it('throws TtsUpstreamResponseError when unspeech returns non-2xx', async () => {
     const adapter = getAdapter('azure')
     const fetchImpl = vi.fn(async () => new Response('upstream rejected', { status: 401 })) as unknown as typeof fetch
 
-    await expect(adapter.send(
-      { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
-      {
-        keyPlaintext: Buffer.from('k', 'utf8'),
-        baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
-        unspeechBaseURL: 'http://unspeech.local:5933',
-        adapterParams: { region: 'eastasia' },
-        fetchImpl,
-      },
-    )).rejects.toMatchObject({ status: 401 })
+    let caught: unknown
+    try {
+      await adapter.send(
+        { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+        {
+          keyPlaintext: Buffer.from('k', 'utf8'),
+          baseURL: 'https://eastasia.tts.speech.microsoft.com/cognitiveservices/v1',
+          unspeechBaseURL: 'http://unspeech.local:5933',
+          adapterParams: { region: 'eastasia' },
+          fetchImpl,
+        },
+      )
+    }
+    catch (error) {
+      caught = error
+    }
+
+    expect(caught).toBeInstanceOf(TtsUpstreamResponseError)
+    if (!(caught instanceof TtsUpstreamResponseError))
+      throw caught
+    expect(caught.response.status).toBe(401)
   })
 })
 
@@ -459,20 +471,31 @@ describe('stepfunAdapter', () => {
     expect(body.extra_body.voice_label).toEqual({ emotion: '高兴' })
   })
 
-  it('throws Error with .status when unspeech returns non-2xx', async () => {
+  it('throws TtsUpstreamResponseError when unspeech returns non-2xx', async () => {
     const adapter = getAdapter('stepfun')
     const fetchImpl = vi.fn(async () => new Response('bad key', { status: 401 })) as unknown as typeof fetch
 
-    await expect(adapter.send(
-      { text: 'hi', voice: 'cixingnansheng' },
-      {
-        keyPlaintext: Buffer.from('bad-key', 'utf8'),
-        baseURL: 'https://api.stepfun.com',
-        unspeechBaseURL: 'http://unspeech.local',
-        adapterParams: { model: 'stepaudio-2.5-tts' },
-        fetchImpl,
-      },
-    )).rejects.toMatchObject({ status: 401 })
+    let caught: unknown
+    try {
+      await adapter.send(
+        { text: 'hi', voice: 'cixingnansheng' },
+        {
+          keyPlaintext: Buffer.from('bad-key', 'utf8'),
+          baseURL: 'https://api.stepfun.com',
+          unspeechBaseURL: 'http://unspeech.local',
+          adapterParams: { model: 'stepaudio-2.5-tts' },
+          fetchImpl,
+        },
+      )
+    }
+    catch (error) {
+      caught = error
+    }
+
+    expect(caught).toBeInstanceOf(TtsUpstreamResponseError)
+    if (!(caught instanceof TtsUpstreamResponseError))
+      throw caught
+    expect(caught.response.status).toBe(401)
   })
 
   it('preserves an unspeech request abort for router timeout classification', async () => {

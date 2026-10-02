@@ -30,6 +30,7 @@
     "@vueuse/core": "catalog:",
     "floating-vue": "catalog:",
     "reka-ui": "catalog:",
+    "vaul-vue": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {

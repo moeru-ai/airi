@@ -44,9 +44,11 @@
     "@moeru/std": "catalog:",
     "@proj-airi/plugin-protocol": "workspace:*",
     "nanoid": "catalog:",
+    "semver": "catalog:",
     "valibot": "catalog:"
   },
   "devDependencies": {
+    "@types/semver": "catalog:",
     "es-toolkit": "catalog:"
   }
 }

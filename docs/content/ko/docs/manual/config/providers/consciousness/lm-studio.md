@@ -13,12 +13,18 @@ LM Studio는 모델을 로컬에서 직접 실행하고 자체 API를 제공합�
 
 1. [LM Studio 다운로드 페이지](https://lmstudio.ai/download)에서 LM Studio를 설치하고 실행한 뒤, 채팅 모델을 다운로드해 로드하세요.
 2. **Local Server**를 열고 로컬 서버를 시작하세요.
-3. AIRI가 로컬 서비스에 접근하지 못하면 LM Studio의 서버 설정에서 CORS를 활성화하세요.
+3. AIRI와 LM Studio가 서로 다른 기기에서 실행된다면 LM Studio에서 **Serve on Local Network**를 활성화하거나, 서버를 루프백이 아닌 주소에 바인딩하세요.
+4. AIRI가 다른 기기에서 실행된다면 AIRI에서 LM Studio 기기의 LAN 주소를 사용하세요.
+5. 브라우저가 CORS 때문에 요청을 차단하면 LM Studio에서 CORS를 활성화하세요. CORS는 네트워크 도달성이나 인증을 제공하지 않습니다.
+
+::: warning 네트워크 보안
+LM Studio 서버를 공용 인터넷에 노출하지 마세요. 신뢰할 수 있는 로컬 네트워크에서만 사용하세요.
+:::
 
 ## AIRI에서 설정하기
 
 1. **설정 → 제공자 → 채팅 → LM Studio**를 여세요.
-2. 기본 Base URL을 유지하세요: `http://localhost:1234/v1/`.
+2. 기본 Base URL을 유지하세요: `http://localhost:1234/v1/`. 다른 기기의 서비스라면 `localhost`를 그 기기의 LAN 주소로 바꾸세요.
 3. LM Studio 서비스에 인증이 필요하면 API Key를 입력하고, 그렇지 않으면 비워 두세요.
 
 ## 설정 확인
@@ -28,4 +34,4 @@ LM Studio는 모델을 로컬에서 직접 실행하고 자체 API를 제공합�
 
 ## 문제 해결
 
-연결할 수 없을 때는 먼저 Local Server가 실행 중인지, 포트가 Base URL과 일치하는지 확인하세요. AIRI와 LM Studio가 같은 기기에 있지 않다면 AIRI 기기에서 접근할 수 있는 LAN 주소를 사용하고, 신뢰할 수 있는 네트워크에서만 서비스를 여세요.
+AIRI가 연결하지 못하면 Local Server가 실행 중인지, 포트가 Base URL과 일치하는지 확인하세요. AIRI와 LM Studio가 서로 다른 기기에서 실행된다면 AIRI 기기에서 접근할 수 있는 LAN 주소를 사용하세요.

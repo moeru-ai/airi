@@ -6,6 +6,7 @@ import {
   ProviderApiKeyInput,
   ProviderBaseUrlInput,
   ProviderBasicSettings,
+  ProviderGenerationSettings,
   ProviderSettingsContainer,
   ProviderSettingsLayout,
   ProviderValidationAlerts,
@@ -21,8 +22,11 @@ import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
-const route = useRoute()
-const providerId = route.params.providerId as string
+const route = useRoute('/settings/providers/chat/[providerId]')
+const routeProviderId = route.params.providerId
+if (typeof routeProviderId !== 'string')
+  throw new Error('Expected a provider id in the settings route')
+const providerId = routeProviderId
 const providerConfigStore = useProviderConfigStore()
 const providersStore = useProviderStore()
 const consciousnessStore = useConsciousnessStore()
@@ -116,6 +120,7 @@ function goToModelSelection() {
           :provider-name="providerMetadata?.localizedName"
           :placeholder="apiKeyPlaceholder"
         />
+        <ProviderGenerationSettings :provider-id="providerId" />
       </ProviderBasicSettings>
 
       <ProviderAdvancedSettings :title="t('settings.pages.providers.common.section.advanced.title')">

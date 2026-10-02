@@ -20,7 +20,6 @@ export type {
   HistoryTurnGenericAction,
   HistoryTurnMoveAction,
   HistoryTurnTextAction,
-  Message,
   MessageDomainEventSegment,
   MessageHistoryBlockSegment,
   MessageInstructionSegment,
