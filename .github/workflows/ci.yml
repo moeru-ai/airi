@@ -48,7 +48,6 @@ jobs:
 
   build-test:
     name: Build Test (${{ matrix.app_name }})
-    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
     strategy:
       matrix:
         include:
@@ -163,7 +162,6 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
-    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.event.pull_request.head.label, 'moeru-ai:i18n/')) }}
     steps:
       - uses: actions/checkout@v6
 
@@ -193,3 +191,27 @@ jobs:
         #   fail-on-downgrade: true       # optional, default: true
       - name: Print result
         run: "echo 'Downgraded: ${{ steps.check.outputs.downgraded }}'"
+
+  all-checks:
+    name: All Checks
+    # Run after failures and skips so the required gate cannot report a skipped success.
+    if: ${{ always() }}
+    needs:
+      - lint
+      - build-test
+      - unit-test
+      - typecheck
+      - check-provenance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every CI job to pass
+        env:
+          RESULTS: ${{ join(needs.*.result, ',') }}
+        run: |
+          IFS=',' read -r -a results <<< "$RESULTS"
+          for result in "${results[@]}"; do
+            if [[ "$result" != "success" ]]; then
+              echo "::error::All CI jobs must succeed. Results: $RESULTS"
+              exit 1
+            fi
+          done
