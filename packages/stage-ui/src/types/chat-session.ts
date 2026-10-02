@@ -21,6 +21,22 @@ export interface ChatSessionMeta {
    * @default undefined
    */
   cloudMaxSeq?: number
+  /**
+   * Present when an ACP Client opened this session. `connected` means this
+   * session can use that ACP Client's files, terminal, and MCP servers.
+   * `disconnected` keeps the chat visible and rejects new messages.
+   */
+  acpClient?: AcpClientLink
+}
+
+/** ACP Client link stored with one chat session. */
+export interface AcpClientLink {
+  status: 'connected' | 'disconnected'
+  readTextFile: boolean
+  writeTextFile: boolean
+  terminal: boolean
+  elicitForm: boolean
+  hasMcp: boolean
 }
 
 export interface ChatSessionRecord {

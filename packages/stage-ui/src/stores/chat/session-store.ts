@@ -4,7 +4,7 @@ import type {} from 'pinia-plugin-synced'
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
+import type { AcpClientLink, ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
@@ -299,7 +299,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         characterIndex.sessions[sessionId] = updatedMeta
 
       const record: ChatSessionRecord = {
-        meta: updatedMeta,
+        // `updatedMeta` carries nested reactive fields such as `acpClient`.
+        // IndexedDB cannot structured-clone a reactive proxy, so persist a
+        // plain snapshot instead of the proxy itself.
+        meta: cloneDeep(updatedMeta),
         messages,
       }
 
@@ -556,6 +559,24 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       void reconcileCloudSessions()
 
     return sessionId
+  }
+
+  /**
+   * Records whether an ACP Client link is open for one session.
+   *
+   * Connected sessions keep ACP Client tools. A disconnected session stays
+   * in the list and does not accept new messages.
+   */
+  async function setAcpClientLink(sessionId: string, acpClient: AcpClientLink) {
+    const meta = sessionMetas.value[sessionId]
+    if (!meta)
+      return
+
+    sessionMetas.value[sessionId] = { ...meta, acpClient }
+    const characterIndex = index.value?.characters[meta.characterId]
+    if (characterIndex?.sessions[sessionId])
+      characterIndex.sessions[sessionId] = sessionMetas.value[sessionId]
+    await persistSession(sessionId)
   }
 
   /**
@@ -1676,6 +1697,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     exportSessions,
     importSessions,
     createSession,
+    setAcpClientLink,
     loadSession,
     refreshSession,
     deleteSession,

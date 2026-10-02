@@ -31,6 +31,7 @@ import { createIOTraceRecordingConfig } from './configs/io-trace-recording'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
 import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
+import { setupAcpBridge } from './services/airi/acp-bridge'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupAppleVisionService } from './services/airi/apple-vision'
 import { setupServerChannel } from './services/airi/channel-server'
@@ -385,6 +386,11 @@ app.whenReady().then(async () => {
       })
     },
   })
+
+  // Register the ACP leader channel and start its WebSocket before any window
+  // loads. The Pinia leader renderer invokes the leader channel while it
+  // mounts, so registering it later loses that first request.
+  await setupAcpBridge()
 
   injeca.start().catch(err => console.error(err))
 
