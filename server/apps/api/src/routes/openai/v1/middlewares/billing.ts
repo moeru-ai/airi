@@ -4,6 +4,7 @@ import type { BillingService } from '../../../../services/domain/billing/billing
 import type { FluxMeter } from '../../../../services/domain/billing/flux-meter'
 import type { FluxService } from '../../../../services/domain/flux'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
+import type { SubscriptionService } from '../../../../services/domain/subscriptions'
 
 import { calculateFluxFromUsage } from '../../../../services/domain/billing/billing'
 import { createPaymentRequiredError } from '../../../../utils/error'
@@ -55,6 +56,7 @@ export interface OpenAiRouteBilling {
 
 export function createOpenAiRouteBilling(deps: {
   billingService: BillingService
+  subscriptions: SubscriptionService
   configKV: ConfigKVService
   fluxService: FluxService
   revenue?: RevenueMetrics | null
@@ -75,8 +77,14 @@ export function createOpenAiRouteBilling(deps: {
     const fallbackRate = await deps.configKV.getOrThrow('FLUX_PER_REQUEST')
     const fluxPer1kTokens = await deps.configKV.get('FLUX_PER_1K_TOKENS')
 
-    const flux = await deps.fluxService.getFlux(userId)
-    if (flux.flux < fallbackRate) {
+    // Plan quota counts as coverage. Flux gate applies only when no
+    // usable plan quota remains.
+    const [flux, planStatus] = await Promise.all([
+      deps.fluxService.getFlux(userId),
+      deps.subscriptions.getStatus(userId),
+    ])
+    const planRemaining = planStatus.allowances.reduce((sum, allowance) => sum + allowance.remainingAmount, 0)
+    if (planRemaining <= 0 && flux.flux < fallbackRate) {
       throw createPaymentRequiredError('Insufficient flux')
     }
 
@@ -90,11 +98,34 @@ export function createOpenAiRouteBilling(deps: {
   }
 
   async function settleChat(input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>): Promise<number> {
-    return debitChatFlux({
+    // Plan quota is spent first. The remainder falls back to Flux only
+    // when the user enabled it; otherwise it is logged as unbilled.
+    const plan = await deps.subscriptions.consumeQuota({
+      userId: input.userId,
+      amount: input.amount,
+      requestId: input.requestId,
+    })
+    if (plan.charged >= input.amount)
+      return plan.charged
+
+    const rest = input.amount - plan.charged
+    const fallbackToFlux = await deps.subscriptions.getFallbackPreference(input.userId)
+    if (!fallbackToFlux) {
+      deps.revenue?.fluxUnbilled.add(rest, {
+        [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+        reason: 'plan_quota_exhausted',
+        stage: input.stage,
+      })
+      return plan.charged
+    }
+
+    const fluxCharged = await debitChatFlux({
       ...input,
+      amount: rest,
       billingService: deps.billingService,
       revenue: deps.revenue,
     })
+    return plan.charged + fluxCharged
   }
 
   function recordChatDebitFailure(input: {

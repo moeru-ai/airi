@@ -4,6 +4,7 @@ import type { OtelInstance } from './otel'
 import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { FluxMeter } from './services/domain/billing/flux-meter'
 import type { CharacterService } from './services/domain/characters'
@@ -16,6 +17,7 @@ import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
+import type { SubscriptionService } from './services/domain/subscriptions'
 import type { UserDeletionService } from './services/domain/user-deletion'
 import type { VoicePackService } from './services/domain/voice-packs'
 import type { HonoEnv } from './types/hono'
@@ -60,12 +62,16 @@ import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
+import { createRevenuecatRoutes } from './routes/revenuecat'
 import { createStripeRoutes } from './routes/stripe'
+import { createSubscriptionRoutes } from './routes/subscriptions'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createRevenuecatApiClient } from './services/adapters/revenuecat-api'
+import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
@@ -78,6 +84,7 @@ import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
+import { createSubscriptionService } from './services/domain/subscriptions'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
@@ -96,6 +103,8 @@ interface AppDeps {
   appleIapVerifier: AppleIapVerifier | null
   stripe: Stripe | null
   billingService: BillingService
+  subscriptionService: SubscriptionService
+  subscriptionSync: RevenuecatSubscriptionSync
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
   voicePackService: VoicePackService
@@ -282,6 +291,7 @@ export async function buildApp(deps: AppDeps) {
   const v1Routes = createV1Routes({
     fluxService: deps.fluxService,
     billingService: deps.billingService,
+    subscriptions: deps.subscriptionService,
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
@@ -436,6 +446,22 @@ export async function buildApp(deps: AppDeps) {
       deps.otel?.rateLimit ?? null,
       deps.productEventService,
     ))
+
+    /**
+     * RevenueCat webhook ingress (Test Store + web billing Flux packs).
+     */
+    .route('/api/v1/revenuecat', createRevenuecatRoutes(
+      deps.paymentService,
+      deps.configKV,
+      deps.subscriptionSync,
+      deps.env,
+      deps.otel?.rateLimit ?? null,
+    ))
+
+    /**
+     * Subscription status and billing preference.
+     */
+    .route('/api/v1/subscriptions', createSubscriptionRoutes(deps.subscriptionService, deps.subscriptionSync))
 
     /**
      * Apple IAP routes (StoreKit 2 JWS and Notifications V2).
@@ -695,6 +721,23 @@ export async function createApp() {
     build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
   })
 
+  const subscriptionService = injeca.provide('services:subscriptions', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createSubscriptionService(dependsOn.db),
+  })
+
+  const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
+    dependsOn: { subscriptionService, configKV, env: parsedEnv },
+    build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
+      dependsOn.subscriptionService,
+      dependsOn.configKV,
+      createRevenuecatApiClient({
+        apiSecret: dependsOn.env.REVENUECAT_API_SECRET ?? null,
+        projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
+      }),
+    ),
+  })
+
   // NOTICE:
   // The deletion service is a thin scheduler that delegates to each business
   // service's own `deleteAllForUser` method. Adding a new business module:
@@ -703,12 +746,13 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    dependsOn: { paymentService, subscriptionService, fluxService, providerService, characterService, chatService },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
       //           30 = pure DB soft-delete (no external touch).
       service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
+      service.register({ name: 'subscriptions', priority: 30, softDelete: ({ userId }) => dependsOn.subscriptionService.deleteAllForUser(userId) })
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
@@ -718,7 +762,7 @@ export async function createApp() {
   })
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
-    dependsOn: { redis, billingService, configKV, otel },
+    dependsOn: { redis, billingService, subscriptionService, configKV, otel },
     build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
       name: 'tts',
       // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
@@ -732,7 +776,7 @@ export async function createApp() {
           debtTtlSeconds: ttl,
         }
       },
-    }, dependsOn.otel?.revenue),
+    }, dependsOn.otel?.revenue, dependsOn.subscriptionService),
   })
 
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
@@ -769,6 +813,8 @@ export async function createApp() {
     voicePackService,
     productEventService,
     paymentService,
+    subscriptionService,
+    subscriptionSync,
     appleIapVerifier,
     stripe,
     billingService,
@@ -796,6 +842,8 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
+    subscriptionService: resolved.subscriptionService,
+    subscriptionSync: resolved.subscriptionSync,
     appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,

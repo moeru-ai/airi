@@ -7,6 +7,7 @@ import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { RequestLogService } from '../../../services/domain/request-log'
+import type { SubscriptionService } from '../../../services/domain/subscriptions'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -42,6 +43,18 @@ function createMockBillingService(flux = 100): BillingService {
     }),
     creditFlux: vi.fn(),
   } as any
+}
+
+function createMockSubscriptionService(overrides?: Partial<SubscriptionService>): SubscriptionService {
+  // No plan quota with Flux fallback on: existing debit assertions keep passing.
+  return {
+    getStatus: vi.fn(async () => ({ subscriptions: [], allowances: [] })),
+    consumeQuota: vi.fn(async (input: { amount: number }) => ({ charged: 0, requested: input.amount })),
+    getFallbackPreference: vi.fn(async () => true),
+    setFallbackPreference: vi.fn(),
+    deleteAllForUser: vi.fn(),
+    ...overrides,
+  } as SubscriptionService
 }
 
 function createMockGenAiMetrics(): GenAiMetrics {
@@ -343,10 +356,12 @@ function createTestApp(
   voicePackService = createMockVoicePackService(),
   providerCatalogService = createMockProviderCatalogService(),
   genAi: GenAiMetrics | null = null,
+  subscriptions?: SubscriptionService,
 ) {
   const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
     billingService: billingService ?? createMockBillingService(),
+    subscriptions: subscriptions ?? createMockSubscriptionService(),
     configKV,
     requestLogService: requestLogService ?? createMockRequestLogService(),
     productEventService,
@@ -433,6 +448,58 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
       expect(res.status).toBe(402)
+    })
+
+    it('passes the gate on plan quota with zero flux and spends quota first', async () => {
+      globalThis.fetch = vi.fn(async () =>
+        Response.json({
+          id: 'chatcmpl-plan',
+          choices: [{ message: { role: 'assistant', content: 'ok' } }],
+          usage: { prompt_tokens: 1, completion_tokens: 1 },
+        })) as any
+      const billingService = createMockBillingService(0)
+      const consumeQuota = vi.fn(async () => ({ charged: 2, requested: 2 }))
+      const subscriptions = createMockSubscriptionService({
+        getStatus: vi.fn(async () => ({
+          subscriptions: [],
+          allowances: [{
+            entitlementId: 'airi_go',
+            periodStart: new Date().toISOString(),
+            periodEnd: null,
+            grantedAmount: 2000,
+            usedAmount: 0,
+            remainingAmount: 2000,
+          }],
+        })),
+        consumeQuota,
+        getFallbackPreference: vi.fn(async () => false),
+      })
+      const app = createTestApp(
+        createMockFluxService(0),
+        createMockConfigKV(),
+        billingService,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        null,
+        subscriptions,
+      )
+
+      const res = await app.fetch(
+        new Request('http://localhost/api/v1/openai/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }] }),
+        }),
+        { user: testUser } as any,
+      )
+      expect(res.status).toBe(200)
+      expect(consumeQuota).toHaveBeenCalled()
+      expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
     })
 
     // ROOT CAUSE:

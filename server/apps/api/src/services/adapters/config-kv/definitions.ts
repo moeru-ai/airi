@@ -259,6 +259,24 @@ export const configEntrySchemas = {
       fluxAmount: pipe(number(), minValue(1, 'APPLE_FLUX_PACKS fluxAmount must be >= 1')),
     }),
   ), {}),
+  // RevenueCat product id → Flux amount to grant. Covers Test Store, web
+  // billing, and store products routed through RevenueCat webhooks.
+  REVENUECAT_FLUX_PACKS: optional(record(
+    pipe(string(), nonEmpty('REVENUECAT_FLUX_PACKS product ids must not be empty')),
+    object({
+      fluxAmount: pipe(number(), minValue(1, 'REVENUECAT_FLUX_PACKS fluxAmount must be >= 1')),
+    }),
+  ), {}),
+  // RevenueCat subscription product id → entitlement and per-period quota.
+  // Go grants 2000, Plus grants 5000 plan credits. Unused quota dies with
+  // the billing period.
+  REVENUECAT_SUBSCRIPTION_PLANS: optional(record(
+    pipe(string(), nonEmpty('REVENUECAT_SUBSCRIPTION_PLANS product ids must not be empty')),
+    object({
+      entitlementId: pipe(string(), nonEmpty('REVENUECAT_SUBSCRIPTION_PLANS entitlementId must not be empty')),
+      quotaAmount: pipe(number(), minValue(1, 'REVENUECAT_SUBSCRIPTION_PLANS quotaAmount must be >= 1')),
+    }),
+  ), {}),
   // No default — absent means top-up is not available yet
   STRIPE_FLUX_PRODUCT_ID: optional(string()),
   // No default — absent lets Stripe auto-select payment methods via Dashboard config

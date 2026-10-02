@@ -99,6 +99,38 @@ Apple IAP lives on `/api/v1/apple-iap/*`. The channel verifies StoreKit 2
 JWS proof from every app in `APPLE_IAP_APPS`, resolves the pack from
 `productId` through `APPLE_FLUX_PACKS`, then settles an
 `EvidenceReceipt`.
+RevenueCat lives on `/api/v1/revenuecat/*`. `GET /packages` lists the
+`REVENUECAT_FLUX_PACKS` product-to-Flux map. `POST /webhook` verifies the
+dashboard authorization header and HMAC signature over the raw body, then
+settles `NON_RENEWING_PURCHASE` events as `revenuecat` evidence receipts.
+Subscription lifecycle events sync into `src/services/domain/subscriptions`
+(one row per user and entitlement, plus per-period quota allowances).
+Flux balance stays self-managed; In-App Currency is not used.
+
+## Subscriptions
+
+Go (`airi_go`, 2000 plan credits) and Plus (`airi_plus`, 5000 plan credits)
+are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
+Store all enter through the single RevenueCat webhook; `store` is only a
+field, so new channels need no server changes.
+
+`src/services/domain/subscriptions` owns sync, status reads, quota debit,
+the Flux-fallback preference (default off), and `deleteAllForUser`. Status
+derives from webhook events: only `EXPIRATION` revokes; `BILLING_ISSUE` and
+`CANCELLATION` keep access until `expires_at`. Each `INITIAL_PURCHASE` or
+`RENEWAL` opens a fresh quota period and forfeits the old remainder, so
+upgrades reset the billing date like Cursor. Debit order in
+`src/routes/openai/v1/middlewares/billing.ts` is plan quota first, then Flux
+only when the user enabled the fallback. Plan quota never touches `user_flux`;
+it lives in `subscription_allowance` with per-request idempotency rows in
+`subscription_consumption`. Product-to-plan mapping lives in ConfigKV
+`REVENUECAT_SUBSCRIPTION_PLANS`. TTS metering (`flux-meter`) spends the same
+way: plan quota first, Flux on fallback, effective balance in pre-flight.
+Lazy reconciliation (`services/adapters/revenuecat-api`, Developer API v2
+`GET /customers/{id}` plus entitlement lookup keys) runs only on explicit
+status reads, never on the billing hot path; it revives missed renewals and
+retires lapsed rows, and opens quota periods from the plan mapping when the
+canonical state proves payment.
 
 ## Run locally
 
