@@ -181,6 +181,13 @@ Omitted history gives way to the session digest from `getHistoryDigest` when the
 Each message costs what its projection sends: text, tool calls, tool results, and turn transcripts. An image counts as about 1,000 tokens.
 The serialized length bounds the token count, so the tokenizer loads only for history that can exceed the budget.
 
+## Recipes
+
+A recipe is one way to handle a kind of task. Its style says how it runs: `instructions` for the conversation run, `decision` for one classifier question, `run` for an isolated child run, or `mcp` for one MCP tool call.
+Triggers start a recipe on their own: keywords, a schedule, an event source, idle time, or a mood level. Without triggers, the conversation run chooses it.
+`usableRecipes` keeps enabled and approved recipes. A model proposal waits unapproved until the owner approves it once.
+`recipeTools` keeps only the tools that the host granted, so a recipe never adds a capability. Reading without replying is the built-in `builtin:stay-quiet` recipe.
+
 ## Mood
 
 Mood is per-persona state. It keeps an intensity for each of six feelings: joy, contentment, anger, sadness, fear, and boredom.
