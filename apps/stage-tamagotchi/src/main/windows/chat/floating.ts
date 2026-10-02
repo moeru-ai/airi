@@ -27,6 +27,7 @@ import {
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
 import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout, wholePixels } from './floating-placement'
 
@@ -395,7 +396,7 @@ export function setupFloatingChatWindow(params: {
     if (params.getPlacement() !== 'attached' && saved.x != null && saved.y != null)
       target.setBounds(keepChatOnDisplay({ x: saved.x, y: saved.y, width: saved.width, height: saved.height }, screen.getAllDisplays()))
 
-    target.setVisibleOnAllWorkspaces(true)
+    showWindowOnAllWorkspaces(target)
     if (isMacOS) {
       target.setFullScreenable(false)
       target.setWindowButtonVisibility(false)

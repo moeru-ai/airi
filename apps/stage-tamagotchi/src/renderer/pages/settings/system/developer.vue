@@ -125,69 +125,59 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
 <template>
   <ButtonBar
     v-model="settings.disableTransitions"
-    :class="['mb-2']"
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     icon="i-solar:settings-minimalistic-outline"
     text="settings.pages.page.developers.open-devtools.title"
-    transition="all ease-in-out duration-250"
     @click="() => openDevTools()"
   >
     {{ t('settings.pages.page.developers.open-devtools.button') }}
   </ButtonBar>
   <ButtonBar
-    :class="['mb-2']"
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     icon="i-solar:pen-new-square-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.editor.title')"
     :description="t('tamagotchi.settings.devtools.pages.editor.description')"
-    transition="all ease-in-out duration-250"
     @click="openEditor()"
   >
     {{ t('tamagotchi.settings.devtools.pages.editor.button') }}
   </ButtonBar>
   <ButtonBar
-    :class="['mb-2']"
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     icon="i-solar:code-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.markdown-stress.title')"
-    transition="all ease-in-out duration-250"
     @click="() => openDevtoolsWindow({ key: 'markdown-stress', route: '/devtools/markdown-stress' })"
   >
     {{ t('tamagotchi.settings.devtools.pages.markdown-stress.title') }}
   </ButtonBar>
   <ButtonBar
-    :class="['mb-2']"
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     icon="i-solar:chart-2-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.io-tracer.title')"
-    transition="all ease-in-out duration-250"
     @click="() => openDevtoolsWindow({ key: 'io-tracer', route: '/devtools/io-tracer', width: 1600, height: 900 })"
   >
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
   <ButtonBar
-    :class="['mb-2']"
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     icon="i-solar:chart-square-bold-duotone"
     :text="t('tamagotchi.settings.devtools.pages.lag-visualizer.title')"
-    transition="all ease-in-out duration-250"
     @click="() => router.push('/devtools/performance-visualizer')"
   >
     {{ t('tamagotchi.settings.devtools.pages.lag-visualizer.title') }}
   </ButtonBar>
   <CheckBar
     v-model="settings.disableTransitions"
-    mb-2
-    icon-on="i-solar:people-nearby-bold-duotone"
-    icon-off="i-solar:running-2-line-duotone"
+    :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     text="settings.animations.stage-transitions.title"
-    transition="all ease-in-out duration-250"
   />
   <CheckBar
     v-model="settings.usePageSpecificTransitions"
     :disabled="settings.disableTransitions"
-    icon-on="i-solar:running-2-line-duotone"
-    icon-off="i-solar:people-nearby-bold-duotone"
     text="settings.animations.use-page-specific-transitions.title"
     description="settings.animations.use-page-specific-transitions.description"
-    transition="all ease-in-out duration-250"
+    :class="['transition-all duration-250 ease-in-out']"
   />
-  <div flex="~ col gap-4" mt-2 pb-12>
+  <div :class="['flex flex-col gap-4', 'mt-2 pb-12']">
     <IconItem
       v-for="(item, index) in menu"
       :key="item.to"
@@ -196,7 +186,7 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
       :enter="{ opacity: 1, y: 0 }"
       :duration="250"
       :style="{
-        transitionDelay: `${(index) * 50}ms`, // delay between each item, unocss doesn't support dynamic generation of classes now
+        transitionDelay: `${(index) * 50}ms`, // Stagger items because UnoCSS cannot generate classes from runtime values.
       }"
       :title="item.title"
       :description="item.description"
@@ -207,14 +197,16 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
 
   <div
     v-motion
-    text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-    fixed top="[65dvh]" right--15 z--1
+    :class="[
+      'text-neutral-200/50 dark:text-neutral-600/20',
+      'pointer-events-none fixed top-[65dvh] right--15 z--1',
+      'flex items-center justify-center',
+    ]"
     :initial="{ scale: 0.9, opacity: 0, rotate: 30 }"
     :enter="{ scale: 1, opacity: 1, rotate: 0 }"
     :duration="250"
-    flex items-center justify-center
   >
-    <div text="60" i-solar:code-bold-duotone />
+    <div :class="['text-60', 'i-solar:code-bold-duotone']" />
   </div>
 </template>
 
