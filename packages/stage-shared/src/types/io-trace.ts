@@ -15,3 +15,12 @@ export interface SerializedIOSpan {
   status: { code: number, message: string }
   ended: boolean
 }
+
+/** Runtime state for Electron-owned IO trace recording. */
+export interface IOTraceRecordingState {
+  captureId?: string
+  capturePath?: string
+  capturesDirectory: string
+  enabled: boolean
+  error?: string
+}

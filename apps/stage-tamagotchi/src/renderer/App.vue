@@ -64,6 +64,7 @@ import {
 } from '../shared/eventa/plugin/host'
 import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
+import { initializeIOTraceRecordingBridge } from './bridges/io-trace-recording'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
@@ -94,6 +95,13 @@ const isSpotlightWindow = initialRoutePath === '/spotlight'
 // The floating chat resizes from its own grip, which keeps the corner beside the character in place.
 const isFloatingChatWindow = initialRoutePath === '/chat-floating'
 const isSettingsWindow = initialRoutePath === '/settings' || initialRoutePath.startsWith('/settings/')
+const supportsIOTraceRecording = initialRoutePath === '/' || isSettingsWindow || initialRoutePath.startsWith('/devtools/')
+const stopIOTraceRecordingBridge = supportsIOTraceRecording
+  ? initializeIOTraceRecordingBridge({
+      context: context.value,
+      forwardLocalSpans: initialRoutePath === '/',
+    })
+  : undefined
 
 async function refreshPluginRuntimeTools() {
   try {
@@ -369,6 +377,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  stopIOTraceRecordingBridge?.()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()

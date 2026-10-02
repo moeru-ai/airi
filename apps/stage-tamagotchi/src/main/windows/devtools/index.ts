@@ -1,12 +1,16 @@
+import type { IOTraceRecordingService } from '../../services/airi/io-trace-recording'
+
 import { join, resolve } from 'node:path'
 
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { registerIOTraceRecording } from '../../services/airi/io-trace-recording/register'
 import { protectPrivilegedWindowNavigation } from '../shared'
 
 export interface OpenDevtoolsWindowParams extends Partial<Electron.Rectangle> {
@@ -18,7 +22,7 @@ export interface DevtoolsWindowManager {
   openWindow: (params: OpenDevtoolsWindowParams) => Promise<BrowserWindow>
 }
 
-export function setupDevtoolsWindow(): DevtoolsWindowManager {
+export function setupDevtoolsWindow(params: { ioTraceRecording: IOTraceRecordingService }): DevtoolsWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/devtools'
   const reusableWindows = new Map<string, ReturnType<typeof createReusableWindow>>()
@@ -51,6 +55,12 @@ export function setupDevtoolsWindow(): DevtoolsWindowManager {
       })
       protectPrivilegedWindowNavigation(window)
       initScreenCaptureForWindow(window)
+      const { context, dispose } = createContext(ipcMain, window)
+      const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
+      window.once('closed', () => {
+        stopIOTraceRecording()
+        dispose()
+      })
 
       await load(window, withHashRoute(rendererBase, route, {
         query: { 'synced-leader': 'false' },

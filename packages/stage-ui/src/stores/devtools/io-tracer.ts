@@ -5,9 +5,14 @@ import type { IOSpan, IOSubsystem, IOTurn } from '@proj-airi/stage-shared'
 import { hrTimeToMilliseconds, hrTimeToNanoseconds } from '@opentelemetry/core'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
-import { computed, ref, triggerRef } from 'vue'
+import { computed, ref, triggerRef, watch } from 'vue'
 
-import { activeTurnSpan, initIOTracer, onIOSpan, onRemoteIOSpan } from '../../composables/use-io-tracer'
+import {
+  getIOTraceRecordingState,
+  getRecordedIOSpans,
+  setIOTraceRecordingEnabled,
+} from '../../composables/io-trace-recording'
+import { deserializeSpan, initIOTracer, onRemoteIOSpan, subscribeIOSpan } from '../../composables/use-io-tracer'
 
 const MAX_TURNS = 50
 
@@ -26,14 +31,19 @@ function attrsToMeta(attrs: Attributes): Record<string, any> {
 
 export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   const turns = ref<IOTurn[]>([])
-  const isRecording = ref(false)
+  const localRecording = ref(false)
+  const recordingState = getIOTraceRecordingState()
+  const isRecording = computed(() => recordingState.value.managed ? recordingState.value.enabled : localRecording.value)
   const selectedSpanId = ref<string | null>(null)
   const recordingStartTs = ref(0)
   const rawSpanCount = ref(0)
 
   const turnsByTraceId = new Map<string, IOTurn>()
+  const seenSpans = new Set<string>()
 
   const rawSpans: ReadableSpan[] = []
+  let viewMounted = false
+  let unsubscribeLocal: (() => void) | undefined
   let unsubscribeRemote: (() => void) | undefined
 
   function notifyUpdate() {
@@ -71,10 +81,16 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
   }
 
   function handleSpan(readable: ReadableSpan) {
+    const readableContext = readable.spanContext()
+    const spanKey = `${readableContext.traceId}:${readableContext.spanId}`
+    if (seenSpans.has(spanKey))
+      return
+    seenSpans.add(spanKey)
+
     rawSpans.push(readable)
     rawSpanCount.value++
 
-    const spanCtx = readable.spanContext()
+    const spanCtx = readableContext
     const traceId = spanCtx.traceId
     const spanId = spanCtx.spanId
     const startMs = hrTimeToMilliseconds(readable.startTime)
@@ -169,35 +185,71 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     notifyUpdate()
   }
 
-  function startRecording() {
-    if (isRecording.value)
+  function attachVisualization() {
+    if (unsubscribeLocal || unsubscribeRemote)
       return
-
     initIOTracer()
-    onIOSpan(handleSpan)
+    unsubscribeLocal = subscribeIOSpan(handleSpan)
     unsubscribeRemote = onRemoteIOSpan(handleSpan)
     recordingStartTs.value = performance.timeOrigin + performance.now()
-    isRecording.value = true
-
-    console.info('[IOTracer] Recording started (OTel mode, local + remote)')
   }
 
-  function stopRecording() {
-    if (!isRecording.value)
-      return
-
-    activeTurnSpan.value?.end()
-    activeTurnSpan.value = undefined
-
-    onIOSpan(undefined)
+  function detachVisualization() {
+    unsubscribeLocal?.()
+    unsubscribeLocal = undefined
     unsubscribeRemote?.()
     unsubscribeRemote = undefined
-    isRecording.value = false
   }
+
+  async function startRecording() {
+    if (recordingState.value.managed)
+      await setIOTraceRecordingEnabled(true)
+    else
+      localRecording.value = true
+
+    if (viewMounted)
+      attachVisualization()
+  }
+
+  async function stopRecording() {
+    if (recordingState.value.managed)
+      await setIOTraceRecordingEnabled(false)
+    else
+      localRecording.value = false
+
+    detachVisualization()
+  }
+
+  async function mountVisualization() {
+    viewMounted = true
+    if (isRecording.value) {
+      attachVisualization()
+      const recordedSpans = await getRecordedIOSpans()
+      if (!viewMounted)
+        return
+      for (const span of recordedSpans)
+        handleSpan(deserializeSpan(span))
+    }
+  }
+
+  function unmountVisualization() {
+    viewMounted = false
+    detachVisualization()
+  }
+
+  watch(() => recordingState.value.enabled, (enabled) => {
+    if (!recordingState.value.managed || !viewMounted)
+      return
+    if (enabled)
+      attachVisualization()
+    else
+      detachVisualization()
+  })
 
   function clear() {
     turns.value = []
     turnsByTraceId.clear()
+    seenSpans.clear()
     rawSpans.length = 0
     rawSpanCount.value = 0
     selectedSpanId.value = null
@@ -277,6 +329,8 @@ export const useIOTracerStore = defineStore('devtools:io-tracer', () => {
     selectedSpan,
     startRecording,
     stopRecording,
+    mountVisualization,
+    unmountVisualization,
     clear,
     selectSpan,
     exportOTLP,

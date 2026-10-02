@@ -6,6 +6,8 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 
+import IOTraceRecordingSetting from '../../../components/settings/IOTraceRecordingSetting.vue'
+
 import { electronOpenDevtoolsWindow, electronOpenEditor, electronOpenMainDevtools } from '../../../../shared/eventa'
 
 const { t } = useI18n()
@@ -161,6 +163,7 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   >
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
+  <IOTraceRecordingSetting />
   <ButtonBar
     :class="['mb-2']"
     icon="i-solar:chart-square-bold-duotone"

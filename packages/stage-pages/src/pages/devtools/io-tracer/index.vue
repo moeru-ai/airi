@@ -3,7 +3,7 @@ import type { IOSubsystem } from '@proj-airi/stage-shared'
 
 import { useIOTracerStore } from '@proj-airi/stage-ui/stores/devtools/io-tracer'
 import { storeToRefs } from 'pinia'
-import { onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 
 import IOTracerChart from './components/io-tracer-chart.vue'
 import IOTracerControls from './components/io-tracer-controls.vue'
@@ -16,11 +16,11 @@ const { turns, isRecording, selectedSpanId, selectedSpan, recordingStartTs, rawS
 const chartRef = ref<InstanceType<typeof IOTracerChart>>()
 const hiddenSubsystems = ref(new Set<IOSubsystem>())
 
-function toggleRecording() {
+async function toggleRecording() {
   if (isRecording.value)
-    store.stopRecording()
+    await store.stopRecording()
   else
-    store.startRecording()
+    await store.startRecording()
 }
 
 function toggleSubsystem(subsystem: IOSubsystem) {
@@ -32,8 +32,12 @@ function toggleSubsystem(subsystem: IOSubsystem) {
   hiddenSubsystems.value = next
 }
 
+onMounted(() => {
+  void store.mountVisualization()
+})
+
 onUnmounted(() => {
-  store.stopRecording()
+  store.unmountVisualization()
 })
 </script>
 

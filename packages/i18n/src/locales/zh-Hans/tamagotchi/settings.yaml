@@ -148,6 +148,11 @@ devtools:
     markdown-stress:
       title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+    io-tracer:
+      title: IO Trace
+      recording:
+        title: 自动记录 IO Trace
+        description: AIRI 启动后自动记录，并把已结束的 span 保存在本地供 CLI 分析。IO Trace 看板使用同一个开关。
     widgets-calling:
       title: 小组件调用
 screen-capture:
