@@ -4,8 +4,9 @@ import type { InferenceServiceProvider, ProviderValidationStatus } from '../../l
 
 import { useMutation, useQuery } from '@pinia/colada'
 import { useLocalStorage } from '@vueuse/core'
+import { isPlainObject } from 'es-toolkit'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, isReactive, isReadonly, toRaw } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
@@ -18,6 +19,27 @@ const providerStorageOptions = {
   // the leader as a new state proposal.
   listenToStorageChanges: false,
 } as const
+
+/**
+ * Deep-unwraps a value into plain data for cross-window transport.
+ *
+ * Synchronized actions are leader-routed through BroadcastChannel postMessage,
+ * which rejects Vue reactive proxies with DataCloneError. Snapshotting at the
+ * owning store boundary keeps both incoming configs and returned provider
+ * records structured-cloneable. Non-plain values (Date, URL, class instances)
+ * pass through untouched because structuredClone already supports them.
+ */
+function toPlainSnapshot<T>(value: T): T {
+  const raw = isReactive(value) || isReadonly(value) ? toRaw(value) : value
+  if (Array.isArray(raw))
+    return raw.map(item => toPlainSnapshot(item)) as T
+  if (isPlainObject(raw)) {
+    return Object.fromEntries(
+      Object.entries(raw).map(([key, entry]) => [key, toPlainSnapshot(entry)]),
+    ) as T
+  }
+  return raw as T
+}
 
 /**
  * Creates the remote provider-list query.
@@ -120,9 +142,10 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   }
 
   function ensureProvider(providerId: string, definitionId: string, config: Record<string, unknown> = {}) {
+    const plainConfig = toPlainSnapshot(config)
     const current = providers.value[providerId]
     if (current)
-      return current
+      return toPlainSnapshot(current)
 
     const definition = getDefinedProvider(definitionId)
     if (!definition)
@@ -131,12 +154,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const provider = {
       id: providerId,
       definitionId,
-      config,
+      config: plainConfig,
       status: 'unconfigured' as const,
       configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
-    return provider
+    return toPlainSnapshot(provider)
   }
 
   function markProviderAdded(providerId: string) {
@@ -220,16 +243,17 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         // The server snapshot has the highest priority for ids that exist remotely.
         mergeProviderSnapshot(state.data)
       }
-      return providers.value
+      return toPlainSnapshot(providers.value)
     }
     catch {
       // The merged local snapshot is authoritative while the remote endpoint is unavailable.
-      return providers.value
+      return toPlainSnapshot(providers.value)
     }
   }
 
   async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {
-    const provider = service.buildLocal(definitionId, initialConfig)
+    const plainConfig = toPlainSnapshot(initialConfig)
+    const provider = service.buildLocal(definitionId, plainConfig)
     providers.value[provider.id] = provider
     markProviderAdded(provider.id)
 
@@ -239,11 +263,11 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       unmarkProviderAdded(provider.id)
       providers.value[remote.id] = remote
       markProviderAdded(remote.id)
-      return remote
+      return toPlainSnapshot(remote)
     }
     catch {
       // A failed remote create does not discard the local provider.
-      return provider
+      return toPlainSnapshot(provider)
     }
   }
 
@@ -267,21 +291,22 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!provider)
       return
 
+    const plainConfig = toPlainSnapshot(config)
     const localProvider = {
       ...provider,
-      config: { ...config },
+      config: { ...plainConfig },
       status,
     }
     providers.value[providerId] = localProvider
 
     try {
-      const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
+      const remote = await updateProviderMutation.mutateAsync({ providerId, config: plainConfig, status })
       providers.value[remote.id] = remote
-      return remote
+      return toPlainSnapshot(remote)
     }
     catch {
       // A failed remote update keeps the local provider configuration.
-      return localProvider
+      return toPlainSnapshot(localProvider)
     }
   }
 

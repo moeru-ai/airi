@@ -3,7 +3,7 @@ import type { InferenceServiceProvider } from '../../libs/providers/types'
 import { PiniaColada } from '@pinia/colada'
 import { createPinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp } from 'vue'
+import { createApp, reactive } from 'vue'
 
 import { useProviderConfigStore } from './config'
 
@@ -138,5 +138,50 @@ describe('provider config store', () => {
 
     expect(store.patchProviderConfig('missing-provider', { apiKey: 'sk-test' })).toBe(false)
     expect(store.getProvider('missing-provider')).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // If a synchronized store action returns Vue reactive state, postMessage
+  // structured-clones the result for cross-window sync and throws
+  // DataCloneError, which breaks the ElevenLabs voice list flow in #2523.
+  // This happens because pinia-plugin-synced leader-routes the listed
+  // actions, and because fallback paths return store-backed values.
+  //
+  // https://github.com/moeru-ai/airi/issues/2523
+  //
+  // We fixed this by snapshotting provider objects to plain data at the
+  // owning store boundary, for both incoming configs and returned values.
+  it('issue #2523 returns structured-cloneable snapshots from synchronized actions', async () => {
+    mocks.service.fetchRemote.mockRejectedValue(new Error('remote unavailable'))
+    mocks.service.createRemote.mockRejectedValue(new Error('remote unavailable'))
+    mocks.service.patchConfigRemote.mockRejectedValue(new Error('remote unavailable'))
+    mocks.service.buildLocal.mockImplementation((definitionId: string, initialConfig: Record<string, unknown> = {}) => ({
+      ...localProvider,
+      id: 'added-provider',
+      definitionId,
+      config: initialConfig,
+    }))
+    const store = installStore()
+    const reactiveConfig = reactive({ apiKey: 'sk-test', nested: { voice: 'alloy' } })
+
+    const added = await store.addProvider('openai-compatible', reactiveConfig)
+    expect(() => structuredClone(added)).not.toThrow()
+    expect(added).toEqual({
+      ...localProvider,
+      id: 'added-provider',
+      definitionId: 'openai-compatible',
+      config: { apiKey: 'sk-test', nested: { voice: 'alloy' } },
+    })
+
+    const updated = await store.updateProviderConfig('added-provider', reactive({ deep: { key: 'k' } }), 'configured')
+    expect(() => structuredClone(updated)).not.toThrow()
+    expect(updated).toMatchObject({ config: { deep: { key: 'k' } }, status: 'configured' })
+
+    const ensured = store.ensureProvider('ensured-provider', 'openai-compatible', reactive({ model: 'm' }))
+    expect(() => structuredClone(ensured)).not.toThrow()
+
+    const fetched = await store.fetchProviders()
+    expect(() => structuredClone(fetched)).not.toThrow()
   })
 })
