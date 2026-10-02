@@ -78,7 +78,7 @@ export type {
   CategorizedSegment,
   ResponseCategory,
 } from './runtime/response-categoriser'
-export { RUN_PAST_DEADLINE, RUN_STALLED, superviseRun } from './runtime/run-supervision'
+export { guardRepeatedToolCalls, RUN_LOOPING, RUN_PAST_DEADLINE, RUN_STALLED, superviseRun } from './runtime/run-supervision'
 export type { AgentRun, AgentRunState, ExecutionEnvelope } from './runtime/run-table'
 export { RunTable } from './runtime/run-table'
 export { SpendingLedger } from './runtime/spending'

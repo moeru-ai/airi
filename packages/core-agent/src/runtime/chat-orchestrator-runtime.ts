@@ -26,7 +26,7 @@ import { IntakeLog, salienceFromUrgency } from './intake'
 import { LeaseTable } from './lease-table'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
-import { superviseRun } from './run-supervision'
+import { guardRepeatedToolCalls, RUN_LOOPING, superviseRun } from './run-supervision'
 import { RunTable } from './run-table'
 import { STAY_QUIET_TOOL_NAME, stayQuietReason } from './stay-quiet'
 
@@ -288,7 +288,10 @@ export interface ChatOrchestratorRuntimeLimits {
 /** Failure reason of a run whose session narrowed below its audience after admission. */
 const SESSION_NARROWED = 'The session audience narrowed below the run audience'
 
-/** Identical consecutive tool calls that end a run. Supervision stops a loop instead of waiting for the deadline. */
+/**
+ * Identical consecutive tool calls that make a loop. The call at the limit gets a correction instead of a result, and one more ends the run.
+ * Supervision stops a loop instead of waiting for the deadline.
+ */
 const REPEATED_TOOL_CALL_LIMIT = 3
 
 /** Correlation keys shared by every analytics milestone from one user-to-assistant round. */
@@ -717,8 +720,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       envelope: ExecutionEnvelope
       /** Resets stall supervision. */
       onActivity: () => void
-      /** Reports one tool call for loop supervision. */
-      onToolCall: (key: string) => void
+      /** Adds loop supervision to the tools of this run. */
+      guardTools: (tools: StreamOptions['tools']) => StreamOptions['tools']
       /** Records a message that a rollback can remove. */
       onWrite: (messageId: string) => void
       /** Records that the run chose silence. */
@@ -1071,7 +1074,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             turnId: correlation.roundId,
             runId: run.runId,
           },
-          tools: options.tools,
+          tools: run.guardTools(options.tools),
           temperature: options.temperature,
           topP: options.topP,
           waitForTools: true,
@@ -1105,7 +1108,6 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
                 updateStream(sessionId, buildingMessage)
                 break
               case 'tool-call':
-                run.onToolCall(`${event.toolName}\u0000${event.args}`)
                 if (event.toolName === STAY_QUIET_TOOL_NAME)
                   quiet = { reason: stayQuietReason(event.args) }
                 toolCallQueue.enqueue({
@@ -1332,8 +1334,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       controller.abort(new Error(reason))
     }
     const supervisor = superviseRun({ stallTimeoutMs, deadlineMs: runDeadlineMs }, reason => supervise('expired', reason))
-    let lastToolCall: string | undefined
-    let repeatedToolCalls = 0
+    const toolGuard = guardRepeatedToolCalls(REPEATED_TOOL_CALL_LIMIT, () => supervise('blocked', RUN_LOOPING))
 
     runs.transition(runId, 'working')
     try {
@@ -1341,12 +1342,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         runId,
         envelope,
         onActivity: () => supervisor.touch(),
-        onToolCall: (key) => {
-          repeatedToolCalls = key === lastToolCall ? repeatedToolCalls + 1 : 1
-          lastToolCall = key
-          if (repeatedToolCalls >= REPEATED_TOOL_CALL_LIMIT)
-            supervise('blocked', 'Run repeated an identical tool call')
-        },
+        guardTools: tools => toolGuard.wrap(tools),
         onWrite: messageId => queuedSend.writtenMessageIds.push(messageId),
         onSilent: (reason) => {
           queuedSend.silent = { reason }

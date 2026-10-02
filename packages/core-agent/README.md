@@ -184,6 +184,7 @@ The serialized length bounds the token count, so the tokenizer loads only for hi
 ## Run supervision
 
 `superviseRun` watches one run for a stall and for its deadline. Chat runs and notification runs share it, and each keeps its own failure handling.
+`guardRepeatedToolCalls` wraps the tools of one run. The call that reaches the limit returns a correction instead of running, and one more identical call ends the run.
 
 ## Recipes
 

@@ -1,6 +1,8 @@
+import type { Tool } from '@xsai/shared-chat'
+
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { RUN_PAST_DEADLINE, RUN_STALLED, superviseRun } from './run-supervision'
+import { guardRepeatedToolCalls, RUN_PAST_DEADLINE, RUN_STALLED, superviseRun } from './run-supervision'
 
 describe('run supervision', () => {
   afterEach(() => {
@@ -41,5 +43,29 @@ describe('run supervision', () => {
 
     vi.advanceTimersByTime(500)
     expect(onExpire).not.toHaveBeenCalled()
+  })
+  it('counts only consecutive identical calls, across tools and requests', async () => {
+    const onLoop = vi.fn()
+    const guard = guardRepeatedToolCalls(3, onLoop)
+    const read = vi.fn<Tool['execute']>(async () => 'read')
+    const write = vi.fn<Tool['execute']>(async () => 'written')
+    const tool = (name: string, execute: Tool['execute']): Tool => ({ type: 'function', function: { name, parameters: {} }, execute })
+    const [first] = guard.wrap([tool('read', read)]) as Tool[]
+    const [other] = await (guard.wrap(async () => [tool('write', write)]) as () => Promise<Tool[]>)()
+    const options = { messages: [], toolCallId: 'call' }
+
+    await first!.execute({ path: 'a' }, options)
+    await first!.execute({ path: 'a' }, options)
+    await other!.execute({ path: 'a' }, options)
+    await first!.execute({ path: 'a' }, options)
+    await first!.execute({ path: 'a' }, options)
+    expect(read).toHaveBeenCalledTimes(4)
+
+    expect(await first!.execute({ path: 'a' }, options)).toContain('3 times in a row')
+    expect(read).toHaveBeenCalledTimes(4)
+    expect(onLoop).not.toHaveBeenCalled()
+
+    await first!.execute({ path: 'a' }, options)
+    expect(onLoop).toHaveBeenCalledOnce()
   })
 })

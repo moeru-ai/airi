@@ -156,7 +156,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runtime.test.ts`): a slow domain session does not block another session. One session runs in order.
 - Observed (`chat-orchestrator-runtime.test.ts`): a full session queue rejects before a run exists. The run count stays within the limit, and only one send holds the voice.
 - Implemented: chat surfaces read per-session running state. Stop and interruption target the voice owner instead of any running send.
-- Observed (`chat-orchestrator-runs.test.ts`): a stalled or overdue run expires and its caller receives a failure. Repeated identical tool calls end a run as blocked.
+- Observed (`chat-orchestrator-runs.test.ts`, `run-supervision.test.ts`): a stalled or overdue run expires and its caller receives a failure. The third identical consecutive tool call does not run. Its result corrects the model, and only one more identical call ends the run as blocked.
 - Observed (`chat-orchestrator-runs.test.ts`): a cancelled run with rollback removes its user turn and partial reply, so a requeued input appears once. A waiting run cancels before it starts.
 - Implemented: Settings > Memory sets the concurrency, queue, stall, and deadline limits in a folded section. A limit never switches models or skips work silently.
 - Resolved in P3: an error burst breaker pauses background work after repeated blocked runs.

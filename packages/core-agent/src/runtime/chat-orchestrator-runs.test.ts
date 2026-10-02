@@ -1,4 +1,5 @@
 import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { Tool } from '@xsai/shared-chat'
 
 import type { AssistantTurn, Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage } from '../types/chat'
@@ -518,16 +519,34 @@ describe('orchestrator runs', () => {
     expect(JSON.stringify(nonSystem[2])).toContain('A creeper is behind you!')
   })
 
-  it('stops a run that repeats an identical tool call', async () => {
+  // A loop first gets a correction as the tool result. Only a model that repeats the call after it ends the run.
+  it('corrects a repeated identical tool call, then stops a run that keeps repeating it', async () => {
+    const search = vi.fn<Tool['execute']>(async () => 'same result')
+    const tools: Tool[] = [{ type: 'function', function: { name: 'search', parameters: {} }, execute: search }]
+    const results: unknown[] = []
     const harness = createRunHarness()
     harness.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
-      for (let index = 0; index < 3; index++)
-        await streamOptions?.onStreamEvent?.({ type: 'tool-call', toolCallId: `call-${index}`, toolCallType: 'function', toolName: 'search', args: '{"q":"same"}' })
+      const [guarded] = (streamOptions?.tools ?? []) as Tool[]
+      for (let index = 0; index < 4; index++)
+        results.push(await guarded!.execute({ q: 'same' }, { messages: [], toolCallId: `call-${index}` }))
       await untilAborted(streamOptions)
     })
 
-    await expect(harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })).rejects.toThrow('Run repeated an identical tool call')
+    await expect(harness.runtime.ingest('hello', { model: 'test', chatProvider: provider, tools })).rejects.toThrow('Run repeated an identical tool call')
+    expect(search).toHaveBeenCalledTimes(2)
+    expect(results[2]).toContain('same arguments 3 times in a row')
     expect(harness.runtime.getRuns()[0]?.state).toBe('blocked')
+
+    // The correction alone keeps the run alive, so a model that changes course still replies.
+    const corrected = createRunHarness()
+    corrected.stream.mockImplementationOnce(async (_model, _provider, _conversation, streamOptions) => {
+      const [guarded] = (streamOptions?.tools ?? []) as Tool[]
+      for (let index = 0; index < 3; index++)
+        await guarded!.execute({ q: 'same' }, { messages: [], toolCallId: `call-${index}` })
+      await guarded!.execute({ q: 'other' }, { messages: [], toolCallId: 'call-3' })
+    })
+    await corrected.runtime.ingest('hello', { model: 'test', chatProvider: provider, tools })
+    expect(corrected.runtime.getRuns()[0]?.state).toBe('done')
   })
 
   // ROOT CAUSE:
