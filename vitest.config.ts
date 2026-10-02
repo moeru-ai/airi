@@ -31,6 +31,7 @@ export default defineConfig({
       'packages/stage-ui-three',
       'packages/vitest-plugin-fakemic',
       'packages/vite-plugin-sherpaw',
+      'plugins/airi-plugin-web-extension',
       // Scripts that GitHub Actions run. They belong to no package.
       {
         test: {

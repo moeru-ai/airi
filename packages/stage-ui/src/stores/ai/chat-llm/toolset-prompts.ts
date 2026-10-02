@@ -5,6 +5,8 @@ export interface LlmToolsetPromptContribution {
   id: string
   title?: string
   content: string
+  /** Includes guidance only when the request grants every listed model-facing tool name. Omit for host-wide instructions. */
+  requiredTools?: string[]
 }
 
 function renderToolsetPrompts(prompts: LlmToolsetPromptContribution[]) {
@@ -42,10 +44,20 @@ export const useLlmToolsetPromptsStore = defineStore('llm-toolset-prompts', () =
     promptsByProvider.value = remaining
   }
 
-  const activeToolsetPrompt = computed(() => renderToolsetPrompts(Object.values(promptsByProvider.value).flat()))
+  // Host-wide instructions keep their existing composition path. Tool-scoped instructions follow request admission instead.
+  const activeToolsetPrompt = computed(() => renderToolsetPrompts(Object.values(promptsByProvider.value).flat().filter(prompt => !prompt.requiredTools)))
+
+  /** Resolves tool-scoped guidance without changing registrations or granting tools. */
+  function getToolsetPromptForTools(toolNames: readonly string[]) {
+    const granted = new Set(toolNames)
+    return renderToolsetPrompts(Object.values(promptsByProvider.value).flat().filter(prompt =>
+      prompt.requiredTools?.length && prompt.requiredTools.every(name => granted.has(name)),
+    ))
+  }
 
   return {
     activeToolsetPrompt,
+    getToolsetPromptForTools,
     clearToolsetPrompts,
     promptsByProvider,
     registerToolsetPrompts,

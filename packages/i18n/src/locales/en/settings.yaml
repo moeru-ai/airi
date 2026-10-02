@@ -476,6 +476,21 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    temperament:
+      label: Temperament
+      description: Drag the point. Right is more positive and left more negative. Up is more energetic and down calmer. Near the center, the character stays even and calms down quickly. Toward the edge, it feels more and longer. Mood changes only when a classifier is set in Attention.
+      positive: Positive
+      negative: Negative
+      energetic: Energetic
+      calm: Calm
+      center: Even
+      summary: '{valence}, {arousal} · {emotional}% emotional'
+      leaning_positive: Leans positive
+      leaning_negative: Leans negative
+      leaning_neutral: Neutral tone
+      energy_high: energetic
+      energy_low: calm
+      energy_neutral: steady
     body-model: Body / Display Model
     speech:
       provider: Speech / Provider
@@ -493,8 +508,54 @@ pages:
     upload: Upload
     upload_desc: Click or drag an AIRI card package to import
   memory:
+    advanced:
+      title: Advanced
+      description: Settings that rarely need a change. The defaults fit most setups.
     description: Where memories got stored, and organized
     title: Memory
+    runs:
+      title: Replies in progress
+      description: Limits for replies that run at the same time. A limit never switches models or skips a reply silently. Work over a limit waits or fails with a message.
+      max_concurrent:
+        label: Replies at the same time
+        description: Replies and notification reactions that can run at once, across all chats. Set 1 to run one thing at a time. The character still speaks one reply at a time.
+      max_queued:
+        label: Waiting messages per chat session
+        description: Messages that can wait in one chat session. A new message beyond this limit is refused.
+      stall_timeout:
+        label: Stall timeout (seconds)
+        description: A reply that receives nothing for this long stops and reports a failure.
+      deadline:
+        label: Reply time limit (minutes)
+        description: A reply that runs longer than this stops and reports a failure.
+    triage:
+      title: Attention
+      description: An optional fast classifier answers quick questions for decision recipes, recipe gates, and mood. Without one, those features stay off and nothing extra is called.
+      backend:
+        label: Classifier
+        description: A Decisions API model, such as Mercury Decide on OpenRouter or JEV, is fast and cheap. A chat model can answer the same questions in a structured form. A classifier never grants permissions.
+        options:
+          none: None (fixed rules)
+          decisions: Decisions API
+          llm: Chat model
+      threshold:
+        label: Trust threshold
+        description: A classifier answer decides only when its confidence reaches this value. A lower value lets the classifier decide more often. Below the threshold, fixed rules decide.
+      decisions_api_key:
+        label: API key
+        description: The key for the Decisions endpoint, for example an OpenRouter key.
+      decisions_endpoint:
+        label: Endpoint
+        description: A Decisions API address. OpenRouter is the default. TypeSafe uses https://api.typesafe.ai/v1/systemone.
+      decisions_model:
+        label: Model
+        description: The decision model, for example inception/mercury-decide:free or typesafe/jev-1.13.
+      llm_provider:
+        label: Classifier provider
+        description: A configured chat provider that answers the classifier questions. The conversation model does not change.
+      llm_model:
+        label: Classifier model
+        description: Use a fast model. A slow answer is ignored, and fixed rules decide.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
@@ -676,6 +737,18 @@ pages:
       gaming: Gaming
       artistry: Artistry
     consciousness:
+      spending:
+        title: Models and spending
+        description: The conversation model above stays your choice. A spending limit stops new work and never switches to a cheaper model.
+        spending_limit_enabled:
+          label: Spending limit
+          description: Stops new replies, notification reactions, and idle checks when the estimated cost in the last hour reaches the limit. Your message shows why it was refused.
+        spending_limit_amount:
+          label: Limit per hour
+          description: The estimate uses the provider's catalog prices and reported token usage.
+        spending_limit_currency:
+          label: Currency
+          description: Requests priced in another currency are not counted.
       description: Personality, desired model, etc.
       sections:
         section:
@@ -801,11 +874,133 @@ pages:
               Your provider did not return verbose_json segments. Confidence
               filtering had no effect on the last transcription.
     memory-long-term:
+      recipes:
+        title: Recipes
+        empty: No recipes yet.
+        sources:
+          builtin: Built-in
+          user: Yours
+          model: Proposed by the model
+        pending: Waiting for your approval. After one approval, it runs without asking again.
+        approve: Approve
+        remove: Remove
+        add:
+          title: Add a recipe
+          name: Name
+          description: When to use it
+          instructions: What to do
+          keywords:
+            label: Trigger keywords
+            description: Comma-separated. A message that contains one points the character to this recipe.
+          submit: Add
+        entry:
+          title: Recipes
+          description: Skills the character can use, triggers that start them, and proposals waiting for you.
+        add_button: Add recipe
+        types:
+          title: Choose a recipe type
+          instructions:
+            title: Instructions
+            description: Steps the character loads when they fit. Keywords can point to it, and the chat shows each use.
+          decision:
+            title: Quick decision
+            description: A question for the attention classifier, answered before any reply. Each answer can lead to its own action.
+        decision:
+          question: Question
+          type:
+            label: Answer type
+            noul: Yes or no
+            choice: Choose one option
+            score: Score on levels
+          yes_means: Yes means
+          no_means: No means
+          option: Option meaning
+          level: Level meaning (lowest first)
+          add_option: Add an answer
+          remove_option: Remove
+          action:
+            label: Then
+            reply: Reply as usual
+            stay_quiet: Read without replying
+            hint: Add a hint to the reply
+            recipe: Point to another recipe
+          hint_text: Hint
+          target_recipe: Recipe
+          note: Each answer acts only when the classifier's confidence reaches the threshold in Attention. Otherwise the character replies as usual.
+        cancel: Cancel
+        edit: Edit
+        save: Save
+        enabled: 'Use {name}'
+        keywords_summary: 'Keywords: {words}'
+        tabs:
+          conversation: In conversation
+          auto_run: Auto-run
+          conversation_description: Recipes the character uses in a conversation. They act only when a message arrives.
+          auto_run_description: Recipes that start on their own when a trigger fires, without your message. Each run costs a model call. With all of them off, nothing is called.
+        auto_run:
+          title: Auto-run recipe
+          when:
+            label: When it starts
+            idle: After I send no message for a while
+            schedule: On a schedule
+            event: When a registered source reports something new
+          minutes:
+            label: Minutes
+            idle: Starts after this many minutes without your message. It starts once per silence and waits for your next message.
+            schedule: Starts every this many minutes.
+            event: The shortest time between two starts. A busy source, such as a pointer position, fires at most once in this time.
+          source:
+            label: Source
+            description: A module that registered with AIRI, or a source that reports observations now.
+            none: No source has registered yet. Connect a module that reports observations, then choose it here.
+          gate:
+            label: Decide before running (optional)
+            description: When the trigger fires, the attention classifier answers this yes-or-no question first. A confident no skips the run and costs only the classifier call. Without a classifier, the recipe always runs.
+            placeholder: 'For example: Is it late at night?'
+          summary:
+            idle: 'After {minutes} min of silence'
+            schedule: 'Every {minutes} min'
+            event: 'When {source} reports, at most every {minutes} min'
+        styles:
+          instructions: Instructions
+          decision: Quick decision
+          run: Separate run
+          mcp: MCP tool
+        builtin:
+          stay-quiet:
+            name: Read without replying
+            description: Lets the character read a message and choose not to answer when nothing needs saying.
       description: Long-term memory specific settings and management
       title: Long-Term Memory
+      sessions:
+        title: Chat sessions
+        description: A dormant session retires after a longer period. A retired session no longer resumes for its external scene. Remembered facts arrive with a later update.
+        retire_after:
+          label: Retired after (days)
+          description: Days in the dormant state before a chat session retires. You can still open and continue it.
     memory-short-term:
       description: Short-term memory specific settings and management
       title: Short-Term Memory
+      sessions:
+        title: Chat sessions
+        description: A chat session becomes dormant after a quiet period. A dormant session still resumes.
+        dormant_after:
+          label: Dormant after (minutes)
+          description: Minutes without activity before a chat session becomes dormant.
+      mood:
+        title: Current mood
+        description: The character's mood right now, usually a blend of feelings. It moves after conversations and urgent events, then fades back by the temperament on its character card.
+        inactive: Mood stays calm until a classifier is set in Settings → Memory → Attention.
+        reset: Reset mood
+        calm: Calm
+        feeling: '{label} {percent}%'
+        feelings:
+          joy: Happy
+          contentment: At ease
+          anger: Irritated
+          sadness: Down
+          fear: Anxious
+          boredom: Bored
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

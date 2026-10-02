@@ -10,7 +10,8 @@ import type z from 'zod'
 import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
-import { renderConversationPreview } from '@proj-airi/core-agent'
+import { audienceFromBindings, OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { createPinia, setActivePinia } from 'pinia'
@@ -20,9 +21,18 @@ import { ref } from 'vue'
 import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useChatStore } from '../../chat'
+import { useChatContextStore } from '../../chat/context-store'
+import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useModuleDirectoryStore } from '../../mods/api/module-directory'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
+import { useRecipesStore } from '../../recipes'
+import { useSchedulerStore } from '../../scheduler'
+import { useSettingsModels } from '../../settings/models'
+import { useSettingsRunLimits } from '../../settings/run-limits'
+import { useSettingsTriage } from '../../settings/triage'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -208,8 +218,105 @@ describe('store character-orchestrator', () => {
     expect((mockStream.mock.calls[0][2] as Conversation).turns).toHaveLength(2)
     expect(mockStream.mock.calls[0][3]).toHaveProperty('tools')
 
-    expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!')
+    expect(mockOnSparkNotifyReactionStreamEvent).toHaveBeenCalledWith(event.data.id, 'Ahhh, got hit by zombie!', { interrupt: true })
     expect(mockOnSparkNotifyReactionStreamEnd).toHaveBeenCalledTimes(1)
+  })
+
+  // T11: a proactive reaction joins the session as the character's turn, keeps its run link, and adds no user turn.
+  it('writes a spoken reaction into the session without a user turn', async () => {
+    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: '<|ACT:{"emotion":"surprised"}|>A creeper is behind you!' } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn()
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = vi.fn()
+    const chatSession = mockedStore(useChatSessionStore, pinia)
+    chatSession.loadSession = vi.fn(async () => true)
+    chatSession.appendSessionMessage = vi.fn()
+
+    const store = useCharacterOrchestratorStore(pinia)
+    await store.handleSparkNotifyWithReaction({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Creeper nearby', destinations: ['character'] },
+    }, { forceTextResponse: true })
+
+    const [run] = useSchedulerStore(pinia).runs.snapshot()
+    expect(chatSession.appendSessionMessage).toHaveBeenCalledExactlyOnceWith(chatSession.activeSessionId, expect.objectContaining({
+      role: 'assistant',
+      content: 'A creeper is behind you!',
+      proactive: { runId: run?.runId, source: 'minecraft' },
+    }))
+  })
+
+  // A reaction carries owner context, so a shared scene session never receives it.
+  it('keeps a spoken reaction out of a session that other people read', async () => {
+    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'A creeper is behind you!' } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn()
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = vi.fn()
+    const chatSession = mockedStore(useChatSessionStore, pinia)
+    chatSession.loadSession = vi.fn(async () => true)
+    chatSession.getSessionAudience = vi.fn(() => audienceFromBindings(['discord:channel:a']))
+    chatSession.appendSessionMessage = vi.fn()
+
+    await useCharacterOrchestratorStore(pinia).handleSparkNotifyWithReaction({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Creeper nearby', destinations: ['character'] },
+    }, { forceTextResponse: true })
+
+    expect(chatSession.appendSessionMessage).not.toHaveBeenCalled()
+  })
+
+  // ROOT CAUSE:
+  //
+  // Stall and deadline supervision covered chat runs only. A stalled notification request kept its run working
+  // and held the voice until the provider gave up.
+  //
+  // We fixed this by applying the same limits to notification runs.
+  it('expires a stalled notification run and releases the voice', async () => {
+    let signal: AbortSignal | undefined
+    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      signal = options?.abortSignal
+      await new Promise<void>((_resolve, reject) => signal?.addEventListener('abort', () => reject(signal?.reason), { once: true }))
+    })
+    useSettingsRunLimits(pinia).stallTimeoutSeconds = 1
+
+    const handled = useCharacterOrchestratorStore(pinia).handleSparkNotify({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Hit by zombie', destinations: ['character'] },
+    }).catch((error: unknown) => error)
+
+    await vi.waitFor(() => expect(signal?.aborted).toBe(true), { timeout: 3_000 })
+    await handled
+    const scheduler = useSchedulerStore(pinia)
+    expect(scheduler.runs.snapshot()).toMatchObject([{ state: 'expired', error: 'Run stalled without stream activity' }])
+    expect(scheduler.leases.holder('voice')).toBeUndefined()
+  })
+
+  // A5: a reached spending limit defers background work before any model or classifier request. It never drops it.
+  it('defers a notification while the spending limit is reached', async () => {
+    const stream = vi.fn()
+    mockedStore(useLLM, pinia).stream = stream
+    const models = useSettingsModels(pinia)
+    models.spendingLimitEnabled = true
+    models.spendingLimitAmount = 1
+    useSchedulerStore(pinia).spending.record({ amount: 2, currency: 'USD' })
+
+    const store = useCharacterOrchestratorStore(pinia)
+    await store.handleSparkNotify({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Hit by zombie', destinations: ['character'] },
+    })
+
+    expect(stream).not.toHaveBeenCalled()
+    expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ outcome: 'deferred', reason: 'spending-limit' }])
+    expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
   })
 
   it('supports forcing text-only spark:notify responses', async () => {
@@ -278,6 +385,7 @@ describe('store character-orchestrator', () => {
     mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = onDelta
     mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = onEnd
 
+    useModuleDirectoryStore(pinia).modules = [{ name: 'minecraft', connectionId: 'minecraft-connection', cognition: { accepts: ['action'], control: { exclusive: true } } }]
     const store = useCharacterOrchestratorStore(pinia)
     const event: WebSocketEventOf<'spark:notify'> = {
       type: 'spark:notify',
@@ -306,12 +414,40 @@ describe('store character-orchestrator', () => {
       waitForTools: true,
     })
     expect(result?.commands?.length).toBe(1)
+    // Admission stamps the session that holds control of the module.
     expect(sendSparkCommandMock).toHaveBeenCalledWith({
       type: 'spark:command',
-      data: result?.commands[0],
+      data: { ...result?.commands[0], holder: useChatSessionStore(pinia).activeSessionId },
     })
+    expect(useSchedulerStore(pinia).leases.holder('module:minecraft')?.holder).toBe(useChatSessionStore(pinia).activeSessionId)
     expect(onDelta).not.toHaveBeenCalled()
     expect(onEnd).toHaveBeenCalledWith(event.data.id, '')
+  })
+
+  // ROOT CAUSE:
+  // Notification commands went straight to the channel. Any destination that the model named received work.
+  it('never sends a notification command to an undeclared module', async () => {
+    mockedStore(useLLM, pinia).stream = vi.fn<ReturnType<typeof useLLM>['stream']>(async (_model, _provider, _messages, options) => {
+      const tools = typeof options?.tools === 'function' ? await options.tools() : options?.tools
+      const sparkCommandTool = tools?.find(tool => tool.function.name === 'builtIn_sparkCommand')
+      await sparkCommandTool?.execute({
+        commands: [{ destinations: ['vscode'], intent: 'action', priority: 'high', interrupt: 'false', ack: 'go', guidance: null }],
+      } satisfies z.infer<typeof sparkNotifyCommandSchema>, { messages: [], toolCallId: 'command' })
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const store = useCharacterOrchestratorStore(pinia)
+
+    const result = await store.handleSparkNotify({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Open editor', destinations: ['character'] },
+    }, { forceSparkCommandResponse: true })
+
+    expect(result?.commands).toHaveLength(1)
+    expect(sendSparkCommandMock).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalledWith('Spark notify command rejected:', expect.stringContaining('unknown-destination (vscode)'))
+    warn.mockRestore()
   })
 
   // https://github.com/moeru-ai/airi/pull/2464#discussion_r3933609456
@@ -353,5 +489,256 @@ describe('store character-orchestrator', () => {
     expect(String(renderedMessages?.[1])).toContain('Rendered board snapshot')
     expect(String(renderedMessages?.[1])).toContain('base.prompt.emotion')
     expect(String(renderedMessages?.[1])).toContain('base.prompt.emoji')
+  })
+
+  describe('notification intake', () => {
+    const notify = (data: Partial<WebSocketEventOf<'spark:notify'>['data']> = {}): WebSocketEventOf<'spark:notify'> => ({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Creeper', destinations: ['character'], ...data },
+    })
+
+    function replyWith(text: string) {
+      const mockStream = vi.fn<ReturnType<typeof useLLM>['stream']>(async (_model, _provider, _messages, options) => {
+        await options?.onStreamEvent?.({ type: 'text-delta', text } satisfies StreamEvent)
+        await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+      })
+      mockedStore(useLLM, pinia).stream = mockStream
+      return mockStream
+    }
+
+    // ROOT CAUSE:
+    // A notification reaction opened an interrupting speech intent, so it spoke over the conversation run.
+    it('defers an immediate notification while equally urgent speech holds the voice', async () => {
+      const mockStream = replyWith('Watch out!')
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.9 })
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(store.scheduledNotifies.map(item => item.event.data.id)).toEqual([event.data.id])
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'resource-busy', salience: 0.9 }])
+      expect(scheduler.runs.snapshot()).toEqual([])
+      expect(scheduler.leases.holder('voice')?.holder).toBe('conversation-run')
+    })
+
+    // Candidates for one resource compare by salience tier, deadline, and waiting time, never by who asks first after a release.
+    it('puts an urgent waiting notification ahead of a later chat send in the voice line', async () => {
+      replyWith('Watch out!')
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.9 })
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+      scheduler.leases.release('voice', 'conversation-run')
+      const [waiting] = store.scheduledNotifies
+
+      expect(scheduler.leases.acquire('voice', 'next-chat-send', { salience: 0.5 })).toEqual({ granted: false, ahead: waiting?.runId })
+    })
+
+    // T20: a notification run counts against the shared run capacity, so a limit of one serializes all active work.
+    it('defers a notification while the shared run capacity is full', async () => {
+      const mockStream = replyWith('unused')
+      useSettingsRunLimits(pinia).maxConcurrentRuns = 1
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.runs.admit({ runId: 'domain-run', envelope: { sessionId: 'discord', bindings: [], outputs: ['chat:owner'], audience: OWNER_AUDIENCE } })
+      scheduler.runs.transition('domain-run', 'working')
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'resource-busy' }])
+    })
+
+    it('defers a notification during an error burst instead of failing again', async () => {
+      const mockStream = replyWith('unused')
+      const scheduler = useSchedulerStore(pinia)
+      for (const runId of ['a', 'b', 'c']) {
+        scheduler.runs.admit({ runId, envelope: { sessionId: 'session', bindings: [], outputs: ['chat:owner'], audience: OWNER_AUDIENCE } })
+        scheduler.runs.transition(runId, 'blocked', 'provider down')
+      }
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'error-cooldown', retryAt: scheduler.errorBurst.coolingUntil() }])
+    })
+
+    // Urgent work interrupts lower-salience speech at a sentence boundary. Other notifications wait for it.
+    it('takes the voice from calmer speech and interrupts it at a boundary', async () => {
+      replyWith('Creeper behind you!')
+      const reactions: Array<{ interrupt?: boolean }> = []
+      mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn<ReturnType<typeof useCharacterStore>['onSparkNotifyReactionStreamEvent']>((_eventId, _text, options) => {
+        reactions.push({ interrupt: options?.interrupt })
+      })
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.5 })
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.handleSparkNotify(notify())
+      await store.handleSparkNotify(notify({ urgency: 'soon' }))
+
+      expect(scheduler.runs.snapshot()).toMatchObject([{ state: 'done' }])
+      expect(reactions).toEqual([{ interrupt: true }])
+      // The calmer notification waits in line instead of cutting in.
+      expect(store.scheduledNotifies).toHaveLength(1)
+    })
+
+    it('runs an admitted notification as a run that holds and releases the voice', async () => {
+      replyWith('Watch out!')
+      const scheduler = useSchedulerStore(pinia)
+      const voiceHolders: Array<string | undefined> = []
+      scheduler.leases.subscribe(() => voiceHolders.push(scheduler.leases.holder('voice')?.holder))
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      const [run] = scheduler.runs.snapshot()
+      expect(run).toMatchObject({ state: 'done', envelope: { outputs: ['voice'] } })
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'admitted', runId: run.runId, origin: 'external', source: 'minecraft' }])
+      expect(voiceHolders).toEqual([run.runId, undefined])
+    })
+
+    it('records a missing model as a blocked run, never as silence', async () => {
+      useConsciousnessStore(pinia).activeModel = ''
+      const store = useCharacterOrchestratorStore(pinia)
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      await store.handleSparkNotify(notify())
+
+      expect(useSchedulerStore(pinia).runs.snapshot()).toMatchObject([{ state: 'blocked', error: 'No active provider or model' }])
+      warn.mockRestore()
+    })
+
+    it('replaces a waiting notification with a newer one that has the same coalescing key', async () => {
+      const store = useCharacterOrchestratorStore(pinia)
+      const scheduler = useSchedulerStore(pinia)
+      const older = notify({ urgency: 'later', coalesceKey: 'health' })
+      const newer = notify({ urgency: 'later', coalesceKey: 'health' })
+      const unrelated = notify({ urgency: 'later' })
+
+      await store.handleSparkNotify(older)
+      await store.handleSparkNotify(unrelated)
+      await store.handleSparkNotify(newer)
+
+      expect(store.scheduledNotifies.map(item => item.event.data.id)).toEqual([unrelated.data.id, newer.data.id])
+      expect(store.pendingNotifies.map(item => item.data.id)).toEqual([unrelated.data.id, newer.data.id])
+      expect(scheduler.intake.forStimulus(older.data.id)).toMatchObject([
+        { outcome: 'deferred', retryAt: expect.any(Number) },
+        { outcome: 'merged', mergedInto: newer.data.id },
+      ])
+    })
+
+    function observe(text: string, createdAt: number) {
+      mockedStore(useChatContextStore, pinia).getContextsSnapshot = vi.fn<ReturnType<typeof useChatContextStore>['getContextsSnapshot']>(() => ({ minecraft: [{ id: 'status', contextId: 'status', strategy: ContextUpdateStrategy.ReplaceSelf, text, createdAt, metadata: { source: { id: 'minecraft' } } }] }))
+    }
+
+    /** Auto-run recipes run in their own session. The test stands in for the chat store that starts them. */
+    function stubRecipeStarts() {
+      const startRecipe = vi.fn(async () => ({ status: 'started' as const }))
+      mockedStore(useChatStore, pinia).startRecipe = startRecipe
+      return startRecipe
+    }
+
+    // T9: with no external input, an owner recipe with an idle trigger starts once per silence, in its own session.
+    it('starts an owner idle recipe once the owner has been silent long enough, and once per silence', async () => {
+      const startRecipe = stubRecipeStarts()
+      useRecipesStore(pinia).add({ name: 'Check in', description: 'Greets after a silence.', style: { kind: 'instructions', instructions: 'Greet the owner softly.' }, triggers: [{ kind: 'idle', afterMinutes: 30 }], enabled: true })
+      const store = useCharacterOrchestratorStore(pinia)
+      const start = Date.now()
+
+      await store.runRecipeTriggers(start)
+      await store.runRecipeTriggers(start + 29 * 60_000)
+      expect(startRecipe).not.toHaveBeenCalled()
+
+      await store.runRecipeTriggers(start + 30 * 60_000)
+      await store.runRecipeTriggers(start + 90 * 60_000)
+
+      expect(startRecipe).toHaveBeenCalledOnce()
+      expect(startRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: 'Check in' }), { parentSessionId: useChatSessionStore(pinia).activeSessionId, task: expect.stringContaining('The owner has sent no message for 30 minutes.') })
+    })
+
+    // A registered source fires an event trigger with its observation, once per cooldown.
+    it('starts an event recipe on a new observation from its source, with the observation as the task', async () => {
+      const startRecipe = stubRecipeStarts()
+      useRecipesStore(pinia).add({ name: 'Game watch', description: '', style: { kind: 'instructions', instructions: 'Comment on the game.' }, triggers: [{ kind: 'event', source: 'minecraft', cooldownMinutes: 10 }], enabled: true })
+      const store = useCharacterOrchestratorStore(pinia)
+      const start = Date.now()
+
+      observe('Creeper left the base', start - 1)
+      await store.runRecipeTriggers(start)
+      expect(startRecipe).not.toHaveBeenCalled()
+
+      observe('Creeper left the base', start + 1_000)
+      await store.runRecipeTriggers(start + 2_000)
+      observe('Night fell', start + 3_000)
+      await store.runRecipeTriggers(start + 4_000)
+
+      expect(startRecipe).toHaveBeenCalledOnce()
+      expect(startRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: 'Game watch' }), expect.objectContaining({ task: expect.stringContaining('New observation from minecraft: Creeper left the base') }))
+    })
+
+    // T10: with no due recipe, the scheduler asks no classifier and starts nothing.
+    it('asks and starts nothing without a due recipe', async () => {
+      const startRecipe = stubRecipeStarts()
+      const fetch = vi.fn(async () => Response.json({}))
+      vi.stubGlobal('fetch', fetch)
+      const settings = useSettingsTriage(pinia)
+      settings.backend = 'decisions'
+      settings.decisionsApiKey = 'key'
+      observe('Creeper left the base', Date.now() + 1_000)
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.runRecipeTriggers(Date.now())
+      await store.runRecipeTriggers(Date.now() + 60 * 60_000)
+
+      expect(fetch).not.toHaveBeenCalled()
+      expect(startRecipe).not.toHaveBeenCalled()
+      vi.unstubAllGlobals()
+    })
+
+    // A gate is a classifier question before the run. A confident no skips the run, and only the classifier request is spent.
+    it('skips a due auto-run recipe when its gate answers no', async () => {
+      const startRecipe = stubRecipeStarts()
+      const settings = useSettingsTriage(pinia)
+      settings.backend = 'decisions'
+      settings.decisionsApiKey = 'key'
+      useRecipesStore(pinia).add({ name: 'Late check', description: '', style: { kind: 'instructions', instructions: 'Remind the owner to rest.' }, triggers: [{ kind: 'schedule', everyMinutes: 30 }], gate: 'Is it late at night?', enabled: true })
+      const gateId = useRecipesStore(pinia).autoRun.find(recipe => recipe.name === 'Late check')!.id
+      const fetch = vi.fn(async () => Response.json({ answers: { [gateId]: { type: 'noul', noul: 0.02 } } }))
+      vi.stubGlobal('fetch', fetch)
+      const store = useCharacterOrchestratorStore(pinia)
+      const start = Date.now()
+
+      await store.runRecipeTriggers(start)
+      await store.runRecipeTriggers(start + 30 * 60_000)
+      // The same period does not ask the gate again.
+      await store.runRecipeTriggers(start + 31 * 60_000)
+
+      expect(fetch).toHaveBeenCalledOnce()
+      expect(startRecipe).not.toHaveBeenCalled()
+      vi.unstubAllGlobals()
+    })
+
+    it('ignores a notification whose time to live has passed', async () => {
+      const mockStream = replyWith('Too late')
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify({ ttlMs: 0 })
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'expired' }])
+      expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
+    })
   })
 })

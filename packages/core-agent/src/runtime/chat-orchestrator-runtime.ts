@@ -7,15 +7,28 @@ import type { AgentForegroundStreamPort } from '../contracts/stream-port'
 import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
+import type { Audience } from './audience'
+import type { IntakeDecision, IntakeRecord, Stimulus } from './intake'
+import type { AgentRun, ExecutionEnvelope } from './run-table'
 
+import { errorMessageFrom } from '@moeru/std'
 import { createQueue } from '@proj-airi/stream-kit'
 
 import { chatMessagesToTurns } from '../messages/chat-completions'
 import { formatTimePrefix } from '../messages/datetime-prefix'
+import { deliveredSpeechText, deliveredSpeechTurn } from '../messages/delivered-speech'
 import { renderConversationPreview } from '../messages/preview'
 import { createChatHooks } from './agent-hooks'
+import { audienceIncludes, intersectAudiences, OWNER_AUDIENCE } from './audience'
+import { loadContextTokenCounter } from './context-budget'
+import { estimateTurnsTokens, fitHistoryToBudget, projectedTurnsSizeBound } from './history-budget'
+import { IntakeLog, salienceFromUrgency } from './intake'
+import { LeaseTable } from './lease-table'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
+import { guardRepeatedToolCalls, RUN_LOOPING, superviseRun } from './run-supervision'
+import { RunTable } from './run-table'
+import { STAY_QUIET_TOOL_NAME, stayQuietReason } from './stay-quiet'
 
 const REASONING_UI_FLUSH_CHUNK_SIZE = 24
 
@@ -126,15 +139,60 @@ export interface ChatOrchestratorSendOptions {
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
   input?: ChatStreamEventContext['input']
+  /** Host-selected return connection. This transport address does not grant access to context. */
+  outputTarget?: ChatStreamEventContext['outputTarget']
   /** Message that the new user turn replies to in the target session. */
   replyToMessageId?: string
   /** Temperature for the LLM request. */
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /**
+   * Work that the scheduler derived, for example a task recipe in its own session.
+   * It has no voice and no owner output, reads within its parent's audience, and needs no intake classifier.
+   * Cancelling the parent run cancels it.
+   */
+  derivation?: {
+    /** The run that asked for this work. A trigger-started run has none. */
+    parentRunId?: string
+    /** What derived the work, for the intake trace. For example `recipe:<id>`. */
+    source: string
+    /** Called once the run is admitted, before it runs. The scheduler hands its id to the proposer as a ticket. */
+    onAdmitted?: (runId: string) => void
+  }
+  /**
+   * The text is a notice for the conversation, not owner speech, for example a finished background task or a module event.
+   * It enters this request only, after the history, and never becomes a stored user message.
+   * The reply is stored as a proactive message, and the run can stay quiet.
+   */
+  notice?: {
+    /** What sent the notice, for the reply's trace. */
+    source: string
+    /** An urgent notice cuts into speech that keeps playing, like owner input. */
+    urgent?: boolean
+  }
 }
 
 interface QueuedSend {
+  /** Run admitted for this send. */
+  runId: string
+  envelope: ExecutionEnvelope
+  /** Salience from intake. It ranks the send among candidates for the voice. */
+  salience: number
+  /** Admission time. Within one salience tier, a longer wait goes first. */
+  queuedAt: number
+  /** Direct owner input or an urgent notice. It cuts into speech that keeps playing after its run. */
+  direct: boolean
+  /** Message ids that this run wrote. A rollback removes them. */
+  writtenMessageIds: string[]
+  /** Set while the send runs. */
+  controller?: AbortController
+  /** Set when the host cancels the run. */
+  cancellation?: { rollback: boolean }
+  /** Set when supervision ends the run. */
+  supervision?: { state: 'expired' | 'blocked', reason: string }
+  /** Set when the run chose silence. */
+  silent?: { reason?: string }
   /** Keep provider identity paired with the client captured at enqueue time. */
   providerId: string
   sendingMessage: string
@@ -178,6 +236,12 @@ export interface ChatOrchestratorSessionPort {
   appendSessionMessage: (sessionId: string, message: ChatHistoryItem) => void
   /** Returns a monotonic generation used to reject stale queued sends. */
   getSessionGeneration: (sessionId: string) => number
+  /** Returns the audience that the session history may reach. A run must stay inside it. @default the owner */
+  getSessionAudience?: (sessionId: string) => Audience | undefined
+  /** Narrows the session audience after a run writes output derived from labeled reads. */
+  narrowSessionAudience?: (sessionId: string, audience: Audience) => void
+  /** Removes messages that a cancelled run wrote. Required for rollback. */
+  removeSessionMessages?: (sessionId: string, messageIds: readonly string[]) => void
 }
 
 /**
@@ -221,15 +285,43 @@ export interface ChatOrchestratorPromptProjection {
  * Reactive state mirrored by UI facades.
  */
 export interface ChatOrchestratorRuntimeState {
-  /** Whether the runtime currently owns an active send. */
-  sending: boolean
-  /** Session that owns the active send; undefined while the queue is idle. */
-  activeSendSessionId?: string
-  /** Latest assistant stream snapshot owned by the active send session. */
-  activeStreamingMessage?: StreamingAssistantMessage
-  /** Number of sends waiting behind the active one. */
+  /** Sessions that have a running send. Each session runs at most one send at a time. */
+  runningSessionIds: string[]
+  /** Session of the running send that holds the voice. At most one send holds it. */
+  voiceSessionId?: string
+  /** Latest assistant stream snapshot of each running session. */
+  streamingMessages: Record<string, StreamingAssistantMessage>
+  /** Number of sends waiting for their session or for a free run slot. */
   pendingQueuedSendCount: number
 }
+
+/** Capacity limits that admission and scheduling read on each decision. */
+export interface ChatOrchestratorRuntimeLimits {
+  /** Working runs at the same time, counted across every owner that shares the run table. `1` serializes all active work. @default 4 */
+  maxConcurrentRuns: number
+  /** Sends that can wait in one session. A full session rejects new work before a run exists. @default 8 */
+  maxQueuedPerSession: number
+  /** A running send without a stream event for this long expires. @default 60000 */
+  stallTimeoutMs: number
+  /** A running send expires after this total time. @default 600000 */
+  runDeadlineMs: number
+  /** Tokens of session history in one request. Older exchanges give way to a short note. @default 32000 */
+  historyTokenBudget: number
+}
+
+/** Longest chain of derived runs below one root. Deeper derivation is rejected. */
+export const MAX_DERIVATION_DEPTH = 2
+/** Derived runs that one parent can have queued or working at once. */
+export const MAX_DERIVED_CHILDREN = 3
+
+/** Failure reason of a run whose session narrowed below its audience after admission. */
+const SESSION_NARROWED = 'The session audience narrowed below the run audience'
+
+/**
+ * Identical consecutive tool calls that make a loop. The call at the limit gets a correction instead of a result, and one more ends the run.
+ * Supervision stops a loop instead of waiting for the deadline.
+ */
+const REPEATED_TOOL_CALL_LIMIT = 3
 
 /** Correlation keys shared by every analytics milestone from one user-to-assistant round. */
 interface ChatRoundCorrelation {
@@ -259,8 +351,49 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
-  /** Runtime context providers ingested immediately before prompt composition. */
-  runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
+  /**
+   * Returns the identity and format rules for the run's persona, read when the run starts.
+   * With it, history carries no identity. Stored system messages are skipped, so a persona edit or switch reaches the next run of its own sessions only.
+   */
+  getSystemPrompt?: (envelope: ExecutionEnvelope) => string | undefined
+  /** Returns the session digest, which can stand in for history that no longer fits the budget. */
+  getHistoryDigest?: (sessionId: string) => { text: string, upToMessageId: string } | undefined
+  /**
+   * Builds the limits for one send. The runtime records them in the run table.
+   * @default the session alone, with the owner chat and the voice as its outputs
+   */
+  createEnvelope?: (sessionId: string, options: ChatOrchestratorSendOptions) => Omit<ExecutionEnvelope, 'sessionId'>
+  /** Run table shared with other run owners in the host. @default a table owned by this runtime */
+  runs?: RunTable
+  /** Intake trace shared with other stimulus sources in the host. @default a trace owned by this runtime */
+  intake?: IntakeLog
+  /** Exclusive resources shared with other run owners in the host. A send with the `voice` output holds `voice`. @default leases owned by this runtime */
+  leases?: LeaseTable
+  /** Called whenever a run is admitted or changes state. */
+  onRunChange?: (run: AgentRun) => void
+  /**
+   * Decides whether direct owner input becomes a run. It is synchronous and local, so the owner never waits for a remote classifier.
+   * A throwing policy admits the input as the fallback.
+   * @default {@link decideDirectInput}
+   */
+  decideDirectIntake?: (stimulus: Stimulus) => ChatIntakeDecision
+  /**
+   * Returns a rejection message while the optional user spending limit is reached.
+   * The limit stops new runs and shows why. It never selects a cheaper model.
+   */
+  checkSpendingLimit?: () => string | undefined
+  /**
+   * Runs decision recipes after the user turn is stored and before generation.
+   * A silent answer ends the run as an intentional silence without a model call. Hints join the message as context.
+   * `applied` names the recipes that changed the run, and the reply records them. A late or failed decision lets the run reply.
+   */
+  decideBeforeReply?: (input: { sessionId: string, runId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) => Promise<{ silent?: { reason?: string }, hints?: string[], applied?: string[] } | undefined>
+  /** Called for every intake decision, including ignored and rejected input. */
+  onIntakeRecord?: (record: IntakeRecord) => void
+  /** Reads the current capacity limits. Invalid values use the defaults. */
+  getLimits?: () => Partial<ChatOrchestratorRuntimeLimits>
+  /** Request-owned context providers evaluated once per send for its session and message, outside the shared pool. */
+  runtimeContextProviders?: Array<(sessionId: string, message: string) => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -271,7 +404,7 @@ export interface ChatOrchestratorRuntimeDeps {
   unwrapMessage?: <T>(message: T) => T
   /** Called whenever writable runtime state changes. */
   onStateChange?: (state: ChatOrchestratorRuntimeState) => void
-  /** Called after a runtime-owned send completes or fails and `sending` has been cleared. */
+  /** Called after a runtime-owned send completes or fails and its stream has ended. */
   onSendSettled?: (event: { sessionId: string }) => void
   /** Called when a send starts and the first assistant placeholder is created. */
   onTrackFirstMessage?: () => void
@@ -377,24 +510,55 @@ export interface ChatOrchestratorRuntimeDeps {
   }) => void
 }
 
+/** Chat input either becomes a run or is ignored. It never waits for a later turn. */
+export type ChatIntakeDecision = IntakeDecision & { outcome: 'admitted' | 'ignored' }
+
+/**
+ * Default local intake rule for direct owner input.
+ *
+ * Returns:
+ * - `ignored` for input with no text and no attachments. Otherwise `admitted`. An admitted run can still choose silence.
+ */
+export function decideDirectInput(stimulus: Stimulus): ChatIntakeDecision {
+  if (!stimulus.text?.trim() && !stimulus.hasAttachments)
+    return { outcome: 'ignored', reason: 'empty-input', decidedBy: 'rule' }
+  return { outcome: 'admitted', reason: 'direct-input', decidedBy: 'rule' }
+}
+
+/** Result of one chat input. An ignored input has no run. */
+export interface ChatIngestResult {
+  stimulusId: string
+  outcome: 'admitted' | 'ignored'
+  runId?: string
+}
+
 /**
  * Platform-agnostic chat orchestrator runtime API.
  */
 export interface ChatOrchestratorRuntime {
-  /** Enqueues a user send for the target session, preserving FIFO order. */
-  ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
+  /**
+   * Offers one input to intake. An admitted send runs in its session queue, and the promise settles when the run ends.
+   * An audience or capacity failure rejects before a run exists.
+   */
+  ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<ChatIngestResult>
   /** Rejects queued sends that have not started yet. */
   cancelPendingSends: (sessionId?: string) => void
   /** Returns serializable snapshots of currently queued sends. */
   getPendingQueuedSendSnapshot: () => QueuedSendSnapshot[]
   /** Returns the current queued send count. */
   getPendingQueuedSendCount: () => number
-  /** Reads the writable sending flag. */
-  getSending: () => boolean
-  /** Updates the writable sending flag and notifies facade mirrors. */
-  setSending: (next: boolean) => void
+  /** Returns the sessions that have a running send. */
+  getRunningSessionIds: () => string[]
+  /** Cancels one waiting or running run. With rollback, its writes leave the session. */
+  cancelRun: (runId: string, options?: { rollback?: boolean }) => boolean
   /** Hook registry preserved from the previous stage-ui store API. */
   hooks: ReturnType<typeof createChatHooks>
+  /** Returns one run with its envelope. */
+  getRun: (runId: string) => AgentRun | undefined
+  /** Returns admitted, active, and recently finished runs. */
+  getRuns: () => AgentRun[]
+  /** Returns recent intake decisions, oldest first. */
+  getIntakeRecords: () => IntakeRecord[]
 }
 
 function defaultCreateId() {
@@ -413,7 +577,7 @@ function defaultCreateId() {
  * - `foregroundStream.patch` replaces the visible streaming assistant message.
  *
  * Returns:
- * - A runtime with send queue APIs, hook registry, writable sending state, and queue snapshots.
+ * - A runtime with per-session send queues, hook registry, running state, and queue snapshots.
  */
 export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps): ChatOrchestratorRuntime {
   // A queued send owns one controller until performSend settles. Session reset
@@ -425,31 +589,50 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   const createId = deps.createId ?? defaultCreateId
   const unwrapMessage = deps.unwrapMessage ?? (<T>(message: T) => message)
 
-  let sending = false
-  let activeSendSessionId: string | undefined
-  let activeStreamingMessage: StreamingAssistantMessage | undefined
+  const streamingMessages = new Map<string, StreamingAssistantMessage>()
+  // Waiting sends in admission order, and the running send of each session.
   let pendingQueuedSends: QueuedSend[] = []
+  const runningSends = new Map<string, QueuedSend>()
+  const runs = deps.runs ?? new RunTable({ now })
+  const intake = deps.intake ?? new IntakeLog({ now })
+  const leases = deps.leases ?? new LeaseTable({ now })
+  if (deps.onRunChange)
+    runs.subscribe(deps.onRunChange)
+  if (deps.onIntakeRecord)
+    intake.subscribe(deps.onIntakeRecord)
+  // Another owner can release the voice or end a run, so waiting sends get another chance.
+  leases.subscribe(() => queueMicrotask(pump))
+  runs.subscribe(() => queueMicrotask(pump))
 
   function emitStateChange() {
     deps.onStateChange?.({
-      sending,
-      activeSendSessionId,
-      activeStreamingMessage,
+      runningSessionIds: Array.from(runningSends.keys()),
+      voiceSessionId: Array.from(runningSends.values()).find(send => send.envelope.outputs.includes('voice'))?.sessionId,
+      streamingMessages: Object.fromEntries(Array.from(streamingMessages, ([sessionId, message]) => [sessionId, cloneStreamingMessage(message)])),
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
   }
 
-  function setSending(next: boolean) {
-    const nextActiveSendSessionId = next
-      ? activeSendSessionId ?? deps.getActiveSessionId()
-      : undefined
-    if (sending === next && activeSendSessionId === nextActiveSendSessionId)
-      return
-    sending = next
-    activeSendSessionId = nextActiveSendSessionId
-    if (!next)
-      activeStreamingMessage = undefined
-    emitStateChange()
+  /** Whether the session's current audience still covers a run's audience. */
+  function sessionAudienceCovers(sessionId: string, audience: Audience) {
+    return audienceIncludes(deps.session.getSessionAudience?.(sessionId) ?? OWNER_AUDIENCE, audience)
+  }
+
+  function getLimits(): ChatOrchestratorRuntimeLimits {
+    const limits = deps.getLimits?.() ?? {}
+    const positiveInteger = (value: number | undefined, fallback: number) => Number.isInteger(value) && value! > 0 ? value! : fallback
+    return {
+      maxConcurrentRuns: positiveInteger(limits.maxConcurrentRuns, 4),
+      maxQueuedPerSession: positiveInteger(limits.maxQueuedPerSession, 8),
+      stallTimeoutMs: positiveInteger(limits.stallTimeoutMs, 60_000),
+      runDeadlineMs: positiveInteger(limits.runDeadlineMs, 600_000),
+      historyTokenBudget: positiveInteger(limits.historyTokenBudget, 32_000),
+    }
+  }
+
+  function endStream(sessionId: string) {
+    if (streamingMessages.delete(sessionId))
+      emitStateChange()
   }
 
   function isForegroundSession(sessionId: string) {
@@ -457,9 +640,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function beginStream(sessionId: string, message: StreamingAssistantMessage) {
-    sending = true
-    activeSendSessionId = sessionId
-    activeStreamingMessage = cloneStreamingMessage(message)
+    streamingMessages.set(sessionId, cloneStreamingMessage(message))
     emitStateChange()
 
     if (isForegroundSession(sessionId))
@@ -467,8 +648,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function updateStream(sessionId: string, message: StreamingAssistantMessage) {
-    if (sessionId === activeSendSessionId) {
-      activeStreamingMessage = cloneStreamingMessage(message)
+    if (streamingMessages.has(sessionId)) {
+      streamingMessages.set(sessionId, cloneStreamingMessage(message))
       emitStateChange()
     }
 
@@ -481,12 +662,19 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  function ingestRuntimeContexts() {
+  /**
+   * Projects pool observations for the run's audience, then adds request-owned providers.
+   * The read label covers pool entries only. Request-owned providers carry host instructions, not shared records.
+   */
+  function getRequestContexts(sessionId: string, audience: Audience, message: string) {
+    const snapshot = deps.context.snapshot(sessionId, audience)
+    const readAudience = intersectAudiences(...Object.values(snapshot).flat().map(message => message.audience ?? OWNER_AUDIENCE))
     for (const provider of deps.runtimeContextProviders ?? []) {
-      const contextMessage = provider()
-      if (contextMessage)
-        deps.context.ingest(contextMessage)
+      const context = provider(sessionId, message)
+      if (context)
+        snapshot[context.contextId] = [context]
     }
+    return { contexts: snapshot, readAudience }
   }
 
   function getStablePromptTimestamp(message: ChatHistoryItem, fallbackCreatedAt: number) {
@@ -497,18 +685,50 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     return fallbackCreatedAt
   }
 
-  function buildContext(history: ChatHistoryItem[]): Conversation {
+  /**
+   * Projects session history and fits it into the token budget. Older exchanges give way to the session digest when it covers them, or to a count.
+   * Each message costs what its projection sends, including tool results and turn transcripts.
+   * Text length bounds the token count, so the tokenizer loads only for history that can exceed the budget.
+   */
+  async function fitSessionHistory(sessionId: string, history: ChatHistoryItem[]): Promise<{ turns: Turn[], note?: string }> {
+    const budget = getLimits().historyTokenBudget
+    const projected = projectHistory(history)
+    if (projected.reduce((sum, turns) => sum + projectedTurnsSizeBound(turns), 0) <= budget)
+      return { turns: projected.flat() }
+
+    const countTokens = await loadContextTokenCounter()
+    const firstKept = fitHistoryToBudget(history, projected.map(turns => estimateTurnsTokens(turns, countTokens)), budget)
+    const turns = projected.slice(firstKept).flat()
+    if (firstKept === 0)
+      return { turns }
+    const digest = deps.getHistoryDigest?.(sessionId)
+    const digestIndex = digest ? history.findIndex(item => item.id === digest.upToMessageId) : -1
+    return {
+      turns,
+      note: digest && digestIndex >= firstKept - 1
+        ? `Summary of the earlier conversation in this session: ${digest.text}`
+        : `${firstKept} earlier messages of this session are not shown.`,
+    }
+  }
+
+  /** Projects each stored message into the turns that a request sends for it. */
+  function projectHistory(history: ChatHistoryItem[]): Turn[][] {
     const nowTs = now()
     const messagesById = new Map(history.flatMap(message => message.id ? [[message.id, message] as const] : []))
-    const turns = history.flatMap((message, historyIndex): Turn[] => {
-      if (message.role === 'assistant' && message.generationTranscript)
-        return [structuredClone(unwrapMessage(message.generationTranscript))]
+    return history.map((message, historyIndex): Turn[] => {
+      // An interrupted voice reply reaches the next prompt as the speech that was heard.
+      const delivered = message.role === 'assistant' ? message.deliveredSpeech : undefined
+      if (message.role === 'assistant' && message.generationTranscript) {
+        const turn = structuredClone(unwrapMessage(message.generationTranscript))
+        return [delivered === undefined ? turn : deliveredSpeechTurn(turn, delivered)]
+      }
+      if (message.role === 'assistant' && delivered !== undefined)
+        return chatMessagesToTurns([{ role: 'assistant', content: deliveredSpeechText(delivered) }], message.id ?? `history-${historyIndex}`)
       const source = message.role === 'user'
         ? prependTextToContent(unwrapMessage(message), `${formatTimePrefix(getStablePromptTimestamp(message, nowTs))}${formatReplyPromptPrefix(message.replyToMessageId, messagesById)}`)
         : unwrapMessage(message)
       return chatMessagesToTurns(source.role === 'assistant' && source.providerTranscript?.length ? source.providerTranscript : [source], message.id ?? `history-${historyIndex}`)
     })
-    return { turns }
   }
 
   async function performSend(
@@ -518,6 +738,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     sessionId: string,
     abortSignal: AbortSignal,
     activeProvider: string,
+    run: {
+      runId: string
+      envelope: ExecutionEnvelope
+      /** Resets stall supervision. */
+      onActivity: () => void
+      /** Adds loop supervision to the tools of this run. */
+      guardTools: (tools: StreamOptions['tools']) => StreamOptions['tools']
+      /** Records a message that a rollback can remove. */
+      onWrite: (messageId: string) => void
+      /** Records that the run chose silence. */
+      onSilent: (reason?: string) => void
+    },
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
@@ -537,11 +769,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    ingestRuntimeContexts()
+    const { contexts: requestContexts, readAudience } = getRequestContexts(sessionId, run.envelope.audience, sendingMessage)
+    // Output derives from everything the run read, so the history label narrows before each write.
+    const appendAssistantMessage = (message: ChatHistoryItem) => {
+      deps.session.narrowSessionAudience?.(sessionId, readAudience)
+      deps.session.appendSessionMessage(sessionId, message)
+      if (message.id)
+        run.onWrite(message.id)
+    }
 
     const sendingCreatedAt = now()
 
-    // TODO: Expire or prune stale runtime contexts from disconnected services before composing.
     // Allocate the three per-round ids in their historical order so callers
     // with deterministic id factories keep the same durable message ids.
     const streamContextMessageId = createId()
@@ -556,9 +794,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: streamContextMessageId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
       },
-      contexts: deps.context.snapshot(),
+      contexts: requestContexts,
       composedMessage: [],
       input: options.input,
+      outputTarget: options.outputTarget,
+      sessionId,
+      runId: run.runId,
+      outputs: run.envelope.outputs,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',
@@ -582,6 +824,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       tool_results: [],
       createdAt: now(),
       id: assistantMessageId,
+      ...(options.notice ? { proactive: { runId: run.runId, source: options.notice.source } } : {}),
     }
     beginStream(sessionId, buildingMessage)
     const hasVoice = options.input?.type === 'input:voice'
@@ -652,29 +895,36 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       else
         delete streamingMessageContext.message.replyToMessageId
 
-      const userMessage = {
-        role: 'user' as const,
-        content: finalContent,
-        createdAt: sendingCreatedAt,
-        id: roundId,
-        ...(replyToMessageId ? { replyToMessageId } : {}),
-        ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+      // A notice is not owner speech, so history never stores it as a user turn.
+      if (!options.notice) {
+        const userMessage = {
+          role: 'user' as const,
+          content: finalContent,
+          createdAt: sendingCreatedAt,
+          id: roundId,
+          ...(replyToMessageId ? { replyToMessageId } : {}),
+          ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+        }
+        deps.session.appendSessionMessage(sessionId, userMessage)
+        run.onWrite(userMessage.id)
+
+        // Cloud sync v1: only the raw text part round-trips; image attachments
+        // and other non-text parts stay local.
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
       }
-      deps.session.appendSessionMessage(sessionId, userMessage)
 
-      // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
-
+      // Hooks above can wait. The audience check repeats at the moment the history is read.
+      if (!sessionAudienceCovers(sessionId, run.envelope.audience))
+        throw new Error(SESSION_NARROWED)
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
         messageText: sendingMessage,
@@ -755,7 +1005,18 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         ],
       })
 
-      const context = buildContext(sessionMessagesForSend)
+      // Identity comes from the run's persona at request time. Without a host identity, the stored history keeps its own system message.
+      const systemPrompt = deps.getSystemPrompt?.(run.envelope)
+      const projected = deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend
+      const { turns, note } = await fitSessionHistory(sessionId, projected)
+      const context: Conversation = { turns }
+      // The notice follows the history in this request only. It says plainly that the owner did not write it.
+      if (options.notice)
+        context.turns.push({ id: `notice-${roundId}`, type: 'user', content: [{ type: 'text', text: `[Notice from ${options.notice.source}, not a message from the owner. Speak only if it fits now, or stay quiet.]\n${sendingMessage}` }] })
+      if (note)
+        context.turns.unshift({ id: 'history-omitted', type: 'system', authority: 'context', content: [{ type: 'text', text: note }] })
+      if (systemPrompt?.trim())
+        context.turns.unshift({ id: 'system-identity', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPrompt }] })
       const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
@@ -765,7 +1026,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
-      const contextsSnapshot = deps.context.snapshot()
+      const contextsSnapshot = requestContexts
       const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
         const lastMessage = context.turns.at(-1)
@@ -795,6 +1056,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitBeforeSendHooks(sendingMessage, streamingMessageContext)
 
       let fullText = ''
+      // Set when the model calls the silence tool. Silence needs this explicit choice, so an empty reply alone stays a normal result.
+      let quiet: { reason?: string } | undefined
       const headers = (options.providerConfig?.headers || {}) as Record<string, string>
 
       if (shouldAbort())
@@ -804,114 +1067,142 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let llmFirstTokenEmitted = false
       let generationUsage: LlmUsage = { source: 'unavailable' }
       let generatedTurn: AssistantTurn | undefined
-      deps.onLlmRequestStarted?.({
-        ...correlation,
-        model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
-        hasVoice,
-      })
+      // A decision recipe can choose silence before any generation, for example a classifier that sees nothing to answer.
+      // Recipes decide on owner messages. A notice is the result of earlier work, so none run for it.
+      const decided = options.notice
+        ? undefined
+        : await deps.decideBeforeReply?.({ sessionId, runId: run.runId, message: sendingMessage, envelope: run.envelope, signal: abortSignal })
+            .catch((error: unknown) => {
+              console.warn('Decision recipe failed, so the run replies:', errorMessageFrom(error))
+              return undefined
+            })
+      if (shouldAbort())
+        return
+      if (decided?.hints?.length) {
+        const lastTurn = context.turns.at(-1)
+        if (lastTurn?.type === 'user')
+          lastTurn.content.push({ type: 'runtime-context', entries: decided.hints.map(text => ({ source: 'recipe-decision', text })) })
+      }
+      // The reply names the decision recipes that changed it, so the owner can see them work.
+      if (decided?.applied?.length)
+        buildingMessage.recipes = [...decided.applied]
+      if (decided?.silent) {
+        quiet = { reason: decided.silent.reason }
+      }
+      else {
+        deps.onLlmRequestStarted?.({
+          ...correlation,
+          model: options.model,
+          provider: deps.getActiveProvider() || 'unknown',
+          hasVoice,
+        })
 
-      await deps.llm.stream(options.model, options.chatProvider, context, {
-        headers,
-        providerId: activeProvider,
-        abortSignal,
-        onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
-        requestCorrelation: {
-          conversationId: correlation.conversationId,
-          turnId: correlation.roundId,
-        },
-        tools: options.tools,
-        temperature: options.temperature,
-        topP: options.topP,
-        waitForTools: true,
-        onUsage: (usage) => {
-          if (shouldAbort())
-            return
+        await deps.llm.stream(options.model, options.chatProvider, context, {
+          headers,
+          providerId: activeProvider,
+          abortSignal,
+          onGeneratedTurn: (turn) => { generatedTurn = { ...structuredClone(turn), runId: run.runId } },
+          requestCorrelation: {
+            conversationId: correlation.conversationId,
+            turnId: correlation.roundId,
+            runId: run.runId,
+          },
+          tools: run.guardTools(options.tools),
+          temperature: options.temperature,
+          topP: options.topP,
+          waitForTools: true,
+          onUsage: (usage) => {
+            if (shouldAbort())
+              return
 
-          generationUsage = usage
-          deps.onLlmGeneration?.({
-            ...correlation,
-            model: options.model,
-            provider: activeProvider,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            totalTokens: usage.totalTokens,
-            usageSource: usage.source,
-          })
-        },
-        onStreamEvent: async (event: StreamEvent) => {
-          if (shouldAbort())
-            return
+            generationUsage = usage
+            deps.onLlmGeneration?.({
+              ...correlation,
+              model: options.model,
+              provider: activeProvider,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
+              usageSource: usage.source,
+            })
+          },
+          onStreamEvent: async (event: StreamEvent) => {
+            if (shouldAbort())
+              return
+            run.onActivity()
 
-          switch (event.type) {
-            case 'search':
-              buildingMessage.search = { id: event.id, status: event.status }
-              updateStream(sessionId, buildingMessage)
-              break
-            case 'citations':
-              buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
-              updateStream(sessionId, buildingMessage)
-              break
-            case 'tool-call':
-              toolCallQueue.enqueue({
-                type: 'tool-call',
-                toolCall: event,
-              })
-
-              break
-            case 'tool-result':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                result: event.result,
-              })
-
-              break
-            case 'tool-error':
-              toolCallQueue.enqueue({
-                type: 'tool-call-result',
-                id: event.toolCallId,
-                isError: true,
-                result: event.result,
-              })
-
-              break
-            case 'text-delta':
-              if (!llmFirstTokenEmitted) {
-                llmFirstTokenEmitted = true
-                deps.onLlmFirstToken?.({
-                  ...correlation,
-                  model: options.model,
-                  ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
-                })
-              }
-              fullText += event.text
-              await parser.consume(event.text)
-              break
-            case 'reasoning-delta': {
-              if (shouldAbort())
-                return
-
-              const { reasoning = '' } = buildingMessage.categorization ?? {}
-              const nextReasoning = reasoning + event.text
-              buildingMessage.categorization = {
-                speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
-                reasoning: nextReasoning,
-              }
-              const crossesBoundary
-                = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-                  > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
-              if (!reasoning || crossesBoundary)
+            switch (event.type) {
+              case 'search':
+                buildingMessage.search = { id: event.id, status: event.status }
                 updateStream(sessionId, buildingMessage)
-              break
+                break
+              case 'citations':
+                buildingMessage.citations = [...(buildingMessage.citations ?? []), ...event.citations]
+                updateStream(sessionId, buildingMessage)
+                break
+              case 'tool-call':
+                if (event.toolName === STAY_QUIET_TOOL_NAME)
+                  quiet = { reason: stayQuietReason(event.args) }
+                toolCallQueue.enqueue({
+                  type: 'tool-call',
+                  toolCall: event,
+                })
+
+                break
+              case 'tool-result':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  result: event.result,
+                })
+
+                break
+              case 'tool-error':
+                toolCallQueue.enqueue({
+                  type: 'tool-call-result',
+                  id: event.toolCallId,
+                  isError: true,
+                  result: event.result,
+                })
+
+                break
+              case 'text-delta':
+                if (!llmFirstTokenEmitted) {
+                  llmFirstTokenEmitted = true
+                  deps.onLlmFirstToken?.({
+                    ...correlation,
+                    model: options.model,
+                    ttfbMs: Math.round(monotonicNow() - llmRequestStartedAt),
+                  })
+                }
+                fullText += event.text
+                await parser.consume(event.text)
+                break
+              case 'reasoning-delta': {
+                if (shouldAbort())
+                  return
+
+                const { reasoning = '' } = buildingMessage.categorization ?? {}
+                const nextReasoning = reasoning + event.text
+                buildingMessage.categorization = {
+                  speech: typeof buildingMessage.content === 'string' ? buildingMessage.content : '',
+                  reasoning: nextReasoning,
+                }
+                const crossesBoundary
+                  = Math.floor(nextReasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                    > Math.floor(reasoning.length / REASONING_UI_FLUSH_CHUNK_SIZE)
+                if (!reasoning || crossesBoundary)
+                  updateStream(sessionId, buildingMessage)
+                break
+              }
+              case 'finish':
+                break
+              case 'error':
+                throw event.error ?? new Error('Stream error')
             }
-            case 'finish':
-              break
-            case 'error':
-              throw event.error ?? new Error('Stream error')
-          }
-        },
-      })
+          },
+        })
+      }
 
       // Session generation is the lifecycle correlation key. Re-check it
       // after every awaited completion boundary so deleting a session while a
@@ -936,9 +1227,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         console.error('Assistant response observer failed:', error)
       }
 
-      if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
+      // A chosen silence with no spoken text leaves no assistant message and no reply hooks.
+      const silent = quiet !== undefined && !fullText.trim()
+      if (silent)
+        run.onSilent(quiet?.reason)
+      if (!silent && !shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
-        deps.session.appendSessionMessage(sessionId, finalAssistant)
+        appendAssistantMessage(finalAssistant)
         assistantStored = true
         deps.onAssistantMessageAppended?.({
           sessionId,
@@ -959,7 +1254,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await hooks.emitAfterSendHooks(sendingMessage, streamingMessageContext)
       if (shouldAbort())
         return
-      await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
+      if (!silent)
+        await hooks.emitAssistantMessageHooks({ ...buildingMessage }, fullText, streamingMessageContext)
       if (shouldAbort())
         return
       await hooks.emitChatTurnCompleteHooks({
@@ -1004,7 +1300,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
         // sync for an assistant turn that never reached a terminal event.
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        appendAssistantMessage({ ...cloneStreamingMessage(buildingMessage), interrupted: true })
       }
       resetForegroundStream(sessionId)
 
@@ -1035,63 +1331,214 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         && abortSignal.aborted
         && !isStaleGeneration()
         && hasAssistantOutput(buildingMessage)) {
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        appendAssistantMessage({ ...cloneStreamingMessage(buildingMessage), interrupted: true })
         resetForegroundStream(sessionId)
       }
-      setSending(false)
+      endStream(sessionId)
       deps.onSendSettled?.({ sessionId })
     }
   }
 
-  const sendQueue = createQueue<QueuedSend>({
-    handlers: [
-      async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
+  /**
+   * Runs one send and records its run state. The caller settles the send after the session slot is free.
+   * Supervision ends a stalled, overdue, or looping run. Its caller receives a failure, never a quiet success.
+   */
+  async function execute(queuedSend: QueuedSend): Promise<{ ok: true } | { ok: false, error: unknown }> {
+    const { sendingMessage, options, generation, sessionId, providerId, runId, envelope } = queuedSend
 
-        if (cancelled)
-          return
+    if (deps.session.getSessionGeneration(sessionId) !== generation) {
+      runs.transition(runId, 'dropped')
+      return { ok: false, error: new Error('Chat session was reset before send could start') }
+    }
+    // The session can narrow while the send waits. A run never reads history that its audience can no longer see.
+    if (!sessionAudienceCovers(sessionId, envelope.audience)) {
+      runs.transition(runId, 'blocked', SESSION_NARROWED)
+      return { ok: false, error: new Error(SESSION_NARROWED) }
+    }
 
-        if (deps.session.getSessionGeneration(sessionId) !== generation) {
-          deferred.reject(new Error('Chat session was reset before send could start'))
-          return
-        }
+    const controller = new AbortController()
+    queuedSend.controller = controller
+    activeSends.set(sessionId, controller)
+    const { stallTimeoutMs, runDeadlineMs } = getLimits()
+    const supervise = (state: 'expired' | 'blocked', reason: string) => {
+      if (controller.signal.aborted)
+        return
+      queuedSend.supervision = { state, reason }
+      controller.abort(new Error(reason))
+    }
+    const supervisor = superviseRun({ stallTimeoutMs, deadlineMs: runDeadlineMs }, reason => supervise('expired', reason))
+    const toolGuard = guardRepeatedToolCalls(REPEATED_TOOL_CALL_LIMIT, () => supervise('blocked', RUN_LOOPING))
 
-        const controller = new AbortController()
-        activeSends.set(sessionId, controller)
-        try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
-          deferred.resolve()
-        }
-        catch (error) {
-          deferred.reject(error)
-        }
-        finally {
-          activeSends.delete(sessionId)
-        }
-      },
-    ],
-  })
+    runs.transition(runId, 'working')
+    try {
+      await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId, {
+        runId,
+        envelope,
+        onActivity: () => supervisor.touch(),
+        guardTools: tools => toolGuard.wrap(tools),
+        onWrite: messageId => queuedSend.writtenMessageIds.push(messageId),
+        onSilent: (reason) => {
+          queuedSend.silent = { reason }
+        },
+      })
+      if (queuedSend.supervision) {
+        runs.transition(runId, queuedSend.supervision.state, queuedSend.supervision.reason)
+        return { ok: false, error: new Error(queuedSend.supervision.reason) }
+      }
+      runs.transition(runId, controller.signal.aborted || deps.session.getSessionGeneration(sessionId) !== generation ? 'dropped' : 'done', undefined, { silent: queuedSend.silent })
+      return { ok: true }
+    }
+    catch (error) {
+      const supervision = queuedSend.supervision
+      runs.transition(runId, supervision?.state ?? (controller.signal.aborted ? 'dropped' : 'blocked'), supervision?.reason ?? errorMessageFrom(error) ?? 'Unknown run failure')
+      return { ok: false, error: supervision ? new Error(supervision.reason) : error }
+    }
+    finally {
+      supervisor.stop()
+      activeSends.delete(sessionId)
+    }
+  }
 
-  sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.push(queuedSend)
+  /**
+   * Starts waiting sends in admission order. A session runs one send at a time, and the run count stays within the limit.
+   * The voice is an exclusive lease. A send with the voice output waits until it ranks first among the voice candidates of every run owner.
+   * A slow session therefore holds only its own slot.
+   */
+  function pump() {
+    const { maxConcurrentRuns } = getLimits()
+    for (const queuedSend of [...pendingQueuedSends]) {
+      // Capacity counts the working runs of every owner that shares the run table. A limit of one serializes all active work.
+      if (runs.countWorking() >= maxConcurrentRuns)
+        break
+      if (runningSends.has(queuedSend.sessionId))
+        continue
+      // Only candidates for the voice compare. The lease line ranks them by salience tier and waiting time.
+      // The owner's own input interrupts playback that outlived its run. A generating run keeps the voice.
+      if (queuedSend.envelope.outputs.includes('voice') && !leases.acquire('voice', queuedSend.runId, { salience: queuedSend.salience, waitingSince: queuedSend.queuedAt, interrupt: queuedSend.direct }).granted)
+        continue
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+      runningSends.set(queuedSend.sessionId, queuedSend)
+      void execute(queuedSend).then((result) => {
+        // Free the slot and leases before the caller resumes, so a settled send never appears to run.
+        runningSends.delete(queuedSend.sessionId)
+        leases.releaseAll(queuedSend.runId)
+        if (queuedSend.cancellation?.rollback && queuedSend.writtenMessageIds.length)
+          deps.session.removeSessionMessages?.(queuedSend.sessionId, queuedSend.writtenMessageIds)
+        pump()
+        if (result.ok)
+          queuedSend.deferred.resolve()
+        else
+          queuedSend.deferred.reject(result.error)
+      })
+    }
     emitStateChange()
-  })
+  }
 
-  sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
-    emitStateChange()
-  })
+  function decideDirect(stimulus: Stimulus): ChatIntakeDecision {
+    try {
+      return (deps.decideDirectIntake ?? decideDirectInput)(stimulus)
+    }
+    catch (error) {
+      console.error('Direct intake policy failed:', error)
+      return { outcome: 'admitted', reason: 'policy-failed', decidedBy: 'fallback' }
+    }
+  }
 
-  function ingest(
+  async function ingest(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
-  ) {
+  ): Promise<ChatIngestResult> {
     const sessionId = targetSessionId || deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
+    const derivation = options.derivation
+    const parent = derivation?.parentRunId ? runs.get(derivation.parentRunId) : undefined
+    const created: ExecutionEnvelope = {
+      bindings: [],
+      outputs: ['chat:owner', 'voice'],
+      audience: OWNER_AUDIENCE,
+      ...deps.createEnvelope?.(sessionId, options),
+      sessionId,
+    }
+    // A derived run outputs only to its own session and reads no wider than its parent.
+    const envelope: ExecutionEnvelope = derivation
+      ? { ...created, outputs: [], audience: parent ? intersectAudiences(created.audience, parent.envelope.audience) : created.audience }
+      : created
+    const depth = derivation ? derivationDepth(derivation.parentRunId) + 1 : 0
+    const stimulus: Stimulus = {
+      id: defaultCreateId(),
+      kind: derivation ? 'derived' : options.notice ? 'notice' : options.input?.type ?? 'input:text',
+      origin: derivation || options.notice ? 'internal' : 'external',
+      source: derivation?.source ?? options.notice?.source ?? (options.outputTarget ? `connection:${options.outputTarget}` : 'owner'),
+      event: derivation ? 'derived' : options.notice ? 'notice' : options.input?.type ?? 'input:text',
+      bindings: envelope.bindings,
+      salience: options.notice ? salienceFromUrgency(options.notice.urgent ? 'immediate' : 'soon') : salienceFromUrgency(),
+      direct: !options.outputTarget && !derivation && !options.notice,
+      ...(derivation ? { parentRunId: derivation.parentRunId, depth } : {}),
+      // A bound session with a return connection speaks with other people.
+      fromScene: Boolean(options.outputTarget) && envelope.bindings.length > 0,
+      text: sendingMessage,
+      hasAttachments: Boolean(options.attachments?.length),
+      receivedAt: now(),
+    }
+    const rejectStimulus = (reason: string, message: string): never => {
+      intake.record(stimulus, { outcome: 'rejected', reason, decidedBy: 'rule' })
+      throw new Error(message)
+    }
 
-    return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
+    // Recovery stays inside the history's audience. A wider run would show the history to subjects it never reached.
+    // The rejection happens before a run exists, so the run table never records unauthorized work.
+    const sessionAudience = deps.session.getSessionAudience?.(sessionId) ?? OWNER_AUDIENCE
+    if (!audienceIncludes(sessionAudience, envelope.audience))
+      rejectStimulus('audience', 'Run audience exceeds the session audience')
+
+    // Only the scheduler derives runs, and bounds keep one proposal from growing an unbounded tree.
+    if (derivation) {
+      if (derivation.parentRunId && (!parent || (parent.state !== 'queued' && parent.state !== 'working')))
+        rejectStimulus('parent-ended', 'The parent run is no longer active')
+      if (depth > MAX_DERIVATION_DEPTH)
+        rejectStimulus('depth-limit', 'Derived work exceeds the depth limit')
+      if (derivation.parentRunId && activeChildren(derivation.parentRunId).length >= MAX_DERIVED_CHILDREN)
+        rejectStimulus('fan-out-limit', 'The parent run has too many derived runs')
+    }
+
+    // Direct owner input gets a synchronous local decision, so queue order follows call order.
+    // Connection input can wait for a remote classifier. Derived work was already chosen by the scheduler.
+    const decision: ChatIntakeDecision = derivation
+      ? { outcome: 'admitted', reason: 'derived', decidedBy: 'rule' }
+      : options.notice
+        ? { outcome: 'admitted', reason: 'notice', decidedBy: 'rule' }
+        : stimulus.direct
+          ? decideDirect(stimulus)
+          : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
+    if (decision.outcome === 'ignored') {
+      intake.record(stimulus, decision)
+      return { stimulusId: stimulus.id, outcome: 'ignored' }
+    }
+
+    const spendingRejection = deps.checkSpendingLimit?.()
+    if (spendingRejection)
+      rejectStimulus('spending-limit', spendingRejection)
+
+    // A full session queue rejects before a run exists, so waiting work stays bounded.
+    if (pendingQueuedSends.filter(item => item.sessionId === sessionId).length >= getLimits().maxQueuedPerSession)
+      rejectStimulus('capacity', 'The chat session queue is full')
+
+    // Run identity uses its own factory, so deterministic message id sequences stay unchanged.
+    const runId = defaultCreateId()
+    const salience = decision.salience ?? stimulus.salience
+    runs.admit({ runId, envelope, salience, parentRunId: derivation?.parentRunId })
+    intake.record(stimulus, { ...decision, runId })
+    derivation?.onAdmitted?.(runId)
+
+    await new Promise<void>((resolve, reject) => {
+      pendingQueuedSends.push({
+        runId,
+        envelope,
+        salience,
+        queuedAt: now(),
+        direct: Boolean(stimulus.direct || options.notice?.urgent),
+        writtenMessageIds: [],
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
         options,
@@ -1099,7 +1546,24 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         sessionId,
         deferred: { resolve, reject },
       })
+      pump()
     })
+    return { stimulusId: stimulus.id, outcome: 'admitted', runId }
+  }
+
+  /** Number of derived ancestors above a run. A root run has depth 0. */
+  function derivationDepth(runId: string | undefined): number {
+    let depth = 0
+    let current = runId ? runs.get(runId) : undefined
+    while (current?.parentRunId) {
+      depth++
+      current = runs.get(current.parentRunId)
+    }
+    return runId && runs.get(runId) ? depth : -1
+  }
+
+  function activeChildren(runId: string) {
+    return runs.snapshot().filter(run => run.parentRunId === runId && (run.state === 'queued' || run.state === 'working'))
   }
 
   function cancelPendingSends(sessionId?: string) {
@@ -1113,6 +1577,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         continue
 
       queued.cancelled = true
+      leases.withdraw('voice', queued.runId)
+      runs.transition(queued.runId, 'dropped')
       queued.deferred.reject(new Error('Chat session was reset before send could start'))
     }
 
@@ -1120,6 +1586,33 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       ? pendingQueuedSends.filter(item => item.sessionId !== sessionId)
       : []
     emitStateChange()
+  }
+
+  /**
+   * Cancels one run. A waiting run never starts. A running run stops, and its late output never commits.
+   * With rollback, the run's user turn and partial reply leave the session, so a requeued input cannot duplicate them.
+   */
+  function cancelRun(runId: string, options: { rollback?: boolean } = {}) {
+    // Cancellation reaches derived work first, so no child outlives its cancelled parent.
+    for (const child of activeChildren(runId))
+      cancelRun(child.runId)
+    const waiting = pendingQueuedSends.find(item => item.runId === runId)
+    if (waiting) {
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== waiting)
+      waiting.cancelled = true
+      leases.withdraw('voice', runId)
+      runs.transition(runId, 'dropped')
+      waiting.deferred.reject(new Error('Run was cancelled before it started'))
+      emitStateChange()
+      return true
+    }
+
+    const running = Array.from(runningSends.values()).find(item => item.runId === runId)
+    if (!running?.controller)
+      return false
+    running.cancellation = { rollback: options.rollback ?? false }
+    running.controller.abort(new Error('Run was cancelled'))
+    return true
   }
 
   function getPendingQueuedSendSnapshot() {
@@ -1138,8 +1631,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
     getPendingQueuedSendCount: () => pendingQueuedSends.length,
-    getSending: () => sending,
-    setSending,
+    getRunningSessionIds: () => Array.from(runningSends.keys()),
+    cancelRun,
     hooks,
+    getRun: runId => runs.get(runId),
+    getRuns: () => runs.snapshot(),
+    getIntakeRecords: () => intake.snapshot(),
   }
 }

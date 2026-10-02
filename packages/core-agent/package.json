@@ -20,6 +20,10 @@
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
     },
+    "./context": {
+      "types": "./dist/context.d.mts",
+      "default": "./dist/context.mjs"
+    },
     "./agents/spark-notify": {
       "types": "./dist/agents/spark-notify/index.d.mts",
       "default": "./dist/agents/spark-notify/index.mjs"
@@ -58,6 +62,7 @@
     "@xsai/shared-chat": "catalog:",
     "@xsai/stream-text": "catalog:",
     "@xsai/tool": "catalog:",
+    "js-tiktoken": "catalog:",
     "nanoid": "catalog:",
     "rehype-parse": "catalog:",
     "rehype-stringify": "catalog:",

@@ -2,7 +2,7 @@ import type { AiriCard } from './modules'
 
 import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
 import { useAiriCardStore } from './modules'
@@ -45,7 +45,7 @@ describe('store character', () => {
           await options.onLiteral?.(textPart)
       },
       async end() {
-        parserEndSpy()
+        await parserEndSpy()
       },
     }))
 
@@ -55,7 +55,7 @@ describe('store character', () => {
     cancelSpy.mockClear()
     openSpeechIntentSpy.mockClear()
     parserConsumeSpy.mockClear()
-    parserEndSpy.mockClear()
+    parserEndSpy.mockReset()
 
     const speechRuntimeStore = useSpeechRuntimeStore(pinia)
     speechRuntimeStore.openIntent = openSpeechIntentSpy
@@ -90,6 +90,11 @@ describe('store character', () => {
     } satisfies AiriCard
   })
 
+  afterEach(() => {
+    setCharacterLlmMarkerParserFactoryForTest(null)
+    vi.restoreAllMocks()
+  })
+
   it('exposes name and system prompt from the active card', () => {
     const store = useCharacterStore()
 
@@ -115,7 +120,7 @@ describe('store character', () => {
 
     store.onSparkNotifyReactionStreamEvent('spark-1', 'Hello')
     store.onSparkNotifyReactionStreamEvent('spark-1', ' world')
-    store.onSparkNotifyReactionStreamEnd('spark-1', 'Hello world')
+    await store.onSparkNotifyReactionStreamEnd('spark-1', 'Hello world')
 
     expect(store.reactions).toHaveLength(1)
     expect(store.reactions[0]?.message).toBe('Hello world')
@@ -134,10 +139,46 @@ describe('store character', () => {
     nowSpy.mockRestore()
   })
 
-  it('ignores stream end when no streaming reaction exists', () => {
+  it('waits for parser closure before recording or closing a streamed reaction', async () => {
+    const closed = Promise.withResolvers<void>()
+    parserEndSpy.mockReturnValueOnce(closed.promise)
+    const store = useCharacterStore()
+    store.onSparkNotifyReactionStreamEvent('spark-1', 'Hello')
+
+    const ending = store.onSparkNotifyReactionStreamEnd('spark-1', 'Hello')
+    expect(parserEndSpy).toHaveBeenCalledOnce()
+    expect(store.reactions).toHaveLength(0)
+    expect(writeFlushSpy).not.toHaveBeenCalled()
+    expect(endSpy).not.toHaveBeenCalled()
+
+    closed.resolve()
+    await ending
+    expect(store.reactions[0]?.message).toBe('Hello')
+    expect(writeFlushSpy).toHaveBeenCalledOnce()
+    expect(endSpy).toHaveBeenCalledOnce()
+  })
+
+  it('does not record a reaction cancelled during parser closure', async () => {
+    const closed = Promise.withResolvers<void>()
+    parserEndSpy.mockReturnValueOnce(closed.promise)
+    const store = useCharacterStore()
+    store.onSparkNotifyReactionStreamEvent('spark-1', 'Hello')
+
+    const ending = store.onSparkNotifyReactionStreamEnd('spark-1', 'Hello')
+    store.cancelSparkNotifyReaction('spark-1')
+    closed.resolve()
+    await ending
+
+    expect(cancelSpy).toHaveBeenCalledWith('notify-owner-stopped')
+    expect(store.reactions).toHaveLength(0)
+    expect(writeFlushSpy).not.toHaveBeenCalled()
+    expect(endSpy).not.toHaveBeenCalled()
+  })
+
+  it('ignores stream end when no streaming reaction exists', async () => {
     const store = useCharacterStore()
 
-    store.onSparkNotifyReactionStreamEnd('missing', 'Ignored')
+    await store.onSparkNotifyReactionStreamEnd('missing', 'Ignored')
 
     expect(store.reactions).toHaveLength(0)
   })

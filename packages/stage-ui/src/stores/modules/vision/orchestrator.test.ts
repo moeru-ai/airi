@@ -94,6 +94,29 @@ describe('vision orchestrator', () => {
     })
   })
 
+  // ROOT CAUSE:
+  // The pool rejects text over 80 tokens, so long frame descriptions never reached a request.
+  // The update also carried the frame data URL to every connected module.
+  it('publishes a budgeted description without the captured frame', async () => {
+    const store = useVisionOrchestratorStore()
+    const description = ' screen detail'.repeat(200)
+    runVisionInference.mockResolvedValueOnce(description)
+
+    await store.processCapture({
+      imageDataUrl: 'data:image/jpeg;base64,frame',
+      workloadId: 'screen:interpret',
+      publishContext: true,
+    })
+
+    const update = sendContextUpdate.mock.calls[0]?.[0]
+    expect(update).toMatchObject({
+      text: 'Source details: vision/vision:screen:interpret',
+      sourceRef: { refType: 'vision', targetId: 'vision:screen:interpret' },
+    })
+    expect(JSON.stringify(update)).not.toContain('data:image')
+    expect(store.lastResultText).toBe(description)
+  })
+
   it('records inference failures on the store before rethrowing', async () => {
     const store = useVisionOrchestratorStore()
     runVisionInference.mockRejectedValueOnce(new Error('Vision inference failed'))

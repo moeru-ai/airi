@@ -1,4 +1,5 @@
 import type { Card } from '@proj-airi/ccc'
+import type { Temperament } from '@proj-airi/core-agent'
 
 /**
  * AIRI-specific runtime configuration embedded in a character card.
@@ -65,6 +66,9 @@ export interface AiriExtension {
     prompt: string
     enabled?: boolean
   }>
+
+  /** Where the persona sits in the joy, anger, sorrow, and contentment cross. It shapes how its mood moves. */
+  temperament?: Temperament
 }
 
 /** Character card normalized with the AIRI extension required by the runtime. */

@@ -2,7 +2,7 @@ import type { IntentHandle } from '@proj-airi/pipelines-audio'
 
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { computed, reactive, ref } from 'vue'
+import { computed, markRaw, reactive, ref } from 'vue'
 
 import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
 import { useAiriCardStore } from '../modules'
@@ -31,6 +31,11 @@ let parserFactory: ParserFactory = useLlmmarkerParser
 
 export function setCharacterLlmMarkerParserFactoryForTest(factory: ParserFactory | null) {
   parserFactory = factory ?? useLlmmarkerParser
+}
+
+/** Speech turn of one notification reaction. */
+export function sparkReactionTurnId(sparkEventId: string) {
+  return `spark:${sparkEventId}`
 }
 
 export const useCharacterStore = defineStore('character', () => {
@@ -68,7 +73,10 @@ export const useCharacterStore = defineStore('character', () => {
     intent.end()
   }
 
-  function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown> }) {
+  /**
+   * Streams one notification reaction into speech. An urgent reaction interrupts at the next segment boundary. Others wait for current speech.
+   */
+  function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown>, interrupt?: boolean }) {
     if (!streamingReactions.value.has(sparkEventId)) {
       const newReaction = reactive({
         id: nanoid(),
@@ -78,21 +86,21 @@ export const useCharacterStore = defineStore('character', () => {
         metadata: options?.metadata,
       }) satisfies CharacterSparkNotifyReaction
 
-      const intent = speechRuntimeStore.openIntent({
-        turnId: `spark:${sparkEventId}`,
+      const intent = markRaw(speechRuntimeStore.openIntent({
+        turnId: sparkReactionTurnId(sparkEventId),
         intentId: `spark:${sparkEventId}`,
         ownerId: ownerId.value,
         priority: 'high',
-        behavior: 'interrupt',
-      })
+        behavior: options?.interrupt ? 'interrupt-at-boundary' : 'queue',
+      }))
 
       const parser = parserFactory({
         onLiteral: async (literal) => {
-          if (literal)
+          if (literal && streamingReactions.value.get(sparkEventId)?.intent === intent)
             intent.writeLiteral(literal)
         },
         onSpecial: async (special) => {
-          if (special)
+          if (special && streamingReactions.value.get(sparkEventId)?.intent === intent)
             intent.writeSpecial(special)
         },
       })
@@ -105,19 +113,29 @@ export const useCharacterStore = defineStore('character', () => {
     void state.parser.consume(chunk)
   }
 
-  function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
+  async function onSparkNotifyReactionStreamEnd(sparkEventId: string, fullText: string, options?: { metadata?: Record<string, unknown> }) {
     const state = streamingReactions.value.get(sparkEventId)
     if (!state)
       return
 
     state.reaction.message = fullText
+    await state.parser.end()
+    if (streamingReactions.value.get(sparkEventId) !== state)
+      return
     recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
+    state.intent.writeFlush()
+    state.intent.end()
+    streamingReactions.value.delete(sparkEventId)
+  }
 
-    void state.parser.end().then(() => {
-      state.intent.writeFlush()
-      state.intent.end()
-      streamingReactions.value.delete(sparkEventId)
-    })
+  /** Cancels the speech intent and invalidates pending parser writes for one notification. */
+  function cancelSparkNotifyReaction(sparkEventId: string) {
+    const state = streamingReactions.value.get(sparkEventId)
+    if (!state)
+      return
+    streamingReactions.value.delete(sparkEventId)
+    state.intent.cancel('notify-owner-stopped')
+    void state.parser.end()
   }
 
   function recordSparkNotifyReaction(sparkEventId: string, message: string, options?: { metadata?: Record<string, unknown> }) {
@@ -148,6 +166,7 @@ export const useCharacterStore = defineStore('character', () => {
     recordSparkNotifyReaction,
     onSparkNotifyReactionStreamEvent,
     onSparkNotifyReactionStreamEnd,
+    cancelSparkNotifyReaction,
     clearReactions,
 
     emitTextOutput,

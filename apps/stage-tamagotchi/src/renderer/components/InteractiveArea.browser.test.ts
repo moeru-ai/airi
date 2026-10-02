@@ -866,18 +866,20 @@ describe('interactive area synchronized state', () => {
     // store, but InteractiveArea passed its unrelated foreground stream to
     // ChatHistory. Mocking either store or component hid that broken binding.
     const { chat, chatStream, screen } = await renderArea()
-    chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'follower-b-stream',
-        role: 'assistant',
-        content: 'Follower B live response',
-        slices: [{ type: 'text', text: 'Follower B live response' }],
-        tool_results: [],
-        createdAt: 2,
+    // pinia-plugin-synced assigns whole values. An object patch would merge in place, and the shallow per-session stream ref would not update.
+    chat.$patch(state => Object.assign(state, {
+      runningSessionIds: ['session-b'],
+      streamingMessages: {
+        'session-b': {
+          id: 'follower-b-stream',
+          role: 'assistant',
+          content: 'Follower B live response',
+          slices: [{ type: 'text', text: 'Follower B live response' }],
+          tool_results: [],
+          createdAt: 2,
+        },
       },
-      sending: true,
-    })
+    }))
     chatStream.$patch({
       streamingMessage: {
         id: 'leader-a-stream',
@@ -902,18 +904,19 @@ describe('interactive area synchronized state', () => {
     // foreground stream directly to ChatHistory. A mobile window on session B
     // therefore rendered the live response from a send targeting session A.
     const { chat, chatStream, screen } = await renderArea(MobileInteractiveArea)
-    chat.$patch({
-      activeSendSessionId: 'session-a',
-      activeStreamingMessage: {
-        id: 'session-a-stream',
-        role: 'assistant',
-        content: 'Session A live response',
-        slices: [{ type: 'text', text: 'Session A live response' }],
-        tool_results: [],
-        createdAt: 2,
+    chat.$patch(state => Object.assign(state, {
+      runningSessionIds: ['session-a'],
+      streamingMessages: {
+        'session-a': {
+          id: 'session-a-stream',
+          role: 'assistant',
+          content: 'Session A live response',
+          slices: [{ type: 'text', text: 'Session A live response' }],
+          tool_results: [],
+          createdAt: 2,
+        },
       },
-      sending: true,
-    })
+    }))
     chatStream.$patch({
       streamingMessage: {
         id: 'session-a-foreground',
@@ -927,17 +930,19 @@ describe('interactive area synchronized state', () => {
     await nextTick()
     await expect.element(screen.getByText('Session A live response')).not.toBeInTheDocument()
 
-    chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'session-b-stream',
-        role: 'assistant',
-        content: 'Session B live response',
-        slices: [{ type: 'text', text: 'Session B live response' }],
-        tool_results: [],
-        createdAt: 3,
+    chat.$patch(state => Object.assign(state, {
+      runningSessionIds: ['session-b'],
+      streamingMessages: {
+        'session-b': {
+          id: 'session-b-stream',
+          role: 'assistant',
+          content: 'Session B live response',
+          slices: [{ type: 'text', text: 'Session B live response' }],
+          tool_results: [],
+          createdAt: 3,
+        },
       },
-    })
+    }))
     await nextTick()
     await expect.element(screen.getByText('Session B live response')).toBeVisible()
   })
@@ -950,18 +955,19 @@ describe('interactive area synchronized state', () => {
     // still passed the leader foreground stream to ChatHistory. A web window
     // on B could therefore append A's live response.
     const { chat, chatStream, screen } = await renderArea(SharedInteractiveArea)
-    chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'session-b-web-stream',
-        role: 'assistant',
-        content: 'Session B web response',
-        slices: [{ type: 'text', text: 'Session B web response' }],
-        tool_results: [],
-        createdAt: 2,
+    chat.$patch(state => Object.assign(state, {
+      runningSessionIds: ['session-b'],
+      streamingMessages: {
+        'session-b': {
+          id: 'session-b-web-stream',
+          role: 'assistant',
+          content: 'Session B web response',
+          slices: [{ type: 'text', text: 'Session B web response' }],
+          tool_results: [],
+          createdAt: 2,
+        },
       },
-      sending: true,
-    })
+    }))
     chatStream.$patch({
       streamingMessage: {
         id: 'session-a-web-foreground',

@@ -1,5 +1,4 @@
 import type { StreamOptions } from '@proj-airi/core-agent'
-import type { WebSocketEvents } from '@proj-airi/server-sdk'
 import type { Tool } from '@xsai/shared-chat'
 
 import type { DescribeToolImage } from './tool-images'
@@ -8,7 +7,7 @@ import { createSparkCommandTool } from '@proj-airi/core-agent/agents/spark-comma
 import { uniqBy } from 'es-toolkit'
 
 import { createWebSearchTools, debug, mcp } from '../../../tools'
-import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { sendAdmittedSparkCommand } from '../../mods/api/spark-command'
 import { useWebSearchStore } from '../../modules/web-search'
 import { withDescribedImages } from './tool-images'
 import { useLlmToolsStore } from './tools'
@@ -69,6 +68,10 @@ export interface ResolveLlmToolsOptions {
    * @default images stay in tool results
    */
   describeImage?: DescribeToolImage
+  /**
+   * Run that owns the request. Commands from a request without a working run are rejected.
+   */
+  runId?: string
 }
 
 /**
@@ -103,27 +106,12 @@ async function resolveActiveTools(activeTools?: Tool[]): Promise<Tool[]> {
   return useLlmToolsStore().activeTools
 }
 
-async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise<Tool[]> {
+async function resolveSparkCommandTools(sparkCommandTools: ToolSource | undefined, runId: string | undefined): Promise<Tool[]> {
   if (sparkCommandTools != null)
     return resolveToolSource(sparkCommandTools)
 
-  const modsServerChannelStore = useModsServerChannelStore()
-  const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-    // TODO(@nekomeowww): instruct the LLM to understand what destination is.
-    // Currently without skill like prompt injection, many issues occur.
-    // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
-    //
-    // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
-    // empty array to avoid wrong routing.
-    command.destinations = []
-
-    modsServerChannelStore.send({
-      type: 'spark:command',
-      data: command,
-    })
-  }
-
-  return createSparkCommandTool({ sendSparkCommand })
+  // Every command passes admission for the run that issues it. Model output alone never reaches a module.
+  return createSparkCommandTool({ sendSparkCommand: command => sendAdmittedSparkCommand(runId, command) })
 }
 
 async function resolveWebSearchTools(webSearchTools?: ToolSource): Promise<Tool[]> {
@@ -158,7 +146,7 @@ export async function resolveLlmTools(options: ResolveLlmToolsOptions = {}): Pro
   ] = await Promise.all([
     resolveToolSource(options.builtInTools ?? mcp),
     resolveToolSource(options.debugTools ?? debug),
-    resolveSparkCommandTools(options.sparkCommandTools),
+    resolveSparkCommandTools(options.sparkCommandTools, options.runId),
     resolveWebSearchTools(options.webSearchTools),
     resolveCustomTools(options.customTools),
   ])

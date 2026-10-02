@@ -15,7 +15,7 @@ import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed, ref, watch } from 'vue'
+import { computed, readonly, ref, watch } from 'vue'
 
 import { useWebSocketInspectorStore } from '../../devtools/websocket-inspector'
 
@@ -62,6 +62,8 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
   let connectionIdentity: ChannelConnectionIdentity | null = null
   const textConnectorFactory = ref<TextConnectorFactory>()
   const hasEverConnected = ref(false)
+  /** Server-assigned connection of this renderer. It changes on every reconnection. */
+  const connectionId = ref<string>()
   const pendingSend = ref<Array<WebSocketEvent>>([])
   const pendingSendCount = computed(() => pendingSend.value.length)
   const reconnectedCallbacks = new Set<() => void>()
@@ -74,11 +76,14 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   const basePossibleEvents: Array<keyof WebSocketEvents> = [
     'context:update',
+    'context:source:request',
+    'context:source:response',
     'error',
     'module:announce',
     'module:announced',
     'module:configure',
     'module:de-announced',
+    'extension:module:de-announced',
     'module:consumer:register',
     'module:consumer:unregister',
     'module:authenticated',
@@ -223,6 +228,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
           return
 
         if (event.data.authenticated) {
+          connectionId.value = event.data.connectionId
           if (!hasEverConnected.value) {
             // First connection can flush immediately after authentication.
             connected.value = true
@@ -339,11 +345,12 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     }
   }
 
+  /** Uses the fixed event slot for undeclared append updates. Explicit slots remain subject to host admission. */
   function sendContextUpdate(message: InputContextUpdate) {
     const id = nanoid()
     send({
       type: 'context:update',
-      data: { id, contextId: id, ...message },
+      data: { ...message, id: message.id ?? id, contextId: message.contextId ?? (message.strategy === 'append-self' ? 'events' : id) },
     } as WebSocketEventOptionalSource<string | CommonContentPart[]>)
   }
 
@@ -353,6 +360,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
     flush()
     hasEverConnected.value = false
     connected.value = false
+    connectionId.value = undefined
     initializing.value = null
     clearListeners()
     replayableEvents.clear()
@@ -378,6 +386,7 @@ export const useModsServerChannelStore = defineStore('mods:channels:proj-airi:se
 
   return {
     connected,
+    connectionId: readonly(connectionId),
     pendingSendCount,
     websocketAuthToken,
     websocketUrl,

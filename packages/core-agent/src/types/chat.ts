@@ -2,6 +2,7 @@ import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
 import type { AssistantTurn } from '../messages/types'
+import type { Audience } from '../runtime/audience'
 
 export interface ChatSlicesText {
   type: 'text'
@@ -25,6 +26,18 @@ export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCal
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
   interrupted?: true
+  /**
+   * Speech that reached the listener before playback stopped. Present only for an interrupted voice reply.
+   * The chat keeps the generated text. Later prompts read only this delivered part.
+   */
+  deliveredSpeech?: string
+  /**
+   * Set on a reply that a notification or idle check started without a user turn.
+   * `runId` links the message to its intake and run trace. `source` names the event source.
+   */
+  proactive?: { runId: string, source: string }
+  /** Names of the decision recipes that changed this reply before generation. */
+  recipes?: string[]
   /** Sources returned by the provider, separate from text consumed by speech. */
   citations?: import('../messages/types').Citation[]
   search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
@@ -65,8 +78,14 @@ export interface ErrorMessage {
 export interface ContextMessage extends ContextUpdate<Record<string, unknown>, unknown> {
   metadata?: {
     source: MetadataEventSource
+    /** Server-assigned connection that wrote this observation. Source reads route only there. */
+    originConnectionId?: string
   }
   createdAt: number
+  /** Local expiry can shorten the transport TTL when the host scopes an observation. */
+  expiresAt?: number
+  /** Host-assigned allowed audience. The host overwrites any producer value. A missing label reaches the owner only. */
+  audience?: Audience
 }
 
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
@@ -91,6 +110,14 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
+  /** Server connection that receives the reply. An absent target keeps output inside the host. */
+  outputTarget?: string
+  /** Session that owns the turn. The runtime always sets it, so concurrent turns stay apart. */
+  sessionId?: string
+  /** Run that produces the turn. */
+  runId?: string
+  /** Output channels of the run envelope. Only a run with `voice` drives speech. */
+  outputs?: readonly string[]
 }
 
 export type ChatStreamEvent
@@ -103,5 +130,6 @@ export type ChatStreamEvent
     | { type: 'stream-end', sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
+    | { type: 'chat-turn-complete', chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, sessionId: string, context: ChatStreamEventContext }
 
 export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, id?: string }

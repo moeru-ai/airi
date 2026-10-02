@@ -249,6 +249,7 @@ describe('agents/spark-command/tools', () => {
         }],
       },
       contexts: [expect.objectContaining({
+        contextId: 'events',
         lane: 'game',
         strategy: ContextUpdateStrategy.AppendSelf,
         text: 'Zombie nearby',
@@ -270,19 +271,17 @@ describe('agents/spark-command/tools', () => {
     expect(result).toContain(command.commandId)
   })
 
-  it('reports a broadcast without crashing when the channel sender clears destinations', async () => {
-    // The real sendSparkCommand (stores/ai/chat-llm/llm.ts) deletes command.destinations to broadcast to every
-    // authenticated peer; the success message must not then call .join on undefined.
-    const sendSparkCommand = vi.fn((command: { destinations?: unknown }) => {
-      delete command.destinations
-    })
+  // ROOT CAUSE:
+  // The tool reported success for every send, so the model claimed a relay that admission refused.
+  it('reports an admission rejection instead of a success', async () => {
+    const sendSparkCommand = vi.fn(() => ({ rejected: 'minecraft does not accept reroute' }))
     const tools = await createSparkCommandTool({ sendSparkCommand })
 
     const result = await tools[0].execute({
-      destinations: [],
+      destinations: ['minecraft'],
       interrupt: 'soft',
       priority: 'normal',
-      intent: 'action',
+      intent: 'reroute',
       ack: null,
       parentEventId: null,
       guidance: null,
@@ -290,7 +289,6 @@ describe('agents/spark-command/tools', () => {
     }, { messages: [], toolCallId: 'tool-call-id' })
 
     expect(sendSparkCommand).toHaveBeenCalledOnce()
-    expect(result).toContain('spark:command sent')
-    expect(result).toContain('broadcast')
+    expect(result).toBe('spark:command rejected: minecraft does not accept reroute')
   })
 })

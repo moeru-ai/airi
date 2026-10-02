@@ -11,9 +11,10 @@ import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from 
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom, sleep } from '@moeru/std'
+import { composeExpression, moodExpression, moodProsody } from '@proj-airi/core-agent'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { createPlaybackManager, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
+import { createPlaybackManager, createSpeakableTextFilter, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
 import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
 import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
@@ -42,10 +43,14 @@ import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } fr
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
+import { createSpeechDeviceForwarder } from '../../services/speech/device-forwarding'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
+import { useCharacterMoodStore } from '../../stores/character/mood'
 import { useChatStore } from '../../stores/chat'
+import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
+import { useSpeechDeviceStore } from '../../stores/mods/api/speech-device'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
@@ -172,7 +177,10 @@ function onVRMInteract(target: VrmInteractionTarget) {
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
 }
 
-const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
+const chatStore = useChatStore()
+const modsServerChannel = useModsServerChannelStore()
+const speechDevices = useSpeechDeviceStore()
+const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, onAssistantMessage } = chatStore
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
 //             We keep per-hook disposers instead of wiping the global chat hooks to play nicely with
@@ -250,15 +258,16 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
-const { sending: chatSending } = storeToRefs(useChatStore())
+const { voiceSessionId } = storeToRefs(useChatStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
-// `sending` is raised before the request leaves and cleared once the send
-// settles, which is the span the character has nothing to say yet.
+// The voice owner exists from the start of the conversation send until it
+// settles, which is the span the character has nothing to say yet. Silent
+// domain runs, such as channel replies, do not make the character think.
 //
 // Unread stays at zero: nothing reports whether the chat window is showing, so
 // there is no read cursor to count against.
-const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? presenceBubbleThinking : presenceBubbleIdle)
+const chatPresence = computed<PresenceBubbleState>(() => voiceSessionId.value ? presenceBubbleThinking : presenceBubbleIdle)
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()
@@ -298,6 +307,37 @@ const emotionsQueue = createQueue<EmotionPayload>({
 })
 
 const streamingControl = useLlmStreamingControlStore()
+const mood = useCharacterMoodStore()
+const airiCardStore = useAiriCardStore()
+const moodPersona = computed(() => airiCardStore.activeCardId || 'default')
+
+/**
+ * SSML prosody for one segment. With a mood update path, the mood at synthesis time shifts the pitch and speed of this sentence.
+ */
+function speechProsody(providerConfig: Record<string, unknown>) {
+  if (!ssmlEnabled.value)
+    return { pitch: undefined }
+  if (!mood.active)
+    return { pitch: pitch.value }
+  const prosody = moodProsody(mood.current(moodPersona.value))
+  const speed = typeof providerConfig.speed === 'number' ? providerConfig.speed : 1
+  return { pitch: pitch.value + prosody.pitchPercent, speed: Math.round(speed * prosody.rateScale * 100) / 100 }
+}
+
+/** Shows the mood's baseline expression. Without a mood update path, the stage keeps its current expression. */
+function showMoodBaseline() {
+  if (!mood.active)
+    return
+  const baseline = toStageEmotionPayload(moodExpression(mood.current(moodPersona.value)))
+  if (baseline)
+    emotionsQueue.enqueue(baseline)
+}
+
+// A mood change shows at once while the character is quiet. During speech, the turn end shows it.
+watch(() => [mood.active, mood.states[moodPersona.value]], () => {
+  if (!nowSpeaking.value)
+    showMoodBaseline()
+})
 
 function toStageEmotionPayload(payload: { name: string, intensity: number }): EmotionPayload | undefined {
   switch (payload.name) {
@@ -338,7 +378,8 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
 
       // eslint-disable-next-line no-console
       console.debug('emotion detected', emotion)
-      emotionsQueue.enqueue(emotion)
+      // A sentence owns its moment, weighed by the mood that owns the baseline.
+      emotionsQueue.enqueue(mood.active ? { ...emotion, intensity: composeExpression(emotion, mood.current(moodPersona.value)).intensity } : emotion)
     }
     return
   }
@@ -453,6 +494,11 @@ function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
 }
 
+// A run that speaks to a voice device sends the same segments there, in local playback order.
+const deviceForwarder = createSpeechDeviceForwarder((connectionId, event) => {
+  modsServerChannel.send({ ...event, route: { destinations: [{ type: 'connection', connections: [connectionId] }] } })
+})
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -546,7 +592,7 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
         voice,
         providerConfig: {
           ...providerConfig,
-          pitch: ssmlEnabled.value ? pitch.value : undefined,
+          ...speechProsody(providerConfig),
         },
         forceSSML: ssmlEnabled.value,
         supportsSSML: speechStore.supportsSSML,
@@ -572,6 +618,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       if (signal.aborted || !res || res.byteLength === 0)
         return null
 
+      // A device turn keeps the encoded bytes, because decoding consumes them.
+      deviceForwarder.capture(request.turnId, request.segmentId, res)
       const audioBuffer = await audioContext.decodeAudioData(res)
       return audioBuffer
     }
@@ -595,9 +643,22 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   playback: playbackManager,
 })
 
+chatHookCleanups.push(deviceForwarder.attach(speechPipeline))
+
 initIOTracer()
 useIOTraceBridge(speechPipeline)
-void speechRuntimeStore.registerHost(speechPipeline)
+// Device speech uses the segment pipeline. A streaming transport or muted speech never reaches a device.
+watch([activeSpeechProvider, speechMuted], ([provider, muted]) => {
+  speechRuntimeStore.setForwardsToDevices(!muted && resolveSpeechTransport(provider) !== 'bidirectional-ws')
+}, { immediate: true })
+
+void speechRuntimeStore.registerHost(speechPipeline, {
+  recordDeliveredSpeech: (sessionId, messageId, deliveredSpeech) => {
+    void chatStore.recordDeliveredSpeech(sessionId, messageId, deliveredSpeech).catch((error) => {
+      console.warn('[Stage] Failed to record delivered speech:', error)
+    })
+  },
+})
 
 speechPipeline.on('onSpecial', (segment) => {
   if (segment.special) {
@@ -611,6 +672,7 @@ speechPipeline.on('onSpecial', (segment) => {
 
 speechPipeline.on('onTurnEnd', (turnId) => {
   streamingControl.completeTurn(turnId)
+  showMoodBaseline()
 })
 
 speechPipeline.on('onTurnCancel', ({ turnId }) => {
@@ -865,7 +927,32 @@ watch(speechMuted, (muted) => {
     stopSpeechOutput('muted')
 }, { immediate: true })
 
+// Only the run that holds the voice drives speech and expression. Domain replies, such as Discord, never speak here.
+function holdsVoice(context: { outputs?: readonly string[] }) {
+  return context.outputs?.includes('voice') ?? false
+}
+
+// Code and markup stay in the chat. Speech reads only the speakable text.
+let speakableText = createSpeakableTextFilter()
+
+// An interrupted reply records the speech that was heard on its message.
+chatHookCleanups.push(onAssistantMessage(async (message, _text, context) => {
+  if (holdsVoice(context) && message.id)
+    speechRuntimeStore.attachVoiceTurnMessage(context.turnId, message.id)
+}))
+
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
+
+  const deviceBinding = context.outputs?.find(output => output.startsWith('voice-device:'))?.slice('voice-device:'.length)
+  const device = deviceBinding ? speechDevices.forBindings([deviceBinding]) : undefined
+  if (device)
+    deviceForwarder.startTurn(context.turnId, device)
+
+  if (context.sessionId)
+    speechRuntimeStore.startVoiceTurn(context.turnId, context.sessionId)
+
   playbackManager.stopAll('new-message')
   resetAssistantSpeechSurface('new-message')
 
@@ -878,17 +965,26 @@ chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   setupAnalyser()
   await setupLipSync()
   currentSession = openTtsSession(context.turnId)
+  speakableText = createSpeakableTextFilter()
 }))
 
-chatHookCleanups.push(onBeforeSend(async () => {
+chatHookCleanups.push(onBeforeSend(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   currentMotion.value = { group: EmotionThinkMotionName }
 }))
 
-chatHookCleanups.push(onTokenLiteral(async (literal) => {
-  currentSession?.appendText(literal)
+chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
+  if (!holdsVoice(context))
+    return
+  const speakable = speakableText.push(literal)
+  if (speakable)
+    currentSession?.appendText(speakable)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
+  if (!holdsVoice(context))
+    return
   // Muting speech must not suppress non-audio signals such as emotion, motion,
   // delay, or plugin calls that normally travel through the TTS session.
   if (speechMuted.value) {
@@ -899,12 +995,22 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
   currentSession?.appendSpecial(special)
 }))
 
-chatHookCleanups.push(onStreamEnd(async () => {
+chatHookCleanups.push(onStreamEnd(async (context) => {
+  if (!holdsVoice(context))
+    return
+  const rest = speakableText.flush()
+  if (rest)
+    currentSession?.appendText(rest)
   currentSession?.finishInput()
 }))
 
-chatHookCleanups.push(onAssistantResponseEnd(async (_message) => {
+chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
+  if (!holdsVoice(context))
+    return
   currentSession?.end()
+  // The run ends after this hook. Its speech keeps the voice until playback ends.
+  if (context.runId)
+    speechRuntimeStore.holdPlayback(context.turnId, context.runId)
   // Streaming sessions null-out via the onDone hook; segmenter sessions
   // stay around until the next `onBeforeMessageComposed` cancels them
   // (the segmenter pipeline's IntentHandle.end is idempotent and

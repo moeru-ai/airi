@@ -5,6 +5,7 @@ import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
+import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -31,6 +32,7 @@ import OnboardingPermissionsStep from './components/onboarding/step-permissions.
 import { getHostWebSocketConnector } from './modules/websocket-bridge'
 
 const contextBridgeStore = useContextBridgeStore()
+const chatContextStore = useChatContextStore()
 const authStore = useAuthStore()
 const i18n = useI18n()
 const router = useRouter()
@@ -128,9 +130,10 @@ async function loadStartup() {
         await removeAuthenticationProviderConfiguration()
     })
     await startup.run('services', () => {
+      chatContextStore.initialize(syncedPinia)
       void serverChannelStore.initialize({ possibleEvents: ['ui:configure'], connector: getHostWebSocketConnector }).catch(error => console.error('Mods server initialization failed:', error))
       contextBridgeStore.initialize()
-      characterOrchestratorStore.initialize()
+      characterOrchestratorStore.initialize(syncedPinia)
     })
     await startup.run('modelData', () => displayModelsStore.loadDisplayModelsFromIndexedDB())
     await startup.run('modelSelection', () => settingsStore.initializeStageModel())
@@ -156,6 +159,8 @@ watch(() => [startup.resources.find(resource => resource.id === 'modelSelection'
 })
 
 onUnmounted(() => {
+  chatContextStore.dispose()
+  characterOrchestratorStore.dispose()
   stopAuthenticatedSetup?.()
   stopLoggedOutSetup?.()
   contextBridgeStore.dispose()

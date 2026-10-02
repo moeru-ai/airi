@@ -46,7 +46,8 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
   const showStopAction = computed(() => responseActive.value && !options.hasSubmission.value && !preparingReplacement.value)
   const responseSessionId = computed(() => (replacementSendStarted.value ? replacementSessionId.value : undefined)
     ?? contextBridgeStore.remoteStreamSessionId
-    ?? chatStore.activeSendSessionId
+    // Stop acts on the reply that holds the voice. Background runs in other sessions keep running.
+    ?? chatStore.voiceSessionId
     ?? options.sessionId.value)
 
   async function cancelGeneration(sessionId: string) {

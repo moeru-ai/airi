@@ -5,8 +5,10 @@ import type {
   ReconnectOptions,
 } from '@proj-airi/better-ws'
 import type {
+  ContextSourceRef,
   ExtensionIdentity,
   ExtensionModuleIdentity,
+  ModuleCognition,
   ModuleConfigSchema,
   ModuleDependency,
   WebSocketBaseEvent,
@@ -70,6 +72,8 @@ export interface ClientOptions<C = undefined> {
   identity?: ExtensionModuleIdentity
   dependencies?: ModuleDependency[]
   configSchema?: ModuleConfigSchema
+  /** Scheduler-facing declaration: accepted command intents, exclusive control, and served scenes. */
+  cognition?: ModuleCognition
   heartbeat?: false | ClientHeartbeatOptions
 
   autoConnect?: boolean
@@ -97,6 +101,7 @@ interface NormalizedClientOptions<C> {
   identity: ExtensionModuleIdentity
   dependencies: ModuleDependency[]
   configSchema?: ModuleConfigSchema
+  cognition?: ModuleCognition
   heartbeat: false | Required<ClientHeartbeatOptions>
   autoConnect: boolean
   autoReconnect: boolean
@@ -190,6 +195,7 @@ function normalizeOptions<C>(options: ClientOptions<C>): NormalizedClientOptions
     identity,
     dependencies: options.dependencies ?? [],
     configSchema: options.configSchema,
+    cognition: options.cognition,
     heartbeat: normalizeHeartbeatOptions(options.heartbeat),
     autoConnect: options.autoConnect ?? true,
     autoReconnect: options.autoReconnect ?? true,
@@ -340,6 +346,37 @@ export class Client<C = undefined> {
     this.eventListeners.delete(event)
   }
 
+  /**
+   * Answers host requests for the details behind this module's origin handles.
+   * Each answer goes only to the requesting connection. Return `undefined` when the details are gone.
+   */
+  onContextSourceRequest(read: (sourceRef: ContextSourceRef) => string | undefined | Promise<string | undefined>): () => void {
+    return this.onEvent('context:source:request', async (event) => {
+      const requester = event.metadata?.originConnectionId
+      if (!requester)
+        return
+
+      let text: string | undefined
+      let error: string | undefined
+      try {
+        text = await read(event.data.sourceRef)
+      }
+      catch (cause) {
+        error = errorMessageFrom(cause) ?? 'Source read failed'
+      }
+
+      this.send({
+        type: 'context:source:response',
+        route: { destinations: [{ type: 'connection', connections: [requester] }] },
+        data: {
+          requestId: event.data.requestId,
+          sourceRef: event.data.sourceRef,
+          ...(text === undefined ? { error: error ?? 'Source unavailable' } : { text }),
+        },
+      } as WebSocketEventOptionalSource<C>)
+    })
+  }
+
   send(data: WebSocketEventOptionalSource<C>): boolean {
     const payload = this.createPayload(data)
     const result = this.transport.send(payload)
@@ -444,6 +481,7 @@ export class Client<C = undefined> {
         possibleEvents: this.opts.possibleEvents,
         configSchema: this.opts.configSchema,
         dependencies: this.opts.dependencies,
+        cognition: this.opts.cognition,
       },
     } as WebSocketEventOptionalSource<C>))
 

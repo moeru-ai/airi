@@ -34,6 +34,47 @@ The existing session store uses Chat-shaped UI records. The orchestrator decodes
 
 ## Turn history
 
+Runtime context uses writer buckets containing independent `contextId` slots.
+`replace-self` replaces only the matching slot in that writer's bucket.
+Other slots and other writers remain intact. Snapshots are clones and cannot change registry state.
+Reader snapshots match exact destination identities. Exclusions take precedence over inclusions.
+A reader without a lane reads every lane. A lane-scoped reader reads its own lane and entries without a lane.
+An entry without destinations is visible only to its writer. Explicit `{ all: true }` publishes to all readers.
+An `Audience` is `public` or a sorted set of subjects. A reader with an `audience` reads an entry only when the entry's allowed audience includes it.
+The host assigns entry audiences. An entry without a label reaches the owner only. Destinations and audiences must both allow a read.
+`audienceFromBindings` gives every scene the owner plus one members subject for each external binding.
+Writes take `intersectAudiences` of everything the run read. A run's effective audience is `unionAudiences` of its outputs.
+An empty destination list publishes to no reader. Unfiltered snapshots serve local diagnostics only.
+Active observations expire after 60 seconds by default. `ttlMs` overrides their lifetime, and a local `expiresAt` can shorten it.
+The default budgets are 800 units total, 200 per writer, and 80 per entry. Each append slot retains at most eight events.
+Only the fixed `events` slot accepts `append-self` by default. Hosts can declare other fixed slots through `appendContextIds`.
+An empty slot list disables append. Slot matching is exact and each writer retains its own event window.
+Rejected append updates preserve active observations and remain in diagnostic history.
+Spark tools put append observations in the fixed event slot. Their unique event identifiers remain separate from the slot identifier.
+`loadContextTokenCounter()` loads local `js-tiktoken/lite` with `o200k_base` once per process. The rank table is a separate chunk.
+A host without observations never downloads it. `ingest` needs `countTokens`. Pruning, removal, and projection do not.
+This encoding defines pool budgets, not provider billing. Literal control-token markers count as ordinary text.
+Hosts can supply a different tokenizer through `countTokens`. The default loads no remote word list and sends no text over a network.
+Producers can import `createContextText` and `loadContextTokenCounter` from `@proj-airi/core-agent/context` without loading the agent runtime.
+`createContextText` is async. It replaces text over 80 tokens with a `sourceRef`. Producers retain the original details in their own state.
+An origin handle identifies details. It cannot grant tool or read permissions. Oversized handles fail instead of entering the pool.
+`limitContextText` cuts source details to `CONTEXT_SOURCE_TOKEN_LIMIT`, 1000 tokens, at a code point boundary.
+Empty observations cost one unit. Retention combines salience and freshness, with older entries losing equal-priority ties.
+The writer budget evicts only the incoming writer's entries. The pool budget then evicts the lowest retention across all writers.
+Pool entries keep the fields that projection, expiry, and routing read. `content`, `ideas`, and `hints` stay with the producer.
+Each stored entry has a 2048-byte serialized limit, so routing fields cannot inflate replication.
+Rejected replacements preserve the previous slot. History records keep identity, slot, and in-budget text only. Rejected text never enters history or checkpoints.
+Each send captures one session-filtered snapshot for both the model request and its display events.
+`checkpoint()` captures active costs, original expiry times, and bounded history for trusted host replication.
+`initialState` restores that checkpoint without replaying observations. Do not accept checkpoints from module transports.
+`projectContextRegistryState` gives replicas a read-only projection without updating authoritative state.
+`removeWriter()` removes only the named writer's active slots. It preserves bounded history for host delivery deduplication.
+Each send also retains its host-selected `outputTarget`. Output hooks keep this return address separate from input content and context visibility.
+Request-owned instruction providers run once per send. They bypass the observation pool and cannot retain stale instructions between sends.
+`resolveToolsetPrompt` receives only admitted tools before each model request. Its trusted instructions enter a developer message, not shared context.
+Tool revocation removes the instructions from the next request. These instructions never enter the SDK transcript or stored generation rounds.
+The Spark command tool owns relay syntax guidance. Module observations supply current destination and availability facts.
+
 After all SDK steps settle, `onGeneratedTurn` receives the new `AssistantTurn`. Each round records model usage, its finish reason, tool invocations, and native continuation data. SDK input snapshots define round boundaries; message roles do not define runtime rounds.
 
 The generated turn contains settled rounds and is stored under the existing `generationTranscript` history key. Live deltas still use the existing stream event contract. An interrupted execution does not store a generated turn. If it produced visible output, local Chat history preserves that output with `interrupted: true` so the user can read and retry it.
@@ -49,6 +90,137 @@ A provider resolves a discriminated `GenerationRequest` before context projectio
 The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.
 
 Realtime transport is not implemented. A future session adapter can project the same context, but must define continuous input, interruption, and session ownership separately.
+
+## Runs and execution envelopes
+
+`ingest` builds an `ExecutionEnvelope` through `createEnvelope`: the session, bindings, outputs, effective audience, and persona.
+Work whose audience exceeds the session audience rejects before a run exists. The run table never records unauthorized work.
+Each admitted send gets a `runId` in `RunTable`. Its state moves through `queued`, `working`, and one final state.
+`done` means the send settled, `dropped` means cancellation, and `blocked` means a failure with its error.
+The run id reaches `requestCorrelation.runId` and the generated `AssistantTurn.runId`. Run ids use their own factory, so message id sequences stay unchanged.
+The context snapshot receives the run audience. Before each assistant write, the session audience narrows to the labels of the pool entries that the run read.
+Every input passes intake first. `IntakeLog` records each decision apart from the run table: `admitted`, `deferred`, `merged`, `ignored`, or `rejected`.
+An ignored or rejected input has no run. `rejected` is an audience, capacity, or authority failure, never a choice.
+Direct owner input also needs an intake decision. `decideDirectIntake` decides it synchronously and locally, so the owner never waits for a remote classifier.
+The default rule `decideDirectInput` ignores input with no text and no attachments, and admits the rest. An admitted run can still choose silence.
+Input from a connection goes through `decideIntake`, which can ask a remote classifier. Either policy can admit or ignore chat input.
+A failing policy admits the input with `decidedBy: 'fallback'`, so a broken policy cannot lose input.
+`ingest` resolves with the stimulus id, its outcome, and the run id when it was admitted.
+Each session has its own queue. A session runs one send at a time, and different sessions run concurrently up to `maxConcurrentRuns`.
+The limit counts working runs of every owner that shares the run table. A limit of one is the single active run mode, with the same envelopes and traces.
+A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
+The voice is an exclusive lease in `LeaseTable`. A send with the `voice` output waits while any run holds it, and releases it when it ends. Domain sends keep running.
+A lease is free when its holder releases it or it expires. Only a request with `preempt` and strictly higher salience takes over a held lease.
+`handOver` moves a held lease to another holder, for example from a finished run to its speech that still plays. Nobody in the line takes it in between.
+A handed-over lease can be interruptible. A request with `interrupt` takes it over at any salience. Direct owner input interrupts. Other sends wait for the speech to end.
+Requests for one resource wait in a line. A free resource goes to the first candidate: higher salience tier, then the earlier deadline, then the longer wait.
+Waiting time only prevents starvation. Requests for different resources never compare, so work that needs no shared resource runs in parallel.
+Requesters withdraw when they stop waiting. A candidate that has not asked for five minutes leaves the line.
+Pass `runs`, `intake`, and `leases` to share them with other run owners in the host. Each table notifies its subscribers.
+Runtime state reports `runningSessionIds`, `voiceSessionId`, and the live reply of each running session.
+Supervision ends a run that streams nothing for `stallTimeoutMs` (60 seconds) or runs past `runDeadlineMs` (10 minutes). The run becomes `expired`.
+Three identical consecutive tool calls end a run as `blocked`. A supervised end rejects the send, so the caller sees a failure, never a quiet success.
+`cancelRun(runId, { rollback })` stops a waiting or running run. Its late output never commits.
+With `rollback`, the run's user turn and partial reply leave the session through `removeSessionMessages`. A requeued input therefore appears once.
+
+## Silence
+
+A conversation run can choose silence by calling `builtIn_stayQuiet` from `createStayQuietTool`. The run ends `done` with `silent` and its private reason.
+A silent run appends no assistant message and emits no reply hooks, so no channel receives an empty reply.
+Silence needs the explicit tool call. An empty reply without it stays a normal result, and a failure stays `blocked` or `expired`.
+Spoken text after the tool call wins, and the reply is kept.
+
+## Delivered speech
+
+An assistant message can carry `deliveredSpeech`, the speech that reached the listener before playback stopped. It is present only for an interrupted voice reply.
+A reply that a notification started carries `proactive` with its run id and source. It has no user turn before it, and later prompts read it like any assistant turn.
+The next prompt reads only that part, with a cut mark. Tool calls stay. The chat keeps the generated text.
+
+## Error bursts
+
+`ErrorBurstBreaker` watches run changes. Three `blocked` runs within one minute start a one-minute cooldown.
+Background owners defer work during the cooldown. Direct owner input never waits for it, so the owner sees each failure.
+
+## Classifier triage
+
+A `Classifier` answers typed questions with probabilities: `noul` for yes or no, `choice` for one option, and `score` for an ordered scale. It never generates text.
+Questions use the Decisions API forms that OpenRouter and TypeSafe serve. `criteria` holds the yes and no meanings, the options, or the levels.
+`appraiseStimulus` asks whether a stimulus deserves attention and how urgent it is, in one call. External text goes into the untrusted field only.
+`askWithin` aborts a call at its deadline, 800 ms by default. A late, failing, or malformed answer means no appraisal.
+`decideByAppraisal` uses an answer only when its confidence reaches the threshold, 0.8 by default. Users set the threshold.
+A confident answer below 0.2 ignores the stimulus. Otherwise the urgency score averages with the prior. Without a usable answer, the prior decides as `fallback`.
+A scene source stays at or below 0.8 salience, so classifier output can never let it interrupt. A classifier ranks work and never grants authority.
+
+## Command admission
+
+`admitCommand` checks every `spark:command` before it leaves the host. The issuing run must be `working`, and the command must name destinations.
+Each destination must be a connected module whose `cognition.accepts` lists the intent. A module with scenes receives no commands.
+A module with exclusive control gets a `module:<name>` lease for the run's session, with the declared expiry. Another session's live lease rejects the command.
+A `critical` command with higher salience takes the lease over. An admitted command carries `holder`, the session that controls the module.
+`createSparkCommandTool` reports a rejection to the model, so the model never claims a relay that admission refused.
+
+## Model profiles, spending, and routing
+
+`createModelProfile` joins a catalog entry with what the host learned: tool failures, first-token delay, and the user's tier.
+An absent fact is unknown, never false. `checkRequirements` lists missing and unknown requirements apart.
+`estimateRequestCost` prices reported or estimated usage. Lookup prices and unavailable usage have no cost.
+
+`SpendingLedger` counts costs within a rolling window for an optional user limit. Requests it cannot price are listed as uncounted.
+The limit is one admission constraint. It never selects a cheaper model.
+A chat runtime with `checkSpendingLimit` rejects new input while the limit is reached. The intake trace records `spending-limit`, and the input fails with the host's message.
+
+`routeModel` is experimental. It serves a named task, never the conversation.
+A candidate needs the task requirements, the user tier, the timing target, and at least five quality test results with an 80% pass rate.
+The fastest accepted candidate wins, and price never ranks candidates. Without one, the configured model stays, with `fallback`.
+
+## Identity and history budget
+
+With `getSystemPrompt`, each run reads the identity of its own persona when it starts. History stores no identity, and stored system messages are skipped.
+`fitHistoryToBudget` keeps the newest exchanges within `historyTokenBudget`, 32,000 tokens by default. It cuts only before a user message, and the newest exchange always stays.
+Omitted history gives way to the session digest from `getHistoryDigest` when the digest covers it. Otherwise a short note counts the omitted messages. Both enter as context, never as instructions.
+Each message costs what its projection sends: text, tool calls, tool results, and turn transcripts. An image counts as about 1,000 tokens.
+The serialized length bounds the token count, so the tokenizer loads only for history that can exceed the budget.
+
+## Run supervision
+
+`superviseRun` watches one run for a stall and for its deadline. Chat runs and notification runs share it, and each keeps its own failure handling.
+`guardRepeatedToolCalls` wraps the tools of one run. The call that reaches the limit returns a correction instead of running, and one more identical call ends the run.
+
+## Derived runs
+
+Only the scheduler derives a run. It calls `ingest` with `derivation`, which names the parent run and the source, such as `recipe:<id>`.
+A derived run has no voice and no owner output. It reads within its parent's audience, and intake admits it by rule without a classifier.
+Derivation stops at `MAX_DERIVATION_DEPTH` levels and `MAX_DERIVED_CHILDREN` active children per parent. A parent that ended cannot derive.
+`cancelRun` cancels a run's derived children first, so no child outlives its cancelled parent.
+`onAdmitted` hands the run id to the proposer as a ticket before the run works. A recipe with `handover` takes over the conversation instead of running a task.
+
+## Recipes
+
+A recipe is one way to handle a kind of task. Its style says how it runs: `instructions` for the conversation run, `decision` for one classifier question, `run` for an isolated child run, or `mcp` for one MCP tool call.
+A decision recipe asks a yes-or-no, choice, or score question. Each confident answer leads to its own action: reply, stay quiet, add a hint as context, or point to another recipe. Silence wins over the other actions.
+`applyRecipeDecisions` also names the recipes that changed the run, and the runtime records them on the reply as `recipes`.
+`isAutoRunRecipe` marks recipes with an idle, schedule, event, or mood trigger. `dueTriggeredRecipes` returns the idle and schedule recipes that are due. An idle trigger fires once per owner silence.
+An auto-run recipe can carry a `gate`, a yes-or-no question. `recipeGateRequest` asks all gates in one classifier request, and `passGates` keeps the recipes with a confident yes.
+Triggers start a recipe on their own: keywords, a schedule, an event source, idle time, or a mood level. Without triggers, the conversation run chooses it.
+`usableRecipes` keeps enabled and approved recipes. A model proposal waits unapproved until the owner approves it once.
+`recipeTools` keeps only the tools that the host granted, so a recipe never adds a capability. Reading without replying is the built-in `builtin:stay-quiet` recipe.
+
+## Mood
+
+Mood is per-persona state. It keeps an intensity for each of six feelings: joy, contentment, anger, sadness, fear, and boredom.
+`moodQuestions` asks one `feeling` choice and one `strength` score in one call. `moodIntensitiesFromAnswers` uses the option probabilities as weights and scales them by the strength.
+`applyMoodAppraisal` fades each feeling by its own half-life, then moves it a `sensitivity` share toward the new value. Anger fades fast and sorrow stays, so the curve is not one exponential.
+`moodProfileFromTemperament` derives the baseline, sensitivity, and half-lives from a point in the joy, anger, sorrow, and contentment cross. The center is rational. The edge is emotional, and the leaning quadrant lasts longer.
+`moodPad` gives the PAD point. `moodExpression` gives the baseline expression, and `composeExpression` weighs a sentence expression by the mood.
+`describeMood` is the one sentence of the conversation's mood slot. It names the blend of the strongest feelings in words, such as "mostly at ease, a little anxious". `moodProsody` gives small pitch and speed offsets for one spoken sentence.
+An appraisal with `mood` gives the classifier the mood and records it as the effective state.
+
+## Spark notification cancellation
+
+The host supplies an `abortSignal` to the notification agent and its model runner.
+Cancellation blocks new model work, late reaction deltas, and command completion, even when a runner ignores transport cancellation.
+An asynchronous reaction sink remains part of the run until its stream closes. Completed audio playback has a separate host lifecycle.
+`handle` returns the commands and the reaction text. The reaction is empty when the agent chose no response.
 
 ## Verify
 

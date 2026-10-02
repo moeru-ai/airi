@@ -4,11 +4,14 @@ import type { Message } from '@xsai/shared-chat'
 import type { Conversation } from '../messages/types'
 import type { ChatHistoryItem, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ChatOrchestratorRuntimeDeps, ChatOrchestratorRuntimeLimits } from './chat-orchestrator-runtime'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
 import { describe, expect, it, vi } from 'vitest'
 
 import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
+import { renderConversationPreview } from '../messages/preview'
+import { OWNER_AUDIENCE } from './audience'
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
 import { streamFrom } from './llm-service'
 
@@ -16,7 +19,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider') {
+function createHarness(getActiveProvider = () => 'mock-provider', runtimeContextProviders?: ChatOrchestratorRuntimeDeps['runtimeContextProviders']) {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -28,6 +31,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     ],
   }
   const contextSnapshot: Record<string, ContextMessage[]> = {}
+  const ingestContext = vi.fn()
+  const snapshotContext = vi.fn((_sessionId: string) => structuredClone(contextSnapshot))
   const foregroundPatches: StreamingAssistantMessage[] = []
   const foregroundResets: StreamingAssistantMessage[] = []
   const lifecycleRecords: unknown[] = []
@@ -59,6 +64,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   let monotonicNowValues = [1000]
   let generation = 1
   let assistantResponseRenderedError: Error | undefined
+  let limits: Partial<ChatOrchestratorRuntimeLimits> = {}
+  let domainSessions: string[] = []
 
   const runtime = createChatOrchestratorRuntime({
     session: {
@@ -73,8 +80,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
       getSessionGeneration: () => generation,
     },
     context: {
-      ingest: vi.fn(),
-      snapshot: () => structuredClone(contextSnapshot),
+      ingest: ingestContext,
+      snapshot: snapshotContext,
     },
     foregroundStream: {
       patch: message => foregroundPatches.push(message),
@@ -84,7 +91,13 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
       stream,
     },
     getActiveSessionId: () => 'session-1',
+    getLimits: () => limits,
+    // A domain session replies through its own channel and never holds the voice.
+    createEnvelope: sessionId => domainSessions.includes(sessionId)
+      ? { bindings: [], outputs: ['chat:owner', `connection:${sessionId}`], audience: OWNER_AUDIENCE }
+      : { bindings: [], outputs: ['chat:owner', 'voice'], audience: OWNER_AUDIENCE },
     getActiveProvider,
+    runtimeContextProviders,
     getSystemPromptSupplement: () => systemPromptSupplement,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
@@ -113,6 +126,12 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
   })
 
   return {
+    setLimits: (next: Partial<ChatOrchestratorRuntimeLimits>) => {
+      limits = next
+    },
+    setDomainSessions: (sessionIds: string[]) => {
+      domainSessions = sessionIds
+    },
     assistantAppended,
     assistantResponseRenderedError: {
       set: (error: Error | undefined) => {
@@ -121,6 +140,8 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
     },
     assistantTurns,
     contextSnapshot,
+    ingestContext,
+    snapshotContext,
     foregroundPatches,
     foregroundResets,
     generation: {
@@ -156,6 +177,38 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  it('projects one session and reads fresh runtime prompts without retaining them in the shared pool', async () => {
+    const runtimeContext: ContextMessage = {
+      id: 'runtime',
+      contextId: 'runtime',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      text: 'current runtime instructions',
+      createdAt: Date.now(),
+    }
+    let currentContext: ContextMessage | undefined = runtimeContext
+    const harness = createHarness(undefined, [() => currentContext])
+    await harness.runtime.ingest('first', { model: 'test', chatProvider: provider }, 'session-1')
+    expect(harness.snapshotContext).toHaveBeenCalledWith('session-1', { kind: 'subjects', subjects: ['user:owner'] })
+    expect(harness.ingestContext).not.toHaveBeenCalled()
+    expect(renderConversationPreview(harness.stream.mock.calls[0][2]).at(-1)?.content).toContain('current runtime instructions')
+
+    currentContext = undefined
+    await harness.runtime.ingest('second', { model: 'test', chatProvider: provider }, 'session-1')
+    expect(JSON.stringify(harness.stream.mock.calls[1][2])).not.toContain('current runtime instructions')
+  })
+
+  // P6: each run's prompt carries one mood sentence for the persona of its own session.
+  it('gives runtime providers the session of the run', async () => {
+    const moods: Record<string, string> = { 'session-a': 'Current mood: slightly irritated.', 'session-b': 'Current mood: calm.' }
+    const harness = createHarness(undefined, [sessionId => ({ id: sessionId, contextId: 'system:airi-mood', strategy: ContextUpdateStrategy.ReplaceSelf, text: moods[sessionId]!, createdAt: Date.now() })])
+
+    await harness.runtime.ingest('hi', { model: 'test', chatProvider: provider }, 'session-a')
+    await harness.runtime.ingest('hi', { model: 'test', chatProvider: provider }, 'session-b')
+
+    expect(renderConversationPreview(harness.stream.mock.calls[0][2]).at(-1)?.content).toContain('Current mood: slightly irritated.')
+    expect(renderConversationPreview(harness.stream.mock.calls[1][2]).at(-1)?.content).toContain('Current mood: calm.')
+  })
+
   // ROOT CAUSE:
   //
   // The marker parser buffered 24 literal characters plus its marker-safety tail.
@@ -240,7 +293,7 @@ describe('createChatOrchestratorRuntime', () => {
     await expect(harness.runtime.ingest('hello', {
       model: 'gpt-test',
       chatProvider: provider,
-    })).resolves.toBeUndefined()
+    })).resolves.toMatchObject({ outcome: 'admitted' })
 
     expect(harness.sessionMessages['session-1']?.at(-1)).toMatchObject({
       role: 'assistant',
@@ -618,6 +671,26 @@ describe('createChatOrchestratorRuntime', () => {
       content: 'Plugin toolset guidance.',
     })
     expect(composedMessages[1]).toMatchObject({ role: 'user' })
+  })
+
+  it('keeps each queued turn attached to its own output target', async () => {
+    const harness = createHarness()
+    const messageTargets: Array<string | undefined> = []
+    const completeTargets: Array<string | undefined> = []
+    harness.runtime.hooks.onAssistantMessage(async (_message, _text, context) => {
+      messageTargets.push(context.outputTarget)
+    })
+    harness.runtime.hooks.onChatTurnComplete(async (_chat, context) => {
+      completeTargets.push(context.outputTarget)
+    })
+
+    await Promise.all([
+      harness.runtime.ingest('external', { model: 'test', chatProvider: provider, outputTarget: 'discord-a' }, 'external-session'),
+      harness.runtime.ingest('local', { model: 'test', chatProvider: provider }, 'session-1'),
+    ])
+
+    expect(messageTargets).toEqual(['discord-a', undefined])
+    expect(completeTargets).toEqual(['discord-a', undefined])
   })
 
   it('emits telemetry milestones for a successful voice-backed message round', async () => {
@@ -1083,26 +1156,93 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stream).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps sending externally writable for UI facades', () => {
+  // ROOT CAUSE:
+  // One global queue served every session, so a slow background send blocked the owner's chat.
+  it('runs another session while a slow session is still streaming', async () => {
     const harness = createHarness()
-
-    harness.runtime.setSending(true)
-    expect(harness.runtime.getSending()).toBe(true)
-    expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: 'session-1',
-      activeStreamingMessage: undefined,
-      sending: true,
-      pendingQueuedSendCount: 0,
+    harness.setDomainSessions(['session-slow'])
+    let releaseSlow: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseSlow = resolve
+      })
     })
 
-    harness.runtime.setSending(false)
-    expect(harness.runtime.getSending()).toBe(false)
-    expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: undefined,
-      activeStreamingMessage: undefined,
-      sending: false,
-      pendingQueuedSendCount: 0,
+    const slow = harness.runtime.ingest('slow planning', { model: 'gpt-test', chatProvider: provider }, 'session-slow')
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    await harness.runtime.ingest('owner chat', { model: 'gpt-test', chatProvider: provider }, 'session-1')
+
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+    expect(harness.runtime.getRunningSessionIds()).toEqual(['session-slow'])
+    releaseSlow?.()
+    await slow
+    expect(harness.runtime.getRunningSessionIds()).toEqual([])
+  })
+
+  it('keeps one session in order and bounds its waiting sends', async () => {
+    const harness = createHarness()
+    harness.setLimits({ maxQueuedPerSession: 1 })
+    let releaseFirst: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
     })
+
+    const first = harness.runtime.ingest('first', { model: 'gpt-test', chatProvider: provider })
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    const second = harness.runtime.ingest('second', { model: 'gpt-test', chatProvider: provider })
+    // The waiting slot is full, so the third send never becomes a run.
+    await expect(harness.runtime.ingest('third', { model: 'gpt-test', chatProvider: provider })).rejects.toThrow('The chat session queue is full')
+    expect(harness.runtime.getRuns()).toHaveLength(2)
+
+    // The second send waits for its own session even though a run slot is free.
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+    releaseFirst?.()
+    await Promise.all([first, second])
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+  })
+
+  // The voice is exclusive. Two conversation runs cannot speak at once, but a domain run keeps going.
+  it('runs one voice send at a time across sessions', async () => {
+    const harness = createHarness()
+    let releaseFirst: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
+    })
+
+    const first = harness.runtime.ingest('first', { model: 'gpt-test', chatProvider: provider }, 'session-a')
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    const second = harness.runtime.ingest('second', { model: 'gpt-test', chatProvider: provider }, 'session-b')
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+    expect(harness.stateChanges.at(-1)).toMatchObject({ runningSessionIds: ['session-a'], voiceSessionId: 'session-a' })
+
+    releaseFirst?.()
+    await Promise.all([first, second])
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+  })
+
+  it('limits running sends across sessions', async () => {
+    const harness = createHarness()
+    harness.setLimits({ maxConcurrentRuns: 1 })
+    let releaseFirst: (() => void) | undefined
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
+    })
+
+    const first = harness.runtime.ingest('first', { model: 'gpt-test', chatProvider: provider }, 'session-a')
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledTimes(1))
+    const second = harness.runtime.ingest('second', { model: 'gpt-test', chatProvider: provider }, 'session-b')
+    expect(harness.runtime.getPendingQueuedSendCount()).toBe(1)
+    expect(harness.stream).toHaveBeenCalledTimes(1)
+
+    releaseFirst?.()
+    await Promise.all([first, second])
+    expect(harness.stream).toHaveBeenCalledTimes(2)
   })
 
   // https://github.com/moeru-ai/airi/issues/2085
@@ -1128,12 +1268,13 @@ describe('createChatOrchestratorRuntime', () => {
 
     await vi.waitFor(() => {
       expect(harness.stateChanges).toContainEqual(expect.objectContaining({
-        activeSendSessionId: 'session-2',
-        activeStreamingMessage: expect.objectContaining({
-          role: 'assistant',
-          createdAt: expect.any(Number),
-        }),
-        sending: true,
+        runningSessionIds: ['session-2'],
+        streamingMessages: {
+          'session-2': expect.objectContaining({
+            role: 'assistant',
+            createdAt: expect.any(Number),
+          }),
+        },
         pendingQueuedSendCount: 0,
       }))
     })
@@ -1142,8 +1283,7 @@ describe('createChatOrchestratorRuntime', () => {
     })
     await vi.waitFor(() => {
       expect(harness.stateChanges).toContainEqual(expect.objectContaining({
-        activeSendSessionId: 'session-2',
-        activeStreamingMessage: expect.objectContaining({ content: expect.stringContaining('background') }),
+        streamingMessages: { 'session-2': expect.objectContaining({ content: expect.stringContaining('background') }) },
       }))
     })
 
@@ -1151,9 +1291,8 @@ describe('createChatOrchestratorRuntime', () => {
     await pendingSend
 
     expect(harness.stateChanges.at(-1)).toEqual({
-      activeSendSessionId: undefined,
-      activeStreamingMessage: undefined,
-      sending: false,
+      runningSessionIds: [],
+      streamingMessages: {},
       pendingQueuedSendCount: 0,
     })
   })
@@ -1308,9 +1447,9 @@ describe('responses generated turn ownership', () => {
     })
     await harness.runtime.ingest('first', { model: 'test', chatProvider: responsesProvider })
     await harness.runtime.ingest('second', { model: 'test', chatProvider: responsesProvider })
-    expect(harness.stream.mock.calls[1][2].turns).toContainEqual(generatedTurn)
+    expect(harness.stream.mock.calls[1][2].turns).toContainEqual({ ...generatedTurn, runId: expect.any(String) })
     await harness.runtime.ingest('third', { model: 'test', chatProvider: provider })
-    expect(harness.stream.mock.calls[2][2].turns).toContainEqual(generatedTurn)
+    expect(harness.stream.mock.calls[2][2].turns).toContainEqual({ ...generatedTurn, runId: expect.any(String) })
     expect(conversationToChatMessages(harness.stream.mock.calls[2][2])).toContainEqual({ role: 'assistant', content: 'answer' })
   })
 

@@ -23,6 +23,119 @@ function createEvent(): WebSocketEventOf<'spark:notify'> {
 }
 
 describe('createSparkNotifyAgent', () => {
+  // ROOT CAUSE:
+  // Notify runs had no cancellation boundary. A late runner could still emit reactions and commands.
+  // The host signal now gates preparation, streaming, and completion.
+  it('rejects a cancelled notify before calling its model', async () => {
+    const controller = new AbortController()
+    controller.abort(new Error('Lost notify ownership'))
+    const run = vi.fn()
+    const agent = createSparkNotifyAgent({ runner: { run } })
+    await expect(agent.handle({
+      event: createEvent(),
+      selectedChat: {
+        providerId: 'mock-provider',
+        model: 'mock-model',
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
+      },
+      systemPrompt: 'You are a character.',
+      abortSignal: controller.signal,
+    })).rejects.toThrow('Lost notify ownership')
+    expect(run).not.toHaveBeenCalled()
+  })
+
+  it('blocks late reaction deltas and completion from an aborted runner', async () => {
+    const controller = new AbortController()
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const onDelta = vi.fn()
+    const onEnd = vi.fn()
+    const run = vi.fn(async (request: SparkNotifyRunRequest) => {
+      expect(request.abortSignal).toBe(controller.signal)
+      entered.resolve()
+      await release.promise
+      await request.onStreamEvent({ type: 'text-delta', text: 'Stale reaction.' })
+    })
+    const agent = createSparkNotifyAgent({
+      runner: { run },
+      plugins: [createSparkNotifyReactionPlugin({ onDelta, onEnd })],
+    })
+    const result = agent.handle({
+      event: createEvent(),
+      selectedChat: {
+        providerId: 'mock-provider',
+        model: 'mock-model',
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
+      },
+      systemPrompt: 'You are a character.',
+      abortSignal: controller.signal,
+    })
+    const completion = result.then(() => undefined, (error: unknown) => error)
+    await entered.promise
+    controller.abort(new Error('Lost notify ownership'))
+    release.resolve()
+    expect(await completion).toMatchObject({ message: 'Lost notify ownership' })
+    expect(onDelta).not.toHaveBeenCalled()
+    expect(onEnd).not.toHaveBeenCalled()
+  })
+
+  it('blocks completion when a runner ignores cancellation and returns without deltas', async () => {
+    const controller = new AbortController()
+    const onEnd = vi.fn()
+    const agent = createSparkNotifyAgent({
+      runner: { run: async () => { controller.abort(new Error('Lost notify ownership')) } },
+      plugins: [createSparkNotifyReactionPlugin({ onDelta: vi.fn(), onEnd })],
+    })
+    await expect(agent.handle({
+      event: createEvent(),
+      selectedChat: {
+        providerId: 'mock-provider',
+        model: 'mock-model',
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
+      },
+      systemPrompt: 'You are a character.',
+      abortSignal: controller.signal,
+    })).rejects.toThrow('Lost notify ownership')
+    expect(onEnd).not.toHaveBeenCalled()
+  })
+
+  it('keeps ownership until the asynchronous reaction sink finishes', async () => {
+    const controller = new AbortController()
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    let settled = false
+    const agent = createSparkNotifyAgent({
+      runner: { run: async (request) => { await request.onStreamEvent({ type: 'text-delta', text: 'Reaction.' }) } },
+      plugins: [createSparkNotifyReactionPlugin({
+        onDelta: vi.fn(),
+        onEnd: async () => {
+          entered.resolve()
+          await release.promise
+        },
+      })],
+    })
+    const completion = agent.handle({
+      event: createEvent(),
+      selectedChat: {
+        providerId: 'mock-provider',
+        model: 'mock-model',
+        provider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/' } }) },
+      },
+      systemPrompt: 'You are a character.',
+      abortSignal: controller.signal,
+    }).then(() => { settled = true }, (error: unknown) => {
+      settled = true
+      return error
+    })
+    await entered.promise
+    // Drain result microtasks while the reaction sink remains deliberately blocked.
+    await new Promise<void>(resolve => setTimeout(resolve, 0))
+    expect(settled).toBe(false)
+    controller.abort(new Error('Lost notify ownership'))
+    release.resolve()
+    expect(await completion).toMatchObject({ message: 'Lost notify ownership' })
+  })
+
   it('runs the selected chat and sends reaction text through a plugin', async () => {
     const onDelta = vi.fn()
     const onEnd = vi.fn()

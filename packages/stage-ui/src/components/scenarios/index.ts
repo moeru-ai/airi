@@ -1,4 +1,5 @@
 export * from './about'
+export * from './character'
 export * from './chat'
 export * from './connection'
 export * from './dialogs'

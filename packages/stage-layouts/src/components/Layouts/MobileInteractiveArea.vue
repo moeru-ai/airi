@@ -4,7 +4,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
+import { CharacterSwitcherDrawer, ChatBackgroundTasks, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -40,16 +40,14 @@ const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { runningSessionIds, streamingMessages, backgroundTasks } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const isActiveSessionSending = computed(() => (
-  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  runningSessionIds.value.includes(activeSessionId.value)
   || isReceivingRemoteStream.value
 ))
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const visibleStreamingMessage = computed(() => streamingMessages.value[activeSessionId.value] ?? streamingMessage.value)
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 const composer = useChatComposer<ChatImageAttachment>({
@@ -430,6 +428,7 @@ onUnmounted(() => {
             :class="['w-full']"
             @cancel="handleCancelReply"
           />
+          <ChatBackgroundTasks :tasks="backgroundTasks" @stop="runId => chatOrchestrator.cancelRun(runId)" />
           <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2']">
             <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
           </div>

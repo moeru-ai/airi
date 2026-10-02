@@ -83,7 +83,13 @@ export class DiscordAdapter {
         'input:voice',
         'module:configure',
         'output:gen-ai:chat:message',
+        'speech:audio',
+        'speech:stop',
       ],
+      // Every Discord conversation is a channel scene. Input must name its channel binding, never an owner session.
+      cognition: { scenes: [{ binding: 'discord:channel:' }] },
+      // AIRI drops a module's speech devices when it reconnects, so joined voice channels are offered again.
+      onReady: () => this.voiceManager?.announceSpeechDevices(),
       token: config.airiToken,
       url: config.airiUrl,
     })
@@ -157,10 +163,13 @@ export class DiscordAdapter {
     })
 
     // Handle output from AIRI system (IA response)
+    this.airiClient.onEvent('speech:audio', event => this.voiceManager.playSpeech(event.data))
+    this.airiClient.onEvent('speech:stop', event => this.voiceManager.stopSpeech(event.data))
+
     this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
       try {
         const message = (event.data as { message?: { content: string } }).message
-        const discordContext = (event.data)['gen-ai:chat'].input.data.discord
+        const discordContext = event.data.discord
 
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)
@@ -246,17 +255,11 @@ export class DiscordAdapter {
           ? `on server '${serverName}'`
           : 'in Direct Message'
 
-        // Calculate sessionId based on guild or DM
-        let targetSessionId = 'discord'
-        if (normalizedDiscord?.guildId) {
-          targetSessionId = `discord-guild-${normalizedDiscord.guildId}`
-        }
-        else {
-          targetSessionId = `discord-dm-${normalizedDiscord?.guildMember?.id || 'unknown'}`
-        }
+        // Channels, including threads and DMs, own independent persistent conversations.
+        const binding = `discord:channel:${message.channelId}`
 
         const discordNotice = normalizedDiscord
-          ? `The input is coming from Discord channel ${normalizedDiscord.channelId} (Guild: ${normalizedDiscord.guildId ?? 'unknown'}).`
+          ? `Discord channel: ${normalizedDiscord.channelId}`
           : undefined
 
         this.airiClient.send({
@@ -268,11 +271,13 @@ export class DiscordAdapter {
               messagePrefix: displayName
                 ? `(From Discord user ${displayName} ${contextPrefix}): `
                 : `(From Discord user ${contextPrefix}): `,
-              sessionId: targetSessionId,
+              binding,
             },
             contextUpdates: discordNotice
               ? [{
-                  strategy: ContextUpdateStrategy.AppendSelf,
+                  contextId: `${binding}:notice`,
+                  strategy: ContextUpdateStrategy.ReplaceSelf,
+                  destinations: { include: [binding] },
                   text: discordNotice,
                   content: discordNotice,
                   metadata: {

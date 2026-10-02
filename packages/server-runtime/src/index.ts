@@ -11,6 +11,7 @@ import type {
 import type { Message as CrossWsMessage, Peer as CrossWsPeer } from 'crossws'
 
 import type {
+  RouteContext,
   RouteMiddleware,
   RoutingPolicy,
 } from './middlewares'
@@ -352,7 +353,13 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
     consumers.unregisterPeer(peerId)
   }
 
-  function selectConsumer(event: WebSocketEvent, fromPeerId: string, delivery?: DeliveryConfig) {
+  function selectConsumer(
+    event: WebSocketEvent,
+    fromPeerId: string,
+    delivery?: DeliveryConfig,
+    destinations?: RouteContext['destinations'],
+    targetIds?: Set<string>,
+  ) {
     if (!isConsumerDeliveryMode(delivery?.mode)) {
       return
     }
@@ -365,6 +372,11 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         event: event.type,
         mode: delivery?.mode,
         group: delivery?.group,
+      }).filter((entry) => {
+        const candidate = peers.get(entry.peerId)
+        if (destinations && (!candidate || !matchesDestinations(destinations, candidate)))
+          return false
+        return !targetIds || targetIds.has(entry.peerId)
       }).map(entry => ({
         peerId: entry.peerId,
         priority: entry.priority,
@@ -469,6 +481,8 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       Array.from(peerInfo.extensionModules?.values() ?? []).map(module => ({
         name: module.name,
         identity: module.identity,
+        connectionId: peerInfo.peer.id,
+        cognition: module.cognition,
       })),
     )
 
@@ -538,7 +552,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       peers.set(peer.id, { peer, authenticated: false, name: '', lastHeartbeatAt: Date.now() })
     }
     else {
-      send(peer, RESPONSES.authenticated())
+      send(peer, RESPONSES.authenticated(peer.id))
       peers.set(peer.id, { peer, authenticated: true, name: '', lastHeartbeatAt: Date.now() })
       sendRegistrySync(peer)
     }
@@ -590,6 +604,11 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       peerModuleIndex: authenticatedPeer?.index,
     }).debug('received event')
 
+    // Only server-owned peer cleanup can revoke a module's live observations.
+    // Only the server lists modules, so a peer cannot forge another module's connection or declaration.
+    if (event.type === 'extension:module:de-announced' || event.type === 'registry:modules:sync')
+      return
+
     if (authenticatedPeer) {
       markPeerAlive(authenticatedPeer, { parentId: event.metadata?.event.id })
 
@@ -626,7 +645,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           return
         }
 
-        send(peer, RESPONSES.authenticated(event.metadata?.event.id))
+        send(peer, RESPONSES.authenticated(peer.id, event.metadata?.event.id))
         const p = peers.get(peer.id)
         if (p) {
           p.authenticated = true
@@ -733,7 +752,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
           return
         }
 
-        const { name, identity } = event.data
+        const { name, identity, cognition } = event.data
         if (!name || typeof name !== 'string') {
           send(peer, RESPONSES.error(ServerErrorMessages.moduleAnnounceNameInvalid))
 
@@ -753,7 +772,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         }
 
         p.extensionIdentity = identity.extension
-        registerExtensionModulePeer(p, { name, identity })
+        registerExtensionModulePeer(p, { name, identity, cognition: cognition && typeof cognition === 'object' ? cognition : undefined })
 
         send(peer, {
           type: 'extension:module:announced',
@@ -875,9 +894,17 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
+    // Chat output and source details can contain private text. Missing routes never authorize broadcast, even for devtools or configured middleware.
+    const isDirectedOnly = event.type.startsWith('output:gen-ai:chat:') || event.type === 'context:source:request' || event.type === 'context:source:response' || event.type === 'speech:audio' || event.type === 'speech:stop'
+    if (isDirectedOnly && !event.route?.destinations?.length)
+      return
+
+    // Module IDs can collide or change on a shared connection. Only the server owns the physical return address.
+    event.metadata = { ...event.metadata, originConnectionId: peer.id }
+
     const payload = stringifyEvent(event)
     const allowBypass = options?.routing?.allowBypass !== false
-    const shouldBypass = Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
+    const shouldBypass = !isDirectedOnly && Boolean(event.route?.bypass && allowBypass && isDevtoolsPeer(p))
     const destinations = shouldBypass ? undefined : collectDestinations(event)
     const delivery = shouldBypass ? undefined : resolveEventDelivery(event)
     const effectiveRoutingMiddleware = shouldBypass ? [] : routingMiddleware
@@ -894,7 +921,9 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
-    const selectedConsumer = selectConsumer(event, peer.id, delivery)
+    const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
+    // Consumer selection and broadcast delivery obey the same output boundary.
+    const selectedConsumer = selectConsumer(event, peer.id, delivery, isDirectedOnly ? destinations : undefined, isDirectedOnly ? targetIds : undefined)
     if (delivery && (delivery.mode === 'consumer' || delivery.mode === 'consumer-group')) {
       if (!selectedConsumer) {
         logger.withFields({ peer: peer.id, peerName: p.name, event, delivery }).warn('no consumer registered for event delivery')
@@ -931,7 +960,6 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
       return
     }
 
-    const targetIds = decision?.type === 'targets' ? decision.targetIds : undefined
     const shouldBroadcast = decision?.type === 'broadcast' || !targetIds
 
     logger.withFields({ peer: peer.id, peerName: p.name, event }).debug('broadcasting event to peers')
@@ -951,7 +979,7 @@ export function setupApp(options?: AppOptions): { app: H3, closeAllPeers: () => 
         continue
       }
 
-      if (shouldBroadcast && destinations !== undefined && !matchesDestinations(destinations, other)) {
+      if ((shouldBroadcast || isDirectedOnly) && destinations !== undefined && !matchesDestinations(destinations, other)) {
         continue
       }
 

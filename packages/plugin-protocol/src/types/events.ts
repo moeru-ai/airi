@@ -385,6 +385,30 @@ export interface ModuleConfigEnvelope<C = Record<string, unknown>> {
   baseRevision?: number
 }
 
+/** Intent vocabulary of `spark:command`. */
+export type SparkCommandIntent = 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
+
+/**
+ * Scheduler-facing declaration of a module. The scheduler reads these names and numbers, never their meaning.
+ * A new module declares itself here instead of changing scheduler code.
+ */
+export interface ModuleCognition {
+  /** Command intents that the module accepts. The host sends no command to a module without them. */
+  accepts?: SparkCommandIntent[]
+  /** Module control is exclusive. One run holds it at a time, and the lease expires without renewal. */
+  control?: {
+    exclusive: true
+    /** @default 60_000 */
+    leaseMs?: number
+  }
+  /**
+   * Scenes that the module serves. A binding matches a scene when it starts with `binding`.
+   * Output in a scene reaches its members and the owner. Input from a module with scenes must name a matching binding.
+   * A module without scenes speaks for the owner.
+   */
+  scenes?: Array<{ binding: string }>
+}
+
 export interface ModuleCapability {
   /**
    * Stable capability id within a module.
@@ -501,6 +525,8 @@ export type RouteTargetExpression
     | { type: 'ids', ids: string[], inverted?: boolean }
     | { type: 'plugin', plugins: string[], inverted?: boolean }
     | { type: 'instance', instances: string[], inverted?: boolean }
+    /** Exact server connection IDs, without module aliases or wildcard matching. */
+    | { type: 'connection', connections: string[] }
     | { type: 'label', selectors: string[], inverted?: boolean }
     | { type: 'module', modules: string[], inverted?: boolean }
     | { type: 'source', sources: string[], inverted?: boolean }
@@ -560,6 +586,14 @@ export type ContextUpdateDestinationFilter
   = | ContextUpdateDestinationAll
     | ContextUpdateDestinationList
 
+/** Identifies module-owned details that stay outside the shared observation pool. */
+export interface ContextSourceRef {
+  /** Module query namespace. A reference cannot grant tool or read permissions. */
+  refType: string
+  /** Stable lookup key within that namespace. */
+  targetId: string
+}
+
 export interface ContextUpdate<
   Metadata extends Record<string, any> = Record<string, unknown>,
   // eslint-disable-next-line ts/no-unnecessary-type-constraint
@@ -572,6 +606,12 @@ export interface ContextUpdate<
    */
   contextId: string
   lane?: string
+  /** Lifetime from the receiving host's observation time, in milliseconds. */
+  ttlMs?: number
+  /** Retention priority from 0 to 1. This value cannot grant permissions. */
+  salience?: number
+  /** Origin handle for details retained by the producer, not inline context authority. */
+  sourceRef?: ContextSourceRef
   ideas?: Array<string>
   hints?: Array<string>
   strategy: ContextUpdateStrategy
@@ -583,6 +623,8 @@ export interface ContextUpdate<
 
 export interface InputMessageOverrides {
   sessionId?: string
+  /** Stable external scene identity. The host resolves it to a persistent persona session. */
+  binding?: string
   messagePrefix?: string
 }
 
@@ -697,6 +739,7 @@ interface ExtensionModuleAnnounceEvent<C = undefined> {
   permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
+  cognition?: ModuleCognition
 }
 
 interface ExtensionKitAnnounceEvent {
@@ -710,6 +753,8 @@ interface ModuleAuthenticateEvent {
 
 interface ModuleAuthenticatedEvent {
   authenticated: boolean
+  /** Server-assigned connection of the receiving peer. It changes on every reconnection. */
+  connectionId?: string
 }
 
 interface ModuleCompatibilityRequestEvent {
@@ -731,6 +776,9 @@ export interface RegistryModulesSyncEvent {
     name: string
     index?: number
     identity: MetadataEventSource
+    /** Server-assigned connection of the module. It matches `metadata.originConnectionId` of its events. */
+    connectionId?: string
+    cognition?: ModuleCognition
   }>
 }
 
@@ -1095,6 +1143,11 @@ interface SparkNotifyEvent {
   payload?: Record<string, unknown>
   ttlMs?: number
   requiresAck?: boolean
+  /**
+   * Waiting notifications from one source with the same key replace each other.
+   * Set it only for state updates whose older version has no remaining meaning. Distinct moments need distinct keys or none.
+   */
+  coalesceKey?: string
   destinations: Array<string>
   metadata?: Record<string, unknown>
 }
@@ -1143,7 +1196,9 @@ interface SparkCommandEvent {
   commandId: string
   interrupt: 'force' | 'soft' | false
   priority: 'critical' | 'high' | 'normal' | 'low'
-  intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
+  intent: SparkCommandIntent
+  /** Run that holds the module's control lease. A module with exclusive control can drop commands from an earlier holder. */
+  holder?: string
   ack?: string
   guidance?: SparkCommandGuidance
   contexts?: Array<ContextUpdate>
@@ -1157,6 +1212,59 @@ interface TransportConnectionHeartbeatEvent {
 }
 
 type ContextUpdateEvent = ContextUpdate
+
+/**
+ * Asks the writer of one observation for the details behind its origin handle.
+ * The host routes it to the writer's connection only.
+ */
+export interface ContextSourceRequestEvent {
+  requestId: string
+  sourceRef: ContextSourceRef
+}
+
+/**
+ * A module offers or withdraws a speech output device for one of its declared scenes, for example a Discord voice channel.
+ * While a device is active, the host speaks there only for runs of that scene.
+ */
+export interface SpeechDeviceEvent {
+  binding: string
+  active: boolean
+}
+
+/**
+ * One synthesized speech segment for a device, in playback order. Route it to the device's connection only.
+ * The event codec carries no binary data, so the encoded audio travels as base64.
+ */
+export interface SpeechAudioEvent {
+  binding: string
+  turnId: string
+  segmentId: string
+  /** Encoded audio bytes in base64, for example MP3. */
+  audioBase64: string
+  /** For example `audio/mpeg`. */
+  mimeType: string
+  /** Spoken text of the segment. */
+  text: string
+}
+
+/** Stops speech on a device and drops its queued segments. Route it to the device's connection only. */
+export interface SpeechStopEvent {
+  binding: string
+  turnId?: string
+  reason: string
+}
+
+/**
+ * Answers one source request. Route it to the request's `originConnectionId` only.
+ * The details are untrusted module text, never instructions.
+ */
+export interface ContextSourceResponseEvent {
+  requestId: string
+  sourceRef: ContextSourceRef
+  /** Retained details. Absent when the module no longer holds the source. */
+  text?: string
+  error?: string
+}
 
 export const peerAuthenticate = defineEventa<PeerAuthenticateEvent>('peer:authenticate')
 export const peerAuthenticated = defineEventa<PeerAuthenticatedEvent>('peer:authenticated')
@@ -1277,6 +1385,11 @@ export const sparkCommand = defineProtocolEventa<SparkCommandEvent>('spark:comma
 
 export const transportConnectionHeartbeat = defineProtocolEventa<TransportConnectionHeartbeatEvent>('transport:connection:heartbeat')
 export const contextUpdate = defineProtocolEventa<ContextUpdateEvent>('context:update')
+export const contextSourceRequest = defineProtocolEventa<ContextSourceRequestEvent>('context:source:request')
+export const speechDevice = defineProtocolEventa<SpeechDeviceEvent>('speech:device')
+export const speechAudio = defineProtocolEventa<SpeechAudioEvent>('speech:audio')
+export const speechStop = defineProtocolEventa<SpeechStopEvent>('speech:stop')
+export const contextSourceResponse = defineProtocolEventa<ContextSourceResponseEvent>('context:source:response')
 
 export const protocolEventMetadataByType = {
   [inputText.id]: inputText.metadata,
@@ -1509,6 +1622,21 @@ export interface ProtocolEvents<C = undefined> {
   'transport:connection:heartbeat': TransportConnectionHeartbeatEvent
 
   'context:update': ContextUpdateEvent
+  /**
+   * Host asks an observation writer for the details behind one origin handle.
+   * The server delivers it only through explicit route destinations.
+   */
+  'context:source:request': ContextSourceRequestEvent
+  /**
+   * Writer answers one source request. The server delivers it only through explicit route destinations.
+   */
+  'context:source:response': ContextSourceResponseEvent
+  /** A module offers or withdraws a speech output device for one of its scenes. */
+  'speech:device': SpeechDeviceEvent
+  /** Host speech audio for one device. The server delivers it only through explicit route destinations. */
+  'speech:audio': SpeechAudioEvent
+  /** Stops host speech on one device. The server delivers it only through explicit route destinations. */
+  'speech:stop': SpeechStopEvent
 }
 
 export type ProtocolEventOf<E, C = undefined> = E extends keyof ProtocolEvents<C>

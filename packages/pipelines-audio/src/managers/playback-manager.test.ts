@@ -59,6 +59,23 @@ describe('createPlaybackManager', () => {
     expect(play).toHaveBeenNthCalledWith(2, expect.objectContaining({ id: 'queued' }), expect.any(AbortSignal))
   })
 
+  it('keeps the playing item and drops the intent\'s waiting items when stopping at a boundary', () => {
+    const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
+      signal.addEventListener('abort', () => resolve(), { once: true })
+    }))
+    const interrupted: string[] = []
+    const manager = createPlaybackManager({ maxVoices: 1, overflowPolicy: 'queue', play })
+    manager.onInterrupt(event => interrupted.push(event.item.id))
+
+    manager.schedule(createPlaybackItem('playing', 10, 'intent-1'))
+    manager.schedule(createPlaybackItem('waiting', 10, 'intent-1'))
+    manager.stopByIntent('intent-1', 'interrupt', { keepPlaying: true })
+
+    expect(interrupted).toEqual([])
+    expect((play.mock.calls[0]?.[1] as AbortSignal).aborted).toBe(false)
+    expect(play).toHaveBeenCalledTimes(1)
+  })
+
   it('rejects lower-priority overflow items with steal-lowest-priority policy', () => {
     const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
       signal.addEventListener('abort', () => resolve(), { once: true })

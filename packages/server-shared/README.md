@@ -2,6 +2,11 @@
 
 The shared type definitions for all server-side packages of Project AIRI.
 
+## Input return addresses
+
+The channel server sets `metadata.originConnectionId` on forwarded input events and overwrites any sender-provided value.
+Hosts retain this address for reply routing. The address identifies one live connection, not a module name or an audience permission.
+
 ## Usage
 
 ```shell

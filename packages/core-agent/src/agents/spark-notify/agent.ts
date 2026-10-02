@@ -41,10 +41,14 @@ export type SparkNotifyCommandEvent = Pick<
 /** Result from one complete Spark Notify turn. */
 export interface SparkNotifyHandleResult {
   commands: SparkNotifyCommandEvent[]
+  /** Text the character said. Empty when the agent chose no response or wrote no text. */
+  reaction: string
 }
 
 /** Input that the host gives to a Spark Notify agent for one execution. */
 export interface SparkNotifyHandleRequest {
+  /** Blocks model work, reaction output, and command completion after host cancellation. */
+  abortSignal?: AbortSignal
   event: WebSocketEventOf<'spark:notify'>
   selectedChat: SparkNotifySelectedChat
   systemPrompt: string
@@ -182,6 +186,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
   const plugins = [createSparkNotifyBuiltinToolsPlugin(), ...(options.plugins ?? [])]
 
   async function handle(request: SparkNotifyHandleRequest): Promise<SparkNotifyHandleResult> {
+    request.abortSignal?.throwIfAborted()
     const policy = resolveSparkNotifyRuntimePolicy(request.control)
 
     const preparedSessions = await Promise.all(
@@ -196,6 +201,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
       }),
     )
     const sessions = preparedSessions.filter((session): session is SparkNotifyPluginSession => session !== undefined)
+    request.abortSignal?.throwIfAborted()
     const systemInstructions = sessions.flatMap(session => session.systemInstructions ?? [])
     const userSections = sessions.flatMap(session => session.userSections ?? [])
     const tools = policy.supportsTools
@@ -222,8 +228,10 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
     ]
 
     async function emit(event: SparkNotifyRuntimeEvent) {
-      for (const session of sessions)
+      for (const session of sessions) {
+        request.abortSignal?.throwIfAborted()
         await session.onEvent?.(event)
+      }
     }
 
     await emit({ type: 'messages-rendered', payload: { eventId: request.event.data.eventId, source: request.event.source, messageCount: turns.length } })
@@ -231,12 +239,15 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
     await emit({ type: 'model-input', payload: { eventId: request.event.data.eventId, model: request.selectedChat.model, provider: request.selectedChat.providerId, supportsTools: policy.supportsTools, waitForTools: policy.waitForTools } })
 
     let reaction = ''
+    request.abortSignal?.throwIfAborted()
     await options.runner.run({
+      abortSignal: request.abortSignal,
       selectedChat: request.selectedChat,
       conversation: { turns },
       tools,
       policy,
       onStreamEvent: async (streamEvent) => {
+        request.abortSignal?.throwIfAborted()
         if (streamEvent.type === 'text-delta') {
           const { noResponse } = resultFrom(sessions)
           if (policy.ignoreTextOutput || noResponse)
@@ -262,6 +273,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
       },
     })
 
+    request.abortSignal?.throwIfAborted()
     for (const session of sessions) {
       for (const event of session.getPendingEvents?.() ?? [])
         await emit(event)
@@ -274,7 +286,8 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
       .filter((command): command is SparkNotifyCommandEvent => command !== undefined)
 
     await emit({ type: 'result', payload: { eventId: request.event.data.eventId, reaction: finalReaction, commandCount: expandedCommands.length, noResponse } })
-    return { commands: expandedCommands }
+    request.abortSignal?.throwIfAborted()
+    return { commands: expandedCommands, reaction: finalReaction }
   }
 
   return { handle }

@@ -837,6 +837,9 @@ catalogs:
     jose:
       specifier: ^6.2.10
       version: 6.2.10
+    js-tiktoken:
+      specifier: ^1.0.21
+      version: 1.0.21
     jsdom:
       specifier: ^30.0.1
       version: 30.0.1
@@ -3725,6 +3728,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/core-agent':
+        specifier: workspace:*
+        version: link:../../packages/core-agent
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
@@ -4022,6 +4028,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/core-agent':
+        specifier: workspace:*
+        version: link:../../../packages/core-agent
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../../packages/server-sdk
@@ -4152,6 +4161,9 @@ importers:
       '@xsai/tool':
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      js-tiktoken:
+        specifier: 'catalog:'
+        version: 1.0.21
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -6153,6 +6165,9 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../../packages/core-agent
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -16730,6 +16745,9 @@ packages:
 
   js-cookie@3.0.8:
     resolution: {integrity: sha512-yeJd4aNAdYZQjaon2bpD/Gb0B/omw7HQOsynXXcOiWVCacbBcPlgn8S/d1X6blFSaHao7ozqtW7NZW19xpCtIw==}
+
+  js-tiktoken@1.0.21:
+    resolution: {integrity: sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g==}
 
   js-tokens@10.0.0:
     resolution: {integrity: sha512-lM/UBzQmfJRo9ABXbPWemivdCW8V2G8FHaHdypQaIy523snUjog0W71ayWXTjiR+ixeMyVHN2XcpnTd/liPg/Q==}
@@ -31852,6 +31870,10 @@ snapshots:
       nopt: 7.2.1
 
   js-cookie@3.0.8: {}
+
+  js-tiktoken@1.0.21:
+    dependencies:
+      base64-js: 1.5.1
 
   js-tokens@10.0.0: {}
 

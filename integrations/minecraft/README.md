@@ -2,6 +2,19 @@
 
 This workspace runs AIRI's dedicated Minecraft bot. It connects a Mineflayer runtime to a Minecraft server, loads the cognitive stack in `src/cognitive`, and bridges status, context, and command traffic back to AIRI so the Stage settings shell can observe the service.
 
+The module declares every command intent and exclusive control with a 60-second lease. AIRI admits commands for one session at a time.
+The bridge also drops a command without a holder, and a non-critical command from another session while the last holder's lease lasts.
+
+## Context slots
+
+Plain bridge observations append to the fixed `events` slot. The receiving context registry bounds this event window per writer.
+Structured status updates retain their own `contextId` and replacement strategy.
+The status publisher sends compact facts with a `minecraft:status` source reference, not tool instructions or world data.
+`getStatusSnapshot()` retains the full current status in the module. Oversized observations become references instead of truncated world details.
+A host read of `minecraft:status` returns the server address, player names, and owner. The answer goes only to the requesting connection.
+Online status renews every refresh interval, even without changes. Its TTL expires after three missed refreshes. Unbinding stops renewal.
+The bridge preserves module-declared retention, visibility, and structured observation fields. The receiving host enforces pool admission and reader visibility.
+
 ## Deprecation Notice
 
 This service is on a deprecation path. The current Mineflayer-based bot is expected to be replaced by a Fabric mod based runtime, which will become the primary Minecraft integration surface going forward.

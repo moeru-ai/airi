@@ -70,6 +70,7 @@
   "devDependencies": {
     "@guiiai/logg": "catalog:",
     "@moeru/std": "catalog:",
+    "@proj-airi/core-agent": "workspace:*",
     "@proj-airi/server-sdk": "workspace:*",
     "@types/vscode": "catalog:",
     "es-toolkit": "catalog:",

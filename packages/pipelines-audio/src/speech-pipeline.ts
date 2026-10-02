@@ -2,6 +2,7 @@ import type { Eventa } from '@moeru/eventa'
 
 import type { SpeechPipelineEventName } from './eventa'
 import type {
+  IntentBehavior,
   IntentHandle,
   IntentOptions,
   LoggerLike,
@@ -32,7 +33,8 @@ export interface SpeechPipelineOptions<TAudio> {
   playback: {
     schedule: (item: PlaybackItem<TAudio>) => void
     stopAll: (reason: string) => void
-    stopByIntent: (intentId: string, reason: string) => void
+    /** With `keepPlaying`, the playing item finishes and only waiting items leave. */
+    stopByIntent: (intentId: string, reason: string, options?: { keepPlaying?: boolean }) => void
     stopByOwner: (ownerId: string, reason: string) => void
     onStart: (listener: (event: { item: PlaybackItem<TAudio>, startedAt: number }) => void) => void
     onEnd: (listener: (event: { item: PlaybackItem<TAudio>, endedAt: number }) => void) => void
@@ -50,7 +52,7 @@ interface IntentState {
   streamId: string
   priority: number
   ownerId?: string
-  behavior: 'queue' | 'interrupt' | 'replace'
+  behavior: IntentBehavior
   createdAt: number
   controller: AbortController
   stream: ReadableStream<TextToken>
@@ -417,8 +419,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       return handle
     }
 
-    if (behavior === 'interrupt' && intent.priority >= activeIntent.priority) {
-      cancelIntent(activeIntent.intentId, 'interrupt')
+    if ((behavior === 'interrupt' || behavior === 'interrupt-at-boundary') && intent.priority >= activeIntent.priority) {
+      cancelIntent(activeIntent.intentId, 'interrupt', { atBoundary: behavior === 'interrupt-at-boundary' })
       void runIntent(intent)
       return handle
     }
@@ -427,7 +429,8 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     return handle
   }
 
-  function cancelIntent(intentId: string, reason?: string) {
+  /** Cancels an intent. At a boundary, its playing segment finishes and no later segment plays. */
+  function cancelIntent(intentId: string, reason?: string, cancelOptions?: { atBoundary?: boolean }) {
     const intent = intents.get(intentId)
     if (!intent)
       return
@@ -436,13 +439,29 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     intent.closeStream()
 
     if (activeIntent?.intentId === intentId) {
-      options.playback.stopByIntent(intentId, reason ?? 'canceled')
+      options.playback.stopByIntent(intentId, reason ?? 'canceled', { keepPlaying: cancelOptions?.atBoundary === true })
       return
     }
 
     const index = pending.findIndex(item => item.intentId === intentId)
-    if (index >= 0)
+    if (index >= 0) {
       pending.splice(index, 1)
+      dropWaiting(intent)
+    }
+  }
+
+  /** Ends an intent that never started. Its cancellation is reported like an active intent's, so turn observers always see the turn end. */
+  function dropWaiting(intent: IntentState) {
+    intents.delete(intent.intentId)
+    const reason = intent.controller.signal.reason?.toString()
+    context.emit(speechPipelineEventMap.onIntentCancel, { intentId: intent.intentId, reason })
+    if (intent.turnId)
+      context.emit(speechPipelineEventMap.onTurnCancel, { turnId: intent.turnId, reason })
+  }
+
+  /** Returns whether an intent of the turn waits or plays. */
+  function hasTurn(turnId: string) {
+    return Array.from(intents.values()).some(intent => intent.turnId === turnId)
   }
 
   function interrupt(reason: string) {
@@ -456,7 +475,9 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       intent.controller.abort(reason)
       intent.closeStream()
     }
-    pending.length = 0
+    const waiting = pending.splice(0)
+    for (const intent of waiting)
+      dropWaiting(intent)
     intents.clear()
     activeIntent = null
     options.playback.stopAll(reason)
@@ -465,6 +486,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
   return {
     openIntent,
     cancelIntent,
+    hasTurn,
     interrupt,
     stopAll,
     on<K extends SpeechPipelineEventName>(event: K, listener: SpeechPipelineEvents<TAudio>[K]) {

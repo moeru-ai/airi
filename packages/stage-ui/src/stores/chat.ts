@@ -1,4 +1,4 @@
-import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { AgentRun, Audience, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, ExecutionEnvelope, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
@@ -8,11 +8,11 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
+import { audienceFromBindings, audienceIncludes, createChatOrchestratorRuntime, createStayQuietTool, matchKeywordRecipes, OWNER_AUDIENCE, renderConversationPreview, STAY_QUIET_RECIPE_ID, unionAudiences } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { shallowRef, toRaw } from 'vue'
+import { shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
@@ -27,22 +27,36 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
+import { createContextSourceTool } from '../tools/context-source'
+import { createProposeRecipeTool } from '../tools/propose-recipe'
+import { createUseRecipeTool, describeRecipesForRun, USE_RECIPE_TOOL_NAME } from '../tools/use-recipe'
 import { useLLM } from './ai/chat-llm/llm'
 import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { useCharacterMoodStore } from './character/mood'
+import { createMoodContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
+import { composeRecipeSpacePrompt, composeSystemPrompt } from './chat/prompt-recipe'
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useContextSourceStore } from './mods/api/context-source'
+import { speechDeviceOutput, useSpeechDeviceStore } from './mods/api/speech-device'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useSpendingStore } from './modules/spending'
+import { useTriageStore } from './modules/triage'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { useRecipesStore } from './recipes'
+import { useSchedulerStore } from './scheduler'
+import { useSettingsRunLimits } from './settings/run-limits'
+import { useSettingsSessionLifecycle } from './settings/session-lifecycle'
+import { useSpeechRuntimeStore } from './speech-runtime'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -58,6 +72,8 @@ export interface ChatSendPayload {
   attachments?: { type: 'image', data: string, mimeType: string }[]
   /** Original input metadata for chat hooks and telemetry. */
   input?: WebSocketEventInputs
+  /** Server connection for this reply. Local turns have no transport target. */
+  outputTarget?: ChatOrchestratorSendOptions['outputTarget']
   /** Session that owns the new turn. */
   sessionId: string
   /** Message that the new user turn replies to in the target session. */
@@ -70,6 +86,27 @@ export interface ChatSendPayload {
   temperature?: number
   /** Request-specific top_p override. */
   topP?: number
+}
+
+/** A recipe run in its own session, shown while it waits or works. */
+export interface BackgroundTask {
+  runId: string
+  sessionId: string
+  recipeName: string
+  state: 'queued' | 'working'
+  startedAt: number
+}
+
+/** Characters of a background result that travel in the notice. The rest stays in the recipe's session, which the reference names. */
+const RECIPE_RESULT_NOTICE_LIMIT = 1500
+
+/** Text of a stored reply, without tool calls. */
+function replyTextOf(message: ChatHistoryItem) {
+  if (typeof message.content === 'string')
+    return message.content
+  if ('slices' in message && message.slices?.length)
+    return message.slices.flatMap(slice => slice.type === 'text' ? [slice.text] : []).join('')
+  return ''
 }
 
 /** The durable messages appended while one chat request executes. */
@@ -170,6 +207,8 @@ export type { QueuedSendSnapshot } from '@proj-airi/core-agent'
 
 /** Stands in for an image in a stored tool result while the vision model reads tool images. */
 const STORED_TOOL_IMAGE = 'A tool image was left out of the history.'
+/** The leader checks idle thresholds at this cadence. Status changes take effect within one interval. */
+const SESSION_LIFECYCLE_INTERVAL_MS = 60_000
 
 /** Stands in for an earlier image whose read failed with the current vision selection. */
 const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The vision model failed to read it.'
@@ -194,15 +233,41 @@ export const useChatStore = defineStore('chat', () => {
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
+  const contextSource = useContextSourceStore()
   const cardStore = useAiriCardStore()
+  const mood = useCharacterMoodStore()
+  const speechRuntime = useSpeechRuntimeStore()
+  const recipes = useRecipesStore()
+  // The recipe list reaches only runs that hold the use tool, so a run without tools never claims a recipe.
+  watch(() => recipes.recipes, (list) => {
+    llmToolsetPromptsStore.registerToolsetPrompts('use-recipe', [{
+      id: 'use-recipe',
+      title: 'Recipes',
+      requiredTools: [USE_RECIPE_TOOL_NAME],
+      content: describeRecipesForRun(list),
+    }])
+  }, { immediate: true })
+
+  /** The persona of a session. A session without one uses the selected card. */
+  function personaOf(sessionId: string) {
+    return chatSession.sessionMetas[sessionId]?.characterId || cardStore.activeCardId || 'default'
+  }
   const contextObservability = useContextObservabilityStore()
+  const scheduler = useSchedulerStore()
+  const triage = useTriageStore()
+  const spending = useSpendingStore()
+  const speechDevices = useSpeechDeviceStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
-  const sending = shallowRef(false)
-  const activeSendSessionId = shallowRef<string>()
-  const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
+  // Sessions with a running send, and the live reply of each one. Different sessions can run at the same time.
+  const runningSessionIds = shallowRef<string[]>([])
+  // Session of the running send that holds the voice. Stop and interruption act on this owner.
+  const voiceSessionId = shallowRef<string>()
+  const streamingMessages = shallowRef<Record<string, StreamingAssistantMessage>>({})
   const pendingQueuedSendCount = shallowRef(0)
+  // Background tasks that wait or run, so every window can show and stop them.
+  const backgroundTasks = shallowRef<BackgroundTask[]>([])
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
@@ -213,13 +278,43 @@ export const useChatStore = defineStore('chat', () => {
    * Initializes chat state and binds local consumers to synchronized leadership.
    * A promoted renderer restarts the leader-owned cloud consumer.
    */
+  // Admitted runs, fed by the runtime run table. Request tools read their run audience, and lifecycle reads running sessions.
+  const activeRuns = new Map<string, { sessionId: string, audience: Audience }>()
+  const sessionLifecycleSettings = useSettingsSessionLifecycle()
+  const runLimitSettings = useSettingsRunLimits()
+  let lifecycleTimer: ReturnType<typeof setInterval> | undefined
+
+  function stopLifecycleSweep() {
+    if (lifecycleTimer !== undefined)
+      clearInterval(lifecycleTimer)
+    lifecycleTimer = undefined
+  }
+
+  /** Moves idle sessions toward dormant and retired. Only the leader writes session metadata. */
+  function startLifecycleSweep() {
+    stopLifecycleSweep()
+    const sweep = () => {
+      void chatSession.updateSessionLifecycle({
+        ...sessionLifecycleSettings.thresholds,
+        runningSessionIds: Array.from(activeRuns.values(), run => run.sessionId),
+      }).catch((error) => {
+        console.warn('[chat] Failed to update session lifecycle:', errorMessageFrom(error))
+      })
+    }
+    sweep()
+    lifecycleTimer = setInterval(sweep, SESSION_LIFECYCLE_INTERVAL_MS)
+  }
+
   async function initialize(syncedPinia: SyncedPiniaRuntime) {
+    chatContext.initialize(syncedPinia)
     stopLeadershipListener ??= syncedPinia.onLeadershipChange((isLeader) => {
       if (!isLeader) {
+        stopLifecycleSweep()
         chatSession.dispose()
         return
       }
 
+      startLifecycleSweep()
       void chatSession.ensureCurrentSession().catch((error) => {
         console.error('[chat] Failed to start chat consumers after leader promotion:', error)
       })
@@ -230,6 +325,8 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Stops chat consumers that belong to this window. */
   function dispose() {
+    chatContext.dispose()
+    stopLifecycleSweep()
     stopLeadershipListener?.()
     stopLeadershipListener = undefined
     chatSession.dispose()
@@ -249,6 +346,204 @@ export const useChatStore = defineStore('chat', () => {
       failedImageReads.set(sessionId, reads)
     }
     return reads
+  }
+
+  /**
+   * Session bindings select the scene, and the run audience limits the records that a request reads.
+   * An unbound session reads the owner scene.
+   */
+  function contextReaderFor(sessionId: string, audience: Audience): ContextReader {
+    const bindings = chatSession.sessionMetas[sessionId]?.bindings
+    return { ids: bindings?.length ? [sessionId, ...bindings] : [sessionId, 'character', 'owner:private'], audience }
+  }
+
+  /**
+   * Builds the limits for one send. The owner chat shows every session, so every run reaches the owner.
+   * The voice reaches every active speech device. While a device is active, only a run of that device's scene speaks,
+   * and a local conversation answers in text, so private replies never reach the device's audience.
+   * Without a device, only a local conversation speaks. An external reply goes to its scene as text.
+   * A module without a declared scene speaks for the owner.
+   */
+  function createRunEnvelope(sessionId: string, options: ChatOrchestratorSendOptions): Omit<ExecutionEnvelope, 'sessionId'> {
+    const meta = chatSession.sessionMetas[sessionId]
+    // Session metadata is reactive. The run table clones a plain copy.
+    const bindings = [...meta?.bindings ?? []]
+    // A device speaks only when the speech host can forward this voice. Otherwise the scene gets text, so a reply is never lost.
+    const device = options.outputTarget && speechRuntime.forwardsToDevices ? speechDevices.forBindings(bindings) : undefined
+    const outputs = options.outputTarget
+      ? device ? ['chat:owner', 'voice', speechDeviceOutput(device.binding)] : ['chat:owner', `connection:${options.outputTarget}`]
+      : speechDevices.devices.length && speechRuntime.forwardsToDevices ? ['chat:owner'] : ['chat:owner', 'voice']
+    return {
+      bindings,
+      outputs,
+      audience: options.outputTarget ? unionAudiences(OWNER_AUDIENCE, audienceFromBindings(bindings)) : OWNER_AUDIENCE,
+      personaId: meta?.characterId,
+    }
+  }
+
+  function trackRun(run: AgentRun) {
+    const active = run.state === 'queued' || run.state === 'working'
+    if (active)
+      activeRuns.set(run.runId, { sessionId: run.sessionId, audience: run.envelope.audience })
+    else
+      activeRuns.delete(run.runId)
+
+    // A run in a recipe's own session is a background task.
+    const recipeId = chatSession.sessionMetas[run.sessionId]?.recipeId
+    if (recipeId) {
+      const others = backgroundTasks.value.filter(task => task.runId !== run.runId)
+      const recipe = recipes.recipes.find(entry => entry.id === recipeId)
+      backgroundTasks.value = active
+        ? [...others, { runId: run.runId, sessionId: run.sessionId, recipeName: recipe?.name ?? recipeId, state: run.state === 'working' ? 'working' : 'queued', startedAt: backgroundTasks.value.find(task => task.runId === run.runId)?.startedAt ?? Date.now() }]
+        : others
+    }
+
+    const lifecycleUpdate = run.state === 'working'
+      ? chatSession.markSessionRunStarted(run.sessionId)
+      : run.state === 'queued' ? undefined : chatSession.markSessionRunEnded(run.sessionId)
+    void lifecycleUpdate?.catch((error) => {
+      console.warn('[chat] Failed to record the session lifecycle:', errorMessageFrom(error))
+    })
+  }
+
+  /**
+   * Tells a conversation about finished background work. The main agent reads the notice and decides what to say, or stays quiet.
+   * Only a session that only the owner reads gets a notice, so background results never reach a scene.
+   */
+  async function notifyConversation(sessionId: string, notice: { source: string, text: string, urgent?: boolean }) {
+    if (!audienceIncludes(OWNER_AUDIENCE, chatSession.getSessionAudience(sessionId) ?? OWNER_AUDIENCE))
+      return
+    try {
+      await executeSend({ sessionId, text: notice.text }, { notice: { source: notice.source, urgent: notice.urgent } })
+    }
+    catch (error) {
+      console.warn('[chat] Failed to deliver a notice:', errorMessageFrom(error))
+    }
+  }
+
+  /**
+   * The recipe's own session for a persona. Recovery is a deterministic lookup by recipe, persona, and audience.
+   * A new space starts empty: the identity and the recipe steps come from its prompt, and each task arrives as its own message.
+   */
+  async function recipeSessionFor(recipe: Recipe, parentSessionId: string) {
+    const personaId = personaOf(parentSessionId)
+    const existing = Object.values(chatSession.sessionMetas).find(meta => meta.recipeId === recipe.id
+      && meta.characterId === personaId
+      && meta.status !== 'retired'
+      && audienceIncludes(meta.audience ?? OWNER_AUDIENCE, OWNER_AUDIENCE))
+    if (existing)
+      return existing.sessionId
+    return await chatSession.createSession(personaId, { setActive: false, hidden: !recipe.handover, title: recipe.name, audience: OWNER_AUDIENCE, parentSessionId, recipeId: recipe.id })
+  }
+
+  /**
+   * Proposes a task recipe to the scheduler. It runs as derived work in the recipe's own session, without voice.
+   * Resolves once the run is admitted or refused. When the run settles, its result reaches the parent conversation as a notice, with a reference back to the run.
+   */
+  async function startRecipe(recipe: Recipe, request: { parentSessionId: string, parentRunId?: string, task: string }): Promise<{ status: 'started' } | { status: 'refused', reason: string }> {
+    const tools = recipeToolsFor(recipe, request.parentSessionId)
+    let sessionId: string
+    try {
+      sessionId = await recipeSessionFor(recipe, request.parentSessionId)
+    }
+    catch (error) {
+      return { status: 'refused', reason: errorMessageFrom(error) ?? 'The recipe space could not open' }
+    }
+    return await new Promise((resolve) => {
+      let runId: string | undefined
+      const settle = (result: { ok: boolean, text: string, messageId?: string }) => {
+        const reference = `Source: recipe run ${runId}${result.messageId ? `, message ${result.messageId}` : ''} in session ${sessionId}.`
+        void notifyConversation(request.parentSessionId, {
+          source: `recipe:${recipe.name}`,
+          text: `${result.ok ? `The background task "${recipe.name}" finished.` : `The background task "${recipe.name}" could not finish.`}\n${result.text.trim().slice(0, RECIPE_RESULT_NOTICE_LIMIT) || 'It returned nothing.'}\n${reference}`,
+        })
+      }
+      void executeSend({ sessionId, text: request.task, tools }, {
+        derivation: {
+          parentRunId: request.parentRunId,
+          source: `recipe:${recipe.id}`,
+          onAdmitted: (id) => {
+            runId = id
+            resolve({ status: 'started' })
+          },
+        },
+      }).then((result) => {
+        const reply = result.messages.findLast(message => message.role === 'assistant')
+        settle({ ok: true, text: reply ? replyTextOf(reply) : '', messageId: reply?.id })
+      }).catch((error: unknown) => {
+        const reason = errorMessageFrom(error) ?? 'The recipe run failed'
+        // A refusal before admission is the proposer's answer. A failure after it is a result the conversation must hear.
+        if (runId === undefined)
+          resolve({ status: 'refused', reason })
+        else
+          settle({ ok: false, text: reason })
+      })
+    })
+  }
+
+  /**
+   * Tools that a recipe run may use: those granted to the owner's latest message in the parent conversation, narrowed by the recipe's own list.
+   * A selected tool such as computer use reaches the recipe only when the owner granted it to that message, so derived work never widens access.
+   */
+  function recipeToolsFor(recipe: Recipe, parentSessionId: string): ChatToolReference[] {
+    const granted = chatSession.getSessionMessages(parentSessionId).findLast(message => message.role === 'user')?.tools ?? []
+    const allowed = recipe.style.kind === 'instructions' ? recipe.style.tools : undefined
+    return granted.filter(tool => !allowed || allowed.includes(tool.name)).map(tool => ({ name: tool.name }))
+  }
+
+  /**
+   * Decides recipes before a reply. Decision recipes answer in one classifier call. Keyword triggers and decisions start task recipes in their own space.
+   * Only an owner-only run starts recipes, so a scene message cannot spend the owner's recipes.
+   */
+  async function decideRecipesBeforeReply(input: { sessionId: string, runId: string, message: string, envelope: ExecutionEnvelope, signal: AbortSignal }) {
+    if (chatSession.sessionMetas[input.sessionId]?.recipeId)
+      return undefined
+    const decided = await triage.decideRecipes(recipes.usable, input.message, input.signal)
+    if (decided?.silent || !audienceIncludes(OWNER_AUDIENCE, input.envelope.audience))
+      return decided
+    const triggered = [...matchKeywordRecipes(recipes.usable, input.message), ...recipes.usable.filter(recipe => decided?.recipeIds.includes(recipe.id))]
+      .filter((recipe, index, list) => list.indexOf(recipe) === index && recipe.style.kind === 'instructions' && !recipe.handover)
+    const started: string[] = []
+    for (const recipe of triggered) {
+      const outcome = await startRecipe(recipe, { parentSessionId: input.sessionId, parentRunId: input.runId, task: `The owner said: ${input.message}` })
+      if (outcome.status === 'started')
+        started.push(recipe.name)
+    }
+    if (!started.length)
+      return decided
+    return {
+      silent: decided?.silent,
+      hints: [...decided?.hints ?? [], `These recipes started for this message in their own space: ${started.join(', ')}. Their results reach you later. Reply briefly and do not do their tasks yourself.`],
+      applied: [...decided?.applied ?? [], ...started],
+    }
+  }
+
+  /**
+   * Adds the run tools: the source reader, authorized by the session and run that own the request, and the silence choice.
+   * Both stay in every run request, so the tool list stays stable across turns.
+   */
+  function withRunTools(tools: StreamOptions['tools'], correlation: StreamOptions['requestCorrelation']): StreamOptions['tools'] {
+    if (!correlation)
+      return tools
+    const { conversationId: sessionId, runId } = correlation
+    const audience = (runId ? activeRuns.get(runId)?.audience : undefined) ?? OWNER_AUDIENCE
+    const sourceTools = async () => [
+      ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
+      ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
+    ]
+    // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
+    if (chatSession.sessionMetas[sessionId]?.recipeId)
+      return sourceTools
+    // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
+    const ownerOnly = audienceIncludes(OWNER_AUDIENCE, audience)
+    return async () => [
+      ...await sourceTools(),
+      ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, parentRunId: runId, task }) }) : []),
+      // Reading without replying is a recipe. The owner can turn it off.
+      ...(recipes.isUsable(STAY_QUIET_RECIPE_ID) ? [createStayQuietTool()] : []),
+      // Every proposal waits for the owner's approval.
+      ...(ownerOnly ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
+    ]
   }
 
   async function streamWithStageAdapters(
@@ -356,6 +651,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
+        tools: withRunTools(options?.tools, options?.requestCorrelation),
         headers,
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {
@@ -384,9 +680,9 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
-    sending.value = state.sending
-    activeSendSessionId.value = state.activeSendSessionId
-    activeStreamingMessage.value = state.activeStreamingMessage
+    runningSessionIds.value = state.runningSessionIds
+    voiceSessionId.value = state.voiceSessionId
+    streamingMessages.value = state.streamingMessages
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -432,19 +728,40 @@ export const useChatStore = defineStore('chat', () => {
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
+      getSessionAudience: sessionId => chatSession.getSessionAudience(sessionId),
+      removeSessionMessages: (sessionId, messageIds) => {
+        chatSession.setSessionMessages(sessionId, chatSession.getSessionMessages(sessionId)
+          .filter(message => !message.id || !messageIds.includes(message.id)))
+      },
+      narrowSessionAudience: (sessionId, audience) => {
+        void chatSession.narrowSessionAudience(sessionId, audience).catch((error) => {
+          console.warn('[chat] Failed to narrow the session audience:', errorMessageFrom(error))
+        })
+      },
     },
     context: {
-      ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: () => {
-        const snapshot = { ...chatContext.getContextsSnapshot() }
+      ingest: async (envelope) => { await chatContext.ingestContextMessage(envelope) },
+      snapshot: (sessionId, audience) => {
+        const snapshot = chatContext.getContextsSnapshot(contextReaderFor(sessionId, audience))
         // Account data belongs to this request, not the persistent context registry.
         // A signed-out request therefore cannot inherit the previous account snapshot.
-        const account = createUserAccountContext(authStore)
+        const account = chatSession.sessionMetas[sessionId]?.bindings?.length ? null : createUserAccountContext(authStore)
         if (account)
-          snapshot[account.contextId] = [account]
+          snapshot[account.contextId] = [{ ...account, audience: OWNER_AUDIENCE }]
         return snapshot
       },
     },
+    createEnvelope: createRunEnvelope,
+    getLimits: () => runLimitSettings.limits,
+    runs: scheduler.runs,
+    intake: scheduler.intake,
+    leases: scheduler.leases,
+    decideBeforeReply: decideRecipesBeforeReply,
+    checkSpendingLimit: () => {
+      const until = spending.spendingPausedUntil()
+      return until === undefined ? undefined : t('stage.chat.spending-limit', { time: new Date(until).toLocaleTimeString() })
+    },
+    onRunChange: trackRun,
     foregroundStream: {
       patch: (message) => {
         streamingMessage.value = message
@@ -459,9 +776,23 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    // A digest stands in for older history that no longer fits the request budget.
+    getHistoryDigest: (sessionId) => {
+      const digest = chatSession.sessionMetas[sessionId]?.digest
+      return digest ? { text: digest.text, upToMessageId: digest.upToMessageId } : undefined
+    },
+    // Identity follows the session's persona at request time, so a card switch never rewrites another session.
+    // A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
+    getSystemPrompt: (envelope) => {
+      const identity = composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default'))
+      const recipeId = chatSession.sessionMetas[envelope.sessionId]?.recipeId
+      const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
+      return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
+    },
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
-      createMinecraftContext,
+      // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.
+      sessionId => mood.active ? createMoodContext(mood.describe(personaOf(sessionId))) : undefined,
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
@@ -550,7 +881,7 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
+  async function executeSend(payload: ChatSendPayload, extra: Pick<ChatOrchestratorSendOptions, 'derivation' | 'notice'> = {}): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
@@ -569,10 +900,13 @@ export const useChatStore = defineStore('chat', () => {
       chatProvider,
       attachments: payload.attachments,
       input: payload.input,
+      outputTarget: payload.outputTarget,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
       temperature: payload.temperature ?? consciousnessStore.activeTemperature,
       topP: payload.topP ?? consciousnessStore.activeTopP,
+      derivation: extra.derivation,
+      notice: extra.notice,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
@@ -656,12 +990,12 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
-  function cleanup(sessionId: string) {
+  async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
     chatSession.cleanupMessages(sessionId)
-    chatContext.resetContexts()
     runtime.cancelPendingSends(sessionId)
     chatStream.resetStream()
+    await chatContext.resetContexts()
   }
 
   /** Cancels queued work before permanently removing its owning session. */
@@ -693,14 +1027,33 @@ export const useChatStore = defineStore('chat', () => {
     runtime.cancelPendingSends(sessionId)
   }
 
+  /** Cancels one run in the leader. With rollback, its user turn and partial reply leave the session. */
+  async function cancelRun(runId: string, options?: { rollback?: boolean }) {
+    return runtime.cancelRun(runId, options)
+  }
+
+  /**
+   * Records the speech that reached the listener before playback stopped. Later prompts read only that part.
+   * The chat keeps the generated text. A missing session or message changes nothing.
+   */
+  async function recordDeliveredSpeech(sessionId: string, messageId: string, deliveredSpeech: string) {
+    const messages = chatSession.getSessionMessagesIfLoaded(sessionId)
+    if (!messages?.some(message => message.id === messageId && message.role === 'assistant'))
+      return
+    chatSession.setSessionMessages(sessionId, messages.map(message => message.id === messageId && message.role === 'assistant'
+      ? { ...toRaw(message), deliveredSpeech }
+      : message))
+  }
+
   function getPendingQueuedSendSnapshot() {
     return runtime.getPendingQueuedSendSnapshot()
   }
 
   return {
-    sending,
-    activeSendSessionId,
-    activeStreamingMessage,
+    runningSessionIds,
+    voiceSessionId,
+    backgroundTasks,
+    streamingMessages,
     pendingQueuedSendCount,
 
     initialize,
@@ -712,7 +1065,11 @@ export const useChatStore = defineStore('chat', () => {
     rerunToolCall,
     retry,
     send,
+    startRecipe,
+    notifyConversation,
     cancelPendingSends,
+    cancelRun,
+    recordDeliveredSpeech,
     getPendingQueuedSendSnapshot,
 
     clearHooks: runtime.hooks.clearHooks,
@@ -741,7 +1098,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    actions: ['cancelPendingSends', 'cancelRun', 'cleanup', 'deleteSession', 'recordDeliveredSpeech', 'rerunToolCall', 'retry', 'send'],
     state: true,
   },
 })

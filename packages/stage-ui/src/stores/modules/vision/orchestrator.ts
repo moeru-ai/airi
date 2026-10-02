@@ -1,8 +1,7 @@
-import type { CommonContentPart } from '@xsai/shared-chat'
-
 import type { VisionWorkloadId } from '../../../composables/vision/use-vision-workloads'
 
 import { errorMessageFrom } from '@moeru/std'
+import { createContextText } from '@proj-airi/core-agent/context'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { defineStore, storeToRefs } from 'pinia'
 import { ref } from 'vue'
@@ -10,6 +9,7 @@ import { ref } from 'vue'
 import { useVisionInference } from '../../../composables/vision'
 import { getVisionWorkload } from '../../../composables/vision/use-vision-workloads'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
+import { useContextSourceStore } from '../../mods/api/context-source'
 import { useVisionStore } from './store'
 
 /**
@@ -52,6 +52,9 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
   const { activeProvider, activeModel } = storeToRefs(visionStore)
   const modsServerChannelStore = useModsServerChannelStore()
   const { runVisionInference, lastText } = useVisionInference()
+  // Published descriptions stay here. One entry per context slot answers reads for its origin handle.
+  const publishedDetails = new Map<string, string>()
+  useContextSourceStore().registerSource('vision', sourceRef => publishedDetails.get(sourceRef.targetId))
 
   const lastResultText = ref('')
   const lastResultAt = ref<number | null>(null)
@@ -79,21 +82,14 @@ export const useVisionOrchestratorStore = defineStore('vision-orchestrator', () 
 
       if (payload.publishContext) {
         const workload = getVisionWorkload(payload.workloadId)
-        const content: CommonContentPart[] = [
-          { type: 'text', text },
-          {
-            type: 'image_url',
-            image_url: {
-              url: payload.imageDataUrl,
-            },
-          },
-        ]
+        const contextId = getVisionContextId(payload)
+        publishedDetails.set(contextId, text)
 
+        // The frame stays in this renderer. Oversized descriptions become an origin handle.
         modsServerChannelStore.sendContextUpdate({
           strategy: ContextUpdateStrategy.ReplaceSelf,
-          contextId: getVisionContextId(payload),
-          text,
-          content,
+          contextId,
+          ...await createContextText(text, { refType: 'vision', targetId: contextId }),
           metadata: {
             module: 'vision',
             workload: workload.id,

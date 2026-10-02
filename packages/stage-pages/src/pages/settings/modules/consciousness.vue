@@ -12,6 +12,8 @@ import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
+import ModelSpending from './components/model-spending.vue'
+
 const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
@@ -351,6 +353,8 @@ async function updateTopPEnabled(value: boolean) {
       />
     </div>
   </div>
+
+  <ModelSpending :class="['mt-4']" />
 
   <div
     v-motion

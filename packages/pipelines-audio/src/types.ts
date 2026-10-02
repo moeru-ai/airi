@@ -86,7 +86,11 @@ export interface PlaybackRejectEvent<TAudio> {
   rejectedAt?: number
 }
 
-export type IntentBehavior = 'queue' | 'interrupt' | 'replace'
+/**
+ * How a new intent treats the active one. `interrupt` cuts the playing segment.
+ * `interrupt-at-boundary` lets the playing segment finish, then drops the rest of the active intent.
+ */
+export type IntentBehavior = 'queue' | 'interrupt' | 'interrupt-at-boundary' | 'replace'
 
 export interface IntentOptions {
   turnId?: string

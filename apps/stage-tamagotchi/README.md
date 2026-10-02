@@ -8,6 +8,16 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
 Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
+## Background notifications
+
+The main renderer keeps background throttling disabled because its elected leader runs notification and reminder ticks.
+This setting does not prevent operating-system sleep. Live minimized-window timing still requires desktop verification.
+
+## Configuration ownership
+
+Each main-process config store binds to its user-data directory at first use. Delayed saves cannot move to another directory.
+Stores for the same physical file share cached state. Different files have independent values and diagnostics.
+
 ## Computer use
 
 The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.

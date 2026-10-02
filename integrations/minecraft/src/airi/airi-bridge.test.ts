@@ -2,9 +2,10 @@ import type { Client } from '@proj-airi/server-sdk'
 
 import type { EventBus } from '../cognitive/event-bus'
 
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { describe, expect, it, vi } from 'vitest'
 
-import { AiriBridge } from './airi-bridge'
+import { AiriBridge, MINECRAFT_CONTROL_LEASE_MS } from './airi-bridge'
 
 interface TestCommandEvent {
   data: {
@@ -12,6 +13,7 @@ interface TestCommandEvent {
     intent: 'plan' | 'proposal' | 'action' | 'pause' | 'resume' | 'reroute' | 'context'
     interrupt: 'force' | 'soft' | false
     priority: 'critical' | 'high' | 'normal' | 'low'
+    holder?: string
     guidance?: {
       options?: Array<{ label: string, steps: string[] }>
     }
@@ -47,6 +49,66 @@ function createBridgeHarness(options: { commandAvailable?: boolean } = {}) {
  * bridge.setCommandAvailable(true) lets a generic `spark:command` wake the Minecraft brain.
  */
 describe('airiBridge spark command routing', () => {
+  // ROOT CAUSE:
+  // The bridge rebuilt a subset of context fields and lost the module's retention policy and structured observations.
+  // Structured updates now retain all declared fields before the bridge assigns transport identifiers.
+  it('preserves the retention policy and structured payload declared by the module', () => {
+    const { bridge, client } = createBridgeHarness()
+
+    bridge.sendContextUpdate({
+      id: 'observation',
+      contextId: 'minecraft:status',
+      strategy: ContextUpdateStrategy.ReplaceSelf,
+      lane: 'game',
+      text: 'Bot online',
+      ttlMs: 10_000,
+      salience: 0.8,
+      hints: ['online'],
+      ideas: ['follow owner'],
+      metadata: { sourceRef: 'minecraft:status' },
+      destinations: ['owner:private'],
+    })
+
+    expect(client.send).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'context:update',
+      data: expect.objectContaining({
+        contextId: 'minecraft:status',
+        strategy: 'replace-self',
+        lane: 'game',
+        text: 'Bot online',
+        ttlMs: 10_000,
+        salience: 0.8,
+        hints: ['online'],
+        ideas: ['follow owner'],
+        metadata: { sourceRef: 'minecraft:status' },
+        destinations: ['owner:private'],
+      }),
+    }))
+
+    bridge.destroy()
+  })
+
+  // ROOT CAUSE:
+  // A random contextId on every observation bypassed per-slot event limits.
+  // Plain observations now share the fixed events slot within their writer bucket.
+  it('appends observations to a fixed event slot instead of creating a slot for each event', () => {
+    const { bridge, client } = createBridgeHarness()
+
+    bridge.sendContextUpdate('first observation')
+    bridge.sendContextUpdate('second observation')
+
+    expect(client.send).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      type: 'context:update',
+      data: expect.objectContaining({ contextId: 'events', strategy: 'append-self', text: 'first observation' }),
+    }))
+    expect(client.send).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      type: 'context:update',
+      data: expect.objectContaining({ contextId: 'events', strategy: 'append-self', text: 'second observation' }),
+    }))
+
+    bridge.destroy()
+  })
+
   /**
    * @example
    * expect(eventBus.emit).toHaveBeenCalledWith(expect.objectContaining({ type: 'signal:airi_command' }))
@@ -63,6 +125,7 @@ describe('airiBridge spark command routing', () => {
         intent: 'action',
         interrupt: false,
         priority: 'normal',
+        holder: 'session-a',
         guidance: {
           options: [
             {
@@ -130,5 +193,31 @@ describe('airiBridge spark command routing', () => {
     expect(eventBus.emit).not.toHaveBeenCalled()
 
     bridge.destroy()
+  })
+
+  // The host grants control to one session. A stale holder must not steer the bot after a handoff.
+  it('drops commands from another session while the control lease lasts', () => {
+    vi.useFakeTimers({ now: 0 })
+    const { bridge, client, eventBus, handlers } = createBridgeHarness()
+    const commandHandler = handlers.get('spark:command')
+    const command = (commandId: string, holder: string | undefined, priority: TestCommandEvent['data']['priority'] = 'normal') => commandHandler?.({
+      data: { commandId, intent: 'action', interrupt: false, priority, holder, guidance: { options: [{ label: commandId, steps: [] }] } },
+    })
+    const dropped = () => client.send.mock.calls.filter(([event]) => event.data.state === 'dropped').map(([event]) => [event.data.eventId, event.data.note])
+
+    command('first', 'session-a')
+    command('missing-holder', undefined)
+    command('contradiction', 'session-b')
+    command('critical', 'session-b', 'critical')
+    vi.advanceTimersByTime(MINECRAFT_CONTROL_LEASE_MS)
+    command('after-expiry', 'session-a')
+
+    expect(dropped()).toEqual([
+      ['missing-holder', 'Command has no control holder'],
+      ['contradiction', 'Another AIRI session controls the bot'],
+    ])
+    expect(eventBus.emit).toHaveBeenCalledTimes(3)
+    bridge.destroy()
+    vi.useRealTimers()
   })
 })

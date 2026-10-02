@@ -44,7 +44,7 @@ const airiCardStore = useAiriCardStore()
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
+const { runningSessionIds, streamingMessages } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
 type ChatImageAttachment = NonNullable<ChatSendPayload['attachments']>[number]
@@ -197,10 +197,8 @@ watch(sendMode, () => {
 
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
 const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
-const isActiveSessionSending = computed(() => sending.value && activeSendSessionId.value === activeSessionId.value)
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const isActiveSessionSending = computed(() => runningSessionIds.value.includes(activeSessionId.value))
+const visibleStreamingMessage = computed(() => streamingMessages.value[activeSessionId.value] ?? streamingMessage.value)
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload

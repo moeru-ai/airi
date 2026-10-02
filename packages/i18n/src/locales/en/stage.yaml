@@ -21,6 +21,22 @@ mobile-tools:
   hearing: Hearing
 chat:
   voice-input: Voice input
+  spending-limit: 'The spending limit for this hour is reached. New replies can start after {time}. You can change the limit in Settings → Memory.'
+  background-tasks:
+    label: Background tasks
+    working: Working on
+    waiting: Waiting
+    stop: 'Stop {name}'
+  recipe:
+    using: Starting recipe
+    started: Handed to recipe
+    switched: Switched to recipe
+    applied: Recipe applied
+    pending: Recipe waits for approval
+    disabled: Recipe is off
+    unknown: No such recipe
+    refused: Recipe did not start
+    failed: Recipe did not start
   error-details:
     show: Show details
     hide: Hide details

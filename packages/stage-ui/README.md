@@ -15,6 +15,133 @@ The home page reports when its character model is ready or fails. A failed model
 If the model fails, the user can retry the app or continue without a character.
 The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
 
+## Conversation bindings
+
+External inputs use `overrides.binding` to identify their scene. The session leader creates or recovers a persistent session for that binding.
+Bindings belong to a user and character partition. Recovery keeps the calling window's selected conversation unchanged.
+Discord uses one binding per channel, including threads and direct messages.
+Conversation forks retain their parent session, reason, hidden flag, bindings, and audience. Binding recovery never selects a fork.
+Each session has an allowed `audience`. It starts from its bindings and only narrows through `narrowSessionAudience`.
+A scene recovers only a root session whose audience still includes the scene audience. Otherwise the scene starts a new session.
+Every chat run reaches the owner chat. A reply with an output target also reaches the session's scene. A module without a declared scene speaks for the owner.
+`useModuleDirectoryStore` keeps the server's module list with validated declarations. Input from a module with scenes needs a matching binding and cannot name a session.
+An invalid declaration, for example a scene outside the module's namespace, rejects the module's input. The intake trace records each rejection.
+`sendAdmittedSparkCommand` admits chat tool and notification commands for their run, then sends them. A rejection names the modules that accept the intent.
+Settings > Memory > Attention selects a classifier: none, a Decisions API endpoint, or a chat model that answers in a forced tool call. Users set its trust threshold.
+The Decisions backend defaults to OpenRouter with `inception/mercury-decide:free`. Any endpoint with the same schema works, for example TypeSafe.
+`useTriageStore` decides connection input within 800 ms and appraises notifications within 3 seconds. Without a backend, fixed rules decide.
+The chat model classifier receives only its own tool and system prompt, never the built-in tools.
+The settings page starts the chat model classifier from the conversation provider, lists that provider's models, and falls back to its default model.
+`propose` offers internal work to the same intake. A chain deeper than two proposals is rejected. An admitted proposal becomes a notification run, which can still stay silent.
+The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
+
+## Voice ownership
+
+Only a local conversation run has the `voice` output in its envelope. The stage drives speech, motion, and expression only for that run.
+A reply with an output target, such as a Discord message, goes to its scene and never speaks locally. Hook contexts carry `sessionId`, `runId`, and `outputs`.
+At most one run holds the voice lease. `useSchedulerStore` shares the run table, intake trace, and leases among the run owners of a renderer.
+Stop and interruption act on `voiceSessionId`, so background replies in other sessions keep running.
+The chat store reports `runningSessionIds` and `streamingMessages` per session. Chat surfaces show the reply of the visible session.
+Settings > Memory sets the run limits in a folded section: 4 concurrent replies, 8 waiting messages per session, a 60-second stall timeout, and a 10-minute deadline.
+
+## Session lifecycle
+
+A session is `active` while a run uses it and `idle` after the run ends. The leader moves idle sessions to `dormant`, then `retired`.
+The short-term memory page sets the dormant threshold, and the long-term memory page sets the retired threshold. The defaults are 30 minutes and 30 days, counted from the last run.
+A dormant session still recovers for its scene. A retired session leaves binding recovery, and an explicit run reactivates it.
+An `active` state without a running run returns to idle, for example after the previous leader closed. Lifecycle changes do not unload or archive history.
+`setSessionDigest` stores a summary that ends at a message in its session. The digest keeps the session audience at the time of writing.
+
+Array `destinations` on `context:update` route transport peers. The object form `{ include, exclude, all }` names logical readers.
+A module observation without logical readers belongs to `owner:private`. Bound scenes, such as Discord channels, do not read it.
+Module observations enter chat through a session-filtered context snapshot. Minecraft owns its status and relay descriptions in its integration service.
+The frontend does not rebuild Minecraft prose or inject it into every request. Request-only providers contain application instructions, not module observations.
+Input side context and channel sends use the fixed `events` slot for append updates without a declared `contextId`.
+Explicit append slots still require host admission. Unique event identifiers do not create extra append windows.
+
+## Chat output boundaries
+
+Local chat turns stay inside the host. External input captures one server-assigned return connection, which stays attached to its queued turn.
+Message and completion events target that connection explicitly. They contain the reply and channel metadata, without prompt or context snapshots.
+Discord reads its channel from the top-level `discord` field. Cross-renderer stream projection remains on the local context channel.
+Transport targeting does not replace session audience checks. Those checks form the next scheduler stage.
+
+## Toolset guidance
+
+Toolset prompt contributions can name `requiredTools`. The request grants every listed tool before the prompt enters developer instructions.
+Contributions without `requiredTools` remain host-wide instructions. Register prompts only from trusted tool owners, never from observation text.
+The Spark relay prompt specifies action intent, structured guidance, and truthful submission reports. It is absent when the model cannot use tools.
+
+## Observation details
+
+`builtIn_readContextSource` reads the details behind a `Source details: <type>/<id>` observation.
+The request's session must see an observation that carries that handle. The read goes only to the connection that wrote it.
+Only that writer can answer. A renderer reads its own handles locally. Answers over 1000 tokens are cut and marked.
+The tool wraps details in `<untrusted_content>` tags. Its toolset prompt treats them as data, never instructions.
+Renderer producers register readers with `useContextSourceStore().registerSource()`. Vision registers the `vision` type.
+
+## Cross-renderer observation
+
+The producing renderer mirrors every chat hook through the same-origin stream channel, including replies and completions.
+Other renderers, such as a devtools window, replay them as observation hooks. A mirror never sends module output again.
+
+## Notification ownership
+
+The synchronized context store routes ingestion, reset, pruning, and writer removal to the elected renderer.
+Server module removal clears only the exact extension and module instance. Bounded history prevents delayed copies from restoring removed observations.
+The leader retains the latest 400 removal identities. Duplicate notifications cannot erase reconnected observations within that window.
+Its checkpoint retains original expiry times. Replicated state holds active slots only.
+The leader keeps the bounded delivery history and deduplicates repeated event identities. A promoted leader starts a new dedup window.
+Follower projections do not propose state changes. Initialize chat or its context store with the synchronization runtime to start owner-only idle cleanup.
+Leadership loss and disposal stop cleanup. Promotion continues from the replicated checkpoint without replaying observations.
+
+Initialize the character orchestrator with the installed Pinia synchronization runtime.
+Only the elected renderer runs background notification consumers and reminder ticks. Followers cannot start a ticker manually.
+The notification queue is replicated state. Any renderer enqueues through a leader action, and a promoted leader resumes the queue.
+Leadership loss stops local consumers. Promotion starts them in the new owner.
+Stopping the owner aborts its active notification request and speech intent. Late output cannot issue commands or reactions.
+Every notification and due task passes intake. Source urgency sets the prior salience. Immediate work runs at once when the voice is free.
+Other work waits by its salience. A notification past its time to live is ignored, and a newer one with the same `coalesceKey` replaces waiting ones.
+A due task is an internal stimulus. Each admitted notification is a run with the `voice` output and holds the voice lease until it ends.
+A missing chat model ends the run as `blocked`. A stopped owner ends it as `dropped`.
+Intake checks hard constraints first: coalescing and deadlines. Only then can a classifier appraise the notification.
+Notifications and chat sends wait in one voice line. The tick offers the first due notification in line order, and a released voice triggers it at once.
+An admitted notification still decides inside its run whether to speak.
+`useSpeechDeviceStore` keeps the speech devices that modules offer for their declared scenes. A module leaves with its devices.
+The voice reaches every active device. While a device is active, a local conversation answers in text, and only a run of that device's scene speaks.
+A device run's envelope carries `voice` and `voice-device:<binding>` instead of its text connection, so the reply is spoken, not posted.
+Only the segment pipeline forwards audio. The stage reports this through `useSpeechRuntimeStore().forwardsToDevices`. With streaming or muted speech, device scenes get text replies.
+`createSpeechDeviceForwarder` sends each synthesized segment of a device turn to the device when local playback starts it. A local interruption sends `speech:stop`.
+The stage speaks only speakable text. Code blocks, markup markers, and link addresses stay in the chat and never reach speech.
+A notification at 0.85 salience or more takes the voice from calmer speech. Its reaction interrupts at the next segment boundary, so the playing sentence finishes.
+Other notification reactions wait until current speech ends. Scene sources never reach 0.85.
+A run's speech keeps the voice lease after the run ends, until its turn stops playing. `useSpeechRuntimeStore().holdPlayback` hands the lease over in the speech host.
+The owner's next message cuts in. Calm notifications and scene runs wait until the speech ends.
+Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.
+After three blocked runs within a minute, notifications and recipe triggers wait for a one-minute cooldown. Owner input still runs and shows its failure.
+`trackSpeechDelivery` follows segment playback for each turn. When playback stops early, the speech host records the finished segments through `recordDeliveredSpeech`.
+`useSpeechRuntimeStore` keeps the turn-to-message map. Chat turns and notification reactions both register there.
+A spoken notification reaction joins the active session as an assistant message with `proactive`, without a user turn. Expression markers stay out of it.
+A partly played segment counts as not delivered. A turn that played nothing, for example while speech is muted, records nothing.
+Streaming speech providers bypass the segment pipeline, so their interruptions are not recorded yet.
+Every model request reports through `useLLM`. `useModelProfilesStore` records first-token delay and estimated cost for each provider and model.
+The Consciousness page holds the optional spending limit per rolling hour and the folded model tiers. The conversation model stays the user's choice there.
+While the limit is reached, owner and connection input fails with a message, and notifications and recipe triggers wait. No model is swapped for a cheaper one.
+The spending ledger lives in the leader renderer's memory, so it starts empty after a restart.
+`useCharacterMoodStore` keeps each persona's mood. Its motion follows the temperament that the card editor sets with `TemperamentPad`. With a classifier configured, finished turns and urgent notifications move it. Without one, mood rests and nothing changes.
+Each conversation prompt and notification reaction reads one mood sentence. With SSML on, each spoken segment shifts pitch and speed by the mood at synthesis time. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
+A chat run reads the identity of its session's persona when it starts, through `composeSystemPrompt` in the prompt recipe. Sessions store no system snapshot.
+Long sessions keep their newest exchanges within the core history budget. A session digest, when present, stands in for the rest.
+`useRecipesStore` keeps recipes: built-in ones with their switches, the owner's own, and model proposals waiting for approval. The long-term memory module page links to the recipes page.
+In owner-private conversations, the character can save a recipe the owner asks for through `builtIn_proposeRecipe`. The proposal waits for one approval on the recipes page.
+Decision recipes ask the attention classifier before a reply, in one call with an 800 ms deadline. A late or unsure answer lets the run reply as usual.
+Each recipe runs in its own space: a hidden session with `recipeId` whose prompt adds the recipe steps after the identity. `builtIn_useRecipe` and keyword triggers start it as derived work, and its result returns to the conversation through the character orchestrator.
+The chat shows each handed task as a recipe label. A reply that a decision recipe changed names that recipe.
+The owner can edit owner and model recipes on the recipes page. Built-in recipes only switch on and off.
+The recipes page has two tabs. In conversation lists recipes that act on a message. Auto-run lists the owner's recipes that start on a trigger: a silence, a schedule, or a new observation from a registered source.
+The character orchestrator checks auto-run triggers on each tick. A due recipe asks its gate, then runs in its own session, and its result returns to the active owner conversation.
+Every chat run request carries the silence tool and its guidance. It comes from the built-in stay-quiet recipe, so turning that recipe off removes the tool. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off

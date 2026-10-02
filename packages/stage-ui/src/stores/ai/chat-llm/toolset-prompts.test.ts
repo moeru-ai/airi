@@ -8,11 +8,18 @@ describe('useLlmToolsetPromptsStore', () => {
     setActivePinia(createPinia())
   })
 
-  /**
-   * @example
-   * store.registerToolsetPrompts('plugin-tools', [{ id: 'chess', content: 'Use chess correctly.' }])
-   * expect(store.activeToolsetPrompt).toContain('Use chess correctly.')
-   */
+  it('keeps relay instructions out of host-wide prompts and requires every granted tool', () => {
+    const store = useLlmToolsetPromptsStore()
+    store.registerToolsetPrompts('relay', [{ id: 'relay', requiredTools: ['relay', 'read_status'], content: 'Use the connected relay.' }])
+
+    expect(store.activeToolsetPrompt).toBe('')
+    expect(store.getToolsetPromptForTools([])).toBe('')
+    expect(store.getToolsetPromptForTools(['relay'])).toBe('')
+    expect(store.getToolsetPromptForTools(['relay', 'read_status'])).toContain('Use the connected relay.')
+    store.clearToolsetPrompts('relay')
+    expect(store.getToolsetPromptForTools(['relay', 'read_status'])).toBe('')
+  })
+
   it('renders active toolset prompts grouped by provider and clears them by provider', () => {
     const store = useLlmToolsetPromptsStore()
 

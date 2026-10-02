@@ -7,6 +7,8 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, ref } from 'vue'
 
+import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+
 const useTestAuthStore = defineStore('auth', () => {
   const userId = ref('local')
   const token = ref<string | null>(null)
@@ -125,6 +127,133 @@ afterEach(() => {
 })
 
 describe('chat session synchronization', () => {
+  it('recovers one persistent external session through the leader without changing local selection', async () => {
+    const namespace = `chat-binding:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const leader = useChatSessionStore(leaderContext.pinia)
+    await leader.initialize()
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    const follower = useChatSessionStore(followerContext.pinia)
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await follower.initialize()
+    const selected = follower.activeSessionId
+    const [first, second] = await Promise.all([
+      follower.ensureBoundSession('discord:channel:a'),
+      follower.ensureBoundSession('discord:channel:a'),
+    ])
+
+    expect(first).toBe(second)
+    expect(first).not.toBe(selected)
+    expect(follower.activeSessionId).toBe(selected)
+    expect(leader.sessionMetas[first]?.bindings).toEqual(['discord:channel:a'])
+    expect(Object.values(leader.sessionMetas).filter(meta => meta.bindings?.includes('discord:channel:a'))).toHaveLength(1)
+
+    const other = await follower.ensureBoundSession('discord:channel:b')
+    expect(other).not.toBe(first)
+    leader.appendSessionMessage(first, { id: 'external-input', role: 'user', content: 'hello from A' })
+    await vi.waitFor(() => expect(follower.sessionMessages[first]?.at(-1)?.content).toBe('hello from A'))
+
+    const fork = await follower.forkSession({ fromSessionId: first, reason: 'follow-up', hidden: true })
+    expect(leader.sessionMetas[fork]?.parentSessionId).toBe(first)
+    expect(leader.sessionMetas[fork]?.forkReason).toBe('follow-up')
+    expect(leader.sessionMetas[fork]?.hidden).toBe(true)
+    expect(leader.sessionMetas[fork]?.characterId).toBe('default')
+  })
+
+  // ROOT CAUSE:
+  // A fork had no bindings, so it read the owner's private scene from a channel history.
+  // Recovery also ignored what a history had read, so a narrowed history could return to its channel.
+  it('keeps forks in their scene and recovers a scene only into a compatible root session', async () => {
+    const namespace = `chat-audience:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const store = useChatSessionStore(leaderContext.pinia)
+    await store.initialize()
+    const channel = { kind: 'subjects' as const, subjects: ['discord:channel:a:members', 'user:owner'] }
+
+    const root = await store.ensureBoundSession('discord:channel:a')
+    expect(store.getSessionAudience(root)).toEqual(channel)
+    expect(store.getSessionAudience(store.activeSessionId)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+
+    const fork = await store.forkSession({ fromSessionId: root, hidden: true })
+    expect(store.sessionMetas[fork]?.bindings).toEqual(['discord:channel:a'])
+    expect(store.getSessionAudience(fork)).toEqual(channel)
+    expect(await store.ensureBoundSession('discord:channel:a')).toBe(root)
+
+    // The history read an owner-only record, so it can no longer serve the channel.
+    await store.narrowSessionAudience(root, { kind: 'subjects', subjects: ['user:owner'] })
+    expect(store.getSessionAudience(root)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+    // ROOT CAUSE:
+    //
+    // The persisted meta was a shallow copy, so its audience stayed a Vue proxy, and IndexedDB refused to clone it.
+    // The repository mock never clones, so only this check sees what IndexedDB would see.
+    const persisted = vi.mocked(chatSessionsRepo.saveSession).mock.lastCall?.[1]
+    expect(persisted?.meta.audience).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+    expect(() => structuredClone(persisted)).not.toThrow()
+    await store.narrowSessionAudience(root, channel)
+    expect(store.getSessionAudience(root)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+    const next = await store.ensureBoundSession('discord:channel:a')
+    expect(next).not.toBe(root)
+    expect(next).not.toBe(fork)
+    expect(store.getSessionAudience(next)).toEqual(channel)
+  })
+
+  it('moves idle sessions to dormant and retired, and only a run makes them active again', async () => {
+    const namespace = `chat-lifecycle:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const store = useChatSessionStore(leaderContext.pinia)
+    await store.initialize()
+    const thresholds = { dormantAfterMs: 1_000, retireAfterMs: 10_000 }
+
+    const bound = await store.ensureBoundSession('discord:channel:a')
+    await store.markSessionRunStarted(bound)
+    expect(store.sessionMetas[bound]?.status).toBe('active')
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [bound], now: Date.now() + 100_000 })
+    expect(store.sessionMetas[bound]?.status).toBe('active')
+
+    await store.markSessionRunEnded(bound, 0)
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 500 })
+    expect(store.sessionMetas[bound]?.status).toBe('idle')
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 1_000 })
+    expect(store.sessionMetas[bound]?.status).toBe('dormant')
+    // A dormant scene still recovers its session.
+    expect(await store.ensureBoundSession('discord:channel:a')).toBe(bound)
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 11_000 })
+    expect(store.sessionMetas[bound]?.status).toBe('retired')
+
+    // A retired session leaves automatic recovery, but an explicit run reactivates it.
+    const next = await store.ensureBoundSession('discord:channel:a')
+    expect(next).not.toBe(bound)
+    await store.markSessionRunStarted(bound)
+    expect(store.sessionMetas[bound]?.status).toBe('active')
+
+    // An active session without a running run returns to idle, for example after a leader closes.
+    await store.updateSessionLifecycle({ ...thresholds, runningSessionIds: [], now: 0 })
+    expect(store.sessionMetas[bound]?.status).toBe('idle')
+  })
+
+  it('stores a digest only for a message in its session, with the session audience', async () => {
+    const namespace = `chat-digest:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+    const store = useChatSessionStore(leaderContext.pinia)
+    await store.initialize()
+    const session = await store.ensureBoundSession('discord:channel:a')
+    store.appendSessionMessage(session, { id: 'last', role: 'user', content: 'hello' })
+
+    await expect(store.setSessionDigest(session, { text: 'summary', upToMessageId: 'missing' })).rejects.toThrow('must end at a message')
+    await store.setSessionDigest(session, { text: 'summary', upToMessageId: 'last' })
+
+    expect(store.sessionMetas[session]?.digest).toMatchObject({
+      text: 'summary',
+      upToMessageId: 'last',
+      audience: { kind: 'subjects', subjects: ['discord:channel:a:members', 'user:owner'] },
+    })
+  })
+
   it('initializes a follower through the canonical session action', async () => {
     // ROOT CAUSE:
     //
@@ -187,8 +316,9 @@ describe('chat session synchronization', () => {
       content: 'Hello',
     })
 
-    await vi.waitFor(() => expect(leaderChatStore.sessionMessages[newSessionId]).toHaveLength(2))
-    await vi.waitFor(() => expect(followerChatStore.sessionMessages[newSessionId]).toHaveLength(2))
+    // A session stores no system snapshot, so its first message is the user's.
+    await vi.waitFor(() => expect(leaderChatStore.sessionMessages[newSessionId]).toHaveLength(1))
+    await vi.waitFor(() => expect(followerChatStore.sessionMessages[newSessionId]).toHaveLength(1))
 
     expect(previousSessionId).not.toBe(newSessionId)
     expect(followerChatStore.activeSessionId).toBe(newSessionId)

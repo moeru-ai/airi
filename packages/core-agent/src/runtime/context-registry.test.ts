@@ -1,9 +1,12 @@
 import type { ContextMessage } from '../types/chat'
+import type { ContextTokenCounter } from './context-budget'
 
 import { ContextUpdateStrategy } from '@proj-airi/server-shared/types'
-import { describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it } from 'vitest'
 
-import { createContextRegistry } from './context-registry'
+import { audienceFromBindings, OWNER_AUDIENCE, PUBLIC_AUDIENCE } from './audience'
+import { loadContextTokenCounter } from './context-budget'
+import { createContextRegistry as createRegistry } from './context-registry'
 
 type TestContextMessage = ContextMessage & { source?: string }
 
@@ -23,20 +26,319 @@ function createContextMessage(overrides: Partial<TestContextMessage> = {}): Test
 
   return {
     id,
-    contextId: overrides.contextId ?? id,
+    contextId: overrides.contextId ?? 'sensor-reading',
     strategy: overrides.strategy ?? ContextUpdateStrategy.ReplaceSelf,
     text: overrides.text ?? 'context text',
-    createdAt: overrides.createdAt ?? 1,
+    createdAt: overrides.createdAt ?? Date.now(),
     ...overrides,
   }
 }
 
-/**
- * @example
- * const registry = createContextRegistry()
- * registry.ingest({ strategy: ContextUpdateStrategy.ReplaceSelf, text: 'now' })
- */
+let poolTokenCounter: ContextTokenCounter
+
+beforeAll(async () => {
+  poolTokenCounter = await loadContextTokenCounter()
+})
+
+function createContextRegistry(options: Parameters<typeof createRegistry>[0] = {}) {
+  return createRegistry({ countTokens: poolTokenCounter, ...options })
+}
+
 describe('createContextRegistry', () => {
+  it('requires a token counter only to admit observations', () => {
+    const registry = createRegistry()
+
+    expect(() => registry.ingest(createContextMessage())).toThrow('token counter')
+    expect(registry.checkpoint()).toEqual({ active: {}, history: [] })
+  })
+
+  it('removes all slots for one exact writer and retains history across checkpoints', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ id: 'status', contextId: 'status', metadata: createMetadata('weather', 'station') }))
+    registry.ingest(createContextMessage({ id: 'events', contextId: 'events', metadata: createMetadata('weather', 'station') }))
+    registry.ingest(createContextMessage({ id: 'sibling', metadata: createMetadata('other-weather', 'station') }))
+    registry.ingest(createContextMessage({ id: 'instance', metadata: createMetadata('weather', 'other-station') }))
+
+    expect(registry.removeWriter('weather:station')).toBe(true)
+    expect(registry.removeWriter('weather:station')).toBe(false)
+    const restored = createContextRegistry({ initialState: registry.checkpoint() })
+    expect(Object.keys(restored.snapshot())).toEqual(['other-weather:station', 'weather:other-station'])
+    expect(restored.contextHistory()).toHaveLength(4)
+    restored.ingest(createContextMessage({ id: 'reconnected', metadata: createMetadata('weather', 'station') }))
+    expect(restored.snapshot()['weather:station']?.[0]?.id).toBe('reconnected')
+  })
+
+  it('restores a checkpoint without restarting expiry or replaying history', () => {
+    let timestamp = 1000
+    const registry = createContextRegistry({ now: () => timestamp })
+    registry.ingest(createContextMessage({ source: 'sensor', createdAt: timestamp, ttlMs: 100, text: 'short lived' }))
+    timestamp = 1050
+    const checkpoint = registry.checkpoint()
+    const restored = createContextRegistry({ initialState: checkpoint, now: () => timestamp })
+
+    expect(restored.snapshot()).toEqual(registry.snapshot())
+    expect(restored.contextHistory()).toEqual(registry.contextHistory())
+    checkpoint.active.sensor[0]!.message.text = 'outside mutation'
+    expect(restored.snapshot().sensor?.[0]?.text).toBe('short lived')
+    timestamp = 1100
+    expect(restored.snapshot()).toEqual({})
+    expect(restored.contextHistory()).toHaveLength(1)
+  })
+
+  it('replaces one context slot without erasing another slot from the same writer', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ id: 'position-1', source: 'game', contextId: 'position', text: 'forest' }))
+    registry.ingest(createContextMessage({ id: 'health-1', source: 'game', contextId: 'health', text: '20 HP' }))
+    registry.ingest(createContextMessage({ id: 'position-2', source: 'game', contextId: 'position', text: 'village' }))
+
+    expect(registry.snapshot().game?.map(message => [message.contextId, message.text])).toEqual([
+      ['health', '20 HP'],
+      ['position', 'village'],
+    ])
+  })
+
+  it('keeps equal context ids isolated between writers', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'channel-a', contextId: 'status', text: 'A' }))
+    registry.ingest(createContextMessage({ source: 'channel-b', contextId: 'status', text: 'B' }))
+
+    expect(registry.snapshot()['channel-a']?.[0]?.text).toBe('A')
+    expect(registry.snapshot()['channel-b']?.[0]?.text).toBe('B')
+  })
+
+  it('projects contexts for one reader without leaking another channel', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'discord-a', destinations: ['discord:channel:a'], text: 'private A' }))
+    registry.ingest(createContextMessage({ source: 'discord-b', destinations: ['discord:channel:b'], text: 'private B' }))
+    registry.ingest(createContextMessage({ source: 'clock', destinations: { all: true }, text: 'public time' }))
+
+    const snapshot = registry.snapshot({ ids: ['discord:channel:a'] })
+    expect(Object.keys(snapshot)).toEqual(['discord-a', 'clock'])
+    expect(snapshot['discord-a']?.[0]?.text).toBe('private A')
+    expect(registry.activeContexts()['discord-b']?.[0]?.text).toBe('private B')
+  })
+
+  // ROOT CAUSE:
+  // P0 destinations isolate transport scenes only. A record now also carries the subjects it may reach,
+  // and a run reads it only when the record reaches every subject that the run's outputs reach.
+  it('reads a record only when its allowed audience includes the run audience', () => {
+    const channel = audienceFromBindings(['discord:channel:a'])
+    const registry = createContextRegistry()
+    const shared = { destinations: { all: true as const } }
+    registry.ingest(createContextMessage({ id: 'private', source: 'private', ...shared, audience: OWNER_AUDIENCE }))
+    registry.ingest(createContextMessage({ id: 'channel', source: 'channel', ...shared, audience: channel }))
+    registry.ingest(createContextMessage({ id: 'public', source: 'public', ...shared, audience: PUBLIC_AUDIENCE }))
+    registry.ingest(createContextMessage({ id: 'unlabeled', source: 'unlabeled', ...shared }))
+
+    const ids = (audience?: typeof channel) => Object.values(registry.snapshot({ ids: ['reader'], audience })).flat().map(message => message.id).sort()
+    expect(ids(OWNER_AUDIENCE)).toEqual(['channel', 'private', 'public', 'unlabeled'])
+    expect(ids(channel)).toEqual(['channel', 'public'])
+    expect(ids(PUBLIC_AUDIENCE)).toEqual(['public'])
+    expect(ids()).toEqual(['channel', 'private', 'public', 'unlabeled'])
+  })
+
+  it('applies destination exclusions before includes and filters lanes', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'secret', destinations: { include: ['character'], exclude: ['owner:private'] } }))
+    registry.ingest(createContextMessage({ source: 'chat', destinations: ['character'], lane: 'chat' }))
+    registry.ingest(createContextMessage({ source: 'game', destinations: ['character'], lane: 'game' }))
+    registry.ingest(createContextMessage({ source: 'shared', destinations: ['character'] }))
+
+    expect(Object.keys(registry.snapshot({ ids: ['character', 'owner:private'], lane: 'chat' }))).toEqual(['chat', 'shared'])
+    expect(Object.keys(registry.snapshot({ ids: ['character'] }))).toEqual(['secret', 'chat', 'game', 'shared'])
+  })
+
+  it('lets a reader without a lane subscription read every lane it is addressed by', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'minecraft', lane: 'minecraft:status', destinations: { include: ['owner:private'] } }))
+    registry.ingest(createContextMessage({ source: 'browser', lane: 'web:page', destinations: { include: ['owner:private'] } }))
+
+    expect(Object.keys(registry.snapshot({ ids: ['owner:private'] }))).toEqual(['minecraft', 'browser'])
+    expect(registry.snapshot({ ids: ['discord:channel:a'] })).toEqual({})
+  })
+
+  it('limits unspecified destinations to the writer and treats empty destinations as private', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ source: 'module-a' }))
+    registry.ingest(createContextMessage({ source: 'module-b', destinations: [] }))
+    registry.ingest(createContextMessage({ source: 'module-c', destinations: { exclude: ['other-reader'] } }))
+
+    expect(registry.snapshot({ ids: ['owner:private'] })).toEqual({})
+    expect(Object.keys(registry.snapshot({ ids: ['module-a'] }))).toEqual(['module-a'])
+    expect(registry.snapshot({ ids: ['module-b'] })).toEqual({})
+    expect(Object.keys(registry.snapshot({ ids: ['module-c'] }))).toEqual(['module-c'])
+  })
+
+  it('expires observations before reads and rejects already expired updates', () => {
+    let now = 1_000
+    const registry = createContextRegistry({ now: () => now, defaultTtlMs: 100 })
+    registry.ingest(createContextMessage({ source: 'sensor', createdAt: now }))
+    now = 1_100
+
+    expect(registry.snapshot()).toEqual({})
+    expect(registry.ingest(createContextMessage({ source: 'sensor', createdAt: 1_000 }))).toBeUndefined()
+    expect(registry.activeContexts()).toEqual({})
+    expect(registry.contextHistory()).toHaveLength(2)
+  })
+
+  it('bounds append slots independently of diagnostic history', () => {
+    const registry = createContextRegistry({ maxEntriesPerSlot: 2 })
+    for (const id of ['one', 'two', 'three'])
+      registry.ingest(createContextMessage({ id, source: 'sensor', contextId: 'events', strategy: ContextUpdateStrategy.AppendSelf }))
+
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.contextHistory()).toHaveLength(3)
+  })
+
+  // ROOT CAUSE:
+  // Any contextId accepted append updates, so random slots bypassed the per-slot event limit.
+  // Admission now requires an exact match in the host's fixed append-slot list.
+  it('rejects append updates outside fixed event slots without changing active observations', () => {
+    const registry = createContextRegistry()
+    registry.ingest(createContextMessage({ id: 'stable', source: 'sensor', contextId: 'position', text: 'forest' }))
+
+    const result = registry.ingest(createContextMessage({
+      id: 'append-position',
+      source: 'sensor',
+      contextId: 'position',
+      strategy: ContextUpdateStrategy.AppendSelf,
+      text: 'village',
+    }))
+
+    expect(result).toBeUndefined()
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['stable'])
+    expect(registry.contextHistory().map(message => message.id)).toEqual(['stable', 'append-position'])
+  })
+
+  it('uses an immutable copy of the configured append slots and keeps writer windows separate', () => {
+    const appendContextIds = ['alerts']
+    const registry = createContextRegistry({ appendContextIds, maxEntriesPerSlot: 2 })
+    appendContextIds.push('arbitrary-slot')
+    appendContextIds.splice(0, 1)
+    for (const source of ['sensor-a', 'sensor-b']) {
+      for (const id of ['one', 'two', 'three'])
+        registry.ingest(createContextMessage({ id, source, contextId: 'alerts', strategy: ContextUpdateStrategy.AppendSelf }))
+    }
+
+    expect(registry.snapshot()['sensor-a']?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.snapshot()['sensor-b']?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.ingest(createContextMessage({ source: 'sensor-a', contextId: 'arbitrary-slot', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+    expect(registry.ingest(createContextMessage({ source: 'sensor-a', contextId: 'events', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+    expect(registry.ingest(createContextMessage({ source: 'sensor-a', contextId: 'alerts:other', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+  })
+
+  it('disables append with an empty slot list while retaining replacement updates', () => {
+    const registry = createContextRegistry({ appendContextIds: [] })
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', contextId: 'events', strategy: ContextUpdateStrategy.AppendSelf }))).toBeUndefined()
+    expect(registry.ingest(createContextMessage({ source: 'sensor', contextId: 'events' }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor).toHaveLength(1)
+  })
+
+  it('rejects an oversized replacement without deleting the previous slot', () => {
+    const registry = createContextRegistry({ maxEntryTokens: 5, countTokens: text => text.length })
+    registry.ingest(createContextMessage({ source: 'sensor', text: 'small' }))
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text: 'oversized' }))).toBeUndefined()
+    expect(registry.snapshot().sensor?.[0]?.text).toBe('small')
+  })
+
+  // ROOT CAUSE:
+  // Byte cost rejected short observations, especially multibyte text, despite the pool's token budget.
+  // The default counter now uses one local o200k_base encoding for admission and retention.
+  it.each([
+    'The player is near the village, carrying wood and stone, with enough food to continue exploring safely.',
+    '玩家正在村庄附近探索，生命值正常，背包里有木头、石头和食物。',
+  ])('admits a short observation whose byte length exceeds its token budget: %s', (text) => {
+    const registry = createContextRegistry()
+
+    expect(new TextEncoder().encode(text).length).toBeGreaterThan(80)
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor?.[0]?.text).toBe(text)
+  })
+
+  it('accepts exactly 80 tokens and preserves that slot when a replacement costs 81', () => {
+    const registry = createContextRegistry()
+    const text = `hello${' hello'.repeat(79)}`
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text }))?.mutation).toBe('replace')
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text: `${text} hello` }))).toBeUndefined()
+    expect(registry.snapshot().sensor?.[0]?.text).toBe(text)
+  })
+
+  it('counts token marker text as ordinary untrusted observation content', () => {
+    const registry = createContextRegistry()
+    const text = 'Observed literal <|endoftext|> in a document'
+
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor?.[0]?.text).toBe(text)
+  })
+
+  it('enforces a total token budget across many writers', () => {
+    const registry = createContextRegistry({ maxTokens: 10, maxWriterTokens: 10, countTokens: text => text.length })
+    for (let index = 0; index < 20; index++)
+      registry.ingest(createContextMessage({ source: `writer-${index}`, text: 'four' }))
+
+    const messages = Object.values(registry.snapshot()).flat()
+    expect(messages.reduce((sum, message) => sum + message.text.length, 0)).toBeLessThanOrEqual(10)
+    expect(messages).toHaveLength(2)
+    expect(registry.contextHistory()).toHaveLength(20)
+  })
+
+  // ROOT CAUSE:
+  // The writer pass skipped other writers, and the pool pass resumed after them.
+  // An older entry from another writer survived while the incoming writer lost a fresher slot.
+  it('evicts the lowest retention across writers after the writer budget holds', () => {
+    let now = 0
+    const registry = createContextRegistry({ now: () => now, defaultTtlMs: 100, maxWriterTokens: 6, maxTokens: 9, countTokens: text => text.length })
+    registry.ingest(createContextMessage({ id: 'old', source: 'other', text: 'aaaa', createdAt: 0 }))
+    now = 50
+    registry.ingest(createContextMessage({ id: 'one', source: 'sensor', contextId: 'one', text: 'bb', createdAt: 50 }))
+    registry.ingest(createContextMessage({ id: 'two', source: 'sensor', contextId: 'two', text: 'ccc', createdAt: 50 }))
+    now = 60
+
+    expect(registry.ingest(createContextMessage({ id: 'three', source: 'sensor', contextId: 'three', text: 'ddd', createdAt: 60 }))?.mutation).toBe('replace')
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['two', 'three'])
+    expect(registry.snapshot().other).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  // History copied every delivered body before admission, and checkpoints replicated it to every renderer.
+  it('keeps rejected text and producer payloads out of history and checkpoints', () => {
+    const registry = createContextRegistry({ maxEntryTokens: 5, countTokens: text => text.length })
+    const oversized = 'x'.repeat(10_000)
+    registry.ingest(createContextMessage({ id: 'oversized', source: 'sensor', text: oversized }))
+    registry.ingest(createContextMessage({ id: 'small', source: 'sensor', text: 'small', content: oversized, hints: [oversized], ideas: [oversized] }))
+
+    const checkpoint = JSON.stringify(registry.checkpoint())
+    expect(checkpoint).not.toContain(oversized)
+    expect(registry.contextHistory()).toEqual([
+      expect.objectContaining({ id: 'oversized', sourceKey: 'sensor', text: undefined }),
+      expect.objectContaining({ id: 'small', sourceKey: 'sensor', text: 'small' }),
+    ])
+    expect(registry.snapshot().sensor?.[0]).toEqual(expect.objectContaining({ id: 'small', text: 'small' }))
+  })
+
+  it('rejects an entry whose routing fields exceed the replication budget', () => {
+    const registry = createContextRegistry({ maxEntryBytes: 512 })
+    registry.ingest(createContextMessage({ id: 'stable', source: 'sensor', text: 'stable' }))
+
+    expect(registry.ingest(createContextMessage({ id: 'wide', source: 'sensor', text: 'short', destinations: { include: ['x'.repeat(600)] } }))).toBeUndefined()
+    expect(registry.snapshot().sensor?.map(message => message.id)).toEqual(['stable'])
+  })
+
+  it('limits each writer without evicting another writer to admit an oversized slot', () => {
+    const registry = createContextRegistry({ maxWriterTokens: 6, countTokens: text => text.length })
+    registry.ingest(createContextMessage({ source: 'other', text: 'other' }))
+    registry.ingest(createContextMessage({ source: 'sensor', contextId: 'one', text: 'four' }))
+    registry.ingest(createContextMessage({ source: 'sensor', contextId: 'two', text: 'four' }))
+
+    expect(registry.snapshot().sensor).toHaveLength(1)
+    expect(registry.snapshot().other?.[0]?.text).toBe('other')
+    expect(registry.ingest(createContextMessage({ source: 'sensor', text: 'toolong' }))).toBeUndefined()
+    expect(registry.snapshot().other?.[0]?.text).toBe('other')
+  })
+
   /**
    * @example
    * replace-self from the same source leaves one active entry and reports replace.
@@ -80,12 +382,14 @@ describe('createContextRegistry', () => {
       id: 'first',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'first reading',
     }))
     const secondResult = registry.ingest(createContextMessage({
       id: 'second',
       source: 'sensor',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'second reading',
     }))
 
@@ -201,12 +505,14 @@ describe('createContextRegistry', () => {
       id: 'first',
       source: 'toString',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'first toString bucket entry',
     }))
     const secondResult = registry.ingest(createContextMessage({
       id: 'second',
       source: 'toString',
       strategy: ContextUpdateStrategy.AppendSelf,
+      contextId: 'events',
       text: 'second toString bucket entry',
     }))
 
@@ -271,7 +577,7 @@ describe('createContextRegistry', () => {
         sourceKey: 'sensor',
       }),
     ])
-    expect(registry.activeContexts().sensor).toEqual([])
+    expect(registry.activeContexts()).toEqual({})
   })
 
   /**
