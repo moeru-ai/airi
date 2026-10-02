@@ -1,10 +1,15 @@
 import type { Card } from '@proj-airi/ccc'
+import type { Temperament } from '@proj-airi/core-agent'
 
 import type { AiriExtension } from '../types/airiCard'
 
+import { DEFAULT_TEMPERAMENT } from '@proj-airi/core-agent'
 import {
   check,
+  maxValue,
+  minValue,
   nonEmpty,
+  number,
   object,
   objectWithRest,
   parseJson,
@@ -179,6 +184,23 @@ export function applyAiriCardEditorModules(
       },
     },
   }
+}
+
+const temperamentSchema = object({
+  valence: pipe(number(), minValue(-1), maxValue(1)),
+  arousal: pipe(number(), minValue(-1), maxValue(1)),
+})
+
+/** Reads a card's temperament. A card without a valid one uses the default. */
+export function getAiriCardTemperament(card: Card | undefined): Temperament {
+  const extension = card?.extensions?.airi
+  const result = safeParse(temperamentSchema, isRecord(extension) ? extension.temperament : undefined)
+  return result.success ? result.output : { ...DEFAULT_TEMPERAMENT }
+}
+
+/** Sets the temperament on a card that already has its AIRI extension. */
+export function applyAiriCardTemperament(card: CardWithAiriExtension, temperament: Temperament): CardWithAiriExtension {
+  return { ...card, extensions: { ...card.extensions, airi: { ...card.extensions.airi, temperament: { ...temperament } } } }
 }
 
 function isAiriExtension(value: unknown): value is AiriExtension {

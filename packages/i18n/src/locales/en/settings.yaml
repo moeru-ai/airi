@@ -476,6 +476,16 @@ pages:
     scenario: Scenario
     search: Search cards...
     sort_by: Sort by
+    temperament:
+      label: Temperament
+      description: Drag the point in the cross of joy, anger, sorrow, and contentment. The direction is the side this character leans to, and those feelings last longer. Near the center, it stays rational and calms down quickly. Near the edge, it feels more and longer. Mood changes only when a classifier is set in Attention.
+      joy: Joy
+      anger: Anger
+      sorrow: Sorrow
+      contentment: Contentment
+      rational: Rational
+      balanced: Balanced
+      summary: 'Leans to {leaning} · {emotional}% emotional'
     body-model: Body / Display Model
     speech:
       provider: Speech / Provider
@@ -493,17 +503,11 @@ pages:
     upload: Upload
     upload_desc: Click or drag an AIRI card package to import
   memory:
+    advanced:
+      title: Advanced
+      description: Settings that rarely need a change. The defaults fit most setups.
     description: Where memories got stored, and organized
     title: Memory
-    sessions:
-      title: Chat sessions
-      description: A chat session becomes dormant after a quiet period, then retired after a longer one. A dormant session still resumes. A retired session no longer resumes for its external scene.
-      dormant_after:
-        label: Dormant after (minutes)
-        description: Minutes without activity before a chat session becomes dormant.
-      retire_after:
-        label: Retired after (days)
-        description: Days in the dormant state before a chat session retires. You can still open and continue it.
     runs:
       title: Replies in progress
       description: Limits for replies that run at the same time. A limit never switches models or skips a reply silently. Work over a limit waits or fails with a message.
@@ -550,31 +554,6 @@ pages:
       appraisal_interval:
         label: Idle check interval (minutes)
         description: While no reply runs, the character looks at the current observations this often and can raise something unprompted. This sets how often it looks, not how often it speaks. 0 turns it off.
-    models:
-      title: Models and spending
-      description: You choose the conversation model on the Consciousness page. Nothing here changes it. A spending limit stops new work and never switches to a cheaper model.
-      spending_limit_enabled:
-        label: Spending limit
-        description: Stops new replies, notification reactions, and idle checks when the estimated cost in the last hour reaches the limit. Your message shows why it was refused.
-      spending_limit_amount:
-        label: Limit per hour
-        description: The estimate uses the provider's catalog prices and reported token usage.
-      spending_limit_currency:
-        label: Currency
-        description: Requests priced in another currency are not counted.
-      tiers:
-        label: Model tiers
-        description: Mark how well a model serves you. An experimental router reads these marks for tasks other than the conversation. Unmarked models never take part.
-        provider: Provider
-        model: Model
-        tier: Tier
-        add: Add
-        remove: Remove
-        empty: No marked models yet.
-        options:
-          fast: Fast
-          default: Default
-          strong: Strong
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets
@@ -756,6 +735,31 @@ pages:
       gaming: Gaming
       artistry: Artistry
     consciousness:
+      spending:
+        title: Models and spending
+        description: The conversation model above stays your choice. A spending limit stops new work and never switches to a cheaper model.
+        spending_limit_enabled:
+          label: Spending limit
+          description: Stops new replies, notification reactions, and idle checks when the estimated cost in the last hour reaches the limit. Your message shows why it was refused.
+        spending_limit_amount:
+          label: Limit per hour
+          description: The estimate uses the provider's catalog prices and reported token usage.
+        spending_limit_currency:
+          label: Currency
+          description: Requests priced in another currency are not counted.
+        tiers:
+          label: Model tiers
+          description: Mark how well a model serves you. An experimental router reads these marks for tasks other than the conversation. Unmarked models never take part.
+          provider: Provider
+          model: Model
+          tier: Tier
+          add: Add
+          remove: Remove
+          empty: No marked models yet.
+          options:
+            fast: Fast
+            default: Default
+            strong: Strong
       description: Personality, desired model, etc.
       sections:
         section:
@@ -883,9 +887,33 @@ pages:
     memory-long-term:
       description: Long-term memory specific settings and management
       title: Long-Term Memory
+      sessions:
+        title: Chat sessions
+        description: A dormant session retires after a longer period. A retired session no longer resumes for its external scene. Remembered facts arrive with a later update.
+        retire_after:
+          label: Retired after (days)
+          description: Days in the dormant state before a chat session retires. You can still open and continue it.
     memory-short-term:
       description: Short-term memory specific settings and management
       title: Short-Term Memory
+      sessions:
+        title: Chat sessions
+        description: A chat session becomes dormant after a quiet period. A dormant session still resumes.
+        dormant_after:
+          label: Dormant after (minutes)
+          description: Minutes without activity before a chat session becomes dormant.
+      mood:
+        title: Current mood
+        description: The character's mood right now. It moves after conversations and urgent events, then fades back by the temperament on its character card.
+        inactive: Mood stays calm until a classifier is set in Settings → Memory → Attention.
+        reset: Reset mood
+        labels:
+          neutral: Calm
+          happy: Cheerful
+          sad: Down
+          angry: Irritated
+          awkward: Uneasy
+        strength: '{label} ({percent}%)'
     messaging-discord:
       description: Chat & voice chat over Discord
       title: Discord

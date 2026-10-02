@@ -7,9 +7,10 @@ import type { Ref } from 'vue'
 
 import { errorMessageFrom } from '@moeru/std'
 import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
+import { TemperamentPad } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { DEFAULT_ARTISTRY_WIDGET_INSTRUCTION } from '@proj-airi/stage-ui/constants/prompts/artistry-instruction'
-import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
+import { applyAiriCardEditorModules, applyAiriCardTemperament, getAiriCardEditorModuleSettings, getAiriCardTemperament, safeParseAiriCardDraft } from '@proj-airi/stage-ui/services/airi-card-editor'
 import { resolveModuleSelection } from '@proj-airi/stage-ui/services/airi-card-modules'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -89,6 +90,7 @@ const selectedSpeechModel = ref<string>('')
 const selectedSpeechVoiceId = ref<string>('')
 const previewVoices = ref<VoiceInfo[]>([])
 const selectedDisplayModelId = ref<string>('')
+const temperament = ref(getAiriCardTemperament(undefined))
 
 // NOTICE:
 // The editor needs a non-empty option value for inherited settings.
@@ -453,6 +455,7 @@ function initializeCard(): Card {
   selectedSpeechModel.value = moduleSettings.speech.model
   selectedSpeechVoiceId.value = moduleSettings.speech.voice_id
   selectedDisplayModelId.value = moduleSettings.displayModelId ?? ''
+  temperament.value = getAiriCardTemperament(existingCard)
 
   // NOTICE: keep legacy `extensions.airi.artistry` fallback so existing cards continue to load.
   const artistrySettings = airiExt?.modules?.artistry || airiExt?.artistry
@@ -498,6 +501,7 @@ interface EditorSnapshot {
     voiceId: string
   }
   displayModelId: string
+  temperament: { valence: number, arousal: number }
   artistry: {
     provider: string
     model: string
@@ -528,6 +532,7 @@ function createEditorSnapshot(): EditorSnapshot {
       voiceId: selectedSpeechVoiceId.value,
     },
     displayModelId: selectedDisplayModelId.value,
+    temperament: { ...temperament.value },
     artistry: {
       provider: selectedArtistryProvider.value,
       model: selectedArtistryModel.value,
@@ -652,7 +657,7 @@ async function handleSave(activate: boolean) {
 
     showError.value = false
     const { card: rawCard, artistryOptions } = draftResult.output
-    const cardWithModules = applyAiriCardEditorModules(rawCard, {
+    const cardWithModules = applyAiriCardTemperament(applyAiriCardEditorModules(rawCard, {
       consciousness: {
         provider: selectedConsciousnessProvider.value,
         model: selectedConsciousnessModel.value,
@@ -677,7 +682,7 @@ async function handleSave(activate: boolean) {
         autonomousEnabled: selectedArtistryAutonomousEnabled.value,
         autonomousThreshold: selectedArtistryAutonomousThreshold.value,
       },
-    })
+    }), temperament.value)
 
     let savedCardId: string
     if (isEditMode.value && props.cardId) {
@@ -903,6 +908,15 @@ function handleBack() {
                 <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" :input-class="editorLongTextareaClass" />
               </div>
               <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" :required="false" />
+              <div :class="['flex flex-col', 'gap-2']">
+                <div :class="['text-sm font-medium']">
+                  {{ t('settings.pages.card.temperament.label') }}
+                </div>
+                <div :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
+                  {{ t('settings.pages.card.temperament.description') }}
+                </div>
+                <TemperamentPad v-model="temperament" />
+              </div>
             </div>
             <!-- Modules -->
             <div v-else-if="activeSection === 'modules'" :class="['flex flex-col gap-5']">

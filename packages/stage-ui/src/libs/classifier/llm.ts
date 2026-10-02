@@ -24,8 +24,19 @@ function answerSchema(question: ClassifierQuestion): Record<string, unknown> {
       return {
         type: 'object',
         description: `${description}\nOptions: ${Object.entries(question.criteria).map(([name, meaning]) => `${name}: ${meaning}`).join('; ')}`,
-        properties: { choice: { type: 'string', enum: Object.keys(question.criteria) }, confidence },
-        required: ['choice', 'confidence'],
+        properties: {
+          choice: { type: 'string', enum: Object.keys(question.criteria) },
+          confidence,
+          // Decisions API backends return a probability for every option. Asking for the same keeps mixed answers mixed.
+          probabilities: {
+            type: 'object',
+            description: 'The probability of each option, from 0 to 1. They sum to 1.',
+            properties: Object.fromEntries(Object.keys(question.criteria).map(name => [name, { type: 'number', minimum: 0, maximum: 1 }])),
+            required: Object.keys(question.criteria),
+            additionalProperties: false,
+          },
+        },
+        required: ['choice', 'confidence', 'probabilities'],
         additionalProperties: false,
       }
     case 'score':

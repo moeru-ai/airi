@@ -1,12 +1,13 @@
-import type { MoodDimension, MoodState, Pad } from '@proj-airi/core-agent'
+import type { MoodProfile, MoodState, Pad } from '@proj-airi/core-agent'
 
-import { applyMoodAppraisal, askWithin, decayMood, DEFAULT_MOOD_PROFILE, moodIntensity, moodQuestions } from '@proj-airi/core-agent'
+import { applyMoodAppraisal, askWithin, calmMood, decayMood, moodExpression, moodIntensitiesFromAnswers, moodPad, moodProfileFromTemperament, moodQuestions } from '@proj-airi/core-agent'
 import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
 
+import { getAiriCardTemperament } from '../../services/airi-card-editor'
+import { useAiriCardStore } from '../modules/airi-card'
 import { useTriageStore } from '../modules/triage'
-import { useSettingsTriage } from '../settings/triage'
 
 /** A mood appraisal is not urgent, so it waits longer than intake triage. A late answer leaves mood unchanged. */
 export const MOOD_APPRAISAL_DEADLINE_MS = 3_000
@@ -27,25 +28,36 @@ const PERSONA_TEXT_LIMIT = 1_000
  * - Stored states and the mood now, after decay. Without a classifier, mood has no update path and rests at the baseline.
  */
 export const useCharacterMoodStore = defineStore('character-mood', () => {
-  const states = useLocalStorage<Record<string, MoodState>>('character/mood/states', {})
+  const states = useLocalStorage<Record<string, MoodState>>('character/mood/feelings', {})
   const triage = useTriageStore()
-  const triageSettings = useSettingsTriage()
+  const cards = useAiriCardStore()
 
   /** Whether mood can change. The stage and the conversation use mood only while it can. */
   const active = computed(() => Boolean(triage.classifier))
 
+  /** How the persona's mood moves, from the temperament on its card. */
+  function profileOf(personaId: string): MoodProfile {
+    return moodProfileFromTemperament(getAiriCardTemperament(cards.getCard(personaId)))
+  }
+
   /** The persona's mood now. Decay is computed on read and never stored. */
   function current(personaId: string, now = Date.now()): Pad {
+    const profile = profileOf(personaId)
     const state = states.value[personaId]
-    return state ? decayMood(state, DEFAULT_MOOD_PROFILE, now).pad : DEFAULT_MOOD_PROFILE.baseline
+    return moodPad(state ? decayMood(state, profile, now) : calmMood(now), profile)
+  }
+
+  /** The baseline expression of the persona's mood now, for displays. */
+  function expressionOf(personaId: string, now = Date.now()) {
+    return moodExpression(current(personaId, now))
   }
 
   /**
-   * Scores how the latest interaction makes the persona feel, and moves its mood.
-   * Every dimension needs a confident answer. Otherwise mood stays as it is, because a missing score would read as calm.
+   * Asks the attention classifier how the latest interaction makes the persona feel, and moves its mood.
+   * Feeling probabilities are the weights, so an unsure answer spreads or shrinks them. Smoothing handles the noise, so mood skips the trust threshold.
    *
    * Returns:
-   * - The new state, or undefined when no classifier answered with confidence in time.
+   * - The new state, or undefined when the classifier did not answer both questions in time.
    */
   async function appraise(personaId: string, input: { persona?: string, interaction: string }): Promise<MoodState | undefined> {
     const classifier = triage.classifier
@@ -57,24 +69,29 @@ export const useCharacterMoodStore = defineStore('character-mood', () => {
       questions: moodQuestions(),
     }, { deadlineMs: MOOD_APPRAISAL_DEADLINE_MS })
 
-    const intensities: Partial<Record<MoodDimension, number>> = {}
-    for (const dimension of Object.keys(moodQuestions()) as MoodDimension[]) {
-      const answer = answers?.[dimension]
-      if (answer?.type !== 'score' || !Number.isFinite(answer.score) || answer.confidence < triageSettings.effectiveThreshold)
-        return undefined
-      intensities[dimension] = moodIntensity(answer.score)
-    }
+    const intensities = moodIntensitiesFromAnswers(answers)
+    if (!intensities)
+      return undefined
 
     const now = Date.now()
-    const next = applyMoodAppraisal(states.value[personaId] ?? { pad: DEFAULT_MOOD_PROFILE.baseline, updatedAt: now }, DEFAULT_MOOD_PROFILE, intensities, now)
+    const next = applyMoodAppraisal(states.value[personaId] ?? calmMood(now), profileOf(personaId), intensities, now)
     states.value = { ...states.value, [personaId]: next }
     return next
+  }
+
+  /** Returns the persona to its baseline at once. */
+  function reset(personaId: string) {
+    const { [personaId]: _removed, ...rest } = states.value
+    states.value = rest
   }
 
   return {
     states,
     active,
+    profileOf,
     current,
+    expressionOf,
     appraise,
+    reset,
   }
 })

@@ -1,4 +1,4 @@
-import type { ScoreQuestion } from './classifier'
+import type { ChoiceQuestion, ClassifierAnswer, ScoreQuestion } from './classifier'
 
 /** A point in pleasure, arousal, and dominance space. Each axis runs from -1 to 1. */
 export interface Pad {
@@ -8,7 +8,7 @@ export interface Pad {
 }
 
 /** Appraisal dimensions. Each one is one score question in the same classifier call. */
-export type MoodDimension = 'joy' | 'anger' | 'sadness' | 'fear' | 'boredom'
+export type MoodDimension = 'joy' | 'contentment' | 'anger' | 'sadness' | 'fear' | 'boredom'
 
 /**
  * Where each appraisal dimension points in PAD space.
@@ -16,95 +16,201 @@ export type MoodDimension = 'joy' | 'anger' | 'sadness' | 'fear' | 'boredom'
  */
 export const MOOD_DIMENSION_VECTORS: Record<MoodDimension, Pad> = {
   joy: { pleasure: 0.8, arousal: 0.5, dominance: 0.4 },
+  contentment: { pleasure: 0.6, arousal: -0.4, dominance: 0.2 },
   anger: { pleasure: -0.5, arousal: 0.6, dominance: 0.3 },
   sadness: { pleasure: -0.6, arousal: -0.3, dominance: -0.3 },
   fear: { pleasure: -0.6, arousal: 0.6, dominance: -0.4 },
   boredom: { pleasure: -0.6, arousal: -0.6, dominance: -0.3 },
 }
 
-const LEVELS = ['not at all', 'slightly', 'moderately', 'strongly', 'very strongly']
-const HIGHEST_LEVEL = LEVELS.length - 1
+const MOOD_DIMENSIONS = Object.keys(MOOD_DIMENSION_VECTORS) as MoodDimension[]
 
-const DIMENSION_WORDING: Record<MoodDimension, string> = {
-  joy: 'happy or pleased',
-  anger: 'angry or annoyed',
-  sadness: 'sad or let down',
-  fear: 'nervous or afraid',
-  boredom: 'bored',
+const STRENGTH_LEVELS = ['none', 'slight', 'moderate', 'strong', 'very strong']
+const HIGHEST_LEVEL = STRENGTH_LEVELS.length - 1
+
+const FEELING_CRITERIA: Record<MoodDimension | 'none', string> = {
+  joy: 'Happy or excited',
+  contentment: 'Content or at ease',
+  anger: 'Angry or annoyed',
+  sadness: 'Sad or let down',
+  fear: 'Nervous or afraid',
+  boredom: 'Bored',
+  none: 'No particular feeling',
 }
 
-/** Score questions for one mood appraisal, asked in one classifier call. */
-export function moodQuestions(): Record<MoodDimension, ScoreQuestion> {
-  return Object.fromEntries((Object.keys(DIMENSION_WORDING) as MoodDimension[]).map(dimension => [dimension, {
-    type: 'score',
-    instructions: `How ${DIMENSION_WORDING[dimension]} does the latest interaction make this character feel, given its persona and current mood?`,
-    criteria: LEVELS,
-  } satisfies ScoreQuestion])) as Record<MoodDimension, ScoreQuestion>
+/**
+ * Questions for one mood appraisal, asked in one classifier call.
+ * The probabilities of the `feeling` choice are the weights of each feeling, so mixed feelings stay mixed. `strength` scales them all.
+ */
+export function moodQuestions(): { feeling: ChoiceQuestion, strength: ScoreQuestion } {
+  return {
+    feeling: {
+      type: 'choice',
+      instructions: 'Which feeling does the latest interaction cause in this character, given its persona and current mood?',
+      criteria: FEELING_CRITERIA,
+    },
+    strength: {
+      type: 'score',
+      instructions: 'How strong is that feeling?',
+      criteria: STRENGTH_LEVELS,
+    },
+  }
 }
 
-/** Turns a score answer into an intensity from 0 to 1. */
+/** Turns a strength score into an intensity from 0 to 1. */
 export function moodIntensity(score: number) {
   return Math.min(Math.max(score / HIGHEST_LEVEL, 0), 1)
 }
 
+/**
+ * Composes feeling intensities from one appraisal: the weight of each feeling times the strength.
+ *
+ * Expects:
+ * - A `feeling` choice and a `strength` score. Option probabilities are the weights. Without probabilities, the chosen feeling weighs its confidence.
+ *
+ * Returns:
+ * - Intensities from 0 to 1, or undefined when an answer is missing. Uncertain answers spread or shrink the weights instead of being dropped.
+ */
+export function moodIntensitiesFromAnswers(answers: Record<string, ClassifierAnswer> | undefined): Record<MoodDimension, number> | undefined {
+  const feeling = answers?.feeling
+  const strength = answers?.strength
+  if (feeling?.type !== 'choice' || strength?.type !== 'score' || !Number.isFinite(strength.score))
+    return undefined
+
+  const raw = feeling.probabilities
+    ? Object.fromEntries(Object.keys(FEELING_CRITERIA).map(option => [option, Math.max(feeling.probabilities?.[option] ?? 0, 0)]))
+    : { [feeling.choice]: Math.min(Math.max(feeling.confidence, 0), 1) }
+  const total = Object.values(raw).reduce((sum, weight) => sum + weight, 0)
+  // Probabilities that do not sum to one are normalized. A lone choice keeps its confidence as the weight.
+  const scale = feeling.probabilities && total > 0 ? 1 / total : 1
+  const level = moodIntensity(strength.score)
+  return Object.fromEntries(MOOD_DIMENSIONS.map(dimension => [dimension, (raw[dimension] ?? 0) * scale * level])) as Record<MoodDimension, number>
+}
+
+/**
+ * A persona's temperament: one point in the cross of joy, anger, sorrow, and contentment.
+ * `valence` runs from unpleasant to pleasant, and `arousal` from calm to excited. Each runs from -1 to 1.
+ * The direction is the side the persona leans to. The distance from the center is how emotional it is. The center is the most rational.
+ */
+export interface Temperament {
+  valence: number
+  arousal: number
+}
+
+export const DEFAULT_TEMPERAMENT: Temperament = { valence: 0.3, arousal: 0 }
+
 /** How one persona's mood moves. Each persona keeps its own. */
 export interface MoodProfile {
-  /** Where mood rests without new appraisals. */
+  /** Where mood rests without feelings. */
   baseline: Pad
   /** Share of the distance to a new appraisal that one update covers, from 0 to 1. Lower values smooth noisy scores more. */
   sensitivity: number
-  /** Time for half of the distance to the baseline to fade. */
-  halfLifeMs: number
+  /** Time for half of each feeling to fade. Feelings last for different times, so the mood curve is not one exponential. */
+  halfLifeMs: Record<MoodDimension, number>
 }
 
-export const DEFAULT_MOOD_PROFILE: MoodProfile = {
-  baseline: { pleasure: 0.1, arousal: 0, dominance: 0 },
-  sensitivity: 0.3,
-  halfLifeMs: 10 * 60 * 1000,
+const MINUTE = 60 * 1000
+
+/** How long each feeling lasts for a balanced persona. Anger flares and fades. Sorrow stays. */
+const BASE_HALF_LIFE_MS: Record<MoodDimension, number> = {
+  joy: 8 * MINUTE,
+  contentment: 20 * MINUTE,
+  anger: 4 * MINUTE,
+  sadness: 30 * MINUTE,
+  fear: 6 * MINUTE,
+  boredom: 15 * MINUTE,
 }
 
-/** One persona's mood at one moment. */
+/** Where each quadrant feeling sits in the temperament cross. */
+const QUADRANTS: Partial<Record<MoodDimension, Temperament>> = {
+  joy: { valence: Math.SQRT1_2, arousal: Math.SQRT1_2 },
+  anger: { valence: -Math.SQRT1_2, arousal: Math.SQRT1_2 },
+  sadness: { valence: -Math.SQRT1_2, arousal: -Math.SQRT1_2 },
+  contentment: { valence: Math.SQRT1_2, arousal: -Math.SQRT1_2 },
+}
+
+/**
+ * Derives the mood profile from a temperament.
+ *
+ * Returns:
+ * - A baseline shifted toward the temperament. Sensitivity and every half-life grow with the distance from the center.
+ *   Feelings in the quadrant that the persona leans to last up to twice as long.
+ */
+export function moodProfileFromTemperament(temperament: Temperament): MoodProfile {
+  const valence = clampAxis(temperament.valence)
+  const arousal = clampAxis(temperament.arousal)
+  const emotionality = Math.min(Math.hypot(valence, arousal), 1)
+  const halfLifeMs = Object.fromEntries(MOOD_DIMENSIONS.map((dimension) => {
+    const quadrant = QUADRANTS[dimension]
+    const lean = quadrant && emotionality > 0 ? Math.max(0, (quadrant.valence * valence + quadrant.arousal * arousal) / Math.hypot(valence, arousal)) : 0
+    return [dimension, BASE_HALF_LIFE_MS[dimension] * (0.5 + emotionality) * (1 + lean * emotionality)]
+  })) as Record<MoodDimension, number>
+  return {
+    baseline: { pleasure: 0.3 * valence, arousal: 0.3 * arousal, dominance: 0 },
+    sensitivity: 0.1 + 0.5 * emotionality,
+    halfLifeMs,
+  }
+}
+
+export const DEFAULT_MOOD_PROFILE: MoodProfile = moodProfileFromTemperament(DEFAULT_TEMPERAMENT)
+
+/** One persona's feelings at one moment, each from 0 to 1. */
 export interface MoodState {
-  pad: Pad
+  intensities: Record<MoodDimension, number>
   updatedAt: number
 }
 
+/** A state without feelings, which rests at the baseline. */
+export function calmMood(now: number): MoodState {
+  return { intensities: Object.fromEntries(MOOD_DIMENSIONS.map(dimension => [dimension, 0])) as Record<MoodDimension, number>, updatedAt: now }
+}
+
 function clampAxis(value: number) {
-  return Math.min(Math.max(value, -1), 1)
+  return Math.min(Math.max(Number.isFinite(value) ? value : 0, -1), 1)
 }
 
 function mapPad(fn: (axis: keyof Pad) => number): Pad {
   return { pleasure: clampAxis(fn('pleasure')), arousal: clampAxis(fn('arousal')), dominance: clampAxis(fn('dominance')) }
 }
 
-/**
- * The point that one appraisal pulls mood toward. A calm appraisal points at the persona baseline.
- */
-export function appraisalTarget(baseline: Pad, intensities: Partial<Record<MoodDimension, number>>): Pad {
-  return mapPad(axis => baseline[axis] + (Object.keys(MOOD_DIMENSION_VECTORS) as MoodDimension[])
+/** The PAD point of a set of feelings over a baseline. No feelings give the baseline. */
+export function padFromIntensities(baseline: Pad, intensities: Partial<Record<MoodDimension, number>>): Pad {
+  return mapPad(axis => baseline[axis] + MOOD_DIMENSIONS
     .reduce((sum, dimension) => sum + (intensities[dimension] ?? 0) * MOOD_DIMENSION_VECTORS[dimension][axis], 0))
 }
 
-/** Moves mood back toward the baseline for the time that passed. */
+/** The persona's mood as a PAD point. */
+export function moodPad(state: MoodState, profile: MoodProfile): Pad {
+  return padFromIntensities(profile.baseline, state.intensities)
+}
+
+/** Fades each feeling by its own half-life for the time that passed. */
 export function decayMood(state: MoodState, profile: MoodProfile, now: number): MoodState {
   const elapsed = Math.max(now - state.updatedAt, 0)
-  const remaining = 0.5 ** (elapsed / profile.halfLifeMs)
-  return { pad: mapPad(axis => profile.baseline[axis] + (state.pad[axis] - profile.baseline[axis]) * remaining), updatedAt: now }
+  return {
+    intensities: Object.fromEntries(MOOD_DIMENSIONS.map(dimension => [dimension, (state.intensities[dimension] ?? 0) * 0.5 ** (elapsed / profile.halfLifeMs[dimension])])) as Record<MoodDimension, number>,
+    updatedAt: now,
+  }
 }
 
 /**
- * Applies one appraisal: decay for the time that passed, then a smoothed step toward the appraisal target.
+ * Applies one appraisal: fade for the time that passed, then a smoothed step of each feeling toward its new score.
  *
  * Use when:
  * - A classifier scored the mood dimensions after a turn or an urgent event.
  *
  * Returns:
- * - The new state. One noisy score moves mood only by `sensitivity` of its error, so jitter never jumps the expression.
+ * - The new state. One noisy score moves a feeling only by `sensitivity` of its error, so jitter never jumps the expression.
  */
 export function applyMoodAppraisal(state: MoodState, profile: MoodProfile, intensities: Partial<Record<MoodDimension, number>>, now: number): MoodState {
   const decayed = decayMood(state, profile, now)
-  const target = appraisalTarget(profile.baseline, intensities)
-  return { pad: mapPad(axis => decayed.pad[axis] + profile.sensitivity * (target[axis] - decayed.pad[axis])), updatedAt: now }
+  return {
+    intensities: Object.fromEntries(MOOD_DIMENSIONS.map((dimension) => {
+      const current = decayed.intensities[dimension]
+      return [dimension, current + profile.sensitivity * ((intensities[dimension] ?? 0) - current)]
+    })) as Record<MoodDimension, number>,
+    updatedAt: now,
+  }
 }
 
 /** Expressions that a slow mood can hold as the baseline. Thinking, questions, curiosity, and surprise stay sentence expressions. */

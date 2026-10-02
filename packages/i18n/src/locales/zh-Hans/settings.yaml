@@ -446,6 +446,16 @@ pages:
     scenario: 场景
     search: 搜索角色卡...
     sort_by: 排序方式
+    temperament:
+      label: 性格倾向
+      description: 在喜、怒、哀、乐的十字里拖动这个点。方向是这个角色偏向的一侧，那一侧的情绪会持续得更久。越靠近中心越理性，情绪起伏小、平复快。越靠近边缘越感性，感受更强、更持久。只有在“注意力”里设置了分类器，心情才会变化。
+      joy: 喜
+      anger: 怒
+      sorrow: 哀
+      contentment: 乐
+      rational: 理性
+      balanced: 平衡
+      summary: '偏向{leaning} · 感性程度 {emotional}%'
     body-model: 身体 / 显示模型
     speech:
       provider: 语音 / 提供商
@@ -463,17 +473,11 @@ pages:
     upload: 上传
     upload_desc: 点击或拖动 AIRI 角色卡包以导入
   memory:
+    advanced:
+      title: 高级
+      description: 很少需要修改的设置，默认值适合大多数情况。
     description: 存放记忆的地方，以及策略
     title: 记忆体
-    sessions:
-      title: 聊天会话
-      description: 聊天会话在一段时间没有活动后进入休眠，再过更长时间后归档。休眠的会话仍然可以恢复。归档的会话不再被它的外部场景自动恢复。
-      dormant_after:
-        label: 休眠前的空闲时间（分钟）
-        description: 聊天会话在没有活动的情况下经过多少分钟后进入休眠。
-      retire_after:
-        label: 归档前的休眠时间（天）
-        description: 聊天会话在休眠状态下经过多少天后归档。你仍然可以打开并继续它。
     runs:
       title: 正在生成的回复
       description: 同时生成回复的限制。限制不会切换模型，也不会悄悄跳过回复。超出限制的工作会等待，或者带着提示失败。
@@ -520,31 +524,6 @@ pages:
       appraisal_interval:
         label: 空闲检查间隔（分钟）
         description: 没有回复在生成时，角色每隔这段时间看一次当前的观察，可以主动提起一件事。这里设置的是看的频率，不是说话的频率。0 表示关闭。
-    models:
-      title: 模型与花费
-      description: 对话模型在“意识”页面选择，这里的设置不会改变它。花费上限只会停止新的工作，不会换成更便宜的模型。
-      spending_limit_enabled:
-        label: 花费上限
-        description: 过去一小时的估算花费达到上限后，新的回复、通知反应和空闲检查都会停止。被拒绝的消息会显示原因。
-      spending_limit_amount:
-        label: 每小时上限
-        description: 估算依据提供商目录里的价格和返回的 token 用量。
-      spending_limit_currency:
-        label: 货币
-        description: 用其他货币计价的请求不计入。
-      tiers:
-        label: 模型档位
-        description: 标注一个模型对你来说有多好用。实验性的路由会在对话以外的任务里参考这些标注。没有标注的模型不会参与。
-        provider: 提供商
-        model: 模型
-        tier: 档位
-        add: 添加
-        remove: 移除
-        empty: 还没有标注任何模型。
-        options:
-          fast: 快速
-          default: 默认
-          strong: 强
   data:
     description: 管理存储 AIRI 数据、导出和重置
     sections:
@@ -718,6 +697,31 @@ pages:
       gaming: 游戏
       artistry: 绘图
     consciousness:
+      spending:
+        title: 模型与花费
+        description: 上面选择的对话模型始终由你决定。花费上限只会停止新的工作，不会换成更便宜的模型。
+        spending_limit_enabled:
+          label: 花费上限
+          description: 过去一小时的估算花费达到上限后，新的回复、通知反应和空闲检查都会停止。被拒绝的消息会显示原因。
+        spending_limit_amount:
+          label: 每小时上限
+          description: 估算依据提供商目录里的价格和返回的 token 用量。
+        spending_limit_currency:
+          label: 货币
+          description: 用其他货币计价的请求不计入。
+        tiers:
+          label: 模型档位
+          description: 标注一个模型对你来说有多好用。实验性的路由会在对话以外的任务里参考这些标注。没有标注的模型不会参与。
+          provider: 提供商
+          model: 模型
+          tier: 档位
+          add: 添加
+          remove: 移除
+          empty: 还没有标注任何模型。
+          options:
+            fast: 快速
+            default: 默认
+            strong: 强
       description: 人格设定、使用的模型等配置
       sections:
         section:
@@ -835,9 +839,33 @@ pages:
     memory-long-term:
       description: 长期记忆
       title: 长期记忆
+      sessions:
+        title: 聊天会话
+        description: 休眠的会话在更长一段时间后会归档。归档的会话不会再为它的外部场景继续。记住的事实会在之后的更新中加入。
+        retire_after:
+          label: 归档前的休眠时间（天）
+          description: 聊天会话在休眠状态下经过多少天后归档。你仍然可以打开并继续它。
     memory-short-term:
       description: 短期记忆
       title: 短期记忆
+      sessions:
+        title: 聊天会话
+        description: 聊天会话安静一段时间后会进入休眠。休眠的会话仍可以继续。
+        dormant_after:
+          label: 休眠前的空闲时间（分钟）
+          description: 聊天会话在没有活动的情况下经过多少分钟后进入休眠。
+      mood:
+        title: 当前心情
+        description: 角色此刻的心情。它会在对话和紧急事件之后变化，再按角色卡上的性格倾向逐渐回落。
+        inactive: 在“设置 → 记忆 → 注意力”中设置分类器之前，心情保持平静。
+        reset: 重置心情
+        labels:
+          neutral: 平静
+          happy: 愉快
+          sad: 低落
+          angry: 烦躁
+          awkward: 不安
+        strength: '{label}（{percent}%）'
     messaging-discord:
       description: Discord 发消息和语音聊天
       enable: 启用Discord集成

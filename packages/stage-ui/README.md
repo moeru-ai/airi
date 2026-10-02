@@ -44,12 +44,12 @@ A reply with an output target, such as a Discord message, goes to its scene and 
 At most one run holds the voice lease. `useSchedulerStore` shares the run table, intake trace, and leases among the run owners of a renderer.
 Stop and interruption act on `voiceSessionId`, so background replies in other sessions keep running.
 The chat store reports `runningSessionIds` and `streamingMessages` per session. Chat surfaces show the reply of the visible session.
-Settings > Memory sets the run limits: 4 concurrent replies, 8 waiting messages per session, a 60-second stall timeout, and a 10-minute deadline.
+Settings > Memory sets the run limits in a folded section: 4 concurrent replies, 8 waiting messages per session, a 60-second stall timeout, and a 10-minute deadline.
 
 ## Session lifecycle
 
 A session is `active` while a run uses it and `idle` after the run ends. The leader moves idle sessions to `dormant`, then `retired`.
-Settings > Memory sets both thresholds. The defaults are 30 minutes and 30 days, counted from the last run.
+The short-term memory page sets the dormant threshold, and the long-term memory page sets the retired threshold. The defaults are 30 minutes and 30 days, counted from the last run.
 A dormant session still recovers for its scene. A retired session leaves binding recovery, and an explicit run reactivates it.
 An `active` state without a running run returns to idle, for example after the previous leader closed. Lifecycle changes do not unload or archive history.
 `setSessionDigest` stores a summary that ends at a message in its session. The digest keeps the session audience at the time of writing.
@@ -126,10 +126,10 @@ A spoken notification reaction joins the active session as an assistant message 
 A partly played segment counts as not delivered. A turn that played nothing, for example while speech is muted, records nothing.
 Streaming speech providers bypass the segment pipeline, so their interruptions are not recorded yet.
 Every model request reports through `useLLM`. `useModelProfilesStore` records first-token delay and estimated cost for each provider and model.
-Settings > Memory holds model tiers and the optional spending limit per rolling hour. The conversation model stays the user's choice on the Consciousness page.
+The Consciousness page holds the optional spending limit per rolling hour and the folded model tiers. The conversation model stays the user's choice there.
 While the limit is reached, owner and connection input fails with a message, and notifications and idle checks wait. No model is swapped for a cheaper one.
 The spending ledger lives in the leader renderer's memory, so it starts empty after a restart.
-`useCharacterMoodStore` keeps each persona's mood. With a classifier configured, finished turns and urgent notifications move it. Without one, mood rests and nothing changes.
+`useCharacterMoodStore` keeps each persona's mood. Its motion follows the temperament that the card editor sets with `TemperamentPad`. With a classifier configured, finished turns and urgent notifications move it. Without one, mood rests and nothing changes.
 Each conversation prompt and notification reaction reads one mood sentence. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
 Every chat run request carries the silence tool and its guidance. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 

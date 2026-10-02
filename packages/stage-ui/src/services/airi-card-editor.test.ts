@@ -2,9 +2,10 @@ import type { Card } from '@proj-airi/ccc'
 
 import type { AiriExtension } from '../types/airiCard'
 
+import { DEFAULT_TEMPERAMENT } from '@proj-airi/core-agent'
 import { describe, expect, it } from 'vitest'
 
-import { applyAiriCardEditorModules, getAiriCardEditorModuleSettings, safeParseAiriCardDraft } from './airi-card-editor'
+import { applyAiriCardEditorModules, applyAiriCardTemperament, getAiriCardEditorModuleSettings, getAiriCardTemperament, safeParseAiriCardDraft } from './airi-card-editor'
 
 describe('airi card editor validation', () => {
   // https://github.com/moeru-ai/airi/issues/2108
@@ -219,6 +220,26 @@ describe('airi card editor validation', () => {
       autonomousTarget: 'user',
     })
     expect(extension.agents).toEqual(existing.agents)
+  })
+})
+
+describe('airi card temperament', () => {
+  it('keeps the temperament on the card and preserves other extension fields', () => {
+    const card = applyAiriCardEditorModules(createCard(), {
+      consciousness: { provider: '', model: '' },
+      vision: { provider: '', model: '' },
+      speech: { provider: '', model: '', voice_id: '' },
+      artistry: {},
+    })
+    const saved = applyAiriCardTemperament(card, { valence: -0.6, arousal: 0.4 })
+
+    expect(getAiriCardTemperament(saved)).toEqual({ valence: -0.6, arousal: 0.4 })
+    expect(saved.extensions.airi.agents).toEqual(card.extensions.airi.agents)
+  })
+
+  it('uses the default for a card without a valid temperament', () => {
+    expect(getAiriCardTemperament(undefined)).toEqual(DEFAULT_TEMPERAMENT)
+    expect(getAiriCardTemperament({ ...createCard(), extensions: { airi: { temperament: { valence: 3, arousal: 0 } } } })).toEqual(DEFAULT_TEMPERAMENT)
   })
 })
 

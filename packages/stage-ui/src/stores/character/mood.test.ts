@@ -7,14 +7,22 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useCharacterMoodStore } from './mood'
 
 const triage = vi.hoisted(() => ({ classifier: undefined as Classifier | undefined }))
+const cards = vi.hoisted((): Record<string, { extensions: { airi: { temperament: { valence: number, arousal: number } } } }> => ({
+  rational: { extensions: { airi: { temperament: { valence: 0, arousal: 0 } } } },
+  emotional: { extensions: { airi: { temperament: { valence: -0.7, arousal: 0.7 } } } },
+}))
 
 vi.mock('../modules/triage', () => ({ useTriageStore: () => triage }))
+vi.mock('../modules/airi-card', () => ({ useAiriCardStore: () => ({ getCard: (id: string) => cards[id] }) }))
 
-function scores(values: Record<string, number>, confidence = 0.95): Record<string, ClassifierAnswer> {
-  return Object.fromEntries(Object.entries(values).map(([dimension, score]) => [dimension, { type: 'score', score, confidence }]))
+function feeling(choice: string, probabilities?: Record<string, number>, strength = 4): Record<string, ClassifierAnswer> {
+  return {
+    feeling: { type: 'choice', choice, confidence: probabilities?.[choice] ?? 0.9, probabilities },
+    strength: { type: 'score', score: strength, confidence: 0.9 },
+  }
 }
 
-const angry = { joy: 0, anger: 4, sadness: 0, fear: 0, boredom: 0 }
+const angry = feeling('anger', { anger: 1 })
 
 describe('character mood store', () => {
   beforeEach(() => {
@@ -31,7 +39,7 @@ describe('character mood store', () => {
   })
 
   it('moves only the appraised persona, and keeps the state for later reads', async () => {
-    const ask = vi.fn(async () => scores(angry))
+    const ask = vi.fn(async () => angry)
     triage.classifier = { backend: 'fake', ask }
     const mood = useCharacterMoodStore()
 
@@ -43,12 +51,35 @@ describe('character mood store', () => {
     expect(Object.keys(mood.states)).toEqual(['airi'])
   })
 
-  // A missing or unsure score would read as calm, so the whole appraisal is skipped.
-  it('leaves mood unchanged when any dimension is unsure', async () => {
-    triage.classifier = { backend: 'fake', ask: async () => ({ ...scores(angry), boredom: { type: 'score', score: 0, confidence: 0.3 } }) }
+  // A missing answer would read as calm, so the whole appraisal is skipped.
+  it('leaves mood unchanged when an answer is missing', async () => {
+    triage.classifier = { backend: 'fake', ask: async () => ({ feeling: angry.feeling! }) }
     const mood = useCharacterMoodStore()
 
     expect(await mood.appraise('airi', { interaction: 'Owner: hmm' })).toBeUndefined()
     expect(mood.states).toEqual({})
+  })
+
+  // An unsure answer still counts, with smaller weights.
+  it('moves mood less for an unsure answer than for a sure one', async () => {
+    const mood = useCharacterMoodStore()
+    triage.classifier = { backend: 'fake', ask: async () => feeling('anger', { anger: 0.4, none: 0.6 }) }
+    await mood.appraise('unsure', { interaction: 'Owner: hmm' })
+    triage.classifier = { backend: 'fake', ask: async () => angry }
+    await mood.appraise('sure', { interaction: 'Owner: hmm' })
+
+    expect(mood.current('unsure').pleasure).toBeGreaterThan(mood.current('sure').pleasure)
+  })
+
+  // The temperament on each card shapes how far one interaction moves its persona.
+  it('moves an emotional persona further than a rational one', async () => {
+    triage.classifier = { backend: 'fake', ask: async () => angry }
+    const mood = useCharacterMoodStore()
+
+    await mood.appraise('rational', { interaction: 'Owner: you broke it again' })
+    await mood.appraise('emotional', { interaction: 'Owner: you broke it again' })
+
+    const shift = (persona: string) => mood.profileOf(persona).baseline.pleasure - mood.current(persona).pleasure
+    expect(shift('emotional')).toBeGreaterThan(shift('rational'))
   })
 })

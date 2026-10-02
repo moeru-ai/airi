@@ -83,7 +83,7 @@ Memory persists in IndexedDB, with local retrieval and optional cloud synchroniz
 Each record carries provenance, trust, audience, persona interoperability, and disclosure policy from its first write.
 Model quality tiers come from user configuration until task-specific evaluation supplies quality measurements.
 Capacity limits, provider limits, deadlines, and exclusive resources constrain admission. A user spending limit is one optional limit, not an optimization target.
-Scheduler, budget, context, and memory settings belong in Settings > Memory.
+Settings follow what they belong to. Settings > Memory holds attention and the folded run limits. Short-term and long-term memory pages hold session thresholds and the current mood. The Consciousness page holds the spending limit and the folded model tiers. The character card holds the temperament. Settings that rarely need a change stay folded.
 
 ## Validation
 
@@ -145,7 +145,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Not provided in P1: the run table recorded admitted runs only. P3 intake adds records for ignored, deferred, and rejected stimuli.
 - Observed (`session-store.browser.test.ts`): sessions move from active to idle, dormant, and retired. A retired session leaves binding recovery, and a run reactivates it.
 - Observed (`session-store.browser.test.ts`): a digest must end at a message in its session and keeps the session audience.
-- Implemented: Settings > Memory sets the dormant and retired thresholds. The leader applies them each minute.
+- Implemented: the short-term and long-term memory pages set the dormant and retired thresholds. The leader applies them each minute.
 - Designed: digest generation belongs to P7 history compaction. P1 stores and validates digests only.
 
 ### P2 progress
@@ -158,7 +158,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: chat surfaces read per-session running state. Stop and interruption target the voice owner instead of any running send.
 - Observed (`chat-orchestrator-runs.test.ts`): a stalled or overdue run expires and its caller receives a failure. Repeated identical tool calls end a run as blocked.
 - Observed (`chat-orchestrator-runs.test.ts`): a cancelled run with rollback removes its user turn and partial reply, so a requeued input appears once. A waiting run cancels before it starts.
-- Implemented: Settings > Memory sets the concurrency, queue, stall, and deadline limits. A limit never switches models or skips work silently.
+- Implemented: Settings > Memory sets the concurrency, queue, stall, and deadline limits in a folded section. A limit never switches models or skips work silently.
 - Resolved in P3: an error burst breaker pauses background work after repeated blocked runs.
 
 ### P3 progress
@@ -231,12 +231,15 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: the conversation model is never a routing task. The whitepaper's "conversation model as the default tier" yields to Appendix A, so the user's choice stays.
 - Designed: no production task routes yet. Quality tests need live task traffic, which waits for the timing measurements after P10.
 - Observed (`chat-orchestrator-runs.test.ts`, `orchestrator/index.test.ts`, `model-profiles.test.ts`): a reached spending limit rejects owner input with a message and defers notifications before any model or classifier request. No model is swapped.
-- Implemented: every model request reports its first-token delay and estimated cost. Settings > Memory holds model tiers and the optional hourly limit.
+- Implemented: every model request reports its first-token delay and estimated cost. The Consciousness page holds the optional hourly limit and the folded model tiers.
 - Not provided: the ledger lives in leader memory and restarts empty. Decisions API classifier calls report no token usage, so they are not counted.
 
 ### P6 progress
 
 - Observed (`mood.test.ts`): classifier jitter of about ±0.04 moves the settled baseline expression by less than 0.04 per update, and its name stays the same. Mood returns to the persona baseline by its half-life.
+- Observed (`mood.test.ts`): each feeling fades by its own half-life, so anger fades before sorrow. Feeling probabilities are the weights of one appraisal.
+- Observed (`mood.test.ts`, `airi-card-editor.test.ts`, stage-ui `mood.test.ts`): the temperament on a character card sets how far and how long mood moves. The center is rational, and the edge is emotional.
+- Implemented: mood reuses the attention classifier. The temperament is set with a four-quadrant control in the card editor, separate from the mood that analysis moves.
 - Observed (`mood.test.ts`): anger and fear differ by dominance. A sentence expression that opposes the mood in pleasure loses up to half of its intensity. Thinking keeps its intensity.
 - Observed (`triage.test.ts`): the same event gets different classifier decisions under different moods, and the appraisal records the mood in effect.
 - Observed (`chat-orchestrator-runtime.test.ts`, `mood.test.ts`): each run's prompt carries one mood sentence, such as "Current mood: slightly irritated.", for the persona of its own session. Notification reactions read the same sentence.

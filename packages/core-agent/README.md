@@ -175,9 +175,11 @@ The fastest accepted candidate wins, and price never ranks candidates. Without o
 
 ## Mood
 
-Mood is per-persona state in pleasure, arousal, and dominance. A classifier scores five dimensions in one call with `moodQuestions`, and code keeps the state.
-`applyMoodAppraisal` decays mood toward the persona baseline for the elapsed time, then moves it a `sensitivity` share toward the appraisal. One noisy score cannot jump the expression.
-`moodExpression` gives the baseline expression. `composeExpression` weighs a sentence expression by the mood, so mood owns the baseline and the sentence owns its moment.
+Mood is per-persona state. It keeps an intensity for each of six feelings: joy, contentment, anger, sadness, fear, and boredom.
+`moodQuestions` asks one `feeling` choice and one `strength` score in one call. `moodIntensitiesFromAnswers` uses the option probabilities as weights and scales them by the strength.
+`applyMoodAppraisal` fades each feeling by its own half-life, then moves it a `sensitivity` share toward the new value. Anger fades fast and sorrow stays, so the curve is not one exponential.
+`moodProfileFromTemperament` derives the baseline, sensitivity, and half-lives from a point in the joy, anger, sorrow, and contentment cross. The center is rational. The edge is emotional, and the leaning quadrant lasts longer.
+`moodPad` gives the PAD point. `moodExpression` gives the baseline expression, and `composeExpression` weighs a sentence expression by the mood.
 `describeMood` is the one sentence of the conversation's mood slot, without numbers. `moodAppraisalInterval` scales the idle check interval by arousal.
 An appraisal with `mood` gives the classifier the mood and records it as the effective state.
 
