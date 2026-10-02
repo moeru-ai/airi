@@ -339,38 +339,23 @@ Navigate to [moeru-ai/airi](https://github.com/moeru-ai/airi) page, click on the
 
 Review the changes, and click on the **Create pull request** button.
 
-## Merge policy
+## Unit Test merge requirement
 
-Every CI job must pass before a pull request merges into `main`.
-This policy applies to contributors, maintainers, organization members, and repository administrators.
-Translation pull requests follow the same policy.
+The `Unit Test` check must pass before a pull request merges into `main`.
+Organization member `luoling8192` described failed unit tests as a CI blocker in
+[PR #2290](https://github.com/moeru-ai/airi/pull/2290#issuecomment-5802515112) and
+[PR #2214](https://github.com/moeru-ai/airi/pull/2214#issuecomment-5802515813).
 
-The `All Checks` job waits for lint, every build variant, unit tests, type checks, and provenance checks.
-It fails if any dependency fails, is cancelled, or is skipped.
-The separate `autofix` check must also pass.
-When you add a CI job, add its job ID to `all-checks.needs` in `.github/workflows/ci.yml`.
+The proposed [Require Unit Test ruleset](rulesets/require-unit-test.json) adds this requirement alongside the existing `Protect main` ruleset.
+It requires the `Unit Test` check from GitHub Actions and has no bypass actors.
+Existing required checks remain in effect.
 
-### Repository configuration
+A repository administrator must import the JSON file under **Settings → Rules → Rulesets → New ruleset → Import a ruleset**.
+Do not create a duplicate if `Require Unit Test` already exists. Update that ruleset instead.
+Merging this document does not apply the GitHub configuration.
 
-Workflow files do not configure GitHub merge rules.
-A repository administrator must apply this configuration after the new checks appear on a pull request:
-
-1. Edit the active `Protect main` ruleset for `main`.
-2. Require pull requests before merges.
-3. Require `All Checks` and `autofix` from the GitHub Actions app.
-4. Keep the requirement that branches are up to date before merges.
-5. Remove all actors from the bypass list, including administrator roles and organization teams.
-6. Keep the rules that block branch deletion and force pushes, and require linear history.
-7. Keep **Allow auto-merge** enabled under **Settings → General → Pull Requests**.
-
-Keep the existing required checks until `All Checks` and `autofix` are required.
-Then remove the individual CI requirements because `All Checks` covers them.
-GitHub does not apply this configuration when this document merges.
-
-Contributors with write access can enable auto-merge on a pull request while checks are pending.
-GitHub merges the pull request after all required checks and other merge requirements pass.
-Use a merge method that preserves linear history, such as squash or rebase.
-If new commits change the pull request, the required checks must pass for those commits.
+Auto-merge is already enabled for the repository.
+With this ruleset active, auto-merge waits for `Unit Test` and the other required checks before a merge.
 
 ## Whooo-ya! You made it!
 
