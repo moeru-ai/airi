@@ -52,7 +52,7 @@ export function useDataMaintenance() {
 
   async function deleteAllModels() {
     await displayModelsStore.resetDisplayModels()
-    settingsStore.stageModelSelected = 'preset-live2d-1'
+    await airiCardStore.retainAvailableAvatarModels(displayModelsStore.displayModels.map(model => model.id))
     await settingsStore.updateStageModel()
   }
 
