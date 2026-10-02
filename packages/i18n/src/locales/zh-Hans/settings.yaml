@@ -258,6 +258,8 @@ pages:
     logout: 登出
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
+    planEntry: 订阅
+    viewPlanDetails: 查看订阅
     signedInAs: 登录 为
     profile:
       tab: 个人资料
@@ -951,6 +953,30 @@ pages:
       title: Flux 电池包
       buy: 充值
       description: 可以选择购入的 Flux 电池包
+  plan:
+    title: 订阅
+    description: 当前订阅与套餐额度
+    statusError: 订阅状态加载失败，请稍后再试。
+    packagesError: 暂时无法获取可用的订阅档位，可以之后再试试吗？
+    preferenceError: 偏好保存失败，请稍后再试。
+    currentPlan: 当前订阅
+    noPlan: 暂无生效中的订阅
+    planCredits: 套餐额度
+    creditsRemaining: 剩余 {remaining} / 共 {total}
+    renewsAt: '{date} 续订'
+    expiresAt: '{date} 到期'
+    choosePlan: 选择订阅档位
+    manageSubscription: 管理订阅（取消与账单）
+    fallbackToFlux: 套餐额度用完后使用 Flux
+    fallbackToFluxHint: 默认关闭。关闭时额度用完后请求会直接返回额度不足，不会消耗 Flux。
+    checkout:
+      success: 订阅已生效！套餐额度已到账。
+      pending: 已收到付款，额度稍后到账。
+      canceled: 购买被取消
+      error: 哎呀，出错了，请稍后再试
+    plans:
+      airi_go: Go
+      airi_plus: Plus
   providers:
     catalog:
       edit:

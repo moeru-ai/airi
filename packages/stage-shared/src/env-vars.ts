@@ -13,6 +13,18 @@ export function isFluxPurchaseDisabled(): boolean {
   return isEnvTruthy(import.meta.env.VITE_DISABLE_FLUX_PURCHASE)
 }
 
+/** Public web billing key for RevenueCat purchases-js. Unset means web purchase is unavailable. */
+export function getRevenuecatWebKey(): string | null {
+  const key = import.meta.env.VITE_REVENUECAT_WEB_KEY as string | undefined
+  return key && key.trim().length > 0 ? key : null
+}
+
+/** RevenueCat offering that holds the Flux packs. Defaults to `flux_packs`. */
+export function getRevenuecatFluxOfferingId(): string {
+  const offering = import.meta.env.VITE_REVENUECAT_FLUX_OFFERING as string | undefined
+  return offering && offering.trim().length > 0 ? offering : 'flux_packs'
+}
+
 export function isCustomProvidersDisabled(): boolean {
   return isEnvTruthy(import.meta.env.VITE_DISABLE_CUSTOM_PROVIDERS)
 }
