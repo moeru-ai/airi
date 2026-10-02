@@ -22,6 +22,11 @@ mobile-tools:
 chat:
   voice-input: Voice input
   spending-limit: 'The spending limit for this hour is reached. New replies can start after {time}. You can change the limit in Settings → Memory.'
+  background-tasks:
+    label: Background tasks
+    working: Working on
+    waiting: Waiting
+    stop: 'Stop {name}'
   recipe:
     using: Starting recipe
     started: Handed to recipe

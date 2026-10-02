@@ -88,6 +88,15 @@ export interface ChatSendPayload {
   topP?: number
 }
 
+/** A recipe run in its own session, shown while it waits or works. */
+export interface BackgroundTask {
+  runId: string
+  sessionId: string
+  recipeName: string
+  state: 'queued' | 'working'
+  startedAt: number
+}
+
 /** Characters of a background result that travel in the notice. The rest stays in the recipe's session, which the reference names. */
 const RECIPE_RESULT_NOTICE_LIMIT = 1500
 
@@ -257,6 +266,8 @@ export const useChatStore = defineStore('chat', () => {
   const voiceSessionId = shallowRef<string>()
   const streamingMessages = shallowRef<Record<string, StreamingAssistantMessage>>({})
   const pendingQueuedSendCount = shallowRef(0)
+  // Background tasks that wait or run, so every window can show and stop them.
+  const backgroundTasks = shallowRef<BackgroundTask[]>([])
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
@@ -371,10 +382,21 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function trackRun(run: AgentRun) {
-    if (run.state === 'queued' || run.state === 'working')
+    const active = run.state === 'queued' || run.state === 'working'
+    if (active)
       activeRuns.set(run.runId, { sessionId: run.sessionId, audience: run.envelope.audience })
     else
       activeRuns.delete(run.runId)
+
+    // A run in a recipe's own session is a background task.
+    const recipeId = chatSession.sessionMetas[run.sessionId]?.recipeId
+    if (recipeId) {
+      const others = backgroundTasks.value.filter(task => task.runId !== run.runId)
+      const recipe = recipes.recipes.find(entry => entry.id === recipeId)
+      backgroundTasks.value = active
+        ? [...others, { runId: run.runId, sessionId: run.sessionId, recipeName: recipe?.name ?? recipeId, state: run.state === 'working' ? 'working' : 'queued', startedAt: backgroundTasks.value.find(task => task.runId === run.runId)?.startedAt ?? Date.now() }]
+        : others
+    }
 
     const lifecycleUpdate = run.state === 'working'
       ? chatSession.markSessionRunStarted(run.sessionId)
@@ -1030,6 +1052,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     runningSessionIds,
     voiceSessionId,
+    backgroundTasks,
     streamingMessages,
     pendingQueuedSendCount,
 

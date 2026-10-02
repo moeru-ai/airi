@@ -417,12 +417,16 @@ describe('chat store contract', () => {
   it('runs a keyword-triggered recipe in its own session without voice, and notifies the conversation of its result', async () => {
     // Two runs stream at once, so each request records its prompt and tools together.
     const requests: Array<{ prompt: string, tools: string[] }> = []
+    const tasksWhileWorking: unknown[] = []
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
       const prompt = JSON.stringify(context)
       const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
       requests.push({ prompt, tools: tools.map((tool: Tool) => tool.function.name) })
-      if (prompt.includes('Ask which game, then start it.'))
+      if (prompt.includes('Ask which game, then start it.')) {
+        // The owner sees the background task while it works.
+        tasksWhileWorking.push(...useChatStore().backgroundTasks)
         await options.onStreamEvent({ type: 'text-delta', text: 'The owner wants porridge games.' })
+      }
       await options.onStreamEvent({ type: 'finish' })
     })
     useRecipesStore().add({
@@ -452,6 +456,8 @@ describe('chat store contract', () => {
     expect(notice).toContain('The background task \\"Game night\\" finished.')
     expect(notice).toContain('The owner wants porridge games.')
     expect(notice).toContain(`in session ${recipeSession}.`)
+    expect(tasksWhileWorking).toMatchObject([{ recipeName: 'Game night', state: 'working', sessionId: recipeSession }])
+    expect(store.backgroundTasks).toEqual([])
     // The notice never becomes owner speech in the conversation history.
     await vi.waitFor(() => expect(sessionMessages['session-1']?.filter(message => message.role === 'user')).toHaveLength(1))
     expect(useSchedulerStore().runs.snapshot().find(run => run.sessionId === recipeSession)).toMatchObject({ envelope: { outputs: [] }, parentRunId: expect.any(String) })
