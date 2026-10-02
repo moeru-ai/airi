@@ -22,9 +22,10 @@ export interface ChatSessionMeta {
    */
   cloudMaxSeq?: number
   /**
-   * Present when an ACP Client opened this session. `connected` means this
-   * session can use that ACP Client's files, terminal, and MCP servers.
-   * `disconnected` keeps the chat visible and rejects new messages.
+   * Present when an ACP Client opened this session.
+   * `connected` means this session can use that client's files, terminal, and MCP servers.
+   * `disconnected` keeps the chat. The user can still send messages.
+   * The link no longer provides files, a terminal, or MCP servers.
    */
   acpClient?: AcpClientLink
 }

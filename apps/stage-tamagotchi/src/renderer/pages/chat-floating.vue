@@ -2,7 +2,8 @@
 import type { ChatFloatingState } from '../../shared/eventa'
 
 import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { ChatAcpClientMark, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
@@ -26,6 +27,8 @@ import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
+const { activeSessionId, sessionMetas } = storeToRefs(useChatSessionStore())
+const acpClientStatus = computed(() => sessionMetas.value[activeSessionId.value]?.acpClient?.status)
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 const { t } = useI18n()
@@ -243,6 +246,7 @@ function moveByKeyboard(delta: WindowDelta) {
             >
               <div class="i-solar:chat-line-bold shrink-0 text-neutral-400 dark:text-neutral-500" />
               <span class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
+              <ChatAcpClientMark v-if="acpClientStatus" :status="acpClientStatus" />
             </button>
             <ChatSpeechMuteButton :class="['shrink-0 rounded-full!']" />
             <ChatWindowStyleMenu :class="['shrink-0 rounded-full!']" />

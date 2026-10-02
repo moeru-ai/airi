@@ -4513,9 +4513,6 @@ importers:
       '@pinia/colada':
         specifier: 'catalog:'
         version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
-      '@proj-airi/acp-server':
-        specifier: workspace:^
-        version: link:../../services/acp-server
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio

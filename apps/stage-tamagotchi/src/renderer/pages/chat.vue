@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { ChatAcpClientMark, ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { storeToRefs } from 'pinia'
-import { shallowRef, useTemplateRef } from 'vue'
+import { computed, shallowRef, useTemplateRef } from 'vue'
 
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
@@ -13,6 +14,8 @@ import ChatPageShell from './chat-page-shell.vue'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
+const { activeSessionId, sessionMetas } = storeToRefs(useChatSessionStore())
+const acpClientStatus = computed(() => sessionMetas.value[activeSessionId.value]?.acpClient?.status)
 const sessionsDrawerOpen = shallowRef(false)
 const interactiveArea = useTemplateRef<InstanceType<typeof InteractiveArea>>('interactive-area')
 
@@ -26,6 +29,9 @@ useChatDraftHandover(interactiveArea)
       icon="i-solar:chat-line-bold"
       @title-click="sessionsDrawerOpen = true"
     >
+      <template #after-title>
+        <ChatAcpClientMark v-if="acpClientStatus" :status="acpClientStatus" />
+      </template>
       <template #actions>
         <ChatSpeechMuteButton />
         <ChatWindowStyleMenu />

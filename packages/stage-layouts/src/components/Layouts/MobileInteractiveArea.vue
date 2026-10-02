@@ -6,7 +6,7 @@ import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
-import { useAcpReplyBlocked, useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -43,7 +43,6 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { sendingSessionIds, streamingMessagesBySessionId } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
 const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
-const acpReplyBlocked = useAcpReplyBlocked(activeSessionId)
 const isActiveSessionSending = computed(() => (
   sendingSessionIds.value.includes(activeSessionId.value)
   || isReceivingRemoteStream.value
@@ -258,7 +257,7 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  if (acpReplyBlocked.value || pendingImages.value)
+  if (pendingImages.value)
     return
   await submitInterruptingResponse()
 }
@@ -447,8 +446,7 @@ onUnmounted(() => {
             autocapitalize="off"
             autocorrect="off"
             :spellcheck="false"
-            :disabled="acpReplyBlocked"
-            :placeholder="acpReplyBlocked ? t('stage.chat.sessions.acp-disconnected') : t('stage.message')"
+            :placeholder="t('stage.message')"
             :class="[
               'font-cute',
               'max-h-[10lh] min-h-[calc(1lh+4px+4px)] w-full resize-none overflow-y-scroll scrollbar-none',
@@ -485,7 +483,7 @@ onUnmounted(() => {
           </button>
           <button
             v-else-if="hasSubmission"
-            :disabled="acpReplyBlocked || !!pendingImages"
+            :disabled="!!pendingImages"
             :aria-label="t('stage.chat.actions.send')"
             :class="[
               'size-10 flex items-center justify-center rounded-full bg-primary-500 text-white outline-none backdrop-blur-md',

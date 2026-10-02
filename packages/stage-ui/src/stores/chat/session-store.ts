@@ -535,8 +535,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   /**
    * Records whether an ACP Client link is open for one session.
    *
-   * Connected sessions keep ACP Client tools. A disconnected session stays
-   * in the list and does not accept new messages.
+   * A connected session can use that client's files, terminal, and MCP servers.
+   * A disconnected session stays in the list and can still send messages.
    */
   async function setAcpClientLink(sessionId: string, acpClient: AcpClientLink) {
     const meta = sessionMetas.value[sessionId]
