@@ -43,10 +43,13 @@ import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-s
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
 import { trackSpeechDelivery } from '../../services/speech/delivery'
+import { createSpeechDeviceForwarder } from '../../services/speech/device-forwarding'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
+import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
+import { useSpeechDeviceStore } from '../../stores/mods/api/speech-device'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
@@ -174,6 +177,8 @@ function onVRMInteract(target: VrmInteractionTarget) {
 }
 
 const chatStore = useChatStore()
+const modsServerChannel = useModsServerChannelStore()
+const speechDevices = useSpeechDeviceStore()
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd, onAssistantMessage } = chatStore
 const chatHookCleanups: Array<() => void> = []
 // WORKAROUND: clear previous handlers on unmount to avoid duplicate calls when this component remounts.
@@ -456,6 +461,11 @@ function resolveStageVoiceType(): 'official_selected' | 'custom_configured' {
   return activeSpeechProvider.value === OFFICIAL_SPEECH_PROVIDER_ID || activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID ? 'official_selected' : 'custom_configured'
 }
 
+// A run that speaks to a voice device sends the same segments there, in local playback order.
+const deviceForwarder = createSpeechDeviceForwarder((connectionId, event) => {
+  modsServerChannel.send({ ...event, route: { destinations: [{ type: 'connection', connections: [connectionId] }] } })
+})
+
 const speechPipeline = createSpeechPipeline<AudioBuffer>({
   tts: async (request, signal) => {
     if (signal.aborted)
@@ -575,6 +585,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
       if (signal.aborted || !res || res.byteLength === 0)
         return null
 
+      // A device turn keeps the encoded bytes, because decoding consumes them.
+      deviceForwarder.capture(request.turnId, request.segmentId, res)
       const audioBuffer = await audioContext.decodeAudioData(res)
       return audioBuffer
     }
@@ -597,6 +609,8 @@ const speechPipeline = createSpeechPipeline<AudioBuffer>({
   },
   playback: playbackManager,
 })
+
+chatHookCleanups.push(deviceForwarder.attach(speechPipeline))
 
 initIOTracer()
 useIOTraceBridge(speechPipeline)
@@ -909,6 +923,11 @@ chatHookCleanups.push(onAssistantMessage(async (message, _text, context) => {
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (!holdsVoice(context))
     return
+
+  const deviceBinding = context.outputs?.find(output => output.startsWith('voice-device:'))?.slice('voice-device:'.length)
+  const device = deviceBinding ? speechDevices.forBindings([deviceBinding]) : undefined
+  if (device)
+    deviceForwarder.startTurn(context.turnId, device)
 
   if (context.sessionId) {
     voiceTurns.set(context.turnId, { sessionId: context.sessionId })

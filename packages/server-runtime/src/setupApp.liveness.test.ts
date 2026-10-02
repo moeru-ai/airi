@@ -482,7 +482,7 @@ describe('setupApp websocket liveness', () => {
         handler.open?.(client.peer)
       const metadata = { source: { id: 'host', extension: { id: 'host' } }, event: { id: 'speech' } }
 
-      sendEvent(handler, host.peer, { type: 'speech:audio', data: { binding: 'discord:channel:a', turnId: 't', segmentId: 's', audio: new ArrayBuffer(0), text: 'hi' }, metadata } as WebSocketEvent)
+      sendEvent(handler, host.peer, { type: 'speech:audio', data: { binding: 'discord:channel:a', turnId: 't', segmentId: 's', audioBase64: '', mimeType: 'audio/mpeg', text: 'hi' }, metadata } as WebSocketEvent)
       sendEvent(handler, host.peer, { type: 'speech:stop', data: { binding: 'discord:channel:a', reason: 'untargeted' }, metadata } as WebSocketEvent)
       sendEvent(handler, host.peer, { type: 'speech:stop', data: { binding: 'discord:channel:a', reason: 'targeted' }, route: { destinations: [{ type: 'connection', connections: ['device'] }] }, metadata } as WebSocketEvent)
 

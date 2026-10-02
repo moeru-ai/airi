@@ -210,6 +210,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Experimental: a classifier check and a fast model rewrite for other unspeakable text wait for P5 model tiers. The markup filter is the deterministic fallback.
 - Observed (`speech-device.test.ts`): a module can offer a speech device only for its declared scenes. A device leaves with its module.
 - Observed (`chat.contract.browser.test.ts`, `context-bridge.contract.browser.test.ts`): while a device is active, a local conversation answers in text, and only the device scene's run speaks. Its reply is spoken, not posted as text.
+- Observed (`device-forwarding.test.ts`): a device turn's segments reach the device in local playback order. A local interruption stops the device and drops later segments.
 - Implemented before P4: domain state reaches the conversation through fixed, replacing context slots (P0). Owner input reaches the conversation run, and domain work goes through admitted commands (P3).
 - Not provided: the voice lease ends with generation, while playback can continue. A queued reaction waits for playback in the speech pipeline instead.
 

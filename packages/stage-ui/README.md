@@ -112,6 +112,7 @@ An admitted notification still decides inside its run whether to speak.
 `useSpeechDeviceStore` keeps the speech devices that modules offer for their declared scenes. A module leaves with its devices.
 The voice reaches every active device. While a device is active, a local conversation answers in text, and only a run of that device's scene speaks.
 A device run's envelope carries `voice` and `voice-device:<binding>` instead of its text connection, so the reply is spoken, not posted.
+`createSpeechDeviceForwarder` sends each synthesized segment of a device turn to the device when local playback starts it. A local interruption sends `speech:stop`.
 The stage speaks only speakable text. Code blocks, markup markers, and link addresses stay in the chat and never reach speech.
 A notification at 0.85 salience or more takes the voice from calmer speech. Its reaction interrupts at the next segment boundary, so the playing sentence finishes.
 Other notification reactions queue behind current speech. Scene sources never reach 0.85.

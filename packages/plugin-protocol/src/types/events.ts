@@ -1233,13 +1233,16 @@ export interface SpeechDeviceEvent {
 
 /**
  * One synthesized speech segment for a device, in playback order. Route it to the device's connection only.
- * `audio` holds encoded audio bytes, for example MP3.
+ * The event codec carries no binary data, so the encoded audio travels as base64.
  */
 export interface SpeechAudioEvent {
   binding: string
   turnId: string
   segmentId: string
-  audio: ArrayBuffer
+  /** Encoded audio bytes in base64, for example MP3. */
+  audioBase64: string
+  /** For example `audio/mpeg`. */
+  mimeType: string
   /** Spoken text of the segment. */
   text: string
 }
