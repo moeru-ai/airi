@@ -12,7 +12,7 @@ import {
 } from '@proj-airi/electron-vueuse'
 import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HearingStatus, HoloCoupon, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components'
+import { HearingStatus, HoloCoupon } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -32,7 +32,7 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronOpenOnboarding } from '../../shared/eventa'
+import { electronAppIsWayland, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
@@ -349,6 +349,7 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
+const openInlay = useElectronEventaInvoke(electronOpenInlay)
 const { enabled } = storeToRefs(useSettingsAudioDevice())
 watch(enabled, (value) => {
   if (value)
@@ -360,6 +361,13 @@ watch(() => voice.error, (error) => {
   if (error)
     toast.error(error)
 })
+watch(
+  () => voice.drafts.map(draft => `${draft.id}:${draft.rawText}`).join('\0'),
+  (speechDrafts) => {
+    if (speechDrafts)
+      void openInlay()
+  },
+)
 onMounted(() => {
   if (onboardingStore.needsOnboarding)
     openOnboarding()
@@ -383,8 +391,6 @@ const cursorPosition = computed(() => ({
     transition="opacity duration-500 ease-in-out"
   >
     <div v-show="!settingsStore.streamerMode" ref="hearingStatusElement" :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
-      <VoiceDrafts />
-      <VoiceMessageControls />
       <HearingStatus align="center" />
     </div>
     <div v-show="!settingsStore.streamerMode" ref="authStatusElement" :class="['absolute left-1/2 top-3 z-40 w-fit -translate-x-1/2']">

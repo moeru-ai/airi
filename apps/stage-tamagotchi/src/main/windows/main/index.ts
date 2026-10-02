@@ -61,6 +61,7 @@ export async function setupMainWindow(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
+  inlayWindow: () => Promise<BrowserWindow>
 }) {
   const {
     setup: setupConfig,
@@ -185,6 +186,7 @@ export async function setupMainWindow(params: {
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
+    inlayWindow: params.inlayWindow,
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {

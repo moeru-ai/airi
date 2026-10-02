@@ -22,6 +22,7 @@ import {
   electronGetChatButtonState,
   electronOpenChat,
   electronOpenEditor,
+  electronOpenInlay,
   electronOpenMainDevtools,
   electronOpenSettings,
   noticeWindowEventa,
@@ -33,7 +34,7 @@ import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
 import { centerWindowOnDisplay } from '../../shared/display'
-import { setupBaseWindowElectronInvokes } from '../../shared/window'
+import { setupBaseWindowElectronInvokes, toggleWindowShow } from '../../shared/window'
 
 export async function setupMainWindowElectronInvokes(params: {
   window: BrowserWindow
@@ -48,6 +49,7 @@ export async function setupMainWindowElectronInvokes(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
+  inlayWindow: () => Promise<BrowserWindow>
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -67,6 +69,7 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronCenterMainWindow, () => centerWindowOnDisplay(params.window))
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
+  defineInvokeHandler(context, electronOpenInlay, async () => toggleWindowShow(await params.inlayWindow()))
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())
