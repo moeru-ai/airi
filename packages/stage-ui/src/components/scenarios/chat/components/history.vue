@@ -49,6 +49,12 @@ const props = withDefaults(defineProps<{
    * uses `hover`, so a scrollbar the wheel cannot reveal still appears.
    */
   scrollbar?: 'scroll' | 'hover'
+  /**
+   * `true` when the host shows the history as a feed that nobody scrolls or
+   * reads by hand. The history then returns to the newest message, because
+   * nobody can scroll it back.
+   */
+  passive?: boolean
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   sending: false,
@@ -56,6 +62,7 @@ const props = withDefaults(defineProps<{
   variant: 'desktop',
   surface: 'translucent',
   scrollbar: 'scroll',
+  passive: false,
   toolCallRenderers: () => ({}),
 })
 
@@ -146,6 +153,7 @@ useChatHistoryScroll({
   getKey: getChatHistoryItemKey,
   scrollToIndex,
   tailInset,
+  passive: computed(() => props.passive),
 })
 useChatHistoryTopFade({
   container: chatHistoryRef,

@@ -4,6 +4,7 @@ import type { ChatFloatingState } from '../../shared/eventa'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,6 +23,7 @@ import {
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
+import { useControlsIslandStore } from '../stores/controls-island'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -49,9 +51,22 @@ onMounted(async () => {
 })
 
 useChatDraftHandover(interactiveArea)
-const { hitTest } = useChatFloatingClickThrough({ pinned: () => state.value.pinned })
 
-const freePlacement = computed(() => state.value.placement === 'free')
+// `free` and `danmaku` both stay where the user drags them.
+const freePlacement = computed(() => state.value.placement !== 'attached')
+const danmaku = computed(() => state.value.placement === 'danmaku')
+// The danmaku feed starts with its composer folded, because it is mostly read.
+const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
+// Fade on hover, which the main window's controls island switches, turns the
+// folded danmaku feed passive: the history only follows new messages, and it
+// fades out and passes clicks through under the cursor. The header and the
+// composer tab stay in control, and an unfolded composer pauses all of this.
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const passiveFeed = computed(() => danmaku.value && fadeOnHoverEnabled.value && composerFolded.value)
+const { hitTest } = useChatFloatingClickThrough({
+  pinned: () => state.value.pinned,
+  passiveArea: () => passiveFeed.value ? interactiveArea.value?.historyLayer : undefined,
+})
 // The content stays mounted while it is hidden, so a fold or a move to the
 // other side keeps the unsent draft, attachments and reply target.
 const contentShown = computed(() => !state.value.folded && !state.value.relocating)
@@ -251,7 +266,13 @@ function moveByKeyboard(delta: WindowDelta) {
         </div>
 
         <div :class="['relative min-h-0 flex-1']">
-          <InteractiveArea ref="interactive-area" floating />
+          <InteractiveArea
+            ref="interactive-area"
+            v-model:composer-folded="composerFolded"
+            floating
+            :composer-foldable="danmaku"
+            :passive="passiveFeed"
+          />
         </div>
       </div>
     </Transition>

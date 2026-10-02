@@ -115,6 +115,7 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Keep a structured `README.md` in each `packages/` and `apps/` entry. It tells what the entry does, how to use it, when to use it, and when not to use it.
 - Put all translations in `packages/i18n`. By default, edit only the English source locale and your own locale.
 - Do not edit other locales unless the user asks. Crowdin manages them, and the next Crowdin sync can replace local edits.
+- Do not use English text as a placeholder in other locales. Add only the locales you implement.
 - When you add a nested `AGENTS.md`, add a `CLAUDE.md` next to it that contains only `@AGENTS.md`. The root `CLAUDE.md` stops Claude Code from reading a nested `AGENTS.md` without this file.
 
 ## Writing

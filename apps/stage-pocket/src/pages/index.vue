@@ -18,6 +18,7 @@ import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
@@ -25,6 +26,22 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watc
 import WebSocketStatusButton from '../components/websocket-status-button.vue'
 
 const paused = ref(false)
+const modelRenderState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const modelRenderError = ref<Error>()
+const startup = useStartupResourcesStore()
+
+watch([modelRenderState, modelRenderError, () => startup.resources.find(resource => resource.id === 'model')?.status], ([state, error, status]) => {
+  if (status !== 'loading')
+    return
+  if (error)
+    startup.fail('model', error)
+  else if (state === 'mounted')
+    startup.complete('model')
+})
+
+function markModelFailed(error: Error) {
+  modelRenderError.value = error
+}
 
 function handleSettingsOpen(open: boolean) {
   paused.value = open
@@ -206,6 +223,7 @@ onUnmounted(() => {
             <ViewControlSlider />
           </div>
           <WidgetStage
+            v-model:state="modelRenderState"
             h-full w-full
             :enable-orbit-controls="!isMobile"
             :paused="paused"
@@ -213,6 +231,7 @@ onUnmounted(() => {
               x: positionCursor.x.value,
               y: positionCursor.y.value,
             }"
+            @error="markModelFailed"
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
