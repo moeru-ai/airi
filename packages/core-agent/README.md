@@ -159,6 +159,19 @@ A module with exclusive control gets a `module:<name>` lease for the run's sessi
 A `critical` command with higher salience takes the lease over. An admitted command carries `holder`, the session that controls the module.
 `createSparkCommandTool` reports a rejection to the model, so the model never claims a relay that admission refused.
 
+## Model profiles, spending, and routing
+
+`createModelProfile` joins a catalog entry with what the host learned: tool failures, first-token delay, and the user's tier.
+An absent fact is unknown, never false. `checkRequirements` lists missing and unknown requirements apart.
+`estimateRequestCost` prices reported or estimated usage. Lookup prices and unavailable usage have no cost.
+
+`SpendingLedger` counts costs within a rolling window for an optional user limit. Requests it cannot price are listed as uncounted.
+The limit is one admission constraint. It never selects a cheaper model.
+
+`routeModel` is experimental. It serves a named task, never the conversation.
+A candidate needs the task requirements, the user tier, the timing target, and at least five quality test results with an 80% pass rate.
+The fastest accepted candidate wins, and price never ranks candidates. Without one, the configured model stays, with `fallback`.
+
 ## Spark notification cancellation
 
 The host supplies an `abortSignal` to the notification agent and its model runner.

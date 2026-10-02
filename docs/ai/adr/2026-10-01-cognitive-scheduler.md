@@ -222,6 +222,14 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Not provided: the reaction prompt does not read the session history yet. Prompt recipes in P7 own that assembly.
 - Observed (`chat-orchestrator-runs.test.ts`, T3): work without the voice output runs while another run holds the voice, and never reserves it.
 
+### P5 progress
+
+- Observed (`chat-orchestrator-runtime.test.ts`, `llm-service.test.ts`): portable history survives a model or adapter switch. Native continuation stays with its own adapter and model.
+- Observed (`model-profile.test.ts`): a profile keeps catalog facts and learned tool failures, and unknown facts stay unknown.
+- Observed (`spending.test.ts`): the ledger counts costs in a rolling window and reports when spending falls under the limit.
+- Observed (`model-routing.test.ts`): without task evidence, the router keeps the configured model. It never ranks by price.
+- Designed: no production task routes yet. Quality tests need live task traffic, which waits for the timing measurements after P10.
+
 ### Open P0 evidence
 
 These checks need live models, bots, or windows. They are not verified.

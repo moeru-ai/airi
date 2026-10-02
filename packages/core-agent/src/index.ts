@@ -61,6 +61,10 @@ export {
   modelKey,
   streamFrom,
 } from './runtime/llm-service'
+export { checkRequirements, createModelProfile, estimateRequestCost, MODEL_TIER_RANK, observeLatency } from './runtime/model-profile'
+export type { ModelLatency, ModelObservations, ModelProfile, ModelRequirements, ModelTier, RequestCost, RequirementsCheck } from './runtime/model-profile'
+export { MIN_TASK_EVIDENCE, MIN_TASK_PASS_RATE, routeModel } from './runtime/model-routing'
+export type { RoutingDecision, RoutingRejection, RoutingTask, TaskEvidence } from './runtime/model-routing'
 export {
   categorizeResponse,
   createStreamingCategorizer,
@@ -72,6 +76,8 @@ export type {
 } from './runtime/response-categoriser'
 export type { AgentRun, AgentRunState, ExecutionEnvelope } from './runtime/run-table'
 export { RunTable } from './runtime/run-table'
+export { SpendingLedger } from './runtime/spending'
+export type { SpendingEntry, SpendingLimit, SpendingState } from './runtime/spending'
 export { createStayQuietTool, STAY_QUIET_TOOL_NAME, STAY_QUIET_TOOLSET_PROMPT, stayQuietReason } from './runtime/stay-quiet'
 export type { AppraiseOptions } from './runtime/triage'
 export { appraiseStimulus, capSceneSalience, decideByAppraisal, SCENE_SALIENCE_CAP, triageRequest } from './runtime/triage'
