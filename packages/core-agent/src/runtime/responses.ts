@@ -1,10 +1,11 @@
 import type { ResponsesConfig } from '@proj-airi/provider-inference'
 import type { ItemParam, ResponsesOptions } from '@xsai-ext/responses'
-import type { Tool } from '@xsai/shared-chat'
+import type { CompletionStep, Tool } from '@xsai/shared-chat'
 
 import type { ProjectionEntry } from '../messages/turns'
 import type { Citation, Conversation, InputSegment, MessageSegment } from '../messages/types'
 import type { StreamEvent, StreamOptions } from '../types/llm'
+import type { ResolvedStep } from './request-context'
 
 import { responses } from '@xsai-ext/responses'
 import { stepCountAtLeast } from '@xsai/shared-chat'
@@ -12,7 +13,8 @@ import { stepCountAtLeast } from '@xsai/shared-chat'
 import { renderSegmentText } from '../messages/render-context'
 import { projectInput, projectRound } from '../messages/turns'
 import { createGeneration } from './generation'
-import { mergeRequestHeaders } from './request-context'
+import { createContinuationScope, mergeRequestHeaders, replaceProviderConfig, supportsTools } from './request-context'
+import { RequestSwitch } from './request-switch'
 import { toAiriStreamEvent } from './xsai-events'
 
 type InputContent = Exclude<Extract<ItemParam, { role: 'user' }>['content'], string>
@@ -168,19 +170,72 @@ export function streamResponses(input: {
   scope: string
   options?: StreamOptions
   tools?: Tool[]
+  initialStep?: ResolvedStep
   onEvent: (event: StreamEvent) => Promise<void>
 }) {
   const items = renderConversation(input.conversation, input.scope)
+  const scopes: string[] = []
   const generation = createGeneration({
-    turnId: input.options?.requestCorrelation?.turnId,
+    turnId: input.options?.requestCorrelation?.turnId ?? input.options?.generationTurnId,
     runId: input.options?.requestCorrelation?.runId,
     model: input.config.model,
-    continuation: (data: ItemParam[]) => ({ protocol: 'responses' as const, scope: input.scope, data }),
+    roundOffset: input.options?.generationRoundOffset,
+    continuation: (data: ItemParam[], index) => ({ protocol: 'responses' as const, scope: scopes[index] ?? input.scope, data }),
     project: item => readOutput([item]),
   })
-  const result = responses({
+  let providerConfigKeys = Object.keys(input.config)
+  const requestOptions: ResponsesOptions = {
     ...input.config,
-    prepareStep: generation.prepareStep,
+    prepareStep: ({ input: current, steps }: { input: ItemParam[], steps: CompletionStep[] }) => {
+      const resolveStep = input.options?.resolveStep
+      if (!resolveStep) {
+        scopes.push(input.scope)
+        return generation.prepareStep({ input: current })
+      }
+      return (async () => {
+        const firstStep = scopes.length === 0 && input.initialStep
+        const next = firstStep || await resolveStep()
+
+        const nextRequest = firstStep
+          ? { protocol: 'responses' as const, config: input.config, webSearch: input.webSearch ?? false }
+          : next.chatProvider.generation(next.model)
+        const nextScope = createContinuationScope(nextRequest.config, { ...input.options, providerId: next.providerId })
+        if (nextRequest.protocol !== 'responses' || nextScope !== input.scope) {
+          const partialTurn = await generation.complete(Promise.resolve(current), Promise.resolve(steps))
+          throw new RequestSwitch(next, partialTurn)
+        }
+
+        // NOTICE:
+        // xsAI 0.5 prepareStep returns only input, model, and toolChoice.
+        // It reads other options afterward but snapshots toolChoice beforehand.
+        // Source: @xsai-ext/responses 0.5 createReader and @xsai/shared-chat resolvePrepareStep.
+        // Remove this mutation when xsAI supports typed provider options for each step.
+        const toolsSupported = supportsTools(next.model, nextRequest, input.options)
+        providerConfigKeys = replaceProviderConfig(requestOptions, providerConfigKeys, nextRequest.config)
+        Object.assign(requestOptions, {
+          apiKey: nextRequest.config.apiKey,
+          fetch: nextRequest.config.fetch,
+          reasoning: nextRequest.config.reasoning,
+          temperature: next.temperature,
+          topP: next.topP,
+          headers: mergeRequestHeaders(nextRequest.config.headers, next.headers),
+          tools: toolsSupported
+            ? nextRequest.webSearch ? [...(next.tools ?? []), { type: 'web_search' as const }] : next.tools
+            : undefined,
+          toolChoice: undefined,
+        })
+        generation.prepareStep({ input: current, model: next.model })
+        scopes.push(nextScope)
+        const systemIndex = current.findIndex(item => item.type === 'message' && item.role === 'system')
+        const systemMessage = current[systemIndex]
+        if (systemMessage?.type === 'message' && systemMessage.role === 'system')
+          current[systemIndex] = { ...systemMessage, content: next.systemPrompt }
+        else if (next.systemPrompt)
+          current.unshift({ type: 'message', role: 'system', content: next.systemPrompt })
+
+        return { input: current, model: next.model, toolChoice: toolsSupported ? toolChoice(input.options?.toolChoice) : undefined }
+      })()
+    },
     input: items,
     store: false,
     include: ['reasoning.encrypted_content'],
@@ -189,7 +244,7 @@ export function streamResponses(input: {
     topP: input.options?.topP,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
-    toolChoice: toolChoice(input.options?.toolChoice),
+    toolChoice: input.options?.resolveStep ? undefined : toolChoice(input.options?.toolChoice),
     stopWhen: stepCountAtLeast(10),
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)
@@ -212,7 +267,8 @@ export function streamResponses(input: {
         }
       }
     },
-  })
+  }
+  const result = responses(requestOptions)
   const generatedTurn = generation.complete(result.input, result.steps)
   return { ...result, generatedTurn }
 }

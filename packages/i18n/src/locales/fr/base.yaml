@@ -47,4 +47,3 @@ toaster:
     message: Nouvelle version prête, rafraîchir maintenant ?
     action:
       notNow: Plus tard
-      ok: OK

@@ -324,7 +324,6 @@ async function loadModel() {
           }
           catch (err) {
             const error = err instanceof Error ? err : new Error(String(err))
-            emits('error', error)
             reject(error)
           }
         },
@@ -388,7 +387,6 @@ async function loadModel() {
         error: (_sc, errors: Record<string, string>) => {
           const message = Object.values(errors).join('; ')
           const error = new Error(message)
-          emits('error', error)
           reject(error)
         },
       }
@@ -402,6 +400,7 @@ async function loadModel() {
       // below has already fired and found nothing to draw with.
       void syncBackground()
     })
+    componentState.value = 'mounted'
   }
   catch (err) {
     console.error('[Spine] Failed to load model:', err)
@@ -409,7 +408,6 @@ async function loadModel() {
   }
   finally {
     modelLoading.value = false
-    componentState.value = 'mounted'
     modelLoadMutex.release()
   }
 }

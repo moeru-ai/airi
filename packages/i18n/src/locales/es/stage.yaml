@@ -1,13 +1,67 @@
+character-switcher:
+  title: Cambiar de Personaje
+  manage: Gestionar personajes
+  empty: Aún no hay personajes
+  failed: No se pudo cambiar de personajes. Inténtelo de nuevo.
+mobile-tools:
+  sign-in: Iniciar sesión en AIRI
+  account-description: Cuenta y preferencias
+  sound: Sonido
+  character-voice: Voz del personaje
+  title: Configuración
+  appearance: Apariencia
+  dark-mode: Modo oscuro
+  application: Aplicación
+  more: Más
+  background: Fondo
+  settings: Todos los ajustes
+  about: Acerca de
+  view: Vista
+  close-view: Guardar y cerrar controles de vista
+  hearing: Audición
 chat:
+  voice-input: Entrada de voz
+  error-details:
+    show: Mostrar detalles
+    hide: Ocultar detalles
+  images:
+    empty: Comparte un pensamiento o una imagen.
+    use-vision: Usar el modelo de visión para las imágenes del chat
+    use-vision-description: Elige un proveedor y modelo debajo. Lee las imágenes adjuntas antes de que el modelo de chat responda. Sin un modelo de visión, las imágenes van directamente al modelo de chat.
+    attach: 'Adjuntar imagen'
+    remove: 'Eliminar {name}'
+    unsupported: 'Usar imágenes PNG, JPEG, WebP o GIF.'
+    too-large: 'Cada imagen debe ser de 3 MB o menor.'
+    too-many: 'Adjunte hasta {count} imágenes a la vez.'
+    total-too-large: 'Todas las imágenes adjuntas deben ser en total 3 MB o menos.'
+    read-failed: 'No se pudo leer esta imagen. Inténtalo de nuevo.'
+    no-description: 'El modelo de visión no devolvió ninguna descripción de la imagen. Compruebe Configuración → Módulos → Visión e inténtelo de nuevo.'
+    reading: 'Leyendo imágenes...'
+    description: 'Imagen adjunta'
   actions:
+    reply: Responder
     retry: Reintentar
+    send: Enviar mensaje
+    stop: Detener respuesta
   message:
     character-name:
-      airi: AIRI
       core-system: Sistema Central
       you: Tu
+  reply:
+    cancel: Cancelar respuesta
+    message: Mensaje
+    replying-to: Respondiendo a {name}
   reasoning: Razonamiento
+  swipe-demo:
+    show-label: Mostrar etiquetas
+    delete: Borrar
+    archive: Archivar
+    pin: Fijar
+    actions: Mostrar acciones
+    row: 'Conversación {n}'
   sessions:
+    delete-short: Eliminar
+    confirm-delete-short: Confirmar eliminación
     title: Conversaciones
     new: + Nuevo
     empty: No hay conversaciones todavía
@@ -67,31 +121,24 @@ promo-banner:
       fallbackLabel: Regalo lunar
       title: 7 días de inicio de sesión
       eventName: Inicia sesión para reclamar stardust, marcos de avatar y regalos de lanzamiento.
-      date: 03/28 - 04/10
       reward: Hasta 120 Stardust
       cta: Iniciar sesión
     build:
       watermark: Construir
-      fallbackLabel: Build Bonus
       title: Bono de caja de suministro
       eventName: Termina las tareas de construcción para ganar cupones de bonificación y materiales dobles.
-      date: 03/30 - 04/12
       reward: 5 Cupones de Suministros + Materiales de Mejora
       cta: Ver tareas
     spring:
       watermark: Primavera
       fallbackLabel: Dibujo Primaveral
       title: Cápsula de Carnaval
-      eventName: Join the spring draw to unlock bubbles, charms, and themed furniture.
-      date: 04/01 - 04/18
       reward: Primera tirada a mitad de precio + Talismán raro
-      cta: Draw Now
     coupon:
       watermark: Hablar
       fallbackLabel: Cupón
       title: Cupón Top-Up
       eventName: Termina las interacciones del chat para reclamar cupones para la expansión y los paquetes de voz.
-      date: 04/02 - 04/20
       reward: Ahorre 6 en 30 / Ahorre 15 en 68
       cta: Reclamar Cupón
     home:
@@ -99,7 +146,6 @@ promo-banner:
       fallbackLabel: Tema de sala
       title: Actualización del tema primavera
       eventName: Desbloquea los temas de ventana, escritorio y lámparas nocturnas para actualizar tu habitación.
-      date: 04/05 - 04/22
       reward: Ticket de Dibujo de Tema gratis al iniciar sesión
       cta: Ver temas
 waiting: Esperando...
