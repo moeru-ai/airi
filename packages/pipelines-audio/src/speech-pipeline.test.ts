@@ -337,4 +337,45 @@ describe('createSpeechPipeline', () => {
     await delay(0)
     expect(scheduled.map(item => item.text)).toEqual(['first', 'urgent'])
   })
+
+  it('reports a waiting turn until it ends, and reports the cancellation of a turn that never started', async () => {
+    const { scheduled, playback, end } = createPlaybackSpy({ autoEnd: false })
+    const pipeline = createSpeechPipeline<string>({
+      segmenter: (_tokens, meta) => createSegmenter([meta.intentId])(_tokens, meta),
+      playback,
+      async tts(request) {
+        return request.text
+      },
+    })
+    const ended: string[] = []
+    const cancelled: string[] = []
+    pipeline.on('onTurnEnd', turnId => ended.push(turnId))
+    pipeline.on('onTurnCancel', ({ turnId }) => cancelled.push(turnId))
+
+    const playing = pipeline.openIntent({ intentId: 'playing', turnId: 'playing-turn' })
+    playing.end()
+    const waiting = pipeline.openIntent({ intentId: 'waiting', turnId: 'waiting-turn' })
+    const dropped = pipeline.openIntent({ intentId: 'dropped', turnId: 'dropped-turn' })
+    waiting.end()
+    await delay(0)
+    expect(pipeline.hasTurn('waiting-turn')).toBe(true)
+
+    dropped.cancel('owner-stopped')
+    expect(cancelled).toEqual(['dropped-turn'])
+    expect(pipeline.hasTurn('dropped-turn')).toBe(false)
+
+    end(scheduled[0]!)
+    await delay(0)
+    end(scheduled[1]!)
+    await delay(0)
+    expect(ended).toEqual(['playing-turn', 'waiting-turn'])
+    expect(pipeline.hasTurn('waiting-turn')).toBe(false)
+
+    pipeline.openIntent({ intentId: 'active', turnId: 'active-turn' })
+    pipeline.openIntent({ intentId: 'queued', turnId: 'queued-turn' })
+    pipeline.stopAll('new-message')
+    await delay(0)
+    expect(cancelled).toEqual(['dropped-turn', 'queued-turn', 'active-turn'])
+    expect(pipeline.hasTurn('queued-turn')).toBe(false)
+  })
 })

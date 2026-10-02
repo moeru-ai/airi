@@ -213,7 +213,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`device-forwarding.test.ts`): a device turn's segments reach the device in local playback order. A local interruption stops the device and drops later segments.
 - Implemented: Discord offers each joined voice channel as a speech device, plays forwarded segments in order, and stops on `speech:stop`. It offers its channels again after AIRI reconnects. Live playback is unverified.
 - Implemented before P4: domain state reaches the conversation through fixed, replacing context slots (P0). Owner input reaches the conversation run, and domain work goes through admitted commands (P3).
-- Not provided: the voice lease ends with generation, while playback can continue. A queued reaction waits for playback in the speech pipeline instead.
+- Observed (`voice-playback.test.ts`, `lease-table.test.ts`, `chat-orchestrator-runs.test.ts`): a run's speech keeps the voice after the run ends, until its turn ends. Calm work waits. Owner input cuts in.
+- Observed (`speech-pipeline.test.ts`): a turn cancelled before it started still reports its cancellation, so its playback lease is released.
+- Not provided: streaming speech providers bypass the segment pipeline. Their voice lease still ends with generation.
 
 ### Open P0 evidence
 

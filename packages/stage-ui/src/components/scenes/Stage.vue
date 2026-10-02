@@ -991,6 +991,9 @@ chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
   if (!holdsVoice(context))
     return
   currentSession?.end()
+  // The run ends after this hook. Its speech keeps the voice until playback ends.
+  if (context.runId)
+    speechRuntimeStore.holdPlayback(context.turnId, context.runId)
   // Streaming sessions null-out via the onDone hook; segmenter sessions
   // stay around until the next `onBeforeMessageComposed` cancels them
   // (the segmenter pipeline's IntentHandle.end is idempotent and

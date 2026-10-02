@@ -33,6 +33,11 @@ export function setCharacterLlmMarkerParserFactoryForTest(factory: ParserFactory
   parserFactory = factory ?? useLlmmarkerParser
 }
 
+/** Speech turn of one notification reaction. */
+export function sparkReactionTurnId(sparkEventId: string) {
+  return `spark:${sparkEventId}`
+}
+
 export const useCharacterStore = defineStore('character', () => {
   const { activeCard, systemPrompt } = storeToRefs(useAiriCardStore())
 
@@ -82,7 +87,7 @@ export const useCharacterStore = defineStore('character', () => {
       }) satisfies CharacterSparkNotifyReaction
 
       const intent = markRaw(speechRuntimeStore.openIntent({
-        turnId: `spark:${sparkEventId}`,
+        turnId: sparkReactionTurnId(sparkEventId),
         intentId: `spark:${sparkEventId}`,
         ownerId: ownerId.value,
         priority: 'high',

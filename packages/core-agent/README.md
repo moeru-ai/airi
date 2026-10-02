@@ -109,6 +109,8 @@ The limit counts working runs of every owner that shares the run table. A limit 
 A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
 The voice is an exclusive lease in `LeaseTable`. A send with the `voice` output waits while any run holds it, and releases it when it ends. Domain sends keep running.
 A lease is free when its holder releases it or it expires. Only a request with `preempt` and strictly higher salience takes over a held lease.
+`handOver` moves a held lease to another holder, for example from a finished run to its speech that still plays. Nobody in the line takes it in between.
+A handed-over lease can be interruptible. A request with `interrupt` takes it over at any salience. Direct owner input interrupts. Other sends wait for the speech to end.
 Requests for one resource wait in a line. A free resource goes to the first candidate: higher salience tier, then the earlier deadline, then the longer wait.
 Waiting time only prevents starvation. Requests for different resources never compare, so work that needs no shared resource runs in parallel.
 Requesters withdraw when they stop waiting. A candidate that has not asked for five minutes leaves the line.

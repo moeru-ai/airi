@@ -115,7 +115,9 @@ A device run's envelope carries `voice` and `voice-device:<binding>` instead of 
 `createSpeechDeviceForwarder` sends each synthesized segment of a device turn to the device when local playback starts it. A local interruption sends `speech:stop`.
 The stage speaks only speakable text. Code blocks, markup markers, and link addresses stay in the chat and never reach speech.
 A notification at 0.85 salience or more takes the voice from calmer speech. Its reaction interrupts at the next segment boundary, so the playing sentence finishes.
-Other notification reactions queue behind current speech. Scene sources never reach 0.85.
+Other notification reactions wait until current speech ends. Scene sources never reach 0.85.
+A run's speech keeps the voice lease after the run ends, until its turn stops playing. `useSpeechRuntimeStore().holdPlayback` hands the lease over in the speech host.
+The owner's next message cuts in. Calm notifications, idle checks, and scene runs wait until the speech ends.
 Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.
 After three blocked runs within a minute, notifications and idle appraisal wait for a one-minute cooldown. Owner input still runs and shows its failure.
 `trackSpeechDelivery` follows segment playback for each turn. When playback stops early, the stage records the finished segments through `recordDeliveredSpeech`.

@@ -12,7 +12,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { onScopeDispose, ref } from 'vue'
 
-import { useCharacterNotebookStore, useCharacterStore } from '../'
+import { sparkReactionTurnId, useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useChatContextStore } from '../../chat/context-store'
@@ -24,6 +24,7 @@ import { useTriageStore } from '../../modules/triage'
 import { useSchedulerStore } from '../../scheduler'
 import { useSettingsRunLimits } from '../../settings/run-limits'
 import { useSettingsTriage } from '../../settings/triage'
+import { useSpeechRuntimeStore } from '../../speech-runtime'
 import { useCharacterNotifyQueueStore } from './queue'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
@@ -45,6 +46,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const modsServerChannelStore = useModsServerChannelStore()
   const chatSession = useChatSessionStore()
   const scheduler = useSchedulerStore()
+  const speechRuntime = useSpeechRuntimeStore()
   const triage = useTriageStore()
   const triageSettings = useSettingsTriage()
   const runLimits = useSettingsRunLimits()
@@ -167,6 +169,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       throw error
     }
     finally {
+      // A reaction that still plays keeps the voice until its speech ends.
+      speechRuntime.holdPlayback(sparkReactionTurnId(event.data.id), runId)
       scheduler.leases.releaseAll(runId)
     }
   }

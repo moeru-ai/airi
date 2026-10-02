@@ -46,6 +46,34 @@ describe('lease table', () => {
     expect(leases.snapshot()).toEqual([])
     expect(changes).toEqual(['a', 'a,a', ''])
   })
+
+  it('hands a held lease to another holder without letting the line in between', () => {
+    let now = 0
+    const leases = new LeaseTable({ now: () => now })
+    leases.acquire('voice', 'run', { salience: 0.7 })
+    leases.acquire('voice', 'waiting', { salience: 0.9 })
+
+    expect(leases.handOver('voice', 'other', 'playback', {})).toBe(false)
+    expect(leases.handOver('voice', 'run', 'playback', { ttlMs: 100, interruptible: true })).toBe(true)
+    // The run's end no longer frees the voice.
+    leases.releaseAll('run')
+    expect(leases.holder('voice')).toMatchObject({ holder: 'playback', salience: 0.7, grantedAt: 0, expiresAt: 100, interruptible: true })
+    expect(leases.acquire('voice', 'waiting', { salience: 0.9 }).granted).toBe(false)
+
+    now = 100
+    expect(leases.acquire('voice', 'waiting', { salience: 0.9 }).granted).toBe(true)
+  })
+
+  it('lets interrupt take only an interruptible lease, whatever its salience', () => {
+    const leases = new LeaseTable()
+    leases.acquire('voice', 'run', { salience: 0.9 })
+
+    expect(leases.acquire('voice', 'owner', { salience: 0.5, interrupt: true }).granted).toBe(false)
+    leases.handOver('voice', 'run', 'playback', { interruptible: true })
+    expect(leases.acquire('voice', 'calm', { salience: 0.5 }).granted).toBe(false)
+    expect(leases.acquire('voice', 'owner', { salience: 0.5, interrupt: true })).toMatchObject({ granted: true, previous: { holder: 'playback' } })
+    expect(leases.holder('voice')?.interruptible).toBeUndefined()
+  })
 })
 
 describe('lease lines', () => {

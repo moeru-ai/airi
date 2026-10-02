@@ -444,8 +444,24 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     }
 
     const index = pending.findIndex(item => item.intentId === intentId)
-    if (index >= 0)
+    if (index >= 0) {
       pending.splice(index, 1)
+      dropWaiting(intent)
+    }
+  }
+
+  /** Ends an intent that never started. Its cancellation is reported like an active intent's, so turn observers always see the turn end. */
+  function dropWaiting(intent: IntentState) {
+    intents.delete(intent.intentId)
+    const reason = intent.controller.signal.reason?.toString()
+    context.emit(speechPipelineEventMap.onIntentCancel, { intentId: intent.intentId, reason })
+    if (intent.turnId)
+      context.emit(speechPipelineEventMap.onTurnCancel, { turnId: intent.turnId, reason })
+  }
+
+  /** Returns whether an intent of the turn waits or plays. */
+  function hasTurn(turnId: string) {
+    return Array.from(intents.values()).some(intent => intent.turnId === turnId)
   }
 
   function interrupt(reason: string) {
@@ -459,7 +475,9 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       intent.controller.abort(reason)
       intent.closeStream()
     }
-    pending.length = 0
+    const waiting = pending.splice(0)
+    for (const intent of waiting)
+      dropWaiting(intent)
     intents.clear()
     activeIntent = null
     options.playback.stopAll(reason)
@@ -468,6 +486,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
   return {
     openIntent,
     cancelIntent,
+    hasTurn,
     interrupt,
     stopAll,
     on<K extends SpeechPipelineEventName>(event: K, listener: SpeechPipelineEvents<TAudio>[K]) {

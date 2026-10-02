@@ -154,6 +154,8 @@ interface QueuedSend {
   salience: number
   /** Admission time. Within one salience tier, a longer wait goes first. */
   queuedAt: number
+  /** Direct owner input. It cuts into speech that keeps playing after its run. */
+  direct: boolean
   /** Message ids that this run wrote. A rollback removes them. */
   writtenMessageIds: string[]
   /** Set while the send runs. */
@@ -1292,7 +1294,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (runningSends.has(queuedSend.sessionId))
         continue
       // Only candidates for the voice compare. The lease line ranks them by salience tier and waiting time.
-      if (queuedSend.envelope.outputs.includes('voice') && !leases.acquire('voice', queuedSend.runId, { salience: queuedSend.salience, waitingSince: queuedSend.queuedAt }).granted)
+      // The owner's own input interrupts playback that outlived its run. A generating run keeps the voice.
+      if (queuedSend.envelope.outputs.includes('voice') && !leases.acquire('voice', queuedSend.runId, { salience: queuedSend.salience, waitingSince: queuedSend.queuedAt, interrupt: queuedSend.direct }).granted)
         continue
       pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
       runningSends.set(queuedSend.sessionId, queuedSend)
@@ -1400,6 +1403,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         envelope,
         salience,
         queuedAt: now(),
+        direct: Boolean(stimulus.direct),
         writtenMessageIds: [],
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,

@@ -170,6 +170,24 @@ describe('orchestrator runs', () => {
     expect(leases.holder('voice')).toBeUndefined()
   })
 
+  // The voice stays held while speech plays after its run. Owner input cuts in. Scene input waits for the speech to end.
+  it('lets owner input interrupt speech that outlived its run, while connection input waits for it', async () => {
+    const leases = new LeaseTable()
+    leases.acquire('voice', 'earlier-run', { salience: 0.7 })
+    leases.handOver('voice', 'earlier-run', 'playback:turn', { interruptible: true })
+    const harness = createRunHarness({ leases, outputs: ['chat:owner', 'voice'] })
+
+    const connection = harness.runtime.ingest('from the scene', { model: 'test', chatProvider: provider, outputTarget: 'discord-connection' }, 'scene-session')
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(harness.stream).not.toHaveBeenCalled()
+
+    await harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
+    expect(harness.stream).toHaveBeenCalledOnce()
+
+    await connection
+    expect(harness.stream).toHaveBeenCalledTimes(2)
+  })
+
   // T20: a limit of one serializes active work across every run owner, with the normal envelope and trace.
   it('waits for a working run of another owner when the limit is one', async () => {
     const runs = new RunTable()

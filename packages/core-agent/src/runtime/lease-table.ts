@@ -2,13 +2,15 @@
 export interface Lease {
   /** For example `voice` or `module:minecraft`. */
   resource: string
-  /** A run id for the voice, which ends with its run. A session id for module control, which spans the session's runs. */
+  /** A run id or a playing speech turn for the voice. A session id for module control, which spans the session's runs. */
   holder: string
   grantedAt: number
   /** An expired lease is free. Without it, the lease lasts until release. */
   expiresAt?: number
   /** Salience of the work that holds it. Only higher salience can take it over. */
   salience: number
+  /** Any request with `interrupt` takes an interruptible lease, whatever its salience. Speech that outlives its run holds one, so the owner's next turn can cut in. */
+  interruptible?: boolean
 }
 
 /**
@@ -73,13 +75,17 @@ export class LeaseTable {
   constructor(private readonly options: { now?: () => number } = {}) {}
 
   /**
-   * Grants a free resource to the first waiting candidate, renews the holder's own lease, or takes it over with `preempt` and strictly higher salience.
+   * Grants a free resource to the first waiting candidate, renews the holder's own lease, or takes it over.
+   * `preempt` takes it over with strictly higher salience. `interrupt` takes over only an interruptible lease.
    * A refused requester waits in the resource's line until it asks again within {@link LEASE_CANDIDATE_TTL_MS}, withdraws, or gets the lease.
    */
-  acquire(resource: string, holder: string, options: { salience: number, ttlMs?: number, preempt?: boolean, deadlineAt?: number, waitingSince?: number }): LeaseGrant {
+  acquire(resource: string, holder: string, options: { salience: number, ttlMs?: number, preempt?: boolean, interrupt?: boolean, deadlineAt?: number, waitingSince?: number }): LeaseGrant {
     const now = this.now()
     const current = this.holder(resource)
-    const takesOver = Boolean(current && current.holder !== holder && options.preempt && options.salience > current.salience)
+    const takesOver = Boolean(current && current.holder !== holder && (
+      (options.preempt && options.salience > current.salience)
+      || (options.interrupt && current.interruptible)
+    ))
     if (current?.holder !== holder && !takesOver) {
       const line = this.line(resource, now)
       const waiting = line.get(holder)
@@ -103,6 +109,29 @@ export class LeaseTable {
     this.notify()
     const previous = current && current.holder !== holder ? current : undefined
     return { granted: true, lease: structuredClone(lease), previous }
+  }
+
+  /**
+   * Moves a held lease to another holder. Salience and grant time stay. Nobody in the line can take it in between.
+   *
+   * Use when:
+   * - Work that holds a resource ends, but its effect continues, for example speech that keeps playing after its run.
+   *
+   * Returns:
+   * - Whether `from` held the resource and `to` holds it now.
+   */
+  handOver(resource: string, from: string, to: string, options: { ttlMs?: number, interruptible?: boolean } = {}) {
+    const current = this.holder(resource)
+    if (current?.holder !== from)
+      return false
+    this.leases.set(resource, {
+      ...current,
+      holder: to,
+      expiresAt: options.ttlMs === undefined ? undefined : this.now() + options.ttlMs,
+      interruptible: options.interruptible,
+    })
+    this.notify()
+    return true
   }
 
   /** Releases one lease. A release by a run that no longer holds it does nothing. */
