@@ -18,7 +18,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { MAX_PROPOSAL_DEPTH, sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
+import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useChatStore } from '../../chat'
@@ -223,36 +223,6 @@ describe('store character-orchestrator', () => {
   })
 
   // T11: a proactive reaction joins the session as the character's turn, keeps its run link, and adds no user turn.
-  // P10 result routing: a task recipe's result returns to the conversation that started it, with a reference to the recipe run.
-  it('returns a recipe result to its parent conversation as an internal stimulus', async () => {
-    const stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
-      await options?.onStreamEvent?.({ type: 'text-delta', text: 'You are reading the scheduler ADR.' } satisfies StreamEvent)
-      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
-    })
-    mockedStore(useLLM, pinia).stream = stream
-    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn()
-    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = vi.fn()
-    const chatSession = mockedStore(useChatSessionStore, pinia)
-    chatSession.loadSession = vi.fn(async () => true)
-    chatSession.appendSessionMessage = vi.fn()
-    const store = useCharacterOrchestratorStore(pinia)
-
-    await store.relayRecipeResult({
-      recipe: { id: 'user:look', name: 'Look at me', description: '', style: { kind: 'instructions', instructions: 'Read the screen.' }, triggers: [], source: 'user', enabled: true, approved: true },
-      runId: 'recipe-run',
-      sessionId: 'recipe-session',
-      parentSessionId: 'parent-session',
-      ok: true,
-      text: 'The owner is reading the scheduler ADR.',
-      messageId: 'recipe-reply',
-    })
-
-    expect(JSON.stringify(stream.mock.calls[0]?.[2])).toContain('The owner is reading the scheduler ADR.')
-    expect(JSON.stringify(stream.mock.calls[0]?.[2])).toContain('Source: recipe run recipe-run, message recipe-reply in session recipe-session.')
-    expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ event: 'proposal', outcome: 'admitted', parentRunId: 'recipe-run' }])
-    expect(chatSession.appendSessionMessage).toHaveBeenCalledExactlyOnceWith('parent-session', expect.objectContaining({ role: 'assistant', content: 'You are reading the scheduler ADR.' }))
-  })
-
   it('writes a spoken reaction into the session without a user turn', async () => {
     mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: '<|ACT:{"emotion":"surprised"}|>A creeper is behind you!' } satisfies StreamEvent)
@@ -570,17 +540,6 @@ describe('store character-orchestrator', () => {
       expect(scheduler.leases.acquire('voice', 'next-chat-send', { salience: 0.5 })).toEqual({ granted: false, ahead: waiting?.runId })
     })
 
-    it('ignores an expired notification without a run', async () => {
-      const mockStream = replyWith('unused')
-      const store = useCharacterOrchestratorStore(pinia)
-      const event = notify({ ttlMs: 0 })
-
-      await store.handleSparkNotify(event)
-
-      expect(mockStream).not.toHaveBeenCalled()
-      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'expired', decidedBy: 'rule' }])
-    })
-
     // T20: a notification run counts against the shared run capacity, so a limit of one serializes all active work.
     it('defers a notification while the shared run capacity is full', async () => {
       const mockStream = replyWith('unused')
@@ -768,17 +727,6 @@ describe('store character-orchestrator', () => {
       expect(fetch).toHaveBeenCalledOnce()
       expect(startRecipe).not.toHaveBeenCalled()
       vi.unstubAllGlobals()
-    })
-
-    // T12: a proposal chain stops at its depth limit.
-    it('rejects a proposal beyond the chain depth limit', async () => {
-      const mockStream = replyWith('unused')
-      const store = useCharacterOrchestratorStore(pinia)
-
-      await store.propose({ headline: 'Follow up again', depth: MAX_PROPOSAL_DEPTH + 1, parentRunId: 'parent-run' })
-
-      expect(mockStream).not.toHaveBeenCalled()
-      expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ event: 'proposal', outcome: 'rejected', reason: 'depth-limit', parentRunId: 'parent-run' }])
     })
 
     it('ignores a notification whose time to live has passed', async () => {

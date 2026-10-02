@@ -3,7 +3,6 @@ import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/sp
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
-import type { RecipeRunSettled } from '../../chat'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -33,11 +32,6 @@ import { useCharacterMoodStore } from '../mood'
 import { useCharacterNotifyQueueStore } from './queue'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
-
-/** Internal proposals can propose further work only this many levels deep. */
-export const MAX_PROPOSAL_DEPTH = 2
-/** Characters of a recipe result that travel in the note. The rest stays in the recipe's session, which the reference names. */
-const RECIPE_RESULT_NOTE_LIMIT = 1500
 
 /** Salience at which a notification interrupts current speech at a sentence boundary. */
 export const INTERRUPT_SALIENCE = 0.85
@@ -176,8 +170,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    * The run reaches a final state even when the model fails, so the voice never stays held.
    */
   async function runNotify(runId: string, stimulus: Stimulus, event: WebSocketEventOf<'spark:notify'>, decision: IntakeDecision, control?: SparkNotifyResponseControl) {
-    // A proposal can continue the session that asked for it, so a result returns where its task began.
-    const sessionId = stimulus.sessionId ?? chatSession.activeSessionId
+    const sessionId = chatSession.activeSessionId
     const salience = decision.salience ?? stimulus.salience
     scheduler.runs.admit({
       runId,
@@ -358,10 +351,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     return handleStimulus(stimulusFromNotify(event), event, control)
   }
 
-  /**
-   * Offers one stimulus with its notification form to intake.
-   * Internal proposals skip the classifier, because their source already appraised them or a commitment made them due.
-   */
+  /** Offers one stimulus with its notification form to intake. */
   async function handleStimulus(stimulus: Stimulus, event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
     // Hard constraints come first. No salience or classifier answer passes them.
     if (stimulus.coalesceKey) {
@@ -385,8 +375,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     const ranked = stimulus
     const now = Date.now()
     const entry = { runId: nanoid(), stimulus: ranked, event, control, enqueuedAt: now, attempts: 0, maxAttempts: attentionConfig.value.maxAttempts, reason: 'spark:notify' }
-    // A proposal's source already chose its moment, so it waits only for the voice.
-    const timing = decideByPrior(ranked, { now, busy: false, retryAt: ranked.event === 'proposal' ? now : undefined })
+    const timing = decideByPrior(ranked, { now, busy: false })
     if (timing.outcome === 'ignored') {
       scheduler.intake.record(ranked, timing)
       return undefined
@@ -419,51 +408,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       ?.trim()
 
     return reaction || options?.fallbackText || ''
-  }
-
-  /**
-   * Offers an internal proposal to intake. It gets no authority from its internal origin.
-   * A chain deeper than {@link MAX_PROPOSAL_DEPTH} is rejected, and proposals with one coalescing key replace each other.
-   * An admitted proposal becomes a notification run, which can still choose silence. It adds no user turn to any session.
-   */
-  async function propose(proposal: { headline: string, note?: string, urgency?: 'immediate' | 'soon' | 'later', coalesceKey?: string, parentRunId?: string, depth?: number, sessionId?: string }) {
-    const event: WebSocketEventOf<'spark:notify'> = {
-      type: 'spark:notify',
-      source: 'scheduler',
-      data: {
-        id: nanoid(),
-        eventId: nanoid(),
-        kind: 'ping',
-        urgency: proposal.urgency ?? 'later',
-        headline: proposal.headline,
-        note: proposal.note,
-        coalesceKey: proposal.coalesceKey,
-        destinations: ['character'],
-      },
-    }
-    const stimulus: Stimulus = { ...stimulusFromNotify(event, 'internal', 'proposal'), parentRunId: proposal.parentRunId, depth: proposal.depth ?? 0, ...(proposal.sessionId ? { sessionId: proposal.sessionId } : {}) }
-    if ((stimulus.depth ?? 0) > MAX_PROPOSAL_DEPTH) {
-      scheduler.intake.record(stimulus, { outcome: 'rejected', reason: 'depth-limit', decidedBy: 'rule' })
-      return undefined
-    }
-    return handleStimulus(stimulus, event)
-  }
-
-  /**
-   * Offers a finished task recipe's result to its conversation as an internal stimulus.
-   * The note carries a short copy and a reference back to the recipe run, so the result is never only a summary.
-   */
-  async function relayRecipeResult(settled: RecipeRunSettled) {
-    const reference = `Source: recipe run ${settled.runId}${settled.messageId ? `, message ${settled.messageId}` : ''} in session ${settled.sessionId}.`
-    await propose({
-      headline: settled.ok ? `Your recipe "${settled.recipe.name}" finished its task.` : `Your recipe "${settled.recipe.name}" could not finish its task.`,
-      note: `${settled.text.trim().slice(0, RECIPE_RESULT_NOTE_LIMIT) || 'It returned nothing.'}\n${reference}`,
-      urgency: 'soon',
-      coalesceKey: `recipe-result:${settled.runId}`,
-      parentRunId: settled.runId,
-      depth: 1,
-      sessionId: settled.parentSessionId,
-    })
   }
 
   let triggersStartedAt: number | undefined
@@ -659,15 +603,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       appraiseMood(personaOf(context.sessionId), `Owner: ${owner}\nCharacter: ${turn.outputText}`)
     }))
 
-    // A task recipe's result returns to the conversation that started it. The conversation decides what to tell the owner.
-    eventUnsubscribes.push(useChatStore().onRecipeRunSettled((settled) => {
-      if (!leadership?.isLeader())
-        return
-      void relayRecipeResult(settled).catch((error) => {
-        console.warn('[character-orchestrator] Failed to return a recipe result:', errorMessageFrom(error))
-      })
-    }))
-
     // A released voice or a finished run goes to the next candidate at once, instead of waiting for the next tick.
     eventUnsubscribes.push(scheduler.leases.subscribe(() => {
       queueMicrotask(() => void tick())
@@ -733,9 +668,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     dispose,
 
     handleSparkNotify: handleIncomingSparkNotify,
-    propose,
     runRecipeTriggers,
-    relayRecipeResult,
     handleSparkNotifyWithReaction,
     handleSparkEmit,
   }

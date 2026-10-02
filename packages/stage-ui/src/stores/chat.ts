@@ -88,21 +88,8 @@ export interface ChatSendPayload {
   topP?: number
 }
 
-/** A task recipe run that finished or failed in its own session. */
-export interface RecipeRunSettled {
-  recipe: Recipe
-  /** The derived run. */
-  runId: string
-  /** The recipe's own session. */
-  sessionId: string
-  /** The conversation that started the recipe. Its result returns there. */
-  parentSessionId: string
-  ok: boolean
-  /** The recipe's reply, or the failure reason. */
-  text: string
-  /** The reply message in the recipe's session, for a reference back to the source. */
-  messageId?: string
-}
+/** Characters of a background result that travel in the notice. The rest stays in the recipe's session, which the reference names. */
+const RECIPE_RESULT_NOTICE_LIMIT = 1500
 
 /** Text of a stored reply, without tool calls. */
 function replyTextOf(message: ChatHistoryItem) {
@@ -397,12 +384,19 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  const recipeRunListeners = new Set<(settled: RecipeRunSettled) => void>()
-
-  /** Listens for task recipes that finished or failed. The scheduler routes each result back to its conversation. */
-  function onRecipeRunSettled(listener: (settled: RecipeRunSettled) => void) {
-    recipeRunListeners.add(listener)
-    return () => recipeRunListeners.delete(listener)
+  /**
+   * Tells a conversation about finished background work. The main agent reads the notice and decides what to say, or stays quiet.
+   * Only a session that only the owner reads gets a notice, so background results never reach a scene.
+   */
+  async function notifyConversation(sessionId: string, notice: { source: string, text: string, urgent?: boolean }) {
+    if (!audienceIncludes(OWNER_AUDIENCE, chatSession.getSessionAudience(sessionId) ?? OWNER_AUDIENCE))
+      return
+    try {
+      await executeSend({ sessionId, text: notice.text }, { notice: { source: notice.source, urgent: notice.urgent } })
+    }
+    catch (error) {
+      console.warn('[chat] Failed to deliver a notice:', errorMessageFrom(error))
+    }
   }
 
   /**
@@ -422,7 +416,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /**
    * Proposes a task recipe to the scheduler. It runs as derived work in the recipe's own session, without voice.
-   * Resolves once the run is admitted or refused. The result reaches the recipe-run listeners when the run settles.
+   * Resolves once the run is admitted or refused. When the run settles, its result reaches the parent conversation as a notice, with a reference back to the run.
    */
   async function startRecipe(recipe: Recipe, request: { parentSessionId: string, parentRunId?: string, task: string }): Promise<{ status: 'started' } | { status: 'refused', reason: string }> {
     const tools = recipeToolsFor(recipe, request.parentSessionId)
@@ -435,9 +429,12 @@ export const useChatStore = defineStore('chat', () => {
     }
     return await new Promise((resolve) => {
       let runId: string | undefined
-      const settle = (settled: Omit<RecipeRunSettled, 'recipe' | 'sessionId' | 'parentSessionId' | 'runId'>) => {
-        for (const listener of recipeRunListeners)
-          listener({ ...settled, recipe, sessionId, parentSessionId: request.parentSessionId, runId: runId! })
+      const settle = (result: { ok: boolean, text: string, messageId?: string }) => {
+        const reference = `Source: recipe run ${runId}${result.messageId ? `, message ${result.messageId}` : ''} in session ${sessionId}.`
+        void notifyConversation(request.parentSessionId, {
+          source: `recipe:${recipe.name}`,
+          text: `${result.ok ? `The background task "${recipe.name}" finished.` : `The background task "${recipe.name}" could not finish.`}\n${result.text.trim().slice(0, RECIPE_RESULT_NOTICE_LIMIT) || 'It returned nothing.'}\n${reference}`,
+        })
       }
       void executeSend({ sessionId, text: request.task, tools }, {
         derivation: {
@@ -862,7 +859,7 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  async function executeSend(payload: ChatSendPayload, extra: Pick<ChatOrchestratorSendOptions, 'derivation'> = {}): Promise<ChatSendResult> {
+  async function executeSend(payload: ChatSendPayload, extra: Pick<ChatOrchestratorSendOptions, 'derivation' | 'notice'> = {}): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
     if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
@@ -887,6 +884,7 @@ export const useChatStore = defineStore('chat', () => {
       temperature: payload.temperature ?? consciousnessStore.activeTemperature,
       topP: payload.topP ?? consciousnessStore.activeTopP,
       derivation: extra.derivation,
+      notice: extra.notice,
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
@@ -1045,7 +1043,7 @@ export const useChatStore = defineStore('chat', () => {
     retry,
     send,
     startRecipe,
-    onRecipeRunSettled,
+    notifyConversation,
     cancelPendingSends,
     cancelRun,
     recordDeliveredSpeech,

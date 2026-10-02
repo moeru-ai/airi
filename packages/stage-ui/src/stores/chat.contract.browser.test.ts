@@ -413,8 +413,8 @@ describe('chat store contract', () => {
   })
 
   // A keyword trigger works like a smart shortcut. The recipe runs in its own session, so its steps never enter the conversation.
-  // The conversation only learns that the recipe started, and the result returns through the scheduler.
-  it('runs a keyword-triggered recipe in its own session without voice, and reports its result', async () => {
+  // The conversation only learns that the recipe started. The result returns as a notice that the main agent answers.
+  it('runs a keyword-triggered recipe in its own session without voice, and notifies the conversation of its result', async () => {
     // Two runs stream at once, so each request records its prompt and tools together.
     const requests: Array<{ prompt: string, tools: string[] }> = []
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
@@ -432,16 +432,15 @@ describe('chat store contract', () => {
       triggers: [{ kind: 'keyword', keywords: ['想玩粥了'] }],
       enabled: true,
     })
-    const settled = vi.fn()
     const store = useChatStore()
-    store.onRecipeRunSettled(settled)
 
     // The owner granted computer use to this message, so the recipe may use it. Derived work never gets more.
     await store.send({ sessionId: 'session-1', text: '今天想玩粥了', tools: [{ name: 'computer_use' }] })
-    await vi.waitFor(() => expect(settled).toHaveBeenCalledOnce())
+    await vi.waitFor(() => expect(requests.some(request => request.prompt.includes('[Notice from recipe:Game night'))).toBe(true))
 
     const recipeSession = await createSessionMock.mock.results[0]?.value
-    const conversation = requests.find(request => !request.prompt.includes('Ask which game, then start it.'))!.prompt
+    const conversation = requests.find(request => !request.prompt.includes('Ask which game, then start it.') && !request.prompt.includes('[Notice from'))!.prompt
+    const notice = requests.find(request => request.prompt.includes('[Notice from recipe:Game night'))!.prompt
     const recipeRun = requests.find(request => request.prompt.includes('Ask which game, then start it.'))!
     expect(createSessionMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ recipeId: expect.stringMatching(/^user:/), hidden: true, setActive: false, parentSessionId: 'session-1' }))
     expect(conversation).toContain('These recipes started for this message in their own space: Game night.')
@@ -450,7 +449,11 @@ describe('chat store contract', () => {
     // The recipe space cannot start recipes, save them, or choose silence.
     expect(recipeRun.tools).toEqual(['computer_use', 'builtIn_readContextSource'])
     expect(registeredToolsetPrompts['use-recipe']?.[0]?.content).toContain('- Game night: Starts a game when the owner wants to play.')
-    expect(settled).toHaveBeenCalledWith(expect.objectContaining({ ok: true, parentSessionId: 'session-1', text: 'The owner wants porridge games.', recipe: expect.objectContaining({ name: 'Game night' }) }))
+    expect(notice).toContain('The background task \\"Game night\\" finished.')
+    expect(notice).toContain('The owner wants porridge games.')
+    expect(notice).toContain(`in session ${recipeSession}.`)
+    // The notice never becomes owner speech in the conversation history.
+    await vi.waitFor(() => expect(sessionMessages['session-1']?.filter(message => message.role === 'user')).toHaveLength(1))
     expect(useSchedulerStore().runs.snapshot().find(run => run.sessionId === recipeSession)).toMatchObject({ envelope: { outputs: [] }, parentRunId: expect.any(String) })
   })
 

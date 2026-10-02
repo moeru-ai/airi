@@ -589,6 +589,22 @@ describe('orchestrator runs', () => {
     expect(harness.getSessionAudience()).toEqual(OWNER_AUDIENCE)
   })
 
+  // A background result or a module event reaches the main conversation as a notice. History gains the reply, never a fake user turn.
+  it('answers a notice without storing it as owner speech, and marks the reply as proactive', async () => {
+    const decideBeforeReply = vi.fn(async () => undefined)
+    const harness = createRunHarness({ decideBeforeReply })
+
+    const result = await harness.runtime.ingest('Research finished: three PC builds under 3000 yuan.', { model: 'test', chatProvider: provider, notice: { source: 'recipe:Research' } })
+
+    const prompt = harness.stream.mock.calls[0]![2]
+    expect(JSON.stringify(prompt.turns.at(-1))).toContain('[Notice from recipe:Research, not a message from the owner.')
+    expect(JSON.stringify(prompt.turns.at(-1))).toContain('Research finished')
+    expect(harness.messages.map(message => message.role)).toEqual(['assistant'])
+    expect(harness.messages[0]).toMatchObject({ proactive: { runId: result.runId, source: 'recipe:Research' } })
+    expect(decideBeforeReply).not.toHaveBeenCalled()
+    expect(harness.runtime.getIntakeRecords()).toMatchObject([{ origin: 'internal', source: 'recipe:Research', event: 'notice', reason: 'notice', decidedBy: 'rule' }])
+  })
+
   // P10: only the scheduler derives runs. A derived run has no voice, reads within its parent, and follows its parent's cancellation.
   describe('derived runs', () => {
     function workingRun(runs: RunTable, runId: string, parentRunId?: string, audience = OWNER_AUDIENCE) {

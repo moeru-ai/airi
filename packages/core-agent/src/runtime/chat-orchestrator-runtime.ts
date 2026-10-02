@@ -160,6 +160,17 @@ export interface ChatOrchestratorSendOptions {
     /** Called once the run is admitted, before it runs. The scheduler hands its id to the proposer as a ticket. */
     onAdmitted?: (runId: string) => void
   }
+  /**
+   * The text is a notice for the conversation, not owner speech, for example a finished background task or a module event.
+   * It enters this request only, after the history, and never becomes a stored user message.
+   * The reply is stored as a proactive message, and the run can stay quiet.
+   */
+  notice?: {
+    /** What sent the notice, for the reply's trace. */
+    source: string
+    /** An urgent notice cuts into speech that keeps playing, like owner input. */
+    urgent?: boolean
+  }
 }
 
 interface QueuedSend {
@@ -170,7 +181,7 @@ interface QueuedSend {
   salience: number
   /** Admission time. Within one salience tier, a longer wait goes first. */
   queuedAt: number
-  /** Direct owner input. It cuts into speech that keeps playing after its run. */
+  /** Direct owner input or an urgent notice. It cuts into speech that keeps playing after its run. */
   direct: boolean
   /** Message ids that this run wrote. A rollback removes them. */
   writtenMessageIds: string[]
@@ -813,6 +824,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       tool_results: [],
       createdAt: now(),
       id: assistantMessageId,
+      ...(options.notice ? { proactive: { runId: run.runId, source: options.notice.source } } : {}),
     }
     beginStream(sessionId, buildingMessage)
     const hasVoice = options.input?.type === 'input:voice'
@@ -883,29 +895,32 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       else
         delete streamingMessageContext.message.replyToMessageId
 
-      const userMessage = {
-        role: 'user' as const,
-        content: finalContent,
-        createdAt: sendingCreatedAt,
-        id: roundId,
-        ...(replyToMessageId ? { replyToMessageId } : {}),
-        ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
-      }
-      deps.session.appendSessionMessage(sessionId, userMessage)
-      run.onWrite(userMessage.id)
+      // A notice is not owner speech, so history never stores it as a user turn.
+      if (!options.notice) {
+        const userMessage = {
+          role: 'user' as const,
+          content: finalContent,
+          createdAt: sendingCreatedAt,
+          id: roundId,
+          ...(replyToMessageId ? { replyToMessageId } : {}),
+          ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+        }
+        deps.session.appendSessionMessage(sessionId, userMessage)
+        run.onWrite(userMessage.id)
 
-      // Cloud sync v1: only the raw text part round-trips; image attachments
-      // and other non-text parts stay local.
-      deps.onUserMessageAppended?.({
-        sessionId,
-        message: userMessage,
-        messageText: sendingMessage,
-        source: sendSource,
-        model: options.model,
-        provider: activeProvider,
-        roundId,
-        turnIndex,
-      })
+        // Cloud sync v1: only the raw text part round-trips; image attachments
+        // and other non-text parts stay local.
+        deps.onUserMessageAppended?.({
+          sessionId,
+          message: userMessage,
+          messageText: sendingMessage,
+          source: sendSource,
+          model: options.model,
+          provider: activeProvider,
+          roundId,
+          turnIndex,
+        })
+      }
 
       // Hooks above can wait. The audience check repeats at the moment the history is read.
       if (!sessionAudienceCovers(sessionId, run.envelope.audience))
@@ -995,6 +1010,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       const projected = deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend
       const { turns, note } = await fitSessionHistory(sessionId, projected)
       const context: Conversation = { turns }
+      // The notice follows the history in this request only. It says plainly that the owner did not write it.
+      if (options.notice)
+        context.turns.push({ id: `notice-${roundId}`, type: 'user', content: [{ type: 'text', text: `[Notice from ${options.notice.source}, not a message from the owner. Speak only if it fits now, or stay quiet.]\n${sendingMessage}` }] })
       if (note)
         context.turns.unshift({ id: 'history-omitted', type: 'system', authority: 'context', content: [{ type: 'text', text: note }] })
       if (systemPrompt?.trim())
@@ -1050,11 +1068,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       let generationUsage: LlmUsage = { source: 'unavailable' }
       let generatedTurn: AssistantTurn | undefined
       // A decision recipe can choose silence before any generation, for example a classifier that sees nothing to answer.
-      const decided = await deps.decideBeforeReply?.({ sessionId, runId: run.runId, message: sendingMessage, envelope: run.envelope, signal: abortSignal })
-        .catch((error: unknown) => {
-          console.warn('Decision recipe failed, so the run replies:', errorMessageFrom(error))
-          return undefined
-        })
+      // Recipes decide on owner messages. A notice is the result of earlier work, so none run for it.
+      const decided = options.notice
+        ? undefined
+        : await deps.decideBeforeReply?.({ sessionId, runId: run.runId, message: sendingMessage, envelope: run.envelope, signal: abortSignal })
+            .catch((error: unknown) => {
+              console.warn('Decision recipe failed, so the run replies:', errorMessageFrom(error))
+              return undefined
+            })
       if (shouldAbort())
         return
       if (decided?.hints?.length) {
@@ -1446,13 +1467,13 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const depth = derivation ? derivationDepth(derivation.parentRunId) + 1 : 0
     const stimulus: Stimulus = {
       id: defaultCreateId(),
-      kind: derivation ? 'derived' : options.input?.type ?? 'input:text',
-      origin: derivation ? 'internal' : 'external',
-      source: derivation?.source ?? (options.outputTarget ? `connection:${options.outputTarget}` : 'owner'),
-      event: derivation ? 'derived' : options.input?.type ?? 'input:text',
+      kind: derivation ? 'derived' : options.notice ? 'notice' : options.input?.type ?? 'input:text',
+      origin: derivation || options.notice ? 'internal' : 'external',
+      source: derivation?.source ?? options.notice?.source ?? (options.outputTarget ? `connection:${options.outputTarget}` : 'owner'),
+      event: derivation ? 'derived' : options.notice ? 'notice' : options.input?.type ?? 'input:text',
       bindings: envelope.bindings,
-      salience: salienceFromUrgency(),
-      direct: !options.outputTarget && !derivation,
+      salience: options.notice ? salienceFromUrgency(options.notice.urgent ? 'immediate' : 'soon') : salienceFromUrgency(),
+      direct: !options.outputTarget && !derivation && !options.notice,
       ...(derivation ? { parentRunId: derivation.parentRunId, depth } : {}),
       // A bound session with a return connection speaks with other people.
       fromScene: Boolean(options.outputTarget) && envelope.bindings.length > 0,
@@ -1485,9 +1506,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // Connection input can wait for a remote classifier. Derived work was already chosen by the scheduler.
     const decision: ChatIntakeDecision = derivation
       ? { outcome: 'admitted', reason: 'derived', decidedBy: 'rule' }
-      : stimulus.direct
-        ? decideDirect(stimulus)
-        : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
+      : options.notice
+        ? { outcome: 'admitted', reason: 'notice', decidedBy: 'rule' }
+        : stimulus.direct
+          ? decideDirect(stimulus)
+          : { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule' }
     if (decision.outcome === 'ignored') {
       intake.record(stimulus, decision)
       return { stimulusId: stimulus.id, outcome: 'ignored' }
@@ -1514,7 +1537,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         envelope,
         salience,
         queuedAt: now(),
-        direct: Boolean(stimulus.direct),
+        direct: Boolean(stimulus.direct || options.notice?.urgent),
         writtenMessageIds: [],
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
