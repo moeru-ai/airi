@@ -867,6 +867,32 @@ pages:
     vision:
       description: Vision
       title: Vision
+      tool-images:
+        label: Use the vision model for tool images
+        description: The vision model reads the images that tools return, such as screenshots from Use computer, before your chat model replies. The chat model gets them directly when its provider reports image input. A description has no pixel positions.
+      capture:
+        title: Vision capture cadence
+        description: Tune how often the vision ticker captures a frame.
+        interval:
+          label: Capture interval
+          description: A lower value captures more often and uses more resources.
+      stats:
+        captures: Captures
+        context-updates: Context updates
+        inferences: Image recognition calls
+        inferences-description: Every call to the vision model, chat images included
+        failed-inferences: Failed calls
+        last-inference: Last call
+        error: 'Error:'
+        last-update: Last update {time}
+        since-start: Since the app started
+        never: Never
+      ollama:
+        title: Provider request toggles
+        description: Control provider-specific request flags for vision inference.
+        thinking:
+          label: Thinking (Ollama)
+          description: 'When on, vision requests through Ollama include `think: true`. When off, they include `think: false`.'
     x:
       description: X / Twitter browsing and usage
       title: X / Twitter
@@ -1080,6 +1106,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          apple-vision:
+            check-availability:
+              title: Availability
           prompt-api:
             check-availability:
               title: Availability
@@ -1192,6 +1221,9 @@ pages:
         model:
           label: Model
           description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.
+      apple-vision:
+        title: Apple Vision
+        description: On-device image understanding with Apple Foundation Models on macOS 27 or later. No API key is required.
       apple-speech-transcription:
         title: Apple Speech
         description: On-device speech recognition on macOS 26 or later. No API key is required.

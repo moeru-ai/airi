@@ -17,7 +17,7 @@ const primaryDisplay = {
 const displays = shallowRef([primaryDisplay])
 const windowBounds = {
   x: shallowRef(1370),
-  y: shallowRef(430),
+  y: shallowRef(100),
   width: shallowRef(450),
   height: shallowRef(600),
 }
@@ -97,7 +97,7 @@ afterEach(() => {
   mountedApps.length = 0
   displays.value = [primaryDisplay]
   windowBounds.x.value = 1370
-  windowBounds.y.value = 430
+  windowBounds.y.value = 100
   windowBounds.width.value = 450
   windowBounds.height.value = 600
   vi.unstubAllGlobals()
@@ -105,20 +105,20 @@ afterEach(() => {
 })
 
 describe('resolveControlsIslandDock', () => {
-  it('docks opposite the top-left screen edge', () => {
-    expect(resolve({ x: 100, y: 100, width: 450, height: 600 })).toBe('bottom-left')
+  it('docks at the top-left screen corner', () => {
+    expect(resolve({ x: 100, y: 100, width: 450, height: 600 })).toBe('top-left')
   })
 
-  it('docks opposite the top-right screen edge', () => {
-    expect(resolve({ x: 1370, y: 100, width: 450, height: 600 })).toBe('bottom-right')
+  it('docks at the top-right screen corner', () => {
+    expect(resolve({ x: 1370, y: 100, width: 450, height: 600 })).toBe('top-right')
   })
 
-  it('docks opposite the bottom-left screen edge', () => {
-    expect(resolve({ x: 100, y: 430, width: 450, height: 600 })).toBe('top-left')
+  it('docks at the bottom-left screen corner', () => {
+    expect(resolve({ x: 100, y: 430, width: 450, height: 600 })).toBe('bottom-left')
   })
 
-  it('docks opposite the bottom-right screen edge', () => {
-    expect(resolve({ x: 1370, y: 430, width: 450, height: 600 })).toBe('top-right')
+  it('docks at the bottom-right screen corner', () => {
+    expect(resolve({ x: 1370, y: 430, width: 450, height: 600 })).toBe('bottom-right')
   })
 
   it('uses the display that contains the largest window area', () => {
@@ -133,7 +133,7 @@ describe('resolveControlsIslandDock', () => {
       windowBounds: { x: -500, y: -300, width: 450, height: 600 },
     })
 
-    expect(dock).toBe('top-right')
+    expect(dock).toBe('bottom-right')
   })
 
   it('keeps the previous dock inside the display center dead zone', () => {

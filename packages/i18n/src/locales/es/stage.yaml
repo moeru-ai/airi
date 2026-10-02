@@ -1,12 +1,67 @@
+character-switcher:
+  title: Cambiar de Personaje
+  manage: Gestionar personajes
+  empty: Aún no hay personajes
+  failed: No se pudo cambiar de personajes. Inténtelo de nuevo.
+mobile-tools:
+  sign-in: Iniciar sesión en AIRI
+  account-description: Cuenta y preferencias
+  sound: Sonido
+  character-voice: Voz del personaje
+  title: Configuración
+  appearance: Apariencia
+  dark-mode: Modo oscuro
+  application: Aplicación
+  more: Más
+  background: Fondo
+  settings: Todos los ajustes
+  about: Acerca de
+  view: Vista
+  close-view: Guardar y cerrar controles de vista
+  hearing: Audición
 chat:
+  voice-input: Entrada de voz
+  error-details:
+    show: Mostrar detalles
+    hide: Ocultar detalles
+  images:
+    empty: Comparte un pensamiento o una imagen.
+    use-vision: Usar el modelo de visión para las imágenes del chat
+    use-vision-description: Elige un proveedor y modelo debajo. Lee las imágenes adjuntas antes de que el modelo de chat responda. Sin un modelo de visión, las imágenes van directamente al modelo de chat.
+    attach: 'Adjuntar imagen'
+    remove: 'Eliminar {name}'
+    unsupported: 'Usar imágenes PNG, JPEG, WebP o GIF.'
+    too-large: 'Cada imagen debe ser de 3 MB o menor.'
+    too-many: 'Adjunte hasta {count} imágenes a la vez.'
+    total-too-large: 'Todas las imágenes adjuntas deben ser en total 3 MB o menos.'
+    read-failed: 'No se pudo leer esta imagen. Inténtalo de nuevo.'
+    no-description: 'El modelo de visión no devolvió ninguna descripción de la imagen. Compruebe Configuración → Módulos → Visión e inténtelo de nuevo.'
+    reading: 'Leyendo imágenes...'
+    description: 'Imagen adjunta'
   actions:
+    reply: Responder
     retry: Reintentar
+    send: Enviar mensaje
+    stop: Detener respuesta
   message:
     character-name:
       core-system: Sistema Central
       you: Tu
+  reply:
+    cancel: Cancelar respuesta
+    message: Mensaje
+    replying-to: Respondiendo a {name}
   reasoning: Razonamiento
+  swipe-demo:
+    show-label: Mostrar etiquetas
+    delete: Borrar
+    archive: Archivar
+    pin: Fijar
+    actions: Mostrar acciones
+    row: 'Conversación {n}'
   sessions:
+    delete-short: Eliminar
+    confirm-delete-short: Confirmar eliminación
     title: Conversaciones
     new: + Nuevo
     empty: No hay conversaciones todavía

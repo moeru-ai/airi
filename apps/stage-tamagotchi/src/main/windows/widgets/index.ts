@@ -26,6 +26,7 @@ import { widgetsClearEvent, widgetsIframeRequestEvent, widgetsRemoveEvent, widge
 import { normalizeWidgetWindowSize } from '../../../shared/utils/electron/windows/window-size'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { createWidgetIframeRequestCoordinator } from './iframe-request-coordinator'
 import { setupWidgetsWindowInvokes } from './rpc/index.electron'
@@ -235,7 +236,7 @@ function createWidgetsWindow() {
   })
 
   window.setFullScreenable(false)
-  window.setVisibleOnAllWorkspaces(true)
+  showWindowOnAllWorkspaces(window)
   if (isMacOS)
     window.setWindowButtonVisibility(false)
 

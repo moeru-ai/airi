@@ -6,6 +6,7 @@ import Info from 'unplugin-info/vite'
 import VueRouter from 'vue-router/vite'
 
 import { playwright } from '@vitest/browser-playwright'
+import { mergeConfigs } from 'unocss'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
@@ -33,9 +34,8 @@ export default defineConfig({
     // Use the app's route-block transform when browser tests mount shared pages.
     VueRouter({ routesFolder: [], dts: false }),
     Vue(),
-    UnoCSS({
+    UnoCSS(mergeConfigs([sharedUnoConfig(), {
       // Browser tests use product styles, not Histoire's hover-preview variants.
-      ...sharedUnoConfig(),
       configFile: false,
       // Vitest loads components after the stylesheet. Scan their source before
       // the initial CSS response instead of relying on Vite's HMR updates.
@@ -45,7 +45,7 @@ export default defineConfig({
           `${import.meta.dirname}/../ui/src/**/*.vue`,
         ],
       },
-    }),
+    }])),
   ],
   test: {
     env: loadEnv('test', cwd(), ''),
