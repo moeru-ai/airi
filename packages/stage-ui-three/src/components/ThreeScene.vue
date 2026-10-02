@@ -20,7 +20,7 @@ import { coverRect, presenceBubbleIdle } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
-import { useElementBounding, useResizeObserver } from '@vueuse/core'
+import { defaultWindow, useElementBounding, useEventListener, useResizeObserver } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
@@ -956,10 +956,11 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
   directionalLightTarget.value = { x: target.x, y: target.y, z: target.z }
 }
 
-// Eye tracking reads this box through a computed keyed on cursor position, so it re-reads on every
-// cursor update. getBoundingClientRect() forces layout each time, and the box only changes on resize,
-// so a ResizeObserver-backed cache returns the same numbers without touching layout.
-const screenContainerBounding = useElementBounding(() => screenRef.value?.containerRef)
+// Eye tracking reads cached bounds instead of forcing layout on each cursor update.
+const screenContainerBounding = useElementBounding(() => screenRef.value?.containerRef, { updateTiming: 'next-frame' })
+// Mobile viewport panning moves an ancestor without resizing this container.
+// Measure after Vue applies that transform, so eye tracking uses the new position.
+useEventListener(defaultWindow?.visualViewport, ['resize', 'scroll'], screenContainerBounding.update)
 
 function getScreenBBox() {
   // No measured box before the first observation; the previous inline read had the same fallback.
