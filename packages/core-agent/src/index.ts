@@ -69,3 +69,11 @@ export type {
   StreamFromOptions,
   StreamOptions,
 } from './types/llm'
+export * from './voice/response'
+export * from './voice/speech-input'
+export * from './voice/speech-input-attempt'
+export * from './voice/transcript'
+export { turnKey } from './voice/turn'
+export * from './voice/voice-controller'
+export type * from './voice/voice-plugin-types'
+export type { VoicePluginSettings } from './voice/voice-plugins'
