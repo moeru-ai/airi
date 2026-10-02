@@ -98,7 +98,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0 through P4 are Implemented with deterministic tests. Their live scenarios remain open. P5 through P10 have not started.
+- P0 through P5 are Implemented with deterministic tests. Their live scenarios remain open. P6 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
@@ -228,6 +228,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`model-profile.test.ts`): a profile keeps catalog facts and learned tool failures, and unknown facts stay unknown.
 - Observed (`spending.test.ts`): the ledger counts costs in a rolling window and reports when spending falls under the limit.
 - Observed (`model-routing.test.ts`): without task evidence, the router keeps the configured model. It never ranks by price.
+- Implemented: the conversation model is never a routing task. The whitepaper's "conversation model as the default tier" yields to Appendix A, so the user's choice stays.
 - Designed: no production task routes yet. Quality tests need live task traffic, which waits for the timing measurements after P10.
 - Observed (`chat-orchestrator-runs.test.ts`, `orchestrator/index.test.ts`, `model-profiles.test.ts`): a reached spending limit rejects owner input with a message and defers notifications before any model or classifier request. No model is swapped.
 - Implemented: every model request reports its first-token delay and estimated cost. Settings > Memory holds model tiers and the optional hourly limit.
