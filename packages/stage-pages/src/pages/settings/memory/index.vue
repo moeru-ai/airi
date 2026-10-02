@@ -2,18 +2,21 @@
 import type { TriageBackend } from '@proj-airi/stage-ui/stores/settings'
 import type { Ref } from 'vue'
 
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { MAX_TRIAGE_THRESHOLD, MIN_TRIAGE_THRESHOLD, useSettingsRunLimits, useSettingsSessionLifecycle, useSettingsTriage } from '@proj-airi/stage-ui/stores/settings'
-import { FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
+import { FieldCombobox, FieldInput, FieldRange, FieldSelect } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const { dormantAfterMinutes, retireAfterDays } = storeToRefs(useSettingsSessionLifecycle())
 const { maxConcurrentRuns, maxQueuedPerSession, stallTimeoutSeconds, runDeadlineMinutes } = storeToRefs(useSettingsRunLimits())
 const { backend, threshold, decisionsApiKey, decisionsEndpoint, decisionsModel, llmProvider, llmModel, appraisalIntervalMinutes } = storeToRefs(useSettingsTriage())
-const { configuredChatProvidersMetadata } = storeToRefs(useProviderStore())
+const providersStore = useProviderStore()
+const { configuredChatProvidersMetadata, isLoadingModels } = storeToRefs(providersStore)
+const { activeProvider: conversationProvider } = storeToRefs(useConsciousnessStore())
 
 const backendOptions = computed<Array<{ label: string, value: TriageBackend }>>(() => [
   { label: t('settings.pages.memory.triage.backend.options.none'), value: 'none' },
@@ -21,6 +24,23 @@ const backendOptions = computed<Array<{ label: string, value: TriageBackend }>>(
   { label: t('settings.pages.memory.triage.backend.options.llm'), value: 'llm' },
 ])
 const providerOptions = computed(() => configuredChatProvidersMetadata.value.map(metadata => ({ label: metadata.localizedName ?? metadata.name, value: metadata.id })))
+const modelOptions = computed(() => providersStore.getModelsForProvider(llmProvider.value).map(model => ({ label: model.name || model.id, value: model.id, description: model.description })))
+
+// The chat model classifier starts from the conversation provider, so it needs no typing.
+watch(backend, (value) => {
+  if (value === 'llm' && !llmProvider.value && conversationProvider.value)
+    llmProvider.value = conversationProvider.value
+}, { immediate: true })
+
+// Models come from the selected provider. A model that the provider does not list gives way to its default model.
+watch(llmProvider, async (provider) => {
+  if (!provider || !providersStore.supportsModelListing(provider))
+    return
+  await providersStore.fetchModelsForProvider(provider)
+  if (llmProvider.value !== provider || modelOptions.value.some(option => option.value === llmModel.value))
+    return
+  llmModel.value = providersStore.getDefaultModelForProvider(provider) ?? modelOptions.value[0]?.value ?? llmModel.value
+}, { immediate: true })
 
 /** Keeps the stored value when the field is empty, not positive, or not whole when a whole number is required. */
 function positiveModel(source: Ref<number>, options: { integer?: boolean } = {}) {
@@ -152,7 +172,16 @@ const appraisalIntervalModel = computed({
           :description="t('settings.pages.memory.triage.llm_provider.description')"
           :options="providerOptions"
         />
+        <FieldCombobox
+          v-if="modelOptions.length"
+          v-model="llmModel"
+          :label="t('settings.pages.memory.triage.llm_model.label')"
+          :description="t('settings.pages.memory.triage.llm_model.description')"
+          :options="modelOptions"
+          :disabled="isLoadingModels[llmProvider]"
+        />
         <FieldInput
+          v-else
           v-model="llmModel"
           :label="t('settings.pages.memory.triage.llm_model.label')"
           :description="t('settings.pages.memory.triage.llm_model.description')"

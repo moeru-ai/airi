@@ -31,6 +31,7 @@ Settings > Memory > Attention selects a classifier: none, a Decisions API endpoi
 The Decisions backend defaults to OpenRouter with `inception/mercury-decide:free`. Any endpoint with the same schema works, for example TypeSafe.
 `useTriageStore` decides connection input within 800 ms and appraises notifications within 3 seconds. Without a backend, fixed rules decide.
 The chat model classifier receives only its own tool and system prompt, never the built-in tools.
+The settings page starts the chat model classifier from the conversation provider, lists that provider's models, and falls back to its default model.
 While no run is active, the leader appraises the owner scene's observations at the idle check interval. A confident yes becomes an internal proposal.
 `propose` offers internal work to the same intake. A chain deeper than two proposals is rejected. An admitted proposal becomes a notification run, which can still stay silent.
 Unchanged observations are not appraised again. Without a classifier, idle appraisal does nothing.
