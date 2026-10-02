@@ -8,7 +8,7 @@ function fakePipeline() {
   const listeners = new Map<string, (payload: unknown) => void>()
   const pipeline: SpeechDeliverySource = {
     on: (event, listener) => {
-      listeners.set(event, listener as unknown as (payload: unknown) => void)
+      listeners.set(event, listener as (payload: unknown) => void)
       return () => listeners.delete(event)
     },
   }
