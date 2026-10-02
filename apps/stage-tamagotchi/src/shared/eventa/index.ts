@@ -1,5 +1,12 @@
 import type { Locale } from '@intlify/core'
 import type {
+  AcpBridgeAttachment,
+  AcpBridgeCapabilities,
+  AcpBridgeStopReason,
+  AcpBridgeStreamEvent,
+  AcpBridgeToolCall,
+} from '@proj-airi/acp-server/bridge'
+import type {
   GameletIframeRequestPayload as GameletIframeInvokePayload,
   GameletIframeResponsePayload,
 } from '@proj-airi/plugin-sdk-tamagotchi/gamelet'
@@ -599,6 +606,57 @@ export const electronAuthComplete = defineInvokeEventa<void, Pick<ElectronAuthSt
 export const electronAuthCallback = defineEventa<ElectronAuthTokens & { attemptId: string }>('eventa:event:electron:auth:callback')
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
+
+/** IPC channel the Pinia leader uses to give the ACP bridge a send target. */
+export const electronAcpLeaderChannel = 'airi:acp-leader'
+
+export const electronAcpOpenSession = defineInvokeEventa<
+  { chatSessionId: string },
+  { capabilities: AcpBridgeCapabilities, hasMcp: boolean }
+>('eventa:invoke:electron:acp:open-session')
+
+export const electronAcpLoadSession = defineInvokeEventa<
+  { messages: Array<{ role: 'user' | 'assistant', text: string }> },
+  { chatSessionId: string, capabilities: AcpBridgeCapabilities, hasMcp: boolean }
+>('eventa:invoke:electron:acp:load-session')
+
+export const electronAcpPrompt = defineInvokeEventa<
+  { stopReason: AcpBridgeStopReason },
+  {
+    chatSessionId: string
+    text: string
+    attachments: AcpBridgeAttachment[]
+    capabilities: AcpBridgeCapabilities
+    hasMcp: boolean
+  }
+>('eventa:invoke:electron:acp:prompt')
+
+export const electronAcpCloseSession = defineInvokeEventa<
+  { ok: true },
+  { chatSessionId: string }
+>('eventa:invoke:electron:acp:close-session')
+
+export const electronAcpCancel = defineInvokeEventa<
+  { ok: true },
+  { chatSessionId: string }
+>('eventa:invoke:electron:acp:cancel')
+
+export const electronAcpDisconnected = defineInvokeEventa<
+  { ok: true },
+  { chatSessionId: string }
+>('eventa:invoke:electron:acp:disconnected')
+
+export const electronAcpListSessions = defineInvokeEventa<{ chatSessionIds: string[] }>('eventa:invoke:electron:acp:list-sessions')
+
+export const electronAcpPublish = defineInvokeEventa<
+  { ok: true },
+  { chatSessionId: string, event: AcpBridgeStreamEvent }
+>('eventa:invoke:electron:acp:publish')
+
+export const electronAcpCallTool = defineInvokeEventa<
+  { text: string },
+  { chatSessionId: string, call: AcpBridgeToolCall }
+>('eventa:invoke:electron:acp:call-tool')
 
 export const i18nSetLocale = defineInvokeEventa<void, Locale>('eventa:invoke:electron:i18n:set-locale')
 export const i18nGetLocale = defineInvokeEventa<string | undefined>('eventa:invoke:electron:i18n:get-locale')

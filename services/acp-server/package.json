@@ -1,0 +1,57 @@
+{
+  "name": "@proj-airi/acp-server",
+  "type": "module",
+  "version": "0.12.0-beta.5",
+  "description": "ACP v1 adapter that forwards prompts to the AIRI desktop chat",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "services/acp-server"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./dist/index.mjs"
+    },
+    "./bridge": {
+      "types": "./dist/bridge.d.mts",
+      "default": "./dist/bridge.mjs"
+    }
+  },
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "bin": {
+    "airi-acp": "./dist/bin/run.mjs"
+  },
+  "files": [
+    "README.md",
+    "dist",
+    "package.json"
+  ],
+  "scripts": {
+    "dev": "tsx ./src/bin/run.ts",
+    "start": "tsx ./src/bin/run.ts",
+    "build": "tsdown",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config ./vitest.config.ts"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "catalog:",
+    "@modelcontextprotocol/sdk": "catalog:",
+    "@moeru/eventa": "catalog:",
+    "@moeru/std": "catalog:",
+    "valibot": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "tsdown": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}

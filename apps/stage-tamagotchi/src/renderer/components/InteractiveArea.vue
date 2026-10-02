@@ -147,8 +147,9 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 })
 
 async function handleSend() {
-  if (!pendingImages.value)
-    await submitInterruptingResponse()
+  if (pendingImages.value)
+    return
+  await submitInterruptingResponse()
 }
 
 function sendFromKeyboard() {

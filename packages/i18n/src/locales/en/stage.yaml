@@ -70,6 +70,8 @@ chat:
     cancel: Cancel
     empty: No conversations yet
     cloud-badge: Synced to cloud
+    acp-online: ACP Client online
+    acp-offline: ACP Client offline
     new-chat-fallback: New chat
     delete: Delete conversation
 render-error:

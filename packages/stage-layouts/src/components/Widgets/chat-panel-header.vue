@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatAcpClientMark, ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { BasicButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -17,6 +17,7 @@ const activeSessionTitle = computed(() => {
   return sessionMetas.value[activeSessionId.value]?.title?.trim()
     || t('stage.chat.sessions.new-chat-fallback')
 })
+const acpClientStatus = computed(() => sessionMetas.value[activeSessionId.value]?.acpClient?.status)
 </script>
 
 <template>
@@ -43,6 +44,7 @@ const activeSessionTitle = computed(() => {
         >
           <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-5 shrink-0']" />
           <span truncate text-sm font-medium>{{ activeSessionTitle }}</span>
+          <ChatAcpClientMark v-if="acpClientStatus" :status="acpClientStatus" />
           <span aria-hidden="true" :class="['i-solar:alt-arrow-down-outline size-4 shrink-0 opacity-60']" />
         </BasicButton>
       </template>

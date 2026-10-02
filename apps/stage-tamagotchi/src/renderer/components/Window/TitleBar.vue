@@ -32,6 +32,7 @@ const { platform } = useAppRuntime()
       >
         <div :class="icon" select-none text="neutral-400 dark:neutral-500" whitespace-nowrap />
         <div><span select-none whitespace-nowrap text-sm>{{ title }}</span></div>
+        <slot name="after-title" />
       </div>
       <div w-full drag-region />
       <div

@@ -63,6 +63,7 @@ import {
   electronPluginUnload,
 } from '../shared/eventa/plugin/host'
 import { electronPluginToolsChanged } from '../shared/eventa/plugin/tools'
+import { registerAcpBridge } from './bridges/acp-bridge'
 import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-callback'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
@@ -346,6 +347,8 @@ if (isSettingsWindow) {
   })
 }
 
+const stopAcpBridge = registerAcpBridge()
+
 onMounted(async () => {
   // NOTICE: Issue #1658
   // When Electron restarts, renderer localStorage may not be flushed to disk.
@@ -369,6 +372,7 @@ watch(themeColorsHueDynamic, () => {
 }, { immediate: true })
 
 onUnmounted(() => {
+  stopAcpBridge()
   stopLeadershipListener?.()
   chatStore.dispose()
   fullStageRuntime?.dispose()

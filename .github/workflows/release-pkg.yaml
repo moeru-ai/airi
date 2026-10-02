@@ -41,6 +41,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build:packages
+      - run: pnpm -F @proj-airi/acp-server build
 
       - run: pnpm publish -r --access public --no-git-checks --dry-run
 
