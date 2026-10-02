@@ -1,8 +1,6 @@
-import type { Readable } from 'node:stream'
-
 import type { AudioPlayer, VoiceConnection, VoiceConnectionState } from '@discordjs/voice'
 import type { Logg } from '@guiiai/logg'
-import type { Client as AiriClient } from '@proj-airi/server-sdk'
+import type { Client as AiriClient, SpeechAudioEvent, SpeechStopEvent } from '@proj-airi/server-sdk'
 import type { Discord } from '@proj-airi/server-shared/types'
 import type {
   BaseGuildVoiceChannel,
@@ -14,9 +12,10 @@ import type {
 
 import { Buffer } from 'node:buffer'
 import { EventEmitter } from 'node:events'
-import { pipeline } from 'node:stream'
+import { pipeline, Readable } from 'node:stream'
 
 import {
+  AudioPlayerStatus,
   createAudioPlayer,
   createAudioResource,
   entersState,
@@ -33,6 +32,9 @@ import { openaiTranscribe } from '../../../pipelines/tts'
 import { convertOpusToWav } from '../../../utils/audio'
 import { AudioMonitor } from '../../../utils/audio-monitor'
 import { OpusDecoder } from '../../../utils/opus'
+import { SpeechPlayback } from '../speech-playback'
+
+const CHANNEL_BINDING_PREFIX = 'discord:channel:'
 
 function isValidTranscription(text: string): boolean {
   if (!text || text.includes('[BLANK_AUDIO]'))
@@ -74,6 +76,8 @@ export class VoiceManager extends EventEmitter {
   private airiClient: AiriClient
   private streams: Map<string, Readable> = new Map()
   private connections: Map<string, VoiceConnection> = new Map()
+  /** AIRI speech playback for each joined voice channel. */
+  private speech: Map<string, SpeechPlayback> = new Map()
   private activeMonitors: Map<
     string,
     { channel: BaseGuildVoiceChannel, monitor: AudioMonitor }
@@ -101,6 +105,7 @@ export class VoiceManager extends EventEmitter {
 
       if (newState.status === VoiceConnectionStatus.Destroyed) {
         this.connections.delete(channel.id)
+        this.withdrawSpeechDevice(channel.id)
       }
       else if (!this.connections.has(channel.id) && (newState.status === VoiceConnectionStatus.Ready || newState.status === VoiceConnectionStatus.Signalling)) {
         this.connections.set(channel.id, connection)
@@ -122,9 +127,50 @@ export class VoiceManager extends EventEmitter {
           this.logger.log(`Disconnection confirmed - cleaning up...${e}`)
           connection.destroy()
           this.connections.delete(channel.id)
+          this.withdrawSpeechDevice(channel.id)
         }
       }
     }
+  }
+
+  /** Offers every joined voice channel to AIRI as a speech device, for example after AIRI reconnects. */
+  announceSpeechDevices() {
+    for (const channelId of this.connections.keys())
+      this.airiClient.send({ type: 'speech:device', data: { binding: `${CHANNEL_BINDING_PREFIX}${channelId}`, active: true } })
+  }
+
+  private withdrawSpeechDevice(channelId: string) {
+    this.speech.get(channelId)?.stop()
+    this.speech.delete(channelId)
+    this.airiClient.send({ type: 'speech:device', data: { binding: `${CHANNEL_BINDING_PREFIX}${channelId}`, active: false } })
+  }
+
+  /** Plays one AIRI speech segment in its voice channel. A channel that the bot left ignores it. */
+  playSpeech(event: SpeechAudioEvent) {
+    const channelId = event.binding.startsWith(CHANNEL_BINDING_PREFIX) ? event.binding.slice(CHANNEL_BINDING_PREFIX.length) : undefined
+    const connection = channelId ? this.connections.get(channelId) : undefined
+    if (!channelId || !connection)
+      return
+
+    let playback = this.speech.get(channelId)
+    if (!playback) {
+      const player = createAudioPlayer({ behaviors: { noSubscriber: NoSubscriberBehavior.Pause } })
+      player.on('error', error => this.logger.withError(error).log('Speech player error'))
+      connection.subscribe(player)
+      playback = new SpeechPlayback({
+        play: audio => player.play(createAudioResource(Readable.from(audio), { inputType: StreamType.Arbitrary })),
+        stop: () => player.stop(true),
+        onIdle: listener => player.on(AudioPlayerStatus.Idle, listener),
+      })
+      this.speech.set(channelId, playback)
+    }
+    playback.enqueue(Buffer.from(event.audioBase64, 'base64'))
+  }
+
+  /** Stops AIRI speech in one voice channel and drops its queued segments. */
+  stopSpeech(event: SpeechStopEvent) {
+    if (event.binding.startsWith(CHANNEL_BINDING_PREFIX))
+      this.speech.get(event.binding.slice(CHANNEL_BINDING_PREFIX.length))?.stop()
   }
 
   handleVoiceConnectionError(error: unknown) {
@@ -204,6 +250,8 @@ export class VoiceManager extends EventEmitter {
 
       // Store the connection
       this.connections.set(channel.id, connection)
+      // AIRI can now speak here. Its speech then reaches this channel's members, so only this scene's runs use it.
+      this.airiClient.send({ type: 'speech:device', data: { binding: `${CHANNEL_BINDING_PREFIX}${channel.id}`, active: true } })
 
       connection.receiver.speaking.on('start', this.handleAudioReceiveStreamStart(channel))
       connection.receiver.speaking.on('end', this.handleAudioReceiveStreamEnd(channel))

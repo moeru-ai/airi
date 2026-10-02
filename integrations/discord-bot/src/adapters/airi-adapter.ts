@@ -83,9 +83,13 @@ export class DiscordAdapter {
         'input:voice',
         'module:configure',
         'output:gen-ai:chat:message',
+        'speech:audio',
+        'speech:stop',
       ],
       // Every Discord conversation is a channel scene. Input must name its channel binding, never an owner session.
       cognition: { scenes: [{ binding: 'discord:channel:' }] },
+      // AIRI drops a module's speech devices when it reconnects, so joined voice channels are offered again.
+      onReady: () => this.voiceManager?.announceSpeechDevices(),
       token: config.airiToken,
       url: config.airiUrl,
     })
@@ -159,6 +163,9 @@ export class DiscordAdapter {
     })
 
     // Handle output from AIRI system (IA response)
+    this.airiClient.onEvent('speech:audio', event => this.voiceManager.playSpeech(event.data))
+    this.airiClient.onEvent('speech:stop', event => this.voiceManager.stopSpeech(event.data))
+
     this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
       try {
         const message = (event.data as { message?: { content: string } }).message
