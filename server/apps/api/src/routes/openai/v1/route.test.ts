@@ -83,6 +83,11 @@ function createMockConfigKV(overrides: Record<string, any> = {}): ConfigKVServic
 
 function createMockRequestLogService(): RequestLogService {
   return {
+    beginRequest: vi.fn(async () => undefined),
+    observeAttempts: () => ({ start: vi.fn(async () => 'attempt'), finish: vi.fn(async () => undefined) }),
+    getRequest: vi.fn(async () => ({ request: undefined, attempts: [] })),
+    listRequests: vi.fn(async () => []),
+    recoverStaleRequests: vi.fn(async () => []),
     logRequest: vi.fn(async () => undefined),
   }
 }
@@ -1152,7 +1157,7 @@ describe('v1CompletionsRoutes', () => {
       await Promise.resolve()
 
       expect(billingService.consumeFluxForLLM).not.toHaveBeenCalled()
-      expect(requestLogService.logRequest).not.toHaveBeenCalled()
+      expect(requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0, protocol: 'chat-completions' }))
     })
   })
 
@@ -2521,11 +2526,17 @@ function responsesResult(status = 'completed') {
   }
 }
 
-function responsesHarness(response: () => Response, balance = 100, genAi: GenAiMetrics | null = null) {
+function responsesHarness(response: () => Response, balance = 100, genAi: GenAiMetrics | null = null, provider?: string) {
   const billing = createMockBillingService(balance)
   const logs = createMockRequestLogService()
   const tracing = createMockLlmTracing()
-  const router = createMockLlmRouter({ route: vi.fn(async () => response()) })
+  const router = createMockLlmRouter({
+    route: vi.fn(async (_request, ctx) => {
+      if (ctx && provider)
+        ctx.provider = provider
+      return response()
+    }),
+  })
   const app = createTestApp(createMockFluxService(balance), createMockConfigKV({ FLUX_PER_1K_TOKENS: 20 }), billing, logs, undefined, router, tracing, undefined, undefined, undefined, genAi)
   const send = (body: object, signal?: AbortSignal) => app.request('/api/v1/openai/responses', {
     method: 'POST',
@@ -2545,11 +2556,30 @@ describe('issue #2479 hosted Responses', () => {
     const harness = responsesHarness(() => Response.json(responsesResult()))
     const response = await harness.send({})
     expect(await response.json()).toEqual(responsesResult())
-    expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses', body: expect.objectContaining({ store: false, model: 'auto' }) }), expect.anything())
+    expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses', modelName: 'openai/gpt-5-mini', body: expect.objectContaining({ store: false }) }), expect.anything())
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
     expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledWith(expect.objectContaining({ amount: 3, promptTokens: 100, completionTokens: 50, model: 'openai/gpt-5-mini' }))
     expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200, fluxConsumed: 3 }))
     expect(harness.tracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses' }))
+  })
+
+  it('forwards provider reasoning extensions without rebuilding input items', async () => {
+    const harness = responsesHarness(() => Response.json(responsesResult()))
+    const input = [{
+      type: 'reasoning',
+      id: 'rs-1',
+      summary: [],
+      encrypted_content: 'opaque',
+      format: 'openai-responses-v1',
+    }]
+
+    const response = await harness.send({ input })
+
+    expect(response.status).toBe(200)
+    expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({
+      protocol: 'responses',
+      body: expect.objectContaining({ input, store: false }),
+    }), expect.anything())
   })
 
   // ROOT CAUSE:
@@ -2747,6 +2777,96 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
   })
 
+  // ROOT CAUSE:
+  //
+  // OpenRouter can close a Responses stream after every output item reports
+  // `completed` without sending the required `response.completed` event. The
+  // gateway treated this provider-specific EOF as a truncated response.
+  it('completes an OpenRouter stream after every output item finishes', async () => {
+    const response = { ...responsesResult('in_progress'), output: [], usage: null }
+    const reasoning = { id: 'rs-1', type: 'reasoning', status: 'completed', summary: [] }
+    const message = { id: 'msg-1', type: 'message', status: 'completed', role: 'assistant', content: [{ type: 'output_text', text: 'hello', annotations: [] }] }
+    const frames = [
+      { type: 'response.created', response, sequence_number: 0 },
+      { type: 'response.output_item.added', output_index: 0, item: { ...reasoning, status: 'in_progress' }, sequence_number: 1 },
+      { type: 'response.output_item.done', output_index: 0, item: reasoning, sequence_number: 2 },
+      { type: 'response.output_item.added', output_index: 1, item: { ...message, status: 'in_progress', content: [] }, sequence_number: 3 },
+      { type: 'response.output_item.done', output_index: 1, item: message, sequence_number: 4 },
+    ].map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames), 100, null, 'openrouter.ai')
+    const result = await harness.send({ stream: true })
+    const body = await result.text()
+    const terminal = JSON.parse(body.split('data: ').at(-1)!.trim())
+
+    expect(body).toContain('event: response.completed')
+    expect(terminal).toEqual({
+      type: 'response.completed',
+      response: { ...response, status: 'completed', output: [reasoning, message] },
+      sequence_number: 5,
+    })
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // OpenRouter can attach an SSE event name that differs from the Responses
+  // event type in `data`. The gateway rejected the complete JSON event before
+  // its OpenRouter compatibility path could inspect the output lifecycle.
+  it('normalizes OpenRouter SSE event names to payload types', async () => {
+    const response = { ...responsesResult('in_progress'), output: [], usage: null }
+    const message = { id: 'msg-1', type: 'message', status: 'completed', role: 'assistant', content: [] }
+    const frames = [
+      { type: 'response.created', response, sequence_number: 0 },
+      { type: 'response.output_item.added', output_index: 0, item: { ...message, status: 'in_progress' }, sequence_number: 1 },
+      { type: 'response.output_item.done', output_index: 0, item: message, sequence_number: 2 },
+    ].map(event => `event: message\ndata: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames), 100, null, 'openrouter.ai')
+
+    const result = await harness.send({ stream: true })
+    const body = await result.text()
+
+    expect(body).toContain('event: response.created')
+    expect(body).toContain('event: response.output_item.added')
+    expect(body).toContain('event: response.output_item.done')
+    expect(body).toContain('event: response.completed')
+    expect(harness.billing.consumeFluxForLLM).toHaveBeenCalledTimes(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // OpenRouter event-name normalization copied the JSON payload type into an
+  // SSE field. A line break in that untrusted value could create a new frame.
+  // The provider payload boundary now rejects such event types before output.
+  it('rejects line breaks in normalized OpenRouter event names', async () => {
+    const frame = `event: message\ndata: ${JSON.stringify({ type: 'response.created\n\nevent: injected' })}\n\n`
+    const harness = responsesHarness(() => new Response(frame), 100, null, 'openrouter.ai')
+
+    const response = await harness.send({ stream: true })
+
+    await expect(response.text()).rejects.toThrow('Invalid Responses SSE event')
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['another provider', 'openai', true],
+    ['unfinished OpenRouter output', 'openrouter.ai', false],
+  ])('does not recover EOF for %s', async (_case, provider, outputCompleted) => {
+    const response = { ...responsesResult('in_progress'), output: [], usage: null }
+    const item = { id: 'msg-1', type: 'message', status: 'completed', role: 'assistant', content: [] }
+    const events = [
+      { type: 'response.created', response, sequence_number: 0 },
+      { type: 'response.output_item.added', output_index: 0, item: { ...item, status: 'in_progress' }, sequence_number: 1 },
+      ...(outputCompleted ? [{ type: 'response.output_item.done', output_index: 0, item, sequence_number: 2 }] : []),
+    ]
+    const frames = events.map(event => `data: ${JSON.stringify(event)}\n\n`).join('')
+    const harness = responsesHarness(() => new Response(frames), 100, null, provider)
+
+    const result = await harness.send({ stream: true })
+
+    await expect(result.text()).rejects.toThrow('Responses stream ended before a terminal event')
+    expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
+  })
+
   it('forwards SSE error events and records a failed generation', async () => {
     const frame = 'event: error\ndata: {"type":"error","code":"server_error"}\n\n'
     const harness = responsesHarness(() => new Response(frame))
@@ -2898,6 +3018,44 @@ it('issue #2479 keeps the last upstream error when a later alias candidate lacks
   expect(billing.consumeFluxForLLM).not.toHaveBeenCalled()
 })
 
+it.each([503, 504, 500] as const)('records the actual chat routing failure status %s', async (status) => {
+  const failure = status === 500 ? new Error('unexpected failure') : new ApiError(status, 'GATEWAY_ERROR', 'route failed')
+  const router = createMockLlmRouter({ route: vi.fn(async () => {
+    throw failure
+  }) })
+  const logs = createMockRequestLogService()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router)
+  const response = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [] }),
+  }, { user: testUser })
+  expect(response.status).toBe(status)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status }))
+})
+
+it.each(['chat/completions', 'responses'])('does not open a generation span or dispatch when tracking intake fails for %s', async (protocol) => {
+  const billing = createMockBillingService()
+  const logs = createMockRequestLogService()
+  vi.mocked(logs.beginRequest).mockRejectedValueOnce(new Error('tracking unavailable'))
+  const router = createMockLlmRouter()
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, logs, undefined, router)
+  const startSpan = vi.spyOn(tracer, 'startSpan')
+  try {
+    const response = await app.request(`/api/v1/openai/${protocol}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [], input: 'hello' }),
+    }, { user: testUser })
+    expect(response.status).toBe(500)
+    expect(router.route).not.toHaveBeenCalled()
+    expect(startSpan).not.toHaveBeenCalled()
+  }
+  finally {
+    startSpan.mockRestore()
+  }
+})
+
 // https://github.com/moeru-ai/airi/pull/2554#discussion_r4044384477
 it('pR #2554 surfaces a later routing failure instead of an earlier HTTP response', async () => {
   const catalog = createMockProviderCatalogService()
@@ -3032,4 +3190,77 @@ it('releases the terminal upstream stream before settlement completes', async ()
   await vi.waitFor(() => expect(cancel).toHaveBeenCalledTimes(1))
   resolveSettlement()
   await expect(body).resolves.toContain('response.completed')
+})
+it('preserves Responses interaction headers in request intake', async () => {
+  const harness = responsesHarness(() => Response.json(responsesResult()))
+  const response = await harness.app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', [AIRI_CHAT_ROUND_ID_HEADER]: 'round-1', [AIRI_CHAT_APP_SURFACE_HEADER]: 'web' },
+    body: JSON.stringify({ input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(200)
+  expect(harness.logs.beginRequest).toHaveBeenCalledWith(expect.objectContaining({ interactionId: 'round-1', dimensions: { appSurface: 'web' } }))
+})
+
+it('records failed Chat settlement with the status returned to the client', async () => {
+  const billing = createMockBillingService()
+  vi.mocked(billing.consumeFluxForLLM).mockRejectedValueOnce(new ApiError(402, 'PAYMENT_REQUIRED', 'Insufficient flux'))
+  const logs = createMockRequestLogService()
+  const tracing = createMockLlmTracing()
+  const router = createMockLlmRouter({ route: vi.fn(async () => Response.json({ id: 'chat-test', choices: [], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0.001 } })) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, logs, undefined, router, tracing)
+  const response = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [] }),
+  }, { user: testUser })
+  expect(response.status).toBe(402)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 402, fluxConsumed: 0 }))
+})
+
+it('returns the recorded bad-gateway status for malformed Chat JSON', async () => {
+  const logs = createMockRequestLogService()
+  const router = createMockLlmRouter({ route: vi.fn(async () => new Response('invalid json')) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router)
+  const response = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [] }),
+  }, { user: testUser })
+  expect(response.status).toBe(502)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+})
+
+it('accumulates routing counters across alias candidates', async () => {
+  const catalog = createMockProviderCatalogService()
+  const alias = await catalog.resolveEnabledAlias('llm', 'auto')
+  vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, routes: [
+    ...alias.routes,
+    { ...alias.routes[0], id: 'second-route', routerModelId: 'fallback', pool: 'fallback' },
+  ] })
+  const logs = createMockRequestLogService()
+  const router = createMockLlmRouter({ route: vi.fn(async ({ modelName }, context) => {
+    if (context) {
+      context.triedUpstreams += 1
+      context.triedKeys += 2
+    }
+    return modelName === 'fallback' ? Response.json(responsesResult()) : new Response('retry', { status: 503 })
+  }) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router, createMockLlmTracing(), undefined, undefined, catalog)
+  const response = await app.request('/api/v1/openai/responses', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ input: 'hello' }),
+  }, { user: testUser })
+  expect(response.status).toBe(200)
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ routing: expect.objectContaining({ triedUpstreams: 2, triedKeys: 4 }) }))
+})
+it('rejects a Responses stream whose generation ID changes', async () => {
+  const initial = { type: 'response.created', response: { ...responsesResult('in_progress'), id: 'response-first' } }
+  const stream = `event: response.created\ndata: ${JSON.stringify(initial)}\n\n${responsesFrame()}`
+  const harness = responsesHarness(() => new Response(stream), 100, null, 'openrouter.ai')
+  const response = await harness.send({ stream: true })
+  await response.text().catch(() => undefined)
+  await vi.waitFor(() => expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, generationId: 'response-first' })))
+  expect(harness.billing.consumeFluxForLLM).not.toHaveBeenCalled()
 })

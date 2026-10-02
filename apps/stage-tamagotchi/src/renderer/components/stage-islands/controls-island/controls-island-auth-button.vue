@@ -58,13 +58,10 @@ onScopeDispose(() => {
   stopError()
 })
 
-// Hidden measurement must not initiate login requests. Keep the request until
-// the menu becomes visible, then preserve the original transition behavior.
-watch([needsLogin, () => props.active], ([requested, active]) => {
-  if (active && requested && !isAuthenticated.value) {
+// Hidden measurement must keep login requests for the visible menu.
+watch([needsLogin, () => props.active], async ([requested, active]) => {
+  if (active && requested && !isAuthenticated.value && await authStore.consumeLoginRequest())
     doSigningIn()
-    needsLogin.value = false
-  }
 })
 
 // Clear loading when authenticated

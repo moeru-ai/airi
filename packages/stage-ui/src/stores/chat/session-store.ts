@@ -1582,13 +1582,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // every follower would fan one deletion out into several empty chats.
   })
 
-  watch(index, () => {
-    if (!ready.value)
-      return
-
-    selectWindowSessionFromIndex()
-  })
-
   watch(activeCardId, async () => {
     if (!ready.value)
       return

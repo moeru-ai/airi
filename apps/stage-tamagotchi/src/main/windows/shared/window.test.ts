@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { setWindowAlwaysOnTop } from './window'
+import { resizeBoundsByDelta, setWindowAlwaysOnTop } from './window'
 
 const mocks = vi.hoisted(() => ({
   isMacOS: false,
@@ -79,5 +79,23 @@ describe('setWindowAlwaysOnTop', () => {
     setWindowAlwaysOnTop(window, true, 2)
 
     expect(window.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver', 2)
+  })
+})
+
+describe('resizeBoundsByDelta', () => {
+  it('keeps the opposite corner still while a corner grip is dragged', () => {
+    const bounds = { x: 100, y: 100, width: 400, height: 500 }
+
+    expect(resizeBoundsByDelta(bounds, { deltaX: -20, deltaY: -30, direction: 'nw' }))
+      .toEqual({ x: 80, y: 70, width: 420, height: 530 })
+    expect(resizeBoundsByDelta(bounds, { deltaX: 20, deltaY: 30, direction: 'se' }))
+      .toEqual({ x: 100, y: 100, width: 420, height: 530 })
+  })
+
+  it('stops at the minimum size and keeps the opposite edges still', () => {
+    const bounds = { x: 100, y: 100, width: 400, height: 500 }
+
+    expect(resizeBoundsByDelta(bounds, { deltaX: 1000, deltaY: 1000, direction: 'nw', minWidth: 300, minHeight: 250 }))
+      .toEqual({ x: 200, y: 350, width: 300, height: 250 })
   })
 })

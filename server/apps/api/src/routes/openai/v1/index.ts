@@ -59,9 +59,10 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
         catch {
           throw createBadRequestError('Invalid Responses JSON body', 'INVALID_RESPONSES_REQUEST')
         }
+        const request = parseResponsesRequest(body)
         return {
           userId: c.get('user')!.id,
-          body: parseResponsesRequest(body),
+          ...request,
           sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
           roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
           appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),

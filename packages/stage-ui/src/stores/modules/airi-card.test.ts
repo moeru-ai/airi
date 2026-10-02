@@ -3,6 +3,7 @@ import type { AiriCard } from './airi-card'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 import { useConsciousnessStore } from './consciousness'
@@ -72,6 +73,14 @@ vi.mock('./vision', async () => {
         activeProvider: 'mock-vision-provider',
         activeModel: 'mock-vision-model',
       }),
+      actions: {
+        resetModelSelection() {
+          this.activeModel = ''
+        },
+        // The real action loads the catalog into the provider store. Each test
+        // writes that catalog state itself.
+        async loadModelsForProvider() {},
+      },
     }),
   }
 })
@@ -328,6 +337,28 @@ describe('airi-card store', () => {
       speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
     expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Selecting Apple Vision stored an empty model on the card before the catalog
+  // loaded. The catalog default changed only the runtime model, so applying the
+  // card again restored the empty model.
+  //
+  // We fixed this by storing the catalog default on the card.
+  it('keeps the catalog default of a selected vision provider when the card applies again', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    useProviderStore().providerRuntimeState = {
+      'apple-vision': { models: [], defaultModel: 'system', modelStatus: 'ready', modelError: null },
+    }
+
+    expect(await cardStore.selectActiveCardVisionProvider('apple-vision')).toBe(true)
+    expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({ provider: 'apple-vision', model: 'system' })
+
+    await cardStore.activateCard(cardStore.activeCardId)
+
+    expect(useVisionStore()).toMatchObject({ activeProvider: 'apple-vision', activeModel: 'system' })
   })
 
   // ROOT CAUSE:

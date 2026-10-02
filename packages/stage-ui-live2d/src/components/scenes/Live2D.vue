@@ -1,12 +1,17 @@
 <script setup lang="ts">
+import type { PresenceBubbleState } from '@proj-airi/stage-shared'
+
 import type { Live2DEyeFocusSource } from '../../composables/live2d'
 
+import { presenceBubbleIdle } from '@proj-airi/stage-shared'
+import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onUnmounted, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
+import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 
@@ -25,7 +30,10 @@ const props = withDefaults(defineProps<{
   nowSpeaking?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
+  /** Drives the bubble above the character. */
+  presence?: PresenceBubbleState
 }>(), {
+  presence: () => presenceBubbleIdle,
   paused: false,
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -59,6 +67,39 @@ const {
   live2dShadowEnabled,
 } = storeToRefs(useSettingsLive2d())
 const universalMotionEnabled = computed(() => live2dMotionDriver.value === 'universal')
+const {
+  screenAmbientLightBacklight,
+  screenAmbientLightBaseCurve,
+  screenAmbientLightColorBoost,
+  screenAmbientLightDarkBase,
+  screenAmbientLightLocalShare,
+  screenAmbientLightEnabled,
+  screenAmbientLightMode,
+  screenAmbientLightSquint,
+  screenAmbientLightStrength,
+  screenAmbientLightTint,
+  screenAmbientLightTranslucentWrap,
+  screenAmbientLightWrapDiffuse,
+  screenAmbientLightWrapIntensity,
+  screenAmbientLightWrapSaturation,
+} = storeToRefs(useSettingsScreenAmbientLight())
+const {
+  active: screenAmbientLightActive,
+  environment: screenAmbientLightEnvironment,
+  subject: screenAmbientLightSubject,
+} = storeToRefs(useScreenAmbientLightEnvironment())
+const screenAmbientLightFilterOptions = computed(() => ({
+  darkBase: screenAmbientLightDarkBase.value,
+  baseCurve: screenAmbientLightBaseCurve.value,
+  localShare: screenAmbientLightLocalShare.value,
+  tint: screenAmbientLightTint.value,
+  colorBoost: screenAmbientLightColorBoost.value,
+  wrapIntensity: screenAmbientLightWrapIntensity.value,
+  wrapSaturation: screenAmbientLightWrapSaturation.value,
+  wrapDiffuse: screenAmbientLightWrapDiffuse.value,
+  backlight: screenAmbientLightBacklight.value,
+  translucentWrap: screenAmbientLightTranslucentWrap.value,
+}))
 const mouseFocus = useLive2DEyeFocusFor({
   canvas: () => live2dCanvasRef.value?.canvasElement(),
   model: () => ({
@@ -133,7 +174,23 @@ defineExpose({
         :live2d-force-auto-blink-enabled="live2dForceAutoBlinkEnabled"
         :live2d-expression-enabled="live2dExpressionEnabled"
         :live2d-shadow-enabled="live2dShadowEnabled"
+        :screen-ambient-light-active="screenAmbientLightEnabled && screenAmbientLightActive"
+        :screen-ambient-light-filter-options="screenAmbientLightFilterOptions"
+        :screen-ambient-light-environment="screenAmbientLightEnvironment"
+        :screen-ambient-light-subject="screenAmbientLightSubject"
+        :screen-ambient-light-mode="screenAmbientLightMode"
+        :screen-ambient-light-strength="screenAmbientLightStrength"
+        :screen-ambient-light-squint="screenAmbientLightSquint"
         @error="emit('error', $event)"
+      />
+      <Live2DPresenceBubble
+        v-if="app"
+        :app="app"
+        :head-anchor="() => live2dModelRef?.headAnchor()"
+        :state="props.presence"
+        :width="width"
+        :height="height"
+        :resolution="live2dRenderScale"
       />
     </Live2DCanvas>
   </Screen>

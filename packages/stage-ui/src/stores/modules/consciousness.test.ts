@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { streamFrom } from '@proj-airi/core-agent'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
@@ -19,6 +20,88 @@ describe('consciousness store provider selection', () => {
   beforeEach(() => {
     localStorage.clear()
     setActivePinia(createPinia())
+  })
+
+  // ROOT CAUSE:
+  // Default slider values were sent even when users had never configured sampling.
+  // Explicit opt-in now separates saved values from active request parameters.
+  // https://github.com/moeru-ai/airi/issues/2628
+  it('leaves sampling parameters unset by default (Issue #2628)', () => {
+    const store = useConsciousnessStore()
+
+    expect(store.activeTemperature).toBeUndefined()
+    expect(store.activeTopP).toBeUndefined()
+  })
+
+  it('does not treat previously saved sampling values as opt-in (Issue #2628)', () => {
+    localStorage.setItem('settings/consciousness/active-temperature', '0.3')
+    localStorage.setItem('settings/consciousness/active-top-p', '0.8')
+    const store = useConsciousnessStore()
+
+    expect(store.activeTemperature).toBeUndefined()
+    expect(store.activeTopP).toBeUndefined()
+  })
+
+  it('sends only enabled sampling parameters and preserves zero values', async () => {
+    const store = useConsciousnessStore()
+    const settings = useConsciousnessSettingsStore()
+    store.temperature = 0
+    store.topP = 0.8
+    const requests: Record<string, unknown>[] = []
+    const fetch: typeof globalThis.fetch = async (_url, init) => {
+      requests.push(JSON.parse(String(init?.body)))
+      return new Response('data: {"choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n', {
+        headers: { 'content-type': 'text/event-stream' },
+      })
+    }
+    async function send() {
+      await streamFrom({
+        model: 'test',
+        chatProvider: { generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }) },
+        conversation: { turns: [] },
+        options: { temperature: store.activeTemperature, topP: store.activeTopP },
+      })
+    }
+
+    await send()
+    expect(requests[0]).not.toHaveProperty('temperature')
+    expect(requests[0]).not.toHaveProperty('top_p')
+
+    await settings.setTemperatureEnabled(true)
+    await send()
+    expect(requests[1].temperature).toBe(0)
+    expect(requests[1]).not.toHaveProperty('top_p')
+
+    await settings.setTemperatureEnabled(false)
+    await settings.setTopPEnabled(true)
+    await send()
+    expect(requests[2]).not.toHaveProperty('temperature')
+    expect(requests[2].top_p).toBe(0.8)
+
+    await settings.setTopPEnabled(false)
+    await send()
+    expect(requests[3]).not.toHaveProperty('temperature')
+    expect(requests[3]).not.toHaveProperty('top_p')
+    expect(store.temperature).toBe(0)
+    expect(store.topP).toBe(0.8)
+  })
+
+  it('restores explicit sampling opt-in and clears it when reset', async () => {
+    localStorage.setItem('settings/consciousness/temperature-enabled', 'true')
+    localStorage.setItem('settings/consciousness/top-p-enabled', 'true')
+    localStorage.setItem('settings/consciousness/active-temperature', '0')
+    localStorage.setItem('settings/consciousness/active-top-p', '0.8')
+    const store = useConsciousnessStore()
+
+    expect(store.activeTemperature).toBe(0)
+    expect(store.activeTopP).toBe(0.8)
+
+    await store.resetState()
+
+    expect(store.activeTemperature).toBeUndefined()
+    expect(store.activeTopP).toBeUndefined()
+    expect(localStorage.getItem('settings/consciousness/temperature-enabled')).toBe('false')
+    expect(localStorage.getItem('settings/consciousness/top-p-enabled')).toBe('false')
   })
 
   // ROOT CAUSE:

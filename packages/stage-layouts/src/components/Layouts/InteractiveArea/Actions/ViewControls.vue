@@ -5,12 +5,17 @@ import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage
 import { Button } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+
+import ChatToolbarButton from '../../../Widgets/ChatToolbarButton.vue'
 
 const props = withDefaults(defineProps<{
   variant?: 'desktop' | 'mobile-stage'
 }>(), {
   variant: 'desktop',
 })
+
+const { t } = useI18n()
 
 const { stageModelRenderer } = storeToRefs(useSettingsStageModel())
 const { viewControlsEnabled: l2dViewCtrlEnabled, viewControlMode: l2dCtrlMode, set: l2dSet } = useL2dViewControl()
@@ -86,18 +91,18 @@ function handleViewControlsToggle(targetMode: string) {
         </Button>
       </div>
     </Transition>
-    <button
+    <ChatToolbarButton
       v-if="props.variant === 'desktop'"
-      w-fit flex items-center self-end justify-center justify-self-end rounded-xl p-2 backdrop-blur-md
-      border="2 solid neutral-100/60 dark:neutral-800/30" bg="neutral-50/70 dark:neutral-800/70" title="View"
-      text="neutral-500 dark:neutral-400"
+      :title="t('stage.mobile-tools.view')"
+      :aria-label="t('stage.mobile-tools.view')"
+      :aria-pressed="controlEnabled?.enabled.value"
       @click="controlEnabled && (controlEnabled.enabled.value = !controlEnabled.enabled.value)"
     >
       <Transition name="fade" mode="out-in">
         <div v-if="controlEnabled?.enabled.value" i-solar:alt-arrow-right-outline size-5 />
         <div v-else i-solar:tuning-outline size-5 />
       </Transition>
-    </button>
+    </ChatToolbarButton>
   </div>
 </template>
 

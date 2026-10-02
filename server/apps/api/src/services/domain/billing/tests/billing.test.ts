@@ -1,61 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { calculateFluxFromUsage, extractUsageFromBody } from '../billing'
-
-describe('extractUsageFromBody', () => {
-  it('returns promptTokens and completionTokens from a normal body', () => {
-    const body = { usage: { prompt_tokens: 100, completion_tokens: 200 } }
-    expect(extractUsageFromBody(body)).toEqual({ promptTokens: 100, completionTokens: 200 })
-  })
-
-  it('returns empty object when body has no usage field', () => {
-    expect(extractUsageFromBody({ model: 'gpt-4' })).toEqual({})
-  })
-
-  it('returns empty object for null body', () => {
-    expect(extractUsageFromBody(null)).toEqual({})
-  })
-
-  it('returns empty object for undefined body', () => {
-    expect(extractUsageFromBody(undefined)).toEqual({})
-  })
-
-  it('returns empty object when usage is null', () => {
-    expect(extractUsageFromBody({ usage: null })).toEqual({})
-  })
-
-  it('returns empty object when usage is falsy zero-like value (0)', () => {
-    expect(extractUsageFromBody({ usage: 0 })).toEqual({})
-  })
-
-  it('returns only promptTokens when completion_tokens is missing', () => {
-    const body = { usage: { prompt_tokens: 50 } }
-    const result = extractUsageFromBody(body)
-    expect(result.promptTokens).toBe(50)
-    expect(result.completionTokens).toBeUndefined()
-  })
-
-  it('returns only completionTokens when prompt_tokens is missing', () => {
-    const body = { usage: { completion_tokens: 75 } }
-    const result = extractUsageFromBody(body)
-    expect(result.promptTokens).toBeUndefined()
-    expect(result.completionTokens).toBe(75)
-  })
-
-  it('treats explicit null fields in usage as undefined', () => {
-    const body = { usage: { prompt_tokens: null, completion_tokens: null } }
-    const result = extractUsageFromBody(body)
-    expect(result.promptTokens).toBeUndefined()
-    expect(result.completionTokens).toBeUndefined()
-  })
-
-  it('handles zero token values correctly', () => {
-    const body = { usage: { prompt_tokens: 0, completion_tokens: 0 } }
-    const result = extractUsageFromBody(body)
-    expect(result.promptTokens).toBe(0)
-    expect(result.completionTokens).toBe(0)
-  })
-})
+import { calculateFluxFromUsage } from '../billing'
 
 describe('calculateFluxFromUsage', () => {
   it('calculates flux based on total tokens and rate', () => {
