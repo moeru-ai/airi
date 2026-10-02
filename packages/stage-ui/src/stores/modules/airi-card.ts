@@ -884,24 +884,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  async function applyActiveCardSettings(newCard = activeCard.value) {
-    rememberInheritedSettings()
-    const artistry = useArtistryStore()
-
-    artistry.resetToGlobal()
-
-    if (!newCard)
-      return
-
-    // TODO: Minecraft Agent, etc
-    const extension = resolveAiriExtension(newCard)
-    if (!extension)
-      return
-
+  /** Resolve the named character without changing the character selected by any window. */
+  function getModules(characterId: string): CardModuleDefaults {
+    const card = cards.value.get(characterId)
+    if (!card)
+      throw new Error('The session character is unavailable')
     const defaults = moduleDefaults.value
     if (!defaults)
-      return
-    const modules = extension.modules
+      throw new Error('Character defaults are not initialized')
+    return resolveModules(card.extensions.airi.modules, defaults)
+  }
+
+  function resolveModules(modules: AiriExtension['modules'], defaults: CardModuleDefaults): CardModuleDefaults {
     const speechSelection = resolveModuleSelection(modules.speech, defaults.speech)
     const resolved: CardModuleDefaults = {
       consciousness: resolveModuleSelection(modules.consciousness, defaults.consciousness),
@@ -927,6 +921,32 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           resolved.speech.voice_id = ''
       }
     }
+    return resolved
+  }
+
+  function getSystemPrompt(characterId: string) {
+    return resolveSystemPrompt(cards.value.get(characterId))
+  }
+
+  async function applyActiveCardSettings(newCard = activeCard.value) {
+    rememberInheritedSettings()
+    const artistry = useArtistryStore()
+
+    artistry.resetToGlobal()
+
+    if (!newCard)
+      return
+
+    // TODO: Minecraft Agent, etc
+    const extension = resolveAiriExtension(newCard)
+    if (!extension)
+      return
+
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return
+    const modules = extension.modules
+    const resolved = resolveModules(modules, defaults)
     await writeRuntimeModules(resolved)
     appliedModules = modules
 
@@ -980,6 +1000,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardVision,
     selectActiveCardVisionProvider,
     getCard,
+    getModules,
+    getSystemPrompt,
     resetState,
     initialize,
     activateCard,

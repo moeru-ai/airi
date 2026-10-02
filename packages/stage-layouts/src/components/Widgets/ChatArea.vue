@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, useVoiceInput, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -18,7 +17,6 @@ import { useI18n } from 'vue-i18n'
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
 import { useChatInterruption } from '../../composables/use-chat-interruption'
-import { useTranscriptions } from '../../composables/use-transcriptions'
 
 const props = defineProps<{
   composer: ChatComposerController<ChatImageAttachment>
@@ -49,13 +47,7 @@ const replyTarget = props.composer.replyTarget
 const { audioContext } = useAudioContext()
 const { t } = useI18n()
 
-const { isListening, startStreamingTranscription, stopStreamingTranscription, autoSendEnabled } = useTranscriptions(
-  {
-    messageInputRef: messageInput,
-    sendMessage: handleSend,
-    isStageTamagotchi,
-  },
-)
+const { isListening, start: startVoiceInput, end: endVoiceInput, autoSendEnabled } = useVoiceInput()
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: computed(() => chatSession.activeSessionId),
@@ -184,6 +176,8 @@ watch(replyTarget, async (target) => {
 </script>
 
 <template>
+  <VoiceDrafts />
+  <VoiceMessageControls />
   <div ref="composer" h="<md:full" flex gap-2 class="ph-no-capture">
     <div
       :class="[
@@ -268,7 +262,7 @@ watch(replyTarget, async (target) => {
               <HearingConfig
                 v-model:auto-send="autoSendEnabled"
                 :transcription="isListening"
-                @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"
+                @toggle-transcription="() => isListening ? endVoiceInput() : startVoiceInput()"
               />
             </PopoverContent>
           </PopoverPortal>
