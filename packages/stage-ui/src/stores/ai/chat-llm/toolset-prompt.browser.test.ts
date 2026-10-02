@@ -44,7 +44,9 @@ describe('request-owned command relay guidance', () => {
       await store.stream('test', provider, conversation)
 
       const request = requests.at(-1)
-      const guidance = request?.messages.filter(message => message.role === 'developer')
+      // Chat Completions guidance joins the system message, because some providers reject a `developer` message.
+      expect(request?.messages.filter(message => message.role === 'developer')).toEqual([])
+      const guidance = request?.messages.filter(message => message.role === 'system' && String(message.content).includes('builtIn_emitSparkCommand'))
       if (rejected) {
         expect(request?.tools).toBeUndefined()
         expect(guidance).toEqual([])
