@@ -51,8 +51,8 @@ export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRe
 export { createContextRegistry, projectContextRegistryState } from './runtime/context-registry'
 export type { IntakeAppraisal, IntakeDecider, IntakeDecision, IntakeOutcome, IntakeRecord, Stimulus, StimulusOrigin } from './runtime/intake'
 export { decideByPrior, deferDelayMs, IntakeLog, salienceFromUrgency } from './runtime/intake'
-export type { Lease, LeaseGrant } from './runtime/lease-table'
-export { LeaseTable } from './runtime/lease-table'
+export type { Lease, LeaseCandidate, LeaseGrant } from './runtime/lease-table'
+export { compareLeaseCandidates, LEASE_CANDIDATE_TTL_MS, LeaseTable } from './runtime/lease-table'
 export { useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
   isContentArrayRelatedError,

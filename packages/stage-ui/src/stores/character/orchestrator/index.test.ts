@@ -423,6 +423,37 @@ describe('store character-orchestrator', () => {
       expect(scheduler.leases.holder('voice')?.holder).toBe('conversation-run')
     })
 
+    // Candidates for one resource compare by salience tier, deadline, and waiting time, never by who asks first after a release.
+    it('puts an urgent waiting notification ahead of a later chat send in the voice line', async () => {
+      replyWith('Watch out!')
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.leases.acquire('voice', 'conversation-run', { salience: 0.5 })
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+      scheduler.leases.release('voice', 'conversation-run')
+      const [waiting] = store.scheduledNotifies
+
+      expect(scheduler.leases.acquire('voice', 'next-chat-send', { salience: 0.5 })).toEqual({ granted: false, ahead: waiting?.runId })
+    })
+
+    it('ignores an expired notification before asking a classifier', async () => {
+      const settings = useSettingsTriage(pinia)
+      settings.backend = 'decisions'
+      settings.decisionsApiKey = 'key'
+      const fetch = vi.fn(async () => Response.json({ answers: {} }))
+      vi.stubGlobal('fetch', fetch)
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify({ ttlMs: 0 })
+
+      await store.handleSparkNotify(event)
+
+      expect(fetch).not.toHaveBeenCalled()
+      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'expired', decidedBy: 'rule' }])
+      vi.unstubAllGlobals()
+    })
+
     it('runs an admitted notification as a run that holds and releases the voice', async () => {
       replyWith('Watch out!')
       const scheduler = useSchedulerStore(pinia)

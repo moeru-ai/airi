@@ -108,6 +108,9 @@ Each session has its own queue. A session runs one send at a time, and different
 A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
 The voice is an exclusive lease in `LeaseTable`. A send with the `voice` output waits while any run holds it, and releases it when it ends. Domain sends keep running.
 A lease is free when its holder releases it or it expires. Only a request with `preempt` and strictly higher salience takes over a held lease.
+Requests for one resource wait in a line. A free resource goes to the first candidate: higher salience tier, then the earlier deadline, then the longer wait.
+Waiting time only prevents starvation. Requests for different resources never compare, so work that needs no shared resource runs in parallel.
+Requesters withdraw when they stop waiting. A candidate that has not asked for five minutes leaves the line.
 Pass `runs`, `intake`, and `leases` to share them with other run owners in the host. Each table notifies its subscribers.
 Runtime state reports `runningSessionIds`, `voiceSessionId`, and the live reply of each running session.
 Supervision ends a run that streams nothing for `stallTimeoutMs` (60 seconds) or runs past `runDeadlineMs` (10 minutes). The run becomes `expired`.

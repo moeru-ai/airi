@@ -148,8 +148,10 @@ interface QueuedSend {
   /** Run admitted for this send. */
   runId: string
   envelope: ExecutionEnvelope
-  /** Salience from intake. It orders lease takeovers. */
+  /** Salience from intake. It ranks the send among candidates for the voice. */
   salience: number
+  /** Admission time. Within one salience tier, a longer wait goes first. */
+  queuedAt: number
   /** Message ids that this run wrote. A rollback removes them. */
   writtenMessageIds: string[]
   /** Set while the send runs. */
@@ -1253,7 +1255,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   /**
    * Starts waiting sends in admission order. A session runs one send at a time, and the run count stays within the limit.
-   * The voice is an exclusive lease, so a send with the voice output waits until no other run holds it.
+   * The voice is an exclusive lease. A send with the voice output waits until it ranks first among the voice candidates of every run owner.
    * A slow session therefore holds only its own slot.
    */
   function pump() {
@@ -1263,7 +1265,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         break
       if (runningSends.has(queuedSend.sessionId))
         continue
-      if (queuedSend.envelope.outputs.includes('voice') && !leases.acquire('voice', queuedSend.runId, { salience: queuedSend.salience }).granted)
+      // Only candidates for the voice compare. The lease line ranks them by salience tier and waiting time.
+      if (queuedSend.envelope.outputs.includes('voice') && !leases.acquire('voice', queuedSend.runId, { salience: queuedSend.salience, waitingSince: queuedSend.queuedAt }).granted)
         continue
       pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
       runningSends.set(queuedSend.sessionId, queuedSend)
@@ -1370,6 +1373,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         runId,
         envelope,
         salience,
+        queuedAt: now(),
         writtenMessageIds: [],
         providerId: deps.getActiveProvider?.() ?? '',
         sendingMessage,
@@ -1394,6 +1398,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         continue
 
       queued.cancelled = true
+      leases.withdraw('voice', queued.runId)
       runs.transition(queued.runId, 'dropped')
       queued.deferred.reject(new Error('Chat session was reset before send could start'))
     }
@@ -1413,6 +1418,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     if (waiting) {
       pendingQueuedSends = pendingQueuedSends.filter(item => item !== waiting)
       waiting.cancelled = true
+      leases.withdraw('voice', runId)
       runs.transition(runId, 'dropped')
       waiting.deferred.reject(new Error('Run was cancelled before it started'))
       emitStateChange()

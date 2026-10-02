@@ -106,6 +106,9 @@ Every notification and due task passes intake. Source urgency sets the prior sal
 Other work waits by its salience. A notification past its time to live is ignored, and a newer one with the same `coalesceKey` replaces waiting ones.
 A due task is an internal stimulus. Each admitted notification is a run with the `voice` output and holds the voice lease until it ends.
 A missing chat model ends the run as `blocked`. A stopped owner ends it as `dropped`.
+Intake checks hard constraints first: coalescing and deadlines. Only then can a classifier appraise the notification.
+Notifications and chat sends wait in one voice line. The tick offers the first due notification in line order, and a released voice triggers it at once.
+An admitted notification still decides inside its run whether to speak.
 
 ## Chat sampling
 

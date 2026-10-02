@@ -189,6 +189,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: Settings > Memory selects the backend and the trust threshold. The default is no classifier.
 - Observed (`orchestrator/index.test.ts`, T9): a confident idle appraisal becomes an internal proposal, and its run outputs without external input.
 - Observed (`orchestrator/index.test.ts`, T10 and T12): an idle appraisal can discard its proposal without a run. Unchanged observations are not appraised again. A proposal beyond depth two is rejected.
+- Observed (`lease-table.test.ts`): candidates for one resource rank by salience tier, then deadline, then waiting time. Other resources never wait for them.
+- Observed (`orchestrator/index.test.ts`): an urgent waiting notification goes ahead of a later chat send for the voice. An expired notification is ignored before any classifier call.
+- Implemented: intake applies hard constraints, then resource order. Rules decide who gets a chance now. The run, and later mood and persona, decide whether to speak.
 - Designed: persona and mood change appraisal cadence in P6. P3 uses the user's idle check interval, and a short interval changes how often the character looks, not how often it speaks.
 - Experimental: whether either backend improves attention decisions. Live evidence after P10 must compare decisions and latency against fixed rules.
 

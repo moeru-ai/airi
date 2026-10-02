@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency } from '@proj-airi/core-agent'
+import { compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -110,9 +110,14 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
   }
 
-  /** Notification reactions speak, so they wait while another run holds the voice. */
-  function isBusy() {
-    return processing.value || scheduler.leases.holder('voice') !== undefined
+  /**
+   * Asks for the voice in the lease line. Only candidates for the voice compare: salience tier, then deadline, then waiting time.
+   * A refused candidate stays in line under its run id until it asks again or withdraws.
+   */
+  function requestVoice(entry: { runId: string, stimulus: Stimulus, enqueuedAt: number }) {
+    if (processing.value)
+      return false
+    return scheduler.leases.acquire('voice', entry.runId, { salience: entry.stimulus.salience, deadlineAt: entry.stimulus.deadlineAt, waitingSince: entry.enqueuedAt }).granted
   }
 
   function removePending(eventId: string) {
@@ -125,11 +130,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   /**
-   * Runs one admitted notification as a run that holds the voice. Its reaction speaks for the owner.
+   * Runs one admitted notification that already holds the voice under `runId`. Its reaction speaks for the owner, or stays silent.
    * The run reaches a final state even when the model fails, so the voice never stays held.
    */
-  async function runNotify(stimulus: Stimulus, event: WebSocketEventOf<'spark:notify'>, decision: IntakeDecision, control?: SparkNotifyResponseControl) {
-    const runId = nanoid()
+  async function runNotify(runId: string, stimulus: Stimulus, event: WebSocketEventOf<'spark:notify'>, decision: IntakeDecision, control?: SparkNotifyResponseControl) {
     const sessionId = chatSession.activeSessionId
     const salience = decision.salience ?? stimulus.salience
     scheduler.runs.admit({
@@ -138,7 +142,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       envelope: { sessionId, bindings: [], outputs: ['voice'], audience: OWNER_AUDIENCE, personaId: chatSession.sessionMetas[sessionId]?.characterId },
     })
     scheduler.intake.record(stimulus, { ...decision, runId })
-    scheduler.leases.acquire('voice', runId, { salience })
     scheduler.runs.transition(runId, 'working')
     try {
       const result = await processSparkNotify(runId, event, control)
@@ -171,6 +174,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   ) {
     const stimulus = stimulusFromNotify(event, options?.origin)
     await defer({
+      runId: nanoid(),
       stimulus,
       event,
       control: options?.control,
@@ -242,9 +246,16 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    * Internal proposals skip the classifier, because their source already appraised them or a commitment made them due.
    */
   async function handleStimulus(stimulus: Stimulus, event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
+    // Hard constraints come first. No salience or classifier answer passes them.
     if (stimulus.coalesceKey) {
-      for (const replaced of await notifyQueue.takeCoalesced(stimulus.coalesceKey))
+      for (const replaced of await notifyQueue.takeCoalesced(stimulus.coalesceKey)) {
+        scheduler.leases.withdraw('voice', replaced.runId)
         scheduler.intake.record(replaced.stimulus, { outcome: 'merged', reason: 'coalesced', decidedBy: 'rule', mergedInto: stimulus.id })
+      }
+    }
+    if (stimulus.deadlineAt !== undefined && stimulus.deadlineAt <= Date.now()) {
+      scheduler.intake.record(stimulus, { outcome: 'ignored', reason: 'expired', decidedBy: 'rule' })
+      return undefined
     }
 
     // A classifier can ignore the notification or reorder it. Its answer never grants authority.
@@ -256,24 +267,20 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
     const ranked: Stimulus = { ...stimulus, salience: appraised?.salience ?? stimulus.salience }
     const now = Date.now()
+    const entry = { runId: nanoid(), stimulus: ranked, event, control, enqueuedAt: now, attempts: 0, maxAttempts: attentionConfig.value.maxAttempts, reason: 'spark:notify' }
     // A proposal's source already chose its moment, so it waits only for the voice.
-    const decision = { ...decideByPrior(ranked, { now, busy: isBusy(), retryAt: ranked.event === 'proposal' ? now : undefined }), appraisal }
-    if (decision.outcome === 'admitted')
-      return await runNotify(ranked, event, decision, control)
-    if (decision.outcome === 'ignored') {
-      scheduler.intake.record(ranked, decision)
+    const timing = { ...decideByPrior(ranked, { now, busy: false, retryAt: ranked.event === 'proposal' ? now : undefined }), appraisal }
+    if (timing.outcome === 'ignored') {
+      scheduler.intake.record(ranked, timing)
       return undefined
     }
-
-    await defer({
-      stimulus: ranked,
-      event,
-      control,
-      enqueuedAt: Date.now(),
-      attempts: 0,
-      maxAttempts: attentionConfig.value.maxAttempts,
-      reason: 'spark:notify',
-    }, decision)
+    if (timing.outcome === 'admitted') {
+      if (requestVoice(entry))
+        return await runNotify(entry.runId, ranked, event, timing, control)
+      await defer(entry, { ...timing, outcome: 'deferred', reason: 'resource-busy', retryAt: now })
+      return undefined
+    }
+    await defer(entry, timing)
     return undefined
   }
 
@@ -331,7 +338,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     const intervalMs = triageSettings.appraisalIntervalMinutes * 60_000
     if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs)
       return
-    if (isBusy() || scheduler.runs.snapshot().some(run => run.state === 'queued' || run.state === 'working'))
+    if (processing.value || scheduler.leases.holder('voice') || scheduler.runs.snapshot().some(run => run.state === 'queued' || run.state === 'working'))
       return
     lastAppraisalAt = now
 
@@ -392,28 +399,38 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   async function tick() {
-    if (!leadership?.isLeader() || isBusy())
+    if (!leadership?.isLeader() || processing.value)
       return
 
     const now = Date.now()
     await enqueueDueTasks(now)
     await appraiseIdle(now)
 
-    const nextIndex = scheduledNotifies.value.findIndex(item => item.nextRunAt <= now)
-    if (nextIndex < 0)
+    // Due entries compete for the voice by the lease line order, not by arrival.
+    const due = scheduledNotifies.value
+      .filter(item => item.nextRunAt <= now)
+      .sort((a, b) => compareLeaseCandidates(
+        { salience: a.stimulus.salience, deadlineAt: a.stimulus.deadlineAt, waitingSince: a.enqueuedAt },
+        { salience: b.stimulus.salience, deadlineAt: b.stimulus.deadlineAt, waitingSince: b.enqueuedAt },
+      ))
+    const next = due[0]
+    if (!next)
       return
 
-    const [next] = scheduledNotifies.value.splice(nextIndex, 1)
-    removePending(next.event.data.id)
+    const decision = decideByPrior(next.stimulus, { now, busy: false, retryAt: next.nextRunAt })
+    if (decision.outcome !== 'ignored' && !requestVoice(next))
+      return
 
-    const decision = decideByPrior(next.stimulus, { now, busy: isBusy(), retryAt: next.nextRunAt })
+    scheduledNotifies.value = scheduledNotifies.value.filter(item => item !== next)
+    removePending(next.event.data.id)
     if (decision.outcome === 'ignored') {
+      scheduler.leases.withdraw('voice', next.runId)
       scheduler.intake.record(next.stimulus, decision)
       return
     }
 
     try {
-      await runNotify(next.stimulus, next.event, decision, next.control)
+      await runNotify(next.runId, next.stimulus, next.event, decision, next.control)
     }
     catch (error) {
       if (!leadership?.isLeader())
@@ -421,7 +438,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       if (next.attempts + 1 < next.maxAttempts) {
         const attempts = next.attempts + 1
         const retryAt = Date.now() + deferDelayMs(next.stimulus.salience) + attempts * attentionConfig.value.requeueDelayMs
-        await defer({ ...next, attempts }, { outcome: 'deferred', reason: 'retry', decidedBy: 'rule', retryAt })
+        await defer({ ...next, runId: nanoid(), attempts }, { outcome: 'deferred', reason: 'retry', decidedBy: 'rule', retryAt })
       }
       else {
         console.warn('Dropped spark:notify after max attempts:', error)
@@ -479,6 +496,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         }
       }),
     )
+
+    // A released voice goes to the next candidate at once, instead of waiting for the next tick.
+    eventUnsubscribes.push(scheduler.leases.subscribe(() => {
+      queueMicrotask(() => void tick())
+    }))
 
     startTicker()
   }

@@ -7,6 +7,8 @@ import { ref } from 'vue'
 
 /** One deferred notification waiting for the leader ticker. */
 export interface ScheduledSparkNotify {
+  /** Run that the notification becomes. It also names the notification in the voice lease line. */
+  runId: string
   /** Intake identity, origin, salience, and deadline of the notification. */
   stimulus: Stimulus
   event: WebSocketEventOf<'spark:notify'>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { LeaseTable } from './lease-table'
+import { compareLeaseCandidates, LEASE_CANDIDATE_TTL_MS, LeaseTable } from './lease-table'
 
 describe('lease table', () => {
   it('grants a free resource to one holder at a time', () => {
@@ -45,5 +45,58 @@ describe('lease table', () => {
     leases.releaseAll('a')
     expect(leases.snapshot()).toEqual([])
     expect(changes).toEqual(['a', 'a,a', ''])
+  })
+})
+
+describe('lease lines', () => {
+  it('orders candidates by salience tier, then deadline, then waiting time', () => {
+    const candidates = [
+      { id: 'late-normal', salience: 0.5, waitingSince: 5 },
+      { id: 'early-normal', salience: 0.55, waitingSince: 1 },
+      { id: 'urgent', salience: 0.9, waitingSince: 9 },
+      { id: 'due-soon', salience: 0.5, deadlineAt: 100, waitingSince: 8 },
+    ]
+
+    expect(candidates.sort(compareLeaseCandidates).map(candidate => candidate.id)).toEqual(['urgent', 'due-soon', 'early-normal', 'late-normal'])
+  })
+
+  // The first come does not win a contested resource. Waiting time only breaks ties inside a tier.
+  it('grants a released resource to the first candidate in line', () => {
+    let now = 0
+    const leases = new LeaseTable({ now: () => now })
+    leases.acquire('voice', 'speaking', { salience: 0.5 })
+    leases.acquire('voice', 'chat', { salience: 0.5, waitingSince: 0 })
+    now = 5
+    leases.acquire('voice', 'alarm', { salience: 0.9 })
+    leases.release('voice', 'speaking')
+
+    expect(leases.acquire('voice', 'chat', { salience: 0.5 })).toEqual({ granted: false, ahead: 'alarm' })
+    expect(leases.acquire('voice', 'alarm', { salience: 0.9 }).granted).toBe(true)
+    leases.release('voice', 'alarm')
+    expect(leases.acquire('voice', 'chat', { salience: 0.5 }).granted).toBe(true)
+  })
+
+  it('drops candidates that stop asking, withdraw, or pass their deadline', () => {
+    let now = 0
+    const leases = new LeaseTable({ now: () => now })
+    leases.acquire('voice', 'speaking', { salience: 0.5 })
+    leases.acquire('voice', 'gone', { salience: 0.9 })
+    leases.acquire('voice', 'cancelled', { salience: 0.9 })
+    leases.acquire('voice', 'expired', { salience: 0.9, deadlineAt: 50 })
+    leases.withdraw('voice', 'cancelled')
+    leases.release('voice', 'speaking')
+
+    now = 100
+    expect(leases.acquire('voice', 'chat', { salience: 0.5 })).toEqual({ granted: false, ahead: 'gone' })
+    now = LEASE_CANDIDATE_TTL_MS
+    expect(leases.acquire('voice', 'chat', { salience: 0.5 }).granted).toBe(true)
+  })
+
+  it('keeps lines apart, so work on another resource never waits', () => {
+    const leases = new LeaseTable()
+    leases.acquire('voice', 'speaking', { salience: 0.5 })
+    leases.acquire('voice', 'urgent', { salience: 0.9 })
+
+    expect(leases.acquire('module:minecraft', 'domain', { salience: 0.3 }).granted).toBe(true)
   })
 })
