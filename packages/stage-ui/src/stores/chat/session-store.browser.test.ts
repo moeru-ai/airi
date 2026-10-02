@@ -7,6 +7,8 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, ref } from 'vue'
 
+import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+
 const useTestAuthStore = defineStore('auth', () => {
   const userId = ref('local')
   const token = ref<string | null>(null)
@@ -183,6 +185,13 @@ describe('chat session synchronization', () => {
     // The history read an owner-only record, so it can no longer serve the channel.
     await store.narrowSessionAudience(root, { kind: 'subjects', subjects: ['user:owner'] })
     expect(store.getSessionAudience(root)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+    // ROOT CAUSE:
+    //
+    // The persisted meta was a shallow copy, so its audience stayed a Vue proxy, and IndexedDB refused to clone it.
+    // The repository mock never clones, so only this check sees what IndexedDB would see.
+    const persisted = vi.mocked(chatSessionsRepo.saveSession).mock.lastCall?.[1]
+    expect(persisted?.meta.audience).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
+    expect(() => structuredClone(persisted)).not.toThrow()
     await store.narrowSessionAudience(root, channel)
     expect(store.getSessionAudience(root)).toEqual({ kind: 'subjects', subjects: ['user:owner'] })
     const next = await store.ensureBoundSession('discord:channel:a')

@@ -232,8 +232,9 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
       const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
       const now = Date.now()
+      // Nested meta fields, such as the audience, are reactive proxies. IndexedDB cannot clone them, so the record stores a plain copy.
       const updatedMeta = {
-        ...meta,
+        ...cloneDeep(meta),
         updatedAt: now,
       }
 
