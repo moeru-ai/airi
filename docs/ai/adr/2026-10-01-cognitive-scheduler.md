@@ -252,6 +252,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`chat-orchestrator-runs.test.ts`, `chat.contract.browser.test.ts`): each run reads the identity of its session persona when it starts. A card edit reaches the next run, and a switch never rewrites another session's history.
 - Implemented: sessions no longer store a system snapshot. Format rules live in the stage-ui prompt recipe, and notification reactions speak as the session persona.
 - Observed (`history-budget.test.ts`, `chat-orchestrator-runs.test.ts`): long history stays within the token budget. Omitted exchanges give way to a covering digest or a count, and the stored history keeps every message.
+- Observed (`chat-orchestrator-runs.test.ts`): a waiting run whose session narrowed below its audience is blocked when it starts and again when it reads history. A spoken reaction joins only a session that only the owner reads.
 - Not provided: nothing writes session digests yet, so long sessions show the count. Summaries need a model call and belong with memory in P8.
 
 ### Open P0 evidence

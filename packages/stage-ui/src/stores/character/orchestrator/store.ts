@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, describeMood, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
+import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, describeMood, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -230,8 +230,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     try {
       if (!await chatSession.loadSession(options.sessionId))
         throw new Error('Failed to load the reaction session')
-      // The reaction read owner context, so the history label narrows like any assistant write.
-      await chatSession.narrowSessionAudience(options.sessionId, OWNER_AUDIENCE)
+      // A reaction speaks for the owner and reads owner context. It joins only a session that only the owner reads.
+      // Writing it elsewhere would narrow a shared scene session while its waiting runs still expect the wider audience.
+      if (!audienceIncludes(OWNER_AUDIENCE, chatSession.getSessionAudience(options.sessionId) ?? OWNER_AUDIENCE))
+        return
       const messageId = nanoid()
       chatSession.appendSessionMessage(options.sessionId, {
         role: 'assistant',

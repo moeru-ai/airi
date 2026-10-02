@@ -65,7 +65,10 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     leases: options.leases,
     runs: options.runs,
   })
-  return { runtime, messages, runChanges, correlations, snapshot, stream, getSessionAudience: () => sessionAudience }
+  const narrowSession = (audience: Audience) => {
+    sessionAudience = intersectAudiences(sessionAudience, audience)
+  }
+  return { runtime, messages, runChanges, correlations, snapshot, stream, getSessionAudience: () => sessionAudience, narrowSession }
 }
 
 /** Waits like a provider stream until the run aborts its request. */
@@ -228,6 +231,36 @@ describe('orchestrator runs', () => {
     expect(JSON.stringify(withoutDigest.stream.mock.calls[0]![2])).toContain('2 earlier messages of this session are not shown.')
     // The stored history keeps every message.
     expect(withDigest.messages.map(message => message.id)).toContain('u1')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The session audience was checked only when a send entered the queue. A private write while it waited
+  // narrowed the session, and the waiting channel run still read that private history.
+  //
+  // We fixed this by checking the audience again when the run starts and when it reads history.
+  it('blocks a waiting run whose session narrowed below its audience', async () => {
+    const channel = audienceFromBindings(['discord:channel:a'])
+    const harness = createRunHarness({ sessionAudience: channel, runAudience: channel })
+    let releaseFirst!: () => void
+    harness.stream.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseFirst = resolve
+      })
+    })
+
+    const first = harness.runtime.ingest('first', { model: 'test', chatProvider: provider, outputTarget: 'discord-connection' })
+    await vi.waitFor(() => expect(harness.stream).toHaveBeenCalledOnce())
+    const second = harness.runtime.ingest('second', { model: 'test', chatProvider: provider, outputTarget: 'discord-connection' })
+    // A private write narrows the session while the second send waits.
+    harness.narrowSession(OWNER_AUDIENCE)
+    harness.messages.push({ role: 'assistant', content: 'owner secret', slices: [], tool_results: [], id: 'private' })
+    releaseFirst()
+    await first
+
+    await expect(second).rejects.toThrow('The session audience narrowed below the run audience')
+    expect(harness.stream).toHaveBeenCalledOnce()
+    expect(harness.runtime.getRuns().at(-1)).toMatchObject({ state: 'blocked' })
   })
 
   // T3: work without the voice output neither waits for the voice nor reserves it.

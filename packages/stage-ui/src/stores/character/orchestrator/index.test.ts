@@ -10,7 +10,7 @@ import type z from 'zod'
 import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
-import { OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
+import { audienceFromBindings, OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
@@ -230,7 +230,6 @@ describe('store character-orchestrator', () => {
     mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = vi.fn()
     const chatSession = mockedStore(useChatSessionStore, pinia)
     chatSession.loadSession = vi.fn(async () => true)
-    chatSession.narrowSessionAudience = vi.fn(async () => {})
     chatSession.appendSessionMessage = vi.fn()
 
     const store = useCharacterOrchestratorStore(pinia)
@@ -241,12 +240,33 @@ describe('store character-orchestrator', () => {
     }, { forceTextResponse: true })
 
     const [run] = useSchedulerStore(pinia).runs.snapshot()
-    expect(chatSession.narrowSessionAudience).toHaveBeenCalledWith(chatSession.activeSessionId, OWNER_AUDIENCE)
     expect(chatSession.appendSessionMessage).toHaveBeenCalledExactlyOnceWith(chatSession.activeSessionId, expect.objectContaining({
       role: 'assistant',
       content: 'A creeper is behind you!',
       proactive: { runId: run?.runId, source: 'minecraft' },
     }))
+  })
+
+  // A reaction carries owner context, so a shared scene session never receives it.
+  it('keeps a spoken reaction out of a session that other people read', async () => {
+    mockedStore(useLLM, pinia).stream = vi.fn(async (_model: string, _provider: unknown, _messages: unknown, options: any) => {
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'A creeper is behind you!' } satisfies StreamEvent)
+      await options?.onStreamEvent?.({ type: 'finish' } satisfies StreamEvent)
+    })
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEvent = vi.fn()
+    mockedStore(useCharacterStore, pinia).onSparkNotifyReactionStreamEnd = vi.fn()
+    const chatSession = mockedStore(useChatSessionStore, pinia)
+    chatSession.loadSession = vi.fn(async () => true)
+    chatSession.getSessionAudience = vi.fn(() => audienceFromBindings(['discord:channel:a']))
+    chatSession.appendSessionMessage = vi.fn()
+
+    await useCharacterOrchestratorStore(pinia).handleSparkNotifyWithReaction({
+      type: 'spark:notify',
+      source: 'minecraft',
+      data: { id: nanoid(), eventId: nanoid(), kind: 'alarm', urgency: 'immediate', headline: 'Creeper nearby', destinations: ['character'] },
+    }, { forceTextResponse: true })
+
+    expect(chatSession.appendSessionMessage).not.toHaveBeenCalled()
   })
 
   // A5: a reached spending limit defers background work before any model or classifier request. It never drops it.

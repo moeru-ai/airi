@@ -284,6 +284,9 @@ export interface ChatOrchestratorRuntimeLimits {
   historyTokenBudget: number
 }
 
+/** Failure reason of a run whose session narrowed below its audience after admission. */
+const SESSION_NARROWED = 'The session audience narrowed below the run audience'
+
 /** Identical consecutive tool calls that end a run. Supervision stops a loop instead of waiting for the deadline. */
 const REPEATED_TOOL_CALL_LIMIT = 3
 
@@ -575,6 +578,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       streamingMessages: Object.fromEntries(Array.from(streamingMessages, ([sessionId, message]) => [sessionId, cloneStreamingMessage(message)])),
       pendingQueuedSendCount: pendingQueuedSends.length,
     })
+  }
+
+  /** Whether the session's current audience still covers a run's audience. */
+  function sessionAudienceCovers(sessionId: string, audience: Audience) {
+    return audienceIncludes(deps.session.getSessionAudience?.(sessionId) ?? OWNER_AUDIENCE, audience)
   }
 
   function getLimits(): ChatOrchestratorRuntimeLimits {
@@ -876,6 +884,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         turnIndex,
       })
 
+      // Hooks above can wait. The audience check repeats at the moment the history is read.
+      if (!sessionAudienceCovers(sessionId, run.envelope.audience))
+        throw new Error(SESSION_NARROWED)
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
         messageText: sendingMessage,
@@ -1274,6 +1285,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     if (deps.session.getSessionGeneration(sessionId) !== generation) {
       runs.transition(runId, 'dropped')
       return { ok: false, error: new Error('Chat session was reset before send could start') }
+    }
+    // The session can narrow while the send waits. A run never reads history that its audience can no longer see.
+    if (!sessionAudienceCovers(sessionId, envelope.audience)) {
+      runs.transition(runId, 'blocked', SESSION_NARROWED)
+      return { ok: false, error: new Error(SESSION_NARROWED) }
     }
 
     const controller = new AbortController()
