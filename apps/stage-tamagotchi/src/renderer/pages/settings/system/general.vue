@@ -12,22 +12,14 @@ import { electron, electronAppIconGet, electronAppIconSet } from '../../../../sh
 const { t } = useI18n()
 const getHidden = useElectronEventaInvoke(electronAppIconGet)
 const setHidden = useElectronEventaInvoke(electronAppIconSet)
-const getIsMacOS = useElectronEventaInvoke(electron.app.isMacOS)
-const getIsWindows = useElectronEventaInvoke(electron.app.isWindows)
-const hideAppIcon = shallowRef(false)
-const ready = shallowRef(false)
-const saving = shallowRef(false)
-const supported = shallowRef(false)
+const isLinux = useElectronEventaInvoke(electron.app.isLinux)
+// The value stays undefined on Linux, and the field does not show there.
+const hideAppIcon = shallowRef<boolean>()
 
 onMounted(async () => {
   try {
-    const [isMacOS, isWindows] = await Promise.all([getIsMacOS(), getIsWindows()])
-    supported.value = isMacOS || isWindows
-    if (!supported.value)
-      return
-
-    hideAppIcon.value = await getHidden()
-    ready.value = true
+    if (!await isLinux())
+      hideAppIcon.value = await getHidden()
   }
   catch {
     toast.error(t('tamagotchi.settings.pages.system.general.hide-app-icon.load-error'))
@@ -35,15 +27,11 @@ onMounted(async () => {
 })
 
 async function updateHidden(hidden: boolean) {
-  saving.value = true
   try {
     hideAppIcon.value = await setHidden(hidden)
   }
   catch {
     toast.error(t('tamagotchi.settings.pages.system.general.hide-app-icon.save-error'))
-  }
-  finally {
-    saving.value = false
   }
 }
 </script>
@@ -52,9 +40,8 @@ async function updateHidden(hidden: boolean) {
   <SettingsGeneralFields>
     <template #additional-fields>
       <FieldCheckbox
-        v-if="supported"
+        v-if="hideAppIcon !== undefined"
         :model-value="hideAppIcon"
-        :disabled="!ready || saving"
         :label="t('tamagotchi.settings.pages.system.general.hide-app-icon.title')"
         :description="t('tamagotchi.settings.pages.system.general.hide-app-icon.description')"
         @update:model-value="updateHidden"

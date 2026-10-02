@@ -4,7 +4,7 @@ import type { globalAppConfigSchema } from '../../configs/global'
 import type { Config } from '../../libs/electron/persistence'
 
 import { app, BrowserWindow } from 'electron'
-import { isMacOS, isWindows } from 'std-env'
+import { isWindows } from 'std-env'
 
 // Electron has no getter for `skipTaskbar`. Utility windows register here,
 // so that a restore does not add them to the Windows taskbar.
@@ -18,17 +18,12 @@ export function excludeWindowFromTaskbar(window: Pick<ElectronBrowserWindow, 'se
 /**
  * Shows a window on all workspaces. A hidden macOS Dock icon stays hidden.
  *
- * Use this function instead of `window.setVisibleOnAllWorkspaces(true)`.
+ * Use this function for each window that can open after the tray exists.
  * The Electron default changes the macOS process type, and that change shows the Dock icon again.
  */
-export function showWindowOnAllWorkspaces(
-  window: Pick<ElectronBrowserWindow, 'setVisibleOnAllWorkspaces'>,
-  options: Parameters<ElectronBrowserWindow['setVisibleOnAllWorkspaces']>[1] = {},
-): void {
-  window.setVisibleOnAllWorkspaces(true, {
-    ...options,
-    skipTransformProcessType: isMacOS && app.dock?.isVisible() === false,
-  })
+export function showWindowOnAllWorkspaces(window: Pick<ElectronBrowserWindow, 'setVisibleOnAllWorkspaces'>): void {
+  // `app.dock` exists only on macOS.
+  window.setVisibleOnAllWorkspaces(true, { skipTransformProcessType: app.dock?.isVisible() === false })
 }
 
 /**
@@ -36,16 +31,21 @@ export function showWindowOnAllWorkspaces(
  *
  * The app config holds the preference. Create this class only after the tray exists,
  * because the tray is then the only way to open windows or quit.
+ * The window listener stays for the lifetime of the app.
  */
 export class AppIconVisibility {
   constructor(private readonly config: Config<typeof globalAppConfigSchema>) {
     // Windows has no app-level icon. Each window owns its taskbar entry,
     // so later windows must get the same treatment as the current ones.
-    if (isWindows)
-      app.on('browser-window-created', this.onWindowCreated)
+    if (isWindows) {
+      app.on('browser-window-created', (_event: Event, window: ElectronBrowserWindow) => {
+        if (this.hidden)
+          window.setSkipTaskbar(true)
+      })
+    }
 
     if (this.hidden)
-      this.hide()
+      void this.apply(true)
   }
 
   get hidden(): boolean {
@@ -57,39 +57,19 @@ export class AppIconVisibility {
     if (this.hidden === hidden)
       return
 
-    if (hidden)
-      this.hide()
-    else
-      await this.show()
-
+    await this.apply(hidden)
     this.config.update({ ...this.config.get(), hideAppIcon: hidden })
   }
 
-  /** Stops the window listener. Call it before the tray is destroyed. */
-  dispose(): void {
-    app.off('browser-window-created', this.onWindowCreated)
-  }
-
-  private readonly onWindowCreated = (_event: Event, window: ElectronBrowserWindow): void => {
-    if (this.hidden)
-      window.setSkipTaskbar(true)
-  }
-
-  private hide(): void {
-    app.dock?.hide()
+  private async apply(hidden: boolean): Promise<void> {
+    if (hidden)
+      app.dock?.hide()
+    else
+      await app.dock?.show()
 
     if (!isWindows)
       return
     for (const window of BrowserWindow.getAllWindows())
-      window.setSkipTaskbar(true)
-  }
-
-  private async show(): Promise<void> {
-    await app.dock?.show()
-
-    if (!isWindows)
-      return
-    for (const window of BrowserWindow.getAllWindows())
-      window.setSkipTaskbar(taskbarExcludedWindows.has(window) || !window.isFocusable())
+      window.setSkipTaskbar(hidden || taskbarExcludedWindows.has(window) || !window.isFocusable())
   }
 }

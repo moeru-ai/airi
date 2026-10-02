@@ -20,7 +20,6 @@ import { effect } from 'alien-signals'
 import { app, ipcMain, Menu, nativeImage, screen, Tray } from 'electron'
 import { debounce, once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
-import { boolean, parse } from 'valibot'
 
 import icon from '../../../resources/icon.png?asset'
 import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
@@ -267,10 +266,10 @@ export function setupTray(params: {
     })
 
     const appIcon = new AppIconVisibility(params.appConfig)
-    const { context, dispose } = createContext(ipcMain)
+    const { context } = createContext(ipcMain)
     defineInvokeHandler(context, electronAppIconGet, () => appIcon.hidden)
     defineInvokeHandler(context, electronAppIconSet, async (payload) => {
-      await appIcon.setHidden(parse(boolean(), payload))
+      await appIcon.setHidden(Boolean(payload))
       return appIcon.hidden
     })
 
@@ -286,8 +285,6 @@ export function setupTray(params: {
       rebuildContextMenu.cancel()
       mainWindowAnimator.stop()
 
-      appIcon.dispose()
-      dispose()
       appTray.destroy()
     })
 

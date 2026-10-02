@@ -6,9 +6,6 @@ import {
   showDesktopOverlayWithoutFocus,
 } from './window-contract'
 
-vi.mock('electron', () => ({ app: { dock: { isVisible: () => false } } }))
-vi.mock('std-env', () => ({ isMacOS: true }))
-
 describe('createDesktopOverlayWindowOptions', () => {
   it('creates non-focusable transparent overlay window options for display bounds', () => {
     const options = createDesktopOverlayWindowOptions({
@@ -49,7 +46,7 @@ describe('applyDesktopOverlayInputIsolation', () => {
     expect(window.setIgnoreMouseEvents).toHaveBeenCalledWith(true, { forward: true })
     expect(window.setAlwaysOnTop).toHaveBeenCalledWith(true, 'screen-saver')
     expect(window.setContentProtection).toHaveBeenCalledWith(true)
-    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { visibleOnFullScreen: true, skipTransformProcessType: true })
+    expect(window.setVisibleOnAllWorkspaces).toHaveBeenCalledWith(true, { visibleOnFullScreen: true })
   })
 })
 

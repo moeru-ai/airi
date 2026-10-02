@@ -3,13 +3,6 @@
 The Electron desktop app runs AIRI characters, chat, voice, and desktop tools.
 Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for browser-only features.
 
-## Desktop integration
-
-In Settings > System > General, enable **Hide taskbar / Dock icon** to keep AIRI in the tray only.
-This option is off by default. Changes apply immediately and persist across restarts.
-The tray menu can open windows or quit the app. Disabling the option restores ordinary Windows taskbar entries and the macOS Dock icon.
-Utility windows remain hidden from the taskbar. Linux desktop behavior remains unchanged.
-
 ## Development
 
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
