@@ -30,4 +30,4 @@ pnpm -F @proj-airi/acp-server dev
 
 This process does not choose a model or a character. The open desktop application uses the current character card and the current model. Do not set a provider key or a model id for this process.
 
-File read, file write, terminal, and MCP access come from the ACP Client. The desktop application adds them only to the chat session that this connection opened. A normal chat session does not receive those tools. When the ACP Client disconnects, that session stays in the list and does not accept new messages. The client loads the same session id to connect it again.
+File read, file write, terminal, and MCP access come from the ACP Client. The desktop application adds them only to the chat session that this connection opened. A normal chat session does not receive those tools. When the ACP Client disconnects, that session stays in the list and can still send messages without those tools. The client loads the same session id to connect it again.

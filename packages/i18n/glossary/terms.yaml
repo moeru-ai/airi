@@ -349,7 +349,7 @@
       part-of-speech: proper noun
       status: preferred
       type: fullForm
-      context: ACP Client connected
+      context: ACP Client online
 
 - id: spotlight
   subject: application

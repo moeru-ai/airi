@@ -4,7 +4,7 @@ import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/sta
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
-import { useAcpReplyBlocked, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
+import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -57,7 +57,6 @@ const { isListening, startStreamingTranscription, stopStreamingTranscription, au
   },
 )
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
-const acpReplyBlocked = useAcpReplyBlocked(() => chatSession.activeSessionId)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: computed(() => chatSession.activeSessionId),
   generating: computed(() => props.generating),
@@ -82,7 +81,7 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  if (acpReplyBlocked.value || pendingImages.value)
+  if (pendingImages.value)
     return
   await submitInterruptingResponse()
 }
@@ -99,7 +98,7 @@ function sendFromKeyboard() {
 }
 
 function handleMessageInputKeydown(event: KeyboardEvent) {
-  if (acpReplyBlocked.value || isComposing.value || event.key !== 'Enter')
+  if (isComposing.value || event.key !== 'Enter')
     return
 
   const hasControl = event.ctrlKey || event.metaKey
@@ -212,8 +211,7 @@ watch(replyTarget, async (target) => {
       <BasicTextarea
         v-model="messageInput"
         :submit-on-enter="false"
-        :disabled="acpReplyBlocked"
-        :placeholder="acpReplyBlocked ? t('stage.chat.sessions.acp-disconnected') : t('stage.message')"
+        :placeholder="t('stage.message')"
         text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
         bg="transparent"
         min-h="[100px]" max-h="[300px]" w-full
@@ -298,7 +296,7 @@ watch(replyTarget, async (target) => {
           v-else
           type="button"
           :aria-label="t('stage.chat.actions.send')"
-          :disabled="acpReplyBlocked || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+          :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
           :class="[
             composerActionButtonClass,
             'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',

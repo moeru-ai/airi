@@ -8,7 +8,6 @@ import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { ACP_CLIENT_DISCONNECTED } from '@proj-airi/acp-server/bridge'
 import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
@@ -664,14 +663,8 @@ export const useChatStore = defineStore('chat', () => {
     runtime.cancelTurn(turn)
   }
 
-  function refuseDisconnectedAcpSession(sessionId: string) {
-    if (chatSession.sessionMetas[sessionId]?.acpClient?.status === 'disconnected')
-      throw new Error(ACP_CLIENT_DISCONNECTED)
-  }
-
   /** Sends one serializable chat request through the elected leader. */
   async function send(payload: ChatSendPayload): Promise<ChatSendResult> {
-    refuseDisconnectedAcpSession(payload.sessionId)
     try {
       return await executeSend(payload)
     }
@@ -683,7 +676,6 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Replaces one stored turn with a new execution of its user message. */
   async function retry(payload: ChatRetryPayload): Promise<ChatSendResult> {
-    refuseDisconnectedAcpSession(payload.sessionId)
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 

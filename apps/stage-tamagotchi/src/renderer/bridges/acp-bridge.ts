@@ -24,11 +24,7 @@ import {
 } from '../../shared/eventa'
 import { createAcpClientTools } from './acp-client-tools'
 
-/**
- * Registers the ACP bridge on the Pinia leader.
- *
- * Tool executors stay on the leader because chat send runs there.
- */
+/** Registers the ACP bridge on the Pinia leader, where chat send runs. */
 export function registerAcpBridge() {
   const syncedPinia = usePiniaSynced()
   const chatStore = useChatStore()
@@ -84,6 +80,13 @@ export function registerAcpBridge() {
 
   function installHandlers() {
     const context = getElectronEventaContext()
+
+    async function markDisconnected(chatSessionId: string) {
+      disconnectLink(chatSessionId)
+      await sessionStore.setAcpClientLink(chatSessionId, disconnectedLink(sessionMetas.value[chatSessionId]?.acpClient))
+      return { ok: true as const }
+    }
+
     const stops = [
       defineInvokeHandler(context, electronAcpOpenSession, async (body) => {
         const chatSessionId = await sessionStore.createSession(cardStore.activeCardId, { setActive: false })
@@ -135,16 +138,8 @@ export function registerAcpBridge() {
         chatStore.cancelPendingSends(chatSessionId)
         return { ok: true as const }
       }),
-      defineInvokeHandler(context, electronAcpCloseSession, async ({ chatSessionId }) => {
-        disconnectLink(chatSessionId)
-        await sessionStore.setAcpClientLink(chatSessionId, disconnectedLink(sessionMetas.value[chatSessionId]?.acpClient))
-        return { ok: true as const }
-      }),
-      defineInvokeHandler(context, electronAcpDisconnected, async ({ chatSessionId }) => {
-        disconnectLink(chatSessionId)
-        await sessionStore.setAcpClientLink(chatSessionId, disconnectedLink(sessionMetas.value[chatSessionId]?.acpClient))
-        return { ok: true as const }
-      }),
+      defineInvokeHandler(context, electronAcpCloseSession, ({ chatSessionId }) => markDisconnected(chatSessionId)),
+      defineInvokeHandler(context, electronAcpDisconnected, ({ chatSessionId }) => markDisconnected(chatSessionId)),
       chatStore.onBeforeSend(async (message, context) => {
         if (!message.trim() || prompting.has(context.sessionId))
           return

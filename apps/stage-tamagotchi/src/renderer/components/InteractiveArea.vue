@@ -10,7 +10,6 @@ import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
-import { useAcpReplyBlocked } from '@proj-airi/stage-ui/composables/use-acp-reply-blocked'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -141,7 +140,6 @@ const latestImageEntries = computed(() => {
 })
 
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
-const acpReplyBlocked = useAcpReplyBlocked(activeSessionId)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
   generating: computed(() => activeTurns.value.some(turn => turn.sessionId === activeSessionId.value)),
@@ -156,7 +154,7 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 
 async function handleSend() {
   // The draft stays in the composer while the setup callout is shown.
-  if (acpReplyBlocked.value || pendingImages.value || !chatReady.value)
+  if (pendingImages.value || !chatReady.value)
     return
   await submitInterruptingResponse()
 }
@@ -173,7 +171,7 @@ function handleManualAttach() {
 }
 
 function handleMessageInputKeydown(event: KeyboardEvent) {
-  if (acpReplyBlocked.value || isComposing.value || event.key !== 'Enter')
+  if (isComposing.value || event.key !== 'Enter')
     return
 
   const hasControl = event.ctrlKey || event.metaKey
@@ -505,8 +503,7 @@ defineExpose({
           <BasicTextarea
             v-model="messageInput"
             :submit-on-enter="false"
-            :disabled="acpReplyBlocked"
-            :placeholder="acpReplyBlocked ? t('stage.chat.sessions.acp-disconnected') : t('stage.message')"
+            :placeholder="t('stage.message')"
             :class="[
               'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent px-2 font-medium outline-none [scrollbar-gutter:stable]',
               'max-h-[10lh]',
@@ -618,7 +615,7 @@ defineExpose({
             size="unset"
             :aria-label="t('stage.chat.actions.send')"
             :title="t('stage.chat.actions.send')"
-            :disabled="acpReplyBlocked || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+            :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
             :class="[
               'ml-auto size-9 rounded-full bg-primary-500 text-white',
               'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',

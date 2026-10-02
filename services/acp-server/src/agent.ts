@@ -25,16 +25,7 @@ export interface AcpAgentOptions {
   connectMcp?: typeof connectMcpServers
 }
 
-/**
- * ACP protocol adapter. The desktop application owns the model, the prompt, and the chat session.
- *
- * Call stack:
- *
- * ACP Client `session/prompt`
- *   -> bridge `prompt`
- *     -> stream and tool callbacks
- *       -> ACP Client `session/update`, `fs/*`, `terminal/*`, or MCP
- */
+/** ACP protocol adapter. The desktop application owns the model, the prompt, and the chat session. */
 export async function createAcpAgent(options: AcpAgentOptions = {}) {
   const connectBridge = options.connectBridge ?? connectAcpBridge
   const connectMcp = options.connectMcp ?? connectMcpServers
