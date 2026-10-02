@@ -1,104 +1,78 @@
 # Cognitive scheduler
 
-Status: Accepted direction, staged implementation
+Status: Accepted, scope revised on 2026-10-03
 
 ## Context
 
-The chat runtime serializes requests across sessions. Context snapshots include every active source, without reader isolation or expiry.
-External input can name a session that has no persistent metadata. Several windows can also run the notification ticker.
+The chat runtime serialized requests across sessions. Context snapshots included every active source, without reader isolation or expiry.
+External input could name a session that had no persistent metadata. Several windows could run the notification ticker.
 
-These assumptions prevent concurrent domain work and can expose unrelated context to a private conversation.
-The scheduler evolves the existing session storage, runtime ports, and plugin protocol.
+These assumptions blocked concurrent work and could expose unrelated context to a private conversation.
+The first plan answered them with a full scheduler: intake classifiers, relay agents, scheduler-composed prompts, model routing, and staged result routing.
+
+Live use on 2026-10-03 showed the cost of that plan. Each extra agent resent its own prompt, and each classifier added a model call per message.
+The features that the owner used most were small: per-session persona identity, mood, and recipes. They needed little of the scheduler machinery.
 
 ## Decision
 
-Implement P0 through P10 in order on one feature branch. Commit each coherent change after its focused checks.
-Each commit includes the tests and documentation for its behavior. Track remaining acceptance separately from implemented code.
+AIRI keeps one main conversation agent. Background task agents work beside it.
 
-The scheduler owns admission, routing, budgets, supervision, and lifecycle. Modules declare domain meaning and retain their own state.
-Agents are not types. Tasks, execution envelopes, sessions, recipes, and runs are the core concepts.
-The scheduler builds each execution envelope from scope, outputs, audience, memory view, capabilities, leases, persona, recipe, model policy, and lifetime.
-A recipe cannot widen that envelope. Code enforces its limits at tool execution, retrieval, context snapshots, session recovery, and output.
-Voice, the expression baseline, and module control are exclusive resources. Their current holders define the conversation and mood roles.
-Domain runs output through their own channels.
-The mood agent evaluates snapshots and maintains smooth, per-persona mood state.
+- Input is a stimulus, not an obligation. The main agent can read a message and stay silent through the stay-quiet recipe.
+- Output does not need external input. Auto-run recipes start on a silence, a schedule, or a new observation from a registered source.
+- A background task is a recipe run in its own session. It never resends the main conversation, and it can use only the tools granted to the owner's message.
+- A background task notifies the main agent directly with a context notice. No relay agent rewrites its result.
+- The owner can see every background task, stop it, and predict what it does from its recipe.
+- Persona switching moves the main agent to another persona session. The new persona gets enough context and the shared long-term memory, and the stage shows the switch.
+- Long-term memory is a small index and one entry per fact, like a project memory file. A recipe can tidy it. Each entry names who can see it.
 
-Sessions persist between runs. Runs own cancellation, correlation, deadlines, and resource consumption.
-Recipes describe task instructions and tools. They can serve multiple sessions.
+Each identity reads from the session's persona when a run starts, never from a snapshot in history.
+Mood belongs to each persona. The character card sets the temperament, and the attention classifier is optional.
 
-Information carries an allowed audience: public, or a set of audience subjects.
-A run derives its effective audience from the union of all its output audiences.
-It can read a record only when that effective audience is a subset of the record's allowed audience.
-Writes inherit the intersection of all information read, including session history. Session audiences can only narrow.
-Recovery requires a compatible audience. A new scene uses a new session and only audience-compatible summaries.
-Audience rules and persona disclosure rules remain independent.
+## Kept from the first plan
 
-Application context has context authority. Untrusted text cannot authorize tools, module control, or memory writes.
-JEV improves decisions, with deterministic fallback and an 800ms deadline. Direct user conversation bypasses synchronous triage.
-Direct input still passes intake. A synchronous local policy decides it, without automatic admission and without a reply obligation.
-The design appendices outside the repository take priority over the whitepaper where they differ.
+These parts cost no model calls and fix real defects, so they stay:
 
-## Plain mechanisms
+- Reader isolation, expiry, and budgets for shared context. Discord context never reaches the owner chat.
+- Audience labels on sessions, context, and output. Private replies never reach other people.
+- Per-session queues, cancellation with rollback, run supervision, and loop correction.
+- The voice lease. Only one speaker holds the voice.
+- Derived runs with depth and fan-out bounds and cascading cancellation. Background tasks use them.
+- The optional hourly spending limit.
 
-The design terms name conventional mechanisms. Code uses the plain names.
+## Removed from the first plan
 
-| Design term | Mechanism |
-| --- | --- |
-| Scheduler and admission | Several queues with admission rules |
-| Execution envelope | A capability ACL for one run, checked where each action executes |
-| Audience | Access labels with set operations: intersection, union, and inclusion |
-| Exclusive resource and lease | A resource lease with an expiry |
-| Session | A persisted session with a state machine |
-| Mood role | One classifier call and a smoothing function |
-| Long-term memory | A database with provenance and invalidation rules |
-| Internal stimulus | A timer and rules or a classifier that decide whether to enqueue work |
+- The spark-notify reaction relay for internal proposals and background results.
+- Idle appraisal, already replaced by owner recipes.
+- The intake classifier for connection input and the module `cognition` declarations that fed it.
+- Model routing and model tiers.
+- Scheduler-composed prompts, result routing rules beyond the parent conversation, and the external-agent run convention.
 
-The mechanisms are not the open work. Policy and evaluation are: when to stay silent, what to remember, when to interrupt, and whether mood changes decisions.
-Scenario tests must prove those behaviors. A mechanism alone does not prove them.
+Code for removed parts leaves the branch in the commit that removes it, with this record and the progress notes below.
 
-## Stages and acceptance
+## Plan
 
-| Stage | Change | Acceptance |
+| Step | Change | Acceptance |
 | --- | --- | --- |
-| P0 | Reader isolation, expiry, bounded contexts, external session creation, fork provenance, one ticker owner, module-owned context, background execution, directed output | Unrelated context never enters a request. Private replies never broadcast to modules. External conversations persist. One owner runs notifications. |
-| P1 | Session audience, bindings, lifecycle, digest, run table, execution envelopes, audience labels, and correlation | Recovery checks audience inclusion. Writes preserve read restrictions. Every run has a traceable identifier and envelope. |
-| P2 | Per-session queues, capacity admission, cancellation, rollback, supervision | Background work cannot block another session. Cancellation cannot duplicate input or commit stale output. Queue growth stays bounded. |
-| P3 | Unified workloads, deterministic admission, JEV triage, module declarations, control leases | Only declared destinations receive work. Every command passes admission and control checks. |
-| P4 | Domain state slots, delivered speech history, spoken output, steering and input ownership | One voice owner speaks. Following turns distinguish generated text from delivered speech. |
-| P5 | Model profiles, requirements, user tiers, optional spending limit, experimental task routing | The user selects the conversation model. A router changes a model only with task evidence, and cost never silently lowers conversation quality. Model switches retain portable history. |
-| P6 | Mood evaluation, PAD state, smoothing, decay and expression composition | Mood remains stable under noisy scores. Persona mood and sentence expression have distinct ownership. |
-| P7 | Prompt recipes, history compaction, per-run persona identity | Prompt size remains bounded. Runtime identity follows the session rather than UI selection. |
-| P8 | Client memory, provenance, visibility, proposals and disclosure checks | Low-trust claims cannot become trusted memories. Retrieval enforces visibility before ranking. |
-| P9 | Persona session and mood transitions | A persona switch restores its own history and mood without importing another persona's experiences. |
-| P10 | Parent runs, bounded derivation, result routing, external agent cooperation | Cancellation reaches descendants. Results default to binding scope. External modules retain autonomy. |
+| 1 | Remove the relay, intake classifier, module declarations, and routing | No feature in the kept list changes. Fewer model calls per owner message. |
+| 2 | Background task notices, a task list, and a stop control | A finished task adds one context notice to its conversation. The owner can stop a running task. |
+| 3 | Long-term memory as an index and entries, and a tidy recipe | The main agent reads the index each turn and opens entries on demand. Owner-only entries never reach a scene. |
+| 4 | Persona switching with a stage effect | A switch keeps each persona's history and mood, and carries shared memory. |
 
 ## Implementation boundaries
 
 `core-agent` owns runtime policy and portable contracts. `stage-ui` connects storage, providers, tools, and visible streams.
-`plugin-protocol` owns cross-process contracts. The server router retains transport availability routing.
-The desktop renderer leader hosts the initial scheduler. Its lifecycle and background timing require explicit ownership.
-Web and Pocket can serve interactive sessions. Persistent background scheduling requires a desktop or remote host.
-
-Memory persists in IndexedDB, with local retrieval and optional cloud synchronization.
-Each record carries provenance, trust, audience, persona interoperability, and disclosure policy from its first write.
-Model quality tiers come from user configuration until task-specific evaluation supplies quality measurements.
-Capacity limits, provider limits, deadlines, and exclusive resources constrain admission. A user spending limit is one optional limit, not an optimization target.
-Settings follow what they belong to. Settings > Memory holds attention and the folded run limits. Short-term and long-term memory pages hold session thresholds and the current mood. The Consciousness page holds the spending limit and the folded model tiers. The character card holds the temperament. Settings that rarely need a change stay folded.
+The desktop renderer leader hosts background tasks and recipe triggers. Web and Pocket serve interactive sessions.
+Settings follow what they belong to. Recipes live under long-term memory. The character card holds the temperament. Rarely changed settings stay folded.
 
 ## Validation
 
-Use deterministic runtime tests for routing, expiry, budgets, cancellation, session recovery, and parent-run behavior.
-Use browser tests for Web Platform and persistence behavior. Use Electron boundary mocks for window configuration and ownership.
-Run affected workspace typechecks and tests. Run root typecheck for shared contracts and root lint before completion.
-Use live voice and character evidence for speech handoff, expression composition, and persona switching.
-
-The source reports used fake providers for runtime concurrency and small datasets for JEV decisions.
-Their measured latency, cost, and classifier accuracy are hypotheses for local reproduction, rather than release acceptance.
-Live Discord recovery, JEV direct-channel behavior, and owner transitions require additional integration evidence.
+Use deterministic runtime tests for queues, cancellation, derived runs, triggers, and audience rules.
+Use browser tests for persistence and chat surfaces. Use live voice and character evidence for speech, expression, and persona switching.
+Measure model calls and prompt tokens per owner message before and after each step.
 
 ## Progress
 
-- P0 through P6 are Implemented with deterministic tests. Their live scenarios remain open. P7 through P10 have not started.
+- The notes below record the first plan, stage by stage. Notes for removed parts leave with their code. Live scenarios remain open.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
