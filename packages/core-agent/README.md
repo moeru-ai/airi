@@ -105,6 +105,7 @@ Input from a connection goes through `decideIntake`, which can ask a remote clas
 A failing policy admits the input with `decidedBy: 'fallback'`, so a broken policy cannot lose input.
 `ingest` resolves with the stimulus id, its outcome, and the run id when it was admitted.
 Each session has its own queue. A session runs one send at a time, and different sessions run concurrently up to `maxConcurrentRuns`.
+The limit counts working runs of every owner that shares the run table. A limit of one is the single active run mode, with the same envelopes and traces.
 A session holds at most `maxQueuedPerSession` waiting sends. A full queue rejects before a run exists. `getLimits` supplies both limits.
 The voice is an exclusive lease in `LeaseTable`. A send with the `voice` output waits while any run holds it, and releases it when it ends. Domain sends keep running.
 A lease is free when its holder releases it or it expires. Only a request with `preempt` and strictly higher salience takes over a held lease.

@@ -109,6 +109,7 @@ A missing chat model ends the run as `blocked`. A stopped owner ends it as `drop
 Intake checks hard constraints first: coalescing and deadlines. Only then can a classifier appraise the notification.
 Notifications and chat sends wait in one voice line. The tick offers the first due notification in line order, and a released voice triggers it at once.
 An admitted notification still decides inside its run whether to speak.
+Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.
 
 ## Chat sampling
 

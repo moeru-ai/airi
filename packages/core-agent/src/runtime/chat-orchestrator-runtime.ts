@@ -264,7 +264,7 @@ export interface ChatOrchestratorRuntimeState {
 
 /** Capacity limits that admission and scheduling read on each decision. */
 export interface ChatOrchestratorRuntimeLimits {
-  /** Sends that can run at the same time across sessions. @default 4 */
+  /** Working runs at the same time, counted across every owner that shares the run table. `1` serializes all active work. @default 4 */
   maxConcurrentRuns: number
   /** Sends that can wait in one session. A full session rejects new work before a run exists. @default 8 */
   maxQueuedPerSession: number
@@ -542,8 +542,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     runs.subscribe(deps.onRunChange)
   if (deps.onIntakeRecord)
     intake.subscribe(deps.onIntakeRecord)
-  // Another owner can release the voice, so waiting voice sends get another chance.
+  // Another owner can release the voice or end a run, so waiting sends get another chance.
   leases.subscribe(() => queueMicrotask(pump))
+  runs.subscribe(() => queueMicrotask(pump))
 
   function emitStateChange() {
     deps.onStateChange?.({
@@ -1261,7 +1262,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   function pump() {
     const { maxConcurrentRuns } = getLimits()
     for (const queuedSend of [...pendingQueuedSends]) {
-      if (runningSends.size >= maxConcurrentRuns)
+      // Capacity counts the working runs of every owner that shares the run table. A limit of one serializes all active work.
+      if (runs.countWorking() >= maxConcurrentRuns)
         break
       if (runningSends.has(queuedSend.sessionId))
         continue

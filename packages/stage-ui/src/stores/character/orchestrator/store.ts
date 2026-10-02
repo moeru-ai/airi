@@ -22,6 +22,7 @@ import { sendAdmittedSparkCommand } from '../../mods/api/spark-command'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useTriageStore } from '../../modules/triage'
 import { useSchedulerStore } from '../../scheduler'
+import { useSettingsRunLimits } from '../../settings/run-limits'
 import { useSettingsTriage } from '../../settings/triage'
 import { useCharacterNotifyQueueStore } from './queue'
 
@@ -43,6 +44,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const scheduler = useSchedulerStore()
   const triage = useTriageStore()
   const triageSettings = useSettingsTriage()
+  const runLimits = useSettingsRunLimits()
   const chatContext = useChatContextStore()
 
   const processing = ref(false)
@@ -115,7 +117,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    * A refused candidate stays in line under its run id until it asks again or withdraws.
    */
   function requestVoice(entry: { runId: string, stimulus: Stimulus, enqueuedAt: number }) {
-    if (processing.value)
+    // Notification runs count against the shared run capacity, like chat sends.
+    if (processing.value || scheduler.runs.countWorking() >= runLimits.limits.maxConcurrentRuns)
       return false
     return scheduler.leases.acquire('voice', entry.runId, { salience: entry.stimulus.salience, deadlineAt: entry.stimulus.deadlineAt, waitingSince: entry.enqueuedAt }).granted
   }
@@ -497,9 +500,13 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       }),
     )
 
-    // A released voice goes to the next candidate at once, instead of waiting for the next tick.
+    // A released voice or a finished run goes to the next candidate at once, instead of waiting for the next tick.
     eventUnsubscribes.push(scheduler.leases.subscribe(() => {
       queueMicrotask(() => void tick())
+    }))
+    eventUnsubscribes.push(scheduler.runs.subscribe((run) => {
+      if (run.state !== 'queued' && run.state !== 'working')
+        queueMicrotask(() => void tick())
     }))
 
     startTicker()

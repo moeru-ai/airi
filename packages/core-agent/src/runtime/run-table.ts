@@ -102,6 +102,16 @@ export class RunTable {
     return run ? structuredClone(run) : undefined
   }
 
+  /** Counts runs in the `working` state, from every run owner that shares this table. */
+  countWorking() {
+    let count = 0
+    for (const run of this.runs.values()) {
+      if (run.state === 'working')
+        count += 1
+    }
+    return count
+  }
+
   snapshot(): AgentRun[] {
     return structuredClone(Array.from(this.runs.values()))
   }

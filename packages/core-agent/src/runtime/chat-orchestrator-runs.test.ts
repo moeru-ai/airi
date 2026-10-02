@@ -13,12 +13,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { audienceFromBindings, intersectAudiences, OWNER_AUDIENCE } from './audience'
 import { createChatOrchestratorRuntime } from './chat-orchestrator-runtime'
 import { LeaseTable } from './lease-table'
+import { RunTable } from './run-table'
 
 const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', webSearch: false, config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], leases?: LeaseTable } = {}) {
+function createRunHarness(options: { sessionAudience?: Audience, runAudience?: Audience, outputs?: string[], pool?: ContextMessage[], onRunChange?: (run: AgentRun) => void, limits?: Partial<ChatOrchestratorRuntimeLimits>, decideIntake?: ChatOrchestratorRuntimeDeps['decideIntake'], decideDirectIntake?: ChatOrchestratorRuntimeDeps['decideDirectIntake'], leases?: LeaseTable, runs?: RunTable } = {}) {
   const messages: ChatHistoryItem[] = []
   const runChanges: AgentRun[] = []
   let sessionAudience = options.sessionAudience ?? OWNER_AUDIENCE
@@ -58,6 +59,7 @@ function createRunHarness(options: { sessionAudience?: Audience, runAudience?: A
     decideIntake: options.decideIntake,
     decideDirectIntake: options.decideDirectIntake,
     leases: options.leases,
+    runs: options.runs,
   })
   return { runtime, messages, runChanges, correlations, snapshot, stream, getSessionAudience: () => sessionAudience }
 }
@@ -165,6 +167,23 @@ describe('orchestrator runs', () => {
     expect(harness.stream).toHaveBeenCalledOnce()
     // The run releases the voice when it ends.
     expect(leases.holder('voice')).toBeUndefined()
+  })
+
+  // T20: a limit of one serializes active work across every run owner, with the normal envelope and trace.
+  it('waits for a working run of another owner when the limit is one', async () => {
+    const runs = new RunTable()
+    runs.admit({ runId: 'notification-run', envelope: { sessionId: 'other', bindings: [], outputs: ['voice'], audience: OWNER_AUDIENCE } })
+    runs.transition('notification-run', 'working')
+    const harness = createRunHarness({ runs, limits: { maxConcurrentRuns: 1 } })
+
+    const send = harness.runtime.ingest('domain work', { model: 'test', chatProvider: provider })
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(harness.stream).not.toHaveBeenCalled()
+
+    runs.transition('notification-run', 'done')
+    await send
+    expect(harness.stream).toHaveBeenCalledOnce()
+    expect(runs.snapshot().map(run => run.state)).toEqual(['done', 'done'])
   })
 
   it('admits connection input when the intake policy fails', async () => {

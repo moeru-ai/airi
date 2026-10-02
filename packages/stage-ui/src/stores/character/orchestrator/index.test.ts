@@ -10,7 +10,7 @@ import type z from 'zod'
 import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
-import { renderConversationPreview } from '@proj-airi/core-agent'
+import { OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
@@ -28,6 +28,7 @@ import { useModuleDirectoryStore } from '../../mods/api/module-directory'
 import { useAiriCardStore, useConsciousnessStore } from '../../modules'
 import { useProviderStore } from '../../providers/provider'
 import { useSchedulerStore } from '../../scheduler'
+import { useSettingsRunLimits } from '../../settings/run-limits'
 import { useSettingsTriage } from '../../settings/triage'
 
 vi.mock('vue-i18n', () => ({
@@ -452,6 +453,22 @@ describe('store character-orchestrator', () => {
       expect(fetch).not.toHaveBeenCalled()
       expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'expired', decidedBy: 'rule' }])
       vi.unstubAllGlobals()
+    })
+
+    // T20: a notification run counts against the shared run capacity, so a limit of one serializes all active work.
+    it('defers a notification while the shared run capacity is full', async () => {
+      const mockStream = replyWith('unused')
+      useSettingsRunLimits(pinia).maxConcurrentRuns = 1
+      const scheduler = useSchedulerStore(pinia)
+      scheduler.runs.admit({ runId: 'domain-run', envelope: { sessionId: 'discord', bindings: [], outputs: ['chat:owner'], audience: OWNER_AUDIENCE } })
+      scheduler.runs.transition('domain-run', 'working')
+      const store = useCharacterOrchestratorStore(pinia)
+      const event = notify()
+
+      await store.handleSparkNotify(event)
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(scheduler.intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'deferred', reason: 'resource-busy' }])
     })
 
     it('runs an admitted notification as a run that holds and releases the voice', async () => {
