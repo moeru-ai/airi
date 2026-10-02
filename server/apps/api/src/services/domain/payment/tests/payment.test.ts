@@ -1,0 +1,373 @@
+import type { Database } from '../../../../libs/db'
+import type { ConfigKVService } from '../../../adapters/config-kv'
+import type { ClaimReceipt, EvidenceReceipt } from '../types'
+
+import { Environment } from '@apple/app-store-server-library'
+import { eq } from 'drizzle-orm'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { mockDB } from '../../../../libs/mock-db'
+import { createTestRedis } from '../../../../libs/tests/redis'
+import { evidenceReceiptFromTransaction } from '../../../../routes/apple-iap/evidence'
+import { userFluxRedisKey } from '../../../../utils/redis-keys'
+import { createBillingService } from '../../billing/billing-service'
+import { createPaymentService } from '../index'
+
+import * as schema from '../../../../schemas'
+
+function createPacksConfigKV(): ConfigKVService {
+  return {
+    getOptional: vi.fn(async () => null),
+    getOrThrow: vi.fn(),
+    get: vi.fn(),
+    refresh: vi.fn(),
+    invalidateCache: vi.fn(),
+  } as ConfigKVService
+}
+
+describe('payment CORE', () => {
+  let db: Database
+  let redis: ReturnType<typeof createTestRedis>
+  let payment: ReturnType<typeof createPaymentService>
+
+  beforeAll(async () => {
+    db = await mockDB(schema)
+    await db.insert(schema.user).values({
+      id: 'user-pay-1',
+      name: 'Pay User',
+      email: 'pay@example.com',
+    })
+  })
+
+  beforeEach(async () => {
+    redis = createTestRedis()
+    const billing = createBillingService(db, redis, createPacksConfigKV())
+    payment = createPaymentService(db, billing)
+
+    await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    await db.delete(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
+    await db.delete(schema.paymentCustomer).where(eq(schema.paymentCustomer.userId, 'user-pay-1'))
+  })
+
+  async function insertPendingOrder() {
+    return payment.openPending({
+      userId: 'user-pay-1',
+      processor: 'stripe',
+      packKey: 'starter',
+      fluxAmount: 500,
+      currency: 'usd',
+    })
+  }
+
+  function paidReceipt(paymentOrderId: string, overrides: Partial<ClaimReceipt> = {}): ClaimReceipt {
+    return {
+      kind: 'claim',
+      processor: 'stripe',
+      paymentOrderId,
+      processorOrderId: `cs_test_${paymentOrderId}`,
+      status: 'paid',
+      amount: 500,
+      currency: 'usd',
+      customerId: 'cus_test',
+      ...overrides,
+    }
+  }
+
+  it('settle credits Flux from the pending order snapshot', async () => {
+    const order = await insertPendingOrder()
+    const result = await payment.settle(paidReceipt(order.id))
+
+    expect(result).toMatchObject({ applied: true, fluxAmount: 500, balanceAfter: 500 })
+
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux?.flux).toBe(500)
+
+    const [ledger] = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    expect(ledger?.amount).toBe(500)
+    expect(ledger?.requestId).toBe(order.id)
+
+    const [paid] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(paid?.status).toBe('paid')
+    expect(paid?.creditedAt).toBeInstanceOf(Date)
+    expect(paid?.packKey).toBe('starter')
+    expect(paid?.fluxAmount).toBe(500)
+    expect(paid?.processorOrderId).toBe(`cs_test_${order.id}`)
+
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+  })
+
+  it('settle replay returns applied false and does not double credit', async () => {
+    const order = await insertPendingOrder()
+    const receipt = paidReceipt(order.id)
+
+    const first = await payment.settle(receipt)
+    const second = await payment.settle(receipt)
+
+    expect(first.applied).toBe(true)
+    expect(second.applied).toBe(false)
+
+    const ledger = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    expect(ledger).toHaveLength(1)
+
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux?.flux).toBe(500)
+  })
+
+  it('throws when settle runs before the order exists so the adapter can retry', async () => {
+    await expect(payment.settle(paidReceipt('missing-order'))).rejects.toMatchObject({
+      statusCode: 500,
+    })
+  })
+
+  it('marks a pending order canceled without crediting Flux', async () => {
+    const order = await insertPendingOrder()
+
+    const result = await payment.settle({
+      kind: 'claim',
+      processor: 'stripe',
+      paymentOrderId: order.id,
+      processorOrderId: `cs_test_${order.id}`,
+      status: 'canceled',
+    })
+
+    expect(result).toEqual({ applied: false })
+
+    const [updated] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(updated?.status).toBe('canceled')
+
+    const ledger = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    expect(ledger).toHaveLength(0)
+  })
+
+  it('marks a pending order expired without crediting Flux', async () => {
+    const order = await insertPendingOrder()
+
+    const result = await payment.settle({
+      kind: 'claim',
+      processor: 'stripe',
+      paymentOrderId: order.id,
+      processorOrderId: `cs_test_${order.id}`,
+      status: 'expired',
+    })
+
+    expect(result).toEqual({ applied: false })
+
+    const [updated] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(updated?.status).toBe('expired')
+  })
+
+  it('deleteAllForUser soft-deletes orders and customers', async () => {
+    const order = await insertPendingOrder()
+    await db.insert(schema.paymentCustomer).values({
+      userId: 'user-pay-1',
+      processor: 'stripe',
+      customerId: 'cus_test',
+    })
+
+    await payment.deleteAllForUser('user-pay-1')
+
+    const [deletedOrder] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, order.id))
+    expect(deletedOrder?.deletedAt).toBeInstanceOf(Date)
+
+    const [deletedCustomer] = await db.select().from(schema.paymentCustomer).where(eq(schema.paymentCustomer.userId, 'user-pay-1'))
+    expect(deletedCustomer?.deletedAt).toBeInstanceOf(Date)
+  })
+
+  it('openPending snapshots the pack and returns a live payment customer', async () => {
+    await db.insert(schema.paymentCustomer).values({
+      userId: 'user-pay-1',
+      processor: 'stripe',
+      customerId: 'cus_live',
+    })
+
+    const opened = await payment.openPending({
+      userId: 'user-pay-1',
+      processor: 'stripe',
+      packKey: 'starter',
+      fluxAmount: 500,
+      currency: 'usd',
+    })
+
+    expect(opened.customerId).toBe('cus_live')
+
+    const [row] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, opened.id))
+    expect(row?.status).toBe('pending')
+    expect(row?.packKey).toBe('starter')
+    expect(row?.fluxAmount).toBe(500)
+    expect(row?.processorOrderId).toBeNull()
+  })
+
+  it('openPending ignores a soft-deleted payment customer', async () => {
+    await db.insert(schema.paymentCustomer).values({
+      userId: 'user-pay-1',
+      processor: 'stripe',
+      customerId: 'cus_deleted',
+      deletedAt: new Date(),
+    })
+
+    const opened = await payment.openPending({
+      userId: 'user-pay-1',
+      processor: 'stripe',
+      packKey: 'starter',
+      fluxAmount: 500,
+    })
+
+    expect(opened.customerId).toBeUndefined()
+  })
+
+  it('bindProcessorOrder does not overwrite an id that settle already stored', async () => {
+    const opened = await insertPendingOrder()
+    await payment.settle(paidReceipt(opened.id, { processorOrderId: 'cs_settle' }))
+
+    await payment.bindProcessorOrder(opened.id, {
+      processorOrderId: 'cs_bind',
+      amount: 999,
+    })
+
+    const [row] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, opened.id))
+    expect(row?.status).toBe('paid')
+    expect(row?.processorOrderId).toBe('cs_settle')
+    expect(row?.amount).toBe(500)
+  })
+
+  it('abandon marks a pending order canceled without crediting Flux', async () => {
+    const opened = await insertPendingOrder()
+
+    await payment.abandon(opened.id)
+
+    const [row] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, opened.id))
+    expect(row?.status).toBe('canceled')
+
+    const ledger = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    expect(ledger).toHaveLength(0)
+  })
+
+  it('abandon does not reverse a paid order', async () => {
+    const opened = await insertPendingOrder()
+    await payment.settle(paidReceipt(opened.id))
+
+    await payment.abandon(opened.id)
+
+    const result = await payment.settle(paidReceipt(opened.id))
+    expect(result.applied).toBe(false)
+
+    const [row] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.id, opened.id))
+    expect(row?.status).toBe('paid')
+
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux?.flux).toBe(500)
+  })
+
+  function appleEvidence(overrides: Partial<EvidenceReceipt> = {}): EvidenceReceipt {
+    return {
+      kind: 'evidence',
+      processor: 'apple_iap',
+      processorOrderId: 'txn_1',
+      userId: 'user-pay-1',
+      packKey: 'starter',
+      fluxAmount: 500,
+      amount: 4990000,
+      currency: 'USD',
+      customerId: 'token-1',
+      ...overrides,
+    }
+  }
+
+  it('evidence settle inserts a paid order and credits Flux from the receipt', async () => {
+    const result = await payment.settle(appleEvidence())
+
+    expect(result).toMatchObject({ applied: true, fluxAmount: 500, balanceAfter: 500 })
+
+    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
+    expect(order?.status).toBe('paid')
+    expect(order?.processor).toBe('apple_iap')
+    expect(order?.processorOrderId).toBe('txn_1')
+    expect(order?.packKey).toBe('starter')
+    expect(order?.fluxAmount).toBe(500)
+    expect(order?.creditedAt).toBeInstanceOf(Date)
+
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux?.flux).toBe(500)
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+  })
+
+  it('evidence settle replay returns applied false and does not double credit', async () => {
+    const receipt = appleEvidence()
+    const first = await payment.settle(receipt)
+    const second = await payment.settle(receipt)
+
+    expect(first.applied).toBe(true)
+    expect(second.applied).toBe(false)
+
+    const ledger = await db.select().from(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
+    expect(ledger).toHaveLength(1)
+
+    const orders = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
+    expect(orders).toHaveLength(1)
+  })
+
+  it('evidence settle snapshots flux from the receipt', async () => {
+    const first = await payment.settle(appleEvidence({ processorOrderId: 'txn_catalog_1' }))
+    expect(first).toMatchObject({ applied: true, fluxAmount: 500 })
+
+    const second = await payment.settle(appleEvidence({ processorOrderId: 'txn_catalog_2', fluxAmount: 9999 }))
+    expect(second).toMatchObject({ applied: true, fluxAmount: 9999 })
+  })
+
+  it('credits sandbox replay once without colliding with a production transaction ID', async () => {
+    const fields = { transactionId: 'txn_same', productId: 'starter', appAccountToken: 'token-1' }
+    const payload = { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX }
+    const sandbox = evidenceReceiptFromTransaction(payload, fields, 'user-pay-1', { fluxAmount: 500 })
+    const production = evidenceReceiptFromTransaction(
+      { ...payload, environment: Environment.PRODUCTION },
+      fields,
+      'user-pay-1',
+      { fluxAmount: 500 },
+    )
+    const first = await payment.settle(sandbox)
+    const replay = await payment.settle(sandbox)
+    const real = await payment.settle(production)
+
+    expect(first.applied).toBe(true)
+    expect(replay.applied).toBe(false)
+    expect(real.applied).toBe(true)
+    const orders = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, 'user-pay-1'))
+    expect(orders).toHaveLength(2)
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux?.flux).toBe(1000)
+  })
+
+  it('credits concurrent deliveries of a new sandbox transaction once', async () => {
+    const fields = { transactionId: 'race_txn', productId: 'starter', appAccountToken: 'token-1' }
+    const payload = { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX }
+    const current = evidenceReceiptFromTransaction(payload, fields, 'user-pay-1', { fluxAmount: 500 })
+    const results = await Promise.all([
+      payment.settle(current),
+      payment.settle(current),
+    ])
+
+    expect(results.filter(result => result.applied)).toHaveLength(1)
+    const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
+    expect(flux.flux).toBe(500)
+  })
+
+  it('does not deduplicate sandbox transactions across different bundles', async () => {
+    const fields = { transactionId: 'shared_txn', productId: 'starter', appAccountToken: 'token-1' }
+    const first = evidenceReceiptFromTransaction(
+      { bundleId: 'ai.moeru.airi-pocket', environment: Environment.SANDBOX },
+      fields,
+      'user-pay-1',
+      { fluxAmount: 500 },
+    )
+    const second = evidenceReceiptFromTransaction(
+      { bundleId: 'ai.moeru.airi-pocket-lab', environment: Environment.SANDBOX },
+      fields,
+      'user-pay-1',
+      { fluxAmount: 500 },
+    )
+
+    expect((await payment.settle(first)).applied).toBe(true)
+    expect((await payment.settle(second)).applied).toBe(true)
+  })
+})

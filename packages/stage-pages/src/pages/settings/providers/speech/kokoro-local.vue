@@ -11,6 +11,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { getDefaultKokoroModel } from '@proj-airi/stage-ui/workers/kokoro/constants'
 import { Callout, ComboboxSelect } from '@proj-airi/ui'
+import { cloneDeep } from 'es-toolkit'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -122,10 +123,12 @@ onMounted(async () => {
       config.model = getDefaultKokoroModel(hasWebGPU.value)
     }
 
-    const validationResult = await providersStore.validateProviderConfig(providerId, config)
+    // Clone nested reactive values before the synchronized action sends its arguments.
+    const configSnapshot = cloneDeep(config)
+    const validationResult = await providersStore.validateProviderConfig(providerId, configSnapshot)
     if (validationResult.valid) {
       // Load the initial model
-      await providersStore.loadProviderModel(providerId, config)
+      await providersStore.loadProviderModel(providerId, configSnapshot)
 
       await speechStore.loadVoicesForProvider(providerId)
     }
@@ -145,11 +148,13 @@ watch(model, async (newValue) => {
       voicesLoading.value = true
 
       const config = providerStore.getProviderConfig(providerId)
-      const validationResult = await providersStore.validateProviderConfig(providerId, config)
+      // Clone nested reactive values before the synchronized action sends its arguments.
+      const configSnapshot = cloneDeep(config)
+      const validationResult = await providersStore.validateProviderConfig(providerId, configSnapshot)
 
       if (validationResult.valid) {
         // Load the model using the capability with progress tracking
-        await providersStore.loadProviderModel(providerId, config)
+        await providersStore.loadProviderModel(providerId, configSnapshot)
 
         // Then reload voices
         await speechStore.loadVoicesForProvider(providerId)

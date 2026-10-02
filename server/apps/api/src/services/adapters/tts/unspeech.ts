@@ -6,6 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { generateSpeechResponse, listVoices, UnSpeechAPIError } from 'unspeech'
 
 import { createBadGatewayError, createInternalError } from '../../../utils/error'
+import { TtsUpstreamResponseError } from './types'
 
 interface SendSpeechOptions {
   ctx: TtsAdapterContext
@@ -72,9 +73,10 @@ export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise
       throw error
 
     if (error instanceof UnSpeechAPIError) {
-      const err = new Error(`${providerLabel} tts upstream ${error.status}: ${error.responseBody.slice(0, 256)}`) as Error & { status?: number }
-      err.status = error.status
-      throw err
+      throw new TtsUpstreamResponseError(new Response(error.responseBody, {
+        status: error.status,
+        headers: error.responseHeaders,
+      }))
     }
 
     throw createInternalError(`${providerLabel} tts fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)

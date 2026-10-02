@@ -44,6 +44,9 @@ export function createH3Server(options: {
 
         const port = options.port ?? await getRandomPort(host)
         server = serve(options.app, { hostname: host, port, silent })
+        // Keep start/stop serialized until listening begins. Closing before then
+        // is a no-op in srvx and leaves the pending listener running.
+        await server.ready()
 
         address = {
           host,

@@ -20,7 +20,7 @@ import {
 } from '@proj-airi/stage-ui/components'
 import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
-import { Button, Callout, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
+import { Button, Callout, FieldCheckbox, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, ref, watch } from 'vue'
@@ -29,7 +29,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 const { t } = useI18n()
 const router = useRouter()
-const route = useRoute('v2/settings/providers/edit/[providerId]')
+const route = useRoute('/v2/settings/providers/edit/[providerId]/')
 
 const providerStore = useProviderConfigStore()
 const emptyProviderConfig = Object.freeze({})
@@ -54,7 +54,7 @@ const providerSchemaRequest = computed(() => {
     loadAttempt: providerSchemaLoadAttempt.value,
   }
 })
-const providerSchema = computedAsync<$ZodType | undefined>(async (onCancel) => {
+const providerSchema = computedAsync<$ZodType<Record<string, unknown>> | undefined>(async (onCancel) => {
   // Read the complete request before the first await. computedAsync only tracks
   // dependencies accessed during this synchronous part of the evaluation.
   const { config, definition } = providerSchemaRequest.value
@@ -182,6 +182,7 @@ const schemaFields = computed(() => {
       description,
       placeholder,
       required: !isOptionalSchema(schema),
+      disabled: meta.disabled === true,
     }
   })
 })
@@ -203,7 +204,7 @@ function setFieldValue(key: string, value: unknown) {
 // fields are strings; this is the single boundary point where we coerce. Removable
 // once `InferenceServiceProvider.config` is narrowed per-provider via the schema.
 function getStringField(key: string): string {
-  const value = providerConfigEdit.value?.config?.[key]
+  const value = providerConfigEdit.value?.config?.[key] ?? providerSchemaDefault.value?.[key]
   return typeof value === 'string' ? value : ''
 }
 
@@ -310,6 +311,7 @@ async function runValidation() {
 
 const debouncedValidation = useDebounceFn(runValidation, 1500)
 let didInitValidation = false
+let validationPlanRequestId = 0
 
 watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
   if (!providerConfig.value || !providerConfigEdit.value) {
@@ -340,7 +342,6 @@ watch([providerId, providerSchema], ([nextProviderId, schema]) => {
     providerConfigEdit.value.config = merge(providerSchemaDefault.value, providerConfigEdit.value.config)
 }, { immediate: true })
 
-let validationPlanRequestId = 0
 async function getValidationPlan() {
   const requestId = ++validationPlanRequestId
   const definition = providerDefinition.value
@@ -535,6 +536,14 @@ function handleDeleteProvider() {
                   :options="field.options"
                   @update:model-value="setFieldValue(field.key, $event)"
                 />
+                <FieldCheckbox
+                  v-else-if="field.type === 'boolean'"
+                  :model-value="(providerConfigEdit.config[field.key] ?? providerSchemaDefault?.[field.key]) === true"
+                  :label="field.label"
+                  :description="field.description"
+                  :disabled="field.disabled"
+                  @update:model-value="setFieldValue(field.key, $event)"
+                />
                 <FieldInput
                   v-else
                   v-model="providerConfigEdit.config[field.key]"
@@ -581,6 +590,14 @@ function handleDeleteProvider() {
                   :description="field.description"
                   :placeholder="field.placeholder"
                   :options="field.options"
+                  @update:model-value="setFieldValue(field.key, $event)"
+                />
+                <FieldCheckbox
+                  v-else-if="field.type === 'boolean'"
+                  :model-value="(providerConfigEdit.config[field.key] ?? providerSchemaDefault?.[field.key]) === true"
+                  :label="field.label"
+                  :description="field.description"
+                  :disabled="field.disabled"
                   @update:model-value="setFieldValue(field.key, $event)"
                 />
                 <FieldInput

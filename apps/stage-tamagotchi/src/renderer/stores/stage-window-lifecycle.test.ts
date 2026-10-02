@@ -30,38 +30,27 @@ describe('stage window lifecycle helpers', () => {
     })).toBe(true)
   })
 
-  it('samples stage transparency only for mounted vrm stage while fade-on-hover is active', () => {
+  it('samples stage transparency for a mounted vrm stage regardless of Auto Hide', () => {
     expect(shouldSampleStageTransparency({
       componentState: 'mounted',
-      fadeOnHoverEnabled: true,
       stageModelRenderer: 'vrm',
       stagePaused: false,
     })).toBe(true)
 
     expect(shouldSampleStageTransparency({
       componentState: 'loading',
-      fadeOnHoverEnabled: true,
       stageModelRenderer: 'vrm',
       stagePaused: false,
     })).toBe(false)
 
     expect(shouldSampleStageTransparency({
       componentState: 'mounted',
-      fadeOnHoverEnabled: false,
-      stageModelRenderer: 'vrm',
-      stagePaused: false,
-    })).toBe(false)
-
-    expect(shouldSampleStageTransparency({
-      componentState: 'mounted',
-      fadeOnHoverEnabled: true,
       stageModelRenderer: 'live2d',
       stagePaused: false,
     })).toBe(false)
 
     expect(shouldSampleStageTransparency({
       componentState: 'mounted',
-      fadeOnHoverEnabled: true,
       stageModelRenderer: 'vrm',
       stagePaused: true,
     })).toBe(false)

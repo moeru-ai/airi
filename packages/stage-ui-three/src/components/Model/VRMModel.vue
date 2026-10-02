@@ -178,6 +178,11 @@ const {
 const { renderer, scene } = useTresContext()
 const vrm = shallowRef<VRM>()
 const vrmGroup = shallowRef<Group>()
+/** Height of the loaded model in world units, measured when the scene is built. */
+const modelHeight = shallowRef(0)
+/** Scratch for {@link headAnchor}, so a rendered frame allocates nothing. */
+const headPosition = new Vector3()
+const headUp = new Vector3()
 const modelLoaded = ref<boolean>(false)
 const interactionColliders = shallowRef<VrmInteractionColliderSet>()
 
@@ -202,7 +207,10 @@ type UpdatableMaterial = Material & {
 // Expressions
 const blink = useBlink()
 const idleEyeSaccades = useIdleEyeSaccades()
-const vrmEmote = ref<ReturnType<typeof useVRMEmote>>()
+// shallowRef: the composable object must stay non-reactive, otherwise Vue
+// deep-unwraps nested refs/computed (e.g. isEmoteActive) and breaks reads
+// like vrmEmote.value.isEmoteActive.value in the render loop.
+const vrmEmote = shallowRef<ReturnType<typeof useVRMEmote>>()
 const vrmLipSync = useVRMLipSync(audioContext, currentAudioSource)
 
 // For sky box update
@@ -477,14 +485,30 @@ function bindManagedVrmInstanceRenderLoop() {
     const lookAtMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.lookAt?.update?.(delta)
     })
+    const isEmoteActive = vrmEmote.value?.isEmoteActive?.value ?? false
+
     const blinkAndSaccadeMs = measureFrameStep(tracingEnabled, () => {
-      blink.update(activeVrm, delta)
-    })
-    const emoteMs = measureFrameStep(tracingEnabled, () => {
-      vrmEmote.value?.update(delta)
+      // The blink controller always advances so an emote starting mid-blink
+      // cannot leave the eyelid stuck; during an emote it only holds the
+      // blink morph at 0 instead of driving the sine curve.
+      blink.update(activeVrm, delta, { suppress: isEmoteActive })
     })
     const lipSyncMs = measureFrameStep(tracingEnabled, () => {
       vrmLipSync.update(activeVrm, delta)
+    })
+    // Read after lipSyncMs, not before: vrmLipSync.update() is what flips
+    // this flag for the current frame. Reading it earlier in the frame would
+    // hand the emote a stale value from the previous frame, letting it
+    // overwrite the mouth morph lip sync just wrote on the first frame of an
+    // utterance.
+    const isLipSyncActive = vrmLipSync.isLipSyncActive?.value ?? false
+    const emoteMs = measureFrameStep(tracingEnabled, () => {
+      // Runs after lip sync: while speech is active the emote yields viseme
+      // mouth morphs (skipVisemes), and once lip sync falls silent the emote
+      // re-asserts its mouth targets over lip sync's zeroed weights. The
+      // state machine keeps advancing either way, so emotion transitions and
+      // the reset timeout stay in sync during long utterances.
+      vrmEmote.value?.update(delta, { skipVisemes: isLipSyncActive })
     })
     const expressionMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.expressionManager?.update()
@@ -643,6 +667,7 @@ function buildSceneBootstrap(activeVrm: VRM, cacheHit: boolean): SceneBootstrap 
   const modelCenter = new Vector3()
   box.getSize(modelSize)
   box.getCenter(modelCenter)
+  modelHeight.value = modelSize.y
   modelCenter.y += modelSize.y / 5
 
   const fov = camera.value?.fov ?? 40
@@ -1033,7 +1058,51 @@ if (import.meta.hot) {
   })
 }
 
+/**
+ * The head's reach as a share of the model's height.
+ *
+ * A VRM describes a humanoid, and a humanoid's head is a stable fraction of its
+ * height, so this holds across models without measuring any of them. It only has
+ * to be close: a caller uses it to stand clear of the head, not to trace it.
+ */
+const headReachPerModelHeight = 1 / 14
+
+/**
+ * Where the head is in world space, and how far it reaches.
+ *
+ * The position comes from the rig, so it turns and nods with the head and needs
+ * no measuring. The reach is a share of the model's height, because nothing in
+ * the format states the head's size, and the alternatives all assume something
+ * about how the model was built.
+ *
+ * A radius rather than a box: the head turns, and a caller placing something
+ * beside it needs a clearance that does not change as it does.
+ *
+ * The returned position is scratch, rewritten by the next call. This runs on
+ * every rendered frame the bubble is visible, and a caller reads it before
+ * asking again; one that keeps it must copy it.
+ */
+function headAnchor() {
+  const activeVrm = vrm.value
+  const head = activeVrm?.humanoid?.getNormalizedBoneNode('head')
+  if (!head || modelHeight.value <= 0)
+    return undefined
+
+  const radius = modelHeight.value * headReachPerModelHeight
+
+  head.getWorldPosition(headPosition)
+
+  // The bone sits at the base of the skull, so the drawn head is above it. The
+  // offset follows the bone's own up axis rather than the world's, which keeps
+  // it correct while the head is tilted.
+  headUp.setFromMatrixColumn(head.matrixWorld, 1).normalize()
+  headPosition.addScaledVector(headUp, radius)
+
+  return { position: headPosition, radius }
+}
+
 defineExpose({
+  headAnchor,
   getInteractionColliders: () => interactionColliders.value?.colliders ?? [],
   setExpression(expression: string, intensity = 1) {
     vrmEmote.value?.setEmotionWithResetAfter(expression, 3000, intensity)

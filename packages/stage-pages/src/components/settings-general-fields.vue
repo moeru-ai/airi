@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { all } from '@proj-airi/i18n'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/analytics'
+import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { FieldCheckbox, FieldCombobox, useTheme } from '@proj-airi/ui'
 import { computed } from 'vue'
@@ -14,6 +14,7 @@ const props = withDefaults(defineProps<{
 })
 
 const settings = useSettings()
+const showStreamerMode = import.meta.env.RUNTIME_ENVIRONMENT === 'electron'
 
 const showControlsIsland = computed(() => props.needsControlsIslandIconSizeSetting)
 const showAnalyticsSettings = computed(() => isAnalyticsAvailableInBuild())
@@ -75,6 +76,13 @@ const languages = computed(() => {
         { value: 'large', label: t('settings.controls-island.icon-size.large') },
         { value: 'small', label: t('settings.controls-island.icon-size.small') },
       ]"
+    />
+
+    <FieldCheckbox
+      v-if="showStreamerMode"
+      v-model="settings.streamerMode"
+      :label="t('settings.streamer-mode.title')"
+      :description="t('settings.streamer-mode.description')"
     />
 
     <FieldCheckbox

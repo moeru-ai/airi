@@ -1,5 +1,5 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Message, Tool } from '@xsai/shared-chat'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { Tool } from '@xsai/shared-chat'
 
 import type { ExecutableTool } from './tools'
 
@@ -47,11 +47,9 @@ vi.mock('../../../tools', () => ({
   createWebSearchTools: vi.fn(async (): Promise<Tool[]> => []),
 }))
 
-const provider = {
-  chat: () => ({
-    baseURL: 'https://example.com/',
-  }),
-} as unknown as ChatProvider
+const provider: GenerationProvider = {
+  generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
+}
 
 function createMockStreamResult() {
   return {
@@ -135,13 +133,27 @@ describe('isToolRelatedError', () => {
     const store = useLLM()
     const onStreamEvent = vi.fn()
 
-    await store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+    await store.stream('model-a', provider, { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'hello' }] }] }, {
       waitForTools: true,
       onStreamEvent,
     })
 
     expect(onStreamEvent).toHaveBeenCalledTimes(1)
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
+  })
+
+  it('does not replay a turn after a tool starts and a later request rejects content arrays', async () => {
+    streamTextMock.mockImplementationOnce((options: { onEvent: (event: unknown) => Promise<void> }) => {
+      const steps = (async () => {
+        await options.onEvent({ type: 'tool-call.done', toolCallId: 'call-1', toolName: 'write', args: {} })
+        throw new Error('messages[0]: invalid type: sequence, expected a string')
+      })()
+      return { ...createMockStreamResult(), steps }
+    })
+
+    await expect(useLLM().stream('model-a', provider, { turns: [] })).rejects.toThrow('expected a string')
+
+    expect(streamTextMock).toHaveBeenCalledOnce()
   })
 
   it('ignores later error events after steps have resolved', async () => {
@@ -158,7 +170,7 @@ describe('isToolRelatedError', () => {
     })
 
     const store = useLLM()
-    const pending = store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+    const pending = store.stream('model-a', provider, { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'hello' }] }] }, {
       waitForTools: true,
     })
 
@@ -201,7 +213,7 @@ describe('isToolRelatedError', () => {
       return createMockStreamResult()
     })
 
-    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+    await expect(store.stream('model-a', provider, { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'hello' }] }] }, {
       tools: [customTool],
     })).resolves.toBeUndefined()
 
@@ -214,7 +226,7 @@ describe('isToolRelatedError', () => {
 
     streamTextMock.mockImplementationOnce(() => createMockStreamResult())
 
-    await store.stream('model-a', provider, [{ role: 'user', content: 'hello again' }] as Message[], {
+    await store.stream('model-a', provider, { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'hello again' }] }] }, {
       tools: [customTool],
     })
 
@@ -251,7 +263,7 @@ describe('isToolRelatedError', () => {
 
     streamTextMock.mockImplementationOnce(() => createMockStreamResult())
 
-    await store.stream('model-a', provider, [{ role: 'user', content: 'play chess' }] as Message[])
+    await store.stream('model-a', provider, { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'play chess' }] }] })
 
     const mergedTools = streamTextMock.mock.calls[0]?.[0]?.tools
     expect(mergedTools?.map(toolNameFrom)).toEqual(expect.arrayContaining([
@@ -288,7 +300,7 @@ describe('isToolRelatedError', () => {
 
     streamTextMock.mockImplementationOnce(() => createMockStreamResult())
 
-    await store.stream('model-a', provider, [{ role: 'user', content: 'play chess' }] as Message[])
+    await store.stream('model-a', provider, { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'play chess' }] }] })
 
     const mergedTools = streamTextMock.mock.calls[0]?.[0]?.tools as Array<{ function?: { name?: string, description?: string } }>
     const duplicateNameTools = mergedTools.filter(tool => tool.function?.name === 'duplicate_runtime_tool')

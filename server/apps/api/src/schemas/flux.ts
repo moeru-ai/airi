@@ -6,7 +6,6 @@ import { bigint, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 export const userFlux = pgTable('user_flux', {
   userId: text('user_id').primaryKey(),
   flux: bigint('flux', { mode: 'number' }).notNull().default(0),
-  stripeCustomerId: text('stripe_customer_id'),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
 })

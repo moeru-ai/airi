@@ -19,7 +19,7 @@ const nvidiaConfigSchema = z.object({
 
 type NvidiaConfig = z.input<typeof nvidiaConfigSchema>
 
-export const providerNvidia = defineProvider<NvidiaConfig>({
+export const providerNvidia = defineProvider<NvidiaConfig, 'nvidia'>({
   id: 'nvidia',
   name: 'NVIDIA NIM',
   nameLocalize: ({ t }) => t('settings.pages.providers.provider.nvidia.title'),
