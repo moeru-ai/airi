@@ -1,4 +1,4 @@
-import type { ChatIntakeDecision, Classifier, IntakeAppraisal, Stimulus } from '@proj-airi/core-agent'
+import type { ChatIntakeDecision, Classifier, IntakeAppraisal, Pad, Stimulus } from '@proj-airi/core-agent'
 
 import type { ClassifierCompletion } from '../../libs/classifier/llm'
 
@@ -73,29 +73,29 @@ export const useTriageStore = defineStore('triage', () => {
     }
   })
 
-  /** Appraises a stimulus with the configured backend, or returns nothing without one. */
-  async function appraise(stimulus: Stimulus, deadlineMs: number, attendCriteria?: string): Promise<IntakeAppraisal | undefined> {
+  /** Appraises a stimulus with the configured backend, or returns nothing without one. The mood, when given, goes to the classifier and the trace. */
+  async function appraise(stimulus: Stimulus, deadlineMs: number, options: { attendCriteria?: string, mood?: Pad } = {}): Promise<IntakeAppraisal | undefined> {
     const current = classifier.value
     if (!current)
       return undefined
-    return appraiseStimulus(stimulus, current, { deadlineMs, threshold: settings.effectiveThreshold, attendCriteria })
+    return appraiseStimulus(stimulus, current, { deadlineMs, threshold: settings.effectiveThreshold, ...options })
   }
 
   /** Intake policy for input from a connection. Without a backend, the input is admitted by rule. */
-  async function decideConnectionIntake(stimulus: Stimulus): Promise<ChatIntakeDecision> {
+  async function decideConnectionIntake(stimulus: Stimulus, mood?: Pad): Promise<ChatIntakeDecision> {
     if (!classifier.value)
       return { outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule', salience: capSceneSalience(stimulus, stimulus.salience) }
-    return decideByAppraisal(stimulus, await appraise(stimulus, CLASSIFIER_DEADLINE_MS))
+    return decideByAppraisal(stimulus, await appraise(stimulus, CLASSIFIER_DEADLINE_MS, { mood }))
   }
 
   /** Appraisal for a background notification, with the longer deadline. */
-  function appraiseNotification(stimulus: Stimulus) {
-    return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS)
+  function appraiseNotification(stimulus: Stimulus, mood?: Pad) {
+    return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, { mood })
   }
 
   /** Appraisal of the idle owner scene. The question asks about raising something unprompted. */
-  function appraiseIdle(stimulus: Stimulus) {
-    return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, 'The event is the current state of the owner\'s scene, and nobody asked anything. Answer yes only when something in it is worth raising with the owner now.')
+  function appraiseIdle(stimulus: Stimulus, mood?: Pad) {
+    return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, { mood, attendCriteria: 'The event is the current state of the owner\'s scene, and nobody asked anything. Answer yes only when something in it is worth raising with the owner now.' })
   }
 
   return {

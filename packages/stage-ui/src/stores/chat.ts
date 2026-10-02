@@ -8,7 +8,7 @@ import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } fr
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceFromBindings, createChatOrchestratorRuntime, createStayQuietTool, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
+import { audienceFromBindings, createChatOrchestratorRuntime, createStayQuietTool, describeMood, OWNER_AUDIENCE, renderConversationPreview, unionAudiences } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -33,7 +33,8 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { useCharacterMoodStore } from './character/mood'
+import { createMoodContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
 import { useChatSessionStore } from './chat/session-store'
@@ -208,6 +209,12 @@ export const useChatStore = defineStore('chat', () => {
   const chatContext = useChatContextStore()
   const contextSource = useContextSourceStore()
   const cardStore = useAiriCardStore()
+  const mood = useCharacterMoodStore()
+
+  /** The persona of a session. A session without one uses the selected card. */
+  function personaOf(sessionId: string) {
+    return chatSession.sessionMetas[sessionId]?.characterId || cardStore.activeCardId || 'default'
+  }
   const contextObservability = useContextObservabilityStore()
   const scheduler = useSchedulerStore()
   const triage = useTriageStore()
@@ -574,7 +581,7 @@ export const useChatStore = defineStore('chat', () => {
     runs: scheduler.runs,
     intake: scheduler.intake,
     leases: scheduler.leases,
-    decideIntake: stimulus => triage.decideConnectionIntake(stimulus),
+    decideIntake: stimulus => triage.decideConnectionIntake(stimulus, mood.active ? mood.current(cardStore.activeCardId || 'default') : undefined),
     checkSpendingLimit: () => {
       const until = modelProfiles.spendingPausedUntil()
       return until === undefined ? undefined : t('stage.chat.spending-limit', { time: new Date(until).toLocaleTimeString() })
@@ -596,6 +603,8 @@ export const useChatStore = defineStore('chat', () => {
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
+      // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.
+      sessionId => mood.active ? createMoodContext(describeMood(mood.current(personaOf(sessionId)))) : undefined,
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),

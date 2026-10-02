@@ -239,6 +239,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`mood.test.ts`): classifier jitter of about ±0.04 moves the settled baseline expression by less than 0.04 per update, and its name stays the same. Mood returns to the persona baseline by its half-life.
 - Observed (`mood.test.ts`): anger and fear differ by dominance. A sentence expression that opposes the mood in pleasure loses up to half of its intensity. Thinking keeps its intensity.
 - Observed (`triage.test.ts`): the same event gets different classifier decisions under different moods, and the appraisal records the mood in effect.
+- Observed (`chat-orchestrator-runtime.test.ts`, `mood.test.ts`): each run's prompt carries one mood sentence, such as "Current mood: slightly irritated.", for the persona of its own session. Notification reactions read the same sentence.
+- Observed (`mood.test.ts` in stage-ui): mood moves only after confident scores for every dimension, only for the appraised persona, and rests at the baseline without a classifier.
+- Implemented: finished turns and urgent events appraise mood beside the work. Idle checks scale by arousal. The stage composes sentence expressions with the mood and returns to the mood baseline after speech.
 
 ### Open P0 evidence
 

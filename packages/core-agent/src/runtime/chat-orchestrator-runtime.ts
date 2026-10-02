@@ -345,8 +345,8 @@ export interface ChatOrchestratorRuntimeDeps {
   onIntakeRecord?: (record: IntakeRecord) => void
   /** Reads the current capacity limits. Invalid values use the defaults. */
   getLimits?: () => Partial<ChatOrchestratorRuntimeLimits>
-  /** Request-owned context providers evaluated once per send, outside the shared pool. */
-  runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
+  /** Request-owned context providers evaluated once per send for its session, outside the shared pool. */
+  runtimeContextProviders?: Array<(sessionId: string) => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -617,7 +617,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const snapshot = deps.context.snapshot(sessionId, audience)
     const readAudience = intersectAudiences(...Object.values(snapshot).flat().map(message => message.audience ?? OWNER_AUDIENCE))
     for (const provider of deps.runtimeContextProviders ?? []) {
-      const context = provider()
+      const context = provider(sessionId)
       if (context)
         snapshot[context.contextId] = [context]
     }

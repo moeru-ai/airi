@@ -178,7 +178,7 @@ The fastest accepted candidate wins, and price never ranks candidates. Without o
 Mood is per-persona state in pleasure, arousal, and dominance. A classifier scores five dimensions in one call with `moodQuestions`, and code keeps the state.
 `applyMoodAppraisal` decays mood toward the persona baseline for the elapsed time, then moves it a `sensitivity` share toward the appraisal. One noisy score cannot jump the expression.
 `moodExpression` gives the baseline expression. `composeExpression` weighs a sentence expression by the mood, so mood owns the baseline and the sentence owns its moment.
-`describeMood` is the text of the conversation's mood slot. `moodAppraisalInterval` scales the idle check interval by arousal.
+`describeMood` is the one sentence of the conversation's mood slot, without numbers. `moodAppraisalInterval` scales the idle check interval by arousal.
 An appraisal with `mood` gives the classifier the mood and records it as the effective state.
 
 ## Spark notification cancellation

@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
+import { compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, describeMood, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -15,10 +15,12 @@ import { onScopeDispose, ref } from 'vue'
 import { sparkReactionTurnId, useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useChatStore } from '../../chat'
 import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { sendAdmittedSparkCommand } from '../../mods/api/spark-command'
+import { useAiriCardStore } from '../../modules/airi-card'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useModelProfilesStore } from '../../modules/model-profiles'
 import { useTriageStore } from '../../modules/triage'
@@ -26,6 +28,7 @@ import { useSchedulerStore } from '../../scheduler'
 import { useSettingsRunLimits } from '../../settings/run-limits'
 import { useSettingsTriage } from '../../settings/triage'
 import { useSpeechRuntimeStore } from '../../speech-runtime'
+import { useCharacterMoodStore } from '../mood'
 import { useCharacterNotifyQueueStore } from './queue'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
@@ -49,6 +52,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const scheduler = useSchedulerStore()
   const speechRuntime = useSpeechRuntimeStore()
   const modelProfiles = useModelProfilesStore()
+  const mood = useCharacterMoodStore()
+  const airiCard = useAiriCardStore()
   const triage = useTriageStore()
   const triageSettings = useSettingsTriage()
   const runLimits = useSettingsRunLimits()
@@ -120,6 +125,29 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
   }
 
+  /** The persona of a session. A session without one uses the selected card. */
+  function personaOf(sessionId: string) {
+    return chatSession.sessionMetas[sessionId]?.characterId || airiCard.activeCardId || 'default'
+  }
+
+  /** The persona's mood, while mood has an update path. */
+  function moodOf(personaId: string) {
+    return mood.active ? mood.current(personaId) : undefined
+  }
+
+  /**
+   * Moves the persona's mood after an interaction. It runs beside the work and never delays it.
+   * Background limits pause it like any other classifier request.
+   */
+  function appraiseMood(personaId: string, interaction: string) {
+    if (!mood.active || scheduler.errorBurst.coolingUntil() || modelProfiles.spendingPausedUntil() !== undefined)
+      return
+    const card = airiCard.getCard(personaId)
+    void mood.appraise(personaId, { persona: [card?.description, card?.personality].filter(Boolean).join('\n'), interaction }).catch((error) => {
+      console.warn('[character-orchestrator] Mood appraisal failed:', errorMessageFrom(error))
+    })
+  }
+
   /**
    * Asks for the voice in the lease line. Only candidates for the voice compare: salience tier, then deadline, then waiting time.
    * A refused candidate stays in line under its run id until it asks again or withdraws.
@@ -156,6 +184,9 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     })
     scheduler.intake.record(stimulus, { ...decision, runId })
     scheduler.runs.transition(runId, 'working')
+    // An urgent event can change the mood while its reaction runs.
+    if (salience >= INTERRUPT_SALIENCE)
+      appraiseMood(personaOf(sessionId), `Event from ${stimulus.source}: ${event.data.headline}${event.data.note ? `\n${event.data.note}` : ''}`)
     const turnId = sparkReactionTurnId(event.data.id)
     speechRuntime.startVoiceTurn(turnId, sessionId)
     try {
@@ -266,7 +297,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
           provider,
         },
         systemPrompt: systemPrompt.value,
-        runtimePrompt: runtimePrompt.value,
+        // A reaction speaks in the same mood as the conversation.
+        runtimePrompt: [runtimePrompt.value, mood.active ? describeMood(mood.current(personaOf(chatSession.activeSessionId))) : ''].filter(Boolean).join('\n'),
         control,
       })
       controller.signal.throwIfAborted()
@@ -323,7 +355,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     }
 
     // A classifier can ignore the notification or reorder it. Its answer never grants authority.
-    const appraisal = triage.classifier && stimulus.origin === 'external' ? await triage.appraiseNotification(stimulus) : undefined
+    const appraisal = triage.classifier && stimulus.origin === 'external' ? await triage.appraiseNotification(stimulus, moodOf(personaOf(chatSession.activeSessionId))) : undefined
     const appraised = appraisal ? decideByAppraisal(stimulus, appraisal) : undefined
     if (appraised?.outcome === 'ignored') {
       scheduler.intake.record(stimulus, appraised)
@@ -404,7 +436,10 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    * The timer only starts an appraisal. It never schedules speech, and unchanged observations are not appraised again.
    */
   async function appraiseIdle(now = Date.now()) {
-    const intervalMs = triageSettings.appraisalIntervalMinutes * 60_000
+    const persona = personaOf(chatSession.activeSessionId)
+    const currentMood = moodOf(persona)
+    // Mood changes how often the character looks. The user interval is the base, and looking never forces speech.
+    const intervalMs = currentMood ? moodAppraisalInterval(triageSettings.appraisalIntervalMinutes * 60_000, currentMood) : triageSettings.appraisalIntervalMinutes * 60_000
     if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs || scheduler.errorBurst.coolingUntil() || modelProfiles.spendingPausedUntil() !== undefined)
       return
     if (processing.value || scheduler.leases.holder('voice') || scheduler.runs.snapshot().some(run => run.state === 'queued' || run.state === 'working'))
@@ -420,7 +455,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     lastAppraisedState = state
 
     const stimulus: Stimulus = { id: nanoid(), kind: 'idle-appraisal', origin: 'internal', source: 'scheduler', event: 'appraisal', bindings: [], salience: salienceFromUrgency('later'), receivedAt: now, text: state }
-    const decision = decideByAppraisal(stimulus, await triage.appraiseIdle(stimulus))
+    const decision = decideByAppraisal(stimulus, await triage.appraiseIdle(stimulus, currentMood))
     if (decision.outcome !== 'admitted' || decision.decidedBy !== 'classifier') {
       scheduler.intake.record(stimulus, { ...decision, outcome: 'ignored', reason: decision.outcome === 'ignored' ? decision.reason : 'nothing-to-raise' })
       return
@@ -566,6 +601,15 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
         }
       }),
     )
+
+    // Each finished conversation turn can move the mood of its persona.
+    eventUnsubscribes.push(useChatStore().onChatTurnComplete(async (turn, context) => {
+      if (!leadership?.isLeader() || !context.sessionId)
+        return
+      const content = context.message.content
+      const owner = typeof content === 'string' ? content : Array.isArray(content) ? content.flatMap(part => part.type === 'text' ? [part.text] : []).join(' ') : ''
+      appraiseMood(personaOf(context.sessionId), `Owner: ${owner}\nCharacter: ${turn.outputText}`)
+    }))
 
     // A released voice or a finished run goes to the next candidate at once, instead of waiting for the next tick.
     eventUnsubscribes.push(scheduler.leases.subscribe(() => {

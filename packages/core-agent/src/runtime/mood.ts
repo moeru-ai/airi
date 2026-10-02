@@ -158,12 +158,17 @@ export function composeExpression(sentence: { name: string, intensity: number },
   return { name: sentence.name, intensity: sentence.intensity * (1 - 0.5 * conflict) }
 }
 
-/** Short mood text for the conversation's context slot, so the tone can follow the mood. */
+/**
+ * One sentence that tells the conversation model the current mood, so its tone and choices can follow it.
+ * The model reads words better than coordinates, so the sentence carries no numbers.
+ */
 export function describeMood(pad: Pad) {
   const expression = moodExpression(pad)
-  const label = expression.name === 'neutral' ? 'calm' : { happy: 'cheerful', sad: 'down', angry: 'irritated', awkward: 'uneasy' }[expression.name]
+  if (expression.name === 'neutral')
+    return 'Current mood: calm.'
+  const label = { happy: 'cheerful', sad: 'down', angry: 'irritated', awkward: 'uneasy' }[expression.name]
   const strength = expression.intensity > 0.66 ? 'very ' : expression.intensity > 0.33 ? '' : 'slightly '
-  return `Current mood: ${expression.name === 'neutral' ? '' : strength}${label} (pleasure ${pad.pleasure.toFixed(2)}, arousal ${pad.arousal.toFixed(2)}, dominance ${pad.dominance.toFixed(2)}).`
+  return `Current mood: ${strength}${label}.`
 }
 
 /**

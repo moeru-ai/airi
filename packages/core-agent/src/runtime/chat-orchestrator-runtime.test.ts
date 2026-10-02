@@ -197,6 +197,18 @@ describe('createChatOrchestratorRuntime', () => {
     expect(JSON.stringify(harness.stream.mock.calls[1][2])).not.toContain('current runtime instructions')
   })
 
+  // P6: each run's prompt carries one mood sentence for the persona of its own session.
+  it('gives runtime providers the session of the run', async () => {
+    const moods: Record<string, string> = { 'session-a': 'Current mood: slightly irritated.', 'session-b': 'Current mood: calm.' }
+    const harness = createHarness(undefined, [sessionId => ({ id: sessionId, contextId: 'system:airi-mood', strategy: ContextUpdateStrategy.ReplaceSelf, text: moods[sessionId]!, createdAt: Date.now() })])
+
+    await harness.runtime.ingest('hi', { model: 'test', chatProvider: provider }, 'session-a')
+    await harness.runtime.ingest('hi', { model: 'test', chatProvider: provider }, 'session-b')
+
+    expect(renderConversationPreview(harness.stream.mock.calls[0][2]).at(-1)?.content).toContain('Current mood: slightly irritated.')
+    expect(renderConversationPreview(harness.stream.mock.calls[1][2]).at(-1)?.content).toContain('Current mood: calm.')
+  })
+
   // ROOT CAUSE:
   //
   // The marker parser buffered 24 literal characters plus its marker-safety tail.

@@ -129,6 +129,8 @@ Every model request reports through `useLLM`. `useModelProfilesStore` records fi
 Settings > Memory holds model tiers and the optional spending limit per rolling hour. The conversation model stays the user's choice on the Consciousness page.
 While the limit is reached, owner and connection input fails with a message, and notifications and idle checks wait. No model is swapped for a cheaper one.
 The spending ledger lives in the leader renderer's memory, so it starts empty after a restart.
+`useCharacterMoodStore` keeps each persona's mood. With a classifier configured, finished turns and urgent notifications move it. Without one, mood rests and nothing changes.
+Each conversation prompt and notification reaction reads one mood sentence. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
 Every chat run request carries the silence tool and its guidance. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling

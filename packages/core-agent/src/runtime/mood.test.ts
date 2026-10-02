@@ -2,7 +2,7 @@ import type { MoodState } from './mood'
 
 import { describe, expect, it } from 'vitest'
 
-import { applyMoodAppraisal, appraisalTarget, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, moodAppraisalInterval, moodExpression, moodIntensity } from './mood'
+import { applyMoodAppraisal, appraisalTarget, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, describeMood, moodAppraisalInterval, moodExpression, moodIntensity } from './mood'
 
 const profile = DEFAULT_MOOD_PROFILE
 const start: MoodState = { pad: profile.baseline, updatedAt: 0 }
@@ -61,5 +61,11 @@ describe('mood', () => {
   it('looks more often when aroused and less often when calm', () => {
     expect(moodAppraisalInterval(60_000, { pleasure: 0, arousal: 1, dominance: 0 })).toBe(30_000)
     expect(moodAppraisalInterval(60_000, { pleasure: 0, arousal: -1, dominance: 0 })).toBe(120_000)
+  })
+
+  it('describes the mood in one sentence without numbers', () => {
+    expect(describeMood(profile.baseline)).toBe('Current mood: calm.')
+    expect(describeMood(appraisalTarget(profile.baseline, { anger: 1 }))).toBe('Current mood: very irritated.')
+    expect(describeMood(appraisalTarget(profile.baseline, { joy: 0.15 }))).toBe('Current mood: slightly cheerful.')
   })
 })

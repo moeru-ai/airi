@@ -100,6 +100,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
+  createMoodContext: (text: string) => ({ id: 'mood', contextId: 'system:airi-mood', strategy: 'replace-self', text, createdAt: 0 }),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
   createUserAccountContext: () => createUserAccountContextMock(),
 }))

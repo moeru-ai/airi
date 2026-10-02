@@ -11,6 +11,7 @@ import type { SpeechTransport, StageTtsSession, StreamingSessionSnapshot } from 
 
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom, sleep } from '@moeru/std'
+import { composeExpression, moodExpression } from '@proj-airi/core-agent'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
 import { createPlaybackManager, createSpeakableTextFilter, createSpeechPipeline, normalizeActPayload } from '@proj-airi/pipelines-audio'
@@ -46,6 +47,7 @@ import { createSpeechDeviceForwarder } from '../../services/speech/device-forwar
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
+import { useCharacterMoodStore } from '../../stores/character/mood'
 import { useChatStore } from '../../stores/chat'
 import { useModsServerChannelStore } from '../../stores/mods/api/channel-server'
 import { useSpeechDeviceStore } from '../../stores/mods/api/speech-device'
@@ -305,6 +307,24 @@ const emotionsQueue = createQueue<EmotionPayload>({
 })
 
 const streamingControl = useLlmStreamingControlStore()
+const mood = useCharacterMoodStore()
+const airiCardStore = useAiriCardStore()
+const moodPersona = computed(() => airiCardStore.activeCardId || 'default')
+
+/** Shows the mood's baseline expression. Without a mood update path, the stage keeps its current expression. */
+function showMoodBaseline() {
+  if (!mood.active)
+    return
+  const baseline = toStageEmotionPayload(moodExpression(mood.current(moodPersona.value)))
+  if (baseline)
+    emotionsQueue.enqueue(baseline)
+}
+
+// A mood change shows at once while the character is quiet. During speech, the turn end shows it.
+watch(() => [mood.active, mood.states[moodPersona.value]], () => {
+  if (!nowSpeaking.value)
+    showMoodBaseline()
+})
 
 function toStageEmotionPayload(payload: { name: string, intensity: number }): EmotionPayload | undefined {
   switch (payload.name) {
@@ -345,7 +365,8 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
 
       // eslint-disable-next-line no-console
       console.debug('emotion detected', emotion)
-      emotionsQueue.enqueue(emotion)
+      // A sentence owns its moment, weighed by the mood that owns the baseline.
+      emotionsQueue.enqueue(mood.active ? { ...emotion, intensity: composeExpression(emotion, mood.current(moodPersona.value)).intensity } : emotion)
     }
     return
   }
@@ -633,6 +654,7 @@ speechPipeline.on('onSpecial', (segment) => {
 
 speechPipeline.on('onTurnEnd', (turnId) => {
   streamingControl.completeTurn(turnId)
+  showMoodBaseline()
 })
 
 speechPipeline.on('onTurnCancel', ({ turnId }) => {
