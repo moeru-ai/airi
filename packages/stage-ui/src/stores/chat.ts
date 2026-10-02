@@ -28,6 +28,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { createContextSourceTool } from '../tools/context-source'
+import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
 import { createUseRecipeTool, describeRecipesForRun, USE_RECIPE_TOOL_NAME } from '../tools/use-recipe'
 import { useLLM } from './ai/chat-llm/llm'
@@ -43,6 +44,7 @@ import { composeRecipeSpacePrompt, composeSystemPrompt } from './chat/prompt-rec
 import { useChatSessionStore } from './chat/session-store'
 import { useChatStreamStore } from './chat/stream-store'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useMemoryStore } from './memory'
 import { useContextSourceStore } from './mods/api/context-source'
 import { speechDeviceOutput, useSpeechDeviceStore } from './mods/api/speech-device'
 import { useAiriCardStore } from './modules/airi-card'
@@ -238,6 +240,7 @@ export const useChatStore = defineStore('chat', () => {
   const mood = useCharacterMoodStore()
   const speechRuntime = useSpeechRuntimeStore()
   const recipes = useRecipesStore()
+  const memory = useMemoryStore()
   // The recipe list reaches only runs that hold the use tool, so a run without tools never claims a recipe.
   watch(() => recipes.recipes, (list) => {
     llmToolsetPromptsStore.registerToolsetPrompts('use-recipe', [{
@@ -527,15 +530,17 @@ export const useChatStore = defineStore('chat', () => {
       return tools
     const { conversationId: sessionId, runId } = correlation
     const audience = (runId ? activeRuns.get(runId)?.audience : undefined) ?? OWNER_AUDIENCE
+    // Only the owner alone sees owner memories, writes them, or forgets them.
+    const ownerOnly = audienceIncludes(OWNER_AUDIENCE, audience)
     const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
+      ...await createMemoryTools({ ownerOnly, read: name => memory.read(name, ownerOnly), write: entry => memory.write(entry), forget: name => memory.forget(name) }),
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
     if (chatSession.sessionMetas[sessionId]?.recipeId)
       return sourceTools
     // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
-    const ownerOnly = audienceIncludes(OWNER_AUDIENCE, audience)
     return async () => [
       ...await sourceTools(),
       ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, parentRunId: runId, task }) }) : []),
@@ -784,7 +789,9 @@ export const useChatStore = defineStore('chat', () => {
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
     // A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
     getSystemPrompt: (envelope) => {
-      const identity = composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default'))
+      const ownerOnly = audienceIncludes(OWNER_AUDIENCE, envelope.audience)
+      // The memory index follows the identity. A scene run sees only shared entries.
+      const identity = composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default')) + composeMemoryPrompt(memory.indexFor(ownerOnly), ownerOnly)
       const recipeId = chatSession.sessionMetas[envelope.sessionId]?.recipeId
       const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
       return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity

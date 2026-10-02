@@ -874,6 +874,14 @@ pages:
               Your provider did not return verbose_json segments. Confidence
               filtering had no effect on the last transcription.
     memory-long-term:
+      memories:
+        title: Memories
+        description: Facts the character keeps across conversations and personas. Ask the character to remember or forget something, or remove an entry here.
+        empty: No memories yet.
+        forget: 'Forget {name}'
+        visibility:
+          owner: Only you
+          shared: Shared
       recipes:
         title: Recipes
         empty: No recipes yet.

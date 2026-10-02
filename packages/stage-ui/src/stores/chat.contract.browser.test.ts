@@ -21,9 +21,11 @@ import {
   AIRI_CHAT_ROUND_ID_HEADER,
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
+import { composeMemoryPrompt } from '../tools/memory'
 import { useChatStore } from './chat'
 import { CHAT_FORMAT_RULES } from './chat/prompt-recipe'
 import { useContextObservabilityStore } from './devtools/context-observability'
+import { useMemoryStore } from './memory'
 import { useSpeechDeviceStore } from './mods/api/speech-device'
 import { useConsciousnessSettingsStore } from './modules/consciousness-settings'
 import { useRecipesStore } from './recipes'
@@ -287,6 +289,7 @@ describe('chat store contract', () => {
     // Recipes persist in local storage. Each test starts from the built-in recipes.
     localStorage.removeItem('recipes/custom')
     localStorage.removeItem('recipes/builtin-enabled')
+    localStorage.removeItem('memory/entries')
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
       switch (event.name) {
@@ -392,8 +395,8 @@ describe('chat store contract', () => {
     expect(() => structuredClone(result)).not.toThrow()
     // Each request also receives the source reader, authorized by its own session.
     expect(resolvedToolNames).toEqual([
-      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_useRecipe', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
-      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_useRecipe', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
+      ['stage_widgets', 'builtIn_readContextSource', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_stayQuiet', 'builtIn_proposeRecipe'],
     ])
   })
 
@@ -409,7 +412,7 @@ describe('chat store contract', () => {
 
     await useChatStore().send({ sessionId: 'session-1', text: 'hello' })
 
-    expect(toolNames).toEqual([['builtIn_readContextSource', 'builtIn_useRecipe', 'builtIn_proposeRecipe']])
+    expect(toolNames).toEqual([['builtIn_readContextSource', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe']])
   })
 
   // A keyword trigger works like a smart shortcut. The recipe runs in its own session, so its steps never enter the conversation.
@@ -451,7 +454,7 @@ describe('chat store contract', () => {
     expect(recipeRun.prompt).toContain('The owner said: 今天想玩粥了')
     expect(recipeRun.prompt).not.toContain('These recipes started')
     // The recipe space cannot start recipes, save them, or choose silence.
-    expect(recipeRun.tools).toEqual(['computer_use', 'builtIn_readContextSource'])
+    expect(recipeRun.tools).toEqual(['computer_use', 'builtIn_readContextSource', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory'])
     expect(registeredToolsetPrompts['use-recipe']?.[0]?.content).toContain('- Game night: Starts a game when the owner wants to play.')
     expect(notice).toContain('The background task \\"Game night\\" finished.')
     expect(notice).toContain('The owner wants porridge games.')
@@ -463,19 +466,28 @@ describe('chat store contract', () => {
     expect(useSchedulerStore().runs.snapshot().find(run => run.sessionId === recipeSession)).toMatchObject({ envelope: { outputs: [] }, parentRunId: expect.any(String) })
   })
 
-  // Members of a scene cannot save recipes for the owner. Only owner-private runs get the proposal tool.
-  it('offers the recipe proposal tool only to owner-private runs', async () => {
+  // Members of a scene cannot save recipes or memories for the owner, and never see the owner's private memories.
+  it('keeps recipe proposals, memory writes, and owner memories out of scene runs', async () => {
     sessionMetas['scene-session'] = { sessionId: 'scene-session', userId: 'local', characterId: 'default', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 1 }
     const toolNames: string[][] = []
-    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: any) => {
+    let prompt = ''
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
+      prompt = JSON.stringify(context)
       const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
       toolNames.push(tools.map((tool: Tool) => tool.function.name))
       await options.onStreamEvent({ type: 'finish' })
     })
+    const memory = useMemoryStore()
+    memory.write({ name: 'allergy', description: 'Food the owner avoids.', body: 'Peanuts.', visibility: 'owner' })
+    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.', visibility: 'shared' })
 
     await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me', outputTarget: 'discord-connection' })
 
     expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
+    expect(toolNames[0]).toContain('builtIn_readMemory')
+    expect(toolNames[0]).not.toContain('builtIn_writeMemory')
+    expect(prompt).toContain('- nickname: What the owner likes to be called.')
+    expect(prompt).not.toContain('allergy')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {
@@ -1280,7 +1292,9 @@ describe('chat store contract', () => {
     cardPrompt.value = 'edited prompt'
     await store.ingest('second', { model: 'gpt-test', chatProvider: provider })
 
-    expect(systemTexts).toEqual([`${CHAT_FORMAT_RULES}system prompt`, `${CHAT_FORMAT_RULES}edited prompt`])
+    // The owner's run reads the memory index after the identity.
+    const memoryPrompt = composeMemoryPrompt('', true)
+    expect(systemTexts).toEqual([`${CHAT_FORMAT_RULES}system prompt${memoryPrompt}`, `${CHAT_FORMAT_RULES}edited prompt${memoryPrompt}`])
   })
 
   it('keeps hook order and composes context prompt after system message', async () => {
@@ -1386,7 +1400,7 @@ describe('chat store contract', () => {
     if (composedMessages[0].type !== 'system' || composedMessages[1].type !== 'user')
       throw new Error('Expected system and user turns')
     expect(composedMessages[0].content).toEqual([
-      { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt` },
+      { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt${composeMemoryPrompt('', true)}` },
       { type: 'text', text: '\n\nPlugin toolset guidance.' },
     ])
     expect(composedMessages[1].content[0]).toMatchObject({

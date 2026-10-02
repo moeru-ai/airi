@@ -826,6 +826,14 @@ pages:
             verbose-json-unsupported: >-
               如果您的提供商没有返回 verbose_json 结果。置信度阈值将不会影响转录。
     memory-long-term:
+      memories:
+        title: 记忆
+        description: 角色跨会话、跨人格保存的事实。你可以让角色记住或忘掉某件事，也可以在这里删除。
+        empty: 还没有记忆。
+        forget: '忘掉{name}'
+        visibility:
+          owner: 仅你可见
+          shared: 可共享
       recipes:
         title: 配方
         empty: 还没有配方。
