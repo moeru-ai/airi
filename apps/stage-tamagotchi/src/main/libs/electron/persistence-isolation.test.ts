@@ -71,3 +71,22 @@ it('awaits configuration healing before the fixture directory is removed', async
   expect(JSON.parse(await readFile(path, 'utf8'))).toEqual({ value: 0 })
   expect(config.getDiagnostics()?.healed).toBe(true)
 })
+
+// https://github.com/moeru-ai/airi/pull/2776
+it('defers Electron path access until the store is used', async () => {
+  // ROOT CAUSE:
+  //
+  // The channel server declares its store at module scope. Eager path access
+  // added an Electron dependency to imports of unrelated window helpers.
+  electron.getPath.mockImplementation(() => {
+    throw new Error('Electron services are not initialized')
+  })
+  const config = createConfig('extensions', 'v1.json', object({ value: number() }), { default: { value: 0 } })
+  const directory = await mkdtemp(join(tmpdir(), 'airi-config-lazy-'))
+  directories.push(directory)
+  electron.getPath.mockReturnValue(directory)
+  flushes.push(config.flush)
+
+  expect(config.setup().path).toBe(join(directory, 'extensions-v1.json'))
+  expect(config.get()).toEqual({ value: 0 })
+})
