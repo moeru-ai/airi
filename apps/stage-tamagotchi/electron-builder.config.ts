@@ -80,6 +80,10 @@ export default {
     // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
     // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
     '!**/node_modules/electron{,/**}',
+    // These large fonts remain available to web, mobile, and story builds.
+    // The desktop renderer uses system CJK fallback fonts instead.
+    '!**/node_modules/@proj-airi/font-cjkfonts-allseto{,/**}',
+    '!**/node_modules/@proj-airi/font-xiaolai{,/**}',
     '!**/.vscode/*',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
