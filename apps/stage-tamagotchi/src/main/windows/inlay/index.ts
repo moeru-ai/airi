@@ -11,8 +11,11 @@ import icon from '../../../../resources/icon.png?asset'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager/reusable'
 import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
+
+/** A composer-sized window: about three lines of draft text, one action row, and a shortcut hint. */
+const INLAY_WINDOW_HEIGHT = 184
 
 export function setupInlayWindowReusable(params: {
   serverChannel: ServerChannel
@@ -20,20 +23,26 @@ export function setupInlayWindowReusable(params: {
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
+      ...transparentWindowConfig(),
+      ...spotlightLikeWindowConfig(),
       title: 'Inlay',
       width: 450,
-      height: 150,
+      height: INLAY_WINDOW_HEIGHT,
       show: false,
+      resizable: false,
+      maximizable: false,
+      minimizable: false,
+      skipTaskbar: true,
       icon,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
-      ...spotlightLikeWindowConfig(),
     })
 
     if (isMacOS) {
       window.setWindowButtonVisibility(false)
+      window.setHiddenInMissionControl(true)
     }
 
     const displayBounds = currentDisplayBounds(window)
@@ -47,11 +56,11 @@ export function setupInlayWindowReusable(params: {
       },
       { breakpoints: resolutionBreakpoints },
     )
-    const height = width / 4
+    const height = INLAY_WINDOW_HEIGHT
 
     window.setBounds({
       width,
-      height: width / 4,
+      height,
       x: displayBounds.x + (displayBounds.width - width) / 2, // Center horizontally
       y: mapForBreakpoints(
         displayBounds.height,
@@ -69,7 +78,7 @@ export function setupInlayWindowReusable(params: {
     await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay', {
-      query: { 'synced-leader': 'false' },
+      query: { 'stage-runtime': 'minimal', 'synced-leader': 'false' },
     }))
 
     return window
