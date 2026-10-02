@@ -115,6 +115,15 @@ Three identical consecutive tool calls end a run as `blocked`. A supervised end 
 `cancelRun(runId, { rollback })` stops a waiting or running run. Its late output never commits.
 With `rollback`, the run's user turn and partial reply leave the session through `removeSessionMessages`. A requeued input therefore appears once.
 
+## Classifier triage
+
+A `Classifier` answers typed questions with probabilities: `noul` for yes or no, `choice` for one option, and `score` for an ordered scale. It never generates text.
+`appraiseStimulus` asks whether a stimulus deserves attention and how urgent it is, in one call. External text goes into the untrusted field only.
+`askWithin` aborts a call at its deadline, 800 ms by default. A late, failing, or malformed answer means no appraisal.
+`decideByAppraisal` uses an answer only when its confidence reaches the threshold, 0.8 by default. Users set the threshold.
+A confident answer below 0.2 ignores the stimulus. Otherwise the urgency score averages with the prior. Without a usable answer, the prior decides as `fallback`.
+A scene source stays at or below 0.8 salience, so classifier output can never let it interrupt. A classifier ranks work and never grants authority.
+
 ## Command admission
 
 `admitCommand` checks every `spark:command` before it leaves the host. The issuing run must be `working`, and the command must name destinations.

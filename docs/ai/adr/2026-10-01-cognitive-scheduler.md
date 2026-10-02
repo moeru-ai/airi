@@ -181,6 +181,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`command-admission.test.ts`): module control is a session lease. Another session is rejected until expiry, and critical higher-salience work takes it over.
 - Observed (`spark-command.test.ts`, `orchestrator/index.test.ts`): chat tool and notification commands pass admission and carry their holder. A rejected command never reaches the channel.
 - Observed (`airi-bridge.test.ts`): Minecraft drops commands without a holder and contradictory commands from another session during the lease.
+- Observed (`triage.test.ts`): one classifier call asks about attention and urgency. A late classifier is aborted at the deadline, and the prior decides.
+- Observed (`triage.test.ts`): only answers at or above the user threshold decide. Scene sources stay below interruption whatever the classifier says.
+- Designed: JEV and a structured-output model are interchangeable classifier backends. Both use the same threshold, and each record keeps the backend and threshold.
 
 ### Open P0 evidence
 

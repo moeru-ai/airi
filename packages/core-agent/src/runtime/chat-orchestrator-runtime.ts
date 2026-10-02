@@ -1326,6 +1326,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       bindings: envelope.bindings,
       salience: salienceFromUrgency(),
       direct: !options.outputTarget,
+      // A bound session with a return connection speaks with other people.
+      fromScene: Boolean(options.outputTarget) && envelope.bindings.length > 0,
       text: sendingMessage,
       hasAttachments: Boolean(options.attachments?.length),
       receivedAt: now(),

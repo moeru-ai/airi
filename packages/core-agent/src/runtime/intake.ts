@@ -23,6 +23,8 @@ export interface Stimulus {
   text?: string
   /** Whether the stimulus carries attachments, for example images. */
   hasAttachments?: boolean
+  /** The source speaks for people other than the owner, for example a Discord channel. Its salience stays below interruption. */
+  fromScene?: boolean
   receivedAt: number
   deadlineAt?: number
   /** Stimuli with the same key replace each other while they wait. */
@@ -59,6 +61,19 @@ export interface IntakeRecord {
   mergedInto?: string
   parentRunId?: string
   depth?: number
+  appraisal?: IntakeAppraisal
+}
+
+/** Classifier answers behind a decision, kept so tests and devtools can explain it. */
+export interface IntakeAppraisal {
+  backend: string
+  /** Probability that the stimulus deserves attention now. */
+  attend: number
+  confidence: number
+  /** Trust threshold in effect. Answers below it did not decide. */
+  threshold: number
+  /** Salience from the classifier's urgency score, before it is combined with the prior. */
+  urgency?: number
 }
 
 /** A policy result. The host turns it into a record. */
@@ -70,6 +85,7 @@ export interface IntakeDecision {
   salience?: number
   retryAt?: number
   mergedInto?: string
+  appraisal?: IntakeAppraisal
 }
 
 const URGENCY_SALIENCE: Record<string, number> = {
@@ -139,6 +155,7 @@ export class IntakeLog {
       mergedInto: decision.mergedInto,
       parentRunId: stimulus.parentRunId,
       depth: stimulus.depth,
+      appraisal: decision.appraisal,
     }
     this.records.push(record)
     const limit = this.options.limit ?? 200

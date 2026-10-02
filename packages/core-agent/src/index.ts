@@ -41,13 +41,15 @@ export type {
   QueuedSendSnapshot,
 } from './runtime/chat-orchestrator-runtime'
 export { createChatOrchestratorRuntime, decideDirectInput } from './runtime/chat-orchestrator-runtime'
+export type { ChoiceAnswer, ChoiceQuestion, Classifier, ClassifierAnswer, ClassifierQuestion, ClassifierRequest, NoulAnswer, NoulQuestion, ScoreAnswer, ScoreQuestion } from './runtime/classifier'
+export { askWithin, CLASSIFIER_DEADLINE_MS, CLASSIFIER_TRUST_THRESHOLD, noulConfidence } from './runtime/classifier'
 export type { CommandAdmission, CommandDestination, CommandRejection } from './runtime/command-admission'
 export { admitCommand, moduleControlResource } from './runtime/command-admission'
 export { CONTEXT_SOURCE_TOKEN_LIMIT, limitContextText, loadContextTokenCounter } from './runtime/context-budget'
 export type { ContextTokenCounter } from './runtime/context-budget'
 export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRegistry, ContextRegistryState } from './runtime/context-registry'
 export { createContextRegistry, projectContextRegistryState } from './runtime/context-registry'
-export type { IntakeDecider, IntakeDecision, IntakeOutcome, IntakeRecord, Stimulus, StimulusOrigin } from './runtime/intake'
+export type { IntakeAppraisal, IntakeDecider, IntakeDecision, IntakeOutcome, IntakeRecord, Stimulus, StimulusOrigin } from './runtime/intake'
 export { decideByPrior, deferDelayMs, IntakeLog, salienceFromUrgency } from './runtime/intake'
 export type { Lease, LeaseGrant } from './runtime/lease-table'
 export { LeaseTable } from './runtime/lease-table'
@@ -69,6 +71,8 @@ export type {
 } from './runtime/response-categoriser'
 export type { AgentRun, AgentRunState, ExecutionEnvelope } from './runtime/run-table'
 export { RunTable } from './runtime/run-table'
+export type { AppraiseOptions } from './runtime/triage'
+export { appraiseStimulus, capSceneSalience, decideByAppraisal, SCENE_SALIENCE_CAP, triageRequest } from './runtime/triage'
 export { mergeLoadedSessionMessages } from './session/merge-loaded-session-messages'
 export type {
   ChatAssistantMessage,
