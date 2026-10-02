@@ -1,13 +1,12 @@
 # @proj-airi/pipelines-audio
 
-Shared audio-pipeline orchestration for AIRI. The package owns input sharing, capture intervals, detector windows, playback groups, text chunking, and transcript buffering. It does not depend on a UI.
+Shared audio-pipeline orchestration for AIRI. The package owns input sharing, capture intervals, detector windows, playback groups, and text chunking. It does not depend on a UI.
 
 ## Use it for
 
 - Sharing one audio source between recording, transcription, and detectors.
 - Building and scheduling speech playback pipelines.
 - Parsing streaming-control events.
-- Grouping nearby ASR fragments with `createTranscriptBuffer` before a product sends one spoken turn downstream.
 
 ## Do not use it for
 
@@ -43,21 +42,6 @@ Observers support sliding windows and growing windows.
 A sample gap restarts window growth. Frame coordinates never cross source connections.
 There are no framework byte quotas, queue quotas, or mandatory detector deadlines.
 Plugins own their models, retained results, and disposal.
-
-## Transcript buffering
-
-```ts
-import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
-
-const buffer = createTranscriptBuffer({
-  flushDelayMs: 1200,
-  flush: async text => sendToChat(text),
-})
-
-buffer.push('hello')
-buffer.push('world')
-await buffer.dispose()
-```
 
 ## Playback ownership
 
