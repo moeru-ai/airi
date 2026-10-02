@@ -1,2 +1,3 @@
 export { default as wlipsyncProfile } from './profile.json' with { type: 'json' }
-export type { Profile } from 'wlipsync'
+export * from './vowel-driver'
+export type { Profile, WLipSyncAudioNode } from 'wlipsync'

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { useLampFlickerAnimation } from '@proj-airi/stage-ui/composables/use-lamp-flicker-animation'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { lampFlickerAnimationClass } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -10,8 +9,6 @@ import { useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const { connected } = storeToRefs(useModsServerChannelStore())
-
-const { flickerStyle, onAnimationIteration } = useLampFlickerAnimation(() => !connected.value)
 
 const statusSize = {
   border: 'border-2',
@@ -66,11 +63,7 @@ function openConnectionSettings() {
     :title="tooltipLabel"
     @click="openConnectionSettings"
   >
-    <div
-      :class="iconClasses"
-      :style="flickerStyle"
-      @animationiteration="onAnimationIteration"
-    />
+    <div :class="iconClasses" />
   </button>
 </template>
 

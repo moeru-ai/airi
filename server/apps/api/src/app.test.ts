@@ -2,123 +2,155 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from './app'
 
-function createTestDeps() {
-  const authServerMetadata = {
-    issuer: 'http://localhost:3000/api/auth',
-    authorization_endpoint: 'http://localhost:3000/api/auth/oauth2/authorize',
-    token_endpoint: 'http://localhost:3000/api/auth/oauth2/token',
-  }
-
-  const openIdConfig = {
-    issuer: 'http://localhost:3000/api/auth',
-    jwks_uri: 'http://localhost:3000/api/auth/jwks',
-    authorization_endpoint: 'http://localhost:3000/api/auth/oauth2/authorize',
-    token_endpoint: 'http://localhost:3000/api/auth/oauth2/token',
-  }
-
-  const auth = {
-    api: {
-      getSession: vi.fn(async () => null),
-      getOAuthServerConfig: vi.fn(async () => authServerMetadata),
-      getOpenIdConfig: vi.fn(async () => openIdConfig),
-    },
-    handler: vi.fn(async () => new Response('not-found', { status: 404 })),
-  } as any
-
+function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
   const redisSubscriber = {
     on: vi.fn(),
     subscribe: vi.fn(async () => 1),
     unsubscribe: vi.fn(async () => 0),
   }
-
   const redis = {
     duplicate: vi.fn(() => redisSubscriber),
     publish: vi.fn(async () => 0),
   }
 
-  const deps = {
-    auth,
-    db: {} as any,
-    characterService: {} as any,
-    chatService: {} as any,
-    providerService: {} as any,
-    fluxService: {} as any,
-    fluxTransactionService: {} as any,
-    stripeService: {} as any,
-    billingService: {} as any,
-    adminFluxGrantsService: {} as any,
-    adminRouterConfigService: {} as any,
-    adminUsersService: {} as any,
-    ttsMeter: {} as any,
-    requestLogService: {} as any,
-    voicePackService: {} as any,
-    providerCatalogService: {} as any,
+  return {
+    db: { query: { user: { findFirst: vi.fn() } } } as never,
+    characterService: {} as never,
+    chatService: {} as never,
+    providerService: {} as never,
+    fluxService: {} as never,
+    fluxTransactionService: {} as never,
+    paymentService: {} as never,
+    appleIapVerifier: null,
+    stripe: null,
+    billingService: {} as never,
+    ttsMeter: {} as never,
+    requestLogService: {} as never,
+    voicePackService: {} as never,
+    providerCatalogService: {} as never,
     productEventService: {
       track: vi.fn(async () => undefined),
-      trackGeneration: vi.fn(async () => undefined),
-      countDistinctUsersByFeature: vi.fn(async () => []),
-    },
-    configKV: {
-      getOrThrow: vi.fn(async (key: string) => {
-        switch (key) {
-          case 'AUTH_RATE_LIMIT_MAX':
-            return 20
-          case 'AUTH_RATE_LIMIT_WINDOW_SEC':
-            return 60
-          default:
-            throw new Error(`Unexpected config key: ${key}`)
-        }
-      }),
-    } as any,
-    redis: redis as any,
+    } as never,
+    configKV: { getOrThrow: vi.fn(), getOptional: vi.fn(async () => 1) } as never,
+    redis: redis as never,
     env: {
-      API_SERVER_URL: 'http://localhost:3000',
-    } as any,
+      API_SERVER_URL: 'https://api.airi.build',
+      AUTH_SERVER_URL: 'https://api.airi.build',
+      WEB_APP_URL: webAppUrl,
+      TEST_AUTH_TOKEN: 'test-token',
+      TEST_AUTH_USER_ID: 'user-1',
+      TEST_AUTH_USER_EMAIL: 'test@example.com',
+      TEST_AUTH_USER_NAME: 'Test User',
+    } as never,
     otel: null,
-    userDeletionService: {} as any,
+    userDeletionService: { register: vi.fn(), softDeleteAll: vi.fn() },
     llmRouter: {
       route: vi.fn(async () => new Response('{}', { status: 200 })),
       invalidateConfig: vi.fn(),
-    } as any,
+    } as never,
     envelopeCrypto: {
       encryptKey: vi.fn(),
       decryptKey: vi.fn(),
-    } as any,
-  }
-
-  return {
-    deps,
-    auth,
-    authServerMetadata,
-    openIdConfig,
-    redis,
+    } as never,
   }
 }
 
-describe('app well-known metadata routes', () => {
-  it('serves oauth authorization server metadata at the root well-known path', async () => {
-    const { deps, auth, authServerMetadata } = createTestDeps()
-    const { app } = await buildApp(deps)
+describe('business API app', () => {
+  it('does not expose management routes', async () => {
+    const { app } = await buildApp(createTestDeps())
 
-    const res = await app.request('/.well-known/oauth-authorization-server/api/auth')
-
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toContain('application/json')
-    expect(await res.json()).toEqual(authServerMetadata)
-    expect(auth.api.getOAuthServerConfig).toHaveBeenCalledTimes(1)
-    expect(auth.api.getOpenIdConfig).not.toHaveBeenCalled()
+    expect((await app.request('/admin')).status).toBe(404)
+    expect((await app.request('/admin/users')).status).toBe(404)
+    expect((await app.request('/api/admin/metrics')).status).toBe(404)
+    expect((await app.request('/api/admin/graphql', { method: 'POST' })).status).toBe(404)
   })
 
-  it('serves openid configuration at the issuer-appended well-known path', async () => {
-    const { deps, auth, openIdConfig } = createTestDeps()
-    const { app } = await buildApp(deps)
+  it('does not expose Better Auth or OIDC provider routes', async () => {
+    const { app } = await buildApp(createTestDeps())
 
-    const res = await app.request('/api/auth/.well-known/openid-configuration')
+    expect((await app.request('/api/auth/get-session')).status).toBe(404)
+    expect((await app.request('/api/auth/.well-known/openid-configuration')).status).toBe(404)
+    expect((await app.request('/.well-known/oauth-authorization-server/api/auth')).status).toBe(404)
+  })
 
-    expect(res.status).toBe(200)
-    expect(res.headers.get('content-type')).toContain('application/json')
-    expect(await res.json()).toEqual(openIdConfig)
-    expect(auth.api.getOpenIdConfig).toHaveBeenCalledTimes(1)
-    expect(auth.api.getOAuthServerConfig).not.toHaveBeenCalled()
+  it('identifies itself as the resource API', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/')
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ service: 'airi-api' })
+  })
+
+  it.each(['GET', 'HEAD'])('redirects email verification root landings to the product with %s', async (method) => {
+    const { app } = await buildApp(createTestDeps('https://stage.example.test/'))
+    const response = await app.request('/?callbackURL=https://example.com', {
+      method,
+      headers: { Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+    })
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('https://stage.example.test/')
+    expect(response.headers.get('vary')).toBe('Accept')
+  })
+
+  it('uses the configured product URL in JSON root and not-found hints', async () => {
+    const { app } = await buildApp(createTestDeps('https://stage.example.test/'))
+    const root = await app.request('/')
+    const missing = await app.request('/missing')
+
+    expect(await root.json()).toMatchObject({
+      ui: 'https://stage.example.test/',
+      docs: 'https://stage.example.test/docs',
+    })
+    expect(await missing.json()).toMatchObject({ ui: 'https://stage.example.test/' })
+  })
+
+  it.each(['application/json', 'text/html;q=0, application/json', 'application/json;profile="text/html"'])('keeps JSON clients at the API root with Accept %s', async (accept) => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/', { headers: { Accept: accept } })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(await response.json()).toMatchObject({ service: 'airi-api' })
+  })
+
+  it('does not redirect browser requests outside the root GET route', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const headers = { Accept: 'text/html' }
+    const unknown = await app.request('/not-an-api', { headers })
+    const post = await app.request('/', { method: 'POST', headers })
+    const live = await app.request('/livez', { headers })
+
+    expect(unknown.status).toBe(404)
+    expect(post.status).toBe(404)
+    expect(live.status).toBe(200)
+    expect(live.headers.get('location')).toBeNull()
+  })
+
+  // ROOT CAUSE:
+  //
+  // The former global 1 MiB limit ran before the Responses route's auth
+  // guard, so it both rejected supported inline media and inspected a large
+  // unauthenticated body before returning 401.
+  it('authenticates a large Responses request before applying its route limit', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: ' '.repeat(1024 * 1024 + 1),
+    })
+
+    expect(response.status).toBe(401)
+  })
+
+  it('allows an authenticated Responses body beyond the default API limit', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/api/v1/openai/responses', {
+      method: 'POST',
+      headers: { 'authorization': 'Bearer test-token', 'Content-Type': 'application/json' },
+      body: ' '.repeat(1024 * 1024 + 1),
+    })
+
+    expect(response.status).toBe(400)
   })
 })

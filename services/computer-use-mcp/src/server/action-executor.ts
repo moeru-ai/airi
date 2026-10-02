@@ -508,20 +508,20 @@ export function createExecuteAction(runtime: ComputerUseServerRuntime): ExecuteA
           if (hasExplicitCoordinates) {
             const pointerTrace = buildPointerTrace({
               from: runtime.session.getPointerPosition(),
-              to: { x: normalizedAction.input.x, y: normalizedAction.input.y },
+              to: { x: normalizedAction.input.x!, y: normalizedAction.input.y! },
               bounds: runtime.config.allowedBounds,
             })
             // NOTICE: The preparatory click must succeed before we type.
             // If focus fails the text would go to the wrong element.
             try {
               await runtime.executor.click({
-                x: normalizedAction.input.x,
-                y: normalizedAction.input.y,
+                x: normalizedAction.input.x!,
+                y: normalizedAction.input.y!,
                 button: 'left',
                 clickCount: 1,
                 pointerTrace,
               })
-              runtime.session.setPointerPosition({ x: normalizedAction.input.x, y: normalizedAction.input.y })
+              runtime.session.setPointerPosition({ x: normalizedAction.input.x!, y: normalizedAction.input.y! })
               backendResult.focusPointerTrace = pointerTrace
               backendResult.focusDisplayPoint = structuredDisplayPoint
             }

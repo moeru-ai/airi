@@ -2,11 +2,11 @@ import type { Rectangle } from 'electron'
 import type { InferOutput } from 'valibot'
 
 import type { I18n } from '../../libs/i18n'
-import type { WindowAuthManager } from '../../services/airi/auth'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { ChatWindowManager } from '../chat'
 import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
@@ -16,8 +16,6 @@ import type { WidgetsWindowManager } from '../widgets'
 import { dirname, join, resolve } from 'node:path'
 import { env } from 'node:process'
 import { fileURLToPath } from 'node:url'
-
-import clickDragPlugin from 'electron-click-drag-plugin'
 
 import { is } from '@electron-toolkit/utils'
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -32,9 +30,9 @@ import icon from '../../../../resources/icon.png?asset'
 
 import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
-import { baseUrl, getElectronMainDirname, load } from '../../libs/electron/location'
+import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
-import { protectPrivilegedWindowNavigation, transparentWindowConfig } from '../shared'
+import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -53,7 +51,7 @@ type AppConfig = InferOutput<typeof appConfigSchema>
 export async function setupMainWindow(params: {
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
-  chatWindow: () => Promise<BrowserWindow>
+  chatWindow: ChatWindowManager
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
@@ -63,7 +61,6 @@ export async function setupMainWindow(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
-  windowAuthManager: WindowAuthManager
 }) {
   const {
     setup: setupConfig,
@@ -95,7 +92,7 @@ export async function setupMainWindow(params: {
     //
     // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
     // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
   })
 
@@ -165,12 +162,12 @@ export async function setupMainWindow(params: {
   //
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setAlwaysOnTop(true, 'screen-saver', 1)
-  window.setFullScreenable(false)
   window.setVisibleOnAllWorkspaces(true)
   if (isMacOS) {
+    window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
   }
+  setWindowAlwaysOnTop(window, true)
 
   window.on('ready-to-show', () => window!.show())
   protectPrivilegedWindowNavigation(window)
@@ -188,10 +185,11 @@ export async function setupMainWindow(params: {
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
-    windowAuthManager: params.windowAuthManager,
   })
 
-  await load(window, baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')))
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {
+    query: { 'synced-leader': 'true' },
+  }))
 
   /**
    * This is a know issue (or expected behavior maybe) to Electron.
@@ -201,6 +199,8 @@ export async function setupMainWindow(params: {
    * Workaround: https://github.com/noobfromph/electron-click-drag-plugin
    */
   if (!isLinux) {
+    const { default: clickDragPlugin } = await import('electron-click-drag-plugin')
+
     function handleStartDraggingWindow() {
       try {
         const windowId = window.getNativeWindowHandle()

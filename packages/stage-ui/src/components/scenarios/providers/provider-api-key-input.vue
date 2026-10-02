@@ -4,7 +4,7 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
-  providerName: string
+  providerName?: string
   placeholder?: string
   required?: boolean
   label?: string
@@ -16,7 +16,11 @@ const { t } = useI18n()
 const modelValue = defineModel<string>({ required: false, default: '' })
 
 const computedDescription = computed(() => {
-  return props.description || `API Key for ${props.providerName}`
+  if (props.description)
+    return props.description
+  if (props.providerName)
+    return `API Key for ${props.providerName}`
+  return t('settings.pages.providers.catalog.edit.config.common.fields.field.api-key.description')
 })
 </script>
 

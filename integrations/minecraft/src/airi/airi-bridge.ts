@@ -16,8 +16,23 @@ interface SparkCommandData {
   }
 }
 
+/**
+ * Connects the Minecraft cognitive runtime to AIRI server events.
+ *
+ * Use when:
+ * - Minecraft must publish context and notifications to Stage runtimes.
+ * - Generic `spark:command` events must wake the Minecraft decision loop.
+ *
+ * Expects:
+ * - {@link init} is called once before events are exchanged.
+ * - {@link setCommandAvailable} follows the active bot lifecycle.
+ *
+ * Returns:
+ * - Event handlers and send operations for the Minecraft side of the AIRI server seam.
+ */
 export class AiriBridge {
   private readonly logger = useLogg('airi-bridge').useGlobalConfig()
+  private commandAvailable = false
   private commandHandler: ((event: { data: SparkCommandData }) => void) | null = null
   private contextUpdateHandler: ((event: { data: ContextUpdate }) => void) | null = null
   private moduleAnnouncedHandler: ((event: { data: ModuleAnnouncedEvent }) => void) | null = null
@@ -33,16 +48,12 @@ export class AiriBridge {
       const cmd = event.data
       this.logger.log('Received spark:command', { intent: cmd.intent, commandId: cmd.commandId })
 
-      // Acknowledge receipt
-      this.client.send({
-        type: 'spark:emit',
-        data: {
-          id: nanoid(),
-          eventId: cmd.commandId,
-          state: 'queued',
-          note: 'Command received',
-        },
-      } as Parameters<typeof this.client.send>[0])
+      if (!this.commandAvailable) {
+        this.sendEmit(cmd.commandId, 'dropped', 'Minecraft bot is offline')
+        return
+      }
+
+      this.sendEmit(cmd.commandId, 'queued', 'Command received')
 
       // A spark:command is high-level guidance from the AIRI server. It must carry enough weight to
       // trigger a fresh decision (Conscious) cycle, never be silently filed into history — so we
@@ -170,6 +181,11 @@ export class AiriBridge {
     this.logger.log('Sent spark:emit', { eventId, state })
   }
 
+  /** Enables command delivery only while a Minecraft bot runtime can consume it. */
+  setCommandAvailable(available: boolean): void {
+    this.commandAvailable = available
+  }
+
   onModuleAnnounced(listener: (event: ModuleAnnouncedEvent) => void) {
     this.moduleAnnouncedListeners.add(listener)
 
@@ -183,8 +199,8 @@ export class AiriBridge {
     // `airi_command` signal so the brain runs a fresh decision cycle
     // (resetNoActionFollowupBudget('airi_command'), normal Conscious wake-up) instead of silently
     // filing it into history. The directive is attributed to the AIRI server as a neutral source,
-    // not to any specific in-game player. Binding a relayed command to the master's in-game identity
-    // is desktop-relay policy and lives in the desktop Minecraft adapter, not in this bot service.
+    // not to any specific in-game player. The status context tells Stage when this relay is available
+    // while this bridge remains the final receiver-side availability gate.
     const firstOption = cmd.guidance?.options?.[0]
     const label = firstOption?.label?.trim()
     const steps = firstOption?.steps ?? []

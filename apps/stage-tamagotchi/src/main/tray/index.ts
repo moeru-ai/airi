@@ -1,6 +1,8 @@
 import type { LocaleDetector } from '@intlify/core'
-import type { BrowserWindow } from 'electron'
+import type { BrowserWindow, Rectangle } from 'electron'
 
+import type { globalAppConfigSchema } from '../configs/global'
+import type { Config } from '../libs/electron/persistence'
 import type { I18n } from '../libs/i18n'
 import type { ServerChannel } from '../services/airi/channel-server'
 import type { setupBeatSync } from '../windows/beat-sync'
@@ -11,18 +13,23 @@ import type { WidgetsWindowManager } from '../windows/widgets'
 import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
+import { defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { effect } from 'alien-signals'
-import { app, Menu, nativeImage, screen, Tray } from 'electron'
+import { app, ipcMain, Menu, nativeImage, screen, Tray } from 'electron'
 import { debounce, once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../resources/icon.png?asset'
 import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 
+import { electronAppIconGet, electronAppIconSet } from '../../shared/eventa'
+import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
-import { setupInlayWindow } from '../windows/inlay'
-import { computeResizedBoundsAnchoredToDominantDisplay, findDominantDisplayArea } from '../windows/shared/display'
+import { Animator } from '../windows/shared/animator'
+import { AppIconVisibility } from '../windows/shared/app-icon'
+import { computeResizedBoundsAnchoredToDominantDisplay } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
 
 const RECOMMENDED_WIDTH = 450
@@ -53,28 +60,37 @@ function applyWindowSize(window: BrowserWindow, width: number, height: number, x
   window.show()
 }
 
-function alignWindow(window: BrowserWindow, position: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'): void {
+function resolveAlignedWindowBounds(
+  window: BrowserWindow,
+  workArea: Rectangle,
+  position: 'center' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right',
+): Rectangle {
   const { width: windowWidth, height: windowHeight } = window.getBounds()
-  const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = screen.getPrimaryDisplay().workArea
+  const { x: areaX, y: areaY, width: areaWidth, height: areaHeight } = workArea
+
+  let x = areaX
+  let y = areaY
 
   switch (position) {
     case 'center':
-      window.center()
+      x = areaX + Math.floor((areaWidth - windowWidth) / 2)
+      y = areaY + Math.floor((areaHeight - windowHeight) / 2)
       break
     case 'top-left':
-      window.setPosition(areaX, areaY)
       break
     case 'top-right':
-      window.setPosition(areaX + areaWidth - windowWidth, areaY)
+      x = areaX + areaWidth - windowWidth
       break
     case 'bottom-left':
-      window.setPosition(areaX, areaY + areaHeight - windowHeight)
+      y = areaY + areaHeight - windowHeight
       break
     case 'bottom-right':
-      window.setPosition(areaX + areaWidth - windowWidth, areaY + areaHeight - windowHeight)
+      x = areaX + areaWidth - windowWidth
+      y = areaY + areaHeight - windowHeight
       break
   }
-  window.show()
+
+  return { x, y, width: windowWidth, height: windowHeight }
 }
 
 function isSizeMatch(window: BrowserWindow, targetWidth: number, targetHeight: number): boolean {
@@ -94,10 +110,25 @@ export function setupTray(params: {
   widgetsWindow: WidgetsWindowManager
   beatSyncBgWindow: Awaited<ReturnType<typeof setupBeatSync>>
   aboutWindow: () => Promise<BrowserWindow>
+  inlayWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
+  appConfig: Config<typeof globalAppConfigSchema>
 }): void {
   once(() => {
+    const mainWindowAnimator = new Animator(params.mainWindow)
+
+    function animateMainWindowTo(workArea: Rectangle, position: Parameters<typeof resolveAlignedWindowBounds>[2]) {
+      const bounds = resolveAlignedWindowBounds(params.mainWindow, workArea, position)
+      mainWindowAnimator.windowBoundsAnimateTo(bounds)
+      params.mainWindow.show()
+    }
+
+    function applyMainWindowSize(width: number, height: number, x?: number, y?: number) {
+      mainWindowAnimator.stop()
+      applyWindowSize(params.mainWindow, width, height, x, y)
+    }
+
     const trayImage = nativeImage.createFromPath(isMacOS ? macOSTrayIcon : icon).resize({ width: 16 })
     trayImage.setTemplateImage(isMacOS)
 
@@ -128,25 +159,25 @@ export function setupTray(params: {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.recommended_size'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
-              click: () => applyWindowSize(params.mainWindow, RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
+              click: () => applyMainWindowSize(RECOMMENDED_WIDTH, RECOMMENDED_HEIGHT),
             },
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.full_height'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, fullWidthTarget, fullHeightTarget),
-              click: () => applyWindowSize(params.mainWindow, fullWidthTarget, fullHeightTarget),
+              click: () => applyMainWindowSize(fullWidthTarget, fullHeightTarget),
             },
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.half_height'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, halfWidthTarget, halfHeightTarget),
-              click: () => applyWindowSize(params.mainWindow, halfWidthTarget, halfHeightTarget),
+              click: () => applyMainWindowSize(halfWidthTarget, halfHeightTarget),
             },
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.full_screen'),
               type: 'checkbox',
               checked: isSizeMatch(params.mainWindow, areaWidth, areaHeight),
-              click: () => applyWindowSize(params.mainWindow, areaWidth, areaHeight, areaX, areaY),
+              click: () => applyMainWindowSize(areaWidth, areaHeight, areaX, areaY),
             },
           ],
         },
@@ -157,32 +188,32 @@ export function setupTray(params: {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.center'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX + Math.floor((areaWidth - windowWidth) / 2), areaY + Math.floor((areaHeight - windowHeight) / 2)),
-              click: () => alignWindow(params.mainWindow, 'center'),
+              click: () => animateMainWindowTo(currentDisplay.workArea, 'center'),
             },
             { type: 'separator' },
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.top_left'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX, areaY),
-              click: () => alignWindow(params.mainWindow, 'top-left'),
+              click: () => animateMainWindowTo(currentDisplay.workArea, 'top-left'),
             },
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.top_right'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY),
-              click: () => alignWindow(params.mainWindow, 'top-right'),
+              click: () => animateMainWindowTo(currentDisplay.workArea, 'top-right'),
             },
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.bottom_left'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX, areaY + areaHeight - windowHeight),
-              click: () => alignWindow(params.mainWindow, 'bottom-left'),
+              click: () => animateMainWindowTo(currentDisplay.workArea, 'bottom-left'),
             },
             {
               label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.bottom_right'),
               type: 'checkbox',
               checked: isPositionMatch(params.mainWindow, areaX + areaWidth - windowWidth, areaY + areaHeight - windowHeight),
-              click: () => alignWindow(params.mainWindow, 'bottom-right'),
+              click: () => animateMainWindowTo(currentDisplay.workArea, 'bottom-right'),
             },
           ],
         },
@@ -190,7 +221,7 @@ export function setupTray(params: {
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.settings'), click: () => void params.settingsWindow.openWindow('/settings') },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.about'), click: () => params.aboutWindow().then(window => toggleWindowShow(window)) },
         { type: 'separator' },
-        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => setupInlayWindow({ i18n: params.i18n, serverChannel: params.serverChannel }) },
+        { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_inlay'), click: () => params.inlayWindow().then(window => toggleWindowShow(window)) },
         { label: params.i18n.t('tamagotchi.electron.tray.menu.labels.label.open_widgets'), click: () => params.widgetsWindow.getWindow().then(window => toggleWindowShow(window)) },
         {
           label: params.i18n.t(params.captionWindow.isVisible()
@@ -234,6 +265,14 @@ export function setupTray(params: {
       rebuildContextMenu()
     })
 
+    const appIcon = new AppIconVisibility(params.appConfig)
+    const { context } = createContext(ipcMain)
+    defineInvokeHandler(context, electronAppIconGet, () => appIcon.hidden)
+    defineInvokeHandler(context, electronAppIconSet, async (payload) => {
+      await appIcon.setHidden(Boolean(payload))
+      return appIcon.hidden
+    })
+
     onAppBeforeQuit(() => {
       // Stop every menu rebuild source before canceling its pending trailing call.
       // The tray must remain alive until no callback can reach it.
@@ -244,6 +283,7 @@ export function setupTray(params: {
       stopLocaleEffect()
 
       rebuildContextMenu.cancel()
+      mainWindowAnimator.stop()
 
       appTray.destroy()
     })

@@ -1,0 +1,96 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 469b5b267da6abfcd008fb55ced6e198034429d2..74238973cb1938fbc5e17829cb2d8b2cd3188a90 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -250,7 +250,16 @@ type FunctionCallOutputItemParam = {
+     output: string | Array<InputTextContentParam | InputImageContentParamAutoParam | InputFileContentParam | InputVideoContent>;
+     status?: (FunctionCallStatus & unknown) | null;
+ };
+-type ItemParam = ItemReferenceParam | ReasoningItemParam | CompactionSummaryItemParam | UserMessageItemParam | SystemMessageItemParam | DeveloperMessageItemParam | AssistantMessageItemParam | FunctionCallItemParam | FunctionCallOutputItemParam;
++type WebSearchTool = { type: 'web_search' };
++type WebSearchCall = {
++    type: 'web_search_call';
++    id: string;
++    status: 'in_progress' | 'searching' | 'completed' | 'failed';
++    action?: { type: 'search'; query?: string; queries?: string[]; sources?: { type: 'url'; url: string }[] }
++      | { type: 'open_page'; url: string }
++      | { type: 'find_in_page'; url: string; pattern: string };
++};
++type ItemParam = WebSearchCall | ItemReferenceParam | ReasoningItemParam | CompactionSummaryItemParam | UserMessageItemParam | SystemMessageItemParam | DeveloperMessageItemParam | AssistantMessageItemParam | FunctionCallItemParam | FunctionCallOutputItemParam;
+ type IncludeEnum = 'reasoning.encrypted_content' | 'message.output_text.logprobs';
+ type EmptyModelParam = {
+     [key: string]: unknown;
+@@ -681,7 +690,7 @@ type CompactionBody = {
+ /**
+  * An item representing a message, tool call, tool output, reasoning, or other response element.
+  */
+-type ItemField = Message | FunctionCall | FunctionCallOutput | ReasoningBody | CompactionBody;
++type ItemField = WebSearchCall | Message | FunctionCall | FunctionCallOutput | ReasoningBody | CompactionBody;
+ /**
+  * Error
+  *
+@@ -1602,7 +1611,7 @@ interface OpenResponsesOptions extends CamelCaseProperties<Omit<NoNullCreateResp
+     model: string;
+     /** @remarks `@xsai-ext/responses` only supports `stream: true`, so you should not set it. */
+     stream?: never;
+-    tools?: Tool$1[];
++    tools?: (Tool$1 | WebSearchTool)[];
+ }
+ type CamelCaseProperties<T> = {
+     [K in keyof T as K extends string ? SnakeToCamel<K> : never]: CamelCaseValue<T[K]>;
+@@ -1624,6 +1633,7 @@ interface ResponsesOptions extends OpenResponsesOptions {
+     fetch?: NonNullable<CommonRequestOptions['fetch']>;
+     headers?: NonNullable<CommonRequestOptions['headers']>;
+     onEvent?: (event: Event) => Promise<unknown> | unknown;
++    onNativeEvent?: (event: FullEvent) => Promise<unknown> | unknown;
+     onFinish?: (step?: CompletionStep) => Promise<unknown> | unknown;
+     onStepFinish?: (step: CompletionStep) => Promise<unknown> | unknown;
+     postToolCall?: PostToolCall;
+@@ -1649 +1659 @@ interface ResponsesResult {
+-export type { FullEvent, FullEventType, ItemParam, OpenResponsesOptions, ResponseReasoningTextDeltaStreamingEvent, ResponseReasoningTextDoneStreamingEvent, ResponsesOptions, ResponsesResult, StopCondition, StopContext };
++export type { FullEvent, FullEventType, ItemParam, OpenResponsesOptions, ResponseReasoningTextDeltaStreamingEvent, ResponseReasoningTextDoneStreamingEvent, ResponsesOptions, ResponsesResult, StopCondition, StopContext, WebSearchCall, WebSearchTool };
+diff --git a/dist/index.js b/dist/index.js
+index 25f6fafd8533cde3f8728aad01ebaf958421f1b4..c3facb0f54da85f57ce590f772d5d1525af98b4e 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -93,7 +93,7 @@ const responses = (options) => {
+   const mapFullEvent = (event) => {
+     switch (event.type) {
+       case "error":
+-        return [{ cause: event.error, message: event.error.message, type: "error" }];
++        return [{ cause: event.error ?? event, message: event.error?.message ?? event.message ?? "Responses API error", type: "error" }];
+       case "response.completed":
+       case "response.failed":
+       case "response.incomplete":
+@@ -183,6 +183,7 @@ const responses = (options) => {
+       input: stepOptions.input,
+       model: stepOptions.model,
+       onEvent: void 0,
++      onNativeEvent: void 0,
+       onFinish: void 0,
+       onStepFinish: void 0,
+       postToolCall: void 0,
+@@ -243,6 +244,7 @@ const responses = (options) => {
+         if (done)
+           throw new Error("Responses stream ended before a terminal event");
+         let shouldContinue = false;
++        await options.onNativeEvent?.(event);
+         const events = mapFullEvent(event);
+         const step = { events, functionCalls, toolCalls, toolResults };
+         switch (event.type) {
+@@ -298,12 +300,14 @@ const responses = (options) => {
+         pushStreamingEvent(event);
+         await pushEvents(events);
+         options.abortSignal?.throwIfAborted();
++        if (event.type === "error")
++          throw new Error(event.response?.error?.message ?? event.error?.message ?? event.message ?? "Responses request failed");
+         if (event.type === "response.failed")
+           throw new Error(event.response.error?.message ?? "Responses request failed");
+         if (event.type === "response.completed")
+           return shouldContinue ? async () => doStream() : void 0;
+         if (event.type === "response.incomplete")
+-          return;
++          throw new Error(`Responses request incomplete: ${event.response.incomplete_details?.reason ?? "unknown"}`);
+       }
+     } finally {
+       options.abortSignal?.removeEventListener("abort", cancel);

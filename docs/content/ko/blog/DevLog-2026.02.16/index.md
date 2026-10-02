@@ -10,11 +10,11 @@ excerpt: |
 
 ## 돌아보기
 
-작년 [DevLog](../DevLog-2025.08.26/) 에서는 `airi-factorio`의 순수 비전 방향 진전을 나눴습니다. 오늘은 Dome Keeper 방향에서 무엇을 해 왔는지 이야기하려 합니다.
+작년 [DevLog](../DevLog-2025.08.26/)에서는 `airi-factorio`의 순수 비전 방향 진전을 나눴습니다. 오늘은 Dome Keeper 방향에서 무엇을 해 왔는지 이야기하려 합니다.
 
 잠깐, LemonNeko? `airi-factorio`를 계속 안 하고요?
 
-솔직히 겁이 났습니다. Factorio는 너무 열려 있고 복잡해서 제가 통제할 수 없었거든요. 그래서 비교적 단순한 게임인 [Dome Keeper](https://store.steampowered.com/app/1637320/Dome_Keeper/) 로 옮겼습니다.
+솔직히 겁이 났습니다. Factorio는 너무 열려 있고 복잡해서 제가 통제할 수 없었거든요. 그래서 비교적 단순한 게임인 [Dome Keeper](https://store.steampowered.com/app/1637320/Dome_Keeper/)로 옮겼습니다.
 
 ![Dome Keeper](https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/1637320/334439c379674a719de3f12028f76977aeb176c6/header.jpg?t=1770751169)
 

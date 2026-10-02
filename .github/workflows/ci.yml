@@ -16,11 +16,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      # NOTICE:
+      # Pin Node.js because 26.8.0 reports 26.8.0-alpha.0.0.0.
+      # sharp 0.29.3 rejects this prerelease version during pnpm install.
+      # Source: https://github.com/nodejs/node/blob/v26.8.0/src/node_version.h
+      # Remove this pin when Node.js 26 reports a stable version.
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
     # Setup .NET for Godot C# linting
       - name: Setup .NET
@@ -75,11 +80,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       # Setup .NET and Godot
       - name: Setup .NET
@@ -124,11 +129,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-turbo-
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       # # Setup .NET and Godot
       # - name: Setup .NET
@@ -152,6 +157,8 @@ jobs:
 
       - run: pnpm run build:packages
       - run: pnpm run test:run
+        env:
+          NODE_OPTIONS: --no-experimental-webstorage
 
   typecheck:
     name: Type Check
@@ -161,11 +168,11 @@ jobs:
       - uses: actions/checkout@v6
 
       # Node.js
-      - uses: pnpm/action-setup@v5
-      - uses: actions/setup-node@v6
+      - uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck

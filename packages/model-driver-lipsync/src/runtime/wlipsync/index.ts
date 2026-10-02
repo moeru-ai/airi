@@ -1,0 +1,1 @@
+export { createWLipSyncNode } from 'wlipsync'

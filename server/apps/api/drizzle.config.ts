@@ -3,7 +3,7 @@ import { env } from 'node:process'
 import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({
-  schema: './src/schemas/**/*.ts',
+  schema: ['./src/schemas/**/*.ts', '../../packages/auth-shared/src/schema.ts'],
   out: './drizzle',
   dialect: 'postgresql',
   dbCredentials: {

@@ -1,110 +1,99 @@
 <script setup lang="ts">
-import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components/scenarios/chat'
-import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { useChatMaintenanceStore } from '@proj-airi/stage-ui/stores/chat/maintenance'
-import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useTheme } from '@proj-airi/ui'
-import { storeToRefs } from 'pinia'
-import { ref } from 'vue'
+import { useLocalStorage } from '@vueuse/core'
+import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ActionAbout from '../Layouts/InteractiveArea/Actions/About.vue'
 import ViewControls from '../Layouts/InteractiveArea/Actions/ViewControls.vue'
+import ChatToolbarButton from './ChatToolbarButton.vue'
 
-import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-const { cleanupMessages } = useChatMaintenanceStore()
-const { messages } = storeToRefs(useChatSessionStore())
-const { trackChatMessagesCleared } = useAnalytics()
 const { isDark, toggleDark } = useTheme()
-const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const { t } = useI18n()
 
-const backgroundDialogOpen = ref(false)
-const sessionsDrawerOpen = ref(false)
+const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
+type SendMode = (typeof SEND_MODES)[number]
 
-function handleCleanupMessages() {
-  const messageCount = messages.value.filter(message => message.role !== 'system').length
-  cleanupMessages()
-  trackChatMessagesCleared({
-    source: 'chat_controls',
-    message_count: messageCount,
-  })
-}
+const aboutOpen = ref(false)
+const backgroundDialogOpen = ref(false)
+const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
+const sendModeLabels = computed<Record<SendMode, string>>(() => ({
+  'enter': t('stage.send-mode.enter'),
+  'ctrl-enter': t('stage.send-mode.ctrl-enter'),
+  'double-enter': t('stage.send-mode.double-enter'),
+}))
 </script>
 
 <template>
+  <ActionAbout v-model="aboutOpen" hide-trigger />
   <BackgroundDialogPicker v-model="backgroundDialogOpen" />
-  <ChatSessionsDrawer v-model="sessionsDrawerOpen" />
   <div absolute bottom--8 right-0 flex gap-2>
-    <div flex gap-1>
-      <button
-        data-testid="conversation-selector-button"
-        :class="[
-          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
-          'bg-neutral-100 text-lg text-neutral-500 transition-colors transition-transform active:scale-95',
-          'hover:text-primary-500 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-primary-400',
-        ]"
-        :title="t('stage.chat.sessions.title')"
-        :aria-label="t('stage.chat.sessions.title')"
-        @click="sessionsDrawerOpen = true"
-      >
-        <div class="i-solar:chat-line-bold-duotone" />
-      </button>
-      <button
-        data-testid="speech-mute-button"
-        :class="[
-          'max-h-[10lh] min-h-[1lh] flex items-center justify-center rounded-md p-2 outline-none',
-          'text-lg transition-colors transition-transform active:scale-95',
-          speechMuted
-            ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
-            : 'bg-neutral-100 text-neutral-500 hover:text-primary-500 dark:bg-neutral-800 dark:text-neutral-400 dark:hover:text-primary-400',
-        ]"
-        :title="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-        :aria-label="speechMuted ? t('stage.speech-output.unmute') : t('stage.speech-output.mute')"
-        :aria-pressed="speechMuted"
-        @click="toggleSpeechMuted"
-      >
-        <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone" />
-        <div v-else class="i-solar:volume-loud-bold-duotone" />
-      </button>
-    </div>
     <ViewControls />
-    <button
-      class="max-h-[10lh] min-h-[1lh]"
-      bg="neutral-100 dark:neutral-800"
-      text="lg neutral-500 dark:neutral-400"
-      hover:text="red-500 dark:red-400"
-      flex items-center justify-center rounded-md p-2 outline-none
-      transition-colors transition-transform active:scale-95
-      @click="handleCleanupMessages"
+    <ChatToolbarButton
+      :title="t('stage.mobile-tools.background')"
+      :aria-label="t('stage.mobile-tools.background')"
+      @click="backgroundDialogOpen = true"
     >
-      <div class="i-solar:trash-bin-2-bold-duotone" />
-    </button>
-
-    <button
-      class="max-h-[10lh] min-h-[1lh]"
-      bg="neutral-100 dark:neutral-800"
-      text="lg neutral-500 dark:neutral-400"
-      flex items-center justify-center rounded-md p-2 outline-none
-      transition-colors transition-transform active:scale-95
+      <div class="i-solar:gallery-wide-outline size-5" />
+    </ChatToolbarButton>
+    <DropdownMenuRoot>
+      <DropdownMenuTrigger as-child>
+        <ChatToolbarButton
+          :title="t('stage.send-mode.title')"
+          :aria-label="t('stage.send-mode.title')"
+        >
+          <div class="i-solar:keyboard-outline size-5" />
+        </ChatToolbarButton>
+      </DropdownMenuTrigger>
+      <DropdownMenuPortal>
+        <DropdownMenuContent
+          side="top"
+          align="end"
+          :side-offset="8"
+          :class="[
+            'z-50 min-w-[180px] rounded-xl border border-neutral-200/60 bg-neutral-50/90 p-1',
+            'shadow-lg backdrop-blur-md dark:border-neutral-800/30 dark:bg-neutral-900/80',
+            'flex flex-col gap-1',
+          ]"
+        >
+          <DropdownMenuItem
+            v-for="mode in SEND_MODES"
+            :key="mode"
+            :class="[
+              'w-full flex cursor-pointer items-center rounded-lg px-3 py-2 text-xs outline-none transition-colors',
+              'hover:bg-primary-100/60 dark:hover:bg-primary-900/40',
+              sendMode === mode ? 'bg-primary-100/60 text-primary-600 font-medium dark:bg-primary-900/40 dark:text-primary-300' : 'text-neutral-600 dark:text-neutral-300',
+            ]"
+            @select="sendMode = mode"
+          >
+            <div class="mr-2 h-4 w-4 flex items-center justify-center">
+              <div v-if="sendMode === mode" class="i-ph:check-bold h-4 w-4" />
+            </div>
+            <span>{{ sendModeLabels[mode] }}</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenuPortal>
+    </DropdownMenuRoot>
+    <ChatToolbarButton
+      :title="t('stage.mobile-tools.dark-mode')"
+      :aria-label="t('stage.mobile-tools.dark-mode')"
       @click="() => toggleDark()"
     >
       <Transition name="fade" mode="out-in">
-        <div v-if="isDark" i-solar:moon-bold />
-        <div v-else i-solar:sun-2-bold />
+        <div v-if="isDark" class="i-solar:moon-outline size-5" />
+        <div v-else class="i-solar:sun-2-outline size-5" />
       </Transition>
-    </button>
-    <button
-      class="max-h-[10lh] min-h-[1lh]"
-      bg="neutral-100 dark:neutral-800"
-      text="lg neutral-500 dark:neutral-400"
-      flex items-center justify-center rounded-md p-2 outline-none
-      transition-colors transition-transform active:scale-95
-      title="Background"
-      @click="backgroundDialogOpen = true"
+    </ChatToolbarButton>
+    <ChatToolbarButton
+      data-testid="about-button"
+      title="About"
+      aria-label="About"
+      @click="aboutOpen = true"
     >
-      <div i-solar:gallery-wide-bold-duotone />
-    </button>
+      <div class="i-solar:info-circle-outline size-5" />
+    </ChatToolbarButton>
   </div>
 </template>

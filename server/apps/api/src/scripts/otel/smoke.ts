@@ -34,11 +34,6 @@ metrics.setGlobalMeterProvider(provider)
 // flush via the in-memory reader.
 env.DATABASE_URL ??= 'postgres://test'
 env.REDIS_URL ??= 'redis://test'
-env.BETTER_AUTH_SECRET ??= 'test'
-env.AUTH_GOOGLE_CLIENT_ID ??= 'test'
-env.AUTH_GOOGLE_CLIENT_SECRET ??= 'test'
-env.AUTH_GITHUB_CLIENT_ID ??= 'test'
-env.AUTH_GITHUB_CLIENT_SECRET ??= 'test'
 // 32 deterministic bytes is enough to satisfy env validation; the smoke
 // script never actually hits the router.
 env.LLM_ROUTER_MASTER_KEY ??= Buffer.alloc(32, 0xAA).toString('base64')

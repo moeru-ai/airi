@@ -1,6 +1,6 @@
 /**
  * Local integration smoke for the `ws.connections.active` ObservableGauge
- * pattern used in `server/apps/api/src/routes/chat-ws/index.ts`.
+ * pattern used in `server/apps/api/src/routes/chat-ws/runtime.ts`.
  *
  * Reproduces the exact pattern (Map<userId, Set<ctx>> registry +
  * `addCallback` walking it) inside a real Hono + @hono/node-ws server, then
@@ -50,7 +50,7 @@ const wsConnectionsActive = meter.createObservableGauge('ws.connections.active',
   description: 'Active WS connections (live registry size)',
 })
 
-// Identical structure to chat-ws/index.ts: Map<userId, Set<connectionKey>>.
+// Identical structure to chat-ws/connection-registry.ts: Map<userId, Set<connectionKey>>.
 // Multi-tab support requires Set (not just Map.size).
 const userConnections = new Map()
 

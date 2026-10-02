@@ -1,31 +1,19 @@
 import type { Database } from '../../../../libs/db'
 
+import { Buffer } from 'node:buffer'
+
 import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
+import { createTestRedis } from '../../../../libs/tests/redis'
+import { createEnvelopeCrypto } from '../../../../utils/envelope-crypto'
 import { createCharacterService } from '../../characters'
 import { createChatService } from '../../chats'
 import { createFluxService } from '../../flux'
 import { createProviderService } from '../../providers'
 
 import * as schema from '../../../../schemas'
-
-function fakeRedis() {
-  const map = new Map<string, string>()
-  return {
-    get: vi.fn(async (k: string) => map.get(k) ?? null),
-    set: vi.fn(async (k: string, v: string) => {
-      map.set(k, v)
-      return 'OK'
-    }),
-    del: vi.fn(async (k: string) => {
-      const had = map.has(k)
-      map.delete(k)
-      return had ? 1 : 0
-    }),
-  } as any
-}
 
 function fakeConfigKV() {
   return {
@@ -46,21 +34,22 @@ describe('fluxService.deleteAllForUser', () => {
     await db.insert(schema.user).values({ id: 'u-flux-1', name: 'A', email: 'a@example.com' })
     await db.insert(schema.userFlux).values({ userId: 'u-flux-1', flux: 100 })
 
-    const redis = fakeRedis()
+    const redis = createTestRedis()
+    const del = vi.spyOn(redis, 'del')
     const service = createFluxService(db, redis, fakeConfigKV())
     await service.deleteAllForUser('u-flux-1')
 
     const row = await db.query.userFlux.findFirst({ where: eq(schema.userFlux.userId, 'u-flux-1') })
     expect(row?.deletedAt).toBeInstanceOf(Date)
-    expect(redis.del).toHaveBeenCalledTimes(1)
-    expect(redis.del).toHaveBeenCalledWith(expect.stringContaining('u-flux-1'))
+    expect(del).toHaveBeenCalledTimes(1)
+    expect(del).toHaveBeenCalledWith(expect.stringContaining('u-flux-1'))
   })
 
   it('is idempotent on retry — already-soft-deleted rows stay unchanged', async () => {
     await db.insert(schema.user).values({ id: 'u-flux-2', name: 'B', email: 'b@example.com' })
     await db.insert(schema.userFlux).values({ userId: 'u-flux-2', flux: 50 })
 
-    const redis = fakeRedis()
+    const redis = createTestRedis()
     const service = createFluxService(db, redis, fakeConfigKV())
 
     await service.deleteAllForUser('u-flux-2')
@@ -85,11 +74,11 @@ describe('providerService.deleteAllForUser', () => {
   it('marks every userProviderConfigs row owned by the user', async () => {
     await db.insert(schema.user).values({ id: 'u-prov-1', name: 'P', email: 'p@example.com' })
     await db.insert(schema.userProviderConfigs).values([
-      { ownerId: 'u-prov-1', definitionId: 'openai', name: 'a' },
-      { ownerId: 'u-prov-1', definitionId: 'anthropic', name: 'b' },
+      { instanceId: 'openai', ownerId: 'u-prov-1', definitionId: 'openai', config: 'v1.x.x.x' },
+      { instanceId: 'anthropic', ownerId: 'u-prov-1', definitionId: 'anthropic', config: 'v1.x.x.x' },
     ])
 
-    const service = createProviderService(db)
+    const service = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
     await service.deleteAllForUser('u-prov-1')
 
     const rows = await db.query.userProviderConfigs.findMany({ where: eq(schema.userProviderConfigs.ownerId, 'u-prov-1') })
@@ -99,9 +88,9 @@ describe('providerService.deleteAllForUser', () => {
 
   it('does not touch other users rows', async () => {
     await db.insert(schema.user).values({ id: 'u-prov-other', name: 'O', email: 'o@example.com' })
-    await db.insert(schema.userProviderConfigs).values({ ownerId: 'u-prov-other', definitionId: 'openai', name: 'kept' })
+    await db.insert(schema.userProviderConfigs).values({ instanceId: 'openai', ownerId: 'u-prov-other', definitionId: 'openai', config: 'v1.x.x.x' })
 
-    const service = createProviderService(db)
+    const service = createProviderService(db, createEnvelopeCrypto({ masterKey: Buffer.alloc(32, 7) }))
     await service.deleteAllForUser('u-prov-1')
 
     const otherRow = await db.query.userProviderConfigs.findFirst({ where: eq(schema.userProviderConfigs.ownerId, 'u-prov-other') })

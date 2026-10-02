@@ -15,7 +15,7 @@ import NmsIou from '../../../en/blog/DevLog-2025.08.26/components/nms-iou.vue'
 
 오랜만입니다, 여러분! AIRI 메인테이너 중 한 명인 [@LemonNeko](https://github.com/LemonNekoGH)입니다. ~~아, 이렇게 시작하는 것도 슬슬 지겹네요. 꼭 LLM 같잖아요.~~
 
-지난 [DevLog](../DevLog-2025.07.18/) 에서는 [Factorio Learning Environment](https://arxiv.org/abs/2503.09617) 논문을 간단히 살펴보고 `airi-factorio`를 어떻게 개선할지 이야기했습니다. 그런데... 오늘 나눌 이야기는 그것이 아니라 순수 비전 방향에서의 진전입니다.
+지난 [DevLog](../DevLog-2025.07.18/)에서는 [Factorio Learning Environment](https://arxiv.org/abs/2503.09617) 논문을 간단히 살펴보고 `airi-factorio`를 어떻게 개선할지 이야기했습니다. 그런데... 오늘 나눌 이야기는 그것이 아니라 순수 비전 방향에서의 진전입니다.
 
 올해 6월, [@nekomeowww](https://github.com/nekomeowww)가 거의 실시간으로 동작하는 [VLM Playground](https://huggingface.co/spaces/moeru-ai/smolvlm-realtime-webgpu-vue) HuggingFace Space를 공개했는데 정말 멋져 보였습니다. 그래서 먼저 간단한 실시간 이미지 인식(당시엔 객체 탐지와 이미지 인식을 헷갈렸습니다)을 시도하고, 어떻게든 AI에게 넘겨 판단하게 한 뒤, 어떤 방식으로든 게임에 동작을 출력하기로 했습니다.
 
@@ -43,7 +43,7 @@ Factorio는 공식 [Docker 이미지](https://hub.docker.com/r/factoriotools/fac
 
 ### Factorio 클라이언트 다운로드
 
-Factorio 공식 사이트에서 바로 받을 수 있지만 수동 로그인이 필요해서 자동화 워크플로에는 불편합니다. 그래서 다운로드 스크립트 [factorio-dl](https://github.com/moviuro/factorio-dl/) 을 찾았습니다. 사용자 이름, 비밀번호, 받을 버전을 주면 시스템 아키텍처에 맞는 클라이언트를 자동으로 내려받아 주는, 아주 복잡한 셸 스크립트입니다.
+Factorio 공식 사이트에서 바로 받을 수 있지만 수동 로그인이 필요해서 자동화 워크플로에는 불편합니다. 그래서 다운로드 스크립트 [factorio-dl](https://github.com/moviuro/factorio-dl/)을 찾았습니다. 사용자 이름, 비밀번호, 받을 버전을 주면 시스템 아키텍처에 맞는 클라이언트를 자동으로 내려받아 주는, 아주 복잡한 셸 스크립트입니다.
 
 ### 가상 디스플레이 준비
 
@@ -104,7 +104,7 @@ sudo apt install -y websockify novnc
 
 ### 모델 학습
 
-이제 막 시작한 단계라 [Get Started](https://docs.ultralytics.com/tasks/detect/) 에서 이 몇 줄을 그대로 복사했습니다:
+이제 막 시작한 단계라 [Get Started](https://docs.ultralytics.com/tasks/detect/)에서 이 몇 줄을 그대로 복사했습니다:
 
 ```python
 from ultralytics import YOLO

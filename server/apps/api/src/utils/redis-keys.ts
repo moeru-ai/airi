@@ -13,10 +13,6 @@ export function redisKeyFrom(...parts: RedisKeyPart[]): string {
   }).join(':')
 }
 
-export function configRedisKey(key: string): string {
-  return redisKeyFrom('config', key)
-}
-
 export function userFluxRedisKey(userId: string): string {
   return redisKeyFrom('user', userId, 'flux')
 }

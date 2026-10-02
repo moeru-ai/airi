@@ -1,0 +1,107 @@
+diff --git a/dist/tab.js b/dist/tab.js
+index 9fe1d1b6fe8b0172251ce7688f742bbb6c3b6da9..5dba20d6f551ec644eb168db95b45e48935879db 100644
+--- a/dist/tab.js
++++ b/dist/tab.js
+@@ -111,8 +111,8 @@ export class Tab extends EventTarget {
+                     // leader when it died — we are the leader now, so dispatch them to
+                     // ourselves (see the matching re-delivery for non-leader tabs in
+                     // `_onLeader`; the same at-least-once caveat applies).
+-                    this._callDeferreds.forEach(({ name, rest }, callNumber) => {
+-                        if (queued.has(`${this._id}:${callNumber}`))
++                    this._callDeferreds.forEach(({ awaitingLeader, name, rest }, callNumber) => {
++                        if (awaitingLeader || queued.has(`${this._id}:${callNumber}`))
+                             return;
+                         this._clearSentCall(callNumber);
+                         this._onCall(this._id, callNumber, name, ...rest);
+@@ -141,8 +141,12 @@ export class Tab extends EventTarget {
+                 this._clearSentCall(callNumber);
+                 reject(new Error('Call timed out'));
+             }, this._callTimeout);
+-            this._callDeferreds.set(callNumber, { resolve, reject, timeout, name, rest });
++            this._callDeferreds.set(callNumber, { awaitingLeader: true, resolve, reject, timeout, name, rest });
+             const hasLeader = await this.hasLeader();
++            const deferred = this._callDeferreds.get(callNumber);
++            if (!deferred)
++                return;
++            deferred.awaitingLeader = false;
+             try {
+                 if (this.isLeader && this._isLeaderReady) {
+                     this._onCall(this._id, callNumber, name, ...rest);
+@@ -294,8 +298,9 @@ export class Tab extends EventTarget {
+         if (this._sentCalls.get(callNumber))
+             this._callReceived(callNumber);
+         const deferred = this._callDeferreds.get(callNumber);
++        // Delivery is at-least-once, so a duplicate or late return can arrive after the call has already settled.
+         if (!deferred)
+-            return console.error('No deferred found for call', callNumber);
++            return;
+         clearTimeout(deferred.timeout);
+         this._callDeferreds.delete(callNumber);
+         if (error)
+@@ -345,8 +350,8 @@ export class Tab extends EventTarget {
+         // The same duplication happens inside a single election: a call queued while the leader was still initializing
+         // is dispatched by that leader AND re-sent from here, because the leader's `onLeader` broadcast goes out
+         // synchronously while the queued call's `onReturn` is still awaiting the handler.
+-        this._callDeferreds.forEach(({ name, rest }, callNumber) => {
+-            if (queued.has(`${this._id}:${callNumber}`) || this._sentCalls.has(callNumber))
++        this._callDeferreds.forEach(({ awaitingLeader, name, rest }, callNumber) => {
++            if (awaitingLeader || queued.has(`${this._id}:${callNumber}`) || this._sentCalls.has(callNumber))
+                 return;
+             try {
+                 this._sendCall(callNumber, name, rest);
+diff --git a/src/tab.ts b/src/tab.ts
+index 3d42674d6276ff707b890d8009d0af22298f00c3..57d4fa50d46a7e2195ea9e51de4586c90a62de2e 100644
+--- a/src/tab.ts
++++ b/src/tab.ts
+@@ -7,4 +7,6 @@ interface Deferred {
+ interface Deferred {
++  /** The original call is still waiting for `hasLeader()` to select its first delivery path. */
++  awaitingLeader: boolean;
+   resolve: (value: any) => void;
+   reject: (reason?: any) => void;
+   timeout: number;
+@@ -166,8 +168,8 @@ export class Tab<T = Record<string, any>> extends EventTarget implements Tab {
+           // leader when it died — we are the leader now, so dispatch them to
+           // ourselves (see the matching re-delivery for non-leader tabs in
+           // `_onLeader`; the same at-least-once caveat applies).
+-          this._callDeferreds.forEach(({ name, rest }, callNumber) => {
+-            if (queued.has(`${this._id}:${callNumber}`)) return;
++          this._callDeferreds.forEach(({ awaitingLeader, name, rest }, callNumber) => {
++            if (awaitingLeader || queued.has(`${this._id}:${callNumber}`)) return;
+             this._clearSentCall(callNumber);
+             this._onCall(this._id, callNumber, name, ...rest);
+           });
+@@ -194,8 +196,11 @@ export class Tab<T = Record<string, any>> extends EventTarget implements Tab {
+         this._clearSentCall(callNumber);
+         reject(new Error('Call timed out'));
+       }, this._callTimeout);
+-      this._callDeferreds.set(callNumber, { resolve, reject, timeout, name, rest });
++      this._callDeferreds.set(callNumber, { awaitingLeader: true, resolve, reject, timeout, name, rest });
+       const hasLeader = await this.hasLeader();
++      const deferred = this._callDeferreds.get(callNumber);
++      if (!deferred) return;
++      deferred.awaitingLeader = false;
+       try {
+         if (this.isLeader && this._isLeaderReady) {
+           this._onCall(this._id, callNumber, name, ...rest);
+@@ -337,7 +342,8 @@ export class Tab<T = Record<string, any>> extends EventTarget implements Tab {
+   _onReturn(callNumber: number, error: any, results: any) {
+     if (this._sentCalls.get(callNumber)) this._callReceived(callNumber);
+     const deferred = this._callDeferreds.get(callNumber);
+-    if (!deferred) return console.error('No deferred found for call', callNumber);
++    // Delivery is at-least-once, so a duplicate or late return can arrive after the call has already settled.
++    if (!deferred) return;
+     clearTimeout(deferred.timeout);
+     this._callDeferreds.delete(callNumber);
+     if (error) deferred.reject(error);
+@@ -386,8 +392,8 @@ export class Tab<T = Record<string, any>> extends EventTarget implements Tab {
+     // The same duplication happens inside a single election: a call queued while the leader was still initializing
+     // is dispatched by that leader AND re-sent from here, because the leader's `onLeader` broadcast goes out
+     // synchronously while the queued call's `onReturn` is still awaiting the handler.
+-    this._callDeferreds.forEach(({ name, rest }, callNumber) => {
+-      if (queued.has(`${this._id}:${callNumber}`) || this._sentCalls.has(callNumber)) return;
++    this._callDeferreds.forEach(({ awaitingLeader, name, rest }, callNumber) => {
++      if (awaitingLeader || queued.has(`${this._id}:${callNumber}`) || this._sentCalls.has(callNumber)) return;
+       try {
+         this._sendCall(callNumber, name, rest);
+       } catch (e) {

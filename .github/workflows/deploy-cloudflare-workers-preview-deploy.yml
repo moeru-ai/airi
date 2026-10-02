@@ -147,13 +147,11 @@ jobs:
           allow-unsafe-pr-checkout: true
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: pnpm/setup@v2
         with:
-          node-version: lts/*
-          cache: pnpm
+          runtime: node@26.7.0
+          cache: true
+          install: false
 
       # NOTICE:
       #
@@ -221,7 +219,7 @@ jobs:
       - name: Wrangler Upload
         if: ${{ steps.build.outcome == 'success' }}
         id: wrangler-versions-upload
-        uses: cloudflare/wrangler-action@v3.14.1
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

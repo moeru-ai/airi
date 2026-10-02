@@ -1,9 +1,13 @@
+import type { ContextUpdate, ModuleAnnouncedEvent } from '@proj-airi/server-sdk'
+
 import { describe, expect, it, vi } from 'vitest'
 
 import { MinecraftContextService } from './minecraft-context-service'
 
-/** Minimal bot stub exposing only the fields refreshStatusSnapshot reads. */
-function fakeBot(): any {
+type ContextBot = Parameters<MinecraftContextService['bindBot']>[0]
+
+/** Minimal bot stub exposing only the status fields owned by the context module. */
+function fakeBot(): ContextBot {
   return {
     username: 'Airi',
     bot: {
@@ -16,41 +20,104 @@ function fakeBot(): any {
 }
 
 function makeService(masterUsername?: string) {
-  const captured: any[] = []
+  const captured: ContextUpdate[] = []
+  let moduleAnnouncedListener: ((event: ModuleAnnouncedEvent) => void) | undefined
   const airiBridge = {
-    onModuleAnnounced: vi.fn(() => () => {}),
-    sendContextUpdate: vi.fn((update: any) => captured.push(update)),
+    onModuleAnnounced: vi.fn((listener: (event: ModuleAnnouncedEvent) => void) => {
+      moduleAnnouncedListener = listener
+      return () => {
+        moduleAnnouncedListener = undefined
+      }
+    }),
+    sendContextUpdate: vi.fn((update: ContextUpdate) => {
+      captured.push(update)
+    }),
+    setCommandAvailable: vi.fn<(available: boolean) => void>(),
   }
   const service = new MinecraftContextService({
-    airiBridge: airiBridge as any,
+    airiBridge,
     serverHost: '127.0.0.1',
     serverPort: 25565,
     masterUsername,
   })
-  return { service, captured }
+
+  return {
+    airiBridge,
+    captured,
+    getModuleAnnouncedListener: () => moduleAnnouncedListener,
+    service,
+  }
 }
 
-describe('minecraftContextService master identity', () => {
-  it('surfaces the configured master username in the status text only', () => {
-    const { service, captured } = makeService('dssadg')
+/**
+ * @example
+ * service.bindBot(fakeBot()) publishes relay instructions through `minecraft:status`.
+ */
+describe('minecraftContextService desktop relay context', () => {
+  /**
+   * @example
+   * expect(update.text).toContain('builtIn_emitSparkCommand')
+   */
+  it('publishes the generic relay tool contract and configured master while the bot is online', () => {
+    const { airiBridge, service, captured } = makeService('dssadg')
+
     service.bindBot(fakeBot())
+
     const update = captured[0]
     expect(update.lane).toBe('minecraft:status')
+    expect(update.strategy).toBe('replace-self')
+    expect(update.text).toContain('Bot online: Airi')
+    expect(update.text).toContain('Desktop command relay: available.')
+    expect(update.text).toContain('builtIn_emitSparkCommand')
+    expect(update.text).toContain('destinations to ["minecraft-bot"]')
     expect(update.text).toContain('Master (your owner) in-game username: dssadg')
-    // The owner identity rides only in the human-readable status text (for the bot's own brain). It
-    // must NOT leak as a machine-readable `master:` hint — that was a desktop-store coupling point,
-    // removed in the neutral Minecraft integration restore. Desktop "主人" binding is reintroduced via
-    // the Minecraft adapter, not baked into the bot service.
-    expect(update.hints.some((hint: string) => hint.startsWith('master:'))).toBe(false)
+    expect(update.hints?.some(hint => hint.startsWith('master:'))).toBe(false)
+    expect(airiBridge.setCommandAvailable).toHaveBeenCalledWith(true)
+
     service.destroy()
   })
 
-  it('omits the master line when no master username is configured', () => {
-    const { service, captured } = makeService(undefined)
+  /**
+   * @example
+   * expect(update.text).toContain('Desktop command relay: unavailable.')
+   */
+  it('replaces the relay context with an offline capability when the bot unbinds', () => {
+    const { airiBridge, service, captured } = makeService()
     service.bindBot(fakeBot())
+
+    service.unbindBot()
+
+    const update = captured[1]
+    expect(update.text).toContain('Bot offline: no active Minecraft bot.')
+    expect(update.text).toContain('Desktop command relay: unavailable.')
+    expect(update.text).toContain('Do not call the builtIn_emitSparkCommand tool')
+    expect(update.hints).toEqual(['status', 'offline'])
+    expect(airiBridge.setCommandAvailable).toHaveBeenLastCalledWith(false)
+
+    service.destroy()
+  })
+
+  /**
+   * @example
+   * expect(update.destinations).toEqual(['instance:stage-1'])
+   */
+  it('replays the current relay capability to a newly announced Stage instance', () => {
+    const { service, captured, getModuleAnnouncedListener } = makeService()
+    service.init()
+
+    getModuleAnnouncedListener()?.({
+      name: 'proj-airi:stage-tamagotchi',
+      identity: {
+        id: 'stage-1',
+        kind: 'plugin',
+        plugin: { id: 'stage-tamagotchi' },
+      },
+    })
+
     const update = captured[0]
-    expect(update.hints.some((hint: string) => hint.startsWith('master:'))).toBe(false)
-    expect(update.text).not.toContain('Master (your owner)')
+    expect(update.text).toContain('Bot offline: no active Minecraft bot.')
+    expect(update.destinations).toEqual(['instance:stage-1'])
+
     service.destroy()
   })
 })

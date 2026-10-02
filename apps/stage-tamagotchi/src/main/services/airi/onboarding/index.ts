@@ -1,51 +1,23 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
-import type { BrowserWindow, Rectangle } from 'electron'
+import type { BrowserWindow } from 'electron'
 
 import type { OnboardingWindowManager } from '../../../windows/onboarding'
 
 import { defineInvokeHandler } from '@moeru/eventa'
-import { animate, utils } from 'animejs'
 import { screen } from 'electron'
 
 import { electronOpenOnboarding } from '../../../../shared/eventa'
+import { Animator } from '../../../windows/shared/animator'
 import { computeAdjacentPosition } from '../../../windows/shared/display'
 
 const ANIMATION_DURATION = 350
-
-function animateWindowTo(
-  window: BrowserWindow,
-  target: Rectangle,
-): ReturnType<typeof animate> | undefined {
-  if (window.isDestroyed())
-    return undefined
-
-  const current = window.getBounds()
-  const needsResize = current.width !== target.width || current.height !== target.height
-
-  if (needsResize)
-    window.setSize(target.width, target.height)
-
-  const state = { x: current.x, y: current.y }
-
-  return animate(state, {
-    x: target.x,
-    y: target.y,
-    duration: ANIMATION_DURATION,
-    ease: 'outCubic',
-    modifier: utils.round(0),
-    onRender: () => {
-      if (!window.isDestroyed())
-        window.setPosition(Math.round(state.x), Math.round(state.y))
-    },
-  })
-}
 
 export function createOnboardingService(params: {
   context: ReturnType<typeof createContext>['context']
   onboardingWindowManager: OnboardingWindowManager
   mainWindow: BrowserWindow
 }) {
-  let currentAnimation: ReturnType<typeof animate> | undefined
+  const mainWindowAnimator = new Animator(params.mainWindow)
   let cleanupOnClosed: (() => void) | undefined
 
   defineInvokeHandler(params.context, electronOpenOnboarding, async () => {
@@ -61,13 +33,12 @@ export function createOnboardingService(params: {
       display.workArea,
     )
 
-    currentAnimation?.pause()
-    currentAnimation = animateWindowTo(params.mainWindow, {
+    mainWindowAnimator.windowBoundsAnimateTo({
       x: adjacent.x,
       y: adjacent.y,
       width: adjacent.width,
       height: adjacent.height,
-    })
+    }, { duration: ANIMATION_DURATION })
 
     let userMovedManually = false
     let ignoreNextMoves = true
@@ -91,8 +62,7 @@ export function createOnboardingService(params: {
       params.mainWindow.removeListener('resize', moveListener)
 
       if (!userMovedManually && !params.mainWindow.isDestroyed()) {
-        currentAnimation?.pause()
-        currentAnimation = animateWindowTo(params.mainWindow, savedBounds)
+        mainWindowAnimator.windowBoundsAnimateTo(savedBounds, { duration: ANIMATION_DURATION })
       }
 
       cleanupOnClosed = undefined

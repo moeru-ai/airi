@@ -49,8 +49,49 @@ devtools:
   pages:
     context-flow:
       title: Контекст потока
+    editor:
+      title: Редактор AIRI
+      description: Откройте окно редактора AIRI
+      button: Открыть редактор
     lag-visualizer:
       title: Лаг визуализатор
+    live2d-motion:
+      actions:
+        back: Назад
+      system-audio:
+        signal: Входящий сигнал
+        actions:
+          start: Начать ввод
+          stop: Остановить ввод
+      panels:
+        direct-control: Прямое управление
+        preview: Предпросмотр модели
+        timeline: Хронология
+      preview:
+        groups:
+          expression: Выражения
+          offset: Смещение позиции
+        values:
+          mouth-form: Форма
+      input:
+        keyboard: Клавиатура
+        controller: Контроллер
+      editor:
+        undo: Откатить
+        redo: Повторить
+        reset-view: Сбросить вид
+        export-project: Экспортировать проект
+        import-project: Импортировать проект
+        playback:
+          label: Управление воспроизведением временной шкалы
+          start: Перейти в начало
+          step-backward: Шаг назад
+          step-forward: Шаг вперёд
+          end: Перейти в конец
+        input-actions:
+          play: Воспроизвести
+          stop: Остановить
+          start: Перейти в начало
     performance-visualizer:
       title: Производительность визуализации
       description: Вкл/выкл FPS/долгую Задачу / оверлей памяти

@@ -1,8 +1,10 @@
 import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
 
+import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 
-import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
+import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID, providerOfficialChat, providerOfficialSpeech, providerOfficialSpeechStreaming, providerOfficialTranscription } from './index'
 
 interface OfficialSpeechOptions {
   speed?: number
@@ -17,13 +19,55 @@ interface OfficialSpeechOptions {
   }
 }
 
+describe('official chat provider', () => {
+  it('defaults new and existing empty configurations to Chat Completions', async () => {
+    const schema = await providerOfficialChat.createProviderConfig({ t: key => key })
+    expect(z.parse(schema, {})).toEqual({ api: 'chat-completions' })
+
+    const provider = await providerOfficialChat.createProvider({})
+    if (!isGenerationProvider(provider))
+      throw new Error('Expected generation')
+
+    expect(provider.generation('auto')).toMatchObject({
+      protocol: 'chat-completions',
+      config: { model: 'auto' },
+    })
+  })
+
+  it('enables native Web Search when the user selects Responses', async () => {
+    const provider = await providerOfficialChat.createProvider({ api: 'responses' })
+    if (!isGenerationProvider(provider))
+      throw new Error('Expected generation')
+
+    expect(provider.generation('auto')).toMatchObject({
+      protocol: 'responses',
+      webSearch: true,
+      config: { model: 'auto' },
+    })
+  })
+
+  it('describes the protocol selector in its configuration schema', async () => {
+    const schema = await providerOfficialChat.createProviderConfig({ t: key => key })
+    if (!(schema instanceof z.ZodObject))
+      throw new Error('Expected an object configuration schema')
+
+    expect(schema.shape.api.meta()).toMatchObject({
+      type: 'select',
+      options: [
+        { label: 'Chat Completions', value: 'chat-completions' },
+        { label: 'Responses API', value: 'responses' },
+      ],
+    })
+  })
+})
+
 describe('official speech provider', () => {
   /**
    * @example
    * provider.speech('microsoft/v1', { speed: 1.2 })
    */
-  it('keeps speech extra options on the generated request config', () => {
-    const provider = providerOfficialSpeech.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
+  it('keeps speech extra options on the generated request config', async () => {
+    const provider = await providerOfficialSpeech.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
 
     const request = provider.speech('microsoft/v1', {
       speed: 1.2,
@@ -48,8 +92,8 @@ describe('official speech provider', () => {
    * @example
    * provider.speech('volcengine/seed-tts-2.0', { extraBody: { airi_analytics: { source: 'manual_preview', voice_type: 'official_selected' } } })
    */
-  it('keeps streaming speech preview analytics on the generated request config', () => {
-    const provider = providerOfficialSpeechStreaming.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
+  it('keeps streaming speech preview analytics on the generated request config', async () => {
+    const provider = await providerOfficialSpeechStreaming.createProvider({}) as SpeechProviderWithExtraOptions<string, OfficialSpeechOptions>
 
     const request = provider.speech('volcengine/seed-tts-2.0', {
       extraBody: {
@@ -76,8 +120,8 @@ describe('official transcription provider', () => {
    * @example
    * provider.transcription('auto')
    */
-  it('builds an authenticated streaming transcription request for the server audio surface', () => {
-    const provider = providerOfficialTranscription.createProvider({}) as {
+  it('builds an authenticated streaming transcription request for the server audio surface', async () => {
+    const provider = await providerOfficialTranscription.createProvider({}) as {
       transcription: (model: string) => {
         baseURL: URL
         fetch?: typeof fetch
@@ -98,7 +142,8 @@ describe('official transcription provider', () => {
    * providerOfficialTranscription.extraMethods.listModels()
    */
   it('lists the auto realtime model without calling a provider credential flow', async () => {
-    const models = await providerOfficialTranscription.extraMethods?.listModels?.({}, providerOfficialTranscription.createProvider({}))
+    const provider = await providerOfficialTranscription.createProvider({})
+    const models = await providerOfficialTranscription.extraMethods?.listModels?.({}, provider)
 
     expect(models).toEqual([
       {

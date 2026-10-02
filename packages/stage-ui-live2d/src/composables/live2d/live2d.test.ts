@@ -24,6 +24,14 @@ describe('useSettingsLive2d', () => {
     setActivePinia(createPinia())
   })
 
+  it('defaults the motion driver to Universal', async () => {
+    const { useSettingsLive2d } = await import('./live2d')
+
+    const settings = useSettingsLive2d()
+
+    expect(settings.live2dMotionDriver).toBe('universal')
+  })
+
   /**
    * @example
    * expect(settings.live2dEyeTracking).toBe(true)

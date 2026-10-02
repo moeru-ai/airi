@@ -2,7 +2,7 @@
 import { Alert, ErrorContainer, RadioCardManySelect, RadioCardSimple } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
+import { useVisionActivityStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
@@ -16,9 +16,12 @@ const providerStore = useProviderConfigStore()
 const airiCardStore = useAiriCardStore()
 const visionStore = useVisionStore()
 const visionProcessingStore = useVisionProcessingStore()
+const visionActivityStore = useVisionActivityStore()
 const { configuredProviders } = storeToRefs(providerStore)
-const { persistedVisionProvidersMetadata } = storeToRefs(providersStore)
+const { moduleVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
+  useForChat,
+  useForToolImages,
   activeProvider,
   activeModel,
   customModelName,
@@ -29,47 +32,54 @@ const {
   isLoadingActiveProviderModels,
   activeProviderModelError,
 } = storeToRefs(visionStore)
+const { captureIntervalMs } = storeToRefs(visionProcessingStore)
 const {
-  captureIntervalMs,
   captureCount,
   contextUpdateCount,
   lastCaptureAt,
   lastContextUpdateAt,
-  isRunning,
-} = storeToRefs(visionProcessingStore)
+  inferenceCount,
+  failedInferenceCount,
+  lastInference,
+} = storeToRefs(visionActivityStore)
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { trackProviderClick } = useAnalytics()
 
-watch(activeProvider, async (provider, oldProvider) => {
+watch(activeProvider, async (provider) => {
   if (!provider)
     return
-
-  if (oldProvider !== undefined && oldProvider !== provider) {
-    visionStore.resetModelSelection()
-  }
 
   await visionStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-watch([activeProvider, activeModel], ([provider, model]) => {
-  airiCardStore.updateActiveCardVision({ provider, model })
-})
+async function selectProvider(provider: string) {
+  await airiCardStore.selectActiveCardVisionProvider(provider)
+}
+
+async function persistSelection() {
+  await airiCardStore.updateActiveCardVision({ provider: activeProvider.value, model: activeModel.value })
+}
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
 }
 
-function handleDeleteProvider(providerId: string) {
-  if (activeProvider.value === providerId) {
-    activeProvider.value = ''
-    activeModel.value = ''
-  }
-  providersStore.deleteProvider(providerId)
+async function handleDeleteProvider(providerId: string) {
+  await airiCardStore.clearProviderSelections(providerId)
+  await providersStore.deleteProvider(providerId)
 }
 
 const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
 const formattedLastContextUpdate = computed(() => formatRelativeTime(lastContextUpdateAt.value))
+const formattedLastInferenceDuration = computed(() => lastInference.value
+  ? new Intl.NumberFormat(locale.value, { style: 'unit', unit: 'millisecond', unitDisplay: 'short' }).format(lastInference.value.durationMs)
+  : '')
+const formattedLastInference = computed(() => formatRelativeTime(lastInference.value?.at ?? null))
+const lastInferenceProviderName = computed(() => {
+  const providerId = lastInference.value?.provider
+  return moduleVisionProvidersMetadata.value.find(metadata => metadata.id === providerId)?.localizedName ?? providerId
+})
 const isOllamaVisionProvider = computed(() => activeProvider.value === 'vision-ollama')
 
 function canDeleteProvider(providerId: string) {
@@ -78,22 +88,32 @@ function canDeleteProvider(providerId: string) {
 
 function formatRelativeTime(timestamp: number | null) {
   if (!timestamp)
-    return 'Never'
+    return t('settings.pages.modules.vision.stats.never')
 
-  const diffMs = Date.now() - timestamp
-  const diffSeconds = Math.max(0, Math.floor(diffMs / 1000))
+  const formatter = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - timestamp) / 1000))
   if (diffSeconds < 60)
-    return `${diffSeconds}s ago`
+    return formatter.format(-diffSeconds, 'second')
   const diffMinutes = Math.floor(diffSeconds / 60)
   if (diffMinutes < 60)
-    return `${diffMinutes}m ago`
-  const diffHours = Math.floor(diffMinutes / 60)
-  return `${diffHours}h ago`
+    return formatter.format(-diffMinutes, 'minute')
+  return formatter.format(-Math.floor(diffMinutes / 60), 'hour')
 }
 </script>
 
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
+    <FieldCheckbox
+      v-model="useForChat"
+      :label="t('stage.chat.images.use-vision')"
+      :description="t('stage.chat.images.use-vision-description')"
+    />
+    <FieldCheckbox
+      v-model="useForToolImages"
+      :label="t('settings.pages.modules.vision.tool-images.label')"
+      :description="t('settings.pages.modules.vision.tool-images.description')"
+    />
+
     <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
@@ -106,19 +126,20 @@ function formatRelativeTime(timestamp: number | null) {
         </div>
         <div :class="['max-w-full']">
           <fieldset
-            v-if="persistedVisionProvidersMetadata.length > 0"
+            v-if="moduleVisionProvidersMetadata.length > 0"
             :class="['flex', 'min-w-0', 'flex-row', 'gap-4', 'overflow-x-auto', 'scroll-smooth']"
             role="radiogroup"
           >
             <RadioCardSimple
-              v-for="metadata in persistedVisionProvidersMetadata"
+              v-for="metadata in moduleVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
-              v-model="activeProvider"
+              :model-value="activeProvider"
               name="provider"
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
+              @update:model-value="selectProvider"
               @click="trackProviderClick(metadata.id, 'vision')"
             >
               <template v-if="canDeleteProvider(metadata.id)" #topRight>
@@ -275,6 +296,7 @@ function formatRelativeTime(timestamp: number | null) {
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             expanded-class="mb-12"
+            @update:model-value="persistSelection"
             @update:custom-value="updateCustomModelName"
           />
         </template>
@@ -336,6 +358,7 @@ function formatRelativeTime(timestamp: number | null) {
               'dark:bg-neutral-900',
             ]"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            @input="persistSelection"
           >
         </div>
       </div>
@@ -345,17 +368,17 @@ function formatRelativeTime(timestamp: number | null) {
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
-            Vision capture cadence
+            {{ t('settings.pages.modules.vision.capture.title') }}
           </h2>
           <div :class="['text-neutral-400', 'dark:text-neutral-400']">
-            Tune how frequently the vision ticker captures a frame.
+            {{ t('settings.pages.modules.vision.capture.description') }}
           </div>
         </div>
 
         <FieldRange
           v-model="captureIntervalMs"
-          label="Capture interval"
-          description="Lower values capture more frequently and may increase resource use."
+          :label="t('settings.pages.modules.vision.capture.interval.label')"
+          :description="t('settings.pages.modules.vision.capture.interval.description')"
           :min="500"
           :max="15000"
           :step="250"
@@ -365,37 +388,77 @@ function formatRelativeTime(timestamp: number | null) {
         <div :class="['grid', 'gap-4', 'md:grid-cols-3']">
           <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
-              Ticker
-            </div>
-            <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
-              {{ isRunning ? 'Active' : 'Idle' }}
-            </div>
-            <div :class="['text-xs', 'text-neutral-400']">
-              Last capture {{ formattedLastCapture }}
-            </div>
-          </div>
-
-          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
-            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
-              Captures
+              {{ t('settings.pages.modules.vision.stats.captures') }}
             </div>
             <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
               {{ captureCount }}
             </div>
             <div :class="['text-xs', 'text-neutral-400']">
-              Last update {{ formattedLastCapture }}
+              {{ t('settings.pages.modules.vision.stats.last-update', { time: formattedLastCapture }) }}
             </div>
           </div>
 
           <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
             <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
-              Context updates
+              {{ t('settings.pages.modules.vision.stats.context-updates') }}
             </div>
             <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
               {{ contextUpdateCount }}
             </div>
             <div :class="['text-xs', 'text-neutral-400']">
-              Last update {{ formattedLastContextUpdate }}
+              {{ t('settings.pages.modules.vision.stats.last-update', { time: formattedLastContextUpdate }) }}
+            </div>
+          </div>
+
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              {{ t('settings.pages.modules.vision.stats.inferences') }}
+            </div>
+            <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
+              {{ inferenceCount }}
+            </div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              {{ t('settings.pages.modules.vision.stats.inferences-description') }}
+            </div>
+          </div>
+
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              {{ t('settings.pages.modules.vision.stats.failed-inferences') }}
+            </div>
+            <div :class="['text-sm', 'font-medium', ...(failedInferenceCount > 0 ? ['text-red-500'] : ['text-neutral-600', 'dark:text-neutral-200'])]">
+              {{ failedInferenceCount }}
+            </div>
+            <div :class="['text-xs', 'text-neutral-400']">
+              {{ t('settings.pages.modules.vision.stats.since-start') }}
+            </div>
+          </div>
+
+          <div :class="['rounded-lg', 'border', 'border-neutral-200', 'bg-white', 'p-3', 'dark:border-neutral-800', 'dark:bg-neutral-900']">
+            <div :class="['text-xs', 'uppercase', 'tracking-wide', 'text-neutral-400']">
+              {{ t('settings.pages.modules.vision.stats.last-inference') }}
+            </div>
+            <div :class="['text-sm', 'font-medium', 'text-neutral-600', 'dark:text-neutral-200']">
+              {{ formattedLastInference }}
+            </div>
+            <div v-if="lastInference" :class="['text-xs', 'text-neutral-400']">
+              {{ lastInferenceProviderName }} / {{ lastInference.model }} · {{ formattedLastInferenceDuration }}
+            </div>
+            <div
+              v-if="lastInference?.error"
+              :class="['mt-1', 'flex', 'items-start', 'gap-1', 'text-xs', 'text-red-500']"
+            >
+              <div :class="['mt-0.5', 'shrink-0', 'i-solar:danger-triangle-bold-duotone']" />
+              <span :class="['max-h-40', 'overflow-y-auto', 'whitespace-pre-wrap']">
+                <span :class="['font-medium']">{{ t('settings.pages.modules.vision.stats.error') }}</span>
+                {{ lastInference.error }}
+              </span>
+            </div>
+            <div
+              v-else-if="lastInference"
+              :class="['mt-1', 'max-h-40', 'overflow-y-auto', 'whitespace-pre-wrap', 'text-xs', 'text-neutral-500']"
+            >
+              {{ lastInference.text }}
             </div>
           </div>
         </div>
@@ -409,17 +472,17 @@ function formatRelativeTime(timestamp: number | null) {
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
-            Provider request toggles
+            {{ t('settings.pages.modules.vision.ollama.title') }}
           </h2>
           <div :class="['text-neutral-400', 'dark:text-neutral-400']">
-            Control provider-specific request flags for vision inference.
+            {{ t('settings.pages.modules.vision.ollama.description') }}
           </div>
         </div>
 
         <FieldCheckbox
           v-model="ollamaThinkingEnabled"
-          label="Thinking (Ollama)"
-          description="When enabled, vision requests sent through Ollama include `think: true`. When disabled, they include `think: false`."
+          :label="t('settings.pages.modules.vision.ollama.thinking.label')"
+          :description="t('settings.pages.modules.vision.ollama.thinking.description')"
         />
       </div>
     </div>

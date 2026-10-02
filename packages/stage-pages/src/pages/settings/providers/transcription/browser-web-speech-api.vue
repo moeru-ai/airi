@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RemovableRef } from '@vueuse/core'
 
+import { streamWebSpeechAPITranscription } from '@proj-airi/provider-inference'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
@@ -12,10 +13,9 @@ import {
 import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/stores/providers/web-speech-api'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Button, FieldCombobox } from '@proj-airi/ui'
-import { until } from '@vueuse/core'
+import { computedAsync, until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -30,9 +30,11 @@ const providersStore = useProviderStore()
 const providerStore = useProviderConfigStore()
 const { configs: providers } = storeToRefs(providerStore) as { configs: RemovableRef<Record<string, any>> }
 
-providersStore.initializeProvider(providerId)
+onMounted(async () => {
+  await providersStore.initializeProvider(providerId)
+})
 
-const providerMetadata = computed(() => selectProviderMetadata(
+const providerMetadata = computedAsync(() => selectProviderMetadata(
   providersStore.getProviderDefinition(providerId),
   t,
   { id: providerId },

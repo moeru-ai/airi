@@ -1,0 +1,11 @@
+:3000 {
+  route {
+    @internal path /internal /internal/*
+    respond @internal 404
+
+    @auth path /api/auth /api/auth/* /auth /auth/* /.well-known/oauth-authorization-server/api/auth
+    reverse_proxy @auth auth:3000
+
+    reverse_proxy api:3000
+  }
+}

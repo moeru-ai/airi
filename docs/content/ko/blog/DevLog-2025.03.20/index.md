@@ -63,7 +63,7 @@ Discord와 bilibili를 비롯한 여러 소셜 미디어 플랫폼에 AIRI를 �
 뻔했습니다.
 
 그래서 [`Histoire`](https://histoire.dev)라는 훌륭한 도구를 도입하기로 결정했습니다.
-기본적으로는 [Storybook](https://storybook.js.org/) 이지만
+기본적으로는 [Storybook](https://storybook.js.org/)이지만
 [Vite](https://vitejs.dev)와 [Vue.js](https://vuejs.org) 조합에 훨씬 더 자연스럽게 어울립니다.
 
 [@sumimakito](https://github.com/sumimakito)가 작업을 마치고 녹화한 첫인상입니다:

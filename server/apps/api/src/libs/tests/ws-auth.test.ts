@@ -15,7 +15,8 @@ describe('createUnauthorizedWsEvents', () => {
   //
   // Accepting the upgrade first and closing with 4001 in `onOpen` gives
   // the client a structured signal so its `onDisconnected` handler can
-  // stop the reconnect loop until the URL (token) actually changes.
+  // stop the reconnect loop until the token actually changes and the client
+  // starts a fresh connection.
   it('closes the socket with WS_CLOSE_UNAUTHORIZED immediately on open', () => {
     const close = vi.fn<(code?: number, reason?: string) => void>()
     const events = createUnauthorizedWsEvents()

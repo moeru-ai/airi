@@ -31,6 +31,7 @@ import {
   TextStreamer,
   WhisperForConditionalGeneration,
 } from '@huggingface/transformers'
+import { toFloat32FromPCM16 } from '@proj-airi/audio/encoding'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 
 import { MODEL_IDS, MODEL_NAMES } from '../inference/constants'
@@ -162,13 +163,7 @@ async function base64ToFeatures(base64Audio: string): Promise<Float32Array> {
     bytes[i] = binaryString.charCodeAt(i)
   }
 
-  const samples = new Int16Array(bytes.buffer.slice(44))
-  const audio = new Float32Array(samples.length)
-  for (let i = 0; i < samples.length; i++) {
-    audio[i] = samples[i] / 32768.0
-  }
-
-  return audio
+  return toFloat32FromPCM16(bytes.subarray(44))
 }
 
 // ---------------------------------------------------------------------------

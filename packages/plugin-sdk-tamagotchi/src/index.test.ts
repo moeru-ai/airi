@@ -10,7 +10,7 @@ import type { HostDataRecord } from '@proj-airi/plugin-sdk/plugin-host'
 import type { ToolKitRuntime } from './tools'
 
 import { DisposableStore } from '@proj-airi/plugin-sdk'
-import { object, optional, string } from 'valibot'
+import { object, optional, picklist, string } from 'valibot'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
@@ -729,6 +729,38 @@ describe('plugin-sdk-tamagotchi', () => {
 
     expect(parameters.required).toEqual(['mode', 'opening'])
     expect(parameters.properties.opening.type).toEqual(['string', 'null'])
+  })
+
+  // ROOT CAUSE:
+  //
+  // The normalizer added null to an optional enum but kept type: "string".
+  // OpenAI rejected the schema because null does not satisfy the string type.
+  // The fix must allow null in both type and enum.
+  it('serializes optional enum tool fields as nullable enum properties', async () => {
+    const registerTool = vi.fn()
+    const tools = toolKit.createClient(createToolRuntime({
+      extensionId: 'airi-extension-chess',
+      sessionId: 'session-1',
+      moduleId: 'chess',
+      register: registerTool,
+      registerToolsetPrompt: vi.fn(),
+    }))
+
+    await tools.registerTool({
+      id: 'play_chess',
+      title: 'placeholder-title',
+      description: 'placeholder-description',
+      inputSchema: object({
+        airiSide: optional(picklist(['white', 'black'])),
+      }),
+      execute: async () => ({ ok: true }),
+    })
+
+    const parameters = registerTool.mock.calls[0]?.[0].tool.parameters
+
+    expect(parameters.required).toEqual(['airiSide'])
+    expect(parameters.properties.airiSide.type).toEqual(['string', 'null'])
+    expect(parameters.properties.airiSide.enum).toEqual(['white', 'black', null])
   })
 
   /**

@@ -13,7 +13,7 @@ preview-cover:
 
 ## 돌아보기
 
-반년 전, 저는 유명한 자동화 생산 시뮬레이션 게임 [Factorio](https://www.factorio.com/) 를 플레이할 수 있는 AI 에이전트 [`airi-factorio`](https://github.com/moeru-ai/airi-factorio)를 처음 만들어 봤고, 다음과 같은 일들을 했습니다:
+반년 전, 저는 유명한 자동화 생산 시뮬레이션 게임 [Factorio](https://www.factorio.com/)를 플레이할 수 있는 AI 에이전트 [`airi-factorio`](https://github.com/moeru-ai/airi-factorio)를 처음 만들어 봤고, 다음과 같은 일들을 했습니다:
 
 - TypeScript로 Factorio 모드 작성하기: [tstl](https://github.com/TypeScriptToLua/TypeScriptToLua)로 TypeScript 코드를 Lua 코드로 컴파일합니다.
 - RCON으로 Factorio 모드와 상호작용하기: [factorio-rcon-api](https://github.com/nekomeowww/factorio-rcon-api)로 Factorio와 통신하고, `/c` 명령을 호출해 모드가 등록한 함수를 실행합니다. [@nekomeowww](https://github.com/nekomeowww)에게 정말 감사드립니다.

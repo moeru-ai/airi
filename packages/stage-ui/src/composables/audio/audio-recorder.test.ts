@@ -130,6 +130,32 @@ describe('useAudioRecorder', () => {
     expect(activeSecondOutput?.finalized).toBe(true)
   })
 
+  // https://github.com/moeru-ai/airi/pull/2258#discussion_r3759566513
+  it('finalizes a canceled recording without running transcription hooks', async () => {
+    // ROOT CAUSE:
+    //
+    // Recorder consumers routed VAD cancellation through stopRecord. That
+    // method ran the normal stop hooks, so rejected noise reached ASR and could
+    // create a user message.
+    //
+    // We finalize canceled audio through a separate discard operation that
+    // does not create a recording blob or run stop hooks.
+    const { useAudioRecorder } = await import('./audio-recorder')
+    const stream = shallowRef(createMediaStream())
+    const recorder = useAudioRecorder(stream)
+    const onStopRecord = vi.fn(async () => {})
+    recorder.onStopRecord(onStopRecord)
+
+    await recorder.startRecord()
+    const activeOutput = mediabunnyMock.outputs.at(-1)
+
+    await recorder.discardRecord()
+
+    expect(activeOutput?.finalized).toBe(true)
+    expect(recorder.isRecording.value).toBe(false)
+    expect(onStopRecord).not.toHaveBeenCalled()
+  })
+
   it('resets recorder state after startup fails so recording can be retried', async () => {
     const { useAudioRecorder } = await import('./audio-recorder')
     const stream = shallowRef(createMediaStream())

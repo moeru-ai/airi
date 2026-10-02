@@ -1,5 +1,5 @@
 ---
-title: 'Merry Christmas 2025! 🎄'
+title: '메리 크리스마스 2025! 🎄'
 description: 'Neuro-sama, 생일 축하해! 2025년을 함께해 줘서 고마워요. 이번 겨울, 평온함과 기쁨이 함께하기를.'
 date: 2025-12-24
 excerpt: 'Neuro-sama, 생일 축하해! 2025년을 함께해 줘서 고마워요. 이번 겨울, 평온함과 기쁨이 함께하기를.'
