@@ -98,7 +98,7 @@ Live Discord recovery, JEV direct-channel behavior, and owner transitions requir
 
 ## Progress
 
-- P0, P1, and P2 are Implemented with deterministic tests. Their live scenarios remain open. P3 is in progress. P4 through P10 have not started.
+- P0 through P3 are Implemented with deterministic tests. Their live scenarios remain open. P4 through P10 have not started.
 - Context slots, reader filtering, expiry, text budgets, bounded history, and fixed append-slot admission have deterministic tests.
 - External bindings create persistent metadata. Forks retain parent provenance. Notification consumers follow renderer leadership and application lifetime.
 - Notification cancellation blocks late output and awaits reaction stream closure. The main window disables background throttling.
