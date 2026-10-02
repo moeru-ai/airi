@@ -1,6 +1,21 @@
 allow-visible-on-all-workspaces:
   title: Cross-Space Visibility
   description: Allow the window to be visible on all workspaces, macOS only.
+microphone-permission:
+  prompt:
+    title: Allow microphone access?
+    description: AIRI uses your microphone for voice input and transcription. This choice remains active until you reset it in Settings.
+    allow: Allow
+    deny: Deny
+  states:
+    not-determined: Not set
+    granted: Allowed
+    denied: Denied
+  settings:
+    title: Microphone
+    description: Control whether AIRI can use the microphone. Resetting this choice stops the current microphone stream and asks again next time.
+    revoke: Revoke access
+    reset: Reset decision
 spotlight:
   errors:
     unknown: Unknown error
