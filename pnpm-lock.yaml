@@ -429,6 +429,9 @@ catalogs:
     '@radix-ui/colors':
       specifier: ^3.0.0
       version: 3.0.0
+    '@revenuecat/purchases-js':
+      specifier: ^1.15.0
+      version: 1.65.0
     '@ricky0123/vad-web':
       specifier: ^0.0.30
       version: 0.0.30
@@ -5096,6 +5099,9 @@ importers:
       '@proj-airi/vite-plugin-sherpaw':
         specifier: workspace:^
         version: link:../vite-plugin-sherpaw
+      '@revenuecat/purchases-js':
+        specifier: 'catalog:'
+        version: 1.65.0
       '@ricky0123/vad-web':
         specifier: 'catalog:'
         version: 0.0.30
@@ -11477,6 +11483,9 @@ packages:
 
   '@radix-ui/colors@3.0.0':
     resolution: {integrity: sha512-FUOsGBkHrYJwCSEtWRCIfQbZG7q1e6DgxCIOe1SUQzDe/7rXXeA47s8yCn6fuTNQAj1Zq4oTFi9Yjp3wzElcxg==}
+
+  '@revenuecat/purchases-js@1.65.0':
+    resolution: {integrity: sha512-eSaZYbPd9ht09UZc6hza2BEiqYcrVE9ckzGFh5BMNWunwkr0wrbnvoPzZ46Fk/N0ScBRIAQOJJmEpwxirbHAwg==}
 
   '@ricky0123/vad-web@0.0.30':
     resolution: {integrity: sha512-cJyYrh4YeeUBJcbR9Bic/bFDyB9qBkAepvpuWM3vLxnAi7bC3VHzf51UeNdT+OtY4D7MLAgV8iJMc4z41ZnaWg==}
@@ -26075,6 +26084,8 @@ snapshots:
       quansync: 1.0.0
 
   '@radix-ui/colors@3.0.0': {}
+
+  '@revenuecat/purchases-js@1.65.0': {}
 
   '@ricky0123/vad-web@0.0.30':
     dependencies:

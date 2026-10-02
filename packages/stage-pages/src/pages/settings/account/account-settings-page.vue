@@ -517,6 +517,22 @@ async function handleConfirmDelete(event: Event) {
                 <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
               </span>
             </RouterLink>
+            <RouterLink
+              to="/settings/plan"
+              :class="[
+                '-mx-2 flex items-center gap-2 px-2 py-1.5 rounded-md',
+                'text-sm no-underline text-inherit',
+                'hover:bg-neutral-50 dark:hover:bg-neutral-800/40 transition-colors',
+              ]"
+            >
+              <span :class="['text-neutral-500 dark:text-neutral-400']">
+                {{ t('settings.pages.account.planEntry') }}
+              </span>
+              <span :class="['ml-auto flex items-center gap-1 text-primary-600 dark:text-primary-400']">
+                <span>{{ t('settings.pages.account.viewPlanDetails') }}</span>
+                <div :class="['i-solar:alt-arrow-right-linear', 'size-4']" />
+              </span>
+            </RouterLink>
           </section>
 
           <!-- Profile section. No card outline — sections are separated by a

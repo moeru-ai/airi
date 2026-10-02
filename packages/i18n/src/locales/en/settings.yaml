@@ -285,6 +285,8 @@ pages:
     logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
+    planEntry: Plan
+    viewPlanDetails: View plan
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -1104,6 +1106,30 @@ pages:
       title: Flux Packages
       buy: Charge
       description: Flux packages to choose from.
+  plan:
+    title: Plan
+    description: Current plan and plan credits
+    statusError: Failed to load plan status. Please try again later.
+    packagesError: Failed to load plans. Please try again later.
+    preferenceError: Failed to save preference. Please try again later.
+    currentPlan: Current plan
+    noPlan: No active plan
+    planCredits: Plan credits
+    creditsRemaining: '{remaining} of {total} left'
+    renewsAt: Renews {date}
+    expiresAt: Expires {date}
+    choosePlan: Choose a plan
+    manageSubscription: Manage subscription (cancel and billing)
+    fallbackToFlux: Use Flux when plan credits run out
+    fallbackToFluxHint: Off by default. When off, requests stop with insufficient credits instead of spending Flux.
+    checkout:
+      success: Subscription active! Your plan credits are ready.
+      pending: Payment received. Credits arrive shortly.
+      canceled: Purchase was canceled.
+      error: Something went wrong. Please try again later.
+    plans:
+      airi_go: Go
+      airi_plus: Plus
   providers:
     catalog:
       edit:

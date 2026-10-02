@@ -108,6 +108,7 @@
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-loading-screens": "workspace:^",
     "@proj-airi/vite-plugin-sherpaw": "workspace:^",
+    "@revenuecat/purchases-js": "catalog:",
     "@ricky0123/vad-web": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",
     "@shikijs/rehype": "catalog:",

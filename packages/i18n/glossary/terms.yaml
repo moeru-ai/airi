@@ -146,6 +146,15 @@
       part-of-speech: proper noun
       status: preferred
       context: Payment successful! Your Flux has been topped up.
+- id: plan-credits
+  subject: payment
+  translatable: true
+  definition: The usage allowance granted by an active subscription. It is separate from Flux.
+  terms:
+    - text: Plan credits
+      part-of-speech: noun
+      status: preferred
+      context: 1800 of 2000 plan credits left.
 
 # ---------------------------------------------------------------------------------------
 # Rendering
