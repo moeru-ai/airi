@@ -524,29 +524,32 @@ pages:
       description: A fast classifier can decide which messages from other people and which module events deserve attention. Your own messages always reach the character. Without a classifier, fixed rules decide.
       backend:
         label: Classifier
-        description: JEV is fast and cheap. A chat model can answer the same questions in a structured form. A classifier never grants permissions.
+        description: A Decisions API model, such as Mercury Decide on OpenRouter or JEV, is fast and cheap. A chat model can answer the same questions in a structured form. A classifier never grants permissions.
         options:
           none: None (fixed rules)
-          jev: JEV
+          decisions: Decisions API
           llm: Chat model
       threshold:
         label: Trust threshold
         description: A classifier answer decides only when its confidence reaches this value. A lower value lets the classifier decide more often. Below the threshold, fixed rules decide.
-      jev_api_key:
-        label: JEV API key
-        description: The key for the TypeSafe System One API.
-      jev_base_url:
-        label: JEV base URL
-        description: The API address. Change it only for a proxy or a gateway.
-      jev_model:
-        label: JEV model
-        description: The model name, for example jev-latest.
+      decisions_api_key:
+        label: API key
+        description: The key for the Decisions endpoint, for example an OpenRouter key.
+      decisions_endpoint:
+        label: Endpoint
+        description: A Decisions API address. OpenRouter is the default. TypeSafe uses https://api.typesafe.ai/v1/systemone.
+      decisions_model:
+        label: Model
+        description: The decision model, for example inception/mercury-decide:free or typesafe/jev-1.13.
       llm_provider:
         label: Classifier provider
         description: A configured chat provider that answers the classifier questions. The conversation model does not change.
       llm_model:
         label: Classifier model
         description: Use a fast model. A slow answer is ignored, and fixed rules decide.
+      appraisal_interval:
+        label: Idle check interval (minutes)
+        description: While no reply runs, the character looks at the current observations this often and can raise something unprompted. This sets how often it looks, not how often it speaks. 0 turns it off.
   data:
     title: Data
     description: Manage stored AIRI data, exports, and resets

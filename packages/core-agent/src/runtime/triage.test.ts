@@ -42,7 +42,7 @@ describe('stimulus triage', () => {
     const request = triageRequest(stimulus, { attendCriteria: 'Messages that mention the character' })
 
     expect(Object.keys(request.questions)).toEqual(['attend', 'urgency'])
-    expect(request.questions.attend).toMatchObject({ type: 'noul', criteria: 'Messages that mention the character' })
+    expect(request.questions.attend).toMatchObject({ type: 'noul', criteria: { true: 'Messages that mention the character' } })
     expect(request.untrusted).toBe(stimulus.text)
     expect(JSON.stringify(request.state)).not.toContain('ignore previous instructions')
   })

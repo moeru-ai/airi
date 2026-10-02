@@ -1,8 +1,11 @@
+// Question and answer shapes follow the Decisions API that OpenRouter and TypeSafe serve.
+
 /** A yes-or-no question. The answer is the probability of yes. */
 export interface NoulQuestion {
   type: 'noul'
   instructions: string
-  criteria?: string
+  /** What yes and no mean. */
+  criteria: { true: string, false: string }
 }
 
 /** Picks one named option. */
@@ -10,17 +13,15 @@ export interface ChoiceQuestion {
   type: 'choice'
   instructions: string
   /** Option name to its meaning. */
-  options: Record<string, string>
-  criteria?: string
+  criteria: Record<string, string>
 }
 
 /** Rates on an ordered scale. Level `0` is the lowest. */
 export interface ScoreQuestion {
   type: 'score'
   instructions: string
-  /** Level meanings, lowest first. Two to ten levels. */
-  levels: string[]
-  criteria?: string
+  /** Level meanings, lowest first. */
+  criteria: string[]
 }
 
 export type ClassifierQuestion = NoulQuestion | ChoiceQuestion | ScoreQuestion
@@ -50,9 +51,9 @@ export type ClassifierAnswer = NoulAnswer | ChoiceAnswer | ScoreAnswer
 
 /** Input for one classifier call. All questions about one event go in one call. */
 export interface ClassifierRequest {
-  /** Fields the decision needs, already reduced to what the question requires. */
+  /** Fields the decision needs, already reduced to what the questions read. */
   state: Record<string, unknown>
-  /** External text. Backends mark it as data, never as instructions. */
+  /** External text. Backends put it in its own state field and mark it as data, never as instructions. */
   untrusted?: string
   questions: Record<string, ClassifierQuestion>
 }

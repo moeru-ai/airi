@@ -183,9 +183,13 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`airi-bridge.test.ts`): Minecraft drops commands without a holder and contradictory commands from another session during the lease.
 - Observed (`triage.test.ts`): one classifier call asks about attention and urgency. A late classifier is aborted at the deadline, and the prior decides.
 - Observed (`triage.test.ts`): only answers at or above the user threshold decide. Scene sources stay below interruption whatever the classifier says.
-- Observed (`classifier.test.ts`, `triage.test.ts` in stage-ui): JEV and a chat model are interchangeable backends. External text stays in its own field, and invalid answers are dropped.
+- Observed (`classifier.test.ts`, `triage.test.ts` in stage-ui): a Decisions API endpoint and a chat model are interchangeable backends. External text stays in its own field, and invalid answers are dropped.
+- Implemented: the Decisions backend defaults to OpenRouter and accepts any endpoint with the same schema, for example TypeSafe. Questions use the API's `criteria` forms.
 - Observed (`orchestrator/index.test.ts`): a notification that a confident classifier skips creates no run. Each record keeps the backend and the threshold in effect.
 - Implemented: Settings > Memory selects the backend and the trust threshold. The default is no classifier.
+- Observed (`orchestrator/index.test.ts`, T9): a confident idle appraisal becomes an internal proposal, and its run outputs without external input.
+- Observed (`orchestrator/index.test.ts`, T10 and T12): an idle appraisal can discard its proposal without a run. Unchanged observations are not appraised again. A proposal beyond depth two is rejected.
+- Designed: persona and mood change appraisal cadence in P6. P3 uses the user's idle check interval, and a short interval changes how often the character looks, not how often it speaks.
 - Experimental: whether either backend improves attention decisions. Live evidence after P10 must compare decisions and latency against fixed rules.
 
 ### Open P0 evidence

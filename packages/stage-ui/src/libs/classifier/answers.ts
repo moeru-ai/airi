@@ -27,7 +27,7 @@ export function parseClassifierAnswers(request: ClassifierRequest, value: unknow
     const parsed = safeParse(answerSchema, (value as Record<string, unknown>)[id])
     if (!parsed.success || parsed.output.type !== question.type)
       continue
-    if (parsed.output.type === 'choice' && question.type === 'choice' && !(parsed.output.choice in question.options))
+    if (parsed.output.type === 'choice' && question.type === 'choice' && !(parsed.output.choice in question.criteria))
       continue
     answers[id] = parsed.output
   }

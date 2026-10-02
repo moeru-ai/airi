@@ -12,12 +12,12 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const { dormantAfterMinutes, retireAfterDays } = storeToRefs(useSettingsSessionLifecycle())
 const { maxConcurrentRuns, maxQueuedPerSession, stallTimeoutSeconds, runDeadlineMinutes } = storeToRefs(useSettingsRunLimits())
-const { backend, threshold, jevApiKey, jevBaseUrl, jevModel, llmProvider, llmModel } = storeToRefs(useSettingsTriage())
+const { backend, threshold, decisionsApiKey, decisionsEndpoint, decisionsModel, llmProvider, llmModel, appraisalIntervalMinutes } = storeToRefs(useSettingsTriage())
 const { configuredChatProvidersMetadata } = storeToRefs(useProviderStore())
 
 const backendOptions = computed<Array<{ label: string, value: TriageBackend }>>(() => [
   { label: t('settings.pages.memory.triage.backend.options.none'), value: 'none' },
-  { label: t('settings.pages.memory.triage.backend.options.jev'), value: 'jev' },
+  { label: t('settings.pages.memory.triage.backend.options.decisions'), value: 'decisions' },
   { label: t('settings.pages.memory.triage.backend.options.llm'), value: 'llm' },
 ])
 const providerOptions = computed(() => configuredChatProvidersMetadata.value.map(metadata => ({ label: metadata.localizedName ?? metadata.name, value: metadata.id })))
@@ -42,6 +42,14 @@ const maxConcurrentRunsModel = positiveModel(maxConcurrentRuns, { integer: true 
 const maxQueuedPerSessionModel = positiveModel(maxQueuedPerSession, { integer: true })
 const stallTimeoutSecondsModel = positiveModel(stallTimeoutSeconds, { integer: true })
 const runDeadlineMinutesModel = positiveModel(runDeadlineMinutes, { integer: true })
+// Zero turns idle appraisal off, so this field accepts it.
+const appraisalIntervalModel = computed({
+  get: () => appraisalIntervalMinutes.value,
+  set(value: number | undefined) {
+    if (value !== undefined && Number.isInteger(value) && value >= 0)
+      appraisalIntervalMinutes.value = value
+  },
+})
 </script>
 
 <template>
@@ -119,22 +127,22 @@ const runDeadlineMinutesModel = positiveModel(runDeadlineMinutes, { integer: tru
         :description="t('settings.pages.memory.triage.backend.description')"
         :options="backendOptions"
       />
-      <template v-if="backend === 'jev'">
+      <template v-if="backend === 'decisions'">
         <FieldInput
-          v-model="jevApiKey"
+          v-model="decisionsApiKey"
           type="password"
-          :label="t('settings.pages.memory.triage.jev_api_key.label')"
-          :description="t('settings.pages.memory.triage.jev_api_key.description')"
+          :label="t('settings.pages.memory.triage.decisions_api_key.label')"
+          :description="t('settings.pages.memory.triage.decisions_api_key.description')"
         />
         <FieldInput
-          v-model="jevBaseUrl"
-          :label="t('settings.pages.memory.triage.jev_base_url.label')"
-          :description="t('settings.pages.memory.triage.jev_base_url.description')"
+          v-model="decisionsEndpoint"
+          :label="t('settings.pages.memory.triage.decisions_endpoint.label')"
+          :description="t('settings.pages.memory.triage.decisions_endpoint.description')"
         />
         <FieldInput
-          v-model="jevModel"
-          :label="t('settings.pages.memory.triage.jev_model.label')"
-          :description="t('settings.pages.memory.triage.jev_model.description')"
+          v-model="decisionsModel"
+          :label="t('settings.pages.memory.triage.decisions_model.label')"
+          :description="t('settings.pages.memory.triage.decisions_model.description')"
         />
       </template>
       <template v-if="backend === 'llm'">
@@ -159,6 +167,13 @@ const runDeadlineMinutesModel = positiveModel(runDeadlineMinutes, { integer: tru
         :max="MAX_TRIAGE_THRESHOLD"
         :step="0.01"
         :format-value="value => value.toFixed(2)"
+      />
+      <FieldInput
+        v-if="backend !== 'none'"
+        v-model="appraisalIntervalModel"
+        type="number"
+        :label="t('settings.pages.memory.triage.appraisal_interval.label')"
+        :description="t('settings.pages.memory.triage.appraisal_interval.description')"
       />
     </section>
   </div>

@@ -118,6 +118,7 @@ With `rollback`, the run's user turn and partial reply leave the session through
 ## Classifier triage
 
 A `Classifier` answers typed questions with probabilities: `noul` for yes or no, `choice` for one option, and `score` for an ordered scale. It never generates text.
+Questions use the Decisions API forms that OpenRouter and TypeSafe serve. `criteria` holds the yes and no meanings, the options, or the levels.
 `appraiseStimulus` asks whether a stimulus deserves attention and how urgent it is, in one call. External text goes into the untrusted field only.
 `askWithin` aborts a call at its deadline, 800 ms by default. A late, failing, or malformed answer means no appraisal.
 `decideByAppraisal` uses an answer only when its confidence reaches the threshold, 0.8 by default. Users set the threshold.

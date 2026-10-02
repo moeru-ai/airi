@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, salienceFromUrgency } from '@proj-airi/core-agent'
+import { decideByAppraisal, decideByPrior, deferDelayMs, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -15,15 +15,20 @@ import { onScopeDispose, ref } from 'vue'
 import { useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { sendAdmittedSparkCommand } from '../../mods/api/spark-command'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useTriageStore } from '../../modules/triage'
 import { useSchedulerStore } from '../../scheduler'
+import { useSettingsTriage } from '../../settings/triage'
 import { useCharacterNotifyQueueStore } from './queue'
 
 export { sparkNotifyCommandSchema } from '@proj-airi/core-agent/agents/spark-notify'
+
+/** Internal proposals can propose further work only this many levels deep. */
+export const MAX_PROPOSAL_DEPTH = 2
 
 export const useCharacterOrchestratorStore = defineStore('character-orchestrator', () => {
   const { stream } = useLLM()
@@ -37,6 +42,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const chatSession = useChatSessionStore()
   const scheduler = useSchedulerStore()
   const triage = useTriageStore()
+  const triageSettings = useSettingsTriage()
+  const chatContext = useChatContextStore()
 
   const processing = ref(false)
   // The queue survives leader handoff. A follower enqueue reaches the leader ticker.
@@ -83,7 +90,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     ],
   })
 
-  function stimulusFromNotify(event: WebSocketEventOf<'spark:notify'>, origin: Stimulus['origin'] = 'external'): Stimulus {
+  function stimulusFromNotify(event: WebSocketEventOf<'spark:notify'>, origin: Stimulus['origin'] = 'external', eventName = origin === 'internal' ? 'task:due' : 'spark:notify'): Stimulus {
     const receivedAt = Date.now()
     const source = getEventSourceKey(event)
     return {
@@ -91,7 +98,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       kind: event.data.kind,
       origin,
       source,
-      event: origin === 'internal' ? 'task:due' : 'spark:notify',
+      event: eventName,
       eventId: event.data.eventId,
       bindings: [],
       salience: salienceFromUrgency(event.data.urgency),
@@ -227,21 +234,30 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
    * Other work waits by its salience, and a newer notification with the same coalescing key replaces waiting ones.
    */
   async function handleIncomingSparkNotify(event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
-    const stimulus = stimulusFromNotify(event)
+    return handleStimulus(stimulusFromNotify(event), event, control)
+  }
+
+  /**
+   * Offers one stimulus with its notification form to intake.
+   * Internal proposals skip the classifier, because their source already appraised them or a commitment made them due.
+   */
+  async function handleStimulus(stimulus: Stimulus, event: WebSocketEventOf<'spark:notify'>, control?: SparkNotifyResponseControl) {
     if (stimulus.coalesceKey) {
       for (const replaced of await notifyQueue.takeCoalesced(stimulus.coalesceKey))
         scheduler.intake.record(replaced.stimulus, { outcome: 'merged', reason: 'coalesced', decidedBy: 'rule', mergedInto: stimulus.id })
     }
 
     // A classifier can ignore the notification or reorder it. Its answer never grants authority.
-    const appraisal = triage.classifier ? await triage.appraiseNotification(stimulus) : undefined
+    const appraisal = triage.classifier && stimulus.origin === 'external' ? await triage.appraiseNotification(stimulus) : undefined
     const appraised = appraisal ? decideByAppraisal(stimulus, appraisal) : undefined
     if (appraised?.outcome === 'ignored') {
       scheduler.intake.record(stimulus, appraised)
       return undefined
     }
     const ranked: Stimulus = { ...stimulus, salience: appraised?.salience ?? stimulus.salience }
-    const decision = { ...decideByPrior(ranked, { now: Date.now(), busy: isBusy() }), appraisal }
+    const now = Date.now()
+    // A proposal's source already chose its moment, so it waits only for the voice.
+    const decision = { ...decideByPrior(ranked, { now, busy: isBusy(), retryAt: ranked.event === 'proposal' ? now : undefined }), appraisal }
     if (decision.outcome === 'admitted')
       return await runNotify(ranked, event, decision, control)
     if (decision.outcome === 'ignored') {
@@ -274,6 +290,73 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       ?.trim()
 
     return reaction || options?.fallbackText || ''
+  }
+
+  /**
+   * Offers an internal proposal to intake. It gets no authority from its internal origin.
+   * A chain deeper than {@link MAX_PROPOSAL_DEPTH} is rejected, and proposals with one coalescing key replace each other.
+   * An admitted proposal becomes a notification run, which can still choose silence. It adds no user turn to any session.
+   */
+  async function propose(proposal: { headline: string, note?: string, urgency?: 'immediate' | 'soon' | 'later', coalesceKey?: string, parentRunId?: string, depth?: number }) {
+    const event: WebSocketEventOf<'spark:notify'> = {
+      type: 'spark:notify',
+      source: 'scheduler',
+      data: {
+        id: nanoid(),
+        eventId: nanoid(),
+        kind: 'ping',
+        urgency: proposal.urgency ?? 'later',
+        headline: proposal.headline,
+        note: proposal.note,
+        coalesceKey: proposal.coalesceKey,
+        destinations: ['character'],
+      },
+    }
+    const stimulus: Stimulus = { ...stimulusFromNotify(event, 'internal', 'proposal'), parentRunId: proposal.parentRunId, depth: proposal.depth ?? 0 }
+    if ((stimulus.depth ?? 0) > MAX_PROPOSAL_DEPTH) {
+      scheduler.intake.record(stimulus, { outcome: 'rejected', reason: 'depth-limit', decidedBy: 'rule' })
+      return undefined
+    }
+    return handleStimulus(stimulus, event)
+  }
+
+  let lastAppraisalAt = 0
+  let lastAppraisedState: string | undefined
+
+  /**
+   * Appraises the owner scene while no run is active, and proposes work when a confident classifier finds something worth raising.
+   * The timer only starts an appraisal. It never schedules speech, and unchanged observations are not appraised again.
+   */
+  async function appraiseIdle(now = Date.now()) {
+    const intervalMs = triageSettings.appraisalIntervalMinutes * 60_000
+    if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs)
+      return
+    if (isBusy() || scheduler.runs.snapshot().some(run => run.state === 'queued' || run.state === 'working'))
+      return
+    lastAppraisalAt = now
+
+    const observations = Object.values(chatContext.getContextsSnapshot({ ids: [chatSession.activeSessionId, 'character', OWNER_PRIVATE_BINDING], audience: OWNER_AUDIENCE }))
+      .flat()
+      .map(message => `${getEventSourceKey(message)}: ${message.text}`)
+    const state = observations.join('\n')
+    if (!state || state === lastAppraisedState)
+      return
+    lastAppraisedState = state
+
+    const stimulus: Stimulus = { id: nanoid(), kind: 'idle-appraisal', origin: 'internal', source: 'scheduler', event: 'appraisal', bindings: [], salience: salienceFromUrgency('later'), receivedAt: now, text: state }
+    const decision = decideByAppraisal(stimulus, await triage.appraiseIdle(stimulus))
+    if (decision.outcome !== 'admitted' || decision.decidedBy !== 'classifier') {
+      scheduler.intake.record(stimulus, { ...decision, outcome: 'ignored', reason: decision.outcome === 'ignored' ? decision.reason : 'nothing-to-raise' })
+      return
+    }
+    scheduler.intake.record(stimulus, { ...decision, reason: 'proposed' })
+    await propose({
+      headline: 'Something in the current observations may be worth raising with the owner.',
+      note: 'Nobody asked. Speak only if it fits now. Silence is a valid choice.',
+      urgency: (decision.salience ?? stimulus.salience) >= 0.6 ? 'soon' : 'later',
+      coalesceKey: 'idle-appraisal',
+      parentRunId: undefined,
+    })
   }
 
   async function enqueueDueTasks(now: number) {
@@ -314,6 +397,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
     const now = Date.now()
     await enqueueDueTasks(now)
+    await appraiseIdle(now)
 
     const nextIndex = scheduledNotifies.value.findIndex(item => item.nextRunAt <= now)
     if (nextIndex < 0)
@@ -452,6 +536,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     dispose,
 
     handleSparkNotify: handleIncomingSparkNotify,
+    propose,
+    appraiseIdle,
     handleSparkNotifyWithReaction,
     handleSparkEmit,
   }

@@ -7,7 +7,7 @@ import { rawTool } from '@xsai/tool'
 import { defineStore } from 'pinia'
 import { computed, markRaw } from 'vue'
 
-import { createJevClassifier } from '../../libs/classifier/jev'
+import { createDecisionsClassifier } from '../../libs/classifier/decisions'
 import { createLlmClassifier } from '../../libs/classifier/llm'
 import { useLLM } from '../ai/chat-llm/llm'
 import { useSettingsTriage } from '../settings/triage'
@@ -62,9 +62,9 @@ export const useTriageStore = defineStore('triage', () => {
 
   const classifier = computed<Classifier | undefined>(() => {
     switch (settings.backend) {
-      case 'jev':
-        return settings.jevApiKey.trim()
-          ? markRaw(createJevClassifier({ apiKey: settings.jevApiKey.trim(), baseURL: settings.jevBaseUrl, model: settings.jevModel }))
+      case 'decisions':
+        return settings.decisionsApiKey.trim()
+          ? markRaw(createDecisionsClassifier({ apiKey: settings.decisionsApiKey.trim(), endpoint: settings.decisionsEndpoint.trim(), model: settings.decisionsModel.trim() }))
           : undefined
       case 'llm':
         return settings.llmProvider && settings.llmModel ? markRaw(createLlmClassifier(complete)) : undefined
@@ -74,11 +74,11 @@ export const useTriageStore = defineStore('triage', () => {
   })
 
   /** Appraises a stimulus with the configured backend, or returns nothing without one. */
-  async function appraise(stimulus: Stimulus, deadlineMs: number): Promise<IntakeAppraisal | undefined> {
+  async function appraise(stimulus: Stimulus, deadlineMs: number, attendCriteria?: string): Promise<IntakeAppraisal | undefined> {
     const current = classifier.value
     if (!current)
       return undefined
-    return appraiseStimulus(stimulus, current, { deadlineMs, threshold: settings.effectiveThreshold })
+    return appraiseStimulus(stimulus, current, { deadlineMs, threshold: settings.effectiveThreshold, attendCriteria })
   }
 
   /** Intake policy for input from a connection. Without a backend, the input is admitted by rule. */
@@ -93,9 +93,15 @@ export const useTriageStore = defineStore('triage', () => {
     return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS)
   }
 
+  /** Appraisal of the idle owner scene. The question asks about raising something unprompted. */
+  function appraiseIdle(stimulus: Stimulus) {
+    return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, 'The event is the current state of the owner\'s scene, and nobody asked anything. Answer yes only when something in it is worth raising with the owner now.')
+  }
+
   return {
     classifier,
     decideConnectionIntake,
     appraiseNotification,
+    appraiseIdle,
   }
 })

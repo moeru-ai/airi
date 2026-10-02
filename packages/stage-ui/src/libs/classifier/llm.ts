@@ -16,23 +16,23 @@ export interface ClassifierCompletion {
 const confidence = { type: 'number', minimum: 0, maximum: 1, description: 'Your confidence in this answer, from 0 to 1.' }
 
 function answerSchema(question: ClassifierQuestion): Record<string, unknown> {
-  const description = [question.instructions, question.criteria].filter(Boolean).join('\n')
+  const description = question.instructions
   switch (question.type) {
     case 'noul':
-      return { type: 'number', minimum: 0, maximum: 1, description: `${description}\nAnswer with the probability of yes, from 0 to 1.` }
+      return { type: 'number', minimum: 0, maximum: 1, description: `${description}\nYes means: ${question.criteria.true}\nNo means: ${question.criteria.false}\nAnswer with the probability of yes, from 0 to 1.` }
     case 'choice':
       return {
         type: 'object',
-        description: `${description}\nOptions: ${Object.entries(question.options).map(([name, meaning]) => `${name}: ${meaning}`).join('; ')}`,
-        properties: { choice: { type: 'string', enum: Object.keys(question.options) }, confidence },
+        description: `${description}\nOptions: ${Object.entries(question.criteria).map(([name, meaning]) => `${name}: ${meaning}`).join('; ')}`,
+        properties: { choice: { type: 'string', enum: Object.keys(question.criteria) }, confidence },
         required: ['choice', 'confidence'],
         additionalProperties: false,
       }
     case 'score':
       return {
         type: 'object',
-        description: `${description}\nLevels: ${question.levels.map((level, index) => `${index}: ${level}`).join('; ')}`,
-        properties: { score: { type: 'number', minimum: 0, maximum: question.levels.length - 1 }, confidence },
+        description: `${description}\nLevels: ${question.criteria.map((level, index) => `${index}: ${level}`).join('; ')}`,
+        properties: { score: { type: 'number', minimum: 0, maximum: question.criteria.length - 1 }, confidence },
         required: ['score', 'confidence'],
         additionalProperties: false,
       }

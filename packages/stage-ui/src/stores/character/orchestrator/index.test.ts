@@ -11,15 +11,17 @@ import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
 import { renderConversationPreview } from '@proj-airi/core-agent'
+import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
-import { sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
+import { MAX_PROPOSAL_DEPTH, sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useModuleDirectoryStore } from '../../mods/api/module-directory'
@@ -470,8 +472,8 @@ describe('store character-orchestrator', () => {
     it('ignores a notification that a confident classifier skips, without a run', async () => {
       const mockStream = replyWith('Should not speak')
       const settings = useSettingsTriage(pinia)
-      settings.backend = 'jev'
-      settings.jevApiKey = 'key'
+      settings.backend = 'decisions'
+      settings.decisionsApiKey = 'key'
       vi.stubGlobal('fetch', vi.fn(async () => Response.json({ answers: { attend: { type: 'noul', noul: 0.01 } } })))
       const store = useCharacterOrchestratorStore(pinia)
       const event = notify({ urgency: 'later', headline: 'A cow mooed' })
@@ -480,9 +482,80 @@ describe('store character-orchestrator', () => {
 
       expect(mockStream).not.toHaveBeenCalled()
       expect(store.scheduledNotifies).toEqual([])
-      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'not-attending', decidedBy: 'classifier', appraisal: { backend: 'jev' } }])
+      expect(useSchedulerStore(pinia).intake.forStimulus(event.data.id)).toMatchObject([{ outcome: 'ignored', reason: 'not-attending', decidedBy: 'classifier', appraisal: { backend: 'decisions' } }])
       expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
       vi.unstubAllGlobals()
+    })
+
+    function observe(text: string) {
+      mockedStore(useChatContextStore, pinia).getContextsSnapshot = vi.fn(() => ({ minecraft: [{ id: 'status', contextId: 'status', strategy: ContextUpdateStrategy.ReplaceSelf, text, createdAt: 0 }] })) as any
+    }
+
+    function decideWith(noul: number) {
+      const settings = useSettingsTriage(pinia)
+      settings.backend = 'decisions'
+      settings.decisionsApiKey = 'key'
+      const fetch = vi.fn(async () => Response.json({ answers: { attend: { type: 'noul', noul } } }))
+      vi.stubGlobal('fetch', fetch)
+      return fetch
+    }
+
+    // T9: with no external input, an idle appraisal proposes work, and the run can output through its own channel.
+    it('turns a confident idle appraisal into an internal proposal that runs', async () => {
+      const mockStream = replyWith('By the way, the creeper is gone.')
+      decideWith(0.97)
+      observe('Creeper left the base')
+      const store = useCharacterOrchestratorStore(pinia)
+      const scheduler = useSchedulerStore(pinia)
+
+      await store.appraiseIdle()
+
+      expect(mockStream).toHaveBeenCalledOnce()
+      const records = scheduler.intake.snapshot()
+      expect(records.map(record => [record.event, record.outcome, record.origin])).toEqual([
+        ['appraisal', 'admitted', 'internal'],
+        ['proposal', 'admitted', 'internal'],
+      ])
+      expect(scheduler.runs.snapshot()).toMatchObject([{ runId: records[1]?.runId, state: 'done', envelope: { outputs: ['voice'] } }])
+      vi.unstubAllGlobals()
+    })
+
+    // T10: an idle appraisal can discard its own proposal, with no run and no provider call.
+    it('records an idle appraisal that finds nothing to raise, without a run', async () => {
+      const mockStream = replyWith('unused')
+      const fetch = decideWith(0.03)
+      observe('Nothing changed')
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.appraiseIdle()
+      // The same observations are not appraised again.
+      await store.appraiseIdle(Date.now() + 60 * 60_000)
+
+      expect(fetch).toHaveBeenCalledOnce()
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ event: 'appraisal', outcome: 'ignored', reason: 'not-attending', decidedBy: 'classifier' }])
+      expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
+      vi.unstubAllGlobals()
+    })
+
+    it('does not appraise without a classifier', async () => {
+      observe('Creeper left the base')
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.appraiseIdle()
+
+      expect(useSchedulerStore(pinia).intake.snapshot()).toEqual([])
+    })
+
+    // T12: a proposal chain stops at its depth limit.
+    it('rejects a proposal beyond the chain depth limit', async () => {
+      const mockStream = replyWith('unused')
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.propose({ headline: 'Follow up again', depth: MAX_PROPOSAL_DEPTH + 1, parentRunId: 'parent-run' })
+
+      expect(mockStream).not.toHaveBeenCalled()
+      expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ event: 'proposal', outcome: 'rejected', reason: 'depth-limit', parentRunId: 'parent-run' }])
     })
 
     it('ignores a notification whose time to live has passed', async () => {

@@ -38,17 +38,17 @@ describe('triage store', () => {
     expect(await useTriageStore().decideConnectionIntake(stimulus)).toEqual({ outcome: 'admitted', reason: 'connection-input', decidedBy: 'rule', salience: 0.8 })
   })
 
-  it('ignores connection input when JEV is confident and records the threshold in effect', async () => {
+  it('ignores connection input when a Decisions endpoint is confident and records the threshold in effect', async () => {
     const settings = useSettingsTriage()
-    settings.backend = 'jev'
-    settings.jevApiKey = 'key'
+    settings.backend = 'decisions'
+    settings.decisionsApiKey = 'key'
     settings.threshold = 0.9
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ answers: { attend: { type: 'noul', noul: 0.02 } } })))
 
     expect(await useTriageStore().decideConnectionIntake(stimulus)).toMatchObject({
       outcome: 'ignored',
       decidedBy: 'classifier',
-      appraisal: { backend: 'jev', threshold: 0.9 },
+      appraisal: { backend: 'decisions', threshold: 0.9 },
     })
   })
 

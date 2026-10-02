@@ -17,10 +17,8 @@ export interface AppraiseOptions {
   deadlineMs?: number
   /** Answers below this confidence do not decide. Users set it. @default 0.8 */
   threshold?: number
-  /** Module-supplied meaning for the attention question. */
+  /** What a yes means for the attention question, for example from a module declaration. */
   attendCriteria?: string
-  /** Module-supplied meaning for the urgency question. */
-  urgencyCriteria?: string
   signal?: AbortSignal
 }
 
@@ -38,13 +36,15 @@ export function triageRequest(stimulus: Stimulus, options: AppraiseOptions = {})
       attend: {
         type: 'noul',
         instructions: 'Does this event deserve the character\'s attention now? Judge attention, not whether to reply.',
-        criteria: options.attendCriteria,
+        criteria: {
+          true: options.attendCriteria ?? 'The event deserves attention now.',
+          false: 'The event can be ignored now.',
+        },
       },
       urgency: {
         type: 'score',
         instructions: 'How soon does this event need attention?',
-        levels: URGENCY_LEVELS,
-        criteria: options.urgencyCriteria,
+        criteria: URGENCY_LEVELS,
       },
     },
   }
