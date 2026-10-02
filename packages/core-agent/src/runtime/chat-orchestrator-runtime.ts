@@ -26,6 +26,7 @@ import { IntakeLog, salienceFromUrgency } from './intake'
 import { LeaseTable } from './lease-table'
 import { useLlmmarkerParser } from './llm-marker-parser'
 import { categorizeResponse, createStreamingCategorizer } from './response-categoriser'
+import { superviseRun } from './run-supervision'
 import { RunTable } from './run-table'
 import { STAY_QUIET_TOOL_NAME, stayQuietReason } from './stay-quiet'
 
@@ -1303,8 +1304,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       queuedSend.supervision = { state, reason }
       controller.abort(new Error(reason))
     }
-    const deadline = setTimeout(supervise, runDeadlineMs, 'expired', 'Run exceeded its deadline')
-    let stall = setTimeout(supervise, stallTimeoutMs, 'expired', 'Run stalled without stream activity')
+    const supervisor = superviseRun({ stallTimeoutMs, deadlineMs: runDeadlineMs }, reason => supervise('expired', reason))
     let lastToolCall: string | undefined
     let repeatedToolCalls = 0
 
@@ -1313,10 +1313,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId, {
         runId,
         envelope,
-        onActivity: () => {
-          clearTimeout(stall)
-          stall = setTimeout(supervise, stallTimeoutMs, 'expired', 'Run stalled without stream activity')
-        },
+        onActivity: () => supervisor.touch(),
         onToolCall: (key) => {
           repeatedToolCalls = key === lastToolCall ? repeatedToolCalls + 1 : 1
           lastToolCall = key
@@ -1341,8 +1338,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       return { ok: false, error: supervision ? new Error(supervision.reason) : error }
     }
     finally {
-      clearTimeout(deadline)
-      clearTimeout(stall)
+      supervisor.stop()
       activeSends.delete(sessionId)
     }
   }

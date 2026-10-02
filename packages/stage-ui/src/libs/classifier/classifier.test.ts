@@ -1,9 +1,11 @@
 import type { ClassifierRequest } from '@proj-airi/core-agent'
 
+import type { ClassifierCompletion } from './llm'
+
 import { describe, expect, it, vi } from 'vitest'
 
-import { createDecisionsClassifier, decisionsRequestBody, DEFAULT_DECISIONS_ENDPOINT } from './decisions'
-import { classifierCompletion, createLlmClassifier } from './llm'
+import { createDecisionsClassifier, DEFAULT_DECISIONS_ENDPOINT } from './decisions'
+import { createLlmClassifier } from './llm'
 
 const request: ClassifierRequest = {
   state: { source: 'discord', kind: 'input:text' },
@@ -16,8 +18,10 @@ const request: ClassifierRequest = {
 }
 
 describe('decisions classifier', () => {
-  it('sends the Decisions API question forms and keeps external text in its own field', () => {
-    const body = decisionsRequestBody(request, 'inception/mercury-decide:free')
+  it('sends the Decisions API question forms and keeps external text in its own field', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => Response.json({ answers: {} }))
+    await createDecisionsClassifier({ apiKey: 'key', model: 'inception/mercury-decide:free', fetch }).ask(request, { signal: new AbortController().signal })
+    const body = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body))
 
     expect(body.questions.attend).toMatchObject({ type: 'noul', criteria: { true: 'It mentions the character.', false: 'It does not.' } })
     expect(body.questions.lane).toMatchObject({ type: 'choice', criteria: { chat: 'Conversation', game: 'Game events' } })
@@ -63,8 +67,12 @@ describe('decisions classifier', () => {
 })
 
 describe('llm classifier', () => {
-  it('forces one tool whose schema lists every question', () => {
-    const completion = classifierCompletion(request, new AbortController().signal)
+  it('forces one tool whose schema lists every question', async () => {
+    let completion!: ClassifierCompletion
+    await createLlmClassifier(async (sent) => {
+      completion = sent
+      return {}
+    }).ask(request, { signal: new AbortController().signal })
 
     expect(completion.tool.parameters).toMatchObject({ required: ['attend', 'lane', 'urgency'], properties: { lane: { properties: { choice: { enum: ['chat', 'game'] }, probabilities: { required: ['chat', 'game'] } } } } })
     expect(JSON.stringify(completion.tool.parameters)).toContain('It mentions the character.')

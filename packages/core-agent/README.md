@@ -181,6 +181,10 @@ Omitted history gives way to the session digest from `getHistoryDigest` when the
 Each message costs what its projection sends: text, tool calls, tool results, and turn transcripts. An image counts as about 1,000 tokens.
 The serialized length bounds the token count, so the tokenizer loads only for history that can exceed the budget.
 
+## Run supervision
+
+`superviseRun` watches one run for a stall and for its deadline. Chat runs and notification runs share it, and each keeps its own failure handling.
+
 ## Recipes
 
 A recipe is one way to handle a kind of task. Its style says how it runs: `instructions` for the conversation run, `decision` for one classifier question, `run` for an isolated child run, or `mcp` for one MCP tool call.

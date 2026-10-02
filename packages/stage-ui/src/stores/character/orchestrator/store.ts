@@ -6,7 +6,7 @@ import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, useLlmmarkerParser } from '@proj-airi/core-agent'
+import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, superviseRun, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -290,24 +290,19 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     // Notification runs follow the same stall and deadline limits as chat runs, so a stalled provider never keeps the voice.
     const { stallTimeoutMs, runDeadlineMs } = runLimits.limits
     let expiry: string | undefined
-    const expire = (reason: string) => {
+    const supervisor = superviseRun({ stallTimeoutMs, deadlineMs: runDeadlineMs }, (reason) => {
       if (controller.signal.aborted)
         return
       expiry = reason
       characterStore.cancelSparkNotifyReaction(event.data.id)
       controller.abort(new Error(reason))
-    }
-    const deadline = setTimeout(expire, runDeadlineMs, 'Run exceeded its deadline')
-    let stall = setTimeout(expire, stallTimeoutMs, 'Run stalled without stream activity')
+    })
     activeNotify = {
       runId,
       eventId: event.data.id,
       controller,
       interrupts: (scheduler.runs.get(runId)?.salience ?? 0) >= INTERRUPT_SALIENCE,
-      onActivity: () => {
-        clearTimeout(stall)
-        stall = setTimeout(expire, stallTimeoutMs, 'Run stalled without stream activity')
-      },
+      onActivity: () => supervisor.touch(),
     }
     processing.value = true
 
@@ -348,8 +343,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       throw error
     }
     finally {
-      clearTimeout(deadline)
-      clearTimeout(stall)
+      supervisor.stop()
       if (activeNotify?.controller === controller) {
         activeNotify = undefined
         processing.value = false

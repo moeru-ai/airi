@@ -2,6 +2,8 @@ import type { SpeechAudioEvent, SpeechStopEvent } from '@proj-airi/server-sdk'
 
 import type { SpeechDeliverySource } from './delivery'
 
+import { encodeBase64 } from '@moeru/std/base64'
+
 /** A device that receives one turn's speech. */
 export interface ForwardedDevice {
   binding: string
@@ -21,14 +23,6 @@ export function sniffAudioMimeType(bytes: Uint8Array) {
   if (ascii.startsWith('ID3') || (bytes[0] === 0xFF && ((bytes[1] ?? 0) & 0xE0) === 0xE0))
     return 'audio/mpeg'
   return 'application/octet-stream'
-}
-
-function encodeBase64(bytes: Uint8Array) {
-  let binary = ''
-  // Chunks keep each call's argument list short.
-  for (let index = 0; index < bytes.length; index += 0x8000)
-    binary += String.fromCharCode(...bytes.subarray(index, index + 0x8000))
-  return btoa(binary)
 }
 
 /**

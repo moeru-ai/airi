@@ -16,8 +16,8 @@ export interface DecisionsClassifierOptions {
   fetch?: typeof globalThis.fetch
 }
 
-/** Builds the request body. The questions already use the API's `criteria` forms. Exported for tests. */
-export function decisionsRequestBody(request: ClassifierRequest, model: string) {
+/** Builds the request body. The questions already use the API's `criteria` forms. */
+function decisionsRequestBody(request: ClassifierRequest, model: string) {
   return {
     model,
     state: renderClassifierState(request),

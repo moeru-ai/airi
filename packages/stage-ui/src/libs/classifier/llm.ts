@@ -50,8 +50,8 @@ function answerSchema(question: ClassifierQuestion): Record<string, unknown> {
   }
 }
 
-/** Builds the forced tool call for one request. Exported for tests. */
-export function classifierCompletion(request: ClassifierRequest, signal: AbortSignal): ClassifierCompletion {
+/** Builds the forced tool call for one request. */
+function classifierCompletion(request: ClassifierRequest, signal: AbortSignal): ClassifierCompletion {
   return {
     system: ['You are a decision classifier. You never write prose. Answer every question by calling the tool once.', UNTRUSTED_NOTICE].join('\n'),
     user: renderClassifierState(request),
