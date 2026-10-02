@@ -978,7 +978,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                   break
                 if (guard.sessionId !== chatSession.activeSessionId
                   && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
-                  guard.completed = true
+                  // `remoteStreamGuard` is a shallow ref, so a nested write does not
+                  // notify the stores that read it. Replace the guard so that the
+                  // completion is visible to `liveRemoteStreamSessionId`.
+                  remoteStreamGuard.value = { ...guard, completed: true }
                   break
                 }
                 try {
