@@ -1045,6 +1045,7 @@ export const useChatStore = defineStore('chat', () => {
     rerunToolCall,
     retry,
     send,
+    startRecipe,
     onRecipeRunSettled,
     cancelPendingSends,
     cancelRun,

@@ -67,7 +67,7 @@ describe('recipe proposal tool', () => {
     expect((await proposeWith({ ...nulls, name: 'Empty', description: '', style: 'instructions' })).result).toBe('Recipe not saved: An instructions recipe needs instructions.')
     expect((await proposeWith({ ...nulls, name: 'Odd', description: '', style: 'decision', question: 'Yes?', answerType: 'noul', answers: [{ meaning: 'a', action: 'reply', hint: null }, { meaning: 'b', action: 'reply', hint: null }, { meaning: 'c', action: 'reply', hint: null }] })).result)
       .toBe('Recipe not saved: A yes-or-no decision needs exactly two answers, yes first.')
-    expect((await proposeWith({ ...nulls, name: 'Spam', description: '', style: 'instructions', instructions: 'Say hi.', autoRun: { when: 'schedule', minutes: 0.5, gate: null } })).result)
+    expect((await proposeWith({ ...nulls, name: 'Spam', description: '', style: 'instructions', instructions: 'Say hi.', autoRun: { when: 'schedule', minutes: 0.5, source: null, gate: null } })).result)
       .toBe('Recipe not saved: autoRun minutes must be a whole number from 1 to 10080.')
     expect((await proposeWith({ style: 'nonsense' })).proposals).toEqual([])
   })
@@ -83,11 +83,18 @@ describe('recipe proposal tool', () => {
       question: null,
       answerType: null,
       answers: null,
-      autoRun: { when: 'idle', minutes: 60, gate: 'Is the owner likely still awake?' },
+      autoRun: { when: 'idle', minutes: 60, source: null, gate: 'Is the owner likely still awake?' },
     })
 
     expect(proposals[0]?.triggers).toEqual([{ kind: 'idle', afterMinutes: 60 }])
     expect(proposals[0]?.gate).toBe('Is the owner likely still awake?')
+  })
+
+  it('saves an event trigger on a registered source, and refuses one without a source', async () => {
+    const base = { name: 'Game watch', description: '', style: 'instructions', instructions: 'Comment on the game.', keywords: null, question: null, answerType: null, answers: null }
+    expect((await proposeWith({ ...base, autoRun: { when: 'event', minutes: 10, source: 'minecraft', gate: null } })).proposals[0]?.triggers)
+      .toEqual([{ kind: 'event', source: 'minecraft', cooldownMinutes: 10 }])
+    expect((await proposeWith({ ...base, autoRun: { when: 'event', minutes: 10, source: null, gate: null } })).result).toBe('Recipe not saved: An event trigger needs its source.')
   })
 
   // Strict function calling rejects a schema whose objects leave a property out of `required`.

@@ -24,8 +24,10 @@ const props = defineProps<{
   recipe?: Recipe
   /** Recipes that an answer can point to. */
   targets: readonly Recipe[]
-  /** Writes an instructions recipe that starts on an idle or schedule trigger instead of keywords. */
+  /** Writes an instructions recipe that starts on an idle, schedule, or event trigger instead of keywords. */
   autoRun?: boolean
+  /** Registered sources that an event trigger can follow, such as module metrics in the shared pool. */
+  sources?: readonly string[]
 }>()
 
 const emit = defineEmits<{
@@ -66,9 +68,12 @@ const name = ref(props.recipe?.name ?? '')
 const description = ref(props.recipe?.description ?? '')
 const instructions = ref(style?.kind === 'instructions' ? style.instructions : '')
 const keywords = ref(props.recipe?.triggers.flatMap(trigger => trigger.kind === 'keyword' ? trigger.keywords : []).join(', ') ?? '')
-const storedTrigger = props.recipe?.triggers.find(trigger => trigger.kind === 'idle' || trigger.kind === 'schedule')
-const triggerKind = ref<'idle' | 'schedule'>(storedTrigger?.kind === 'schedule' ? 'schedule' : 'idle')
-const triggerMinutes = ref(storedTrigger?.kind === 'schedule' ? storedTrigger.everyMinutes : storedTrigger?.kind === 'idle' ? storedTrigger.afterMinutes : 60)
+const storedTrigger = props.recipe?.triggers.find(trigger => trigger.kind === 'idle' || trigger.kind === 'schedule' || trigger.kind === 'event')
+const triggerKind = ref<'idle' | 'schedule' | 'event'>(storedTrigger?.kind === 'schedule' || storedTrigger?.kind === 'event' ? storedTrigger.kind : 'idle')
+const triggerMinutes = ref(storedTrigger?.kind === 'schedule'
+  ? storedTrigger.everyMinutes
+  : storedTrigger?.kind === 'idle' ? storedTrigger.afterMinutes : storedTrigger?.kind === 'event' ? storedTrigger.cooldownMinutes : 60)
+const eventSource = ref(storedTrigger?.kind === 'event' ? storedTrigger.source : '')
 const gate = ref(props.recipe?.gate ?? '')
 const question = ref(decision?.question.instructions ?? '')
 const questionType = ref<QuestionType>(decision?.question.type ?? 'noul')
@@ -83,7 +88,10 @@ function setQuestionType(type: QuestionType) {
 const triggerOptions = computed(() => [
   { label: t(`${KEY}.auto_run.when.idle`), value: 'idle' },
   { label: t(`${KEY}.auto_run.when.schedule`), value: 'schedule' },
+  { label: t(`${KEY}.auto_run.when.event`), value: 'event' },
 ])
+// A stored source stays selectable while its module is offline.
+const sourceOptions = computed(() => [...new Set([...props.sources ?? [], ...(eventSource.value ? [eventSource.value] : [])])].map(source => ({ label: source, value: source })))
 const minutesValid = computed(() => Number.isInteger(triggerMinutes.value) && triggerMinutes.value >= 1 && triggerMinutes.value <= 10_080)
 
 const questionTypeOptions = computed(() => (['noul', 'choice', 'score'] as const).map(type => ({ label: t(`${KEY}.decision.type.${type}`), value: type })))
@@ -136,7 +144,7 @@ const canSave = computed(() => {
   if (!name.value.trim())
     return false
   if (props.type === 'instructions')
-    return Boolean(instructions.value.trim()) && (!props.autoRun || minutesValid.value)
+    return Boolean(instructions.value.trim()) && (!props.autoRun || (minutesValid.value && (triggerKind.value !== 'event' || Boolean(eventSource.value))))
   return Boolean(question.value.trim())
     && answers.value.every(row => row.meaning.trim() && (row.action !== 'hint' || row.hint.trim()) && (row.action !== 'recipe' || row.recipeId))
 })
@@ -148,7 +156,11 @@ function save() {
   const triggers: Recipe['triggers'] = props.type !== 'instructions'
     ? []
     : props.autoRun
-      ? [triggerKind.value === 'idle' ? { kind: 'idle', afterMinutes: triggerMinutes.value } : { kind: 'schedule', everyMinutes: triggerMinutes.value }]
+      ? [triggerKind.value === 'idle'
+          ? { kind: 'idle', afterMinutes: triggerMinutes.value }
+          : triggerKind.value === 'event'
+            ? { kind: 'event', source: eventSource.value, cooldownMinutes: triggerMinutes.value }
+            : { kind: 'schedule', everyMinutes: triggerMinutes.value }]
       : words.length ? [{ kind: 'keyword', keywords: words }] : []
   emit('save', {
     name: name.value.trim(),
@@ -168,6 +180,12 @@ function save() {
       <FieldTextArea v-model="instructions" :rows="5" :required="false" :label="t(`${KEY}.add.instructions`)" />
       <template v-if="autoRun">
         <FieldSelect v-model="triggerKind" :label="t(`${KEY}.auto_run.when.label`)" :options="triggerOptions" />
+        <template v-if="triggerKind === 'event'">
+          <FieldSelect v-if="sourceOptions.length" v-model="eventSource" :label="t(`${KEY}.auto_run.source.label`)" :description="t(`${KEY}.auto_run.source.description`)" :options="sourceOptions" />
+          <p v-else :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
+            {{ t(`${KEY}.auto_run.source.none`) }}
+          </p>
+        </template>
         <FieldInput v-model="triggerMinutes" type="number" :label="t(`${KEY}.auto_run.minutes.label`)" :description="t(`${KEY}.auto_run.minutes.${triggerKind}`)" />
         <FieldInput v-model="gate" :label="t(`${KEY}.auto_run.gate.label`)" :description="t(`${KEY}.auto_run.gate.description`)" :placeholder="t(`${KEY}.auto_run.gate.placeholder`)" />
       </template>

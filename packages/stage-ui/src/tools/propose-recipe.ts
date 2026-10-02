@@ -35,9 +35,10 @@ const proposeRecipeParameters = strictObject({
   answerType: nullable(pipe(picklist(['noul', 'choice', 'score']), description('For decision: noul is yes or no with exactly two answers, yes first. choice picks one answer. score orders answers from lowest to highest. Null for instructions.'))),
   answers: nullable(pipe(array(answerSchema), description('For decision: the possible answers and their actions. Null for instructions.'))),
   autoRun: nullable(pipe(strictObject({
-    when: pipe(picklist(['idle', 'schedule']), description('idle: after the owner sends no message for the given minutes, once per silence. schedule: every given minutes.')),
+    when: pipe(picklist(['idle', 'schedule', 'event']), description('idle: after the owner sends no message for the given minutes, once per silence. schedule: every given minutes. event: when the given source reports a new observation, at most once per given minutes.')),
     // Strict function calling may reject numeric bounds in the schema, so the tool checks them.
-    minutes: pipe(number(), description('Whole minutes for the trigger, from 1 to 10080.')),
+    minutes: pipe(number(), description('Whole minutes for the trigger, from 1 to 10080. For event, the shortest time between two starts.')),
+    source: nullable(pipe(string(), maxLength(120), description('For event: the registered source to follow, as observations name it, for example a module name. Null otherwise.'))),
     gate: nullable(pipe(string(), maxLength(300), description('A yes-or-no question that the classifier answers when the trigger fires. A confident no skips the run, for example "Is it late at night?". Null to always run.'))),
   }), description('For instructions that start on their own, without a message. Null for recipes that a conversation uses.'))),
 })
@@ -59,9 +60,13 @@ function recipeFromInput(input: InferOutput<typeof proposeRecipeParameters>): Om
       return 'An instructions recipe needs instructions.'
     if (input.autoRun && (!Number.isInteger(input.autoRun.minutes) || !(input.autoRun.minutes >= 1) || !(input.autoRun.minutes <= 10_080)))
       return 'autoRun minutes must be a whole number from 1 to 10080.'
+    if (input.autoRun?.when === 'event' && !input.autoRun.source?.trim())
+      return 'An event trigger needs its source.'
     const autoRun = input.autoRun?.when === 'idle'
       ? [{ kind: 'idle' as const, afterMinutes: input.autoRun.minutes }]
-      : input.autoRun?.when === 'schedule' ? [{ kind: 'schedule' as const, everyMinutes: input.autoRun.minutes }] : []
+      : input.autoRun?.when === 'schedule'
+        ? [{ kind: 'schedule' as const, everyMinutes: input.autoRun.minutes }]
+        : input.autoRun?.when === 'event' ? [{ kind: 'event' as const, source: input.autoRun.source!.trim(), cooldownMinutes: input.autoRun.minutes }] : []
     const gate = input.autoRun?.gate?.trim()
     return {
       name: input.name.trim(),

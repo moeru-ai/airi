@@ -908,10 +908,16 @@ pages:
             label: 什么时候开始
             idle: 我一段时间没发消息后
             schedule: 定时
+            event: 已注册的来源有新观察时
           minutes:
             label: 分钟
             idle: 你多少分钟没发消息后开始。每段沉默只开始一次，你再发消息后重新计时。
             schedule: 每隔多少分钟开始一次。
+            event: 两次开始之间的最短间隔。像鼠标位置这样频繁更新的来源，这段时间里最多触发一次。
+          source:
+            label: 来源
+            description: 已在 AIRI 注册的模块，或者正在上报观察的来源。
+            none: 还没有来源注册。先连接一个会上报观察的模块，再回来选择。
           gate:
             label: 运行前先判断（可选）
             description: 触发时先让注意力分类器回答这个是或否的问题，有把握地回答“否”就不运行，只花一次分类器调用。没有设置分类器时总会运行。
@@ -919,7 +925,7 @@ pages:
           summary:
             idle: '{minutes} 分钟没消息后'
             schedule: '每 {minutes} 分钟'
-            look: '每 {minutes} 分钟看一次'
+            event: '{source} 上报时，最多每 {minutes} 分钟一次'
         styles:
           instructions: 指令
           decision: 快速判断
@@ -929,12 +935,6 @@ pages:
           stay-quiet:
             name: 已读不回
             description: 角色读完消息后，如果没什么要说的，可以选择不回复。
-          idle-look:
-            name: 空闲时看看周围
-            description: 没有回复在生成时，看一看当前的观察，有值得说的就主动提起。每次都会调用一次分类器。
-            interval:
-              label: 看一次的间隔（分钟）
-              description: 这里设置的是看的频率，不是说话的频率。
       description: 长期记忆
       title: 长期记忆
       sessions:

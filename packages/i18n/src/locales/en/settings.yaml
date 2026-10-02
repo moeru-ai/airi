@@ -956,10 +956,16 @@ pages:
             label: When it starts
             idle: After I send no message for a while
             schedule: On a schedule
+            event: When a registered source reports something new
           minutes:
             label: Minutes
             idle: Starts after this many minutes without your message. It starts once per silence and waits for your next message.
             schedule: Starts every this many minutes.
+            event: The shortest time between two starts. A busy source, such as a pointer position, fires at most once in this time.
+          source:
+            label: Source
+            description: A module that registered with AIRI, or a source that reports observations now.
+            none: No source has registered yet. Connect a module that reports observations, then choose it here.
           gate:
             label: Decide before running (optional)
             description: When the trigger fires, the attention classifier answers this yes-or-no question first. A confident no skips the run and costs only the classifier call. Without a classifier, the recipe always runs.
@@ -967,7 +973,7 @@ pages:
           summary:
             idle: 'After {minutes} min of silence'
             schedule: 'Every {minutes} min'
-            look: 'Looks every {minutes} min'
+            event: 'When {source} reports, at most every {minutes} min'
         styles:
           instructions: Instructions
           decision: Quick decision
@@ -977,12 +983,6 @@ pages:
           stay-quiet:
             name: Read without replying
             description: Lets the character read a message and choose not to answer when nothing needs saying.
-          idle-look:
-            name: Look around when idle
-            description: While no reply runs, the character looks at the current observations and raises something worth it. Each look costs one classifier request.
-            interval:
-              label: Look interval (minutes)
-              description: This sets how often the character looks, not how often it speaks.
       description: Long-term memory specific settings and management
       title: Long-Term Memory
       sessions:

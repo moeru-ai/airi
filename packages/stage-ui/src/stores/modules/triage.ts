@@ -93,11 +93,6 @@ export const useTriageStore = defineStore('triage', () => {
     return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, { mood })
   }
 
-  /** Appraisal of the idle owner scene. The question asks about raising something unprompted. */
-  function appraiseIdle(stimulus: Stimulus, mood?: Pad) {
-    return appraise(stimulus, NOTIFICATION_TRIAGE_DEADLINE_MS, { mood, attendCriteria: 'The event is the current state of the owner\'s scene, and nobody asked anything. Answer yes only when something in it is worth raising with the owner now.' })
-  }
-
   /**
    * Asks every usable decision recipe about one message in a single classifier call.
    * A late, failed, or unsure answer chooses nothing, so the run replies.
@@ -130,6 +125,5 @@ export const useTriageStore = defineStore('triage', () => {
     passRecipeGates,
     decideConnectionIntake,
     appraiseNotification,
-    appraiseIdle,
   }
 })

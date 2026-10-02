@@ -32,9 +32,7 @@ The Decisions backend defaults to OpenRouter with `inception/mercury-decide:free
 `useTriageStore` decides connection input within 800 ms and appraises notifications within 3 seconds. Without a backend, fixed rules decide.
 The chat model classifier receives only its own tool and system prompt, never the built-in tools.
 The settings page starts the chat model classifier from the conversation provider, lists that provider's models, and falls back to its default model.
-While no run is active, the leader appraises the owner scene's observations at the idle check interval. A confident yes becomes an internal proposal.
 `propose` offers internal work to the same intake. A chain deeper than two proposals is rejected. An admitted proposal becomes a notification run, which can still stay silent.
-Unchanged observations are not appraised again. Without a classifier, idle appraisal does nothing.
 The context bridge assigns observation audiences from logical readers. Sharing with every reader makes an observation public. Producers cannot set the label.
 
 ## Voice ownership
@@ -118,9 +116,9 @@ The stage speaks only speakable text. Code blocks, markup markers, and link addr
 A notification at 0.85 salience or more takes the voice from calmer speech. Its reaction interrupts at the next segment boundary, so the playing sentence finishes.
 Other notification reactions wait until current speech ends. Scene sources never reach 0.85.
 A run's speech keeps the voice lease after the run ends, until its turn stops playing. `useSpeechRuntimeStore().holdPlayback` hands the lease over in the speech host.
-The owner's next message cuts in. Calm notifications, idle checks, and scene runs wait until the speech ends.
+The owner's next message cuts in. Calm notifications and scene runs wait until the speech ends.
 Notification runs count against the shared run limit. With a limit of one, chat sends and notifications run one at a time.
-After three blocked runs within a minute, notifications and idle appraisal wait for a one-minute cooldown. Owner input still runs and shows its failure.
+After three blocked runs within a minute, notifications and recipe triggers wait for a one-minute cooldown. Owner input still runs and shows its failure.
 `trackSpeechDelivery` follows segment playback for each turn. When playback stops early, the speech host records the finished segments through `recordDeliveredSpeech`.
 `useSpeechRuntimeStore` keeps the turn-to-message map. Chat turns and notification reactions both register there.
 A spoken notification reaction joins the active session as an assistant message with `proactive`, without a user turn. Expression markers stay out of it.
@@ -128,7 +126,7 @@ A partly played segment counts as not delivered. A turn that played nothing, for
 Streaming speech providers bypass the segment pipeline, so their interruptions are not recorded yet.
 Every model request reports through `useLLM`. `useModelProfilesStore` records first-token delay and estimated cost for each provider and model.
 The Consciousness page holds the optional spending limit per rolling hour and the folded model tiers. The conversation model stays the user's choice there.
-While the limit is reached, owner and connection input fails with a message, and notifications and idle checks wait. No model is swapped for a cheaper one.
+While the limit is reached, owner and connection input fails with a message, and notifications and recipe triggers wait. No model is swapped for a cheaper one.
 The spending ledger lives in the leader renderer's memory, so it starts empty after a restart.
 `useCharacterMoodStore` keeps each persona's mood. Its motion follows the temperament that the card editor sets with `TemperamentPad`. With a classifier configured, finished turns and urgent notifications move it. Without one, mood rests and nothing changes.
 Each conversation prompt and notification reaction reads one mood sentence. With SSML on, each spoken segment shifts pitch and speed by the mood at synthesis time. The stage weighs sentence expressions by mood and shows the mood baseline after speech.
@@ -140,8 +138,8 @@ Decision recipes ask the attention classifier before a reply, in one call with a
 Each recipe runs in its own space: a hidden session with `recipeId` whose prompt adds the recipe steps after the identity. `builtIn_useRecipe` and keyword triggers start it as derived work, and its result returns to the conversation through the character orchestrator.
 The chat shows each handed task as a recipe label. A reply that a decision recipe changed names that recipe.
 The owner can edit owner and model recipes on the recipes page. Built-in recipes only switch on and off.
-The recipes page has two tabs. In conversation lists recipes that act on a message. Auto-run lists recipes that start on a trigger, including the built-in idle look, which starts off.
-The character orchestrator checks auto-run triggers on each tick. A due recipe asks its gate, then starts as a proposal.
+The recipes page has two tabs. In conversation lists recipes that act on a message. Auto-run lists the owner's recipes that start on a trigger: a silence, a schedule, or a new observation from a registered source.
+The character orchestrator checks auto-run triggers on each tick. A due recipe asks its gate, then runs in its own session, and its result returns to the active owner conversation.
 Every chat run request carries the silence tool and its guidance. It comes from the built-in stay-quiet recipe, so turning that recipe off removes the tool. A silent run shows no reply in the owner chat and sends nothing to a Discord channel.
 
 ## Chat sampling

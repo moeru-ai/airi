@@ -10,7 +10,6 @@ export type TriageBackend = 'none' | 'decisions' | 'llm'
 export const DEFAULT_TRIAGE_THRESHOLD = 0.8
 export const MIN_TRIAGE_THRESHOLD = 0.5
 export const MAX_TRIAGE_THRESHOLD = 0.99
-export const DEFAULT_APPRAISAL_INTERVAL_MINUTES = 15
 
 /**
  * Classifier backend and trust threshold for intake triage.
@@ -29,8 +28,6 @@ export const useSettingsTriage = defineStore('settings-triage', () => {
   const decisionsModel = useLocalStorageManualReset<string>('settings/triage/decisions-model', DEFAULT_DECISIONS_MODEL)
   const llmProvider = useLocalStorageManualReset<string>('settings/triage/llm-provider', '')
   const llmModel = useLocalStorageManualReset<string>('settings/triage/llm-model', '')
-  /** Minutes between idle appraisals. `0` turns them off. A short interval changes how often the character looks, not how often it speaks. */
-  const appraisalIntervalMinutes = useLocalStorageManualReset<number>('settings/triage/appraisal-interval-minutes', DEFAULT_APPRAISAL_INTERVAL_MINUTES)
 
   const effectiveThreshold = computed(() => Number.isFinite(threshold.value)
     ? Math.min(Math.max(threshold.value, MIN_TRIAGE_THRESHOLD), MAX_TRIAGE_THRESHOLD)
@@ -44,7 +41,6 @@ export const useSettingsTriage = defineStore('settings-triage', () => {
     decisionsModel.reset()
     llmProvider.reset()
     llmModel.reset()
-    appraisalIntervalMinutes.reset()
   }
 
   return {
@@ -55,7 +51,6 @@ export const useSettingsTriage = defineStore('settings-triage', () => {
     decisionsModel,
     llmProvider,
     llmModel,
-    appraisalIntervalMinutes,
     effectiveThreshold,
     resetState,
   }

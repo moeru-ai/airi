@@ -187,15 +187,14 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Implemented: the Decisions backend defaults to OpenRouter and accepts any endpoint with the same schema, for example TypeSafe. Questions use the API's `criteria` forms.
 - Observed (`orchestrator/index.test.ts`): a notification that a confident classifier skips creates no run. Each record keeps the backend and the threshold in effect.
 - Implemented: Settings > Memory selects the backend and the trust threshold. The default is no classifier.
-- Observed (`orchestrator/index.test.ts`, T9): a confident idle appraisal becomes an internal proposal, and its run outputs without external input.
-- Observed (`orchestrator/index.test.ts`, T10 and T12): an idle appraisal can discard its proposal without a run. Unchanged observations are not appraised again. A proposal beyond depth two is rejected.
+- Observed (`orchestrator/index.test.ts`, T9): with no external input, an owner recipe with an idle trigger starts once per silence in its own session.
+- Observed (`orchestrator/index.test.ts`, T10 and T12): with no due recipe, the scheduler asks and starts nothing. A proposal beyond depth two is rejected.
 - Observed (`lease-table.test.ts`): candidates for one resource rank by salience tier, then deadline, then waiting time. Other resources never wait for them.
 - Observed (`orchestrator/index.test.ts`): an urgent waiting notification goes ahead of a later chat send for the voice. An expired notification is ignored before any classifier call.
 - Observed (`chat-orchestrator-runs.test.ts`, `orchestrator/index.test.ts`, T20): the run limit counts working runs of every owner. A limit of one serializes chat sends and notifications with the normal envelopes and traces.
 - Observed (`orchestrator/index.test.ts`): notification runs follow the same stall and deadline limits as chat runs. A stalled request expires, its reaction speech stops, and the voice is released.
-- Observed (`error-burst.test.ts`, `orchestrator/index.test.ts`): three blocked runs within a minute pause notifications and idle appraisal for a minute. Paused work is deferred, never dropped. Direct owner input does not wait.
+- Observed (`error-burst.test.ts`, `orchestrator/index.test.ts`): three blocked runs within a minute pause notifications and recipe triggers for a minute. Paused work is deferred, never dropped. Direct owner input does not wait.
 - Implemented: intake applies hard constraints, then resource order. Rules decide who gets a chance now. The run, and later mood and persona, decide whether to speak.
-- Designed: persona and mood change appraisal cadence in P6. P3 uses the user's idle check interval, and a short interval changes how often the character looks, not how often it speaks.
 - Experimental: whether either backend improves attention decisions. Live evidence after P10 must compare decisions and latency against fixed rules.
 
 ### P4 progress
@@ -248,7 +247,7 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`triage.test.ts`): the same event gets different classifier decisions under different moods, and the appraisal records the mood in effect.
 - Observed (`chat-orchestrator-runtime.test.ts`, `mood.test.ts`): each run's prompt carries one mood sentence, such as "Current mood: slightly irritated.", for the persona of its own session. Notification reactions read the same sentence.
 - Observed (`mood.test.ts` in stage-ui): mood moves only after confident scores for every dimension, only for the appraised persona, and rests at the baseline without a classifier.
-- Implemented: finished turns and urgent events appraise mood beside the work. Idle checks scale by arousal. The stage composes sentence expressions with the mood and returns to the mood baseline after speech.
+- Implemented: finished turns and urgent events appraise mood beside the work. The stage composes sentence expressions with the mood and returns to the mood baseline after speech.
 
 ### P7 progress
 
@@ -265,8 +264,9 @@ Labels follow the claim levels in the design review appendix: Observed has a nam
 - Observed (`recipes.test.ts`): the owner can edit an owner or model recipe. Its source, switch, and approval stay.
 - Observed (`recipe.test.ts`, orchestrator `index.test.ts`): auto-run recipes start on an idle or schedule trigger. An idle trigger fires once per owner silence. A start is a proposal, so it waits for the voice and pauses at the spending limit. With no due recipe, nothing is asked or called.
 - Observed (`recipe.test.ts`, orchestrator `index.test.ts`): an auto-run recipe can have a gate. The classifier answers it when the trigger fires, and only a confident yes runs the recipe.
-- Observed (orchestrator `index.test.ts`): looking around while idle is the built-in `builtin:idle-look` recipe. It starts off, so idle looks cost nothing until the owner turns it on.
-- Designed: event and mood triggers. `appraiseIdle` stays until recipe triggers replace it.
+- Observed (`recipe.test.ts`, orchestrator `index.test.ts`): an event trigger follows a registered source, such as a module that reports observations. A newer observation starts the recipe in its own session with that observation as its task, at most once per cooldown.
+- Implemented: idle appraisal and its built-in recipe are removed. Owner recipes with triggers replace them, so nothing looks around unless the owner set a recipe.
+- Designed: mood triggers.
 - Observed (`propose-recipe.test.ts`, `chat.contract.browser.test.ts`): the owner can create a recipe in conversation. Owner-private runs get `builtIn_proposeRecipe`, scene runs do not, and the proposal waits for one approval.
 - Observed (`chat-orchestrator-runs.test.ts`): a derived run has no voice or owner output, reads within its parent audience, and records an internal intake with its parent. Depth, fan-out, and an ended parent reject derivation before a run exists. Cancelling a parent cancels its derived runs.
 - Designed: a recipe run reporting partial progress to the scheduler, and writing urgent state to its slot in the shared pool.

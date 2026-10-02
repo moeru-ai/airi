@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import type { Recipe } from '@proj-airi/stage-ui/stores/recipes'
 
+import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
+import { useModuleDirectoryStore } from '@proj-airi/stage-ui/stores/mods/api/module-directory'
 import { useRecipesStore } from '@proj-airi/stage-ui/stores/recipes'
-import { useSettingsTriage } from '@proj-airi/stage-ui/stores/settings/triage'
-import { Button, Checkbox, FieldInput, GhostButton, SelectTab } from '@proj-airi/ui'
+import { Button, Checkbox, GhostButton, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import RecipeEditor from './components/recipe-editor.vue'
-
-import { positiveNumberModel } from '../../../libs/number-model'
 
 /** Recipe types that the owner can write. */
 type EditableRecipeType = Extract<Recipe['style']['kind'], 'instructions' | 'decision'>
@@ -22,11 +21,13 @@ const recipesStore = useRecipesStore()
 const { conversation, autoRun } = storeToRefs(recipesStore)
 
 const KEY = 'settings.pages.modules.memory-long-term.recipes'
-/** The built-in look around recipe. Its switch turns idle looks on, and the attention classifier answers each look. */
-const IDLE_LOOK_ID = 'builtin:idle-look'
-
-const { appraisalIntervalMinutes } = storeToRefs(useSettingsTriage())
-const lookIntervalModel = positiveNumberModel(appraisalIntervalMinutes, { integer: true })
+const chatContext = useChatContextStore()
+const moduleDirectory = useModuleDirectoryStore()
+/** Sources an event trigger can follow: modules that registered with the host, and sources that report observations now. */
+const eventSources = computed(() => [...new Set([
+  ...moduleDirectory.modules.map(module => module.name),
+  ...chatContext.getContextBucketsSnapshot().map(bucket => bucket.sourceKey),
+])].sort())
 const addableTypes: EditableRecipeType[] = ['instructions', 'decision']
 const KEYWORDS_SHOWN = 3
 
@@ -97,10 +98,13 @@ function metaOf(recipe: Recipe) {
       parts.push(t(`${KEY}.keywords_summary`, { words: trigger.keywords.slice(0, KEYWORDS_SHOWN).join(', ') }) + (extra > 0 ? ` +${extra}` : ''))
     }
     else if (trigger.kind === 'idle') {
-      parts.push(trigger.afterMinutes > 0 ? t(`${KEY}.auto_run.summary.idle`, { minutes: trigger.afterMinutes }) : t(`${KEY}.auto_run.summary.look`, { minutes: appraisalIntervalMinutes.value }))
+      parts.push(t(`${KEY}.auto_run.summary.idle`, { minutes: trigger.afterMinutes }))
     }
     else if (trigger.kind === 'schedule') {
       parts.push(t(`${KEY}.auto_run.summary.schedule`, { minutes: trigger.everyMinutes }))
+    }
+    else if (trigger.kind === 'event') {
+      parts.push(t(`${KEY}.auto_run.summary.event`, { source: trigger.source, minutes: trigger.cooldownMinutes }))
     }
   }
   return parts.join(' · ')
@@ -175,7 +179,7 @@ function removeRecipe(id: string) {
         <span :class="[isAutoRunTab ? AUTO_RUN_ICON : STYLE_ICONS[adding], 'text-lg', 'text-primary-500 dark:text-primary-400']" aria-hidden="true" />
         {{ isAutoRunTab ? t(`${KEY}.auto_run.title`) : t(`${KEY}.types.${adding}.title`) }}
       </span>
-      <RecipeEditor :type="adding" :auto-run="isAutoRunTab" :targets="conversation" @save="addRecipe" @cancel="closeForms" />
+      <RecipeEditor :type="adding" :auto-run="isAutoRunTab" :sources="eventSources" :targets="conversation" @save="addRecipe" @cancel="closeForms" />
     </section>
 
     <ul v-if="shown.length" :class="['flex flex-col', 'gap-2']">
@@ -219,14 +223,6 @@ function removeRecipe(id: string) {
           />
         </div>
 
-        <FieldInput
-          v-if="recipe.id === IDLE_LOOK_ID && recipe.enabled"
-          v-model="lookIntervalModel"
-          type="number"
-          :label="t(`${KEY}.builtin.idle-look.interval.label`)"
-          :description="t(`${KEY}.builtin.idle-look.interval.description`)"
-        />
-
         <div
           v-if="!recipe.approved"
           :class="[
@@ -245,6 +241,7 @@ function removeRecipe(id: string) {
             :type="editableType(recipe)!"
             :recipe="recipe"
             :auto-run="isAutoRunTab"
+            :sources="eventSources"
             :targets="conversation"
             @save="fields => saveRecipe(recipe.id, fields)"
             @cancel="closeForms"

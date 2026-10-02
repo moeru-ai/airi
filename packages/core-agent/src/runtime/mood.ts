@@ -300,14 +300,6 @@ export function describeMood(intensities: Partial<Record<MoodDimension, number>>
 }
 
 /**
- * Scales the idle appraisal interval by arousal. An aroused character looks more often, and a calm one less often.
- * The user interval is the base. How often the character looks never sets how often it speaks.
- */
-export function moodAppraisalInterval(baseMs: number, pad: Pad) {
-  return baseMs * 2 ** -pad.arousal
-}
-
-/**
  * Prosody offsets for one spoken sentence: pleasure raises the pitch, and arousal speeds the voice.
  * The offsets stay small, so mood colors the voice without changing who speaks.
  */

@@ -10,7 +10,7 @@ import type z from 'zod'
 import type { StreamEvent } from '../../ai/chat-llm/llm'
 import type { AiriCard } from '../../modules'
 
-import { audienceFromBindings, IDLE_LOOK_RECIPE_ID, OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
+import { audienceFromBindings, OWNER_AUDIENCE, renderConversationPreview } from '@proj-airi/core-agent'
 import { ContextUpdateStrategy } from '@proj-airi/server-sdk'
 import { tool } from '@xsai/tool'
 import { nanoid } from 'nanoid'
@@ -21,6 +21,7 @@ import { ref } from 'vue'
 import { MAX_PROPOSAL_DEPTH, sparkNotifyCommandSchema, useCharacterOrchestratorStore } from '.'
 import { useCharacterStore } from '..'
 import { useLLM } from '../../ai/chat-llm/llm'
+import { useChatStore } from '../../chat'
 import { useChatContextStore } from '../../chat/context-store'
 import { useChatSessionStore } from '../../chat/session-store'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
@@ -701,94 +702,77 @@ describe('store character-orchestrator', () => {
       vi.unstubAllGlobals()
     })
 
-    function observe(text: string) {
-      mockedStore(useChatContextStore, pinia).getContextsSnapshot = vi.fn<ReturnType<typeof useChatContextStore>['getContextsSnapshot']>(() => ({ minecraft: [{ id: 'status', contextId: 'status', strategy: ContextUpdateStrategy.ReplaceSelf, text, createdAt: 0 }] }))
+    function observe(text: string, createdAt: number) {
+      mockedStore(useChatContextStore, pinia).getContextsSnapshot = vi.fn<ReturnType<typeof useChatContextStore>['getContextsSnapshot']>(() => ({ minecraft: [{ id: 'status', contextId: 'status', strategy: ContextUpdateStrategy.ReplaceSelf, text, createdAt, metadata: { source: { id: 'minecraft' } } }] }))
     }
 
-    function decideWith(noul: number) {
-      const settings = useSettingsTriage(pinia)
-      settings.backend = 'decisions'
-      settings.decisionsApiKey = 'key'
-      const fetch = vi.fn(async () => Response.json({ answers: { attend: { type: 'noul', noul } } }))
-      vi.stubGlobal('fetch', fetch)
-      return fetch
+    /** Auto-run recipes run in their own session. The test stands in for the chat store that starts them. */
+    function stubRecipeStarts() {
+      const startRecipe = vi.fn(async () => ({ status: 'started' as const }))
+      mockedStore(useChatStore, pinia).startRecipe = startRecipe
+      return startRecipe
     }
 
-    // T9: with no external input, an idle appraisal proposes work, and the run can output through its own channel.
-    it('turns a confident idle appraisal into an internal proposal that runs', async () => {
-      const mockStream = replyWith('By the way, the creeper is gone.')
-      decideWith(0.97)
-      observe('Creeper left the base')
-      useRecipesStore(pinia).setEnabled(IDLE_LOOK_RECIPE_ID, true)
-      const store = useCharacterOrchestratorStore(pinia)
-      const scheduler = useSchedulerStore(pinia)
-
-      await store.appraiseIdle()
-
-      expect(mockStream).toHaveBeenCalledOnce()
-      const records = scheduler.intake.snapshot()
-      expect(records.map(record => [record.event, record.outcome, record.origin])).toEqual([
-        ['appraisal', 'admitted', 'internal'],
-        ['proposal', 'admitted', 'internal'],
-      ])
-      expect(scheduler.runs.snapshot()).toMatchObject([{ runId: records[1]?.runId, state: 'done', envelope: { outputs: ['voice'] } }])
-      vi.unstubAllGlobals()
-    })
-
-    // T10: an idle appraisal can discard its own proposal, with no run and no provider call.
-    it('records an idle appraisal that finds nothing to raise, without a run', async () => {
-      const mockStream = replyWith('unused')
-      const fetch = decideWith(0.03)
-      observe('Nothing changed')
-      useRecipesStore(pinia).setEnabled(IDLE_LOOK_RECIPE_ID, true)
-      const store = useCharacterOrchestratorStore(pinia)
-
-      await store.appraiseIdle()
-      // The same observations are not appraised again.
-      await store.appraiseIdle(Date.now() + 60 * 60_000)
-
-      expect(fetch).toHaveBeenCalledOnce()
-      expect(mockStream).not.toHaveBeenCalled()
-      expect(useSchedulerStore(pinia).intake.snapshot()).toMatchObject([{ event: 'appraisal', outcome: 'ignored', reason: 'not-attending', decidedBy: 'classifier' }])
-      expect(useSchedulerStore(pinia).runs.snapshot()).toEqual([])
-      vi.unstubAllGlobals()
-    })
-
-    // Each look costs a classifier request, so looking around waits for the owner to turn its recipe on.
-    it('does not look around while its built-in recipe is off', async () => {
-      const fetch = decideWith(0.97)
-      observe('Creeper left the base')
-      const store = useCharacterOrchestratorStore(pinia)
-
-      await store.appraiseIdle()
-
-      expect(fetch).not.toHaveBeenCalled()
-      expect(useSchedulerStore(pinia).intake.snapshot()).toEqual([])
-      vi.unstubAllGlobals()
-    })
-
-    // An owner recipe with an idle trigger greets once per silence, through the proactive reaction path.
+    // T9: with no external input, an owner recipe with an idle trigger starts once per silence, in its own session.
     it('starts an owner idle recipe once the owner has been silent long enough, and once per silence', async () => {
-      const mockStream = replyWith('Still busy? Rest if you are tired.')
+      const startRecipe = stubRecipeStarts()
       useRecipesStore(pinia).add({ name: 'Check in', description: 'Greets after a silence.', style: { kind: 'instructions', instructions: 'Greet the owner softly.' }, triggers: [{ kind: 'idle', afterMinutes: 30 }], enabled: true })
       const store = useCharacterOrchestratorStore(pinia)
       const start = Date.now()
 
       await store.runRecipeTriggers(start)
       await store.runRecipeTriggers(start + 29 * 60_000)
-      expect(mockStream).not.toHaveBeenCalled()
+      expect(startRecipe).not.toHaveBeenCalled()
 
       await store.runRecipeTriggers(start + 30 * 60_000)
       await store.runRecipeTriggers(start + 90 * 60_000)
 
-      expect(mockStream).toHaveBeenCalledOnce()
-      expect(JSON.stringify(mockStream.mock.calls[0]?.[2])).toContain('Greet the owner softly.')
-      expect(useSchedulerStore(pinia).intake.snapshot().map(record => [record.event, record.outcome])).toEqual([['proposal', 'admitted']])
+      expect(startRecipe).toHaveBeenCalledOnce()
+      expect(startRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: 'Check in' }), { parentSessionId: useChatSessionStore(pinia).activeSessionId, task: expect.stringContaining('The owner has sent no message for 30 minutes.') })
+    })
+
+    // A registered source fires an event trigger with its observation, once per cooldown.
+    it('starts an event recipe on a new observation from its source, with the observation as the task', async () => {
+      const startRecipe = stubRecipeStarts()
+      useRecipesStore(pinia).add({ name: 'Game watch', description: '', style: { kind: 'instructions', instructions: 'Comment on the game.' }, triggers: [{ kind: 'event', source: 'minecraft', cooldownMinutes: 10 }], enabled: true })
+      const store = useCharacterOrchestratorStore(pinia)
+      const start = Date.now()
+
+      observe('Creeper left the base', start - 1)
+      await store.runRecipeTriggers(start)
+      expect(startRecipe).not.toHaveBeenCalled()
+
+      observe('Creeper left the base', start + 1_000)
+      await store.runRecipeTriggers(start + 2_000)
+      observe('Night fell', start + 3_000)
+      await store.runRecipeTriggers(start + 4_000)
+
+      expect(startRecipe).toHaveBeenCalledOnce()
+      expect(startRecipe).toHaveBeenCalledWith(expect.objectContaining({ name: 'Game watch' }), expect.objectContaining({ task: expect.stringContaining('New observation from minecraft: Creeper left the base') }))
+    })
+
+    // T10: with no due recipe, the scheduler asks no classifier and starts nothing.
+    it('asks and starts nothing without a due recipe', async () => {
+      const startRecipe = stubRecipeStarts()
+      const fetch = vi.fn(async () => Response.json({}))
+      vi.stubGlobal('fetch', fetch)
+      const settings = useSettingsTriage(pinia)
+      settings.backend = 'decisions'
+      settings.decisionsApiKey = 'key'
+      observe('Creeper left the base', Date.now() + 1_000)
+      const store = useCharacterOrchestratorStore(pinia)
+
+      await store.runRecipeTriggers(Date.now())
+      await store.runRecipeTriggers(Date.now() + 60 * 60_000)
+
+      expect(fetch).not.toHaveBeenCalled()
+      expect(startRecipe).not.toHaveBeenCalled()
+      vi.unstubAllGlobals()
     })
 
     // A gate is a classifier question before the run. A confident no skips the run, and only the classifier request is spent.
     it('skips a due auto-run recipe when its gate answers no', async () => {
-      const mockStream = replyWith('unused')
+      const startRecipe = stubRecipeStarts()
       const settings = useSettingsTriage(pinia)
       settings.backend = 'decisions'
       settings.decisionsApiKey = 'key'
@@ -805,17 +789,8 @@ describe('store character-orchestrator', () => {
       await store.runRecipeTriggers(start + 31 * 60_000)
 
       expect(fetch).toHaveBeenCalledOnce()
-      expect(mockStream).not.toHaveBeenCalled()
+      expect(startRecipe).not.toHaveBeenCalled()
       vi.unstubAllGlobals()
-    })
-
-    it('does not appraise without a classifier', async () => {
-      observe('Creeper left the base')
-      const store = useCharacterOrchestratorStore(pinia)
-
-      await store.appraiseIdle()
-
-      expect(useSchedulerStore(pinia).intake.snapshot()).toEqual([])
     })
 
     // T12: a proposal chain stops at its depth limit.

@@ -212,7 +212,7 @@ Mood is per-persona state. It keeps an intensity for each of six feelings: joy, 
 `applyMoodAppraisal` fades each feeling by its own half-life, then moves it a `sensitivity` share toward the new value. Anger fades fast and sorrow stays, so the curve is not one exponential.
 `moodProfileFromTemperament` derives the baseline, sensitivity, and half-lives from a point in the joy, anger, sorrow, and contentment cross. The center is rational. The edge is emotional, and the leaning quadrant lasts longer.
 `moodPad` gives the PAD point. `moodExpression` gives the baseline expression, and `composeExpression` weighs a sentence expression by the mood.
-`describeMood` is the one sentence of the conversation's mood slot. It names the blend of the strongest feelings in words, such as "mostly at ease, a little anxious". `moodProsody` gives small pitch and speed offsets for one spoken sentence. `moodAppraisalInterval` scales the idle check interval by arousal.
+`describeMood` is the one sentence of the conversation's mood slot. It names the blend of the strongest feelings in words, such as "mostly at ease, a little anxious". `moodProsody` gives small pitch and speed offsets for one spoken sentence.
 An appraisal with `mood` gives the classifier the mood and records it as the effective state.
 
 ## Spark notification cancellation

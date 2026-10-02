@@ -65,10 +65,10 @@ export { checkRequirements, createModelProfile, estimateRequestCost, MODEL_TIER_
 export type { ModelLatency, ModelObservations, ModelProfile, ModelRequirements, ModelTier, RequestCost, RequirementsCheck } from './runtime/model-profile'
 export { MIN_TASK_EVIDENCE, MIN_TASK_PASS_RATE, routeModel } from './runtime/model-routing'
 export type { RoutingDecision, RoutingRejection, RoutingTask, TaskEvidence } from './runtime/model-routing'
-export { applyMoodAppraisal, calmMood, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, DEFAULT_TEMPERAMENT, describeMood, EXPRESSION_ANCHORS, MOOD_DIMENSION_VECTORS, moodAppraisalInterval, moodExpression, moodIntensitiesFromAnswers, moodIntensity, moodPad, moodProfileFromTemperament, moodProsody, moodQuestions, padFromIntensities, presentFeelings } from './runtime/mood'
+export { applyMoodAppraisal, calmMood, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, DEFAULT_TEMPERAMENT, describeMood, EXPRESSION_ANCHORS, MOOD_DIMENSION_VECTORS, moodExpression, moodIntensitiesFromAnswers, moodIntensity, moodPad, moodProfileFromTemperament, moodProsody, moodQuestions, padFromIntensities, presentFeelings } from './runtime/mood'
 export type { MoodDimension, MoodExpressionName, MoodProfile, MoodState, Pad, Temperament } from './runtime/mood'
-export { applyRecipeDecisions, BUILTIN_RECIPES, decisionAnswerKey, decisionRecipes, dueTriggeredRecipes, IDLE_LOOK_RECIPE_ID, isAutoRunRecipe, matchKeywordRecipes, passGates, recipeDecisionRequest, recipeGateRequest, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './runtime/recipe'
-export type { DecisionAction, Recipe, RecipeDecisionOutcome, RecipeStyle, RecipeTrigger, RecipeTriggerState } from './runtime/recipe'
+export { applyRecipeDecisions, BUILTIN_RECIPES, decisionAnswerKey, decisionRecipes, dueTriggeredRecipes, isAutoRunRecipe, matchKeywordRecipes, passGates, recipeDecisionRequest, recipeGateRequest, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './runtime/recipe'
+export type { DecisionAction, DueRecipe, Recipe, RecipeDecisionOutcome, RecipeStyle, RecipeTrigger, RecipeTriggerState } from './runtime/recipe'
 export {
   categorizeResponse,
   createStreamingCategorizer,

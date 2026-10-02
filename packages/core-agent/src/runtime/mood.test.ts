@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyMoodAppraisal, calmMood, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, describeMood, moodAppraisalInterval, moodExpression, moodIntensitiesFromAnswers, moodIntensity, moodPad, moodProfileFromTemperament, moodProsody, padFromIntensities } from './mood'
+import { applyMoodAppraisal, calmMood, composeExpression, decayMood, DEFAULT_MOOD_PROFILE, describeMood, moodExpression, moodIntensitiesFromAnswers, moodIntensity, moodPad, moodProfileFromTemperament, moodProsody, padFromIntensities } from './mood'
 
 const profile = DEFAULT_MOOD_PROFILE
 
@@ -80,11 +80,6 @@ describe('mood', () => {
     expect(describeMood({ contentment: 0.5, fear: 0.2 })).toBe('Current mood: mostly at ease, a little anxious.')
     // A faint second feeling does not change the words.
     expect(describeMood({ contentment: 0.5, fear: 0.06 })).toBe('Current mood: at ease.')
-  })
-
-  it('looks more often when aroused and less often when calm', () => {
-    expect(moodAppraisalInterval(60_000, { pleasure: 0, arousal: 1, dominance: 0 })).toBe(30_000)
-    expect(moodAppraisalInterval(60_000, { pleasure: 0, arousal: -1, dominance: 0 })).toBe(120_000)
   })
 
   describe('composition from one appraisal', () => {

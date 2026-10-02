@@ -1,4 +1,4 @@
-import type { IntakeDecision, Stimulus } from '@proj-airi/core-agent'
+import type { DueRecipe, IntakeDecision, Stimulus } from '@proj-airi/core-agent'
 import type { SparkNotifyResponseControl } from '@proj-airi/core-agent/agents/spark-notify'
 import type { WebSocketEventOf } from '@proj-airi/server-sdk'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
@@ -7,7 +7,7 @@ import type { RecipeRunSettled } from '../../chat'
 import type { ScheduledSparkNotify } from './queue'
 
 import { errorMessageFrom } from '@moeru/std'
-import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, dueTriggeredRecipes, IDLE_LOOK_RECIPE_ID, moodAppraisalInterval, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, superviseRun, useLlmmarkerParser } from '@proj-airi/core-agent'
+import { audienceIncludes, compareLeaseCandidates, decideByAppraisal, decideByPrior, deferDelayMs, dueTriggeredRecipes, OWNER_AUDIENCE, OWNER_PRIVATE_BINDING, salienceFromUrgency, superviseRun, useLlmmarkerParser } from '@proj-airi/core-agent'
 import { createSparkNotifyAgent, createSparkNotifyReactionPlugin, getEventSourceKey } from '@proj-airi/core-agent/agents/spark-notify'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
@@ -28,7 +28,6 @@ import { useTriageStore } from '../../modules/triage'
 import { useRecipesStore } from '../../recipes'
 import { useSchedulerStore } from '../../scheduler'
 import { useSettingsRunLimits } from '../../settings/run-limits'
-import { useSettingsTriage } from '../../settings/triage'
 import { useSpeechRuntimeStore } from '../../speech-runtime'
 import { useCharacterMoodStore } from '../mood'
 import { useCharacterNotifyQueueStore } from './queue'
@@ -58,7 +57,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const mood = useCharacterMoodStore()
   const airiCard = useAiriCardStore()
   const triage = useTriageStore()
-  const triageSettings = useSettingsTriage()
   const runLimits = useSettingsRunLimits()
   const chatContext = useChatContextStore()
   const recipes = useRecipesStore()
@@ -463,51 +461,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     return handleStimulus(stimulus, event)
   }
 
-  let lastAppraisalAt = 0
-  let lastAppraisedState: string | undefined
-
-  /**
-   * Appraises the owner scene while no run is active, and proposes work when a confident classifier finds something worth raising.
-   * The timer only starts an appraisal. It never schedules speech, and unchanged observations are not appraised again.
-   */
-  async function appraiseIdle(now = Date.now()) {
-    // Looking around is a built-in auto-run recipe. Each look costs a classifier request, so it runs only while the owner keeps it on.
-    if (!recipes.isUsable(IDLE_LOOK_RECIPE_ID))
-      return
-    const persona = personaOf(chatSession.activeSessionId)
-    const currentMood = moodOf(persona)
-    // Mood changes how often the character looks. The user interval is the base, and looking never forces speech.
-    const intervalMs = currentMood ? moodAppraisalInterval(triageSettings.appraisalIntervalMinutes * 60_000, currentMood) : triageSettings.appraisalIntervalMinutes * 60_000
-    if (!(intervalMs > 0) || !triage.classifier || now - lastAppraisalAt < intervalMs || scheduler.errorBurst.coolingUntil() || modelProfiles.spendingPausedUntil() !== undefined)
-      return
-    if (processing.value || scheduler.leases.holder('voice') || scheduler.runs.snapshot().some(run => run.state === 'queued' || run.state === 'working'))
-      return
-    lastAppraisalAt = now
-
-    const observations = Object.values(chatContext.getContextsSnapshot({ ids: [chatSession.activeSessionId, 'character', OWNER_PRIVATE_BINDING], audience: OWNER_AUDIENCE }))
-      .flat()
-      .map(message => `${getEventSourceKey(message)}: ${message.text}`)
-    const state = observations.join('\n')
-    if (!state || state === lastAppraisedState)
-      return
-    lastAppraisedState = state
-
-    const stimulus: Stimulus = { id: nanoid(), kind: 'idle-appraisal', origin: 'internal', source: 'scheduler', event: 'appraisal', bindings: [], salience: salienceFromUrgency('later'), receivedAt: now, text: state }
-    const decision = decideByAppraisal(stimulus, await triage.appraiseIdle(stimulus, currentMood))
-    if (decision.outcome !== 'admitted' || decision.decidedBy !== 'classifier') {
-      scheduler.intake.record(stimulus, { ...decision, outcome: 'ignored', reason: decision.outcome === 'ignored' ? decision.reason : 'nothing-to-raise' })
-      return
-    }
-    scheduler.intake.record(stimulus, { ...decision, reason: 'proposed' })
-    await propose({
-      headline: 'Something in the current observations may be worth raising with the owner.',
-      note: 'Nobody asked. Speak only if it fits now. Silence is a valid choice.',
-      urgency: (decision.salience ?? stimulus.salience) >= 0.6 ? 'soon' : 'later',
-      coalesceKey: 'idle-appraisal',
-      parentRunId: undefined,
-    })
-  }
-
   /**
    * Offers a finished task recipe's result to its conversation as an internal stimulus.
    * The note carries a short copy and a reference back to the recipe run, so the result is never only a summary.
@@ -528,33 +481,53 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   let triggersStartedAt: number | undefined
   const triggerFiredAt: Record<string, number> = {}
 
+  /** Latest observation per registered source that the owner scene can read. Event triggers follow these. */
+  function latestObservations() {
+    const snapshot = chatContext.getContextsSnapshot({ ids: [chatSession.activeSessionId, 'character', OWNER_PRIVATE_BINDING], audience: OWNER_AUDIENCE })
+    const latest: Record<string, { createdAt: number, text: string }> = {}
+    for (const message of Object.values(snapshot).flat()) {
+      const source = getEventSourceKey(message)
+      if (!latest[source] || message.createdAt > latest[source].createdAt)
+        latest[source] = { createdAt: message.createdAt, text: message.text }
+    }
+    return latest
+  }
+
+  /** The task a triggered recipe receives: why it started, with the observation that fired an event trigger. */
+  function triggerTask(due: DueRecipe, silentMinutes: number, now: number) {
+    const time = `Local time: ${new Date(now).toLocaleString()}.`
+    if (due.trigger.kind === 'idle')
+      return `${time} The owner has sent no message for ${silentMinutes} minutes.`
+    if (due.trigger.kind === 'event' && due.observation)
+      return `${time} New observation from ${due.observation.source}: ${due.observation.text}`
+    return `${time} Your scheduled time came.`
+  }
+
   /**
-   * Starts the owner's auto-run recipes whose idle or schedule trigger is due.
-   * Each start is a proposal, so it waits for the voice, pauses at the spending limit, and writes only to an owner-private session.
+   * Starts the owner's auto-run recipes whose trigger is due. Each one runs in its own session as derived work without voice.
+   * Its result returns to the active owner conversation, which decides what to say. Without a due recipe, nothing is asked or called.
    */
   async function runRecipeTriggers(now: number) {
     triggersStartedAt ??= now
     // A paused budget or a cooling error burst holds the triggers. They fire after the pause, and no gate is asked meanwhile.
     if (modelProfiles.spendingPausedUntil() !== undefined || scheduler.errorBurst.coolingUntil())
       return
-    const lastOwnerMessageAt = chatSession.getSessionMessagesIfLoaded(chatSession.activeSessionId)?.findLast(message => message.role === 'user')?.createdAt
-    // Without a due recipe, nothing runs and nothing is asked.
-    const due = dueTriggeredRecipes(recipes.recipes, { now, startedAt: triggersStartedAt, lastOwnerMessageAt, firedAt: triggerFiredAt })
+    const parentSessionId = chatSession.activeSessionId
+    const lastOwnerMessageAt = chatSession.getSessionMessagesIfLoaded(parentSessionId)?.findLast(message => message.role === 'user')?.createdAt
+    const due = dueTriggeredRecipes(recipes.recipes, { now, startedAt: triggersStartedAt, lastOwnerMessageAt, firedAt: triggerFiredAt, observations: latestObservations() })
     if (!due.length)
       return
     // A trigger fires once whether its gate allows the run or not, so a gate never asks again in the same period.
-    for (const recipe of due)
-      triggerFiredAt[recipe.id] = now
+    for (const entry of due)
+      triggerFiredAt[entry.recipe.id] = now
     const silentMinutes = Math.round((now - (lastOwnerMessageAt ?? triggersStartedAt)) / 60_000)
-    const scene = `Local time: ${new Date(now).toLocaleString()}. The owner's last message was ${silentMinutes} minutes ago.`
-    for (const recipe of await triage.passRecipeGates(due, scene)) {
-      await propose({
-        headline: `The owner's recipe "${recipe.name}" started on its trigger.`,
-        note: recipe.style.kind === 'instructions' ? `Follow its steps now:\n${recipe.style.instructions.trim()}` : undefined,
-        urgency: 'soon',
-        coalesceKey: `recipe:${recipe.id}`,
-      })
-    }
+    const scene = [
+      `Local time: ${new Date(now).toLocaleString()}. The owner's last message was ${silentMinutes} minutes ago.`,
+      ...due.flatMap(entry => entry.observation ? [`New observation from ${entry.observation.source}: ${entry.observation.text}`] : []),
+    ].join('\n')
+    const allowed = new Set((await triage.passRecipeGates(due.map(entry => entry.recipe), scene)).map(recipe => recipe.id))
+    for (const entry of due.filter(entry => allowed.has(entry.recipe.id)))
+      await useChatStore().startRecipe(entry.recipe, { parentSessionId, task: triggerTask(entry, silentMinutes, now) })
   }
 
   async function enqueueDueTasks(now: number) {
@@ -596,7 +569,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     const now = Date.now()
     await enqueueDueTasks(now)
     await runRecipeTriggers(now)
-    await appraiseIdle(now)
 
     // Due entries compete for the voice by the lease line order, not by arrival.
     const due = scheduledNotifies.value
@@ -774,7 +746,6 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
 
     handleSparkNotify: handleIncomingSparkNotify,
     propose,
-    appraiseIdle,
     runRecipeTriggers,
     relayRecipeResult,
     handleSparkNotifyWithReaction,

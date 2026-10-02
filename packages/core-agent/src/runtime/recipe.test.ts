@@ -2,7 +2,7 @@ import type { Recipe } from './recipe'
 
 import { describe, expect, it } from 'vitest'
 
-import { applyRecipeDecisions, BUILTIN_RECIPES, decisionAnswerKey, decisionRecipes, dueTriggeredRecipes, IDLE_LOOK_RECIPE_ID, isAutoRunRecipe, matchKeywordRecipes, passGates, recipeDecisionRequest, recipeGateRequest, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './recipe'
+import { applyRecipeDecisions, BUILTIN_RECIPES, decisionAnswerKey, decisionRecipes, dueTriggeredRecipes, isAutoRunRecipe, matchKeywordRecipes, passGates, recipeDecisionRequest, recipeGateRequest, recipeTools, STAY_QUIET_RECIPE_ID, usableRecipes } from './recipe'
 
 function recipe(overrides: Partial<Recipe>): Recipe {
   return {
@@ -19,10 +19,10 @@ function recipe(overrides: Partial<Recipe>): Recipe {
 }
 
 describe('recipes', () => {
-  // Looking around while idle costs a classifier request each time, so it starts off.
-  it('offers read-without-replying on and looking around while idle off', () => {
+  // Every auto-run recipe is the owner's own. No built-in recipe runs on a trigger.
+  it('offers only read-without-replying as a built-in recipe', () => {
     expect(usableRecipes(BUILTIN_RECIPES).map(entry => entry.id)).toEqual([STAY_QUIET_RECIPE_ID])
-    expect(BUILTIN_RECIPES.filter(isAutoRunRecipe).map(entry => entry.id)).toEqual([IDLE_LOOK_RECIPE_ID])
+    expect(BUILTIN_RECIPES.filter(isAutoRunRecipe)).toEqual([])
   })
 
   // A recipe never grants itself a capability. It only narrows the tools the host granted.
@@ -94,7 +94,7 @@ describe('recipes', () => {
     const greet = recipe({ id: 'user:greet', style: { kind: 'instructions', instructions: 'Greet the owner softly.' }, triggers: [{ kind: 'idle', afterMinutes: 30 }] })
     const hourly = recipe({ id: 'user:hourly', style: { kind: 'instructions', instructions: 'Check the weather.' }, triggers: [{ kind: 'schedule', everyMinutes: 60 }] })
     const due = (state: { now: number, lastOwnerMessageAt?: number, firedAt?: Record<string, number> }) =>
-      dueTriggeredRecipes([greet, hourly], { startedAt: 0, firedAt: {}, ...state }).map(entry => entry.id)
+      dueTriggeredRecipes([greet, hourly], { startedAt: 0, firedAt: {}, ...state }).map(entry => entry.recipe.id)
 
     it('greets once per owner silence and waits for the owner before greeting again', () => {
       expect(due({ now: 29 * minute, lastOwnerMessageAt: 0 })).toEqual([])
@@ -109,8 +109,24 @@ describe('recipes', () => {
     })
 
     it('skips recipes that are off, unapproved, keyword-only, or without steps', () => {
-      const recipes = [{ ...greet, enabled: false }, { ...greet, id: 'model:x', approved: false }, recipe({}), ...BUILTIN_RECIPES.map(entry => ({ ...entry, enabled: true }))]
+      const recipes = [{ ...greet, enabled: false }, { ...greet, id: 'model:x', approved: false }, recipe({}), { ...greet, id: 'user:empty', style: { kind: 'instructions' as const, instructions: ' ' } }]
       expect(dueTriggeredRecipes(recipes, { now: 1_000 * minute, startedAt: 0, firedAt: {} })).toEqual([])
+    })
+
+    // An event trigger follows a registered source, such as a module's pointer or metric slot, and its cooldown limits a busy source.
+    it('fires an event trigger on a newer observation from its source, once per cooldown', () => {
+      const pointer = recipe({ id: 'user:pointer', style: { kind: 'instructions', instructions: 'Notice where the owner works.' }, triggers: [{ kind: 'event', source: 'desktop:pointer', cooldownMinutes: 10 }] })
+      const due = (now: number, observedAt: number, firedAt?: number) =>
+        dueTriggeredRecipes([pointer], { now, startedAt: 0, firedAt: firedAt === undefined ? {} : { 'user:pointer': firedAt }, observations: { 'desktop:pointer': { createdAt: observedAt, text: 'Pointer over the code editor.' } } })
+
+      expect(due(minute, 30_000)).toEqual([{ recipe: pointer, trigger: pointer.triggers[0], observation: { source: 'desktop:pointer', text: 'Pointer over the code editor.' } }])
+      // A newer observation inside the cooldown waits. After the cooldown it fires once.
+      expect(due(5 * minute, 4 * minute, minute)).toEqual([])
+      expect(due(11 * minute, 4 * minute, minute)).toHaveLength(1)
+      // Nothing new since the last start: no run.
+      expect(due(30 * minute, 4 * minute, 11 * minute)).toEqual([])
+      // Observations from before the scheduler started never fire.
+      expect(dueTriggeredRecipes([pointer], { now: 2 * minute, startedAt: minute, firedAt: {}, observations: { 'desktop:pointer': { createdAt: 30_000, text: 'old' } } })).toEqual([])
     })
 
     // A gate is a nested decision: the classifier answers whether a due recipe should run, so a needless run costs no reply.

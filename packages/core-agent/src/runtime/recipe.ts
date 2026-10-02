@@ -34,7 +34,7 @@ export type DecisionAction
 export type RecipeTrigger
   = | { kind: 'keyword', keywords: string[] }
     | { kind: 'schedule', everyMinutes: number }
-    | { kind: 'event', source: string }
+    | { kind: 'event', source: string, cooldownMinutes: number }
     | { kind: 'idle', afterMinutes: number }
     | { kind: 'mood', feeling: MoodDimension, above: number }
 
@@ -67,11 +67,6 @@ export interface Recipe {
 
 /** Id of the built-in recipe that lets a run read a message and stay quiet. */
 export const STAY_QUIET_RECIPE_ID = 'builtin:stay-quiet'
-/**
- * Id of the built-in recipe that looks at the owner's scene while nothing runs and raises what seems worth it.
- * Each look costs one classifier request, so it starts off.
- */
-export const IDLE_LOOK_RECIPE_ID = 'builtin:idle-look'
 
 /** Recipes that every host starts with. The user can turn them off. */
 export const BUILTIN_RECIPES: readonly Recipe[] = [
@@ -83,17 +78,6 @@ export const BUILTIN_RECIPES: readonly Recipe[] = [
     triggers: [],
     source: 'builtin',
     enabled: true,
-    approved: true,
-  },
-  {
-    id: IDLE_LOOK_RECIPE_ID,
-    name: 'Look around when idle',
-    description: 'Looks at the owner\'s scene while nothing runs, and speaks up when something seems worth raising.',
-    style: { kind: 'instructions', instructions: '' },
-    // The attention interval paces each look, so the idle trigger names no minutes.
-    triggers: [{ kind: 'idle', afterMinutes: 0 }],
-    source: 'builtin',
-    enabled: false,
     approved: true,
   },
 ]
@@ -126,28 +110,45 @@ export interface RecipeTriggerState {
   lastOwnerMessageAt?: number
   /** When each recipe last started on its trigger. */
   firedAt: Readonly<Record<string, number>>
+  /** The latest observation from each registered source that the owner scene can read, by source key. */
+  observations?: Readonly<Record<string, { createdAt: number, text: string }>>
+}
+
+/** A recipe whose trigger fired, with the observation that fired an event trigger. */
+export interface DueRecipe {
+  recipe: Recipe
+  trigger: RecipeTrigger
+  observation?: { source: string, text: string }
 }
 
 /**
- * Usable auto-run recipes with steps whose idle or schedule trigger is due.
+ * Usable auto-run recipes with steps whose trigger is due.
  * An idle trigger fires once per owner silence, so it waits for the owner to speak before it fires again.
- * A schedule trigger fires each period. Event and mood triggers are not checked here.
+ * A schedule trigger fires each period. An event trigger fires on a newer observation from its source, at most once per cooldown.
+ * Observations from before the scheduler started never fire. Mood triggers are not checked here.
  */
-export function dueTriggeredRecipes(recipes: readonly Recipe[], state: RecipeTriggerState) {
+export function dueTriggeredRecipes(recipes: readonly Recipe[], state: RecipeTriggerState): DueRecipe[] {
   const minute = 60_000
-  return usableRecipes(recipes).filter((recipe) => {
+  return usableRecipes(recipes).flatMap((recipe): DueRecipe[] => {
     if (recipe.style.kind !== 'instructions' || !recipe.style.instructions.trim())
-      return false
+      return []
     const firedAt = state.firedAt[recipe.id]
-    return recipe.triggers.some((trigger) => {
+    for (const trigger of recipe.triggers) {
       if (trigger.kind === 'idle' && trigger.afterMinutes > 0) {
         const silentSince = Math.max(state.lastOwnerMessageAt ?? state.startedAt, state.startedAt)
-        return state.now - silentSince >= trigger.afterMinutes * minute && (firedAt === undefined || firedAt < silentSince)
+        if (state.now - silentSince >= trigger.afterMinutes * minute && (firedAt === undefined || firedAt < silentSince))
+          return [{ recipe, trigger }]
       }
-      if (trigger.kind === 'schedule' && trigger.everyMinutes > 0)
-        return state.now - (firedAt ?? state.startedAt) >= trigger.everyMinutes * minute
-      return false
-    })
+      if (trigger.kind === 'schedule' && trigger.everyMinutes > 0 && state.now - (firedAt ?? state.startedAt) >= trigger.everyMinutes * minute)
+        return [{ recipe, trigger }]
+      if (trigger.kind === 'event') {
+        const observation = state.observations?.[trigger.source]
+        const cooled = firedAt === undefined || state.now - firedAt >= Math.max(0, trigger.cooldownMinutes) * minute
+        if (observation && observation.createdAt > (firedAt ?? state.startedAt) && cooled)
+          return [{ recipe, trigger, observation: { source: trigger.source, text: observation.text } }]
+      }
+    }
+    return []
   })
 }
 
