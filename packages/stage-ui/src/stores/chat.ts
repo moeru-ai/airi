@@ -1,13 +1,14 @@
 import type { ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
-import type { Message } from '@xsai/shared-chat'
+import type { Message, Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } from '../types/chat'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
+import { ACP_CLIENT_DISCONNECTED } from '@proj-airi/acp-server/bridge'
 import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-airi/core-agent'
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
@@ -538,6 +539,9 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
+  const sessionToolProviders = new Map<string, () => Promise<Tool[]>>()
+  const sessionStreamListeners = new Map<string, (event: StreamEvent) => void | Promise<void>>()
+
   function appendSendError(sessionId: string, error: unknown) {
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
@@ -571,11 +575,14 @@ export const useChatStore = defineStore('chat', () => {
       toolReferences: payload.tools,
       temperature: payload.temperature ?? consciousnessStore.activeTemperature,
       topP: payload.topP ?? consciousnessStore.activeTopP,
+      onStreamEvent: event => sessionStreamListeners.get(payload.sessionId)?.(event),
       // Resolve this function after the request reaches the per-session queue.
       // The history then contains tool names from every earlier queued turn.
       tools: async () => {
         const references = collectToolReferences(payload.sessionId, payload.tools)
-        return llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
+        const named = llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
+        const extra = await sessionToolProviders.get(payload.sessionId)?.() ?? []
+        return [...named, ...extra]
       },
     }, payload.sessionId)
 
@@ -591,8 +598,14 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  function refuseDisconnectedAcpSession(sessionId: string) {
+    if (chatSession.sessionMetas[sessionId]?.acpClient?.status === 'disconnected')
+      throw new Error(ACP_CLIENT_DISCONNECTED)
+  }
+
   /** Sends one serializable chat request through the elected leader. */
   async function send(payload: ChatSendPayload): Promise<ChatSendResult> {
+    refuseDisconnectedAcpSession(payload.sessionId)
     try {
       return await executeSend(payload)
     }
@@ -604,6 +617,7 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Replaces one stored turn with a new execution of its user message. */
   async function retry(payload: ChatRetryPayload): Promise<ChatSendResult> {
+    refuseDisconnectedAcpSession(payload.sessionId)
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
@@ -687,6 +701,31 @@ export const useChatStore = defineStore('chat', () => {
     return ingest(sendingMessage, options, forkSessionId || baseSessionId)
   }
 
+  /**
+   * Adds tools for one session while an ACP Client link is open.
+   *
+   * These tools are not written to the global tool store. A later send on
+   * this session includes them. Clear the provider when the link closes.
+   */
+  function setSessionToolProvider(sessionId: string, provider: (() => Promise<Tool[]>) | undefined) {
+    if (provider)
+      sessionToolProviders.set(sessionId, provider)
+    else
+      sessionToolProviders.delete(sessionId)
+  }
+
+  /**
+   * Receives model stream events for one session.
+   *
+   * The listener stays on this leader. It is not part of the synced send payload.
+   */
+  function setSessionStreamListener(sessionId: string, listener: ((event: StreamEvent) => void | Promise<void>) | undefined) {
+    if (listener)
+      sessionStreamListeners.set(sessionId, listener)
+    else
+      sessionStreamListeners.delete(sessionId)
+  }
+
   async function cancelPendingSends(sessionId?: string) {
     runtime.cancelPendingSends(sessionId)
   }
@@ -709,6 +748,8 @@ export const useChatStore = defineStore('chat', () => {
     rerunToolCall,
     retry,
     send,
+    setSessionToolProvider,
+    setSessionStreamListener,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
 

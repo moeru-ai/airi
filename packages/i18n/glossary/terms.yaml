@@ -339,6 +339,18 @@
       status: preferred
       context: Controls Island Icon Size
 
+- id: acp-client
+  subject: application
+  translatable: false
+  definition: The program that starts AIRI over the Agent Client Protocol and can provide files, a terminal, and MCP servers.
+  note: Keep the English words ACP Client. Do not translate them as editor.
+  terms:
+    - text: ACP Client
+      part-of-speech: proper noun
+      status: preferred
+      type: fullForm
+      context: ACP Client connected
+
 - id: spotlight
   subject: application
   translatable: true

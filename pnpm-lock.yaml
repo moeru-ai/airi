@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@agentclientprotocol/sdk':
+      specifier: ^1.4.0
+      version: 1.4.0
     '@alexanderolsen/libsamplerate-js':
       specifier: ^2.1.2
       version: 2.1.2
@@ -1956,6 +1959,9 @@ importers:
       '@pinia/colada':
         specifier: 'catalog:'
         version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      '@proj-airi/acp-server':
+        specifier: workspace:^
+        version: link:../../services/acp-server
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../../packages/audio
@@ -4507,6 +4513,9 @@ importers:
       '@pinia/colada':
         specifier: 'catalog:'
         version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      '@proj-airi/acp-server':
+        specifier: workspace:^
+        version: link:../../services/acp-server
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
@@ -6004,6 +6013,37 @@ importers:
       valibot:
         specifier: 'catalog:'
         version: 1.4.2(typescript@6.0.3)
+
+  services/acp-server:
+    dependencies:
+      '@agentclientprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.4.0(zod@4.4.3)
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.14(@arethetypeswrong/core@0.18.5)(@volar/typescript@2.4.28(typescript@6.0.3))(oxc-resolver@11.24.2)(publint@0.3.24)(tsx@4.23.12)(typescript@6.0.3)(unplugin-unused@0.6.0(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)))(vue-tsc@3.3.11(typescript@6.0.3))
+      tsx:
+        specifier: 'catalog:'
+        version: 4.23.12
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
 
   services/computer-use-mcp:
     dependencies:

@@ -89,6 +89,7 @@ const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 // The chat session store keeps messages in reactive state, so the mock does too.
 const sessionMessages = reactive<Record<string, any[]>>({})
+const sessionMetas = reactive<Record<string, { acpClient?: { status: string } }>>({})
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
@@ -175,6 +176,7 @@ vi.mock('../composables/vision/use-vision-inference', () => ({
 vi.mock('./chat/session-store', () => ({
   useChatSessionStore: () => ({
     activeSessionId: activeSessionIdRef,
+    sessionMetas,
     sessionMessages,
     ensureSession: (sessionId: string) => {
       ensureSessionMock(sessionId)
@@ -341,8 +343,22 @@ describe('chat store contract', () => {
     for (const key of Object.keys(sessionMessages)) {
       delete sessionMessages[key]
     }
+    for (const key of Object.keys(sessionMetas)) {
+      delete sessionMetas[key]
+    }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  it('rejects send and retry when the ACP Client is disconnected', async () => {
+    sessionMetas['session-1'] = { acpClient: { status: 'disconnected' } }
+    const store = useChatStore()
+
+    await expect(store.send({ sessionId: 'session-1', text: 'Hello' })).rejects.toThrow('ACP Client is disconnected')
+    await expect(store.retry({ sessionId: 'session-1', index: 1 })).rejects.toThrow('ACP Client is disconnected')
+
+    expect(loadSessionMock).not.toHaveBeenCalled()
+    expect(sessionMessages['session-1'].some(message => message.role === 'error')).toBe(false)
   })
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {

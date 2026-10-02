@@ -17,6 +17,14 @@ const activeSessionTitle = computed(() => {
   return sessionMetas.value[activeSessionId.value]?.title?.trim()
     || t('stage.chat.sessions.new-chat-fallback')
 })
+const acpClientStatus = computed(() => {
+  const status = sessionMetas.value[activeSessionId.value]?.acpClient?.status
+  if (status === 'connected')
+    return t('stage.chat.sessions.acp-connected')
+  if (status === 'disconnected')
+    return t('stage.chat.sessions.acp-disconnected')
+  return ''
+})
 </script>
 
 <template>
@@ -43,6 +51,14 @@ const activeSessionTitle = computed(() => {
         >
           <span aria-hidden="true" :class="['i-solar:dialog-2-outline size-5 shrink-0']" />
           <span truncate text-sm font-medium>{{ activeSessionTitle }}</span>
+          <span
+            v-if="acpClientStatus"
+            truncate
+            text-xs
+            font-normal
+            :title="acpClientStatus"
+            :class="['max-w-[45%] text-neutral-500 dark:text-neutral-400']"
+          >{{ acpClientStatus }}</span>
           <span aria-hidden="true" :class="['i-solar:alt-arrow-down-outline size-4 shrink-0 opacity-60']" />
         </BasicButton>
       </template>
