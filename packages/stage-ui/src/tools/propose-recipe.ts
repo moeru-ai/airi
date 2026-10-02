@@ -3,7 +3,7 @@ import type { Tool } from '@xsai/shared-chat'
 import type { InferOutput } from 'valibot'
 
 import { rawTool } from '@xsai/tool'
-import { array, description, maxLength, minLength, object, optional, picklist, pipe, safeParse, string } from 'valibot'
+import { array, description, maxLength, minLength, nullable, picklist, pipe, safeParse, strictObject, string } from 'valibot'
 import { toJsonSchema } from 'xsschema'
 
 export const PROPOSE_RECIPE_TOOL_NAME = 'builtIn_proposeRecipe'
@@ -16,24 +16,25 @@ export const PROPOSE_RECIPE_TOOLSET_PROMPT = [
   'A saved recipe waits for the owner\'s approval in Settings, under Modules, Long-term memory, Recipes. Tell the owner so.',
 ].join('\n')
 
-const answerSchema = object({
+// Strict function calling needs every property in `required`. A value that does not apply is null.
+const answerSchema = strictObject({
   meaning: pipe(string(), minLength(1), maxLength(200), description('What this answer means.')),
   action: pipe(picklist(['reply', 'stay-quiet', 'hint']), description('What happens on this answer: reply as usual, read without replying, or add a hint to the reply.')),
-  hint: optional(pipe(string(), maxLength(300), description('The hint text, only for the hint action.'))),
+  hint: nullable(pipe(string(), maxLength(300), description('The hint text for the hint action. Null otherwise.'))),
 })
 
-const proposeRecipeParameters = object({
+const proposeRecipeParameters = strictObject({
   name: pipe(string(), minLength(1), maxLength(80), description('A short name for the recipe.')),
   description: pipe(string(), maxLength(400), description('When the recipe fits.')),
   style: pipe(picklist(['instructions', 'decision']), description('instructions: steps to follow. decision: one question answered before a reply.')),
-  instructions: optional(pipe(string(), maxLength(4000), description('For instructions: what to do, step by step.'))),
-  keywords: optional(pipe(array(pipe(string(), maxLength(60))), description('For instructions: words in a message that point to this recipe.'))),
-  question: optional(pipe(string(), maxLength(400), description('For decision: the question about the latest message.'))),
-  answerType: optional(pipe(picklist(['noul', 'choice', 'score']), description('For decision: noul is yes or no with exactly two answers, yes first. choice picks one answer. score orders answers from lowest to highest.'))),
-  answers: optional(pipe(array(answerSchema), description('For decision: the possible answers and their actions.'))),
+  instructions: nullable(pipe(string(), maxLength(4000), description('For instructions: what to do, step by step. Null for decision.'))),
+  keywords: nullable(pipe(array(pipe(string(), maxLength(60))), description('For instructions: words in a message that point to this recipe. Null when none.'))),
+  question: nullable(pipe(string(), maxLength(400), description('For decision: the question about the latest message. Null for instructions.'))),
+  answerType: nullable(pipe(picklist(['noul', 'choice', 'score']), description('For decision: noul is yes or no with exactly two answers, yes first. choice picks one answer. score orders answers from lowest to highest. Null for instructions.'))),
+  answers: nullable(pipe(array(answerSchema), description('For decision: the possible answers and their actions. Null for instructions.'))),
 })
 
-function toAction(answer: { action: 'reply' | 'stay-quiet' | 'hint', hint?: string }): DecisionAction {
+function toAction(answer: { action: 'reply' | 'stay-quiet' | 'hint', hint: string | null }): DecisionAction {
   if (answer.action === 'hint')
     return { kind: 'hint', text: answer.hint?.trim() ?? '' }
   return { kind: answer.action }
