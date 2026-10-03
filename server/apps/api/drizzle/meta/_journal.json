@@ -204,6 +204,13 @@
       "when": 1791058951383,
       "tag": "0028_flux_usage",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791061438170,
+      "tag": "0029_drop_flux_consumed_and_settlement",
+      "breakpoints": true
     }
   ]
 }

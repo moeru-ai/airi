@@ -117,7 +117,7 @@ describe('billingService', () => {
 
   it('invalidates the wallet snapshot after a committed payment', async () => {
     await redis.set(userFluxRedisKey('user-billing-1'), JSON.stringify({ flux: 10, unsettledMicroFlux: 0 }))
-    await billingService.syncFluxCache('user-billing-1', 123)
+    await billingService.syncFluxCache('user-billing-1')
     expect(await redis.get(userFluxRedisKey('user-billing-1'))).toBeNull()
   })
 

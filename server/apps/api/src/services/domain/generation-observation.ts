@@ -24,7 +24,6 @@ export const generationObservationSchema = object({
   model: string(),
   status: count,
   durationMs: count,
-  fluxConsumed: count,
   promptTokens: optional(count),
   completionTokens: optional(count),
   totalTokens: optional(count),
@@ -62,5 +61,5 @@ export const generationObservationSchema = object({
 /** Absent provider fields mean unknown, including historical rows written before request correlation. */
 export type GenerationObservation = InferOutput<typeof generationObservationSchema>
 
-/** Runtime request observation before identity and charged Flux are attached. */
-export type RequestObservation = Omit<GenerationObservation, 'userId' | 'model' | 'requestId' | 'fluxConsumed'>
+/** Runtime request observation before identity is attached. */
+export type RequestObservation = Omit<GenerationObservation, 'userId' | 'model' | 'requestId'>

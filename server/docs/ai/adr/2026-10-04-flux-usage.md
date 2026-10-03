@@ -33,7 +33,7 @@ A failed log write cannot block billing. A failed billing write cannot block the
 ## Scope
 
 Add `flux_usage` and `user_flux.unsettled_micro_flux`.
-Stop writing `llm_request_settlement`. Keep the table as a read-only archive.
+Stop writing `llm_request_settlement`.
 Remove Redis speech character counters. Remove `FluxMeter`.
 LLM and speech billing post through the same command.
 Credits settle affordable outstanding fees. Admin adjustments preserve outstanding fees.
@@ -41,7 +41,6 @@ Credits settle affordable outstanding fees. Admin adjustments preserve outstandi
 ## Non-goals
 
 Admission reservations, automatic reconciliation of unbilled requests, refunds, and historical repricing.
-Dropping `llm_request_settlement`. Removing `llm_request_log.flux_consumed`.
 
 ## Invariants
 
@@ -112,6 +111,10 @@ sequenceDiagram
 
 Migration 0028 creates `flux_usage` and adds `user_flux.unsettled_micro_flux`.
 It does not change `flux_transaction` or `llm_request_settlement`. Historical rows stay as they are.
+Migration 0029 drops `llm_request_settlement` and `llm_request_log.flux_consumed`.
+The ledger column `flux_transaction.settlement_id` keeps its value. It no longer links to a row.
+Export the historical settlements before migration 0029 runs. The drop cannot be reversed.
+The request log no longer stores a Flux amount. The `flux_consumed` metric and span attribute report the fee in Flux.
 The API applies the migration at startup.
 Stop old API writers before the new version starts. Mixed old and new writers are unsupported.
 Redis speech counters are not imported. The old meter forgave a residual of less than one Flux per user.

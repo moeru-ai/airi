@@ -216,7 +216,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         turnId: analytics.turnId,
         provider: routeCtx.provider,
       })
-      fluxConsumed = result.charged
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       generationTrace.succeed({
         inputChars: inputText.length,
@@ -238,7 +238,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       model: requestModel,
       status: response.status,
       durationMs,
-      fluxConsumed,
     }).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
 
     logger.withFields({
