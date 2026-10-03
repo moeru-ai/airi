@@ -111,9 +111,9 @@ sequenceDiagram
 
 Migration 0028 creates `flux_usage` and adds `user_flux.unsettled_micro_flux`.
 It does not change `flux_transaction` or `llm_request_settlement`. Historical rows stay as they are.
-Migration 0029 drops `llm_request_settlement` and `llm_request_log.flux_consumed`.
+Migration 0030 drops `llm_request_settlement` and `llm_request_log.flux_consumed`.
 The ledger column `flux_transaction.settlement_id` keeps its value. It no longer links to a row.
-Export the historical settlements before migration 0029 runs. The drop cannot be reversed.
+Export the historical settlements before migration 0030 runs. The drop cannot be reversed.
 The request log no longer stores a Flux amount. The `flux_consumed` metric and span attribute report the fee in Flux.
 The API applies the migration at startup.
 Stop old API writers before the new version starts. Mixed old and new writers are unsupported.

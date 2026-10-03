@@ -2,6 +2,8 @@ import type { InferOutput } from 'valibot'
 
 import { boolean, date, finite, integer, literal, minValue, nonEmpty, number, object, optional, picklist, pipe, string, transform, union, unknown } from 'valibot'
 
+import { requestContentSchema } from './request-content'
+
 const count = pipe(number(), finite(), integer(), minValue(0))
 const identifier = pipe(string(), nonEmpty())
 const providerEvidenceSchema = pipe(unknown(), transform((value) => {
@@ -56,6 +58,9 @@ export const generationObservationSchema = object({
   })),
   providerUsage: optional(providerEvidenceSchema),
   providerMetadata: optional(providerEvidenceSchema),
+  prompt: optional(requestContentSchema),
+  completion: optional(requestContentSchema),
+  errorBody: optional(requestContentSchema),
 })
 
 /** Absent provider fields mean unknown, including historical rows written before request correlation. */

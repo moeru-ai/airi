@@ -1,6 +1,6 @@
 {
-  "id": "a28317e7-72df-4f15-9ac4-67d86db22e85",
-  "prevId": "37f24985-30cd-4e47-ac56-bab656306029",
+  "id": "1de1a685-2dc0-4b15-8f39-502686f9bb5b",
+  "prevId": "a28317e7-72df-4f15-9ac4-67d86db22e85",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -952,6 +952,57 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.user_flux": {
+      "name": "user_flux",
+      "schema": "",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "flux": {
+          "name": "flux",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "unsettled_micro_flux": {
+          "name": "unsettled_micro_flux",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "user_flux_unsettled_nonnegative": {
+          "name": "user_flux_unsettled_nonnegative",
+          "value": "\"user_flux\".\"unsettled_micro_flux\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.flux_transaction": {
       "name": "flux_transaction",
       "schema": "",
@@ -1217,57 +1268,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.user_flux": {
-      "name": "user_flux",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "flux": {
-          "name": "flux",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "unsettled_micro_flux": {
-          "name": "unsettled_micro_flux",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "deleted_at": {
-          "name": "deleted_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "user_flux_unsettled_nonnegative": {
-          "name": "user_flux_unsettled_nonnegative",
-          "value": "\"user_flux\".\"unsettled_micro_flux\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.llm_request_attempt": {
       "name": "llm_request_attempt",
       "schema": "",
@@ -1509,12 +1509,6 @@
         "duration_ms": {
           "name": "duration_ms",
           "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "flux_consumed": {
-          "name": "flux_consumed",
-          "type": "bigint",
           "primaryKey": false,
           "notNull": true
         },
@@ -1795,171 +1789,6 @@
           "columns": [
             {
               "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.llm_request_settlement": {
-      "name": "llm_request_settlement",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "request_id": {
-          "name": "request_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "attempt_id": {
-          "name": "attempt_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "model": {
-          "name": "model",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "method": {
-          "name": "method",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "billing_provider": {
-          "name": "billing_provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "billing_status": {
-          "name": "billing_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "pending_reason": {
-          "name": "pending_reason",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "generation_id": {
-          "name": "generation_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pricing": {
-          "name": "pricing",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cost_source": {
-          "name": "cost_source",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "provider_usage": {
-          "name": "provider_usage",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "cost_usd": {
-          "name": "cost_usd",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "requested_flux": {
-          "name": "requested_flux",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "charged_flux": {
-          "name": "charged_flux",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "settled_at": {
-          "name": "settled_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "llm_settlement_user_request_uidx": {
-          "name": "llm_settlement_user_request_uidx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "llm_settlement_status_created_idx": {
-          "name": "llm_settlement_status_created_idx",
-          "columns": [
-            {
-              "expression": "billing_status",
               "isExpression": false,
               "asc": true,
               "nulls": "last"

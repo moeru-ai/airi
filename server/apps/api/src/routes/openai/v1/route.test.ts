@@ -2973,7 +2973,7 @@ describe('issue #2479 hosted Responses', () => {
     expect(await response.text()).toBe('quota exceeded')
     expect(response.headers.get('Retry-After')).toBe('10')
     expect(response.headers.has('Set-Cookie')).toBe(false)
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 429 }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 429, errorBody: { text: 'quota exceeded', format: 'text', state: 'complete', omittedMedia: false } }))
   })
 
   it('attributes alias routing failures to the last attempted provider', async () => {
@@ -3540,6 +3540,54 @@ it('returns the recorded bad-gateway status for malformed Chat JSON', async () =
   }, { user: testUser })
   expect(response.status).toBe(502)
   expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ errorBody: { text: 'invalid json', format: 'text', state: 'complete', omittedMedia: false } }))
+})
+
+it('captures Responses input and complete SSE output without dropping tool or reasoning events', async () => {
+  const output = { ...responsesResult(), output: [{ type: 'reasoning', summary: [{ type: 'summary_text', text: 'Reasoning evidence' }] }, { type: 'function_call', name: 'weather', arguments: '{"city":"Paris"}', call_id: 'call-1' }] }
+  const event = { type: 'response.completed', response: output }
+  const harness = responsesHarness(() => new Response(`event: response.completed\ndata: ${JSON.stringify(event)}\n\n`))
+  const response = await harness.send({ input: 'Question', stream: true })
+  await response.text()
+  expect(harness.logs.beginRequest).toHaveBeenCalledWith(expect.objectContaining({ prompt: expect.objectContaining({ text: expect.stringContaining('Question'), state: 'complete' }) }))
+  expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ completion: { format: 'sse', text: JSON.stringify(event), state: 'complete', omittedMedia: false } }))
+})
+
+it('captures Chat SSE output as complete and keeps upstream error frames separate', async () => {
+  const logs = createMockRequestLogService()
+  const billing = createMockBillingService()
+  const event = { choices: [{ delta: { content: 'Answer', reasoning: 'Thought', tool_calls: [{ function: { name: 'weather', arguments: '{}' } }] } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0.001 } }
+  const router = createMockLlmRouter({ route: vi.fn(async () => new Response(`data: ${JSON.stringify(event)}\n\ndata: [DONE]\n\n`)) })
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, logs, undefined, router)
+  const response = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [{ role: 'user', content: 'Question' }], stream: true }),
+  }, { user: testUser })
+  await response.text()
+  await vi.waitFor(() => expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ completion: { format: 'sse', text: JSON.stringify(event), state: 'complete', omittedMedia: false } })))
+  const failure = { error: { code: 'rate_limit', message: 'Provider quota exceeded' } }
+  vi.mocked(router.route).mockImplementationOnce(async (_request, context) => {
+    if (context)
+      context.provider = 'openrouter.ai'
+    return new Response(`data: ${JSON.stringify(event)}\n\ndata: ${JSON.stringify(failure)}\n\ndata: [DONE]\n\n`)
+  })
+  const failed = await app.request('/api/v1/openai/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages: [], stream: true }),
+  }, { user: testUser })
+  await failed.text()
+  await vi.waitFor(() => expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ state: 'failed', errorBody: { format: 'json', text: JSON.stringify(failure), state: 'complete', omittedMedia: false } })))
+  expect(billing.settleLlmCost).toHaveBeenCalledTimes(1)
+})
+
+it('keeps partial Responses content on unexpected EOF', async () => {
+  const event = { type: 'response.output_text.delta', delta: 'Partial answer' }
+  const harness = responsesHarness(() => new Response(`event: response.output_text.delta\ndata: ${JSON.stringify(event)}\n\n`))
+  const response = await harness.send({ stream: true })
+  await expect(response.text()).rejects.toThrow()
+  expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ completion: { format: 'sse', text: JSON.stringify(event), state: 'partial', omittedMedia: false }, errorBody: expect.objectContaining({ text: expect.stringContaining('terminal event') }) }))
 })
 
 // https://github.com/moeru-ai/airi/pull/2644#discussion_r4122406969

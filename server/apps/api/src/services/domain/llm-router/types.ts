@@ -24,6 +24,7 @@ import type {
   ttsRoutingSchema,
   ttsUpstreamSchema,
 } from '../../adapters/config-kv'
+import type { RequestContent } from '../request-content'
 import type { AttemptObserver } from './attempt'
 
 /**
@@ -165,4 +166,6 @@ export interface LlmRouteContext {
   triedKeys: number
   /** Most recent upstream failure status or `'timeout'`. */
   lastStatus: number | 'timeout' | null
+  /** Captured body of the most recent upstream HTTP error, so callers do not read it again. */
+  errorBody?: RequestContent
 }

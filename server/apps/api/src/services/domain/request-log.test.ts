@@ -9,6 +9,7 @@ import { createLlmRequestRoutes } from '../../routes/llm-requests'
 import { userFlux } from '../../schemas/flux'
 import { llmRequestAttempt } from '../../schemas/llm-request-attempt'
 import { llmRequestLog } from '../../schemas/llm-request-log'
+import { captureRequestContent } from './request-content'
 import { createRequestLogService } from './request-log'
 
 describe('request log and billing ownership', () => {
@@ -63,6 +64,26 @@ describe('request log and billing ownership', () => {
     expect(await logs.getRequest('other-user', observation.requestId)).toEqual({ request: undefined, attempts: [] })
   })
 
+  it('keeps the prompt through finalization and retains errors from failed attempts', async () => {
+    const logs = createRequestLogService(db)
+    const prompt = captureRequestContent({ messages: [{ role: 'user', content: 'Question' }] })
+    const errorBody = captureRequestContent({ error: { message: 'Quota exceeded' } })
+    const completion = captureRequestContent({ choices: [{ message: { role: 'assistant', content: 'Answer' } }] })
+    await logs.beginRequest({ ...observation, prompt })
+    const attempts = logs.observeAttempts(observation.userId, observation.requestId)
+    const first = await attempts.start({ gateway: 'first', model: 'model', credentialId: 'key-1' })
+    await attempts.finish(first, { state: 'failed', status: 429, errorCode: 'upstream_http', errorBody })
+    const second = await attempts.start({ gateway: 'second', model: 'model', credentialId: 'key-2' })
+    await logs.logRequest({ ...observation, attemptId: second, completion })
+    const detail = await logs.getRequest(observation.userId, observation.requestId)
+    expect(detail.request?.prompt).toEqual(prompt)
+    expect(detail.request?.completion).toEqual(completion)
+    expect(detail.request?.errorBody).toBeNull()
+    expect(detail.attempts[0].errorBody).toEqual(errorBody)
+    expect(detail.attempts[1].errorBody).toBeNull()
+    expect(await logs.listRequests(observation.userId)).toEqual([expect.not.objectContaining({ prompt })])
+  })
+
   it.each([302, 499, 502])('keeps upstream header status when final request status is %s', async (status) => {
     const logs = createRequestLogService(db)
     await logs.beginRequest(observation)
@@ -98,7 +119,7 @@ describe('request log and billing ownership', () => {
 
   it('exposes only owner-scoped, safe request details through HTTP', async () => {
     const logs = createRequestLogService(db)
-    await logs.beginRequest(observation)
+    await logs.beginRequest({ ...observation, prompt: captureRequestContent('private-prompt') })
     await logs.observeAttempts(observation.userId, observation.requestId).start({ gateway: 'gateway', credentialId: 'secret-key-reference', model: 'model' })
     const app = new Hono<HonoEnv>()
     app.use('*', async (context, next) => {
@@ -111,6 +132,7 @@ describe('request log and billing ownership', () => {
     const body = await response.text()
     expect(body).toContain('gateway')
     expect(body).not.toContain('secret-key-reference')
+    expect(body).not.toContain('private-prompt')
     expect(body).not.toContain('fallbackRate')
     expect((await app.request('/missing')).status).toBe(404)
     expect((await app.request(`/${'x'.repeat(129)}`)).status).toBe(400)
