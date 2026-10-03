@@ -46,5 +46,3 @@ blog:
   no-posts: 该分类下没有找到任何文章
   categories:
     all: 全部
-    devlog: DevLog
-    dreamlog: DreamLog

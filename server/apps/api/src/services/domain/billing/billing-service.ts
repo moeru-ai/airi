@@ -187,6 +187,7 @@ export function createBillingService(
       requestId?: string
       description?: string
       model?: string
+      turnId?: string
       promptTokens?: number
       completionTokens?: number
     }): Promise<{ userId: string, flux: number, charged: number, requested: number }> {
@@ -198,6 +199,7 @@ export function createBillingService(
         source: 'llm.request',
         metadata: {
           ...(input.model != null && { model: input.model }),
+          ...(input.turnId != null && { turnId: input.turnId }),
           ...(input.promptTokens != null && { promptTokens: input.promptTokens }),
           ...(input.completionTokens != null && { completionTokens: input.completionTokens }),
         },

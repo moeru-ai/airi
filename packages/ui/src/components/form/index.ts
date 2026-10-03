@@ -1,7 +1,6 @@
 export * from './checkbox'
 export * from './combobox'
 export * from './combobox-select'
-export * from './content-editable'
 export * from './field'
 export * from './input'
 export * from './radio'

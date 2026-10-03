@@ -15,11 +15,8 @@ docs:
   'open-settings': Ouvrir les paramètres
   'open-chat': Ouvrir le Chat
   'refresh': Actualiser
-  'center-main-window': Move to screen center
   'open-hearing-controls': Ouvrir les contrôles d'écoute
   'drag-to-move-window': Glisser pour déplacer la fenêtre
-  'stop-speaking': Arrêter la parole
-  'speaker-idle': Haut-parleur
   'switch-to-light-mode': Passer au mode clair
   'switch-to-dark-mode': Passer au mode sombre
   'pin-on-top': Épingler en haut
@@ -47,7 +44,6 @@ notice:
     toggle: Vous pouvez le désactiver en survolant l’{controls}, puis en cliquant à nouveau sur l’{icon}.
     controls-label: Îlot de commandes
     icon-label: icône œil barré
-    value: '0'
     targets: Personnage et UI
     confirm: Compris
     dont-show-again: Ne plus afficher
@@ -63,7 +59,6 @@ about:
     title: Liens
     home: Accueil
     documentation: Documentation
-    github: GitHub
   update:
     lane:
       label: Canal de mise à jour
@@ -71,8 +66,6 @@ about:
       placeholder: Sélectionnez un canal de mise à jour
     channels:
       auto: Automatique
-      stable: Stable
-      alpha: Alpha
       beta: Bêta
       nightly: Nocturne
       canary: Expérimental

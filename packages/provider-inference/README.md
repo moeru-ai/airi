@@ -17,6 +17,13 @@ const providers = listProviders()
 
 Browser-only definitions, such as Web Speech API, load in Node.js. Their availability hook returns `false` when the required Browser capability is absent.
 
+The root entry exports Sherpaw model presets and a definition factory. Vite plugins can use `@proj-airi/provider-inference/sherpaw-transcription/models` to load only model metadata. The presets include stable IDs, languages, recognizer types, pinned revisions, and artifact URLs. Neither entry downloads or loads model files.
+
+`createSherpawTranscriptionDefinition` owns recognition, Worker cleanup, and the first model choice.
+The host supplies exposed models, a Worker URL, a fetch function, and the current interface language.
+The host also reports whether it runs on mobile. Chinese and English default to X-ASR on desktop and Paraformer on mobile.
+`stage-ui` supplies these resources and adds the Hearing settings view.
+
 Use `@proj-airi/stage-ui` for saved provider configuration, Vue settings views, Pinia state, authentication, and Electron-native providers. Do not use this package to manage those application concerns.
 
 ## Verify
@@ -38,6 +45,9 @@ OpenAI and OpenAI Compatible configurations accept `api: 'chat-completions' | 'r
 `GenerationProvider.generation(model, options)` selects a protocol and returns its request configuration.
 Core-agent receives this single interface and projects context directly into the selected protocol.
 Protocol defaults and native tools remain provider-owned policy. The validation probe uses the selected protocol.
+`generationProtocolDefinitions` owns the display metadata for every protocol.
+Provider schemas use `generationProtocolOptions` to keep selector labels consistent.
+Adding a protocol requires a request type and a matching metadata entry. TypeScript reports an incomplete registry or provider request switch.
 
 ```ts
 const definition = getDefinedProvider('openai')
@@ -47,7 +57,8 @@ const provider = await definition.createProvider({
 })
 ```
 
-User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing. The official provider continues to use Chat Completions; its Responses support is a separate gateway change.
+User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing.
+The official provider defaults to Responses and lets the user select Chat Completions.
 
 OpenAI has a `webSearch` switch, disabled by default. The selected protocol must be Responses.
 Explicitly enabling search sends the hosted tool on the official OpenAI endpoint. The provider validates model support.

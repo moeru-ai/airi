@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.mts",
       "default": "./dist/index.mjs"
+    },
+    "./sherpaw-transcription/models": {
+      "types": "./dist/providers/local/sherpaw-transcription/models.d.mts",
+      "default": "./dist/providers/local/sherpaw-transcription/models.mjs"
     }
   },
   "main": "./dist/index.mjs",
@@ -39,6 +43,8 @@
   "dependencies": {
     "@moeru/std": "catalog:",
     "@proj-airi/audio": "workspace:^",
+    "@sherpaw/asr": "0.2.1",
+    "@sherpaw/xsai-transcription": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-ext/responses": "catalog:",
     "@xsai-transformers/shared": "catalog:",

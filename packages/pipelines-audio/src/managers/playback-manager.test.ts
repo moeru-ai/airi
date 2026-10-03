@@ -21,29 +21,43 @@ function createPlaybackItem(id: string, priority: number, intentId: string, owne
 }
 
 describe('createPlaybackManager', () => {
-  it.each(['stopByIntent', 'stopAll'])(
-    'does not restart queued playback when stopping with %s',
-    (method) => {
-      const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
-        signal.addEventListener('abort', () => resolve(), { once: true })
-      }))
-      const manager = createPlaybackManager({
-        maxVoices: 1,
-        overflowPolicy: 'queue',
-        play,
-      })
+  it('does not start queued playback when stopping all playback', () => {
+    const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
+      signal.addEventListener('abort', () => resolve(), { once: true })
+    }))
+    const manager = createPlaybackManager({
+      maxVoices: 1,
+      overflowPolicy: 'queue',
+      play,
+    })
 
-      manager.schedule(createPlaybackItem('active', 10, 'intent-1'))
-      manager.schedule(createPlaybackItem('queued', 5, 'intent-2'))
+    manager.schedule(createPlaybackItem('active', 10, 'intent-1'))
+    manager.schedule(createPlaybackItem('queued', 5, 'intent-2'))
+    manager.stopAll('stop')
 
-      if (method === 'stopByIntent')
-        manager.stopByIntent('intent-1', 'stop')
-      else
-        manager.stopAll('stop')
+    expect(play).toHaveBeenCalledTimes(1)
+  })
 
-      expect(play).toHaveBeenCalledTimes(1)
-    },
-  )
+  it('starts the next queued intent once after stopping another intent', () => {
+    const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
+      signal.addEventListener('abort', () => resolve(), { once: true })
+    }))
+    const manager = createPlaybackManager({
+      maxVoices: 1,
+      overflowPolicy: 'queue',
+      play,
+    })
+    const interrupted: string[] = []
+    manager.onInterrupt(event => interrupted.push(event.item.id))
+
+    manager.schedule(createPlaybackItem('active', 10, 'intent-1'))
+    manager.schedule(createPlaybackItem('queued', 5, 'intent-2'))
+    manager.stopByIntent('intent-1', 'stop')
+
+    expect(interrupted).toEqual(['active'])
+    expect(play).toHaveBeenCalledTimes(2)
+    expect(play).toHaveBeenNthCalledWith(2, expect.objectContaining({ id: 'queued' }), expect.any(AbortSignal))
+  })
 
   it('rejects lower-priority overflow items with steal-lowest-priority policy', () => {
     const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
@@ -139,13 +153,9 @@ describe('createPlaybackManager', () => {
     expect(rejected).toEqual(['a2'])
   })
 
-  it('steals the oldest active item for queued owner-overflow when a slot frees up', async () => {
-    let resolvePlayback: (() => void) | undefined
+  it('steals the oldest item of the same owner on owner-overflow', () => {
     const play = vi.fn((_item, signal) => new Promise<void>((resolve) => {
-      resolvePlayback = () => {
-        signal.aborted ? resolve() : signal.addEventListener('abort', () => resolve(), { once: true })
-        resolve()
-      }
+      signal.addEventListener('abort', () => resolve(), { once: true })
     }))
     const manager = createPlaybackManager({
       maxVoices: 2,
@@ -154,18 +164,16 @@ describe('createPlaybackManager', () => {
       ownerOverflowPolicy: 'steal-oldest',
       play,
     })
+    const interrupted: string[] = []
+    manager.onInterrupt(event => interrupted.push(event.item.id))
 
     manager.schedule(createPlaybackItem('a', 10, 'intent-1', 'owner-x'))
     manager.schedule(createPlaybackItem('b', 9, 'intent-2', 'owner-y'))
     manager.schedule(createPlaybackItem('a2', 8, 'intent-3', 'owner-x'))
 
-    expect(play).toHaveBeenCalledTimes(2)
-
-    resolvePlayback?.()
-    await Promise.resolve()
-    await Promise.resolve()
-
+    expect(interrupted).toEqual(['a'])
     expect(play).toHaveBeenCalledTimes(3)
+    expect(play).toHaveBeenNthCalledWith(3, expect.objectContaining({ id: 'a2' }), expect.any(AbortSignal))
   })
 
   it('does not drain the queue while stealing an owner-overflow playback slot', async () => {
@@ -187,17 +195,16 @@ describe('createPlaybackManager', () => {
 
     manager.schedule(createPlaybackItem('a', 10, 'intent-1', 'owner-x'))
     manager.schedule(createPlaybackItem('d', 10, 'intent-2', 'owner-y'))
-    manager.schedule(createPlaybackItem('a2', 9, 'intent-3', 'owner-x'))
-    manager.schedule(createPlaybackItem('b', 8, 'intent-4', 'owner-y'))
-    manager.schedule(createPlaybackItem('c', 7, 'intent-5', 'owner-y'))
+    manager.schedule(createPlaybackItem('e', 5, 'intent-3', 'owner-z'))
+    manager.schedule(createPlaybackItem('a2', 9, 'intent-4', 'owner-x'))
 
-    expect(play).toHaveBeenCalledTimes(2)
+    // The stolen slot goes to a2. Queued e must wait for a slot that no steal reuses.
+    expect(play.mock.calls.map(([item]) => item.id)).toEqual(['a', 'd', 'a2'])
 
     resolveMap.get('d')?.()
     await Promise.resolve()
     await Promise.resolve()
 
-    expect(play).toHaveBeenCalledTimes(3)
-    expect(play).toHaveBeenNthCalledWith(3, expect.objectContaining({ id: 'a2' }), expect.any(AbortSignal))
+    expect(play.mock.calls.map(([item]) => item.id)).toEqual(['a', 'd', 'a2', 'e'])
   })
 })

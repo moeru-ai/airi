@@ -63,7 +63,12 @@ function finishAnimation(value: boolean) {
             </DrawerTitle>
           </div>
         </div>
-        <div :class="['min-h-0 overflow-y-auto overscroll-contain px-5']">
+        <!--
+          The vertical padding is the room a focus or hover ring needs. Scrolling clips
+          at the padding box, and a control sitting first or last in the slot draws its
+          ring outside its own border.
+        -->
+        <div :class="['min-h-0 overflow-y-auto overscroll-contain px-5 py-1']">
           <slot />
         </div>
       </DrawerContent>

@@ -5,7 +5,9 @@ import { env, exit } from 'node:process'
 
 import { useLogger } from '@guiiai/logg'
 import { injeca } from 'injeca'
-import { array, check, integer, maxValue, minValue, nonEmpty, object, optional, parse, pipe, string, transform, url } from 'valibot'
+import { array, check, integer, intersect, maxValue, minValue, nonEmpty, object, optional, parse, picklist, pipe, string, transform, url } from 'valibot'
+
+import { S3EnvironmentSchema } from '../services/adapters/s3-config'
 
 const AdditionalTrustedOriginsSchema = pipe(
   string(),
@@ -16,6 +18,25 @@ const AdditionalTrustedOriginsSchema = pipe(
     transform(origin => new URL(origin).origin),
   )),
   transform(origins => [...new Set(origins)]),
+)
+
+// Comma-separated `bundleId` or `bundleId:appAppleId`. Production needs an id on every entry.
+const AppleIapAppsSchema = pipe(
+  string(),
+  transform(raw => raw.split(',').map(entry => entry.trim()).filter(Boolean)),
+  transform(entries => entries.map((entry) => {
+    const separator = entry.lastIndexOf(':')
+    if (separator === -1)
+      return { bundleId: entry }
+    return {
+      bundleId: entry.slice(0, separator),
+      appAppleId: Number(entry.slice(separator + 1)),
+    }
+  })),
+  check(
+    apps => new Set(apps.map(app => app.bundleId)).size === apps.length,
+    'APPLE_IAP_APPS bundle ids must be unique',
+  ),
 )
 
 function optionalIntegerFromString(defaultValue: number, envKey: string, minimum: number) {
@@ -44,7 +65,7 @@ function optionalNumberFromString(defaultValue: number, envKey: string, minimum:
   )
 }
 
-const EnvSchema = object({
+const EnvSchema = intersect([S3EnvironmentSchema, object({
   // Comma-separated exact origins (e.g. Capacitor dev server `https://10.x:5273`).
   // Prefer this over broad private-IP regex heuristics in production-like configs.
   ADDITIONAL_TRUSTED_ORIGINS: optional(
@@ -52,6 +73,16 @@ const EnvSchema = object({
     '',
   ),
   API_SERVER_URL: optional(string(), 'http://localhost:3000'),
+
+  // Apple In-App Purchase (StoreKit 2). Empty or unset keeps the routes
+  // mounted and returns 503 APPLE_IAP_DISABLED.
+  APPLE_IAP_APPS: optional(AppleIapAppsSchema, ''),
+  APPLE_IAP_ENV: optional(picklist(['sandbox', 'production', 'xcode']), 'sandbox'),
+  // Exact internal IDs of dedicated accounts that can receive Sandbox Flux.
+  APPLE_IAP_SANDBOX_USER_IDS: optional(pipe(
+    string(),
+    transform(raw => [...new Set(raw.split(',').map(id => id.trim()).filter(Boolean))]),
+  ), ''),
 
   AUTH_SERVER_INTERNAL_URL: optional(string()),
   AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),
@@ -124,7 +155,7 @@ const EnvSchema = object({
   // file:// and sends no usable web origin. Web/mobile requests keep returning to
   // their own origin; only origin-less clients fall back to this.
   WEB_APP_URL: optional(string(), 'https://airi.moeru.ai'),
-})
+})])
 
 export type Env = InferOutput<typeof EnvSchema>
 
