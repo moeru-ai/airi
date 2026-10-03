@@ -2,8 +2,6 @@
 import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import type { ComposerTranscription } from '../../composables/transcription'
-
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
 import { CharacterSwitcherDrawer, ChatHistory, HearingStatus } from '@proj-airi/stage-ui/components'
@@ -32,11 +30,7 @@ import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
-const props = defineProps<{
-  transcriptions?: ComposerTranscription[]
-}>()
 const emit = defineEmits<{
-  transcriptionsConsumed: []
   /** Reports the stable height and offset that keep the Stage in the same screen position. */
   stageViewportChange: [viewport: { height: number, offsetTop: number }]
 }>()
@@ -233,17 +227,9 @@ const { receiveTranscription } = useTranscriptions(
     messageInputRef: messageInput,
     sendMessage: handleSend,
     isStageTamagotchi,
-    sessionId: activeSessionId,
   },
 )
-watch(() => props.transcriptions, (transcriptions) => {
-  if (!transcriptions?.length)
-    return
-  // Vue batches parent renders. Retain every event until the composer consumes the batch.
-  for (const transcription of transcriptions)
-    receiveTranscription(transcription)
-  emit('transcriptionsConsumed')
-}, { immediate: true, flush: 'sync' })
+defineExpose({ receiveTranscription })
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const characterVoiceEnabled = computed({
   get: () => !speechMuted.value,
