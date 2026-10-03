@@ -18,6 +18,7 @@ export const llmRequestAttempt = pgTable('llm_request_attempt', {
   state: text('state').notNull(),
   status: integer('status'),
   errorCode: text('error_code'),
+  errorBody: jsonb('error_body'),
   startedAt: timestamp('started_at').notNull(),
   endedAt: timestamp('ended_at'),
   timeToFirstTokenMs: integer('time_to_first_token_ms'),

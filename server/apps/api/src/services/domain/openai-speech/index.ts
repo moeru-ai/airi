@@ -1,7 +1,6 @@
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { FluxMeter } from '../billing/flux-meter'
-import type { FluxService } from '../flux'
+import type { SpeechBilling } from '../billing/speech-billing'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProviderCatalogService } from '../provider-catalog'
@@ -47,10 +46,9 @@ function readOptionalNumber(record: Record<string, unknown> | undefined, key: st
 }
 
 export interface OpenAiSpeechServiceDeps {
-  fluxService: FluxService
   configKV: ConfigKVService
   requestLogService: RequestLogService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
   providerCatalogService: ProviderCatalogService
@@ -122,9 +120,8 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: requestVoice,
     }).log('tts speech request')
 
-    const flux = await deps.fluxService.getFlux(input.userId)
     try {
-      await deps.ttsMeter.assertCanAfford(input.userId, billingUnits, flux.flux)
+      await deps.speechBilling.assertCanAfford(input.userId, billingUnits)
     }
     catch (err) {
       if (!(err instanceof ApiError) || err.statusCode !== 402)
@@ -211,15 +208,15 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
     let fluxConsumed = 0
     try {
-      const result = await deps.ttsMeter.accumulate({
+      const result = await deps.speechBilling.settle({
         userId: input.userId,
         units: billingUnits,
-        currentBalance: flux.flux,
         requestId,
-        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        model: requestModel,
         turnId: analytics.turnId,
+        provider: routeCtx.provider,
       })
-      fluxConsumed = result.fluxDebited
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       generationTrace.succeed({
         inputChars: inputText.length,
@@ -241,7 +238,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       model: requestModel,
       status: response.status,
       durationMs,
-      fluxConsumed,
     }).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
 
     logger.withFields({
