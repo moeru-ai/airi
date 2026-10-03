@@ -58,6 +58,8 @@ export interface Config<TSchema extends PersistedSchema> {
   setup: () => ConfigDiagnostics<InferOutput<TSchema>>
   get: () => InferOutput<TSchema> | undefined
   update: (newData: InferOutput<TSchema>) => void
+  /** Persists the latest value and waits for active writes to finish. */
+  flush: () => Promise<void>
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
 }
 
@@ -77,7 +79,7 @@ export function createConfig<TSchema extends PersistedSchema>(
     return diagnostics
   }
 
-  const save = throttle(async () => {
+  async function persist() {
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
@@ -88,6 +90,13 @@ export function createConfig<TSchema extends PersistedSchema>(
     catch (error) {
       console.error('Failed to save config', error)
     }
+  }
+
+  const pendingSaves = new Set<Promise<void>>()
+  const save = throttle(() => {
+    const pendingSave = persist()
+    pendingSaves.add(pendingSave)
+    void pendingSave.finally(() => pendingSaves.delete(pendingSave))
   }, 250)
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
@@ -170,6 +179,22 @@ export function createConfig<TSchema extends PersistedSchema>(
     save()
   }
 
+  /**
+   * Persists the latest in-memory value before a lifecycle boundary completes.
+   *
+   * Callers should await this during application shutdown so a throttled update
+   * cannot be dropped when Electron restarts the main process.
+   */
+  let flushQueue = Promise.resolve()
+  const flush = () => {
+    flushQueue = flushQueue.then(async () => {
+      save.cancel()
+      await Promise.all(pendingSaves)
+      await persist()
+    })
+    return flushQueue
+  }
+
   const get = () => persistenceMap.get(key) as InferOutput<TSchema> | undefined
 
   const getDiagnostics = () => diagnosticsMap.get(key) as ConfigDiagnostics<InferOutput<TSchema>> | undefined
@@ -178,6 +203,7 @@ export function createConfig<TSchema extends PersistedSchema>(
     setup,
     get,
     update,
+    flush,
     getDiagnostics,
   }
 }
