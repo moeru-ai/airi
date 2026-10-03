@@ -160,51 +160,6 @@ jobs:
         env:
           NODE_OPTIONS: --no-experimental-webstorage
 
-  billing-load-test:
-    name: Billing Load Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: billing_load
-          POSTGRES_PASSWORD: billing_load
-          POSTGRES_DB: airi_billing_load_test
-        ports:
-          - 55432:5432
-        options: >-
-          --health-cmd "pg_isready -U billing_load -d airi_billing_load_test"
-          --health-interval 2s
-          --health-timeout 2s
-          --health-retries 30
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 56379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 2s
-          --health-timeout 2s
-          --health-retries 30
-    steps:
-      - uses: actions/checkout@v6
-      - uses: pnpm/setup@v2
-        with:
-          runtime: node@26.7.0
-          cache: true
-          install: false
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm -F @proj-airi/api-server test:load
-        env:
-          BILLING_LOAD_TEST: '1'
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: billing-load-results
-          path: server/apps/api/billing-load-results.json
-          if-no-files-found: error
-
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest

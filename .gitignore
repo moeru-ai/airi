@@ -158,7 +158,6 @@ __screenshots__
 packages/i18n/glossary/glossary.tbx
 
 /airi-docs/
-/server/apps/api/billing-load-results.json
 .worktrees/
 
 # Sherpaw models downloaded by the Vite plugin

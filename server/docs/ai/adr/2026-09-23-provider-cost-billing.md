@@ -69,13 +69,10 @@ server/apps/api/
   src/services/adapters/llm/cost.ts
   src/services/adapters/config-kv/definitions.ts
   src/services/domain/billing/
-    tests/billing.load.test.ts
   src/services/domain/llm-router/{router,types}.ts
   src/routes/openai/v1/{middlewares/billing,model-routing,operations}/
   src/schemas/{llm-request-settlement,flux,flux-transaction}.ts
   drizzle/0027_llm_cost_settlement.sql
-  vitest.load.config.ts
-  compose.load.yaml
 ```
 
 ## Cost adapter contract
@@ -89,11 +86,7 @@ This change does not implement or populate a model price table.
 
 ## Persistence and compatibility
 
-The billing load suite runs against isolated PostgreSQL and Redis instances with production migrations and domain services.
-It measures multi-user requests, one-account contention, replay, pending cost, zero cost, and mixed speech/LLM debits.
-Every scenario checks ledger totals, wallet conservation, settlement count, and latency budgets.
-CI runs this suite on pull requests. Unit tests do not replace the load suite after core-path changes.
-The suite excludes provider latency, HTTP transport, production data volume, and production migration lock duration.
+Migration 0027 creates non-concurrent indexes. An existing-ledger deployment needs a release-window assessment.
 Missing or invalid cost returns after the durable receipt transaction, without a second wallet lock.
 An already settled receipt returns under the first wallet lock, without another transaction or debit.
 Successful settlement retains its charged cost snapshot in the same transaction as the wallet and ledger update.

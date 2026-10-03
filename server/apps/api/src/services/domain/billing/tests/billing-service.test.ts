@@ -305,7 +305,7 @@ describe('billingService', () => {
     it('records unpaid whole Flux and does not debit again on replay', async () => {
       await db.insert(schema.userFlux).values({ userId: 'user-billing-1', flux: 2 })
       expect(await billingService.settleLlmCost(receipt('partial', 0.002))).toEqual({ charged: 2, requested: 3, pending: false })
-      expect(await billingService.settleLlmCost(receipt('partial', 0.002))).toEqual({ charged: 2, requested: 2, pending: false })
+      expect(await billingService.settleLlmCost(receipt('partial', 0.002))).toEqual({ charged: 2, requested: 3, pending: false })
       const [ledger] = await db.select().from(schema.fluxTransaction)
       expect(ledger.metadata).toMatchObject({ requestedAmount: 3, unbilled: 1 })
     })
