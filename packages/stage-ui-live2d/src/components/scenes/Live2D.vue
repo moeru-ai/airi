@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import type { PresenceBubbleState } from '@proj-airi/stage-shared'
+
 import type { Live2DEyeFocusSource } from '../../composables/live2d'
 
+import { presenceBubbleIdle } from '@proj-airi/stage-shared'
 import { useScreenAmbientLightEnvironment, useSettingsScreenAmbientLight } from '@proj-airi/stage-shared/stores/screen-ambient-light'
 import { Screen } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -8,6 +11,7 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 
 import Live2DCanvas from './live2d/Canvas.vue'
 import Live2DModel from './live2d/Model.vue'
+import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 
@@ -26,7 +30,10 @@ const props = withDefaults(defineProps<{
   nowSpeaking?: boolean
   themeColorsHue?: number
   themeColorsHueDynamic?: boolean
+  /** Drives the bubble above the character. */
+  presence?: PresenceBubbleState
 }>(), {
+  presence: () => presenceBubbleIdle,
   paused: false,
   mouthOpenSize: 0,
   nowSpeaking: false,
@@ -175,6 +182,15 @@ defineExpose({
         :screen-ambient-light-strength="screenAmbientLightStrength"
         :screen-ambient-light-squint="screenAmbientLightSquint"
         @error="emit('error', $event)"
+      />
+      <Live2DPresenceBubble
+        v-if="app"
+        :app="app"
+        :head-anchor="() => live2dModelRef?.headAnchor()"
+        :state="props.presence"
+        :width="width"
+        :height="height"
+        :resolution="live2dRenderScale"
       />
     </Live2DCanvas>
   </Screen>

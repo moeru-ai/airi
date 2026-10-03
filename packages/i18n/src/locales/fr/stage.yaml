@@ -3,12 +3,10 @@ chat:
     retry: Réessayer
   message:
     character-name:
-      airi: AIRI
       core-system: Système central
       you: Vous
   reasoning: Raisonnement
   sessions:
-    title: Conversations
     new: + Nouveau
     empty: Pas encore de conversation
     cloud-badge: Synchronisé dans le cloud
@@ -88,7 +86,6 @@ promo-banner:
       cta: Tirer au sort Maintenant
     coupon:
       watermark: Discussion
-      fallbackLabel: Coupon
       title: Coupon de recharge
       eventName: Terminez des interactions de chat pour récupérer des coupons pour l’extension et les packs vocaux.
       date: 02/04 - 20/04

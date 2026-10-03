@@ -1,21 +1,21 @@
 <script setup lang="ts">
-import { Callout, FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
+import { FieldCheckbox, FieldCombobox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, shallowRef } from 'vue'
 
 import { useAudioAnalyzer } from '../../../../composables'
 import { useSettingsAudioDevice } from '../../../../stores'
 
-const props = withDefaults(defineProps<{
-  granted?: boolean // permission status on OS level
-}>(), {
-  granted: false,
-})
+const props = defineProps<{
+  /** Runs before permission or stream requests from the enable button. Automatic requests skip this hook. */
+  beforeEnable?: () => Promise<void>
+}>()
 
 const deviceStore = useSettingsAudioDevice()
 const { askPermission } = deviceStore
 const { audioInputOptions, enabled, permissionGranted, selectedAudioInput } = storeToRefs(deviceStore)
 const { volumeLevel } = useAudioAnalyzer()
+const enabling = shallowRef(false)
 
 const autoSend = defineModel<boolean | undefined>('autoSend')
 const hasAutoSendControl = computed(() => autoSend.value !== undefined)
@@ -49,13 +49,33 @@ const ringEnabledClass = computed(() => enabled.value
   : 'bg-neutral-300/20 dark:bg-neutral-700/20',
 )
 
-function toggleHearingEnabled() {
-  if (enabled.value)
-    return enabled.value = false
-  if (selectedAudioInput.value !== '' && permissionGranted.value)
-    return enabled.value = true
-  if (!permissionGranted.value)
-    return askPermission().then(() => { enabled.value = permissionGranted.value })
+async function toggleHearingEnabled() {
+  if (enabling.value)
+    return
+
+  if (enabled.value) {
+    enabled.value = false
+    return
+  }
+
+  enabling.value = true
+  try {
+    if (props.beforeEnable)
+      await props.beforeEnable()
+
+    if (selectedAudioInput.value !== '' && permissionGranted.value) {
+      enabled.value = true
+      return
+    }
+
+    if (!permissionGranted.value) {
+      await askPermission()
+      enabled.value = permissionGranted.value
+    }
+  }
+  finally {
+    enabling.value = false
+  }
 }
 </script>
 
@@ -86,6 +106,8 @@ function toggleHearingEnabled() {
           :aria-label="hearingToggleLabel"
           :title="hearingToggleLabel"
           :class="hearingToggleClass"
+          :disabled="enabling"
+          :aria-busy="enabling"
           @click="toggleHearingEnabled"
         >
           <div :class="enabled ? 'i-ph:microphone' : 'i-ph:microphone-slash'" class="h-6 w-6" />
@@ -93,16 +115,6 @@ function toggleHearingEnabled() {
       </div>
 
       <div class="mt-3 h-1" />
-
-      <!-- Permission callout when needed (Electron contexts) -->
-      <div v-if="!props.granted" class="mt-3 w-full">
-        <Callout theme="orange" label="Microphone permission required">
-          <div class="text-sm">
-            The app doesn't have permission to access your microphone.
-            Please grant microphone access in your system settings to enable audio input.
-          </div>
-        </Callout>
-      </div>
     </div>
 
     <div v-if="hasAutoSendControl" class="mt-3">

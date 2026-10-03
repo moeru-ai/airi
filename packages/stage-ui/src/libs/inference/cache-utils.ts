@@ -1,14 +1,42 @@
 /**
  * Model cache utilities.
  *
- * `@huggingface/transformers` and `kokoro-js` cache downloaded model
- * files via the browser Cache API automatically. This module provides
- * query and management functions for that cache, intended for settings
- * UI ("Cached 512 MB", "Clear model cache" button).
+ * Transformers and Kokoro cache model files automatically. Sherpaw uses this
+ * module to cache remote model files. Settings can report and clear both caches.
  */
 
 // The cache name used by transformers.js / ONNX runtime
 const TRANSFORMERS_CACHE_NAME = 'transformers-cache'
+const SHERPAW_CACHE_NAME = 'sherpaw-models'
+const MODEL_CACHE_NAMES = [TRANSFORMERS_CACHE_NAME, SHERPAW_CACHE_NAME]
+
+/** Stores successful Sherpaw model downloads for later speech segments and sessions. */
+export async function fetchCachedModel(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  if (typeof caches === 'undefined')
+    return await fetch(input, init)
+
+  let cache: Cache
+  try {
+    cache = await caches.open(SHERPAW_CACHE_NAME)
+    const cached = await cache.match(input)
+    if (cached)
+      return cached
+  }
+  catch {
+    return await fetch(input, init)
+  }
+
+  const response = await fetch(input, init)
+  if (response.ok) {
+    try {
+      await cache.put(input, response.clone())
+    }
+    catch {
+      // Storage failure must not prevent speech recognition.
+    }
+  }
+  return response
+}
 
 /**
  * Get the total size of cached model files in bytes.
@@ -19,22 +47,23 @@ export async function getModelCacheSize(): Promise<number> {
     return 0
 
   try {
-    const cache = await caches.open(TRANSFORMERS_CACHE_NAME)
-    const keys = await cache.keys()
-
     let totalSize = 0
-    for (const request of keys) {
-      const response = await cache.match(request)
-      if (response) {
-        // Content-Length header if available
-        const cl = response.headers.get('content-length')
-        if (cl) {
-          totalSize += Number.parseInt(cl, 10)
-        }
-        else {
-          // Fallback: read the body to measure size
-          const blob = await response.blob()
-          totalSize += blob.size
+    for (const name of MODEL_CACHE_NAMES) {
+      const cache = await caches.open(name)
+      const keys = await cache.keys()
+      for (const request of keys) {
+        const response = await cache.match(request)
+        if (response) {
+          // Content-Length header if available
+          const cl = response.headers.get('content-length')
+          if (cl) {
+            totalSize += Number.parseInt(cl, 10)
+          }
+          else {
+            // Fallback: read the body to measure size
+            const blob = await response.blob()
+            totalSize += blob.size
+          }
         }
       }
     }
@@ -54,7 +83,7 @@ export async function clearModelCache(): Promise<void> {
     return
 
   try {
-    await caches.delete(TRANSFORMERS_CACHE_NAME)
+    await Promise.all(MODEL_CACHE_NAMES.map(name => caches.delete(name)))
   }
   catch {
     // Silently ignore if cache doesn't exist
@@ -70,9 +99,13 @@ export async function isModelCached(modelId: string): Promise<boolean> {
     return false
 
   try {
-    const cache = await caches.open(TRANSFORMERS_CACHE_NAME)
-    const keys = await cache.keys()
-    return keys.some(request => request.url.includes(modelId))
+    for (const name of MODEL_CACHE_NAMES) {
+      const cache = await caches.open(name)
+      const keys = await cache.keys()
+      if (keys.some(request => request.url.includes(modelId)))
+        return true
+    }
+    return false
   }
   catch {
     return false

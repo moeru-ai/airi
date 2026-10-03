@@ -5,6 +5,7 @@ import localforage from 'localforage'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { useBroadcastChannel } from '@vueuse/core'
+import { nanoid } from 'nanoid/non-secure'
 import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
@@ -169,7 +170,7 @@ export const useMMD = defineStore('mmd', () => {
   async function addMotion(file: File): Promise<MMDMotionDescriptor> {
     const name = file.name.replace(/\.vmd$/i, '')
     const existing = availableMotions.value.find(motion => motion.name === name)
-    const id = existing?.id ?? `${MOTION_STORAGE_PREFIX}${crypto.randomUUID()}`
+    const id = existing?.id ?? `${MOTION_STORAGE_PREFIX}${nanoid()}`
 
     await localforage.setItem<PersistedMMDMotion>(id, { id, name, file })
     if (!existing)

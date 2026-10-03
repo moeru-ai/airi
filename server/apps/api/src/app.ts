@@ -1,6 +1,7 @@
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
+import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { BillingService } from './services/domain/billing/billing-service'
@@ -32,6 +33,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
+import { parseAccept } from 'hono/utils/accept'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
@@ -44,6 +46,8 @@ import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
+import { createAppleIapRoutes } from './routes/apple-iap'
+import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterRoutes } from './routes/characters'
@@ -54,12 +58,14 @@ import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
+import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
+import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
@@ -88,6 +94,7 @@ interface AppDeps {
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
   paymentService: PaymentService
+  appleIapVerifier: AppleIapVerifier | null
   stripe: Stripe | null
   billingService: BillingService
   ttsMeter: FluxMeter
@@ -118,6 +125,8 @@ function apiBodyLimit(maxSize: number) {
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
+  const webAppUrl = deps.env.WEB_APP_URL
+  const docsUrl = new URL('/docs', webAppUrl).toString()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -365,17 +374,19 @@ export async function buildApp(deps: AppDeps) {
       )
     })
 
-    /**
-     * Service identity at the API root. Visitors who land here from a stray
-     * email link, search engine, or copy-pasted URL get a clear pointer to
-     * the actual product UI instead of the framework's default "404 Not Found".
-     */
-    .on('GET', '/', c => c.json({
-      service: 'airi-api',
-      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
-      docs: 'https://airi.moeru.ai/docs',
-      ui: 'https://airi.moeru.ai',
-    }))
+    .on('GET', '/', (context) => {
+      context.header('Vary', 'Accept')
+      const accept = context.req.header('Accept')
+      if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
+        return context.redirect(webAppUrl, 302)
+
+      return context.json({
+        service: 'airi-api',
+        message: `This is the Project AIRI API server. Visit ${webAppUrl} to use the product, or see the docs at ${docsUrl}.`,
+        docs: docsUrl,
+        ui: webAppUrl,
+      })
+    })
 
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
@@ -415,6 +426,7 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
+    .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
      * Stripe routes.
@@ -431,14 +443,26 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
+     * Apple IAP routes (StoreKit 2 JWS and Notifications V2).
+     */
+    .route('/api/v1/apple-iap', createAppleIapRoutes(
+      deps.paymentService,
+      deps.db,
+      deps.appleIapVerifier,
+      deps.configKV,
+      deps.otel?.rateLimit ?? null,
+      deps.env.APPLE_IAP_SANDBOX_USER_IDS,
+    ))
+
+    /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
      * Found" so unmatched routes (typos, stale email links, scanners) get a
      * structured response and a hint at where to go for the real product UI.
      */
     .notFound(c => c.json({
       error: 'NOT_FOUND',
-      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at https://airi.moeru.ai.`,
-      ui: 'https://airi.moeru.ai',
+      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at ${webAppUrl}.`,
+      ui: webAppUrl,
     }, 404))
 
   return { app: builtApp, injectWebSocket }
@@ -555,6 +579,16 @@ export async function createApp() {
     },
   })
 
+  const objectStore = injeca.provide('datastore:objectStore', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const store = createS3ObjectStore(dependsOn.env)
+      if (store)
+        dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      return store
+    },
+  })
+
   const configKV = injeca.provide('datastore:configKV', {
     dependsOn: { db, redis },
     build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
@@ -582,9 +616,20 @@ export async function createApp() {
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
+  // Envelope crypto for at-rest upstream key decryption. Shared by provider
+  // config rows, the LLM router (HTTP chat / TTS), and the audio-speech-ws
+  // proxy (streaming TTS) so a single master-key change rotates every surface.
+  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEnvelopeCrypto({
+      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
+      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
+    }),
+  })
+
   const providerService = injeca.provide('services:providers', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createProviderService(dependsOn.db),
+    dependsOn: { db, envelopeCrypto },
+    build: ({ dependsOn }) => createProviderService(dependsOn.db, dependsOn.envelopeCrypto),
   })
 
   const chatService = injeca.provide('services:chats', {
@@ -598,6 +643,25 @@ export async function createApp() {
       // Stripe SDK is optional — when STRIPE_SECRET_KEY is unset (dev/CI)
       // billing routes degrade gracefully.
       return dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
+    },
+  })
+
+  const appleIapVerifier = injeca.provide('services:appleIapVerifier', {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn }) => {
+      if (dependsOn.env.APPLE_IAP_APPS.length === 0)
+        return null
+      try {
+        return await createAppleIapVerifier({
+          apps: dependsOn.env.APPLE_IAP_APPS,
+          env: dependsOn.env.APPLE_IAP_ENV,
+          allowSandbox: dependsOn.env.APPLE_IAP_SANDBOX_USER_IDS.length > 0,
+        })
+      }
+      catch (error) {
+        useLogger().withError(error).error('Failed to create Apple IAP verifier')
+        return null
+      }
     },
   })
 
@@ -676,17 +740,6 @@ export async function createApp() {
     }, dependsOn.otel?.revenue),
   })
 
-  // Envelope crypto for at-rest upstream key decryption. Shared by the LLM
-  // router (HTTP chat / TTS) and the audio-speech-ws proxy (streaming TTS)
-  // so a single master-key change rotates every surface at once.
-  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
-    dependsOn: { env: parsedEnv },
-    build: ({ dependsOn }) => createEnvelopeCrypto({
-      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
-      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
-    }),
-  })
-
   // LLM router (KTD-5 in-process replacement for the knoway sidecar).
   // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
   // always builds a real router — the legacy `null` fallback path is gone.
@@ -710,6 +763,7 @@ export async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({
+    objectStore,
     db,
     characterService,
     chatService,
@@ -720,6 +774,7 @@ export async function createApp() {
     voicePackService,
     productEventService,
     paymentService,
+    appleIapVerifier,
     stripe,
     billingService,
     ttsMeter,
@@ -746,6 +801,7 @@ export async function createApp() {
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
     paymentService: resolved.paymentService,
+    appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,

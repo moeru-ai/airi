@@ -282,7 +282,7 @@ describe('extension manifest schema', () => {
     }
   })
 
-  it('rejects Kit version ranges until the Host supports range resolution', () => {
+  it('accepts Kit version ranges for Consumer declarations', () => {
     const result = safeParse(extensionManifestV2Schema, {
       manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai',
@@ -300,6 +300,83 @@ describe('extension manifest schema', () => {
         uses: [{
           id: 'dev.airi.agent-activity',
           version: '^1.0.0',
+        }],
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts exact Kit versions for Consumer declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'exact-version-consumer',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: {
+        uses: [{ id: 'dev.airi.agent-activity', version: '1.0.0' }],
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts compound Kit version ranges for Consumer declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'compound-range-consumer',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: {
+        uses: [{ id: 'dev.airi.agent-activity', version: '>=1 <2' }],
+      },
+    })
+
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid Kit version ranges for Consumer declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'invalid-range-consumer',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.mjs' },
+      kits: {
+        uses: [{ id: 'dev.airi.agent-activity', version: 'not-a-range' }],
+      },
+    })
+
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects Kit version ranges for Provider declarations', () => {
+    const result = safeParse(extensionManifestV2Schema, {
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'agent-activity-provider',
+      version: '1.0.0',
+      engines: {
+        airi: '*',
+        runtimes: ['electron'],
+      },
+      permissions: {},
+      entrypoints: {
+        electron: './extension.mjs',
+      },
+      kits: {
+        provides: [{
+          id: 'dev.airi.agent-activity',
+          version: '^1.0.0',
+          exposure: 'local-only',
         }],
       },
     })
