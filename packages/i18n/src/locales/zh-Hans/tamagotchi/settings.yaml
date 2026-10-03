@@ -148,6 +148,10 @@ devtools:
     markdown-stress:
       title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
+    io-tracer:
+      recording:
+        title: 自动记录 IO Trace
+        description: 把已结束的 IO span 以 JSON Lines 保存在应用数据目录，供 Agent 分析。七天前的文件会被自动删除。
     widgets-calling:
       title: 小组件调用
 screen-capture:
