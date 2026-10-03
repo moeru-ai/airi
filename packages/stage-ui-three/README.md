@@ -32,6 +32,12 @@ VRM runtime management is explicit in this package.
 
 This keeps ordinary remounts and HMR from immediately forcing deep VRM disposal, while still making model switches deterministic.
 
+## Lip-Sync Boundary
+
+`ThreeScene` receives the `AudioContext` and current audio source from its caller. The package does not import the Stage audio store.
+
+The shared driver produces AEIOU weights. The VRM adapter maps these weights to `aa`, `ee`, `ih`, `oh`, and `ou` expressions.
+
 ## Scene Lifecycle
 
 `ThreeScene` coordinates two independent async readiness signals before the scene becomes interactive:

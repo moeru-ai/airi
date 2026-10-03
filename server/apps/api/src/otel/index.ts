@@ -53,8 +53,6 @@ import {
   METRIC_STRIPE_CHECKOUT_COMPLETED,
   METRIC_STRIPE_CHECKOUT_CREATED,
   METRIC_STRIPE_EVENTS,
-  METRIC_STRIPE_PAYMENT_FAILED,
-  METRIC_STRIPE_SUBSCRIPTION_EVENT,
   METRIC_USER_LOGIN,
   METRIC_USER_REGISTERED,
   METRIC_WS_CONNECTIONS_ACTIVE,
@@ -112,8 +110,6 @@ export interface EngagementMetrics {
 export interface RevenueMetrics {
   stripeCheckoutCreated: Counter
   stripeCheckoutCompleted: Counter
-  stripePaymentFailed: Counter
-  stripeSubscriptionEvent: Counter
   stripeEvents: Counter
   stripeRevenue: Counter
   fluxInsufficientBalance: Counter
@@ -126,7 +122,7 @@ export interface RevenueMetrics {
    * - Tracking real revenue leak in the LLM proxy.
    *
    * Labels (`reason`):
-   * - `debit_failed` — `consumeFluxForLLM` threw (DB error, or `balance <= 0`
+   * - `debit_failed` — fee posting failed (DB error, or `balance <= 0`
    *   after a race lost). Counter records the *full* requested amount.
    * - `partial_debit_drained` — user had `0 < balance < requested`, so we
    *   drained the balance to zero and charged what we could. Counter records
@@ -354,12 +350,6 @@ export function initOtel(env: Env): OtelInstance | null {
     stripeCheckoutCompleted: meter.createCounter(METRIC_STRIPE_CHECKOUT_COMPLETED, {
       description: 'Number of Stripe checkout sessions completed',
     }),
-    stripePaymentFailed: meter.createCounter(METRIC_STRIPE_PAYMENT_FAILED, {
-      description: 'Number of failed Stripe payments',
-    }),
-    stripeSubscriptionEvent: meter.createCounter(METRIC_STRIPE_SUBSCRIPTION_EVENT, {
-      description: 'Number of Stripe subscription lifecycle events',
-    }),
     stripeEvents: meter.createCounter(METRIC_STRIPE_EVENTS, {
       description: 'Number of Stripe webhook events processed',
     }),
@@ -380,7 +370,7 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'TTS input characters processed (billing base unit)',
     }),
     ttsPreflightRejections: meter.createCounter(METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS, {
-      description: 'Pre-flight rejections from flux-meter assertCanAfford',
+      description: 'Speech admission rejections against confirmed outstanding fees',
     }),
   }
 
@@ -503,8 +493,6 @@ export function initOtel(env: Env): OtelInstance | null {
     engagement.wsMessagesReceived,
     revenue.stripeCheckoutCreated,
     revenue.stripeCheckoutCompleted,
-    revenue.stripePaymentFailed,
-    revenue.stripeSubscriptionEvent,
     revenue.stripeEvents,
     revenue.stripeRevenue,
     revenue.fluxInsufficientBalance,

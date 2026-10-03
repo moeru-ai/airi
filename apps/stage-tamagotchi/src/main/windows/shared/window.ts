@@ -1,13 +1,13 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { ResizeDirection } from '@proj-airi/electron-eventa'
-import type { BrowserWindow, BrowserWindowConstructorOptions } from 'electron'
+import type { BrowserWindow, BrowserWindowConstructorOptions, Rectangle } from 'electron'
 
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { shell } from 'electron'
-import { isMacOS } from 'std-env'
+import { isMacOS, isWindows } from 'std-env'
 
 import { createServerChannelService } from '../../services/airi/channel-server'
 import { createI18nService } from '../../services/airi/i18n'
@@ -92,15 +92,48 @@ export function spotlightLikeWindowConfig(): BrowserWindowConstructorOptions {
   }
 }
 
-export function resizeWindowByDelta(params: {
-  window: BrowserWindow
+/**
+ * Sets the window always-on-top level according to the host platform.
+ *
+ * macOS and Windows support the screen-saver level and relative level layering,
+ * while Linux (X11/Wayland) works reliably with standard always-on-top.
+ */
+export function setWindowAlwaysOnTop(
+  window: Pick<BrowserWindow, 'setAlwaysOnTop'>,
+  flag: boolean,
+  relativeLevel = 1,
+): void {
+  if (!flag) {
+    window.setAlwaysOnTop(false)
+    return
+  }
+
+  if (isMacOS || isWindows) {
+    window.setAlwaysOnTop(true, 'screen-saver', relativeLevel)
+    return
+  }
+
+  window.setAlwaysOnTop(true)
+}
+
+interface ResizeByDeltaOptions {
   deltaX: number
   deltaY: number
   direction: ResizeDirection
   minWidth?: number
   minHeight?: number
-}): void {
-  const bounds = params.window.getBounds()
+}
+
+/**
+ * Bounds after an edge or corner drag of `direction` by the cursor movement.
+ * The edges opposite `direction` stay in place, and the size stops at the
+ * minimum instead of moving those edges.
+ *
+ * @example
+ * resizeBoundsByDelta({ x: 100, y: 100, width: 400, height: 500 }, { deltaX: -20, deltaY: -30, direction: 'nw' })
+ * // => { x: 80, y: 70, width: 420, height: 530 }
+ */
+export function resizeBoundsByDelta(bounds: Rectangle, params: ResizeByDeltaOptions): Rectangle {
   const minWidth = params.minWidth ?? 100
   const minHeight = params.minHeight ?? 200
 
@@ -128,7 +161,11 @@ export function resizeWindowByDelta(params: {
     }
   }
 
-  params.window.setBounds({ x, y, width, height })
+  return { x, y, width, height }
+}
+
+export function resizeWindowByDelta(params: ResizeByDeltaOptions & { window: BrowserWindow }): void {
+  params.window.setBounds(resizeBoundsByDelta(params.window.getBounds(), params))
 }
 
 export async function setupBaseWindowElectronInvokes(params: {

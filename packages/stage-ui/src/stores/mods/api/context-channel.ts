@@ -7,6 +7,7 @@ import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/const
 
 export const contextUpdateEvent = defineEventa<ContextMessage>('stage:context:update')
 export const chatStreamEvent = defineEventa<ChatStreamEvent>('stage:chat:stream')
+export const chatStreamCancelEvent = defineEventa<{ sessionId: string, turnId: string }>('stage:chat:stream:cancel')
 
 function createBroadcastLink(name: string) {
   const localContext = createContext()
@@ -42,6 +43,9 @@ export function createContextChannel() {
     emitStream(event: ChatStreamEvent) {
       return stream.localContext.emit(chatStreamEvent, event)
     },
+    emitStreamCancel(command: { sessionId: string, turnId: string }) {
+      return stream.localContext.emit(chatStreamCancelEvent, command)
+    },
     onContext(listener: (message: ContextMessage) => void | Promise<void>) {
       return contexts.broadcastContext.on(contextUpdateEvent, (event, options) => {
         const message = event.body
@@ -54,6 +58,13 @@ export function createContextChannel() {
         const message = event.body
         if (options?.raw.message && message)
           return listener(message)
+      })
+    },
+    onStreamCancel(listener: (command: { sessionId: string, turnId: string }) => void | Promise<void>) {
+      return stream.broadcastContext.on(chatStreamCancelEvent, (event, options) => {
+        const command = event.body
+        if (options?.raw.message && command)
+          return listener(command)
       })
     },
     dispose(reason?: unknown) {

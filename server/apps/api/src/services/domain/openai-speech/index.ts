@@ -1,7 +1,6 @@
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { FluxMeter } from '../billing/flux-meter'
-import type { FluxService } from '../flux'
+import type { SpeechBilling } from '../billing/speech-billing'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProviderCatalogService } from '../provider-catalog'
@@ -28,6 +27,11 @@ const SAFE_RESPONSE_HEADERS = new Set([
   'cache-control',
 ])
 
+const SAFE_ERROR_RESPONSE_HEADERS = new Set([
+  'content-type',
+  'retry-after',
+])
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   if (typeof value !== 'object' || value == null || Array.isArray(value))
     return undefined
@@ -42,10 +46,9 @@ function readOptionalNumber(record: Record<string, unknown> | undefined, key: st
 }
 
 export interface OpenAiSpeechServiceDeps {
-  fluxService: FluxService
   configKV: ConfigKVService
   requestLogService: RequestLogService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
   providerCatalogService: ProviderCatalogService
@@ -66,6 +69,7 @@ type TtsTrigger = 'auto' | 'manual'
 interface TtsAnalyticsContext {
   trigger: TtsTrigger
   source: 'audio.speech' | 'chat_auto_tts' | 'manual_preview' | 'settings_test'
+  turnId?: string
 }
 
 /**
@@ -116,9 +120,8 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: requestVoice,
     }).log('tts speech request')
 
-    const flux = await deps.fluxService.getFlux(input.userId)
     try {
-      await deps.ttsMeter.assertCanAfford(input.userId, billingUnits, flux.flux)
+      await deps.speechBilling.assertCanAfford(input.userId, billingUnits)
     }
     catch (err) {
       if (!(err instanceof ApiError) || err.statusCode !== 402)
@@ -199,20 +202,21 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         .warn('tts speech delivered with upstream error status')
       return new Response(response.body, {
         status: response.status,
-        headers: buildSafeResponseHeaders(response),
+        headers: buildSafeErrorResponseHeaders(response),
       })
     }
 
     let fluxConsumed = 0
     try {
-      const result = await deps.ttsMeter.accumulate({
+      const result = await deps.speechBilling.settle({
         userId: input.userId,
         units: billingUnits,
-        currentBalance: flux.flux,
         requestId,
-        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        model: requestModel,
+        turnId: analytics.turnId,
+        provider: routeCtx.provider,
       })
-      fluxConsumed = result.fluxDebited
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       generationTrace.succeed({
         inputChars: inputText.length,
@@ -234,7 +238,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       model: requestModel,
       status: response.status,
       durationMs,
-      fluxConsumed,
     }).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
 
     logger.withFields({
@@ -284,7 +287,8 @@ function ttsAnalyticsContext(body: Record<string, unknown>): TtsAnalyticsContext
     || rawSource === 'settings_test'
     ? rawSource
     : 'audio.speech'
-  return { trigger, source }
+  const turnId = typeof analytics?.turn_id === 'string' ? analytics.turn_id : undefined
+  return { trigger, source, turnId }
 }
 
 async function voicePackRequestOptions(
@@ -379,6 +383,15 @@ function buildSafeResponseHeaders(response: Response): Headers {
   const headers = new Headers()
   response.headers.forEach((value, key) => {
     if (SAFE_RESPONSE_HEADERS.has(key.toLowerCase()))
+      headers.set(key, value)
+  })
+  return headers
+}
+
+function buildSafeErrorResponseHeaders(response: Response): Headers {
+  const headers = new Headers()
+  response.headers.forEach((value, key) => {
+    if (SAFE_ERROR_RESPONSE_HEADERS.has(key.toLowerCase()))
       headers.set(key, value)
   })
   return headers

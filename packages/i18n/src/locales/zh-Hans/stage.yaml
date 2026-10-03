@@ -1,15 +1,76 @@
+character-switcher:
+  title: 切换角色
+  manage: 管理角色
+  empty: 暂无角色
+  failed: 无法切换角色，请重试。
+mobile-tools:
+  sign-in: 登录 AIRI
+  account-description: 账户与偏好
+  sound: 声音
+  character-voice: 角色声音
+  title: 设置
+  appearance: 外观
+  dark-mode: 深色模式
+  application: 应用
+  more: 更多
+  background: 背景
+  settings: 全部设置
+  about: 关于
+  view: 视图
+  close-view: 保存并关闭视图调节
+  hearing: 听觉
 chat:
+  provider-configuration:
+    title: 尚未正确配置聊天 Provider
+    description: 请先前往设置页面选择并验证一个 Provider，再发送消息。
+    action: 打开 Provider 设置
+  voice-input: 语音输入
+  error-details:
+    show: 查看详情
+    hide: 收起详情
+  images:
+    empty: 聊聊你的想法，或分享一张图片。
+    use-vision: 使用视觉模型理解聊天图片
+    use-vision-description: 在下方选择提供商和模型。它会先读图，再由当前聊天模型回复。未配置视觉模型时，图片直接交给聊天模型。
+    attach: '添加图片'
+    remove: '移除 {name}'
+    unsupported: '请选择 PNG、JPEG、WebP 或 GIF 图片。'
+    too-large: '每张图片不能超过 3 MB。'
+    too-many: '一次最多添加 {count} 张图片。'
+    total-too-large: '所有附件合计不能超过 3 MB。'
+    read-failed: '无法读取图片，请重试。'
+    no-description: '视觉模型没有返回图片描述。请检查“设置 → 模块 → 视觉”后重试。'
+    reading: '正在读取图片…'
+    description: '图片附件'
   actions:
+    reply: 回复
     retry: 重试
+    send: 发送消息
+    stop: 停止回复
   message:
     character-name:
-      airi: AIRI
       core-system: 核心系统
       you: 你
+  reply:
+    cancel: 取消回复
+    message: 消息
+    replying-to: 回复 {name}
   reasoning: 思考
+  swipe-demo:
+    show-label: 显示文字
+    delete: 删除
+    archive: 归档
+    pin: 置顶
+    actions: 展开操作
+    row: '示例会话 {n}'
   sessions:
+    delete-short: 删除
+    confirm-delete-short: 确认删除
     title: 对话
-    new: + 新建
+    new: 新建对话
+    current: 当前
+    confirm-delete: 删除此对话及其中的消息？
+    cancel: 取消
     empty: 暂无对话
     cloud-badge: 已同步到云
     new-chat-fallback: 新建对话
@@ -21,11 +82,29 @@ render-error:
     {renderer} 无法渲染选中的模型。
     模型 ID：{modelId}
     错误：{error}
+startup:
+  failed: 启动失败
+  failed-resource: 无法加载{resource}
+  recover: 请重试。如果仍然失败，请查看下方的错误详情。
+  recover-model: 重新启动 AIRI 再试一次，或暂不加载角色，稍后选择其他模型。
+  details: 发生了什么？
+  close-details: 关闭详情
+  retry: 重新启动 AIRI
+  continue-without-model: 暂不加载角色
+  resources:
+    auth: 账户设置
+    modelIndex: 模型列表
+    card: 角色设置
+    chat: 聊天记录
+    services: 应用服务
+    modelData: 已保存的模型
+    modelSelection: 模型设置
+    audio: 音频设置
+    route: 页面
+    model: 角色模型
 message: 说点什么...
 send-mode:
   title: 发送键值
-  enter: Enter
-  ctrl-enter: Ctrl + Enter
   double-enter: 双击Enter
 speech-output:
   mute: 静音语音
@@ -67,7 +146,6 @@ promo-banner:
       fallbackLabel: 月石礼包
       title: 7日签到
       eventName: 登录后可以申请星尘、头像框和登录礼物。
-      date: 03/28 - 04/10
       reward: 最多120个星尘
       cta: 登录
     build:
@@ -75,7 +153,6 @@ promo-banner:
       fallbackLabel: 建造奖励
       title: 补给箱奖励
       eventName: 完成建造任务即可获得奖励券和双倍材料。
-      date: 03/30 - 04/12
       reward: 5 张补给券 + 升级材料
       cta: 查看任务
     spring:
@@ -83,7 +160,6 @@ promo-banner:
       fallbackLabel: 春日抽奖
       title: 扭蛋嘉年华
       eventName: 参与春日抽奖，解锁气泡、挂饰和主题家具。
-      date: 04/01 - 04/18
       reward: 首抽半价 + 稀有挂饰
       cta: 立即抽取
     coupon:
@@ -91,7 +167,6 @@ promo-banner:
       fallbackLabel: 优惠券
       title: 充值优惠券
       eventName: 完成聊天互动即可领取扩展包和语音包优惠券。
-      date: 04/02 - 04/20
       reward: 满 30 减 6 / 满 68 减 15
       cta: 领取优惠券
     home:
@@ -99,7 +174,6 @@ promo-banner:
       fallbackLabel: 房间主题
       title: 春日主题更新
       eventName: 解锁窗户、书桌和夜灯主题，焕新你的房间。
-      date: 04/05 - 04/22
       reward: 登录即赠主题抽奖券
       cta: 查看主题
 waiting: 等待中
@@ -107,3 +181,20 @@ websocket-status:
   connected: 已连接
   disconnected: 无网络连接
   open-settings: 打开连接设置
+computer-use:
+  label: 使用电脑
+  description: 允许此聊天窗口查看和操作本机应用。
+status:
+  preparing: 正在准备麦克风
+  listening: 正在听
+  paused: AIRI 说话时暂停聆听
+  transcribing: 正在转写
+  hearing-error: 语音转写出错了
+  no-transcript: 识别到的内容会显示在这里。
+  signing-in: 请在浏览器中完成登录
+  confirming: 正在确认登录
+  signed-in: 登录成功
+  sign-in-error: 登录失败
+  sign-in-unconfirmed: 未能确认登录会话，请重新登录。
+  dismiss: 关闭提示
+  configure-hearing: 请先在设置中选择并配置听觉服务。

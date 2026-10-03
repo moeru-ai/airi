@@ -10,7 +10,9 @@ finish-args:
   # GUI environment
   - --share=network
   - --socket=x11
+  - --socket=fallback-x11
   - --socket=wayland
+  - --device=dri
   - --device=all
   - --socket=pulseaudio
   - --socket=system-bus
@@ -94,4 +96,8 @@ modules:
         commands:
           - ulimit -c 0
           - export TMPDIR="$XDG_RUNTIME_DIR/app/$FLATPAK_ID"
+          - |
+            if [ -n "$WAYLAND_DISPLAY" ]; then
+              export ELECTRON_OZONE_PLATFORM_HINT=auto
+            fi
           - exec zypak-wrapper /app/lib/airi/airi "$@"

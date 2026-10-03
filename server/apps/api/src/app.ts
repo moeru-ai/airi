@@ -1,20 +1,21 @@
 import type { Database } from './libs/db'
 import type { Env } from './libs/env'
 import type { OtelInstance } from './otel'
+import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { BillingService } from './services/domain/billing/billing-service'
-import type { FluxMeter } from './services/domain/billing/flux-meter'
+import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
+import type { PaymentService } from './services/domain/payment'
 import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
-import type { StripeService } from './services/domain/stripe'
 import type { UserDeletionService } from './services/domain/user-deletion'
 import type { VoicePackService } from './services/domain/voice-packs'
 import type { HonoEnv } from './types/hono'
@@ -32,6 +33,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
+import { parseAccept } from 'hono/utils/accept'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
@@ -39,11 +41,13 @@ import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
-import { sessionMiddleware } from './middlewares/auth'
+import { authGuard, sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
 import { registerWsOnlineUsersGauge } from './otel/gauges/ws-online-users'
+import { createAppleIapRoutes } from './routes/apple-iap'
+import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
 import { createCharacterRoutes } from './routes/characters'
@@ -54,25 +58,28 @@ import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
+import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
-import { createPosthogSink } from './services/adapters/posthog'
+import { createS3ObjectStore } from './services/adapters/object-store'
+import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
-import { createFluxMeter } from './services/domain/billing/flux-meter'
+import { createLlmBillingService } from './services/domain/billing/llm-billing'
+import { SpeechBilling } from './services/domain/billing/speech-billing'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
+import { createPaymentService } from './services/domain/payment'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
-import { createStripeService } from './services/domain/stripe'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
@@ -87,9 +94,12 @@ interface AppDeps {
   providerService: ProviderService
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
-  stripeService: StripeService
+  paymentService: PaymentService
+  appleIapVerifier: AppleIapVerifier | null
+  stripe: Stripe | null
+  llmBilling: LlmBillingService
   billingService: BillingService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
   requestLogService: RequestLogService
   voicePackService: VoicePackService
   productEventService: ProductEventService
@@ -104,9 +114,21 @@ interface AppDeps {
 }
 
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+/** Allows one maximum-size inline file plus JSON envelope overhead. */
+const RESPONSES_MAX_REQUEST_BYTES = 40 * 1024 * 1024
+const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
+
+function apiBodyLimit(maxSize: number) {
+  return bodyLimit({
+    maxSize,
+    onError: c => c.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Payload Too Large' }, 413),
+  })
+}
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
+  const webAppUrl = deps.env.WEB_APP_URL
+  const docsUrl = new URL('/docs', webAppUrl).toString()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -212,8 +234,7 @@ export async function buildApp(deps: AppDeps) {
   const audioSpeechWsSetup = createAudioSpeechWsHandlers({
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
-    fluxService: deps.fluxService,
-    ttsMeter: deps.ttsMeter,
+    speechBilling: deps.speechBilling,
     requestLogService: deps.requestLogService,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
@@ -233,6 +254,7 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
+      turnId: c.req.query('turn_id'),
     })
   }))
 
@@ -264,10 +286,11 @@ export async function buildApp(deps: AppDeps) {
   const v1Routes = createV1Routes({
     fluxService: deps.fluxService,
     billingService: deps.billingService,
+    llmBilling: deps.llmBilling,
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
-    ttsMeter: deps.ttsMeter,
+    speechBilling: deps.speechBilling,
     llmRouter: deps.llmRouter,
     providerCatalogService: deps.providerCatalogService,
     voicePackService: deps.voicePackService,
@@ -275,10 +298,20 @@ export async function buildApp(deps: AppDeps) {
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
   })
+  const defaultApiBodyLimit = apiBodyLimit(DEFAULT_API_MAX_REQUEST_BYTES)
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.db, deps.env))
-    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    // Authenticate before accepting the larger Responses envelope. The route
+    // supports inline image, file, and video data that exceed the default API
+    // limit, but unauthenticated callers must not get the larger allowance.
+    .use('/api/v1/openai/responses', authGuard)
+    .use('/api/v1/openai/responses', apiBodyLimit(RESPONSES_MAX_REQUEST_BYTES))
+    .use('*', async (c, next) => {
+      if (c.req.path === '/api/v1/openai/responses')
+        return next()
+      return defaultApiBodyLimit(c, next)
+    })
     .onError((err, c) => {
       if (err instanceof ApiError) {
         // Surface details + cause to the server-side log only. SEC-5 keeps
@@ -343,17 +376,19 @@ export async function buildApp(deps: AppDeps) {
       )
     })
 
-    /**
-     * Service identity at the API root. Visitors who land here from a stray
-     * email link, search engine, or copy-pasted URL get a clear pointer to
-     * the actual product UI instead of the framework's default "404 Not Found".
-     */
-    .on('GET', '/', c => c.json({
-      service: 'airi-api',
-      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
-      docs: 'https://airi.moeru.ai/docs',
-      ui: 'https://airi.moeru.ai',
-    }))
+    .on('GET', '/', (context) => {
+      context.header('Vary', 'Accept')
+      const accept = context.req.header('Accept')
+      if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
+        return context.redirect(webAppUrl, 302)
+
+      return context.json({
+        service: 'airi-api',
+        message: `This is the Project AIRI API server. Visit ${webAppUrl} to use the product, or see the docs at ${docsUrl}.`,
+        docs: docsUrl,
+        ui: webAppUrl,
+      })
+    })
 
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
@@ -393,11 +428,33 @@ export async function buildApp(deps: AppDeps) {
      * Flux routes.
      */
     .route('/api/v1/flux', createFluxRoutes(deps.fluxService, deps.fluxTransactionService))
+    .route('/api/v1/llm-requests', createLlmRequestRoutes(deps.requestLogService))
 
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.productEventService))
+    .route('/api/v1/stripe', createStripeRoutes(
+      deps.paymentService,
+      deps.stripe,
+      deps.redis,
+      deps.configKV,
+      deps.env,
+      deps.otel?.revenue ?? null,
+      deps.otel?.rateLimit ?? null,
+      deps.productEventService,
+    ))
+
+    /**
+     * Apple IAP routes (StoreKit 2 JWS and Notifications V2).
+     */
+    .route('/api/v1/apple-iap', createAppleIapRoutes(
+      deps.paymentService,
+      deps.db,
+      deps.appleIapVerifier,
+      deps.configKV,
+      deps.otel?.rateLimit ?? null,
+      deps.env.APPLE_IAP_SANDBOX_USER_IDS,
+    ))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -406,8 +463,8 @@ export async function buildApp(deps: AppDeps) {
      */
     .notFound(c => c.json({
       error: 'NOT_FOUND',
-      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at https://airi.moeru.ai.`,
-      ui: 'https://airi.moeru.ai',
+      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at ${webAppUrl}.`,
+      ui: webAppUrl,
     }, 404))
 
   return { app: builtApp, injectWebSocket }
@@ -524,32 +581,36 @@ export async function createApp() {
     },
   })
 
+  const objectStore = injeca.provide('datastore:objectStore', {
+    dependsOn: { env: parsedEnv, lifecycle },
+    build: ({ dependsOn }) => {
+      const store = createS3ObjectStore(dependsOn.env)
+      if (store)
+        dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      return store
+    },
+  })
+
   const configKV = injeca.provide('datastore:configKV', {
     dependsOn: { db, redis },
     build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
   })
 
-  const posthogSink = injeca.provide('services:posthogSink', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    // POSTHOG_PROJECT_KEY defaults to the shared project key, so the falsy
-    // branch is only reachable via the documented off-switch: setting the
-    // env var to an empty string (valibot defaults don't apply to '').
+  const openpanelSink = injeca.provide('services:openpanelSink', {
+    dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
-      if (!dependsOn.env.POSTHOG_PROJECT_KEY)
+      const { OPENPANEL_API_URL: apiUrl, OPENPANEL_CLIENT_ID: clientId, OPENPANEL_CLIENT_SECRET: clientSecret } = dependsOn.env
+      if (!apiUrl && !clientId && !clientSecret)
         return null
-
-      const sink = createPosthogSink({
-        projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
-        host: dependsOn.env.POSTHOG_API_HOST,
-      })
-      dependsOn.lifecycle.appHooks.onStop(() => sink.shutdown())
-      return sink
+      if (!apiUrl || !clientId || !clientSecret)
+        throw new Error('OpenPanel requires API URL, client id, and client secret')
+      return createOpenpanelSink({ apiUrl, clientId, clientSecret })
     },
   })
 
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { posthogSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.posthogSink),
+    dependsOn: { openpanelSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -557,9 +618,20 @@ export async function createApp() {
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
+  // Envelope crypto for at-rest upstream key decryption. Shared by provider
+  // config rows, the LLM router (HTTP chat / TTS), and the audio-speech-ws
+  // proxy (streaming TTS) so a single master-key change rotates every surface.
+  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createEnvelopeCrypto({
+      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
+      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
+    }),
+  })
+
   const providerService = injeca.provide('services:providers', {
-    dependsOn: { db },
-    build: ({ dependsOn }) => createProviderService(dependsOn.db),
+    dependsOn: { db, envelopeCrypto },
+    build: ({ dependsOn }) => createProviderService(dependsOn.db, dependsOn.envelopeCrypto),
   })
 
   const chatService = injeca.provide('services:chats', {
@@ -567,14 +639,31 @@ export async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
-  const stripeService = injeca.provide('services:stripe', {
-    dependsOn: { db, env: parsedEnv },
+  const stripe = injeca.provide('libs:stripe', {
+    dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
       // Stripe SDK is optional — when STRIPE_SECRET_KEY is unset (dev/CI)
-      // billing routes degrade gracefully and the user-deletion pipeline
-      // skips the API cancel call.
-      const stripe = dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
-      return createStripeService(dependsOn.db, stripe)
+      // billing routes degrade gracefully.
+      return dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
+    },
+  })
+
+  const appleIapVerifier = injeca.provide('services:appleIapVerifier', {
+    dependsOn: { env: parsedEnv },
+    build: async ({ dependsOn }) => {
+      if (dependsOn.env.APPLE_IAP_APPS.length === 0)
+        return null
+      try {
+        return await createAppleIapVerifier({
+          apps: dependsOn.env.APPLE_IAP_APPS,
+          env: dependsOn.env.APPLE_IAP_ENV,
+          allowSandbox: dependsOn.env.APPLE_IAP_SANDBOX_USER_IDS.length > 0,
+        })
+      }
+      catch (error) {
+        useLogger().withError(error).error('Failed to create Apple IAP verifier')
+        return null
+      }
     },
   })
 
@@ -586,29 +675,6 @@ export async function createApp() {
   const fluxService = injeca.provide('services:flux', {
     dependsOn: { db, redis, configKV },
     build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
-  })
-
-  // NOTICE:
-  // The deletion service is a thin scheduler that delegates to each business
-  // service's own `deleteAllForUser` method. Adding a new business module:
-  //   1. give it a `deleteAllForUser(userId)` method
-  //   2. add one `service.register(...)` line below
-  // Domain knowledge stays inside each service instead of being copied into
-  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
-  const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { stripeService, fluxService, providerService, characterService, chatService },
-    build: ({ dependsOn }) => {
-      const service = createUserDeletionService()
-      // priority: 10 = external side-effects (Stripe API cancel — unrollable),
-      //           20 = financial / cache state (Flux balance + Redis),
-      //           30 = pure DB soft-delete (no external touch).
-      service.register({ name: 'stripe', priority: 10, softDelete: ({ userId }) => dependsOn.stripeService.deleteAllForUser(userId) })
-      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
-      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
-      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
-      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
-      return service
-    },
   })
 
   const requestLogService = injeca.provide('services:requestLog', {
@@ -627,44 +693,48 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, configKV, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.otel?.revenue),
   })
 
-  const ttsMeter = injeca.provide('services:ttsMeter', {
-    dependsOn: { redis, billingService, configKV, otel },
-    build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
-      name: 'tts',
-      // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
-      // per-request 503 (via route-level configGuard), not a server boot
-      // failure that would take chat/auth/stripe down with it.
-      resolveRuntime: async () => {
-        const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
-        const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
-        return {
-          unitsPerFlux: Math.max(1, Math.floor(1000 / fluxPer1kChars)),
-          debtTtlSeconds: ttl,
-        }
-      },
-    }, dependsOn.otel?.revenue),
+  const llmBilling = injeca.provide('services:llmBilling', {
+    dependsOn: { billingService, otel },
+    build: ({ dependsOn }) => createLlmBillingService(dependsOn.billingService, dependsOn.otel?.revenue),
   })
 
-  // Envelope crypto for at-rest upstream key decryption. Shared by the LLM
-  // router (HTTP chat / TTS) and the audio-speech-ws proxy (streaming TTS)
-  // so a single master-key change rotates every surface at once.
-  const envelopeCrypto = injeca.provide('libs:envelopeCrypto', {
-    dependsOn: { env: parsedEnv },
-    build: ({ dependsOn }) => createEnvelopeCrypto({
-      masterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY,
-      previousMasterKey: dependsOn.env.LLM_ROUTER_MASTER_KEY_PREVIOUS,
-    }),
+  const paymentService = injeca.provide('services:payment', {
+    dependsOn: { db, billingService },
+    build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
   })
 
-  // LLM router (KTD-5 in-process replacement for the knoway sidecar).
-  // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
-  // always builds a real router — the legacy `null` fallback path is gone.
-  // Shared by the TTS router (acquires slots) and the pool watermark gauge
-  // (reads the snapshot). Cluster-wide Redis state — the server is multi-instance.
+  // NOTICE:
+  // The deletion service is a thin scheduler that delegates to each business
+  // service's own `deleteAllForUser` method. Adding a new business module:
+  //   1. give it a `deleteAllForUser(userId)` method
+  //   2. add one `service.register(...)` line below
+  // Domain knowledge stays inside each service instead of being copied into
+  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
+  const userDeletionService = injeca.provide('services:userDeletion', {
+    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    build: ({ dependsOn }) => {
+      const service = createUserDeletionService()
+      // priority: 20 = financial / cache state (Flux balance + Redis),
+      //           30 = pure DB soft-delete (no external touch).
+      service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
+      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
+      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
+      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      return service
+    },
+  })
+
+  const speechBilling = injeca.provide('services:speechBilling', {
+    dependsOn: { billingService, configKV, otel },
+    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
+  })
+
+  // Redis coordinates upstream pool capacity across API replicas.
   const ttsConcurrencyLedger = injeca.provide('services:ttsConcurrencyLedger', {
     dependsOn: { redis },
     build: ({ dependsOn }) => createConcurrencyLedger(dependsOn.redis),
@@ -683,6 +753,7 @@ export async function createApp() {
 
   await injeca.start()
   const resolved = await injeca.resolve({
+    objectStore,
     db,
     characterService,
     chatService,
@@ -692,9 +763,12 @@ export async function createApp() {
     requestLogService,
     voicePackService,
     productEventService,
-    stripeService,
+    paymentService,
+    appleIapVerifier,
+    stripe,
     billingService,
-    ttsMeter,
+    llmBilling,
+    speechBilling,
     configKV,
     envelopeCrypto,
     redis,
@@ -717,10 +791,13 @@ export async function createApp() {
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
-    stripeService: resolved.stripeService,
+    paymentService: resolved.paymentService,
+    appleIapVerifier: resolved.appleIapVerifier,
+    stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
-    ttsMeter: resolved.ttsMeter,
+    llmBilling: resolved.llmBilling,
+    speechBilling: resolved.speechBilling,
     requestLogService: resolved.requestLogService,
     productEventService: resolved.productEventService,
     configKV: resolved.configKV,

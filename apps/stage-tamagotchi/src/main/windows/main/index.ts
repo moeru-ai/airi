@@ -4,8 +4,10 @@ import type { InferOutput } from 'valibot'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
+import type { IOTraceRecordingService } from '../../services/airi/io-trace-recording'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { ChatWindowManager } from '../chat'
 import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
 import type { OnboardingWindowManager } from '../onboarding'
@@ -31,7 +33,7 @@ import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { onAppBeforeQuit } from '../../libs/bootkit/lifecycle'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
-import { protectPrivilegedWindowNavigation, transparentWindowConfig } from '../shared'
+import { protectPrivilegedWindowNavigation, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared'
 import { setupMainWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -50,7 +52,7 @@ type AppConfig = InferOutput<typeof appConfigSchema>
 export async function setupMainWindow(params: {
   editorWindow: EditorWindowManager
   settingsWindow: SettingsWindowManager
-  chatWindow: () => Promise<BrowserWindow>
+  chatWindow: ChatWindowManager
   widgetsManager: WidgetsWindowManager
   noticeWindow: NoticeWindowManager
   autoUpdater: AutoUpdater
@@ -60,6 +62,7 @@ export async function setupMainWindow(params: {
   mcpStdioManager: McpStdioManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
+  ioTraceRecording: IOTraceRecordingService
 }) {
   const {
     setup: setupConfig,
@@ -91,7 +94,7 @@ export async function setupMainWindow(params: {
     //
     // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
     // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
   })
 
@@ -161,12 +164,12 @@ export async function setupMainWindow(params: {
   //
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setAlwaysOnTop(true, 'screen-saver', 1)
-  window.setFullScreenable(false)
   window.setVisibleOnAllWorkspaces(true)
   if (isMacOS) {
+    window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
   }
+  setWindowAlwaysOnTop(window, true)
 
   window.on('ready-to-show', () => window!.show())
   protectPrivilegedWindowNavigation(window)
@@ -184,6 +187,7 @@ export async function setupMainWindow(params: {
     mcpStdioManager: params.mcpStdioManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
+    ioTraceRecording: params.ioTraceRecording,
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {

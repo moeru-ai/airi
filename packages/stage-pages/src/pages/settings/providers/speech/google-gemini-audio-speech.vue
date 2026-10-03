@@ -133,7 +133,7 @@ const {
         :available-voices="availableVoices"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
-        :voices-loading="speechStore.isLoadingSpeechProviderVoices"
+        :voices-loading="speechStore.voiceCatalogStatus[providerId]?.loading ?? false"
         default-text="Hello! This is a test of the Google Gemini Speech."
       />
     </template>

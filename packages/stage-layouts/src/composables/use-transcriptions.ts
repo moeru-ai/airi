@@ -20,7 +20,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   const hearingStore = useHearingStore()
   const audioDeviceSettingsStore = useSettingsAudioDevice()
   const hearingPipeline = useHearingSpeechInputPipeline()
-  const { removeStreamingTranscriptionConsumer, transcribeForMediaStream, stopStreamingTranscription } = hearingPipeline
+  const { releaseStreamingTranscriptionConsumer, transcribeForMediaStream } = hearingPipeline
   const { supportsStreamInput } = storeToRefs(hearingPipeline)
   const { configured: hearingConfigured, autoSendEnabled, autoSendDelay } = storeToRefs(hearingStore)
   const { enabled: hearingEnabled, stream } = storeToRefs(audioDeviceSettingsStore)
@@ -60,17 +60,20 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }, autoSendDelay.value)
   }
 
-  const stopStreaming = async () => {
-    removeStreamingTranscriptionConsumer(transcriptionConsumerId)
-    streamingInput.clear()
+  function receiveTranscription(text: string) {
+    if (streamingInput.commit(text)) {
+      console.info('Received final transcription:', text, { source: 'useTranscriptions' })
+      debouncedAutoSend()
+    }
+  }
 
-    if (!isListening.value)
-      return
+  const stopStreaming = async () => {
+    streamingInput.clear()
+    clearPendingAutoSend()
 
     try {
       console.info('Stopping transcription...', { source: 'useTranscriptions' })
-      clearPendingAutoSend()
-      await stopStreamingTranscription(true)
+      await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
       isListening.value = false
       console.info('Transcription stopped', { source: 'useTranscriptions' })
     }
@@ -135,8 +138,6 @@ export function useTranscriptions(options: TranscriptionOptions) {
     if (!supportsStreamInput.value) {
       const errorMsg = 'Streaming input not supported by the selected transcription provider. Please select a provider that supports streaming (e.g., Web Speech API).'
       console.warn(errorMsg, { source: 'useTranscriptions' })
-      // Clean up any existing sessions from other pages (e.g., test page) that might interfere
-      await stopStreamingTranscription(true)
       isListening.value = false
       return
     }
@@ -183,19 +184,14 @@ export function useTranscriptions(options: TranscriptionOptions) {
     try {
       await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
-        onSentenceEnd: (delta) => {
-          if (streamingInput.commit(delta)) {
-            console.info('Received final transcription:', delta, { source: 'useTranscriptions' })
-            debouncedAutoSend()
-          }
-        },
+        onSentenceEnd: receiveTranscription,
         onSpeechEnd: streamingInput.clear,
         onTranscriptionUpdate: streamingInput.replace,
       })
 
       // Only set listening to true if transcription started successfully
       // (transcribeForMediaStream might return early if session already exists)
-      isListening.value = true
+      isListening.value = !hearingPipeline.error
       console.info('Streaming transcription initiated successfully', { source: 'useTranscriptions' })
     }
     catch (err) {
@@ -228,6 +224,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   })
 
   return {
+    receiveTranscription,
     startStreamingTranscription: startStreaming,
     stopStreamingTranscription: stopStreaming,
     isListening,

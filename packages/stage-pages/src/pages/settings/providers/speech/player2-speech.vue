@@ -11,6 +11,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { FieldRange } from '@proj-airi/ui'
+import { cloneDeep } from 'es-toolkit'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -49,7 +50,9 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
 const hasPlayer2 = ref(true)
 onMounted(async () => {
   const providerConfig = providerStore.getProviderConfig(providerId)
-  if ((await providersStore.validateProviderConfig(providerId, providerConfig)).valid) {
+  // Clone nested reactive values before the synchronized action sends its arguments.
+  const configSnapshot = cloneDeep(providerConfig)
+  if ((await providersStore.validateProviderConfig(providerId, configSnapshot)).valid) {
     await speechStore.loadVoicesForProvider(providerId)
   }
   else {

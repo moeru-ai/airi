@@ -18,11 +18,13 @@ import { boolean, number, object, optional, record, string } from 'valibot'
 import icon from '../../../../resources/icon.png?asset'
 
 import { captionGetIsFollowingWindow, captionIsFollowingWindowChanged } from '../../../shared/eventa'
+import { clampBoundsWithinRect } from '../../../shared/utils/electron/display'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, transparentWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, setupBaseWindowElectronInvokes, setWindowAlwaysOnTop, transparentWindowConfig } from '../shared/window'
 
 const captionConfigSchema = object({
   isFollowing: boolean(),
@@ -50,12 +52,6 @@ function computeDisplayMatrixHash(): string {
     .join('|')
 
   return createHash('sha256').update(signature).digest('hex').slice(0, 16)
-}
-
-function clampBoundsWithinRect(bounds: Rectangle, rect: Rectangle): Rectangle {
-  const x = Math.min(Math.max(bounds.x, rect.x), rect.x + rect.width - bounds.width)
-  const y = Math.min(Math.max(bounds.y, rect.y), rect.y + rect.height - bounds.height)
-  return { x, y, width: bounds.width, height: bounds.height }
 }
 
 function computeInitialCaptionBounds(params: { mainWindow: BrowserWindow, captionOptions?: Partial<Rectangle> }): Rectangle {
@@ -118,7 +114,7 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
     //
     // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
     // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-    type: 'panel',
+    type: isMacOS ? 'panel' : undefined,
     ...transparentWindowConfig(),
     ...options,
   })
@@ -129,12 +125,12 @@ function createCaptionWindow(options?: BrowserWindowConstructorOptions) {
   //
   // https://github.com/electron/electron/issues/10078#issuecomment-3410164802
   // https://stackoverflow.com/questions/39835282/set-browserwindow-always-on-top-even-other-app-is-in-fullscreen-electron-mac
-  window.setAlwaysOnTop(true, 'screen-saver', 2)
-  window.setFullScreenable(false)
-  window.setVisibleOnAllWorkspaces(true)
+  showWindowOnAllWorkspaces(window)
   if (isMacOS) {
+    window.setFullScreenable(false)
     window.setWindowButtonVisibility(false)
   }
+  setWindowAlwaysOnTop(window, true, 2)
 
   window.on('ready-to-show', () => window.show())
   protectPrivilegedWindowNavigation(window)

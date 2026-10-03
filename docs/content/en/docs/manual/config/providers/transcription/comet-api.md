@@ -21,16 +21,17 @@ Do not commit the API key, include it in screenshots, or share it with anyone.
 ## Configure in AIRI
 
 1. Open **Settings → Providers → Transcription → Comet API** and fill in the API Key.
-2. Keep the default Base URL: `https://api.cometapi.com/v1/`; modify it only when using a proxy or compatible gateway.
+2. In **Model Name**, enter the exact model ID from the CometAPI model catalog, for example `whisper-1`.
+3. Keep the default Base URL: `https://api.cometapi.com/v1/`. Modify it only when using a proxy or compatible gateway.
 
 ## Verify configuration
 
-1. Select an available transcription model in the provider settings.
+1. Make sure that **Model Name** contains the exact model ID from the CometAPI model catalog.
 2. Use the playground on the same page, allow microphone access, and record a short sample to confirm that text is returned.
 
 ## Enable microphone transcription
 
-Open **Settings → Modules → Hearing**, select **Comet API** and an available model, then choose a microphone and run the Hearing test. Testing the provider page alone does not enable microphone transcription.
+Open **Settings → Modules → Hearing** and select **Comet API**. Make sure that the model matches **Model Name**, then choose a microphone and run the Hearing test. Testing the provider page alone does not enable microphone transcription.
 
 ## Troubleshooting
 

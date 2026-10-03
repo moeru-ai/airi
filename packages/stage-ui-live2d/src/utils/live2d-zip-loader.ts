@@ -29,6 +29,7 @@ function shouldIgnoreLive2DArchiveEntry(filePath: string): boolean {
 
 ZipLoader.createSettings = async (reader: JSZip) => {
   const filePaths = Object.keys(reader.files)
+    .filter(filePath => !shouldIgnoreLive2DArchiveEntry(filePath))
   const settings = await (async () => {
     const settingsFilePath = filePaths.find(file => isSettingsFile(file))
     if (!settingsFilePath) {

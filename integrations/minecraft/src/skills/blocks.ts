@@ -287,6 +287,13 @@ function findPlacementSpot(mineflayer: Mineflayer, targetDest: Vec3, placeOn: Bl
 }
 
 function getPlacementDirections(placeOn: BlockFace, dirMap: Record<string, Vec3>): Vec3[] {
+  // Fallback search priority when the requested face is unavailable. Kept as an
+  // explicit array because the first fallback decides which face the bot attaches
+  // to, which can change the placed block's orientation; relying on
+  // `Object.values(dirMap)` would silently change this priority if the dirMap
+  // keys are ever reordered (e.g. by sorting).
+  const fallbackDirs = [dirMap.top, dirMap.bottom, dirMap.north, dirMap.south, dirMap.east, dirMap.west]
+
   const directions: Vec3[] = []
   if (placeOn === 'side') {
     directions.push(dirMap.north, dirMap.south, dirMap.east, dirMap.west)
@@ -298,7 +305,7 @@ function getPlacementDirections(placeOn: BlockFace, dirMap: Record<string, Vec3>
     directions.push(dirMap.bottom)
   }
 
-  directions.push(...Object.values(dirMap).filter(d => !directions.includes(d)))
+  directions.push(...fallbackDirs.filter(d => !directions.includes(d)))
   return directions
 }
 

@@ -1,46 +1,42 @@
-import type { CapabilityAliasRoute } from '../../../../../schemas/provider-catalog'
-import type { UsageInfo } from '../../../../../services/domain/billing/billing'
-import type { AiGenerationAppSurface } from '../../../../../services/domain/product-events'
+import type { RequestObservation } from '../../../../../services/domain/generation-observation'
+import type { UsageInfo } from '../../../../../services/domain/generation-usage'
+import type { ChatAppSurface } from '../../analytics'
 import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
+import { EventSourceParserStream } from '@xsai/shared-stream'
+import { array, nullish, object, safeParse, string, unknown } from 'valibot'
 
-import { extractUsageFromBody } from '../../../../../services/domain/billing/billing'
-import { createBadRequestError } from '../../../../../utils/error'
+import { extractUsageFromBody } from '../../../../../services/domain/generation-usage'
+import { captureErrorMessage, captureErrorResponse, captureRequestContent, captureResponseText, createResponseContentCapture } from '../../../../../services/domain/request-content'
+import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
-import { buildSafeResponseHeaders } from '../../http/response'
+import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
 import { createOpenAiRouteBilling } from '../../middlewares/billing'
 import { createRouteTelemetry, newRouteContext } from '../../middlewares/telemetry'
+import { resolveModelAliasPlan, routeModelAliasCandidates } from '../../model-routing'
 
 type ChatBilling = ReturnType<typeof createOpenAiRouteBilling>
 type ChatBillingPolicy = Awaited<ReturnType<ChatBilling['authorizeChat']>>
 type RouteTelemetry = ReturnType<typeof createRouteTelemetry>
+
+const outputChunkSchema = object({
+  choices: array(object({
+    delta: object({ content: nullish(string()), reasoning: nullish(string()), reasoning_content: nullish(string()), tool_calls: nullish(array(unknown())) }),
+  })),
+})
 
 export interface ChatCompletionsOperationRequest {
   userId: string
   body: Record<string, unknown>
   sessionId?: string
   roundId?: string
-  appSurface?: AiGenerationAppSurface
+  appSurface?: ChatAppSurface
   abortSignal?: AbortSignal
 }
 
-interface GenerationCaptureInput {
-  deps: V1RouteDeps
-  userId: string
-  requestId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
-  generationModel: string
-  routeCtxProvider: string
-  usage: UsageInfo
-  durationMs: number
-  stream: boolean
-}
-
-export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.completions'> {
+export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-completions.create'> {
   const logger = useLogger('v1-completions').useGlobalConfig()
   const telemetry = createRouteTelemetry({
     genAi: deps.genAi,
@@ -60,7 +56,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
 
     const body = input.body
     const requestedAlias = typeof body.model === 'string' && body.model.length > 0 ? body.model : 'auto'
-    const aliasPlan = await resolveChatModelAliasPlan(deps, requestedAlias)
+    const aliasPlan = await resolveModelAliasPlan(deps, requestedAlias, { protocol: 'chat-completions' })
     let requestModel = aliasPlan.modelIds[0]
 
     const stream = !!body.stream
@@ -71,12 +67,14 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       stream,
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
+    const startedAt = Date.now()
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, prompt: captureRequestContent(body) })
+    const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
+
     // Server-connection attrs come from the router (which knows the actual
     // upstream baseURL it dispatched to) — it enriches the active span with
     // its own `airi.gen_ai.gateway.*` attrs on success.
-    const span = telemetry.startChatSpan({ model: requestModel, stream })
-
-    const startedAt = Date.now()
+    const span = telemetry.startGenerationSpan({ model: requestModel, stream, operation: 'chat' })
 
     // Router throws ApiError (502/503/504/400) on full exhaustion or unknown
     // model. We do NOT catch here — global app.onError renders the ApiError
@@ -92,19 +90,26 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     let response: Response
     try {
       const routed = await telemetry.runWithSpan(span, () =>
-        routeChatAliasCandidates({
+        routeModelAliasCandidates({
           deps,
           body,
           modelIds: aliasPlan.modelIds,
+          routeCtx,
           abortSignal: clientAbort,
+          attempts,
+          authorizeDispatch: route => billing.authorizeDispatch(billingPolicy, route),
         }))
       response = routed.response
       routeCtx = routed.routeCtx
       requestModel = routed.modelId
     }
     catch (err) {
+      let status: number = err instanceof ApiError ? err.statusCode : 500
+      if (clientAbort?.aborted)
+        status = 499
       telemetry.failSpan(span, 'Router exhausted or unknown model')
       deps.llmTracing.startChatGeneration({
+        protocol: 'chat-completions',
         input: body.messages,
         model: routeCtx.upstreamModel ?? requestModel,
         requestId,
@@ -112,11 +117,25 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
         userId: input.userId,
         sessionId: input.sessionId,
       }).fail('Router exhausted or unknown model')
-      telemetry.recordMetrics({ model: requestModel, status: 502, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      telemetry.recordMetrics({ model: requestModel, status, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs: Date.now() - startedAt, errorBody: captureErrorMessage(err) })
       throw err
     }
 
     const durationMs = Date.now() - startedAt
+    const observation: RequestObservation = {
+      startedAt: new Date(startedAt),
+      attemptId: routeCtx.attemptId,
+      status: response.status,
+      durationMs,
+      protocol: 'chat-completions',
+      stream,
+      requestedModel: requestedAlias,
+      sessionId: input.sessionId,
+      gateway: routeCtx.provider,
+      upstreamModel: routeCtx.upstreamModel,
+      routing: { triedUpstreams: routeCtx.triedUpstreams, triedKeys: routeCtx.triedKeys, lastStatus: routeCtx.lastStatus ?? undefined },
+    }
     telemetry.setHttpStatus(span, response.status)
     const langfuseModel = routeCtx.upstreamModel ?? requestModel
 
@@ -126,6 +145,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     // alias (`auto` / `chat-auto`), so Langfuse model-cost grouping matches the
     // provider model that actually generated the tokens.
     const generationTrace = deps.llmTracing.startChatGeneration({
+      protocol: 'chat-completions',
       input: body.messages,
       model: langfuseModel,
       requestId,
@@ -135,6 +155,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     })
 
     if (!response.ok) {
+      observation.errorBody = routeCtx.errorBody ?? await captureErrorResponse(response.clone())
+      telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId, model: requestModel })
       telemetry.failSpan(span, `Gateway ${response.status}`)
       generationTrace.fail(`Gateway ${response.status}`)
       telemetry.recordMetrics({ model: requestModel, status: response.status, type: 'chat', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
@@ -143,12 +165,13 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
 
       return new Response(response.body, {
         status: response.status,
-        headers: buildSafeResponseHeaders(response),
+        headers: buildSafeErrorResponseHeaders(response),
       })
     }
 
     if (stream) {
       return streamChatCompletion({
+        observation,
         deps,
         response,
         generationTrace,
@@ -157,11 +180,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
         durationMs,
         requestId,
         userId: input.userId,
-        sessionId: input.sessionId,
-        roundId: input.roundId,
-        appSurface: input.appSurface,
         requestModel,
-        generationModel: langfuseModel,
         routeCtxProvider: routeCtx.provider,
         billing,
         billingPolicy,
@@ -171,6 +190,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
     }
 
     return completeNonStreamingChat({
+      observation,
+      startedAt,
       deps,
       response,
       generationTrace,
@@ -178,11 +199,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
       durationMs,
       requestId,
       userId: input.userId,
-      sessionId: input.sessionId,
-      roundId: input.roundId,
-      appSurface: input.appSurface,
       requestModel,
-      generationModel: langfuseModel,
       routeCtxProvider: routeCtx.provider,
       billing,
       billingPolicy,
@@ -192,122 +209,8 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat.comple
   }
 }
 
-interface ChatModelAliasPlan {
-  modelIds: string[]
-}
-
-function captureGeneration(input: GenerationCaptureInput): void {
-  const generationId = input.roundId ?? input.requestId
-  const conversationId = input.sessionId ?? input.requestId
-  const totalTokens = input.usage.promptTokens != null && input.usage.completionTokens != null
-    ? input.usage.promptTokens + input.usage.completionTokens
-    : undefined
-
-  input.deps.productEventService.trackGeneration({
-    userId: input.userId,
-    traceId: conversationId,
-    generationId,
-    model: input.generationModel,
-    provider: input.routeCtxProvider || 'unknown',
-    providerType: 'official',
-    usageSource: input.usage.promptTokens != null || input.usage.completionTokens != null
-      ? 'reported'
-      : 'unavailable',
-    inputTokens: input.usage.promptTokens,
-    outputTokens: input.usage.completionTokens,
-    totalTokens,
-    costUsdSource: 'unavailable',
-    conversationId,
-    conversationIdSource: input.sessionId ? 'client_header' : 'server_request',
-    roundId: generationId,
-    ...(input.appSurface && { appSurface: input.appSurface }),
-    captureSurface: 'server',
-    latencySeconds: input.durationMs / 1000,
-    stream: input.stream,
-  })
-}
-
-async function resolveChatModelAliasPlan(deps: V1RouteDeps, aliasId: string): Promise<ChatModelAliasPlan> {
-  const alias = await deps.providerCatalogService.resolveEnabledAlias('llm', aliasId)
-  const primaryRoutes = alias.routes.filter(route => route.pool === 'primary')
-  const fallbackRoutes = alias.fallbackEnabled
-    ? alias.routes.filter(route => route.pool === 'fallback')
-    : []
-  const orderedPrimaryRoutes = alias.loadBalancingEnabled
-    ? weightedRouteOrder(primaryRoutes)
-    : primaryRoutes
-  const routedModelIds = uniqueModelIds([...orderedPrimaryRoutes, ...fallbackRoutes])
-
-  if (routedModelIds.length === 0) {
-    throw createBadRequestError('Capability alias has no enabled route', 'CAPABILITY_ALIAS_ROUTE_NOT_FOUND', {
-      surface: 'llm',
-      aliasId,
-    })
-  }
-
-  return { modelIds: routedModelIds }
-}
-
-async function routeChatAliasCandidates(input: {
-  deps: V1RouteDeps
-  body: Record<string, unknown>
-  modelIds: string[]
-  abortSignal?: AbortSignal
-}): Promise<{
-  modelId: string
-  response: Response
-  routeCtx: ReturnType<typeof newRouteContext>
-}> {
-  let lastError: unknown
-  for (const modelId of input.modelIds) {
-    const routeCtx = newRouteContext()
-    try {
-      const response = await input.deps.llmRouter.route({
-        modelName: modelId,
-        body: input.body,
-        headers: {},
-        abortSignal: input.abortSignal,
-      }, routeCtx)
-      return { modelId, response, routeCtx }
-    }
-    catch (err) {
-      if (input.abortSignal?.aborted)
-        throw err
-      lastError = err
-    }
-  }
-
-  throw lastError
-}
-
-function weightedRouteOrder(routes: CapabilityAliasRoute[]): CapabilityAliasRoute[] {
-  if (routes.length <= 1)
-    return routes
-
-  const totalWeight = routes.reduce((sum, route) => sum + Math.max(route.weight, 0), 0)
-  if (totalWeight <= 0)
-    return routes
-
-  let cursor = Math.random() * totalWeight
-  const selectedIndex = routes.findIndex((route) => {
-    cursor -= Math.max(route.weight, 0)
-    return cursor < 0
-  })
-  if (selectedIndex < 0)
-    return routes
-
-  const selected = routes[selectedIndex]
-  return [
-    selected,
-    ...routes.filter((_, index) => index !== selectedIndex),
-  ]
-}
-
-function uniqueModelIds(routes: CapabilityAliasRoute[]): string[] {
-  return Array.from(new Set(routes.map(route => route.routerModelId)))
-}
-
 function streamChatCompletion(input: {
+  observation: RequestObservation
   deps: V1RouteDeps
   response: Response
   generationTrace: ReturnType<V1RouteDeps['llmTracing']['startChatGeneration']>
@@ -316,11 +219,7 @@ function streamChatCompletion(input: {
   durationMs: number
   requestId: string
   userId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
   requestModel: string
-  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -332,44 +231,94 @@ function streamChatCompletion(input: {
   const reader = input.response.body!.getReader()
   const writer = writable.getWriter()
   const decoder = new TextDecoder()
-  // Buffer last 2KB to handle chunk boundary splits for usage extraction
-  let tailBuffer = ''
+  let usage: UsageInfo = {}
+  let receivedDone = false
+  let invalidReceipt = false
+  let firstChunkAt = Number.NaN
+  const content = createResponseContentCapture()
+  let streamError = false
+  // Parse a bounded copy for accounting while forwarding the original bytes, including keep-alives.
+  const parser = new EventSourceParserStream({
+    onError: () => {
+      invalidReceipt = true
+    },
+  })
+  const parserWriter = parser.writable.getWriter()
+  const events = parser.readable.getReader()
+  const usageObservation = (async () => {
+    while (true) {
+      const { done, value } = await events.read()
+      if (done)
+        break
+      if (receivedDone)
+        continue
+      if (value.data === '[DONE]') {
+        receivedDone = true
+        continue
+      }
+      content.append(value.data)
+      try {
+        const body: unknown = JSON.parse(value.data)
+        const failure = safeParse(object({ error: unknown() }), body)
+        if (failure.success) {
+          streamError = true
+          input.observation.errorBody = captureRequestContent(body)
+        }
+        const output = safeParse(outputChunkSchema, body)
+        if (!Number.isFinite(firstChunkAt) && output.success && output.output.choices.some(({ delta }) => delta.content || delta.reasoning || delta.reasoning_content || delta.tool_calls?.length)) {
+          firstChunkAt = Date.now()
+          input.telemetry.recordFirstToken({ firstChunkAt, model: input.requestModel, provider: input.routeCtxProvider, startedAt: input.startedAt, operation: 'chat' })
+        }
+        const observed = extractUsageFromBody(body)
+        if (observed.generationId !== undefined) {
+          if (usage.generationId !== undefined && observed.generationId !== usage.generationId)
+            invalidReceipt = true
+          else
+            usage.generationId = observed.generationId
+        }
+        usage = { ...usage, ...Object.fromEntries(Object.entries(observed).filter(([key, value]) => key !== 'generationId' && value != null)) }
+      }
+      catch (error) {
+        invalidReceipt = true
+        input.observation.errorBody = captureResponseText(value.data)
+        input.logger.withError(error).warn('Invalid chat usage frame')
+      }
+    }
+  })()
+  let downstreamCancelled = false
+  void writer.closed.catch(() => {
+    downstreamCancelled = true
+    return reader.cancel().catch(error => input.logger.withError(error).warn('Failed to cancel chat reader'))
+  })
   let streamCompleted = false
   let streamInterrupted = false
-  // First-chunk timestamp for gen_ai.client.first_token.duration. Latched
-  // on the first byte from upstream — captures perceived "time to first
-  // token" for streaming clients. NaN until the first chunk lands so
-  // `Number.isFinite` gates the histogram record.
-  let firstChunkAt = Number.NaN
 
   // Process stream in background
   ;(async () => {
     try {
       while (true) {
         const { done, value } = await reader.read()
+        if (downstreamCancelled)
+          throw new Error('Chat downstream cancelled')
         if (done) {
           streamCompleted = true
           break
         }
-        if (!Number.isFinite(firstChunkAt)) {
-          firstChunkAt = Date.now()
-          input.telemetry.recordFirstToken({
-            firstChunkAt,
-            model: input.requestModel,
-            provider: input.routeCtxProvider,
-            startedAt: input.startedAt,
-          })
-        }
-        await writer.write(value)
         const text = decoder.decode(value, { stream: true })
-        tailBuffer = (tailBuffer + text).slice(-2048)
+        await parserWriter.write(text)
+        await writer.write(value)
         // Accumulate the assistant completion for the Langfuse trace output
         // (no-op when tracing is off). Module owns SSE parsing + the cap.
         input.generationTrace.appendStreamChunk(text)
+        if (receivedDone) {
+          streamCompleted = true
+          break
+        }
       }
     }
     catch (err) {
       streamInterrupted = true
+      input.observation.errorBody ??= captureErrorMessage(err)
       input.telemetry.recordStreamInterrupted({
         model: input.requestModel,
         span: input.span,
@@ -387,10 +336,32 @@ function streamChatCompletion(input: {
       return
     }
     finally {
-      if (streamInterrupted) {
+      const observation: RequestObservation = {
+        ...input.observation,
+        durationMs: Date.now() - input.startedAt,
+        status: streamInterrupted ? (downstreamCancelled ? 499 : 502) : input.response.status,
+        timeToFirstTokenMs: Number.isFinite(firstChunkAt) ? firstChunkAt - input.startedAt : undefined,
+      }
+      await parserWriter.close()
+      await usageObservation
+      observation.completion = content.snapshot(receivedDone && !streamInterrupted && !invalidReceipt)
+      observation.errorBody = input.observation.errorBody
+      if (!streamInterrupted && (!receivedDone || invalidReceipt)) {
+        observation.state = 'interrupted'
+        observation.errorBody ??= captureRequestContent({ message: receivedDone ? 'Chat stream contained invalid generation evidence' : 'Chat stream ended before [DONE]' })
+      }
+      if (streamError)
+        observation.state = 'failed'
+      parserWriter.releaseLock()
+      events.releaseLock()
+      if (streamError && !streamInterrupted) {
+        await writer.close().catch(err => input.logger.withError(err).warn('Failed to close stream writer'))
+      }
+      if (streamInterrupted || streamError) {
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
+        input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel })
       }
       else if (streamCompleted) {
         try {
@@ -400,58 +371,21 @@ function streamChatCompletion(input: {
           input.logger.withError(err).warn('Failed to close stream writer')
         }
 
-        let usage: UsageInfo = {}
-        try {
-          const lines = tailBuffer.split('\n').filter(l => l.startsWith('data: ') && !l.includes('[DONE]'))
-          const lastDataLine = lines.at(-1)
-          if (lastDataLine) {
-            const json = JSON.parse(lastDataLine.slice(6))
-            usage = extractUsageFromBody(json)
-          }
-        }
-        catch (err) { input.logger.withError(err).warn('Failed to extract usage from stream, falling back to flat rate') }
-
-        const fluxConsumed = input.billing.priceChatUsage(usage, input.billingPolicy)
-
-        input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed })
-        input.telemetry.endSpan(input.span)
-        // Streaming output comes from appendStreamChunk above, so succeed
-        // omits it and the module uses the assembled assistant text.
-        input.generationTrace.succeed({
-          promptTokens: usage.promptTokens,
-          completionTokens: usage.completionTokens,
-          fluxConsumed,
-        })
-        input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
-
-        captureGeneration({
-          deps: input.deps,
-          userId: input.userId,
-          requestId: input.requestId,
-          sessionId: input.sessionId,
-          roundId: input.roundId,
-          appSurface: input.appSurface,
-          generationModel: input.generationModel,
-          routeCtxProvider: input.routeCtxProvider,
-          usage,
-          durationMs: input.durationMs,
-          stream: true,
-        })
+        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
+        const fluxConsumed = price.amount
 
         // Debit flux via DB transaction (source of truth)
         // NOTICE: streaming response is already sent, so we cannot reject on failure.
         // Log at error level so unpaid usage is visible in monitoring/alerts.
         //
-        // `consumeFluxForLLM` now drains to zero on partial balance instead
-        // of throwing — the catch path only fires on `balance <= 0` (post-
-        // race) or real DB errors. Partial debits are signalled via the
-        // returned `charged < requested` and accounted to the same
-        // `fluxUnbilled` counter (different `reason` label).
-        let actualCharged = 0
+        // Settlement retains pending evidence on failure. Partial debits
+        // return `charged < requested` and increment `fluxUnbilled`.
+        let feeFlux = 0
         try {
-          actualCharged = await input.billing.settleChat({
+          feeFlux = await input.billing.settleChat({
             userId: input.userId,
-            amount: fluxConsumed,
+            ...price,
+            pendingReason: invalidReceipt || !receivedDone ? 'incomplete_or_invalid_stream' : undefined,
             requestId: input.requestId,
             model: input.requestModel,
             stage: 'streaming',
@@ -468,12 +402,19 @@ function streamChatCompletion(input: {
           input.logger.withError(err).withFields({ userId: input.userId, fluxConsumed, requestId: input.requestId }).error('Failed to debit flux after streaming — unpaid usage')
         }
 
+        input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
+        input.telemetry.endSpan(input.span)
+        input.generationTrace.succeed({ promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: feeFlux })
+        input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
+
         input.telemetry.recordRequestLog({
+          ...observation,
+          ...usage,
+          requestId: input.requestId,
           userId: input.userId,
           model: input.requestModel,
           status: input.response.status,
-          durationMs: input.durationMs,
-          fluxConsumed: actualCharged,
+          durationMs: observation.durationMs,
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
         })
@@ -486,20 +427,28 @@ function streamChatCompletion(input: {
           durationMs: input.durationMs,
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
-          fluxConsumed: actualCharged,
+          fluxConsumed: feeFlux,
           stream: true,
         }).log('chat completion delivered')
       }
+      await reader.cancel().catch(error => input.logger.withError(error).warn('Failed to close chat reader'))
+      reader.releaseLock()
+      writer.releaseLock()
     }
   })()
 
+  const headers = buildSafeResponseHeaders(input.response)
+  // DONE can close the stream before upstream EOF, so the upstream length is not authoritative.
+  headers.delete('content-length')
   return new Response(readable, {
     status: input.response.status,
-    headers: buildSafeResponseHeaders(input.response),
+    headers,
   })
 }
 
 async function completeNonStreamingChat(input: {
+  observation: RequestObservation
+  startedAt: number
   deps: V1RouteDeps
   response: Response
   generationTrace: ReturnType<V1RouteDeps['llmTracing']['startChatGeneration']>
@@ -507,11 +456,7 @@ async function completeNonStreamingChat(input: {
   durationMs: number
   requestId: string
   userId: string
-  sessionId?: string
-  roundId?: string
-  appSurface?: AiGenerationAppSurface
   requestModel: string
-  generationModel: string
   routeCtxProvider: string
   billing: ChatBilling
   billingPolicy: ChatBillingPolicy
@@ -522,66 +467,55 @@ async function completeNonStreamingChat(input: {
   // Parse failure (malformed upstream JSON) must close both span and the
   // Langfuse generation before bubbling up — otherwise the trace leaks.
   // Mirrors the error-branch shape used above (router throw / !response.ok).
-  let responseBody
+  let responseBody: unknown
+  let responseText: string | undefined
   try {
-    responseBody = await input.response.json()
+    responseText = await input.response.text()
+    responseBody = JSON.parse(responseText)
+    input.observation.completion = captureRequestContent(responseBody)
   }
-  catch (err) {
+  catch (error) {
+    input.observation.errorBody = responseText === undefined ? captureErrorMessage(error) : captureResponseText(responseText)
+    const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
+    input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel })
     input.generationTrace.fail('Failed to parse upstream response body')
-    input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
-    throw err
+    input.telemetry.recordMetrics({ model: input.requestModel, status: 502, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
+    throw createBadGatewayError('Invalid Chat Completions JSON response')
   }
   const usage = extractUsageFromBody(responseBody)
-  const fluxConsumed = input.billing.priceChatUsage(usage, input.billingPolicy)
+  const observation = { ...input.observation, durationMs: Date.now() - input.startedAt }
+  const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
 
-  input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed })
+  // The upstream cost is already incurred. Settlement retains evidence and
+  // reports partial debits through `fluxUnbilled`, as in the streaming path.
+  let feeFlux = 0
+  try {
+    feeFlux = await input.billing.settleChat({
+      userId: input.userId,
+      ...price,
+      requestId: input.requestId,
+      model: input.requestModel,
+      stage: 'non_streaming',
+      logger: input.logger,
+      ...usage,
+    })
+  }
+  catch (error) {
+    const status = error instanceof ApiError ? error.statusCode : 500
+    observation.errorBody = captureErrorMessage(error)
+    input.telemetry.recordRequestLog({ ...observation, ...usage, status, userId: input.userId, requestId: input.requestId, model: input.requestModel })
+    input.telemetry.failSpan(input.span, 'Chat settlement failed')
+    input.generationTrace.fail('Chat settlement failed')
+    input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status, type: 'chat', provider: input.routeCtxProvider, durationMs: observation.durationMs, fluxConsumed: feeFlux })
+    throw error
+  }
+  input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel })
+  input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
   input.telemetry.endSpan(input.span)
-  input.generationTrace.succeed({
-    output: responseBody,
-    promptTokens: usage.promptTokens,
-    completionTokens: usage.completionTokens,
-    fluxConsumed,
-  })
-  input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed, ...usage })
+  input.generationTrace.succeed({ output: responseBody, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: feeFlux })
+  input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
 
-  captureGeneration({
-    deps: input.deps,
-    userId: input.userId,
-    requestId: input.requestId,
-    sessionId: input.sessionId,
-    roundId: input.roundId,
-    appSurface: input.appSurface,
-    generationModel: input.generationModel,
-    routeCtxProvider: input.routeCtxProvider,
-    usage,
-    durationMs: input.durationMs,
-    stream: false,
-  })
-
-  // Debit flux via DB transaction (source of truth).
-  // The upstream call has already happened (cost incurred), so partial
-  // debit + `fluxUnbilled` is the only sane recovery — same shape as the
-  // streaming path. `balance <= 0` still throws and bubbles up as 402.
-  const actualCharged = await input.billing.settleChat({
-    userId: input.userId,
-    amount: fluxConsumed,
-    requestId: input.requestId,
-    model: input.requestModel,
-    stage: 'non_streaming',
-    logger: input.logger,
-    ...usage,
-  })
-
-  input.telemetry.recordRequestLog({
-    userId: input.userId,
-    model: input.requestModel,
-    status: input.response.status,
-    durationMs: input.durationMs,
-    fluxConsumed: actualCharged,
-    promptTokens: usage.promptTokens,
-    completionTokens: usage.completionTokens,
-  })
   input.logger.withFields({
     requestId: input.requestId,
     userId: input.userId,
@@ -590,7 +524,7 @@ async function completeNonStreamingChat(input: {
     durationMs: input.durationMs,
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
-    fluxConsumed: actualCharged,
+    fluxConsumed: feeFlux,
     stream: false,
   }).log('chat completion delivered')
 

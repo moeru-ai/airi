@@ -22,7 +22,7 @@ Credentials and provider settings are saved in the current device's local settin
 | Field | Meaning | Guidance |
 | --- | --- | --- |
 | API Key | Access token issued by the provider | Paste the complete key without adding quotes or spaces. |
-| Base URL | Root URL of the provider API | Change it only when the provider's documentation requires another URL. Include the complete `https://` or `http://` address. |
+| Base URL | Root URL of the provider API | If the provider's documentation requires another URL, change it. Use `https://` for remote providers. Use `http://` only for trusted local services. A remote HTTP endpoint can expose API keys and request data. |
 | Model | Model ID used for chat, speech, or recognition | Prefer a model from AIRI's list. If the list cannot be loaded and the field accepts custom input, enter the exact ID from the provider's documentation. |
 | Voice | Voice ID used for speech synthesis | Select the model first, then select a voice supported by that model. |
 | Region | Deployment region used by some cloud services | Match the project or resource region shown in the provider console. |
