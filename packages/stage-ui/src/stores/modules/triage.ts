@@ -13,8 +13,11 @@ import { useLLM } from '../ai/chat-llm/llm'
 import { useSettingsTriage } from '../settings/triage'
 import { useConsciousnessStore } from './consciousness'
 
-/** Recipe gates run in the background, so they tolerate a slower answer than a decision before a reply. */
-export const GATE_DEADLINE_MS = 3_000
+/**
+ * Recipe gates run in the background and never delay a reply, so the deadline only bounds a request that hangs.
+ * A chat model used as the classifier can take several seconds.
+ */
+export const GATE_DEADLINE_MS = 15_000
 
 /**
  * The optional classifier from the configured backend, and the recipe decisions that ask it.

@@ -9,8 +9,11 @@ import { getAiriCardTemperament } from '../../services/airi-card-editor'
 import { useAiriCardStore } from '../modules/airi-card'
 import { useTriageStore } from '../modules/triage'
 
-/** A mood appraisal is not urgent, so it waits longer than intake triage. A late answer leaves mood unchanged. */
-export const MOOD_APPRAISAL_DEADLINE_MS = 3_000
+/**
+ * A mood appraisal runs beside the conversation and never delays a reply, so its deadline only bounds a request that hangs.
+ * A chat model used as the classifier can take several seconds. A late answer leaves mood unchanged.
+ */
+export const MOOD_APPRAISAL_DEADLINE_MS = 15_000
 
 /** Persona text that the classifier reads. Long cards are cut, because the appraisal needs character, not the whole card. */
 const PERSONA_TEXT_LIMIT = 1_000

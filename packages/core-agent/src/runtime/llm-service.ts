@@ -96,6 +96,8 @@ async function streamOnce({
   const tools = mergedTools.length > 0 ? mergedTools : undefined
 
   const scope = createContinuationScope(request.config, { ...options, providerId: initialStep?.providerId ?? options?.providerId })
+  // A request switch or a caller abort, such as a deadline, ends the stream on purpose. Its rejections are not errors to report.
+  const isIntentionalStop = (error: unknown) => error instanceof RequestSwitch || options?.abortSignal?.aborted === true
 
   return new Promise<void>((resolve, reject) => {
     let settled = false
@@ -164,7 +166,8 @@ async function streamOnce({
           usage = await streamResult.totalUsage
         }
         catch (error) {
-          console.error('Stream totalUsage error:', error)
+          if (!isIntentionalStop(error))
+            console.error('Stream totalUsage error:', error)
         }
         try {
           const normalizedUsage = !usage
@@ -188,24 +191,24 @@ async function streamOnce({
           return
         }
         rejectOnce(error)
-        if (!(error instanceof RequestSwitch))
+        if (!isIntentionalStop(error))
           console.error('Stream steps error:', error)
       })
       // `steps` can reject before the success path awaits `messages`.
       // Keep this rejection sink so xsAI cannot create an unhandled rejection.
       void streamResult.generatedTurn.catch((error) => {
-        if (!(error instanceof RequestSwitch))
+        if (!isIntentionalStop(error))
           console.error('Stream generated turn error:', error)
       })
       void streamResult.usage.catch((error) => {
-        if (!(error instanceof RequestSwitch))
+        if (!isIntentionalStop(error))
           console.error('Stream usage error:', error)
       })
       // `steps` and `totalUsage` reject independently when xsAI fails a
       // stream. The success path awaits `totalUsage`, but if `steps` rejects
       // first that await never runs, so keep this unconditional rejection sink.
       void streamResult.totalUsage.catch((error) => {
-        if (!(error instanceof RequestSwitch))
+        if (!isIntentionalStop(error))
           console.error('Stream totalUsage error:', error)
       })
     }
