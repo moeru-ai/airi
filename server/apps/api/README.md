@@ -180,18 +180,56 @@ The Responses operation lives in `operations/responses/index.ts`. Its request co
 Web search adds no separate Flux debit. The hosted service absorbs the upstream search-call fee.
 Search content tokens in the returned usage follow the existing token rate.
 
-A completed result uses `usage.input_tokens` and `usage.output_tokens` with the existing Flux pricing policy.
-When usage is absent, the existing per-request rate applies. Failed, incomplete, cancelled, malformed,
-and truncated streams incur no debit. Each request has one settlement ID, so duplicate terminal events cannot charge twice.
+A completed result settles normalized cost. Missing cost or incomplete output stays pending without an immediate debit.
+Each request ID owns one settlement, so duplicate terminal events cannot charge twice.
 A client disconnect cancels the upstream reader. A delivered terminal event authorizes settlement. The gateway closes the stream after that settlement attempt.
 
 Before release, configure a Responses-capable upstream and verify authenticated requests and Flux settlement in the target environment.
 The architecture and test scope are in [the hosted Responses ADR](../../docs/ai/adr/2026-09-15-hosted-responses.md).
 
+### LLM cost settlement
+
+Hosted Chat Completions and Responses always use normalized-cost settlement.
+`LLM_COST_BILLING` contains required price configuration, not an opt-in flag.
+For example, `{ "openrouter": { "fluxPerUsd": 1000, "multiplier": 1.5 } }` charges three Flux for 0.002 USD.
+This example is not a production sale-price recommendation. No default sale price is supplied.
+
+`LLM_MINIMUM_BALANCE` is the minimum callable balance. It defaults to five Flux.
+It is not a fixed request charge or a maximum-cost reservation.
+`FLUX_PER_REQUEST` and `FLUX_PER_1K_TOKENS` are no longer read by hosted LLM billing.
+The shared debit primitive, TTS character metering and ASR metering remain available.
+
+Before any network dispatch, each eligible upstream must have a supported cost adapter and complete pricing.
+Missing configuration rejects the request with `LLM_BILLING_UNAVAILABLE`; alias fallback cannot hide this error.
+Only the OpenRouter adapter is implemented. Other gateways cannot serve hosted LLM traffic until they have an explicit adapter and prices.
+
+Missing or invalid returned cost, BYOK fees, and incomplete output leave a pending settlement without a token-rate estimate.
+Each request charges `ceil(costUsd * fluxPerUsd * multiplier)` in whole Flux, after applying the multiplier.
+An explicit zero cost settles at zero. Every positive cost rounds up; no fractional remainder carries between requests.
+Zero charges do not create debit ledger rows. Underfunded settlements increment the insufficient-balance metric once, not on replay.
+Routing failures before any upstream dispatch close the intake as `cancelled/not_dispatched`.
+Unknown outcomes after dispatch stay pending.
+Billing retains the original price snapshot, cost source, sanitized provider usage and provider/generation identity for reconciliation.
+Settlement stores `requestedFlux` and `chargedFlux`; its charged amount is a result snapshot committed with the ledger.
+`flux_transaction` owns actual balance changes and references the settlement, without copying its cost and price fields.
+Request-log `fluxConsumed` remains an observation-time summary, not a live billing total.
+There is no automatic reconciliation worker in this release.
+
+A future model-price-table adapter is a supported pricing mode, not a fallback.
+It must validate model rates before dispatch and produce standardized USD cost with a versioned rate snapshot and measured usage.
+This release does not implement that adapter.
+
+Request tracking #2673 is merged. Billing #2644 adds only migration 0027.
+Apply `0026_llm_request_tracking.sql` before `0027_llm_cost_settlement.sql`.
+Configure supported provider prices before deploying the billing change; missing prices intentionally stop LLM calls.
+These migrations replace unpublished PR drafts and must not be applied over an already-applied earlier draft.
+
+See the [billing ADR](../../docs/ai/adr/2026-09-23-provider-cost-billing.md) for accounting ownership and verification boundaries.
+
 ### LLM request tracking
 
 Tracking extends the existing request log and records each local upstream dispatch in `llm_request_attempt`.
-It applies to cost, token and per-request pricing. Existing billing behavior stays unchanged. Tracking has no settlement-table dependency.
+Tracking has no settlement-table dependency. Its diagnostic Flux summary is not the authoritative bill.
 Apply `0026_llm_request_tracking.sql` before deploying.
 
 | Fields | Meaning |

@@ -68,6 +68,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
     }).log('chat completion request')
     const startedAt = Date.now()
     await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
+    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
 
     // Server-connection attrs come from the router (which knows the actual
@@ -96,12 +97,18 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
           routeCtx,
           abortSignal: clientAbort,
           attempts,
+          authorizeDispatch: route => billing.authorizeDispatch(billingPolicy, route),
         }))
       response = routed.response
       routeCtx = routed.routeCtx
       requestModel = routed.modelId
     }
     catch (err) {
+      if (routeCtx.triedKeys === 0) {
+        await deps.billingService.cancelUndispatchedLlmRequest({ userId: input.userId, requestId }).catch((error) => {
+          logger.withError(error).withFields({ requestId }).error('Failed to close undispatched LLM intake')
+        })
+      }
       let status: number = err instanceof ApiError ? err.statusCode : 500
       if (clientAbort?.aborted)
         status = 499
@@ -262,9 +269,10 @@ function streamChatCompletion(input: {
         if (observed.generationId !== undefined) {
           if (usage.generationId !== undefined && observed.generationId !== usage.generationId)
             invalidReceipt = true
-          usage.generationId = observed.generationId
+          else
+            usage.generationId = observed.generationId
         }
-        usage = { ...usage, ...Object.fromEntries(Object.entries(observed).filter(([, value]) => value != null)) }
+        usage = { ...usage, ...Object.fromEntries(Object.entries(observed).filter(([key, value]) => key !== 'generationId' && value != null)) }
       }
       catch (error) {
         invalidReceipt = true
@@ -335,6 +343,23 @@ function streamChatCompletion(input: {
       parserWriter.releaseLock()
       events.releaseLock()
       if (streamInterrupted) {
+        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
+        try {
+          await input.billing.settleChat({
+            observation,
+            ...usage,
+            ...price,
+            pendingReason: 'stream_interrupted',
+            userId: input.userId,
+            requestId: input.requestId,
+            model: input.requestModel,
+            stage: 'streaming',
+            logger: input.logger,
+          })
+        }
+        catch (error) {
+          input.logger.withError(error).withFields({ requestId: input.requestId, generationId: usage.generationId }).error('Failed to save pending cost receipt')
+        }
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
@@ -348,23 +373,22 @@ function streamChatCompletion(input: {
           input.logger.withError(err).warn('Failed to close stream writer')
         }
 
-        const price = { amount: input.billing.priceChatUsage(usage, input.billingPolicy) }
+        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
         const fluxConsumed = price.amount
 
         // Debit flux via DB transaction (source of truth)
         // NOTICE: streaming response is already sent, so we cannot reject on failure.
         // Log at error level so unpaid usage is visible in monitoring/alerts.
         //
-        // `consumeFluxForLLM` now drains to zero on partial balance instead
-        // of throwing — the catch path only fires on `balance <= 0` (post-
-        // race) or real DB errors. Partial debits are signalled via the
-        // returned `charged < requested` and accounted to the same
-        // `fluxUnbilled` counter (different `reason` label).
+        // Settlement retains pending evidence on failure. Partial debits
+        // return `charged < requested` and increment `fluxUnbilled`.
         let actualCharged = 0
         try {
           actualCharged = await input.billing.settleChat({
+            observation,
             userId: input.userId,
             ...price,
+            pendingReason: invalidReceipt || !receivedDone ? 'incomplete_or_invalid_stream' : undefined,
             requestId: input.requestId,
             model: input.requestModel,
             stage: 'streaming',
@@ -453,6 +477,22 @@ async function completeNonStreamingChat(input: {
   }
   catch {
     const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
+    const price = input.billing.priceChatUsage({}, input.billingPolicy, input.routeCtxProvider)
+    try {
+      await input.billing.settleChat({
+        observation,
+        ...price,
+        userId: input.userId,
+        requestId: input.requestId,
+        model: input.requestModel,
+        stage: 'non_streaming',
+        logger: input.logger,
+        pendingReason: 'invalid_response_body',
+      })
+    }
+    catch (error) {
+      input.logger.withError(error).withFields({ requestId: input.requestId }).error('Failed to save pending cost receipt')
+    }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: 0 })
     input.generationTrace.fail('Failed to parse upstream response body')
@@ -461,15 +501,14 @@ async function completeNonStreamingChat(input: {
   }
   const usage = extractUsageFromBody(responseBody)
   const observation = { ...input.observation, durationMs: Date.now() - input.startedAt }
-  const price = { amount: input.billing.priceChatUsage(usage, input.billingPolicy) }
+  const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
 
-  // Debit flux via DB transaction (source of truth).
-  // The upstream call has already happened (cost incurred), so partial
-  // debit + `fluxUnbilled` is the only sane recovery — same shape as the
-  // streaming path. `balance <= 0` still throws and bubbles up as 402.
+  // The upstream cost is already incurred. Settlement retains evidence and
+  // reports partial debits through `fluxUnbilled`, as in the streaming path.
   let actualCharged = 0
   try {
     actualCharged = await input.billing.settleChat({
+      observation,
       userId: input.userId,
       ...price,
       requestId: input.requestId,

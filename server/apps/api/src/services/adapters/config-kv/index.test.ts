@@ -22,7 +22,20 @@ describe('configKVService', () => {
   })
 
   it('uses the ConfigKV schema as the key type', () => {
-    expectTypeOf(service.get('FLUX_PER_REQUEST')).toEqualTypeOf<Promise<number>>()
+    expectTypeOf(service.get('LLM_MINIMUM_BALANCE')).toEqualTypeOf<Promise<number>>()
+  })
+
+  it('does not invent cost prices when required configuration is absent', async () => {
+    expect(await service.getOptional('LLM_COST_BILLING')).toBeNull()
+  })
+
+  it('loads both OpenRouter price factors and rejects invalid configuration', async () => {
+    store._store.set('LLM_COST_BILLING', JSON.stringify({ openrouter: { fluxPerUsd: 1000, multiplier: 1.5 }, another: { fluxPerUsd: 200, multiplier: 2 } }))
+    expect(await service.get('LLM_COST_BILLING')).toEqual({ openrouter: { fluxPerUsd: 1000, multiplier: 1.5 }, another: { fluxPerUsd: 200, multiplier: 2 } })
+    for (const value of [{ fluxPerUsd: 1000 }, { fluxPerUsd: -1, multiplier: 1 }, { fluxPerUsd: 1, multiplier: 0 }]) {
+      store._store.set('LLM_COST_BILLING', JSON.stringify({ openrouter: value }))
+      await expect(service.refresh('LLM_COST_BILLING')).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
+    }
   })
 
   it('get should throw 503 when key is not set', async () => {
@@ -32,21 +45,21 @@ describe('configKVService', () => {
   })
 
   it('get should return numeric value when key is set', async () => {
-    store._store.set('FLUX_PER_REQUEST', '5')
+    store._store.set('LLM_MINIMUM_BALANCE', '5')
 
-    const value = await service.getOrThrow('FLUX_PER_REQUEST')
+    const value = await service.getOrThrow('LLM_MINIMUM_BALANCE')
     expect(value).toBe(5)
   })
 
   it('get should read the requested ConfigKV key', async () => {
-    store._store.set('FLUX_PER_REQUEST', '3')
+    store._store.set('LLM_MINIMUM_BALANCE', '3')
 
-    await service.getOrThrow('FLUX_PER_REQUEST')
-    expect(store.getRaw).toHaveBeenCalledWith('FLUX_PER_REQUEST')
+    await service.getOrThrow('LLM_MINIMUM_BALANCE')
+    expect(store.getRaw).toHaveBeenCalledWith('LLM_MINIMUM_BALANCE')
   })
 
   it('getOptional should return schema default when key has one', async () => {
-    const value = await service.getOptional('FLUX_PER_REQUEST')
+    const value = await service.getOptional('LLM_MINIMUM_BALANCE')
     expect(value).toBe(5)
   })
 
@@ -82,9 +95,9 @@ describe('configKVService', () => {
   })
 
   it('getOptional should throw CONFIG_INVALID when the store contains schema-invalid JSON', async () => {
-    store._store.set('FLUX_PER_REQUEST', JSON.stringify('5'))
+    store._store.set('LLM_MINIMUM_BALANCE', JSON.stringify('5'))
 
-    await expect(service.getOptional('FLUX_PER_REQUEST'))
+    await expect(service.getOptional('LLM_MINIMUM_BALANCE'))
       .rejects
       .toMatchObject({
         statusCode: 503,
@@ -122,7 +135,7 @@ describe('configKVService', () => {
   it('wraps database failures as CONFIG_UNAVAILABLE', async () => {
     store.getRaw.mockRejectedValueOnce(new Error('database offline'))
 
-    await expect(service.getOrThrow('FLUX_PER_REQUEST'))
+    await expect(service.getOrThrow('LLM_MINIMUM_BALANCE'))
       .rejects
       .toMatchObject({
         statusCode: 503,
@@ -342,10 +355,10 @@ describe('configKVService', () => {
   })
 
   it('refresh should bypass the ordinary store read', async () => {
-    store._store.set('FLUX_PER_REQUEST', '9')
+    store._store.set('LLM_MINIMUM_BALANCE', '9')
 
-    await expect(service.refresh('FLUX_PER_REQUEST')).resolves.toBe(9)
-    expect(store.getFreshRaw).toHaveBeenCalledWith('FLUX_PER_REQUEST')
+    await expect(service.refresh('LLM_MINIMUM_BALANCE')).resolves.toBe(9)
+    expect(store.getFreshRaw).toHaveBeenCalledWith('LLM_MINIMUM_BALANCE')
     expect(store.getRaw).not.toHaveBeenCalled()
   })
 })

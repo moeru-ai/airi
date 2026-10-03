@@ -1,4 +1,4 @@
-import type { Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
+import type { ChatOrchestratorSessionPort, Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
@@ -85,6 +85,7 @@ const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metada
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
+const cardSelections = new Map<string, { provider: string, model: string }>()
 const activeModelRef = ref('gpt-test')
 const chatReadyRef = computed(() => !!activeProviderRef.value && !!activeModelRef.value)
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
@@ -185,9 +186,18 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] ??= []
       sessionMessages[sessionId].push(message)
     },
+    commitUserMessage: (async (sessionId, message) => {
+      sessionMessages[sessionId] ??= []
+      const existing = sessionMessages[sessionId].some(item => item.id === message.id)
+      if (!existing)
+        sessionMessages[sessionId].push(message)
+      await persistSessionMessagesMock(sessionId)
+      return { status: existing ? 'existing' : 'inserted', messageId: message.id }
+    }) satisfies ChatOrchestratorSessionPort['commitUserMessage'],
     cleanupMessages: (sessionId: string) => {
       sessionMessages[sessionId] = []
     },
+    sessionMetas: { 'session-1': { characterId: 'alice' }, 'session-2': { characterId: 'bob' }, 'session-b': { characterId: 'bob' }, 'session-forked': { characterId: 'alice' } },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
@@ -210,6 +220,8 @@ vi.mock('./chat/session-store', () => ({
 vi.mock('./chat/stream-store', () => ({
   useChatStreamStore: () => ({
     streamingMessage: streamingMessageRef,
+    activeTurns: [],
+    updateActiveTurns: vi.fn(),
   }),
 }))
 
@@ -239,6 +251,7 @@ vi.mock('./modules/consciousness', () => ({
     activeProvider: activeProviderRef,
     chatReady: chatReadyRef,
     providerModels: consciousnessModels.value,
+    getModelsForProvider: async () => consciousnessModels.value,
     getChatProviderInstance: (providerId: string) => getChatProviderInstanceMock(providerId, {
       reasoning: useConsciousnessSettingsStore().reasoning ? 'enabled' : 'disabled',
     }),
@@ -248,6 +261,11 @@ vi.mock('./modules/consciousness', () => ({
 vi.mock('./modules/airi-card', () => ({
   useAiriCardStore: () => ({
     activeCard: undefined,
+    getCard: () => undefined,
+    getModules: (id: string) => ({
+      consciousness: cardSelections.get(id) ?? { provider: activeProviderRef.value, model: activeModelRef.value },
+      vision: { provider: visionMocks.configured ? 'vision-provider' : '', model: visionMocks.configured ? 'vision-model' : '' },
+    }),
   }),
 }))
 
@@ -337,6 +355,7 @@ describe('chat store contract', () => {
     ioTracerMocks.startSpanMock.mockClear()
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
+    cardSelections.clear()
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -345,6 +364,45 @@ describe('chat store contract', () => {
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  it('cancels a named submission while session preparation is pending', async () => {
+    const loading = Promise.withResolvers<boolean>()
+    loadSessionMock.mockReturnValueOnce(loading.promise)
+    const store = useChatStore()
+    const submission = store.submit({ sessionId: 'session-1', messageId: 'pending-input', text: 'Stop this request' })
+    const rejected = expect(submission).rejects.toThrow('Chat turn cancelled')
+    await store.cancelTurn({ sessionId: 'session-1', turnId: 'pending-input' })
+    loading.resolve(true)
+    await rejected
+    expect(llmStreamMock).not.toHaveBeenCalled()
+    expect(sessionMessages['session-1'].some(message => message.id === 'pending-input')).toBe(false)
+  })
+
+  it('uses the active provider for a text send to another session', async () => {
+    cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-2', text: 'For Bob' })
+
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
+    expect(llmStreamMock.mock.calls[0]?.[0]).toBe('gpt-test')
+    expect(activeSessionIdRef.value).toBe('session-1')
+  })
+
+  it('uses the target character settings for a voice submission', async () => {
+    cardSelections.set('bob', { provider: 'bob-provider', model: 'bob-model' })
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.submit({ sessionId: 'session-2', messageId: 'bob-voice', text: 'For Bob' })
+
+    expect(getChatProviderInstanceMock).toHaveBeenCalledWith('bob-provider', { reasoning: 'disabled' })
+    expect(llmStreamMock.mock.calls[0]?.[0]).toBe('bob-model')
+    expect(activeSessionIdRef.value).toBe('session-1')
   })
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {
@@ -1225,7 +1283,7 @@ describe('chat store contract', () => {
     // applied at message-assembly time as per-message [HH:MM] prefixes. The
     // runtime-rule and Minecraft providers are disabled in this test.
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
-    expect(persistSessionMessagesMock).not.toHaveBeenCalled()
+    expect(persistSessionMessagesMock).toHaveBeenCalledWith('session-1')
     expect(hookOrder).toEqual([
       'before-compose',
       'after-compose',
@@ -1312,18 +1370,14 @@ describe('chat store contract', () => {
     store.$patch({
       sending: true,
       activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        role: 'assistant',
-        content: 'authority stream',
-        slices: [],
-        tool_results: [],
-      },
+      activeTurns: [{ sessionId: 'session-b', turnId: 'turn-b' }],
     })
     await nextTick()
 
     expect(store.sending).toBe(true)
     expect(store.activeSendSessionId).toBe('session-b')
-    expect(store.activeStreamingMessage?.content).toBe('authority stream')
+    expect(store.activeTurns).toEqual([{ sessionId: 'session-b', turnId: 'turn-b' }])
+    expect(store.$state).not.toHaveProperty('activeStreamingMessage')
   })
 
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {

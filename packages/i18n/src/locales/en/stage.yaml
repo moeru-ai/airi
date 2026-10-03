@@ -24,6 +24,34 @@ chat:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
     action: Open provider settings
+  voice-message:
+    title: Voice message
+    record: Record a message
+    finish: Finish recording
+    dictate: Hold to dictate
+    recording: Recording
+    starting: Starting microphone
+    preparing: Preparing audio preview
+    preview: Recorded voice message
+  voice-preview:
+    processing: Finishing transcription
+    device: Audio input device
+    device-description: Select the microphone for this recording.
+    device-placeholder: Select a microphone
+    level: Input level
+    activity: Speech activity
+    silence: Silence
+    speech: Speech
+    threshold: Detection threshold
+    sensitivity: Sensitivity
+    sensitivity-description: Adjust the speech indicator threshold.
+    start: Start recording
+    stop: Finish recording
+    failed: The audio operation failed.
+  voice-draft:
+    title: Voice draft
+    select: 'Show draft {number}'
+    discard: Discard draft
   voice-input: Voice input
   error-details:
     show: Show details
