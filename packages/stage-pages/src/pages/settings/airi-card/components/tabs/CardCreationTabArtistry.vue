@@ -227,7 +227,7 @@ function openReplicateModel() {
             v-model="selectedArtistryModel"
             :label="t('settings.pages.modules.artistry.model.label')"
             :description="t('settings.pages.modules.artistry.model.description')"
-            placeholder="e.g. black-forest-labs/flux-schnell"
+            :placeholder="t('settings.pages.modules.artistry.model.placeholder')"
           />
           <IconButton
             v-if="selectedArtistryProvider === 'replicate' && selectedArtistryModel"
@@ -274,20 +274,20 @@ function openReplicateModel() {
           v-model="selectedArtistryPromptPrefix"
           :label="t('settings.pages.modules.artistry.prompt-prefix.label')"
           :description="t('settings.pages.modules.artistry.prompt-prefix.description')"
-          placeholder="e.g. Masterpiece, high quality, 1girl, anime,"
+          :placeholder="t('settings.pages.modules.artistry.prompt-prefix.placeholder')"
         />
         <FieldInput
           v-model="selectedArtistryWidgetInstruction"
           :label="t('settings.pages.modules.artistry.widget-instructions.label')"
           :description="t('settings.pages.modules.artistry.widget-instructions.description')"
           :single-line="false"
-          input-class="min-h-40"
+          input-class="min-h-40 md:min-h-[clamp(12rem,30dvh,24rem)]"
         />
         <FieldInput
           v-model="selectedArtistryConfigStr"
           :label="t('settings.pages.modules.artistry.options.label')"
           :single-line="false"
-          input-class="min-h-28 font-mono text-xs"
+          input-class="min-h-28 font-mono text-xs md:min-h-[clamp(8rem,20dvh,16rem)]"
         />
       </div>
     </div>

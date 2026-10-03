@@ -70,11 +70,11 @@ If either token is stored, Auth must complete its existing revocation policy bef
 
 ## Railway
 
-Deploy this as the Auth Railway service with Config File Path
-`/server/apps/auth/railway.toml`; keep the service Root Directory at the
-repository root because the Dockerfile copies workspace manifests and
-`server/packages/auth-shared`. The config owns its Dockerfile, start command,
-`/readyz` healthcheck, and the watch patterns for each copied build input.
+Deploy this as the Auth Railway service. Keep the service Root Directory at
+the repository root because the Dockerfile copies workspace manifests and
+`server/packages/auth-shared`. The project-level Infrastructure as Code file
+is `proj-airi/airi-railway/.railway/railway.ts`. It owns the Dockerfile, start
+command, `/readyz` healthcheck, and watch patterns.
 
 Set `PUBLIC_URL` to this service's canonical public issuer URL, and make the
 Resource API's `AUTH_SERVER_URL` exactly the same value. Set

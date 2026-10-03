@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
+import messages from '@proj-airi/i18n/locales'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'
 import Vue from '@vitejs/plugin-vue'
 import Unocss from 'unocss/vite'
@@ -20,8 +21,11 @@ import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
 import { tryCatch } from '@moeru/std'
+import { localeRemap, serializeStartupFallbackLocales } from '@proj-airi/i18n'
+import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
+import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'vite'
 
 // import { isEnvTruthy } from '@proj-airi/stage-shared'
@@ -104,6 +108,10 @@ export default defineConfig({
   },
 
   plugins: [
+    {
+      name: 'airi-startup-locales',
+      transformIndexHtml: html => html.replace('__AIRI_STARTUP_LOCALES__', serializeStartupFallbackLocales(messages, localeRemap)),
+    },
     ...isEnvTruthy(process.env.VITE_SKIP_MKCERT ?? '')
       ? []
       : [mkcert((() => {
@@ -115,6 +123,7 @@ export default defineConfig({
         })())],
 
     Info(),
+    Sherpaw({ models: [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8], cacheDir: sharedCacheDir }),
 
     Yaml(),
 

@@ -68,7 +68,8 @@ export const sparkCommandContextSchema = z.object({
       include: z.union([z.array(z.string()), z.null()]).describe('Included destinations.'),
       exclude: z.union([z.array(z.string()), z.null()]).describe('Excluded destinations.'),
     }).strict(),
-  ]).nullable().describe('Optional routing for the attached context update.'),
+    z.null(),
+  ]).describe('Optional routing for the attached context update.'),
   metadata: z.union([z.array(sparkCommandMetadataEntrySchema), z.null()]).describe('JSON-like metadata for the context update, expressed as key-value pairs for schema compatibility.'),
 }).strict()
 

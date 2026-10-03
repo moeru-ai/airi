@@ -285,7 +285,6 @@ npm install @velin-dev/core
     - 캐릭터 "Me"와 "ReLU"의 Live2D 모델링
   - 커뮤니티 지원 & 마케팅
     - 일본어 README
-    - Plausible 애널리틱스 연동
     - 포괄적인 문서화
 
 또 만나요!

@@ -10,7 +10,7 @@ import Layouts from 'vite-plugin-vue-layouts'
 import VueMacros from 'vue-macros/vite'
 import VueRouter from 'vue-router/vite'
 
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
 // NOTICE:
 // Keep this namespace distinct from `/assets/`, where an earlier Pages SPA
@@ -22,7 +22,7 @@ import { defineConfig } from 'vite'
 // reactivate poisoned browser entries that remain fresh for up to one year.
 const assetsDirectory = 'assets-v2'
 
-export default defineConfig({
+const config = defineConfig({
   base: '/',
   optimizeDeps: {
     exclude: [
@@ -140,4 +140,11 @@ export default defineConfig({
     // https://github.com/webfansplz/vite-plugin-vue-devtools
     VueDevTools(),
   ],
+})
+
+export default defineConfig(({ mode }) => {
+  if (!loadEnv(mode, import.meta.dirname, 'VITE_').VITE_WEB_APP_URL)
+    throw new Error('VITE_WEB_APP_URL is required for the auth UI')
+
+  return config
 })
