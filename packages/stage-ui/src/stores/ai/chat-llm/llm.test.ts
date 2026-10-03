@@ -87,15 +87,10 @@ describe('isToolRelatedError', () => {
     ['ollama', 'llama3 does not support tools'],
     ['ollama', 'phi does not support tools'],
     ['openrouter', 'No endpoints found that support tool use'],
-    ['openai-compatible', 'Invalid schema for function \'myFunc\': \'dict\' is not valid under any of the given schemas'],
-    ['openai-compatible', 'invalid_function_parameters'],
-    ['openai-compatible', 'invalid function parameters'],
     ['azure', 'Functions are not supported at this time'],
     ['azure', 'Unrecognized request argument supplied: tools'],
     ['azure', 'Unrecognized request arguments supplied: tool_choice, tools'],
     ['google', 'Tool use with function calling is unsupported'],
-    ['groq', 'tool_use_failed'],
-    ['groq', 'Error code: tool_use_failed - Failed to call a function'],
     ['anthropic', 'This model does not support function calling'],
     ['anthropic', 'does not support function_calling'],
     ['cloudflare', 'tools is not supported'],
@@ -111,6 +106,12 @@ describe('isToolRelatedError', () => {
     'model not found',
     'context length exceeded',
     '',
+    // One invalid schema or one malformed tool call says nothing about the model.
+    'Invalid schema for function \'myFunc\': \'dict\' is not valid under any of the given schemas',
+    'invalid_function_parameters',
+    'invalid function parameters',
+    'tool_use_failed',
+    'Error code: tool_use_failed - Failed to call a function',
   ]
 
   for (const [provider, msg] of positives) {
@@ -233,6 +234,53 @@ describe('isToolRelatedError', () => {
     const secondCallTools = streamTextMock.mock.calls[1]?.[0]?.tools
     expect(Array.isArray(secondCallTools)).toBe(true)
     expect(secondCallTools?.map(toolNameFrom)).toContain('runtime_play_chess_match')
+  })
+
+  const customTool = {
+    type: 'function',
+    function: {
+      name: 'custom-tool',
+      description: 'Custom tool.',
+      parameters: { type: 'object', properties: {} },
+    },
+    execute: vi.fn(async () => 'ok'),
+  } satisfies Tool
+
+  const helloTurns = { turns: [{ id: 'user', type: 'user' as const, content: [{ type: 'text' as const, text: 'hello' }] }] }
+
+  for (const message of [
+    'Invalid schema for function \'broken\': \'dict\' is not valid under any of the given schemas',
+    'invalid_function_parameters',
+    'Error code: tool_use_failed - Failed to call a function',
+  ]) {
+    it(`keeps sending tools after a request fails with "${message}"`, async () => {
+      const store = useLLM()
+
+      streamTextMock.mockImplementationOnce(() => {
+        throw new Error(message)
+      })
+      await expect(store.stream('model-a', provider, helloTurns, { tools: [customTool] })).rejects.toThrow(message)
+
+      streamTextMock.mockImplementationOnce(() => createMockStreamResult())
+      await store.stream('model-a', provider, helloTurns, { tools: [customTool] })
+
+      const secondCallTools = streamTextMock.mock.calls[1]?.[0]?.tools
+      expect(secondCallTools?.map(toolNameFrom)).toContain('custom-tool')
+    })
+  }
+
+  it('stops sending tools after the model reports that it does not support them', async () => {
+    const store = useLLM()
+
+    streamTextMock.mockImplementationOnce(() => {
+      throw new Error('model-a does not support tools')
+    })
+    await expect(store.stream('model-a', provider, helloTurns, { tools: [customTool] })).rejects.toThrow('does not support tools')
+
+    streamTextMock.mockImplementationOnce(() => createMockStreamResult())
+    await store.stream('model-a', provider, helloTurns, { tools: [customTool] })
+
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
   })
 
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {
