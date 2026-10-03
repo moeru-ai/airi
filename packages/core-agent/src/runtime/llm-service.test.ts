@@ -219,6 +219,74 @@ describe('streamFrom tool errors', () => {
     streamTextMock.mockReset()
   })
 
+  it('uses the supplied audio transcript before a string-only provider request', async () => {
+    streamTextMock.mockReturnValueOnce(createMockStreamResult())
+    const conversation: Conversation = { turns: [{ id: 'recording', type: 'user', content: [{ type: 'audio', format: 'wav', data: 'YXVkaW8=' }] }] }
+    const project = vi.fn(async (): Promise<Conversation> => ({ turns: [{ id: 'recording', type: 'user', content: [{ type: 'text', text: 'Spoken request' }] }] }))
+    await streamFrom({ model: 'text', chatProvider: provider, conversation, options: { supportsContentArray: false, prepareStringContent: project } })
+    expect(project).toHaveBeenCalledOnce()
+    expect(streamTextMock.mock.calls[0][0].messages).toEqual([{ role: 'user', content: 'Spoken request' }])
+    expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio', format: 'wav', data: 'YXVkaW8=' }] })
+  })
+
+  it('retains completed tools when a provider switch requires an audio text projection', async () => {
+    let model = 'audio'
+    const chatProvider: GenerationProvider = {
+      generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: `https://${model}.example/` } }),
+    }
+    const conversation: Conversation = { turns: [{ id: 'recording', type: 'user', content: [{ type: 'audio', format: 'wav', data: 'YXVkaW8=' }] }] }
+    const project = vi.fn(async (current: Conversation): Promise<Conversation> => {
+      const projected = structuredClone(current)
+      for (const turn of projected.turns) {
+        if (turn.type === 'user')
+          turn.content = turn.content.map(part => part.type === 'audio' ? { type: 'text', text: 'Spoken request' } : part)
+      }
+      return projected
+    })
+    const toolCall: Message = { role: 'assistant', content: '', tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'lookup', arguments: '{}' } }] }
+    const toolResult: Message = { role: 'tool', tool_call_id: 'call-1', content: 'lookup result' }
+    const requests: Message[][] = []
+    streamTextMock.mockImplementation((options: {
+      model: string
+      messages: Message[]
+      prepareStep: (step: { input: Message[], steps: CompletionStep[] }) => Promise<unknown>
+    }) => {
+      const first = requests.length === 0
+      requests.push(structuredClone(options.messages))
+      const steps = (async () => {
+        await options.prepareStep({ input: structuredClone(options.messages), steps: [] })
+        if (first) {
+          model = 'text'
+          await options.prepareStep({
+            input: [...options.messages, toolCall, toolResult],
+            steps: [{ finishReason: 'tool-calls', toolCalls: [], toolResults: [] }],
+          })
+        }
+        return [{ finishReason: 'stop', toolCalls: [], toolResults: [] }]
+      })()
+      return {
+        steps,
+        messages: steps.then(() => [...options.messages, { role: 'assistant', content: 'Finished' }]),
+        usage: Promise.resolve(undefined),
+        totalUsage: Promise.resolve(undefined),
+      }
+    })
+    await streamFrom({ model, chatProvider, conversation, options: {
+      resolveStep: async () => ({ model, chatProvider, providerId: 'live', systemPrompt: '' }),
+      contentArrayCompatibility: new Map([['https://text.example/-text', false]]),
+      prepareStringContent: project,
+    } })
+    expect(project).toHaveBeenCalledOnce()
+    expect(requests).toHaveLength(2)
+    expect(requests[1]).toEqual([
+      { role: 'user', content: 'Spoken request' },
+      toolCall,
+      toolResult,
+    ])
+    expect(conversation.turns).toHaveLength(1)
+    expect(conversation.turns[0]).toMatchObject({ content: [{ type: 'audio' }] })
+  })
+
   it('emits the final xsAI messages after all tool rounds finish', async () => {
     const onGeneratedTurn = vi.fn()
     const finalMessages: Message[] = [
