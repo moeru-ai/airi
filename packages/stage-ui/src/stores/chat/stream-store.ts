@@ -1,15 +1,27 @@
-import type {} from 'pinia-plugin-synced'
+import type { ChatOrchestratorRuntimeState } from '@proj-airi/core-agent'
 
 import type { StreamingAssistantMessage } from '../../types/chat'
 
 import { defineStore } from 'pinia'
-import { ref, toRaw } from 'vue'
+import { computed, ref, shallowRef, toRaw } from 'vue'
 
 import { useChatSessionStore } from './session-store'
 
 export const useChatStreamStore = defineStore('chat-stream', () => {
   const chatSession = useChatSessionStore()
-  const streamingMessage = ref<StreamingAssistantMessage>({ role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now() })
+  // Live text stays local. Context events supply remote streams without full-store replication.
+  const activeTurns = shallowRef<ChatOrchestratorRuntimeState['activeTurns']>([])
+  const remoteMessages = ref<Record<string, StreamingAssistantMessage>>({})
+  const emptyMessage: StreamingAssistantMessage = { role: 'assistant', content: '', slices: [], tool_results: [] }
+  const streamingMessage = computed({
+    get: () => activeTurns.value.find(turn => turn.sessionId === chatSession.activeSessionId)?.message
+      ?? remoteMessages.value[chatSession.activeSessionId] ?? emptyMessage,
+    set: (message: StreamingAssistantMessage) => { remoteMessages.value[chatSession.activeSessionId] = message },
+  })
+
+  function updateActiveTurns(turns: ChatOrchestratorRuntimeState['activeTurns']) {
+    activeTurns.value = turns
+  }
 
   function beginStream(id: string) {
     streamingMessage.value = { role: 'assistant', content: '', slices: [], tool_results: [], createdAt: Date.now(), id }
@@ -45,13 +57,11 @@ export const useChatStreamStore = defineStore('chat-stream', () => {
 
   return {
     streamingMessage,
+    activeTurns,
+    updateActiveTurns,
     beginStream,
     appendStreamLiteral,
     finalizeStream,
     resetStream,
   }
-}, {
-  synced: {
-    state: true,
-  },
 })
