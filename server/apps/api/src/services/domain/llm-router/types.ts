@@ -117,6 +117,8 @@ export type ModelKind = 'llm' | 'tts'
  * chosen upstream.
  */
 export interface LlmRouteRequest {
+  /** Hosted billing validates every eligible route before any network call; standalone router users may omit this policy. */
+  authorizeDispatch?: (route: { gateway: string, model: string }) => void
   attempts?: AttemptObserver
   /** Wire protocol. @default 'chat-completions' */
   protocol?: GenerationProtocol
