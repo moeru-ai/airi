@@ -12,7 +12,9 @@ import { onScopeDispose, shallowRef, watch } from 'vue'
 import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
+import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
+import { createVoiceRephrasePlugin } from '../libs/voice/voice-rephrase-plugin'
 import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInterrupt, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
 import { SileroVad } from '../workers/vad/silero-vad'
 import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
@@ -22,6 +24,9 @@ import { useChatSessionStore } from './chat/session-store'
 import { useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceMessagesStore } from './voice-messages'
+
+/** The longest time a chat model rewrite can delay a voice submission. */
+const VOICE_REPHRASE_TIMEOUT_MS = 10_000
 
 /** Application wiring owns presentation and durable chat adapters. The controller owns voice lifecycles. */
 export const useVoiceStore = defineStore('voice', () => {
@@ -62,6 +67,11 @@ export const useVoiceStore = defineStore('voice', () => {
     },
     onError: event => report(event.error),
   })
+  const { rephrase } = useVoiceRephrase()
+  controller.use(
+    createVoiceRephrasePlugin({ enabled: () => hearing.rephraseEnabled, rephrase, timeoutMs: VOICE_REPHRASE_TIMEOUT_MS }),
+    { grants: ['transcript-patch'], onError: event => report(event.error) },
+  )
 
   function report(cause: unknown) {
     error.value = errorMessageFrom(cause) ?? 'Voice operation failed'
@@ -89,6 +99,7 @@ export const useVoiceStore = defineStore('voice', () => {
             sessionId: presentedInput.attempt.sessionId,
             phase: presentedInput.attempt.state.phase,
             text: transcript.value?.transcript.text ?? '',
+            segments: (transcript.value?.transcript.segments ?? []).map(segment => ({ id: segment.id, text: segment.text, final: segment.final })),
           } }
         : {}),
     }

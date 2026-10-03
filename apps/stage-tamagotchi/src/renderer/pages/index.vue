@@ -19,6 +19,7 @@ import {
 } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
@@ -356,6 +357,7 @@ useModelSettingsRuntimeOwner({
 })
 
 const voice = useVoiceStore()
+const hearing = useHearingStore()
 const openInlay = useElectronEventaInvoke(electronOpenInlay)
 const { enabled } = storeToRefs(useSettingsAudioDevice())
 watch(enabled, (value) => {
@@ -372,6 +374,14 @@ watch(
   () => voice.drafts.map(draft => `${draft.id}:${draft.rawText}`).join('\0'),
   (speechDrafts) => {
     if (speechDrafts)
+      void openInlay()
+  },
+)
+// The inlay shows live transcription for speech that becomes a draft. Auto-send skips the draft.
+watch(
+  () => !hearing.autoSendEnabled && voice.state?.phase === 'capturing' && !!voice.transcript?.transcript.text.trim(),
+  (speaking) => {
+    if (speaking)
       void openInlay()
   },
 )

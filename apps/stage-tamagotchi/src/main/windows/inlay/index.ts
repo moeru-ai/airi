@@ -25,6 +25,8 @@ export function setupInlayWindowReusable(params: {
     const window = new BrowserWindow({
       ...transparentWindowConfig(),
       ...spotlightLikeWindowConfig(),
+      // transparentWindowConfig removes the shadow. The inlay is a native vibrancy panel, so it keeps the system shadow.
+      hasShadow: true,
       title: 'Inlay',
       width: 450,
       height: INLAY_WINDOW_HEIGHT,
@@ -72,7 +74,6 @@ export function setupInlayWindowReusable(params: {
       ),
     })
 
-    window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 
     await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
