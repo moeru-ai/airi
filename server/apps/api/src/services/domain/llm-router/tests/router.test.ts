@@ -178,6 +178,7 @@ describe('createLlmRouterService', () => {
     expect(ctx.attemptId).toBe('second')
     expect(ctx.triedKeys).toBe(2)
     expect(JSON.stringify(attempts.start.mock.calls)).not.toContain('sk-')
+    expect(attempts.finish).toHaveBeenCalledWith('first', expect.objectContaining({ errorBody: { format: 'json', text: '{}', state: 'complete', omittedMedia: false } }))
   })
 
   it('does not dispatch or fall back after attempt persistence fails', async () => {

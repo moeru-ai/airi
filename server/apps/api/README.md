@@ -12,6 +12,23 @@ auth/OIDC routes.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
+## LLM request content
+
+Chat Completions and Responses retain diagnostic input, output, and error content
+in PostgreSQL. Migration `0027_llm_request_content.sql` adds nullable JSONB columns
+to request and attempt tracking. Apply it before deploying the Go Admin reader.
+
+Content keeps text, tool calls, and reasoning. Inline media is replaced with
+metadata; remote media is not fetched. Each payload is bounded to 8 MiB, with
+explicit partial and truncated states. SSE output stores received data events
+in order. It does not prove client delivery. Error-body capture stops after five
+seconds and retains partial content if the upstream stalls or disconnects.
+
+Use the authenticated Admin request detail to inspect content. List queries and
+owner-facing DTOs do not expose it. Historical requests are not backfilled.
+Content follows diagnostic retention; this feature adds no cleanup scheduler.
+It is not billing evidence. See the [content ADR](../../docs/ai/adr/2026-09-27-llm-request-content.md).
+
 ## Redis cache
 
 `src/libs/redis/cache.ts` provides stateless functions for string snapshots.

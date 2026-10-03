@@ -5,10 +5,12 @@ import type { GatewayCallback } from '../../gateway'
 import type { V1RouteDeps } from '../../types'
 
 import { useLogger } from '@guiiai/logg'
+import { errorMessageFrom } from '@moeru/std'
 import { EventSourceParserStream } from '@xsai/shared-stream'
 import { array, nullish, object, safeParse, string, unknown } from 'valibot'
 
 import { extractUsageFromBody } from '../../../../../services/domain/generation-usage'
+import { captureErrorResponse, captureRequestContent, captureResponseText, createResponseContentCapture } from '../../../../../services/domain/request-content'
 import { ApiError, createBadGatewayError } from '../../../../../utils/error'
 import { nanoid } from '../../../../../utils/id'
 import { buildSafeErrorResponseHeaders, buildSafeResponseHeaders } from '../../http/response'
@@ -67,7 +69,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
     const startedAt = Date.now()
-    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0, prompt: captureRequestContent(body) })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
 
     // Server-connection attrs come from the router (which knows the actual
@@ -116,7 +118,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
         sessionId: input.sessionId,
       }).fail('Router exhausted or unknown model')
       telemetry.recordMetrics({ model: requestModel, status, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs: Date.now() - startedAt, fluxConsumed: 0, errorBody: captureRequestContent({ message: errorMessageFrom(err) }) })
       throw err
     }
 
@@ -153,6 +155,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
     })
 
     if (!response.ok) {
+      observation.errorBody = await captureErrorResponse(response.clone())
       telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId, model: requestModel, fluxConsumed: 0 })
       telemetry.failSpan(span, `Gateway ${response.status}`)
       generationTrace.fail(`Gateway ${response.status}`)
@@ -232,6 +235,8 @@ function streamChatCompletion(input: {
   let receivedDone = false
   let invalidReceipt = false
   let firstChunkAt = Number.NaN
+  const content = createResponseContentCapture()
+  let streamError = false
   // Parse a bounded copy for accounting while forwarding the original bytes, including keep-alives.
   const parser = new EventSourceParserStream({
     onError: () => {
@@ -251,8 +256,14 @@ function streamChatCompletion(input: {
         receivedDone = true
         continue
       }
+      content.append(value.data)
       try {
         const body: unknown = JSON.parse(value.data)
+        const failure = safeParse(object({ error: unknown() }), body)
+        if (failure.success) {
+          streamError = true
+          input.observation.errorBody = captureRequestContent(body)
+        }
         const output = safeParse(outputChunkSchema, body)
         if (!Number.isFinite(firstChunkAt) && output.success && output.output.choices.some(({ delta }) => delta.content || delta.reasoning || delta.reasoning_content || delta.tool_calls?.length)) {
           firstChunkAt = Date.now()
@@ -268,6 +279,7 @@ function streamChatCompletion(input: {
       }
       catch (error) {
         invalidReceipt = true
+        input.observation.errorBody = captureResponseText(value.data)
         input.logger.withError(error).warn('Invalid chat usage frame')
       }
     }
@@ -305,6 +317,7 @@ function streamChatCompletion(input: {
     }
     catch (err) {
       streamInterrupted = true
+      input.observation.errorBody ??= captureRequestContent({ message: errorMessageFrom(err) })
       input.telemetry.recordStreamInterrupted({
         model: input.requestModel,
         span: input.span,
@@ -330,8 +343,14 @@ function streamChatCompletion(input: {
       }
       await parserWriter.close()
       await usageObservation
-      if (!streamInterrupted && (!receivedDone || invalidReceipt))
+      observation.completion = content.snapshot(receivedDone && !streamInterrupted && !invalidReceipt)
+      observation.errorBody = input.observation.errorBody
+      if (!streamInterrupted && (!receivedDone || invalidReceipt)) {
         observation.state = 'interrupted'
+        observation.errorBody ??= captureRequestContent({ message: receivedDone ? 'Chat stream contained invalid generation evidence' : 'Chat stream ended before [DONE]' })
+      }
+      if (streamError)
+        observation.state = 'failed'
       parserWriter.releaseLock()
       events.releaseLock()
       if (streamInterrupted) {
@@ -447,11 +466,15 @@ async function completeNonStreamingChat(input: {
   // Parse failure (malformed upstream JSON) must close both span and the
   // Langfuse generation before bubbling up — otherwise the trace leaks.
   // Mirrors the error-branch shape used above (router throw / !response.ok).
-  let responseBody
+  let responseBody: unknown
+  let responseText: string | undefined
   try {
-    responseBody = await input.response.json()
+    responseText = await input.response.text()
+    responseBody = JSON.parse(responseText)
+    input.observation.completion = captureRequestContent(responseBody)
   }
-  catch {
+  catch (error) {
+    input.observation.errorBody = responseText === undefined ? captureRequestContent({ message: errorMessageFrom(error) }) : captureResponseText(responseText)
     const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: 0 })
@@ -481,6 +504,7 @@ async function completeNonStreamingChat(input: {
   }
   catch (error) {
     const status = error instanceof ApiError ? error.statusCode : 500
+    observation.errorBody = captureRequestContent({ message: errorMessageFrom(error) })
     input.telemetry.recordRequestLog({ ...observation, ...usage, status, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: actualCharged })
     input.telemetry.failSpan(input.span, 'Chat settlement failed')
     input.generationTrace.fail('Chat settlement failed')
