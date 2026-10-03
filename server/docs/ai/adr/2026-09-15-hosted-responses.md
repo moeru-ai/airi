@@ -13,8 +13,9 @@ It rejects conversation references, file IDs, background execution, and hosted t
 After authentication, the Responses endpoint accepts a 40 MiB request body so one maximum-size inline file fits with its JSON envelope.
 Other API routes keep the 1 MiB default. Larger requests must use remote URLs or smaller payloads.
 The user confirmed native web search support for OpenAI upstreams.
-The server reuses `model-bank/openai` search capabilities for the effective upstream model.
-Only the canonical OpenAI endpoint advertises this provider capability.
+The server reuses `model-bank/openai` search capabilities for direct OpenAI upstreams.
+The canonical OpenRouter endpoint uses its Responses server tool and maps the provider-neutral tool name at the adapter boundary.
+Other compatible endpoints do not advertise this provider capability.
 Requests opt into search through `tools`; the gateway does not inject tools.
 Search calls and sources remain portable input Items. Unsupported search candidates are skipped.
 
@@ -39,6 +40,14 @@ JSON results settle after body validation and before the HTTP response returns.
 Cancellation before that point wins. A duplicate terminal event cannot charge again.
 The gateway stops reading after the terminal event and releases upstream resources.
 Metrics, request logs, and generation traces record terminal failures as well as successful requests.
+
+OpenRouter may label Responses SSE frames with a generic or mismatched `event` name.
+For this provider only, the gateway validates the JSON payload and forwards the payload `type` as the event name.
+Payload types containing carriage returns or line feeds are invalid and cannot become SSE fields.
+Other providers retain strict event-name matching.
+OpenRouter may also omit the terminal event after every declared output item completes in order.
+The gateway then synthesizes `response.completed` from the validated response and completed items.
+Only the forwarded terminal result authorizes billing; malformed, incomplete, or ambiguous streams remain unbilled.
 
 No production configuration, deployment, database migration, or default client protocol change belongs to this PR.
 The official provider switch and live Flux acceptance remain release tasks under #2479.
@@ -131,6 +140,7 @@ sequenceDiagram
 Exercise the mounted route with authentication, malformed input, stateful references, search tools, rejected hosted tools, and insufficient Flux.
 Cover catalog model matching, compatible-proxy rejection, grouped fallback, portable search Items, citations, and unchanged tool choice.
 Cover JSON/SSE completion, usage, upstream errors, split UTF-8 frames, cancellation, duplicate terminal events, and stream EOF.
+Verify OpenRouter event-name normalization, line-break rejection, ordered EOF recovery, and settlement only after the normalized or synthesized terminal frame is delivered.
 Verify grouped and ungrouped routing, incompatible candidates, key failover, and preservation of terminal upstream errors.
 Run focused gateway, router, schema, and billing tests. CI checks the complete repository.
 

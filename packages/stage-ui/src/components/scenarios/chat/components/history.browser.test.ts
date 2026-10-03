@@ -167,6 +167,41 @@ describe('chat history', () => {
 
   // ROOT CAUSE:
   //
+  // ChatHistoryMessageFrame always applied opacity-0, then added opacity-100
+  // when IntersectionObserver reported visibility. UnoCSS kept both utilities
+  // on the same node. In Kirie CEF software OSR the opacity transition never
+  // flushed, so computed opacity stayed 0 and the conversation looked empty
+  // after a successful send.
+  //
+  // Visible messages now start opaque and never keep both opacity utilities.
+  it('paints on-screen desktop messages without an opacity-0 class', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'Hello from the chat window' }],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-message-item')).not.toBeNull()
+    })
+
+    const item = screen.container.querySelector<HTMLElement>('.chat-message-item')
+    expect(item).not.toBeNull()
+    if (!item)
+      throw new Error('Expected a rendered chat message.')
+
+    expect(item.classList.contains('opacity-0')).toBe(false)
+    expect(item.classList.contains('opacity-100')).toBe(true)
+    expect(getComputedStyle(item).opacity).toBe('1')
+    expect(item.textContent).toContain('Hello from the chat window')
+  })
+
+  // ROOT CAUSE:
+  //
   // The desktop chat needs the styled Reka viewport, but forcing its track to
   // stay mounted leaves an inert scrollbar visible when short content cannot scroll.
   // Reka's automatic visibility must own the track without changing the viewport.
@@ -324,7 +359,9 @@ describe('chat history', () => {
       expect(visibleMessages.length).toBeGreaterThan(0)
       expect(hiddenMessages.length).toBeGreaterThan(0)
       expect(visibleMessages[0].classList.contains('opacity-100')).toBe(true)
+      expect(visibleMessages[0].classList.contains('opacity-0')).toBe(false)
       expect(visibleMessages[0].classList.contains('transition-opacity')).toBe(true)
+      expect(getComputedStyle(visibleMessages[0]).opacity).toBe('1')
       expect(hiddenMessages[0].classList.contains('opacity-0')).toBe(true)
     })
 
@@ -429,6 +466,99 @@ describe('chat history', () => {
         key: getChatHistoryItemKey(messages[1], 1),
       },
     ]])
+  })
+
+  it('keeps short error formatting', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'error', content: '**Retry this request**' }],
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.querySelector('strong')?.textContent).toBe('Retry this request'))
+    expect(screen.container.querySelector('button[aria-expanded]')).toBeNull()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A provider can place a full response body inside one chat error message.
+  // The error item rendered that body immediately and filled the mobile Stage.
+  // Keep a short summary visible and reveal the complete message on request.
+  it('keeps a long provider error compact until the user opens its details', async () => {
+    const responseBody = JSON.stringify({ error: { message: 'Invalid schema for configure_wake_words', metadata: 'x'.repeat(1200) } })
+    const content = `Remote sent 400 response: ${responseBody}`
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'user', content: 'Set a wake word' }, { role: 'error', content }],
+        variant: 'mobile',
+        style: 'height: 480px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.textContent).toContain('Remote sent 400 response'))
+    expect(screen.container.textContent).toContain('Remote sent 400 response')
+    expect(screen.container.textContent).not.toContain('Invalid schema for configure_wake_words')
+
+    const disclosure = screen.getByRole('button', { name: 'Show details' })
+    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false')
+    await disclosure.click()
+    await expect.element(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true')
+
+    expect(screen.container.textContent).toContain('Invalid schema for configure_wake_words')
+    expect(screen.container.querySelector('pre')?.textContent).toBe(content)
+  })
+
+  it('emits retry-message for an error after partial assistant output', async () => {
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', interrupted: true, content: 'partial reply', slices: [{ type: 'text', text: 'partial reply' }], tool_results: [] },
+      { role: 'error', content: 'Stream interrupted' },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await screen.getByRole('button', { name: 'Retry' }).click()
+
+    expect(screen.emitted('retryMessage')).toEqual([[
+      {
+        message: messages[2],
+        index: 2,
+        key: getChatHistoryItemKey(messages[2], 2),
+      },
+    ]])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Searching backward from every error crossed a completed assistant turn.
+  // A provider setup error could therefore offer Retry for an older prompt and
+  // delete its valid response. Only an adjacent interrupted turn is retriable.
+  it('does not retry an error across a completed assistant response', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          { role: 'user', content: 'hello' },
+          { role: 'assistant', content: 'complete reply', slices: [{ type: 'text', text: 'complete reply' }], tool_results: [] },
+          { role: 'error', content: 'Provider configuration failed' },
+        ],
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    expect(screen.container.textContent).not.toContain('Retry')
   })
 
   it('does not render the retry button when the error is not preceded by a user message', async () => {
@@ -692,6 +822,7 @@ describe('chat history', () => {
   //
   // The resistance curve maps each raw position. Reverse input moves the message
   // immediately, and the release position still decides commit.
+  // https://github.com/moeru-ai/airi/pull/2617
   it('lets a desktop pan move back before release', async () => {
     const message: ChatHistoryItem = {
       id: 'desktop-momentum-return-target',
@@ -716,26 +847,49 @@ describe('chat history', () => {
     if (!swipeRoot || !swipeSurface)
       throw new Error('Expected a desktop message swipe surface.')
 
-    dispatchHorizontalPan(swipeRoot, 100)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
+    // ROOT CAUSE:
+    // A real frame plus an 80 ms wait can exceed the recognizer's 100 ms idle
+    // deadline on CI. Control the idle clock while browser frames remain real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      dispatchHorizontalPan(swipeRoot, 100)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 80))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
-    expect(screen.emitted('replyMessage')).toBeUndefined()
+      vi.advanceTimersByTime(80)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 120))
-    expect(getTranslateX(swipeSurface)).not.toBeCloseTo(releaseOffset, 3)
+      // The last reverse event resets the idle deadline and cancels the reply.
+      vi.advanceTimersByTime(99)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('true')
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+
+      vi.advanceTimersByTime(1)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('false')
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+    }
+    finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+
+    await vi.waitFor(() => {
+      expect(getTranslateX(swipeSurface)).toBe(0)
+    })
     expect(screen.emitted('replyMessage')).toBeUndefined()
   })
 

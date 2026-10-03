@@ -242,7 +242,7 @@ function handleIframeRequestResult(result: WidgetsIframeRequestResultPayload) {
       <button
         v-if="widget"
         :class="[
-          'size-7 flex items-center justify-center rounded-full text-white transition',
+          'size-8 flex items-center justify-center rounded-full text-white transition',
           widget.alwaysOnTop ? 'bg-primary-500/70 hover:bg-primary-500/85' : 'bg-black/40 hover:bg-black/60',
           pinUpdating ? 'cursor-wait opacity-70' : '',
         ]"
@@ -253,21 +253,21 @@ function handleIframeRequestResult(result: WidgetsIframeRequestResultPayload) {
       >
         <div
           :class="[
-            'size-3',
+            'size-4',
             widget.alwaysOnTop ? 'i-solar:pin-bold' : 'i-solar:pin-linear opacity-80',
           ]"
         />
       </button>
       <button
         :class="[
-          'size-7 rounded-full text-xs text-white transition',
+          'size-8 flex items-center justify-center rounded-full text-white transition',
           'bg-black/40 hover:bg-black/60',
         ]"
         :title="t('tamagotchi.stage.widgets.close')"
         :aria-label="t('tamagotchi.stage.widgets.close')"
         @click="handleClose"
       >
-        <span class="size-6">×</span>
+        <span aria-hidden="true" :class="['text-2xl leading-none']">×</span>
       </button>
     </div>
     <div v-if="!widgetId" :class="['h-full flex items-center justify-center p-6']">

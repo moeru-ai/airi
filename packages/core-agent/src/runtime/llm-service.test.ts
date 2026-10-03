@@ -28,6 +28,152 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
+it('reads edited model, prompt, provider and tools before a tool continuation request', async () => {
+  const live = { model: 'model-a', prompt: 'First prompt', baseURL: 'https://first.example/', toolName: 'first_tool', temperature: 0.2 }
+  const liveProvider: GenerationProvider = {
+    generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: live.baseURL } }),
+  }
+  const snapshots: Array<{ model: string, prompt: string, baseURL: string, toolName?: string, temperature?: number }> = []
+  const initialMessages: Message[] = [
+    { role: 'system', content: 'First prompt' },
+    { role: 'user', content: 'Use a tool' },
+  ]
+  const toolCall: Message = {
+    role: 'assistant',
+    content: '',
+    tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'first_tool', arguments: '{}' } }],
+  }
+  const toolResult: Message = { role: 'tool', tool_call_id: 'call-1', content: 'done' }
+  const finalMessages: Message[] = [...initialMessages, toolCall, toolResult, { role: 'assistant', content: 'Finished' }]
+  const steps: CompletionStep[] = [
+    { finishReason: 'tool-calls', toolCalls: [], toolResults: [] },
+    { finishReason: 'stop', toolCalls: [], toolResults: [] },
+  ]
+
+  streamTextMock.mockImplementation((options: {
+    model: string
+    baseURL: string
+    messages: Message[]
+    temperature?: number
+    tools?: Tool[]
+    prepareStep: (step: { input: Message[], model: string, stepNumber: number, steps: CompletionStep[] }) => Promise<{ input?: Message[], model?: string }>
+  }) => {
+    const firstRequest = snapshots.length === 0
+    const completion = (async () => {
+      const first = await options.prepareStep({ input: structuredClone(options.messages), model: options.model, stepNumber: 0, steps: [] })
+      snapshots.push({
+        model: first.model ?? options.model,
+        prompt: String(first.input?.find(message => message.role === 'system')?.content),
+        baseURL: options.baseURL,
+        toolName: options.tools?.[0]?.function.name,
+        temperature: options.temperature,
+      })
+
+      if (!firstRequest)
+        return [steps[1]]
+
+      live.model = 'model-b'
+      live.prompt = 'Edited prompt'
+      live.baseURL = 'https://second.example/'
+      live.toolName = 'second_tool'
+      live.temperature = 0.7
+
+      await options.prepareStep({ input: finalMessages.slice(0, -1), model: options.model, stepNumber: 1, steps: steps.slice(0, 1) })
+      return [steps[0]]
+    })()
+    return {
+      steps: completion,
+      messages: completion.then(() => firstRequest ? finalMessages : [...options.messages, { role: 'assistant' as const, content: 'Finished' }]),
+      usage: Promise.resolve(undefined),
+      totalUsage: Promise.resolve(undefined),
+    }
+  })
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation: { turns: chatMessagesToTurns(initialMessages) },
+    options: {
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: live.prompt,
+        temperature: live.temperature,
+        tools: [{
+          type: 'function',
+          function: { name: live.toolName, description: 'Current tool', parameters: { type: 'object', properties: {} } },
+          execute: async () => 'done',
+        }],
+      }),
+    },
+  })
+
+  expect(snapshots).toEqual([
+    { model: 'model-a', prompt: 'First prompt', baseURL: 'https://first.example/', toolName: 'first_tool', temperature: 0.2 },
+    { model: 'model-b', prompt: 'Edited prompt', baseURL: 'https://second.example/', toolName: 'second_tool', temperature: 0.7 },
+  ])
+})
+
+// https://github.com/moeru-ai/airi/pull/2708
+// ROOT CAUSE:
+// The tool loop kept fields that the next provider omitted.
+// Clear provider-owned fields before xsAI sends the next request.
+it('clears provider credentials and request transport after a tool switches provider (PR #2708)', async () => {
+  let useFirstProvider = true
+  const firstFetch = vi.fn<typeof globalThis.fetch>()
+  const chatProvider: GenerationProvider = {
+    generation: model => ({
+      protocol: 'chat-completions',
+      config: useFirstProvider
+        ? { model, baseURL: 'https://first.example/v1/', apiKey: 'first-secret', fetch: firstFetch }
+        : { model, baseURL: 'https://second.example/v1/' },
+    }),
+  }
+  const requests: Array<{ apiKey?: string, fetch?: typeof globalThis.fetch, headers?: HeadersInit }> = []
+  streamTextMock.mockImplementation((options: {
+    apiKey?: string
+    fetch?: typeof globalThis.fetch
+    headers?: HeadersInit
+    prepareStep: (step: { input: Message[], steps: CompletionStep[] }) => Promise<unknown>
+  }) => {
+    const firstRequest = requests.length === 0
+    const steps = (async () => {
+      await options.prepareStep({ input: [{ role: 'user', content: 'test' }], steps: [] })
+      requests.push({ apiKey: options.apiKey, fetch: options.fetch, headers: options.headers })
+      if (firstRequest) {
+        useFirstProvider = false
+        await options.prepareStep({ input: [{ role: 'user', content: 'test' }], steps: [] })
+      }
+      return []
+    })()
+    return {
+      steps,
+      messages: steps.then(() => [{ role: 'user' as const, content: 'test' }]),
+      usage: Promise.resolve(undefined),
+      totalUsage: Promise.resolve(undefined),
+    }
+  })
+
+  await streamFrom({
+    model: 'test',
+    chatProvider,
+    conversation: { turns: [{ type: 'user', id: 'user', content: [{ type: 'text', text: 'test' }] }] },
+    options: { resolveStep: async () => ({
+      model: 'test',
+      chatProvider,
+      providerId: 'test',
+      systemPrompt: '',
+      headers: useFirstProvider ? { 'x-private-session': 'first-only' } : undefined,
+    }) },
+  })
+
+  expect(requests).toEqual([
+    { apiKey: 'first-secret', fetch: firstFetch, headers: { 'x-private-session': 'first-only' } },
+    { apiKey: undefined, fetch: undefined, headers: {} },
+  ])
+})
+
 function createMockStreamResult(
   steps: Promise<unknown[]> = Promise.resolve([]),
   totalUsage: Promise<{ inputTokens: number, outputTokens: number, totalTokens: number } | undefined> = Promise.resolve(undefined),

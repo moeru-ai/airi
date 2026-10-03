@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { buildApp } from './app'
 
-function createTestDeps() {
+function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
   const redisSubscriber = {
     on: vi.fn(),
     subscribe: vi.fn(async () => 1),
@@ -21,6 +21,7 @@ function createTestDeps() {
     fluxService: {} as never,
     fluxTransactionService: {} as never,
     paymentService: {} as never,
+    appleIapVerifier: null,
     stripe: null,
     billingService: {} as never,
     ttsMeter: {} as never,
@@ -35,6 +36,7 @@ function createTestDeps() {
     env: {
       API_SERVER_URL: 'https://api.airi.build',
       AUTH_SERVER_URL: 'https://api.airi.build',
+      WEB_APP_URL: webAppUrl,
       TEST_AUTH_TOKEN: 'test-token',
       TEST_AUTH_USER_ID: 'user-1',
       TEST_AUTH_USER_EMAIL: 'test@example.com',
@@ -77,6 +79,52 @@ describe('business API app', () => {
 
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ service: 'airi-api' })
+  })
+
+  it.each(['GET', 'HEAD'])('redirects email verification root landings to the product with %s', async (method) => {
+    const { app } = await buildApp(createTestDeps('https://stage.example.test/'))
+    const response = await app.request('/?callbackURL=https://example.com', {
+      method,
+      headers: { Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+    })
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('https://stage.example.test/')
+    expect(response.headers.get('vary')).toBe('Accept')
+  })
+
+  it('uses the configured product URL in JSON root and not-found hints', async () => {
+    const { app } = await buildApp(createTestDeps('https://stage.example.test/'))
+    const root = await app.request('/')
+    const missing = await app.request('/missing')
+
+    expect(await root.json()).toMatchObject({
+      ui: 'https://stage.example.test/',
+      docs: 'https://stage.example.test/docs',
+    })
+    expect(await missing.json()).toMatchObject({ ui: 'https://stage.example.test/' })
+  })
+
+  it.each(['application/json', 'text/html;q=0, application/json', 'application/json;profile="text/html"'])('keeps JSON clients at the API root with Accept %s', async (accept) => {
+    const { app } = await buildApp(createTestDeps())
+    const response = await app.request('/', { headers: { Accept: accept } })
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('location')).toBeNull()
+    expect(await response.json()).toMatchObject({ service: 'airi-api' })
+  })
+
+  it('does not redirect browser requests outside the root GET route', async () => {
+    const { app } = await buildApp(createTestDeps())
+    const headers = { Accept: 'text/html' }
+    const unknown = await app.request('/not-an-api', { headers })
+    const post = await app.request('/', { method: 'POST', headers })
+    const live = await app.request('/livez', { headers })
+
+    expect(unknown.status).toBe(404)
+    expect(post.status).toBe(404)
+    expect(live.status).toBe(200)
+    expect(live.headers.get('location')).toBeNull()
   })
 
   // ROOT CAUSE:
