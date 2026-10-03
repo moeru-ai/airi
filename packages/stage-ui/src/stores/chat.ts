@@ -41,6 +41,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useStickersStore } from './modules/stickers'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
@@ -195,6 +196,7 @@ export const useChatStore = defineStore('chat', () => {
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
+  const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
@@ -459,6 +461,7 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getStickers: () => stickersStore.catalog,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,

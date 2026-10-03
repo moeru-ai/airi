@@ -259,6 +259,8 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
+  /** Host-owned catalog available for this turn. An empty catalog disables stickers. */
+  getStickers?: () => readonly { id: string, description: string }[] | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -683,6 +685,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const categorizer = createStreamingCategorizer(deps.getActiveProvider())
       let streamPosition = 0
+      const stickers = deps.getStickers?.()
+      let stickerEmitted = false
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
@@ -716,13 +720,29 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (shouldAbort())
             return
 
+          if (/^<\|STICKER\b/.test(special)) {
+            // Text-based reasoning can contain markers too. Only visible speech can select an image.
+            if (!categorizer.filterToSpeech(special, streamPosition))
+              return
+            const id = /^<\|STICKER ([a-z0-9-]+)\|>$/.exec(special)?.[1]
+            if (!stickerEmitted && id && stickers?.some(sticker => sticker.id === id)) {
+              buildingMessage.slices.push({ type: 'sticker', stickerId: id })
+              stickerEmitted = true
+              updateStream(sessionId, buildingMessage)
+            }
+            // Sticker markers are UI data, including invalid IDs. Speech and plugins must not execute them.
+            return
+          }
+
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
         onEnd: async (fullText) => {
           if (isStaleGeneration())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          // Strip only sticker markers, including the escaped form accepted by the parser.
+          const speechText = fullText.replace(/<(?:\||\{'\|'\})STICKER\b[\s\S]*?(?:(?:\||\{'\|'\})>|$)/g, '')
+          const finalCategorization = categorizeResponse(speechText, deps.getActiveProvider())
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -756,7 +776,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const context = buildContext(sessionMessagesForSend)
-      const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
+      const stickerPrompt = stickers?.length
+        ? [
+            'You can send one optional sticker per reply with a marker from this catalog.',
+            'Use stickers when the user requests one or when a lighthearted response fits. Avoid them in serious conversations.',
+            'Keep your text complete. Never invent sticker IDs or image URLs.',
+            ...stickers.map(sticker => `<|STICKER ${sticker.id}|>: ${sticker.description}`),
+          ].join('\n')
+        : ''
+      const systemPromptSupplement = [deps.getSystemPromptSupplement?.()?.trim(), stickerPrompt].filter(Boolean).join('\n\n')
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
         if (systemMessage?.type === 'system')

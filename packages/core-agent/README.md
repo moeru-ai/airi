@@ -64,3 +64,15 @@ Files have exactly one source. SDK output and restored continuation enter throug
 The public stream event union has no `any` branch. Protocol adapters translate SDK events into this contract.
 The scheduler commits a generated turn only after transport, local tools, and event consumers complete.
 Source links remain separate from speech text and survive local history persistence.
+
+## Chat stickers
+
+A host can supply `getStickers` to `createChatOrchestratorRuntime`. Each entry has an `id` and a model-facing `description`.
+The runtime snapshots the catalog for each send and adds its marker instructions to the system prompt.
+An absent or empty catalog disables sticker output and adds no prompt instructions.
+
+The existing marker parser accepts `<|STICKER id|>` across stream chunks.
+The runtime stores at most one known ID as a `ChatSlicesSticker` per reply.
+Unknown IDs are ignored. Sticker markers never reach literal speech or special-token hooks.
+Other special markers retain their existing behavior. A reply can contain text, a sticker, or both.
+The host renderer resolves the ID to local artwork. The core has no image assets, URLs, storage, or model dependencies.

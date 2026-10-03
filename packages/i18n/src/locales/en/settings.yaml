@@ -911,6 +911,19 @@ pages:
       access-token-secret-description: Your X / Twitter access token secret
       access-token-secret-placeholder: Enter your X / Twitter access token secret
       configured: X / Twitter is properly configured!
+    stickers:
+      title: Stickers
+      description: Add optional image reactions to chat replies
+      enable: Enable stickers
+      enable-description: Let the character choose one bundled sticker per reply when it fits the conversation.
+      local-only: Images stay on this device. Cloud chat sync currently transfers text only.
+      catalog: Available stickers
+      unavailable: Sticker unavailable
+      artwork:
+        cat-laugh: Laughing cat
+        cat-wow: Surprised cat
+        dog: Friendly dog
+        heart: Red heart
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
