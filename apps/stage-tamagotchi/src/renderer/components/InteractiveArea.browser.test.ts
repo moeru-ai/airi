@@ -26,6 +26,12 @@ import InteractiveArea from './InteractiveArea.vue'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
+const openSettings = vi.hoisted(() => vi.fn())
+
+vi.mock('@proj-airi/electron-vueuse', () => ({
+  useElectronEventaInvoke: () => openSettings,
+}))
+
 function createTestI18n() {
   return createI18n({
     legacy: false,
@@ -36,7 +42,7 @@ function createTestI18n() {
   })
 }
 
-async function renderArea(component: Component = InteractiveArea) {
+async function renderArea(component: Component = InteractiveArea, options: { providerConfigured?: boolean } = {}) {
   useL2dViewControl().viewControlsEnabled.value = false
   useThreeViewControl().viewControlsEnabled.value = false
   const sessionB: ChatSessionMeta = {
@@ -64,6 +70,10 @@ async function renderArea(component: Component = InteractiveArea) {
       },
     },
   }
+  // The consciousness store reads these keys when the area first uses it.
+  localStorage.setItem('settings/consciousness/active-provider', options.providerConfigured === false ? '' : 'openai')
+  localStorage.setItem('settings/consciousness/active-model', options.providerConfigured === false ? '' : 'gpt-test')
+  onTestFinished(() => localStorage.clear())
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/', component: { template: '<div />' } }],
@@ -529,6 +539,20 @@ describe('interactive area synchronized state', () => {
         replyToMessageId: 'reply-target',
       }))
     })
+  })
+
+  it('keeps the draft and offers provider settings when no chat provider is configured', async () => {
+    const { chat, screen } = await renderArea(InteractiveArea, { providerConfigured: false })
+    const send = vi.spyOn(chat, 'send')
+
+    const input = await submitDraft(screen, 'Hello')
+
+    await expect.element(screen.getByText('stage.chat.provider-configuration.action')).toBeVisible()
+    await expect.element(input).toHaveValue('Hello')
+    expect(send).not.toHaveBeenCalled()
+
+    await screen.getByText('stage.chat.provider-configuration.action').click()
+    expect(openSettings).toHaveBeenCalledWith({ route: '/settings/providers' })
   })
 
   // https://github.com/moeru-ai/airi/pull/2399
