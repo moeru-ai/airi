@@ -64,3 +64,85 @@ Files have exactly one source. SDK output and restored continuation enter throug
 The public stream event union has no `any` branch. Protocol adapters translate SDK events into this contract.
 The scheduler commits a generated turn only after transport, local tools, and event consumers complete.
 Source links remain separate from speech text and survive local history persistence.
+
+## VoiceController
+
+The implemented coordinator is `VoiceController`. It composes audio primitives with transcription, trusted plugins, submission, and named response interruption.
+Use it for conversation lifecycles. Use pipelines-audio directly for an independent recording attachment.
+Browser resources stay in audio adapters. Character selection and persistence stay in application adapters.
+
+```ts
+const voice = new VoiceController({
+  audio,
+  transcriber: sessionId => hearingFor(sessionId),
+  submit: (input, signal) => saveDraftOrSubmit(input, signal),
+  speech: turn => speechOutputFor(turn),
+  recordInterruption: event => agent.receiveInterruption(event),
+})
+
+const input = voice.beginInput({
+  sessionId,
+  interruptTurns: [currentTurn],
+  start: { kind: 'after-silence' },
+})
+
+// The release control calls end. Provider final output and selected plugin work can then finish.
+const result = await input.end()
+```
+
+- `SpeechInputAttempt` exists during playback fade and until the source delivers audio, which includes microphone permission.
+- `SpeechInput` exists after capture admission. It retains raw transcripts, corrected text, speaker evidence, and plugin context.
+- `end()` completes recording. `cancel(reason)` rejects later publication from the attempt.
+- `interrupt({ turns, cause })` targets named responses and reports silence separately from agent delivery.
+- The notification receiver deduplicates by event ID. Its acknowledgment means durable receipt, without another user message or response.
+- `audio` is a shared `AudioInput`. Attempts and plugins subscribe to it. The controller never closes it.
+- `replaceAudio(input)` cancels active attempts and moves plugin observations to the new input.
+- A transcriber receives continuous PCM. An adapter that needs a file or a MediaStream converts the PCM itself.
+
+### Trusted plugins
+
+```ts
+voice.use({
+  name: 'memory',
+  setup(plugin) {
+    plugin.onSpeechInput((input) => {
+      input.subscribe({ transcript: 'corrected', speakers: true, scheduling: 'latest' }, async (ctx) => {
+        const matches = await memory.search({
+          text: ctx.snapshot.transcript.text,
+          speakers: ctx.snapshot.speakers,
+          signal: ctx.signal,
+        })
+        ctx.context.set('matches', matches)
+      })
+    })
+  },
+})
+```
+
+The task context checks freshness at publication. A stale result cannot replace current context.
+`ordered` processes every accepted snapshot in order. `latest` cancels stale work and replaces pending snapshots.
+Lifecycle tasks can await `untilTranscriptionEnded()` or `untilDependenciesSettled()`.
+Timeouts and submission grace periods are caller options. The runtime imposes no resource quotas.
+
+VAD, PTT, wake words, speaker models, turn detection, memory search, and rewrite models remain external policy or adapters.
+Plugins receive source-tagged windows and scoped controls. They do not receive unrestricted controller access.
+Automatic patches use raw word or sentence coordinates and preserve raw history.
+
+### Output without voice input
+
+```ts
+const voice = new VoiceController({ speech: turn => speechOutputFor(turn) })
+const response = voice.openResponse({ sessionId, turnId })
+const acknowledgment = response.openSpeech({ purpose: 'acknowledgment' })
+const answer = response.openSpeech({ purpose: 'answer' })
+
+await acknowledgment.write('Let me check.')
+acknowledgment.end()
+await answer.write(answerText)
+answer.end()
+await response.finish()
+```
+
+Producers can synthesize concurrently. Playback follows their reservation order.
+Cancelling an acknowledgment releases its place without reporting a user interruption.
+Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.
