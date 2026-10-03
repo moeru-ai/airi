@@ -9,7 +9,7 @@ import { useChatInterruption } from './use-chat-interruption'
 const mocks = await vi.hoisted(async () => {
   const { shallowRef } = await import('vue')
   return {
-    activeSendSessionId: shallowRef<string | undefined>(undefined),
+    sendingSessionIds: shallowRef<string[]>([]),
     cancelPendingSends: vi.fn<() => Promise<void>>(),
     cancelRemoteStream: vi.fn<() => Promise<void>>(),
     interruptSpeakingFromChat: vi.fn(),
@@ -25,8 +25,8 @@ const mocks = await vi.hoisted(async () => {
 // keeps a dependency on the underlying refs.
 vi.mock('@proj-airi/stage-ui/stores/chat', () => ({
   useChatStore: () => ({
-    get activeSendSessionId() {
-      return mocks.activeSendSessionId.value
+    get sendingSessionIds() {
+      return mocks.sendingSessionIds.value
     },
     cancelPendingSends: mocks.cancelPendingSends,
   }),
@@ -54,7 +54,7 @@ vi.mock('./useStopSpeakingButton', () => ({
 
 describe('useChatInterruption', () => {
   beforeEach(() => {
-    mocks.activeSendSessionId.value = undefined
+    mocks.sendingSessionIds.value = []
     mocks.cancelPendingSends.mockReset().mockResolvedValue()
     mocks.cancelRemoteStream.mockReset().mockResolvedValue()
     mocks.interruptSpeakingFromChat.mockReset()
@@ -97,7 +97,7 @@ describe('useChatInterruption', () => {
   })
 
   it('stops the session that owns the response after the user switches chats', async () => {
-    mocks.activeSendSessionId.value = 'session-1'
+    mocks.sendingSessionIds.value = ['session-1']
     mocks.showStopSpeakingButton.value = true
     const controls = useChatInterruption({
       sessionId: ref('session-2'),
@@ -129,7 +129,7 @@ describe('useChatInterruption', () => {
   })
 
   it('keeps stop available between speech segments of another session', () => {
-    mocks.activeSendSessionId.value = 'session-1'
+    mocks.sendingSessionIds.value = ['session-1']
     const controls = useChatInterruption({
       sessionId: ref('session-2'),
       generating: ref(false),
@@ -144,7 +144,7 @@ describe('useChatInterruption', () => {
   })
 
   it('stops the other session during the gap between its speech segments', async () => {
-    mocks.activeSendSessionId.value = 'session-1'
+    mocks.sendingSessionIds.value = ['session-1']
     const controls = useChatInterruption({
       sessionId: ref('session-2'),
       generating: ref(false),
@@ -173,7 +173,7 @@ describe('useChatInterruption', () => {
   })
 
   it('hides stop once the response owner has settled', () => {
-    mocks.activeSendSessionId.value = 'session-1'
+    mocks.sendingSessionIds.value = ['session-1']
     const controls = useChatInterruption({
       sessionId: ref('session-2'),
       generating: ref(false),
@@ -183,8 +183,8 @@ describe('useChatInterruption', () => {
 
     expect(controls.showStopAction.value).toBe(true)
 
-    // The runtime clears `activeSendSessionId` when the send ends.
-    mocks.activeSendSessionId.value = undefined
+    // The runtime drops the session from `sendingSessionIds` when the send ends.
+    mocks.sendingSessionIds.value = []
 
     expect(controls.showStopAction.value).toBe(false)
   })
@@ -217,7 +217,7 @@ describe('useChatInterruption', () => {
   })
 
   it('hides stop when the visible session has a pending submission', () => {
-    mocks.activeSendSessionId.value = 'session-1'
+    mocks.sendingSessionIds.value = ['session-1']
     const controls = useChatInterruption({
       sessionId: ref('session-2'),
       generating: ref(false),
@@ -255,7 +255,7 @@ describe('useChatInterruption', () => {
   })
 
   it('interrupts the response owner before sending from another session', async () => {
-    mocks.activeSendSessionId.value = 'session-1'
+    mocks.sendingSessionIds.value = ['session-1']
     const submit = vi.fn(async (hooks?: { beforeSend: (sessionId: string) => Promise<void>, afterSendStarted: (sessionId: string) => void }) => {
       await hooks?.beforeSend('session-2')
       hooks?.afterSendStarted('session-2')

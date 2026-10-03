@@ -46,6 +46,7 @@ import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
 import { useChatStore } from '../../stores/chat'
+import { useChatSessionStore } from '../../stores/chat/session-store'
 import { useAiriCardStore } from '../../stores/modules'
 import { useSpeechStore } from '../../stores/modules/speech'
 import { useSettingsPresenceBubble } from '../../stores/presence-bubble'
@@ -250,15 +251,15 @@ function resetAssistantSpeechSurface(source: string) {
   }
 }
 
-const { sending: chatSending } = storeToRefs(useChatStore())
+const { sendingSessionIds } = storeToRefs(useChatStore())
+const { activeSessionId } = storeToRefs(useChatSessionStore())
 const { presenceOverride } = storeToRefs(useSettingsPresenceBubble())
 
-// `sending` is raised before the request leaves and cleared once the send
-// settles, which is the span the character has nothing to say yet.
-//
-// Unread stays at zero: nothing reports whether the chat window is showing, so
-// there is no read cursor to count against.
-const chatPresence = computed<PresenceBubbleState>(() => chatSending.value ? presenceBubbleThinking : presenceBubbleIdle)
+// The character looks busy only while the visible session owns a send.
+// A background session can keep generating without changing this pose.
+const chatPresence = computed<PresenceBubbleState>(() => (
+  sendingSessionIds.value.includes(activeSessionId.value) ? presenceBubbleThinking : presenceBubbleIdle
+))
 const presenceBubble = computed<PresenceBubbleState>(() => presenceOverride.value ?? chatPresence.value)
 const { activeCard } = storeToRefs(useAiriCardStore())
 const speechStore = useSpeechStore()

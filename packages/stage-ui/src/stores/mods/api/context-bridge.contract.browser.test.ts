@@ -159,8 +159,6 @@ function createContextUpdateEvent(overrides: Record<string, unknown> = {}) {
 }
 
 const chatOrchestratorMock = {
-  activeSendSessionId: undefined as string | undefined,
-  sending: false,
   send: vi.fn(),
   cancelPendingSends: vi.fn(),
 
@@ -288,9 +286,7 @@ describe('context bridge contract', () => {
     consciousness.activeProvider = ''
     consciousness.activeModel = ''
     activeSessionIdRef.value = 'session-1'
-    chatOrchestratorMock.activeSendSessionId = undefined
     currentGeneration = 7
-    chatOrchestratorMock.sending = false
 
     beforeComposeHooks.length = 0
     afterComposeHooks.length = 0
@@ -558,6 +554,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -566,7 +563,6 @@ describe('context bridge contract', () => {
     await vi.waitFor(() => {
       expect(beginStreamMock).toHaveBeenCalledWith('turn-1')
     })
-    expect(chatOrchestratorMock.sending).toBe(false)
     expect(store.isReceivingRemoteStream).toBe(true)
 
     streamSender.postMessage({ type: 'token-literal', literal: 'hello', sessionId: 'session-1', context })
@@ -582,7 +578,6 @@ describe('context bridge contract', () => {
     // The bridge should call resetStream on follower tabs, not finalizeStream,
     // to avoid corrupting history by persisting a duplicate assistant message.
     expect(finalizeStreamMock).not.toHaveBeenCalled()
-    expect(chatOrchestratorMock.sending).toBe(false)
     expect(store.isReceivingRemoteStream).toBe(false)
 
     await store.dispose()
@@ -596,6 +591,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -621,6 +617,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -647,6 +644,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -670,6 +668,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -697,6 +696,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -723,6 +723,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -747,11 +748,11 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-a',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
 
-    chatOrchestratorMock.activeSendSessionId = 'session-a'
     activeSessionIdRef.value = 'session-b'
     await chatOrchestratorMock.emitTokenLiteralHooks('session A token', context)
     await vi.waitFor(() => expect(outgoingStreamMessages).toHaveLength(1))
@@ -767,6 +768,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -791,6 +793,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -815,6 +818,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-2',
       message: { role: 'user', content: 'background ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -843,6 +847,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-3',
       message: { role: 'user', content: 'background ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -877,6 +882,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-4',
       message: { role: 'user', content: 'background ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -941,6 +947,7 @@ describe('context bridge contract', () => {
     const context = {
       turnId: 'turn-1',
       message: { role: 'user', content: 'ping' },
+      sessionId: 'session-1',
       contexts: {},
       composedMessage: [],
     } satisfies ChatStreamEventContext
@@ -959,7 +966,6 @@ describe('context bridge contract', () => {
 
     expect(appendStreamLiteralMock).not.toHaveBeenCalledWith('stale-literal')
     expect(finalizeStreamMock).not.toHaveBeenCalled()
-    expect(chatOrchestratorMock.sending).toBe(false)
     expect(store.isReceivingRemoteStream).toBe(false)
 
     await store.dispose()

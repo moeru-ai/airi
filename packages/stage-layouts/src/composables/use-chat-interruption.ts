@@ -46,17 +46,28 @@ export function useChatInterruption(options: ChatInterruptionOptions) {
   const replacementSessionId = ref<string>()
   const replacementSendStarted = ref(false)
 
-  const responseSessionId = computed(() => (replacementSendStarted.value ? replacementSessionId.value : undefined)
-    ?? contextBridgeStore.remoteStreamSessionId
-    ?? chatStore.activeSendSessionId
-    ?? options.sessionId.value)
+  const responseSessionId = computed(() => {
+    if (replacementSendStarted.value && replacementSessionId.value)
+      return replacementSessionId.value
+    if (contextBridgeStore.remoteStreamSessionId)
+      return contextBridgeStore.remoteStreamSessionId
+    if (chatStore.sendingSessionIds.includes(options.sessionId.value))
+      return options.sessionId.value
+    const [onlySendingSessionId] = chatStore.sendingSessionIds
+    if (chatStore.sendingSessionIds.length === 1 && onlySendingSessionId)
+      return onlySendingSessionId
+    return options.sessionId.value
+  })
   // A response owned by another session stays cancellable from this composer.
   // `generating` covers only the visible session, and `nowSpeaking` drops to false
   // between two speech segments. Both read false while the owner still runs,
   // which hid the stop action.
   const responseOwnedByAnotherSession = computed(() => {
-    const owner = contextBridgeStore.liveRemoteStreamSessionId ?? chatStore.activeSendSessionId
-    return !!owner && owner !== options.sessionId.value
+    const visibleSessionId = options.sessionId.value
+    const liveRemoteOwner = contextBridgeStore.liveRemoteStreamSessionId
+    if (liveRemoteOwner && liveRemoteOwner !== visibleSessionId)
+      return true
+    return chatStore.sendingSessionIds.some(sessionId => sessionId !== visibleSessionId)
   })
   const responseActive = computed(() => options.generating.value
     || showStopSpeakingButton.value
