@@ -158,3 +158,4 @@ __screenshots__
 packages/i18n/glossary/glossary.tbx
 
 /airi-docs/
+.worktrees/

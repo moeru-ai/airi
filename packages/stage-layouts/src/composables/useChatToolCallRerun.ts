@@ -1,22 +1,17 @@
-import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
+import type { ChatToolCallRerunEvent } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
 import { resolveLlmTools } from '@proj-airi/stage-ui/stores/ai/chat-llm/tool-resolver'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { executeToolCallRerun } from '@proj-airi/stage-ui/stores/tool-call-rerun'
 
-export interface ChatToolCallRerunEvent {
-  message: ChatHistoryItem
-  index: number
-  key: string | number
-  toolCallId: string
-  toolName: string
-  args: string
-}
-
 export function useChatToolCallRerun() {
   const chatSession = useChatSessionStore()
 
+  /**
+   * Triggering workflow: ChatHistory `toolCallRerun` -> rerunToolCall
+   * -> {@link executeToolCallRerun} -> chatSession.setSessionMessages.
+   */
   async function rerunToolCall(payload: ChatToolCallRerunEvent) {
     const sessionId = chatSession.activeSessionId
     const currentMessages = chatSession.getSessionMessages(sessionId)
@@ -29,6 +24,7 @@ export function useChatToolCallRerun() {
           messageId: payload.message.id,
           index: payload.index,
           toolCallId: payload.toolCallId,
+          invocationId: payload.invocationId,
           toolName: payload.toolName,
           args: payload.args,
         },

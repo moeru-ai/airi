@@ -27,7 +27,7 @@ const TRUSTED_ORIGIN_PATTERNS = [
   /^https:\/\/localhost(:\d+)?$/,
   /^https:\/\/127\.0\.0\.1(:\d+)?$/,
   // Cloudflare Workers subdomains
-  /^https:\/\/.*\.kwaa\.workers\.dev$/,
+  /^https:\/\/.*\.moeru-ai\.workers\.dev$/,
 ]
 
 /**

@@ -1,11 +1,18 @@
+import type { Live2DBreathControlState } from '../../stores/motion-control'
 import type { MotionManagerPluginContext, PixiLive2DInternalModel } from './motion-manager'
 
 import { describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import { neutralLive2DMotionControlPose } from '../../stores/motion-control'
+import { createLive2DMotionSpring } from './motion-control-spring'
 import {
+  disableLive2DSdkBreath,
   useMotionUpdatePluginAutoEyeBlink,
+  useMotionUpdatePluginBreathControl,
   useMotionUpdatePluginIdleDisable,
+  useMotionUpdatePluginLightSquint,
+  useMotionUpdatePluginManualControl,
 } from './motion-manager'
 
 vi.mock('./animation', () => ({
@@ -67,6 +74,62 @@ function createContext(overrides: Partial<MotionManagerPluginContext> = {}): Mot
 }
 
 describe('live2d motion manager plugins', () => {
+  it('keeps SDK breath from changing AIRI-owned idle parameters', () => {
+    const updateParameters = vi.fn()
+    const internalModel = {
+      breath: { updateParameters },
+    }
+
+    // ROOT CAUSE:
+    //
+    // CubismBreath added periodic head, body, and breath offsets after AIRI's
+    // final motion plugins. These late writes made a controlled pose wiggle.
+    //
+    // We fixed this by removing the SDK breath owner during model setup.
+    disableLive2DSdkBreath(internalModel)
+
+    // The SDK runs this optional breath pass after the motion manager.
+    internalModel.breath?.updateParameters()
+
+    expect(updateParameters).not.toHaveBeenCalled()
+  })
+
+  it('applies manual breath after motion and restores the configured value on release', () => {
+    const context = createContext({
+      modelParameters: ref({
+        breath: 0.2,
+        leftEyeOpen: 1,
+        rightEyeOpen: 1,
+      }),
+    })
+    const breathControl = ref<Live2DBreathControlState>({
+      active: true,
+      ownerId: 'motion-devtool',
+      startedAtMs: 1_000,
+      options: {
+        cycleSeconds: 4,
+        exhaleDwellSeconds: 0,
+        minimum: 0.1,
+        maximum: 0.7,
+        inhaleRatio: 0.25,
+      },
+    })
+    const plugin = useMotionUpdatePluginBreathControl(breathControl, () => 2_000)
+
+    plugin(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenLastCalledWith('ParamBreath', 0.7)
+
+    breathControl.value = {
+      ...breathControl.value,
+      active: false,
+      ownerId: null,
+    }
+    plugin(context)
+
+    expect(context.model.setParameterValueById).toHaveBeenLastCalledWith('ParamBreath', 0.2)
+  })
+
   /**
    * @example
    * expect(idleEyeFocus.update).toHaveBeenCalled()
@@ -136,6 +199,32 @@ describe('live2d motion manager plugins', () => {
     expect(context.handled).toBe(true)
   })
 
+  it('applies force blink after the SDK handles an idle-motion frame', () => {
+    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
+    const context = createContext({
+      live2dAutoBlinkEnabled: ref(true),
+      live2dForceAutoBlinkEnabled: ref(true),
+      timeDelta: 4,
+      handled: true,
+    })
+    const plugin = useMotionUpdatePluginAutoEyeBlink(ref(false))
+
+    // ROOT CAUSE:
+    //
+    // The SDK marks normal idle-motion frames as handled. The final blink
+    // plug-in returned on handled frames, so force mode never advanced.
+    //
+    // We fixed this by letting force mode run after an SDK-handled frame.
+    plugin(context)
+    context.timeDelta = 0.075
+    plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(0)
+    expect(context.model.getParameterValueById('ParamEyeROpen')).toBe(0)
+
+    randomSpy.mockRestore()
+  })
+
   /**
    * @example
    * expect(context.model.getParameterValueById('ParamEyeLOpen')).toBeLessThan(1)
@@ -178,5 +267,307 @@ describe('live2d motion manager plugins', () => {
     expect(context.model.getParameterValueById('ParamEyeROpen')).toBe(1)
 
     randomSpy.mockRestore()
+  })
+
+  it('springs eye, head, and body parameters toward the manual target', () => {
+    const context = createContext({ timeDelta: 1 / 60 })
+    const spring = createLive2DMotionSpring()
+
+    const plugin = useMotionUpdatePluginManualControl(ref({
+      active: true,
+      ownerId: 'motion-devtool',
+      pose: {
+        ...neutralLive2DMotionControlPose,
+        eyeX: 0.25,
+        eyeY: -0.5,
+        headX: 0.5,
+        headY: -0.25,
+        headZ: -0.75,
+        bodyX: -0.5,
+        bodyY: 0.75,
+        bodyZ: 1,
+        mouthForm: -0.25,
+      },
+      dynamics: { follow: 0.6, inertia: 0.35 },
+    }), spring)
+
+    plugin(context)
+
+    const firstAngleX = context.model.getParameterValueById('ParamAngleX')
+    expect(firstAngleX).toBeGreaterThan(0)
+    expect(firstAngleX).toBeLessThan(15)
+
+    for (let frame = 0; frame < 300; frame += 1)
+      plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeBallX')).toBeCloseTo(0.25)
+    expect(context.model.getParameterValueById('ParamEyeBallY')).toBeCloseTo(-0.5)
+    expect(context.model.getParameterValueById('ParamAngleX')).toBeCloseTo(15)
+    expect(context.model.getParameterValueById('ParamAngleY')).toBeCloseTo(-7.5)
+    expect(context.model.getParameterValueById('ParamAngleZ')).toBeCloseTo(-22.5)
+    expect(context.model.getParameterValueById('ParamBodyAngleX')).toBeCloseTo(-5)
+    expect(context.model.getParameterValueById('ParamBodyAngleY')).toBeCloseTo(7.5)
+    expect(context.model.getParameterValueById('ParamBodyAngleZ')).toBeCloseTo(10)
+    expect(context.model.getParameterValueById('ParamMouthForm')).toBeCloseTo(-0.25)
+  })
+
+  it('leaves motion parameters unchanged after manual control is released', () => {
+    const context = createContext()
+
+    useMotionUpdatePluginManualControl(ref({
+      active: false,
+      ownerId: null,
+      pose: neutralLive2DMotionControlPose,
+      dynamics: { follow: 0.6, inertia: 0.35 },
+    }), createLive2DMotionSpring())(context)
+
+    expect(context.model.setParameterValueById).not.toHaveBeenCalled()
+  })
+})
+
+describe('light squint plugin', () => {
+  const frameSeconds = 1 / 120
+
+  /** Runs the plugin over `seconds` of frames and returns the final eye value. */
+  function run(plugin: ReturnType<typeof useMotionUpdatePluginLightSquint>, seconds: number, context = createContext({ timeDelta: frameSeconds })) {
+    for (let frame = 0; frame < Math.round(seconds / frameSeconds); frame += 1)
+      plugin(context)
+    return context.model.getParameterValueById('ParamEyeLOpen') as number
+  }
+
+  it('leaves the eyes open while the screen level holds still', () => {
+    // ROOT CAUSE:
+    //
+    // A squint driven by the screen level would hold the eyes narrowed for as
+    // long as a bright application is in front, which is the ordinary desktop.
+    // The signal is the gap between a fast and a slow follower, so a steady
+    // level keeps the eyes open.
+    const plugin = useMotionUpdatePluginLightSquint(() => 0.95, () => 1)
+
+    expect(run(plugin, 20)).toBe(1)
+  })
+
+  it('narrows the eyes when the screen brightens and reopens them after', () => {
+    let exposure = 0.15
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 0.5)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 0.85
+    const duringChange = run(plugin, 0.6, context)
+    expect(duringChange).toBeLessThan(0.85)
+
+    const afterAdapting = run(plugin, 6, context)
+    expect(afterAdapting).toBe(1)
+  })
+
+  it('opens back on its own schedule instead of trailing the light measurement', () => {
+    // ROOT CAUSE:
+    //
+    // The squint was read off the follower gap, which decays exponentially,
+    // so the eyes sat a few percent short of open for ten seconds. The gap
+    // now only proposes a depth while it opens; a steady release then reaches
+    // fully open at a definite time.
+    let exposure = 0
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 1
+
+    const atPeak = run(plugin, 0.4, context)
+    expect(atPeak).toBeLessThan(0.5)
+    // Still on the way back one second in, so the recovery is visible.
+    expect(run(plugin, 0.6, context)).toBeLessThan(1)
+    // And finished a few seconds in, with no tail left behind.
+    expect(run(plugin, 4, context)).toBe(1)
+  })
+
+  it('never narrows past the floor that keeps the blink plugin running', () => {
+    // The blink plugin skips a blink once both eyes sit at or below 0.15, so a
+    // squint that reached that far would stop the character blinking.
+    let exposure = 0
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 4)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 1
+
+    expect(run(plugin, 0.5, context)).toBeGreaterThanOrEqual(0.2)
+  })
+
+  it('leaves eyes that an expression already narrowed past the floor alone', () => {
+    // ROOT CAUSE:
+    //
+    // A floor on the multiplier let the value land under the blink threshold
+    // once an expression lowered the base, and a floor on the value would
+    // widen a deliberately narrowed eye. The floor is now the smaller of
+    // itself and the base, so it only narrows.
+    let exposure = 0
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 4)
+    const context = createContext({ timeDelta: frameSeconds })
+    context.model.setParameterValueById('ParamEyeLOpen', 0.08)
+    context.model.setParameterValueById('ParamEyeROpen', 0.08)
+
+    run(plugin, 1, context)
+    exposure = 1
+
+    expect(run(plugin, 0.5, context)).toBeCloseTo(0.08, 5)
+  })
+
+  it('does not compound its own output when no other plugin writes the eyes', () => {
+    // ROOT CAUSE:
+    //
+    // The plugin multiplies the value on the parameter. On a frame where
+    // nothing else wrote the eyes, that value is its own previous output, so
+    // the squint compounded and shut the eyes within a second. The plugin now
+    // resolves a value it wrote back to its base.
+    let exposure = 0
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 0.5)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 1
+    const atPeak = run(plugin, 0.5, context)
+    const oneSecondLater = run(plugin, 1, context)
+
+    expect(atPeak).toBeGreaterThan(0.4)
+    // Recovery raises the value. Compounding would instead drive it to the floor.
+    expect(oneSecondLater).toBeGreaterThan(atPeak)
+  })
+
+  it('ignores the light change that moving the window brings', () => {
+    // ROOT CAUSE:
+    //
+    // Dragging the window swaps the desktop behind it, so the character
+    // squinted at every move even though no light had changed. A change of
+    // placement now pins both followers to the level until the surroundings
+    // settle, so only light that changes under a still window counts.
+    let exposure = 0
+    let placement = '0,0,400,600'
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1, () => placement)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+
+    // A drag: the window moves while the desktop behind it turns bright.
+    for (let step = 0; step < 30; step += 1) {
+      placement = `${step * 8},0,400,600`
+      exposure = Math.min(1, step / 12)
+      run(plugin, 0.05, context)
+    }
+
+    expect(context.model.setParameterValueById).not.toHaveBeenCalled()
+  })
+
+  it('still reacts to light that changes while the window stands still', () => {
+    let exposure = 0
+    const placement = '0,0,400,600'
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1, () => placement)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 1
+
+    expect(run(plugin, 0.4, context)).toBeLessThan(0.5)
+  })
+
+  it('reacts less to a second brightening that follows a short dark spell', () => {
+    // ROOT CAUSE:
+    //
+    // Both followers moved at one speed, so a few seconds of dark reset the
+    // adaptation and the next brightening drew the full reflex. An eye adapts
+    // to bright in seconds and to dark over minutes. The adapted follower now
+    // falls far slower than it rises.
+    let exposure = 0.15
+    const placement = '0,0,400,600'
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1, () => placement)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    function brightenAndMeasure() {
+      exposure = 0.85
+      let narrowest = 1
+      for (let frame = 0; frame < Math.round(6 / frameSeconds); frame += 1) {
+        plugin(context)
+        narrowest = Math.min(narrowest, context.model.getParameterValueById('ParamEyeLOpen') as number)
+      }
+      return narrowest
+    }
+
+    run(plugin, 3, context)
+    const first = brightenAndMeasure()
+
+    exposure = 0.15
+    run(plugin, 2, context)
+    const second = brightenAndMeasure()
+
+    expect(first).toBeLessThan(0.4)
+    // The same change again, and the eyes hold much wider than the first time.
+    expect(second).toBeGreaterThan(first + 0.3)
+  })
+
+  it('recovers its full reaction after a long enough dark spell', () => {
+    let exposure = 0.15
+    const placement = '0,0,400,600'
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 1, () => placement)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    function brightenAndMeasure() {
+      exposure = 0.85
+      let narrowest = 1
+      for (let frame = 0; frame < Math.round(6 / frameSeconds); frame += 1) {
+        plugin(context)
+        narrowest = Math.min(narrowest, context.model.getParameterValueById('ParamEyeLOpen') as number)
+      }
+      return narrowest
+    }
+
+    run(plugin, 3, context)
+    brightenAndMeasure()
+
+    exposure = 0.15
+    run(plugin, 5, context)
+    const afterShortDark = brightenAndMeasure()
+
+    exposure = 0.15
+    run(plugin, 60, context)
+    const afterLongDark = brightenAndMeasure()
+
+    expect(afterLongDark).toBeLessThan(afterShortDark - 0.1)
+  })
+
+  it('hands the eyes back on the frame the amount drops to zero', () => {
+    // ROOT CAUSE:
+    //
+    // The off branch reset the followers and returned, leaving the narrowed
+    // values on the model. A motion with no eye curves then kept the squint
+    // after the feature was switched off. The off branch now runs the same
+    // hand-back as the frame a squint ends on.
+    let exposure = 0
+    let amount = 1
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => amount)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 1
+    const narrowed = run(plugin, 0.3, context)
+    expect(narrowed).toBeLessThan(0.9)
+
+    amount = 0
+    plugin(context)
+
+    expect(context.model.getParameterValueById('ParamEyeLOpen')).toBe(1)
+  })
+
+  it('stays out of the way at zero amount', () => {
+    let exposure = 0
+    const plugin = useMotionUpdatePluginLightSquint(() => exposure, () => 0)
+    const context = createContext({ timeDelta: frameSeconds })
+
+    run(plugin, 1, context)
+    exposure = 1
+    run(plugin, 2, context)
+
+    expect(context.model.setParameterValueById).not.toHaveBeenCalled()
   })
 })

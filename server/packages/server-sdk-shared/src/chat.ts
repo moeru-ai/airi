@@ -6,6 +6,7 @@ const SendMessageSchema = v.object({
   id: NonEmptyStringSchema,
   role: v.string(),
   content: v.string(),
+  replyToMessageId: v.optional(NonEmptyStringSchema),
 })
 
 export const SendMessagesRequestSchema = v.object({
@@ -25,6 +26,7 @@ export interface WireMessage {
   senderId: string | null
   role: 'system' | 'user' | 'assistant' | 'tool' | 'error'
   content: string
+  replyToMessageId?: string | null
   seq: number
   createdAt: number
   updatedAt: number

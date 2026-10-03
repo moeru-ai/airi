@@ -163,7 +163,7 @@ describe('adaptive input', () => {
     adaptiveInput.dispose()
   })
 
-  it('uses cached pre-layout after the closing viewport becomes stable', () => {
+  it('keeps native touch activation after the closing viewport becomes stable', () => {
     const viewport = document.createElement('div')
     const area = document.createElement('div')
     const textarea = document.createElement('textarea')
@@ -186,11 +186,11 @@ describe('adaptive input', () => {
     const pointerDown = createPointerDown()
     const nativeActivationContinues = textarea.dispatchEvent(pointerDown)
 
-    expect(nativeActivationContinues).toBe(false)
-    expect(pointerDown.defaultPrevented).toBe(true)
-    expect(document.activeElement).toBe(textarea)
-    expect(adaptiveInput.layout.keyboardVisible).toBe(true)
-    expect(viewport.style.height).toBe(`${keyboardViewportHeight}px`)
+    expect(nativeActivationContinues).toBe(true)
+    expect(pointerDown.defaultPrevented).toBe(false)
+    expect(document.activeElement).toBe(document.body)
+    expect(adaptiveInput.layout.keyboardVisible).toBe(false)
+    expect(viewport.style.height).toBe(`${layoutHeight}px`)
 
     adaptiveInput.dispose()
   })

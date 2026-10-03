@@ -41,6 +41,23 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return providersStore.modelLoadError[activeProvider.value] || null
   })
 
+  const temperature = useLocalStorageManualReset<number>(
+    'settings/consciousness/active-temperature',
+    0.7,
+    persistenceOptions,
+  )
+
+  const topP = useLocalStorageManualReset<number>(
+    'settings/consciousness/active-top-p',
+    1.0,
+    persistenceOptions,
+  )
+
+  // Saved slider values do not imply consent to override provider defaults.
+  // All request paths consume these projections; disabled fields stay undefined.
+  const activeTemperature = computed(() => settingsStore.temperatureEnabled ? temperature.value : undefined)
+  const activeTopP = computed(() => settingsStore.topPEnabled ? topP.value : undefined)
+
   const filteredModels = computed(() => {
     if (!modelSearchQuery.value.trim()) {
       return providerModels.value
@@ -106,9 +123,13 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return !!activeProvider.value && !!activeModel.value
   })
 
-  function resetState() {
+  async function resetState() {
     activeProvider.reset()
     resetModelSelection()
+    temperature.reset()
+    topP.reset()
+    await settingsStore.setTemperatureEnabled(false)
+    await settingsStore.setTopPEnabled(false)
   }
 
   return {
@@ -116,6 +137,10 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     configured,
     activeProvider,
     activeModel,
+    activeTemperature,
+    activeTopP,
+    temperature,
+    topP,
     customModelName: activeCustomModelName,
     expandedDescriptions,
     modelSearchQuery,

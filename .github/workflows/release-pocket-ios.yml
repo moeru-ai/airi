@@ -26,7 +26,7 @@ jobs:
     runs-on: macos-26
     env:
       PRODUCT_NAME: 'AIRI'
-      VITE_ENABLE_POSTHOG: 'true'
+      VITE_ENABLE_ANALYTICS: 'true'
       UPLOAD_TESTFLIGHT: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && inputs.testflight) }}
       RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:

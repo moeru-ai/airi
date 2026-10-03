@@ -2,7 +2,7 @@
 import type { ProviderMetadata } from '../../../../libs/providers/metadata'
 import type { OnboardingStepNextHandler, OnboardingStepPrevHandler } from './types'
 
-import { Button } from '@proj-airi/ui'
+import { Button, ScrollableArea } from '@proj-airi/ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -40,7 +40,7 @@ const selectedProviderIdModel = computed({
       </h2>
       <div class="h-5 w-5" />
     </div>
-    <div class="min-h-0 flex-1 overflow-y-auto">
+    <ScrollableArea :class="['min-h-0 flex-1']">
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <RadioCardDetail
           v-for="provider in props.popularProviders"
@@ -54,7 +54,7 @@ const selectedProviderIdModel = computed({
           @click="props.onSelectProvider(provider)"
         />
       </div>
-    </div>
+    </ScrollableArea>
     <Button
       class="flex-shrink-0"
       :label="t('settings.dialogs.onboarding.next')"

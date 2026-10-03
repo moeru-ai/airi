@@ -1,7 +1,7 @@
 {
   "name": "@proj-airi/input-gamepad",
   "type": "module",
-  "version": "0.12.0-beta.1",
+  "version": "0.12.0-beta.5",
   "private": true,
   "description": "Standard Gamepad API input for AIRI",
   "author": {

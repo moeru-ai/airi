@@ -31,6 +31,7 @@ import { setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
 import { setupServerChannel } from './services/airi/channel-server'
+import { setupComputerUse } from './services/airi/computer-use'
 import { setupGodotStageManager } from './services/airi/godot-stage'
 import { setupBuiltInServer } from './services/airi/http-server'
 import { setupMcpStdioManager } from './services/airi/mcp-servers'
@@ -38,7 +39,7 @@ import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
-import { setupMediaPermissionHandlers } from './services/electron/media-permissions'
+import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -47,6 +48,7 @@ import { setupChatWindowReusableFunc } from './windows/chat'
 import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
 import { setupEditorWindowManager } from './windows/editor'
+import { setupInlayWindowReusable } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
 import { setupNoticeWindowManager } from './windows/notice'
 import { setupOnboardingWindowManager } from './windows/onboarding'
@@ -135,6 +137,7 @@ electronApp.setAppUserModelId('ai.moeru.airi')
 // Track the real user-facing AIRI window because the process also owns hidden utility windows.
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
+let extensionManagementWebContentsId: number | undefined
 const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
 
 if (shouldStartMainProcess) {
@@ -149,7 +152,7 @@ app.whenReady().then(async () => {
     return
   }
 
-  setupMediaPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
+  setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
   fileLogger = await setupFileLogger()
@@ -215,12 +218,15 @@ app.whenReady().then(async () => {
 
   const pluginHost = injeca.provide('modules:plugin-host', {
     dependsOn: { serverChannel, widgetsManager },
-    build: ({ dependsOn }) => setupExtensionHost(dependsOn),
+    build: ({ dependsOn }) => setupExtensionHost({
+      ...dependsOn,
+      getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
+    }),
   })
 
   const globalShortcut = injeca.provide('services:global-shortcut', () => setupGlobalShortcutService())
 
-  // BeatSync will create a background window to capture and process audio.
+  // Beat Sync uses a background renderer because Web Audio processing needs a DOM runtime.
   const beatSync = injeca.provide('windows:beat-sync', () => setupBeatSync())
 
   const devtoolsMarkdownStressWindow = injeca.provide('windows:devtools:markdown-stress', () => setupDevtoolsWindow())
@@ -238,6 +244,10 @@ app.whenReady().then(async () => {
   const aboutWindow = injeca.provide('windows:about', {
     dependsOn: { autoUpdater, i18n, serverChannel },
     build: ({ dependsOn }) => setupAboutWindowReusable(dependsOn),
+  })
+  const inlayWindow = injeca.provide('windows:inlay', {
+    dependsOn: { i18n, serverChannel },
+    build: ({ dependsOn }) => setupInlayWindowReusable(dependsOn),
   })
 
   const chatWindow = injeca.provide('windows:chat', {
@@ -261,6 +271,15 @@ app.whenReady().then(async () => {
       setupSettingsWindowReusableFunc({
         ...dependsOn,
         getMainWindow: () => userFacingMainWindow,
+        onWindowCreated: (window) => {
+          const webContentsId = window.webContents.id
+          extensionManagementWebContentsId = webContentsId
+          window.once('closed', () => {
+            if (extensionManagementWebContentsId === webContentsId) {
+              extensionManagementWebContentsId = undefined
+            }
+          })
+        },
       }),
   })
 
@@ -280,7 +299,7 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, i18n },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, inlayWindow, i18n },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
@@ -304,6 +323,7 @@ app.whenReady().then(async () => {
     dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
+      setupComputerUse(context)
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,
         context,

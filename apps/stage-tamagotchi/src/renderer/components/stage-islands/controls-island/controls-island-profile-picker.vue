@@ -8,6 +8,9 @@ import { useControlsIslandPlacement } from './use-controls-island-placement'
 
 defineOptions({ inheritAttrs: false })
 
+const props = defineProps<{ active: boolean }>()
+const emit = defineEmits<{ interactionChange: [active: boolean] }>()
+
 const open = defineModel<boolean>('open', { default: false })
 const creating = defineModel<boolean>('creating', { default: false })
 
@@ -25,8 +28,10 @@ function handleManage() {
   <ProfileSwitcherPopover
     v-model:open="open"
     v-model:creating="creating"
+    :active="props.active"
     :content-side="contentSide"
     :content-align="contentAlign"
+    @interaction-change="emit('interactionChange', $event)"
     @manage="handleManage"
   >
     <template #default="{ open: popoverOpen, toggle, activeCard }">

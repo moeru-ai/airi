@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RemovableRef } from '@vueuse/core'
 
+import { streamWebSpeechAPITranscription } from '@proj-airi/provider-inference'
 import { errorMessageFromValue } from '@proj-airi/stage-shared'
 import {
   Alert,
@@ -10,7 +11,6 @@ import {
   ProviderSettingsLayout,
 } from '@proj-airi/stage-ui/components'
 import { selectProviderMetadata } from '@proj-airi/stage-ui/libs'
-import { streamWebSpeechAPITranscription } from '@proj-airi/stage-ui/libs/providers/providers/browser-web-speech-api'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'

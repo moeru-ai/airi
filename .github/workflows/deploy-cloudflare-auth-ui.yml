@@ -49,16 +49,8 @@ jobs:
       - name: Build ui-server-auth
         run: pnpm -F @proj-airi/ui-server-auth run build
         env:
-          VITE_ENABLE_POSTHOG: 'true'
+          VITE_ENABLE_ANALYTICS: 'true'
           VITE_SERVER_URL: 'https://api.airi.build'
-      - run: |
-          CI=true pnpm install -g @posthog/cli
-          pnpm exec posthog-cli sourcemap inject --directory ./apps/ui-server-auth/dist
-          pnpm exec posthog-cli sourcemap upload --directory ./apps/ui-server-auth/dist
-        env:
-          POSTHOG_CLI_ENV_ID: ${{ secrets.POSTHOG_ENV_ID }}
-          POSTHOG_CLI_TOKEN: ${{ secrets.POSTHOG_TOKEN }}
-        continue-on-error: true
 
       - uses: cloudflare/wrangler-action@v4
         with:

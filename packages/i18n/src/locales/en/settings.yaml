@@ -129,6 +129,38 @@ model-select:
     import: Import
     remove: Remove
     confirm: Confirm
+  live2d-report:
+    title: Before import
+    description: Review the model data and any issues found in the archive.
+    description-short: Review the model data and issues.
+    close: Close
+    model:
+      title: Model
+      files: '{count} files'
+      types:
+        cubism: 'Cubism {version} ({format})'
+        cubism-compatible: 'Cubism 3+ ({format})'
+        unknown: Unknown
+    resources:
+      title: Resources
+      motions: Motions
+      expressions: Expressions
+      parameters: Parameters
+      textures: Textures
+      referenced-and-found: '{referenced} referenced · {found} found'
+      referenced: '{count} referenced'
+      found: '{count} found'
+    issues:
+      title: Issues
+      errors: '{count} errors'
+      warnings: '{count} warnings'
+      none: No issues found.
+      how-to-fix: How to fix
+      resolve-before-import: Resolve the errors before import.
+    actions:
+      cancel: Cancel
+      confirm: Confirm Import
+      import-anyway: Import Anyway
 live2d:
   change-model:
     from-file: Load from File
@@ -162,6 +194,33 @@ live2d:
       title: Extract
   animation:
     title: Animation
+    motion-driver:
+      title: Motion driver
+      description: Select how AIRI creates idle body and eye motion.
+      options:
+        universal:
+          title: Universal
+          description: Use model motions, idle eye movement, and mouse tracking.
+        magic:
+          title: MAGIC
+          description: Generate motion from the bundled MAGIC dataset.
+      magic:
+        profile:
+          title: MAGIC profile
+          description: Select the bundled motion dataset that fits the MAGIC driver.
+          options:
+            idle-calm:
+              title: Idle / calm
+              description: Use the bundled idle and calm motion recording.
+            speaking-excited:
+              title: Speaking / excited
+              description: Use the bundled speaking and excited motion recording.
+        skip-mouth-open:
+          title: Skip generated mouth opening
+          description: Keep speech lip sync in control. Disable this option to use mouth opening from the profile.
+        force-view-target:
+          title: Force forward view target
+          description: Keep the eyes aimed forward while MAGIC moves the head.
     focus:
       title: Enable mouse tracking
       description: Look at the cursor while it is moving. Idle eye movement resumes after the cursor stops.
@@ -355,10 +414,15 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. If not set, default module
-        configuration will be used.
+        Configure modules for this character card. Empty fields inherit global settings.
+      sections:
+        chat: Chat
+        vision: Vision
+        speech: Speech
+        body: Body
       use_default: Use default
       use_default_not_configured: Use default (not configured)
+      inherit_global_settings: Inherit global settings
       fields_info:
         subtitle: >-
           You can put here some details about the character you are creating,
@@ -382,6 +446,7 @@ pages:
         consciousness_model: Select the consciousness model (AI model) for this character.
         speech_model: Select the speech synthesis model and voice for this character.
       errors:
+        model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
         description: 'Error: You must provide a description for this card.'
@@ -626,6 +691,13 @@ pages:
             search_results: Found {count} of {total} models
             show_less: Show less
             show_more: Show more
+            temperature_label: Temperature
+            temperature_enabled: Custom temperature
+            top_p_enabled: Custom Top P
+            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
+            temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
+            top_p_label: Top P
+            top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
             subtitle: Select a default model from the provider
             title: Model
           model-options:
@@ -946,6 +1018,12 @@ pages:
           common:
             fields:
               field:
+                web-search:
+                  label: Web search
+                  description: Allow supported OpenAI models to search when needed. Uses your API key and can incur search charges. Requires Responses API.
+                api-protocol:
+                  label: API protocol
+                  description: Choose the API supported by this provider and model.
                 api-key:
                   label: API Key
                   description: API Key used to authorize requests to this provider
@@ -956,6 +1034,9 @@ pages:
                     The base url used to connect to remote service. Often looks
                     like http://localhost:11434/v1 or https://example.com/v1.
                   placeholder: Base url...
+                download-model:
+                  label: Download Model
+                  description: Download Chromium Prompt API model
                 headers:
                   label: Custom HTTP Headers
                   description: Add custom HTTP headers
@@ -988,6 +1069,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          prompt-api:
+            check-availability:
+              title: Availability
           status:
             validating: Validating...
             valid: Passed
@@ -1161,6 +1245,26 @@ pages:
             volume:
               description: Adjust the volume of speech
               label: Volume
+      voicevox:
+        description: voicevox.hiroshiba.jp
+        title: VOICEVOX
+        fields:
+          field:
+            intonation:
+              description: Adjust how much the intonation of the reading varies
+              label: Intonation
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set with --cors_policy_mode all, or with --allow_origin and this address.
+      aivis-speech:
+        description: aivis-project.com
+        title: AivisSpeech
+        fields:
+          field:
+            intonation:
+              description: Adjust how strongly the speaking style is expressed
+              label: Emotion expression strength
+        callout_origin_title: Reaching the engine from a browser
+        callout_origin: A browser reaches an engine on this machine only. For an engine on another machine, use the desktop application. The engine also has to accept this site, which you set on its settings page on port 10101.
       deepgram-tts:
         description: deepgram.com
         title: Deepgram
@@ -1471,6 +1575,9 @@ pages:
       browser-web-speech-api:
         description: Browser-native STT (requires Chrome/Edge/Safari)
         title: Web Speech API
+      prompt-api:
+        description: With the Prompt API, you can send natural language requests to the foundation model in Chrome.
+        title: Prompt API
       official:
         title: Official Provider
         description: Official AI provider by AIRI.
@@ -1562,6 +1669,32 @@ pages:
               markdown-stress:
                 title: Markdown Stress
                 description: Stress markdown parsing and rendering with heavy chat payloads
+              plugin-host:
+                actions:
+                  enable-and-load: Enable and Load
+                  disable-and-unload: Disable and Unload
+                  import-folder: Import Folder
+                  confirm-import: Import Extension
+                  cancel-import: Cancel
+                errors:
+                  enable-and-load: 'Failed to enable and load plugin {extensionId}.'
+                  disable-and-unload: 'Failed to disable and unload plugin {extensionId}.'
+                  prepare-import: Failed to inspect the Extension folder.
+                  commit-import: 'Failed to import Extension {extensionId}.'
+                  cancel-import: Failed to cancel the Extension import.
+                import:
+                  title: Review Extension Import
+                  description: The Extension stays disabled and unloaded after import.
+                  source: Source folder
+                  runtimes: Runtimes
+                  entrypoints: Entrypoints
+                  package-size: Package
+                  package-size-value: '{fileCount} files · {totalBytes}'
+                  permissions: Permissions
+                  kits: Kits
+                  no-permissions: No permissions declared.
+                  no-kits: No Kits declared.
+                  imported: 'Imported Extension {extensionId}.'
               use-magic-keys:
                 title: useMagicKeys Tool
                 description: Test shortcuts

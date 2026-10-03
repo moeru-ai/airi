@@ -1,4 +1,5 @@
 export { default as Alert } from './alert.vue'
+export { default as CharacterSwitcherDrawer } from './character-switcher-drawer.vue'
 export { default as ErrorContainer } from './error-container.vue'
 export { default as ProfileSwitcherPopover } from './profile-switcher-popover.vue'
 export type { Props as ProfileSwitcherPopoverProps } from './profile-switcher-popover.vue'

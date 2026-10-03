@@ -11,8 +11,8 @@ export interface DisplayArea {
 /**
  * Finds the display that owns the largest visible share of a window.
  */
-export function findDominantDisplayArea(bounds: Rectangle, displays: readonly DisplayArea[]): DisplayArea | undefined {
-  let dominantDisplay: DisplayArea | undefined
+export function findDominantDisplayArea<T extends DisplayArea>(bounds: Rectangle, displays: readonly T[]): T | undefined {
+  let dominantDisplay: T | undefined
   let dominantArea = -1
 
   for (const display of displays) {

@@ -105,6 +105,26 @@ describe('store settings-audio-devices', () => {
     expect(storageMock.values.get('settings/audio/input')).toBe('microphone-1')
   })
 
+  it('starts a persisted enabled microphone before the device list is ready', async () => {
+    // ROOT CAUSE:
+    //
+    // A page refresh can restore the enabled setting before enumerateDevices returns.
+    // Initialization used the empty list to skip getUserMedia and never retried.
+    // The microphone now starts with its persisted selection and device fallback.
+    storageMock.values.set('settings/audio/input', 'microphone-1')
+    storageMock.values.set('settings/audio/input/enabled', true)
+    audioDeviceMock.startStream.mockResolvedValue(undefined)
+
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+
+    store.initialize()
+    await Promise.resolve()
+
+    expect(audioDeviceMock.startStream).toHaveBeenCalledOnce()
+    expect(store.enabled).toBe(true)
+  })
+
   it('exposes permission state from the audio device that owns selection', async () => {
     audioDeviceMock.audioInputs.value = [createAudioInput('microphone-1')]
     audioDeviceMock.selectedAudioInput.value = 'microphone-1'
@@ -153,6 +173,30 @@ describe('store settings-audio-devices', () => {
     expect(store.enabled).toBe(true)
     /** @example Disabling still stops the previously requested stream once. */
     expect(audioDeviceMock.stopStream).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops a microphone stream that resolves after the toggle was disabled', async () => {
+    const { useSettingsAudioDevice } = await import('./audio-device')
+    const store = useSettingsAudioDevice()
+    let resolveStart!: () => void
+    audioDeviceMock.startStream.mockImplementation(() => new Promise<void>((resolve) => {
+      resolveStart = resolve
+    }))
+
+    store.enabled = true
+    await nextTick()
+    store.enabled = false
+    await nextTick()
+
+    resolveStart()
+    await Promise.resolve()
+    await nextTick()
+
+    // ROOT CAUSE:
+    //
+    // Disabling stopped only the current stream. A pending getUserMedia could
+    // resolve afterwards and leave the microphone active while UI showed off.
+    expect(audioDeviceMock.stopStream).toHaveBeenCalledTimes(2)
   })
 
   /**

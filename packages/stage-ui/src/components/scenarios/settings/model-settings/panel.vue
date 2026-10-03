@@ -4,11 +4,12 @@ import type {
   StageViewPatch,
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
+import type { Live2DExpressionSettingsCommand } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 
 import type { DisplayModel } from '../../../../stores/display-models'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { Button, Callout } from '@proj-airi/ui'
+import { Button, Callout, ScrollableArea } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -37,6 +38,7 @@ interface ModelSettingsPanelProps {
 
 interface ModelSettingsPanelEmits {
   extractColorsFromModel: []
+  live2dExpressionCommand: [command: Live2DExpressionSettingsCommand]
   patchGodotViewState: [patch: StageViewPatch]
 }
 
@@ -67,85 +69,87 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
 </script>
 
 <template>
-  <div
+  <ScrollableArea
     :class="[
-      'flex flex-col gap-2',
-      'z-10 overflow-y-scroll p-2',
+      'z-10',
       settingsClass,
     ]"
   >
-    <Callout :label="t('settings.model-select.panel-callout.support-status-header')">
-      <i18n-t keypath="settings.model-select.panel-callout.support-status" tag="p">
-        <template #select-button>
-          <strong>{{ t('settings.model-select.select-model.button') }}</strong>
-        </template>
-        <template #zip>
-          <code>.zip</code>
-        </template>
-        <template #vrm>
-          <code>.vrm</code>
-        </template>
-        <template #mmd>
-          <code>.pmx</code>/<code>.pmd</code>
-        </template>
-      </i18n-t>
-      <p>
-        {{ t('settings.model-select.panel-callout.model-type-example') }}
-      </p>
-      <p v-if="effectiveRenderer === 'tachie'">
-        {{ t('settings.tachie.archive-description') }}
-      </p>
-    </Callout>
-    <div :class="['flex flex-wrap items-center gap-2']">
-      <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
-        <Button>
-          {{ t('settings.model-select.select-model.button') }}
-        </Button>
-      </ModelSelectorDialog>
-      <slot name="actions" />
+    <div :class="['flex flex-col gap-2 p-2']">
+      <Callout :label="t('settings.model-select.panel-callout.support-status-header')">
+        <i18n-t keypath="settings.model-select.panel-callout.support-status" tag="p">
+          <template #select-button>
+            <strong>{{ t('settings.model-select.select-model.button') }}</strong>
+          </template>
+          <template #zip>
+            <code>.zip</code>
+          </template>
+          <template #vrm>
+            <code>.vrm</code>
+          </template>
+          <template #mmd>
+            <code>.pmx</code>/<code>.pmd</code>
+          </template>
+        </i18n-t>
+        <p>
+          {{ t('settings.model-select.panel-callout.model-type-example') }}
+        </p>
+        <p v-if="effectiveRenderer === 'tachie'">
+          {{ t('settings.tachie.archive-description') }}
+        </p>
+      </Callout>
+      <div :class="['flex flex-wrap items-center gap-2']">
+        <ModelSelectorDialog v-model:show="modelSelectorOpen" :selected-model="stageModelSelectedDisplayModel" @pick="handleModelPick">
+          <Button>
+            {{ t('settings.model-select.select-model.button') }}
+          </Button>
+        </ModelSelectorDialog>
+        <slot name="actions" />
+      </div>
+      <Live2D
+        v-if="effectiveRenderer === 'live2d'"
+        :allow-extract-colors="allowExtractColors"
+        :palette="palette"
+        :runtime-snapshot="runtimeSnapshot"
+        @extract-colors-from-model="emit('extractColorsFromModel')"
+        @live2d-expression-command="emit('live2dExpressionCommand', $event)"
+      />
+      <VRM
+        v-if="effectiveRenderer === 'vrm'"
+        :allow-extract-colors="allowExtractColors"
+        :palette="palette"
+        :runtime-snapshot="runtimeSnapshot"
+        @extract-colors-from-model="emit('extractColorsFromModel')"
+      />
+      <Spine
+        v-if="effectiveRenderer === 'spine'"
+        :allow-extract-colors="allowExtractColors"
+        :palette="palette"
+        :runtime-snapshot="runtimeSnapshot"
+        @extract-colors-from-model="$emit('extractColorsFromModel')"
+      />
+      <MMD
+        v-if="effectiveRenderer === 'mmd'"
+        :allow-extract-colors="allowExtractColors"
+        :palette="palette"
+        :runtime-snapshot="runtimeSnapshot"
+        @extract-colors-from-model="emit('extractColorsFromModel')"
+      />
+      <Tachie
+        v-if="effectiveRenderer === 'tachie'"
+        :allow-extract-colors="allowExtractColors"
+        :palette="palette"
+        :runtime-snapshot="runtimeSnapshot"
+        @extract-colors-from-model="emit('extractColorsFromModel')"
+      />
+      <Godot
+        v-if="effectiveRenderer === 'godot'"
+        :runtime-snapshot="runtimeSnapshot"
+        :view-snapshot="godotViewSnapshot"
+        :view-error="godotViewError"
+        :view-controls-locked="godotViewControlsLocked"
+        @patch-view-state="emit('patchGodotViewState', $event)"
+      />
     </div>
-    <Live2D
-      v-if="effectiveRenderer === 'live2d'"
-      :allow-extract-colors="allowExtractColors"
-      :palette="palette"
-      :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="emit('extractColorsFromModel')"
-    />
-    <VRM
-      v-if="effectiveRenderer === 'vrm'"
-      :allow-extract-colors="allowExtractColors"
-      :palette="palette"
-      :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="emit('extractColorsFromModel')"
-    />
-    <Spine
-      v-if="effectiveRenderer === 'spine'"
-      :allow-extract-colors="allowExtractColors"
-      :palette="palette"
-      :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="$emit('extractColorsFromModel')"
-    />
-    <MMD
-      v-if="effectiveRenderer === 'mmd'"
-      :allow-extract-colors="allowExtractColors"
-      :palette="palette"
-      :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="emit('extractColorsFromModel')"
-    />
-    <Tachie
-      v-if="effectiveRenderer === 'tachie'"
-      :allow-extract-colors="allowExtractColors"
-      :palette="palette"
-      :runtime-snapshot="runtimeSnapshot"
-      @extract-colors-from-model="emit('extractColorsFromModel')"
-    />
-    <Godot
-      v-if="effectiveRenderer === 'godot'"
-      :runtime-snapshot="runtimeSnapshot"
-      :view-snapshot="godotViewSnapshot"
-      :view-error="godotViewError"
-      :view-controls-locked="godotViewControlsLocked"
-      @patch-view-state="emit('patchGodotViewState', $event)"
-    />
-  </div>
+  </ScrollableArea>
 </template>

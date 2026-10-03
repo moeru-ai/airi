@@ -19,6 +19,7 @@ const visionProcessingStore = useVisionProcessingStore()
 const { configuredProviders } = storeToRefs(providerStore)
 const { moduleVisionProvidersMetadata } = storeToRefs(providersStore)
 const {
+  useForChat,
   activeProvider,
   activeModel,
   customModelName,
@@ -41,31 +42,30 @@ const {
 const { t } = useI18n()
 const { trackProviderClick } = useAnalytics()
 
-watch(activeProvider, async (provider, oldProvider) => {
+watch(activeProvider, async (provider) => {
   if (!provider)
     return
-
-  if (oldProvider !== undefined && oldProvider !== provider) {
-    visionStore.resetModelSelection()
-  }
 
   await visionStore.loadModelsForProvider(provider)
 }, { immediate: true })
 
-watch([activeProvider, activeModel], ([provider, model]) => {
-  void airiCardStore.updateActiveCardVision({ provider, model })
-})
+async function selectProvider(provider: string) {
+  activeProvider.value = provider
+  visionStore.resetModelSelection()
+  await persistSelection()
+}
+
+async function persistSelection() {
+  await airiCardStore.updateActiveCardVision({ provider: activeProvider.value, model: activeModel.value })
+}
 
 function updateCustomModelName(value: string) {
   customModelName.value = value
 }
 
-function handleDeleteProvider(providerId: string) {
-  if (activeProvider.value === providerId) {
-    activeProvider.value = ''
-    activeModel.value = ''
-  }
-  providersStore.deleteProvider(providerId)
+async function handleDeleteProvider(providerId: string) {
+  await airiCardStore.clearProviderSelections(providerId)
+  await providersStore.deleteProvider(providerId)
 }
 
 const formattedLastCapture = computed(() => formatRelativeTime(lastCaptureAt.value))
@@ -94,6 +94,12 @@ function formatRelativeTime(timestamp: number | null) {
 
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
+    <FieldCheckbox
+      v-model="useForChat"
+      :label="t('stage.chat.images.use-vision')"
+      :description="t('stage.chat.images.use-vision-description')"
+    />
+
     <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
@@ -114,11 +120,12 @@ function formatRelativeTime(timestamp: number | null) {
               v-for="metadata in moduleVisionProvidersMetadata"
               :id="metadata.id"
               :key="metadata.id"
-              v-model="activeProvider"
+              :model-value="activeProvider"
               name="provider"
               :value="metadata.id"
               :title="metadata.localizedName || 'Unknown'"
               :description="metadata.localizedDescription"
+              @update:model-value="selectProvider"
               @click="trackProviderClick(metadata.id, 'vision')"
             >
               <template v-if="canDeleteProvider(metadata.id)" #topRight>
@@ -275,6 +282,7 @@ function formatRelativeTime(timestamp: number | null) {
             :expand-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.expand')"
             :collapse-button-text="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.collapse')"
             expanded-class="mb-12"
+            @update:model-value="persistSelection"
             @update:custom-value="updateCustomModelName"
           />
         </template>
@@ -336,6 +344,7 @@ function formatRelativeTime(timestamp: number | null) {
               'dark:bg-neutral-900',
             ]"
             :placeholder="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.manual_model_placeholder')"
+            @input="persistSelection"
           >
         </div>
       </div>

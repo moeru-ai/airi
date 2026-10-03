@@ -1,5 +1,6 @@
 export * from './artistry'
 export * from './caption'
+export * from './cover-fit'
 export * from './env-vars'
 export * from './environment'
 export * from './error-message'

@@ -253,6 +253,26 @@ const errorMessages = ref<ChatHistoryItem[]>([
   },
 ])
 
+const interruptedResponseMessages = ref<ChatHistoryItem[]>([
+  {
+    role: 'user',
+    content: 'Summarize the deployment status.',
+  },
+  {
+    role: 'assistant',
+    interrupted: true,
+    content: 'The API deployment completed, but the web client',
+    slices: [
+      { type: 'text', text: 'The API deployment completed, but the web client' },
+    ],
+    tool_results: [],
+  },
+  {
+    role: 'error',
+    content: 'The response stream ended unexpectedly. Retry to replace this incomplete response.',
+  },
+])
+
 const errorOverflowMessages = ref<ChatHistoryItem[]>([
   {
     role: 'user',
@@ -383,6 +403,15 @@ const streamingMessage = ref<ChatAssistantMessage>({
           :messages="errorOverflowMessages"
           variant="mobile"
         />
+      </div>
+    </Variant>
+
+    <Variant
+      id="interrupted-response"
+      title="Interrupted Response"
+    >
+      <div class="font-cute">
+        <ChatHistory :messages="interruptedResponseMessages" />
       </div>
     </Variant>
 

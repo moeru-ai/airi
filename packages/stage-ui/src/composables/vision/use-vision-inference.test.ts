@@ -1,72 +1,71 @@
+import type { GenerationProvider } from '@proj-airi/provider-inference'
+
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { reactive, toRefs } from 'vue'
 
-const stream = vi.fn()
-const getProviderInstance = vi.fn()
+import { useLLM } from '../../stores/ai/chat-llm/llm'
+import { useVisionStore } from '../../stores/modules/vision'
+import { useProviderStore } from '../../stores/providers/provider'
+import { useVisionInference } from './use-vision-inference'
 
-vi.mock('pinia', async () => {
-  const actual = await vi.importActual<typeof import('pinia')>('pinia')
-  return {
-    ...actual,
-    storeToRefs: (store: object) => toRefs(store as never),
-  }
-})
-
-vi.mock('../../stores/ai/chat-llm/llm', () => ({
-  useLLM: () => ({
-    stream,
+const stream = vi.fn<ReturnType<typeof useLLM>['stream']>()
+const provider: GenerationProvider = {
+  generation: model => ({
+    protocol: 'responses',
+    webSearch: false,
+    config: { model, apiKey: 'test-key', baseURL: 'https://example.com/v1/' },
   }),
-}))
+}
 
-vi.mock('../../stores/providers/provider', () => ({
-  useProviderStore: () => ({
-    getProviderInstance,
-  }),
-}))
-
-vi.mock('../../stores/modules/vision', () => ({
-  useVisionStore: () => reactive({
-    activeProvider: 'mock-provider',
-    activeModel: 'mock-model',
-    ollamaThinkingEnabled: false,
-  }),
-}))
-
-vi.mock('./use-vision-workloads', () => ({
-  getVisionWorkload: () => ({
-    prompt: 'Interpret this frame',
-  }),
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key }),
 }))
 
 describe('useVisionInference', () => {
+  let pinia: ReturnType<typeof createPinia>
+
   beforeEach(() => {
+    pinia = createPinia()
     vi.useFakeTimers()
     stream.mockReset()
-    getProviderInstance.mockReset()
-    getProviderInstance.mockResolvedValue({
-      chat: vi.fn().mockReturnValue({
-        apiKey: 'test-key',
-        baseURL: 'https://example.com/v1/',
-      }),
-    })
+    setActivePinia(pinia)
+    vi.spyOn(useLLM(), 'stream').mockImplementation(stream)
+    vi.spyOn(useProviderStore(), 'getChatProviderInstance').mockResolvedValue(provider)
+    const vision = useVisionStore()
+    vision.activeProvider = 'openai'
+    vision.activeModel = 'mock-model'
   })
 
   afterEach(() => {
+    disposePinia(pinia)
+    vi.restoreAllMocks()
     vi.useRealTimers()
   })
 
-  it('passes an abort signal to llmStore.stream', async () => {
-    stream.mockImplementation(async (_model, _provider, _messages, options) => {
+  // https://github.com/moeru-ai/airi/pull/2477
+  // ROOT CAUSE:
+  //
+  // The vision tests used the old chat-only provider API after inference adopted
+  // GenerationProvider. Real Pinia stores keep method and state contracts checked.
+  it('passes the generation provider, image context, and abort signal to llmStore.stream', async () => {
+    stream.mockImplementation(async (model, generationProvider, conversation, options) => {
+      expect(model).toBe('mock-model')
+      expect(generationProvider).toBe(provider)
+      expect(conversation.turns).toEqual([{
+        id: 'vision-input',
+        type: 'user',
+        content: [{ type: 'text', text: 'Interpret this frame' }, { type: 'image', url: 'data:image/png;base64,Zm9v' }],
+      }])
       expect(options?.abortSignal).toBeInstanceOf(AbortSignal)
-      options?.onStreamEvent?.({ type: 'text-delta', text: 'Frame summary' })
+      await options?.onStreamEvent?.({ type: 'text-delta', text: 'Frame summary' })
     })
 
-    const { useVisionInference } = await import('./use-vision-inference')
     const { runVisionInference } = useVisionInference()
 
     await expect(runVisionInference({
       imageDataUrl: 'data:image/png;base64,Zm9v',
       workloadId: 'screen:interpret',
+      promptOverride: 'Interpret this frame',
     })).resolves.toBe('Frame summary')
   })
 
@@ -77,12 +76,12 @@ describe('useVisionInference', () => {
       }, { once: true })
     }))
 
-    const { useVisionInference } = await import('./use-vision-inference')
     const { runVisionInference } = useVisionInference()
 
     const result = runVisionInference({
       imageDataUrl: 'data:image/png;base64,Zm9v',
       workloadId: 'screen:interpret',
+      promptOverride: 'Interpret this frame',
     })
     const expectation = expect(result).rejects.toThrow('Vision inference timed out after 60000ms')
 

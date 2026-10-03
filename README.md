@@ -32,7 +32,7 @@
 
 <p float="left" align="center">
   <!-- readme-section:release-binary-windows -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-windows-x64-setup.exe">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-windows-x64-setup.exe">
     <picture>
       <source
         width="33%"
@@ -48,7 +48,7 @@
     </picture>
   </a>
   <!-- readme-section:release-binary-macos -->
-  <a href="https://github.com/moeru-ai/airi/releases/download/v0.11.3/AIRI-0.11.3-darwin-arm64.dmg">
+  <a href="https://github.com/moeru-ai/airi/releases/download/v0.12.0-beta.5/AIRI-0.12.0-beta.5-darwin-arm64.dmg">
     <picture>
       <source
         width="33%"
@@ -504,10 +504,10 @@ Special thanks to all contributors for their contributions to Project AIRI â¤ï¸
 
 ## Star History
 
-<a href="https://star-history.com/#moeru-ai/airi&Date">
+<a href="https://star-history.dera.page/#moeru-ai/airi&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=moeru-ai/airi&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
   </picture>
 </a>

@@ -37,10 +37,12 @@ function startScrollBehavior({
   container,
   messages,
   scrollToIndex,
+  tailInset = shallowRef(0),
 }: {
   container: ShallowRef<HTMLElement | null>
   messages: ShallowRef<TestMessage[]>
   scrollToIndex: (index: number, align: 'start' | 'end') => void
+  tailInset?: ShallowRef<number>
 }) {
   const scope = effectScope()
   activeScopes.push(scope)
@@ -50,6 +52,7 @@ function startScrollBehavior({
       messages,
       getKey: message => message.id,
       scrollToIndex,
+      tailInset,
     })
   })
 }
@@ -91,7 +94,7 @@ describe('useChatHistoryScroll', () => {
     expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
   })
 
-  it('aligns a new tail message to the viewport start', async () => {
+  it('aligns a new tail message to the viewport end', async () => {
     const currentContainer = createScrollContainer(2)
     currentContainer.scrollTop = currentContainer.scrollHeight
     const container = shallowRef<HTMLElement | null>(currentContainer)
@@ -106,7 +109,7 @@ describe('useChatHistoryScroll', () => {
     await flushReactivity()
 
     expect(scrollToIndex).toHaveBeenCalledTimes(1)
-    expect(scrollToIndex).toHaveBeenCalledWith(2, 'start')
+    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
   })
 
   it('blocks a new-message scroll while the reader points at an older message', async () => {
@@ -143,7 +146,53 @@ describe('useChatHistoryScroll', () => {
     messages.value = [...messages.value, { id: 'assistant-2' }]
     await flushReactivity()
 
-    expect(scrollToIndex).toHaveBeenCalledWith(2, 'start')
+    expect(scrollToIndex).toHaveBeenCalledWith(2, 'end')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2489#discussion_r3968140754
+  // ROOT CAUSE:
+  //
+  // The floating composer inset was sampled only when another change requested
+  // a scroll. Expanding a reply preview or attachment area changed the available
+  // tail space without moving the last message above the composer.
+  //
+  // An inset change must request end alignment while the reader follows the tail.
+  it('realigns the followed tail after the composer inset changes', async () => {
+    const currentContainer = createScrollContainer(2)
+    currentContainer.scrollTop = currentContainer.scrollHeight
+    const container = shallowRef<HTMLElement | null>(currentContainer)
+    const messages = shallowRef<TestMessage[]>([{ id: 'user-1' }, { id: 'assistant-1' }])
+    const scrollToIndex = vi.fn()
+    const tailInset = shallowRef(80)
+    startScrollBehavior({ container, messages, scrollToIndex, tailInset })
+    await flushReactivity()
+    scrollToIndex.mockClear()
+
+    tailInset.value = 144
+    await flushReactivity()
+
+    expect(scrollToIndex).toHaveBeenCalledTimes(1)
+    expect(scrollToIndex).toHaveBeenCalledWith(1, 'end')
+  })
+
+  it('keeps the reader position after the composer inset changes away from the tail', async () => {
+    const currentContainer = createScrollContainer(2)
+    currentContainer.scrollTop = currentContainer.scrollHeight
+    const container = shallowRef<HTMLElement | null>(currentContainer)
+    const messages = shallowRef<TestMessage[]>([{ id: 'user-1' }, { id: 'assistant-1' }])
+    const scrollToIndex = vi.fn()
+    const tailInset = shallowRef(80)
+    startScrollBehavior({ container, messages, scrollToIndex, tailInset })
+    await flushReactivity()
+    scrollToIndex.mockClear()
+
+    currentContainer.dispatchEvent(new WheelEvent('wheel', { bubbles: true, deltaY: -100 }))
+    currentContainer.scrollTop = 0
+    currentContainer.dispatchEvent(new Event('scroll'))
+    tailInset.value = 144
+    await flushReactivity()
+
+    expect(scrollToIndex).not.toHaveBeenCalled()
   })
 
   it('stops following after a user scroll moves the viewport from the tail', async () => {

@@ -10,11 +10,11 @@ import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
+import type { PaymentService } from './services/domain/payment'
 import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
-import type { StripeService } from './services/domain/stripe'
 import type { UserDeletionService } from './services/domain/user-deletion'
 import type { VoicePackService } from './services/domain/voice-packs'
 import type { HonoEnv } from './types/hono'
@@ -39,7 +39,7 @@ import { parsedEnv } from './libs/env'
 import { initializeExternalDependency } from './libs/external-dependency'
 import { resolveRequestAuth } from './libs/request-auth'
 import { createUnauthorizedWsEvents } from './libs/ws-auth'
-import { sessionMiddleware } from './middlewares/auth'
+import { authGuard, sessionMiddleware } from './middlewares/auth'
 import { emitOtelLog, initOtel } from './otel'
 import { registerDbPoolGauge } from './otel/gauges/db-pool'
 import { registerTtsPoolGauge } from './otel/gauges/tts-pool'
@@ -60,7 +60,7 @@ import { createStripeRoutes } from './routes/stripe'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
-import { createPosthogSink } from './services/adapters/posthog'
+import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createFluxMeter } from './services/domain/billing/flux-meter'
 import { createCharacterService } from './services/domain/characters'
@@ -68,11 +68,11 @@ import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
+import { createPaymentService } from './services/domain/payment'
 import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
-import { createStripeService } from './services/domain/stripe'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
@@ -87,7 +87,8 @@ interface AppDeps {
   providerService: ProviderService
   fluxService: FluxService
   fluxTransactionService: FluxTransactionService
-  stripeService: StripeService
+  paymentService: PaymentService
+  stripe: Stripe | null
   billingService: BillingService
   ttsMeter: FluxMeter
   requestLogService: RequestLogService
@@ -104,6 +105,16 @@ interface AppDeps {
 }
 
 const MAX_UNAUTHENTICATED_CHAT_WS_FRAME_BYTES = 8192
+/** Allows one maximum-size inline file plus JSON envelope overhead. */
+const RESPONSES_MAX_REQUEST_BYTES = 40 * 1024 * 1024
+const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
+
+function apiBodyLimit(maxSize: number) {
+  return bodyLimit({
+    maxSize,
+    onError: c => c.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Payload Too Large' }, 413),
+  })
+}
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
@@ -233,6 +244,7 @@ export async function buildApp(deps: AppDeps) {
       trigger: c.req.query('tts_trigger') === 'auto' ? 'auto' : 'manual',
       source: parseTtsSource(c.req.query('tts_source'), 'audio.speech.ws'),
       voiceType: parseTtsVoiceType(c.req.query('tts_voice_type')),
+      turnId: c.req.query('turn_id'),
     })
   }))
 
@@ -275,10 +287,20 @@ export async function buildApp(deps: AppDeps) {
     revenue: deps.otel?.revenue,
     rateLimitMetrics: deps.otel?.rateLimit,
   })
+  const defaultApiBodyLimit = apiBodyLimit(DEFAULT_API_MAX_REQUEST_BYTES)
 
   const builtApp = app
     .use('*', sessionMiddleware(deps.db, deps.env))
-    .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
+    // Authenticate before accepting the larger Responses envelope. The route
+    // supports inline image, file, and video data that exceed the default API
+    // limit, but unauthenticated callers must not get the larger allowance.
+    .use('/api/v1/openai/responses', authGuard)
+    .use('/api/v1/openai/responses', apiBodyLimit(RESPONSES_MAX_REQUEST_BYTES))
+    .use('*', async (c, next) => {
+      if (c.req.path === '/api/v1/openai/responses')
+        return next()
+      return defaultApiBodyLimit(c, next)
+    })
     .onError((err, c) => {
       if (err instanceof ApiError) {
         // Surface details + cause to the server-side log only. SEC-5 keeps
@@ -397,7 +419,16 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Stripe routes.
      */
-    .route('/api/v1/stripe', createStripeRoutes(deps.fluxService, deps.stripeService, deps.billingService, deps.configKV, deps.env, deps.redis, deps.otel?.revenue, deps.otel?.rateLimit, deps.productEventService))
+    .route('/api/v1/stripe', createStripeRoutes(
+      deps.paymentService,
+      deps.stripe,
+      deps.redis,
+      deps.configKV,
+      deps.env,
+      deps.otel?.revenue ?? null,
+      deps.otel?.rateLimit ?? null,
+      deps.productEventService,
+    ))
 
     /**
      * Catch-all 404 in JSON. Replaces hono's default `text/html` "404 Not
@@ -529,27 +560,21 @@ export async function createApp() {
     build: ({ dependsOn }) => createConfigKVService(createConfigKVStore(dependsOn.db, dependsOn.redis)),
   })
 
-  const posthogSink = injeca.provide('services:posthogSink', {
-    dependsOn: { env: parsedEnv, lifecycle },
-    // POSTHOG_PROJECT_KEY defaults to the shared project key, so the falsy
-    // branch is only reachable via the documented off-switch: setting the
-    // env var to an empty string (valibot defaults don't apply to '').
+  const openpanelSink = injeca.provide('services:openpanelSink', {
+    dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
-      if (!dependsOn.env.POSTHOG_PROJECT_KEY)
+      const { OPENPANEL_API_URL: apiUrl, OPENPANEL_CLIENT_ID: clientId, OPENPANEL_CLIENT_SECRET: clientSecret } = dependsOn.env
+      if (!apiUrl && !clientId && !clientSecret)
         return null
-
-      const sink = createPosthogSink({
-        projectKey: dependsOn.env.POSTHOG_PROJECT_KEY,
-        host: dependsOn.env.POSTHOG_API_HOST,
-      })
-      dependsOn.lifecycle.appHooks.onStop(() => sink.shutdown())
-      return sink
+      if (!apiUrl || !clientId || !clientSecret)
+        throw new Error('OpenPanel requires API URL, client id, and client secret')
+      return createOpenpanelSink({ apiUrl, clientId, clientSecret })
     },
   })
 
   const productEventService = injeca.provide('services:productEvents', {
-    dependsOn: { posthogSink },
-    build: ({ dependsOn }) => createProductEventService(dependsOn.posthogSink),
+    dependsOn: { openpanelSink },
+    build: ({ dependsOn }) => createProductEventService(dependsOn.openpanelSink),
   })
 
   const characterService = injeca.provide('services:characters', {
@@ -567,14 +592,12 @@ export async function createApp() {
     build: ({ dependsOn }) => createChatService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
-  const stripeService = injeca.provide('services:stripe', {
-    dependsOn: { db, env: parsedEnv },
+  const stripe = injeca.provide('libs:stripe', {
+    dependsOn: { env: parsedEnv },
     build: ({ dependsOn }) => {
       // Stripe SDK is optional — when STRIPE_SECRET_KEY is unset (dev/CI)
-      // billing routes degrade gracefully and the user-deletion pipeline
-      // skips the API cancel call.
-      const stripe = dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
-      return createStripeService(dependsOn.db, stripe)
+      // billing routes degrade gracefully.
+      return dependsOn.env.STRIPE_SECRET_KEY ? new Stripe(dependsOn.env.STRIPE_SECRET_KEY) : null
     },
   })
 
@@ -586,29 +609,6 @@ export async function createApp() {
   const fluxService = injeca.provide('services:flux', {
     dependsOn: { db, redis, configKV },
     build: ({ dependsOn }) => createFluxService(dependsOn.db, dependsOn.redis, dependsOn.configKV),
-  })
-
-  // NOTICE:
-  // The deletion service is a thin scheduler that delegates to each business
-  // service's own `deleteAllForUser` method. Adding a new business module:
-  //   1. give it a `deleteAllForUser(userId)` method
-  //   2. add one `service.register(...)` line below
-  // Domain knowledge stays inside each service instead of being copied into
-  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
-  const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { stripeService, fluxService, providerService, characterService, chatService },
-    build: ({ dependsOn }) => {
-      const service = createUserDeletionService()
-      // priority: 10 = external side-effects (Stripe API cancel — unrollable),
-      //           20 = financial / cache state (Flux balance + Redis),
-      //           30 = pure DB soft-delete (no external touch).
-      service.register({ name: 'stripe', priority: 10, softDelete: ({ userId }) => dependsOn.stripeService.deleteAllForUser(userId) })
-      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
-      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
-      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
-      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
-      return service
-    },
   })
 
   const requestLogService = injeca.provide('services:requestLog', {
@@ -629,6 +629,33 @@ export async function createApp() {
   const billingService = injeca.provide('services:billing', {
     dependsOn: { db, redis, configKV, otel },
     build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
+  })
+
+  const paymentService = injeca.provide('services:payment', {
+    dependsOn: { db, billingService },
+    build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
+  })
+
+  // NOTICE:
+  // The deletion service is a thin scheduler that delegates to each business
+  // service's own `deleteAllForUser` method. Adding a new business module:
+  //   1. give it a `deleteAllForUser(userId)` method
+  //   2. add one `service.register(...)` line below
+  // Domain knowledge stays inside each service instead of being copied into
+  // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
+  const userDeletionService = injeca.provide('services:userDeletion', {
+    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    build: ({ dependsOn }) => {
+      const service = createUserDeletionService()
+      // priority: 20 = financial / cache state (Flux balance + Redis),
+      //           30 = pure DB soft-delete (no external touch).
+      service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
+      service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
+      service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
+      service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
+      return service
+    },
   })
 
   const ttsMeter = injeca.provide('services:ttsMeter', {
@@ -692,7 +719,8 @@ export async function createApp() {
     requestLogService,
     voicePackService,
     productEventService,
-    stripeService,
+    paymentService,
+    stripe,
     billingService,
     ttsMeter,
     configKV,
@@ -717,7 +745,8 @@ export async function createApp() {
     providerService: resolved.providerService,
     fluxService: resolved.fluxService,
     fluxTransactionService: resolved.fluxTransactionService,
-    stripeService: resolved.stripeService,
+    paymentService: resolved.paymentService,
+    stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
     ttsMeter: resolved.ttsMeter,

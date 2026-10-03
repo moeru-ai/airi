@@ -91,6 +91,13 @@ Concise but detailed reference for contributors working across the `moeru-ai/air
 
 ## Before You Start
 
+## Architecture decisions
+
+- Put project-wide and client ADRs in `docs/ai/adr/`.
+- Put hosted backend ADRs in `server/docs/ai/adr/`.
+- Both paths are relative to the repository root.
+- Keep ADRs in this repository and include them in the related commits and pull requests.
+
 ## Enforced Repository Skills
 
 - For testing, Vitest, regression reproduction, mocks, or test import-boundary work, always use [`enforce-rules-for-vitest` skill](.agents/skills/enforce-rules-for-vitest/SKILL.md).
@@ -256,6 +263,7 @@ as a first language.
 ## PR / Workflow Tips
 
 - When asked to create, open, publish, or prepare a pull request, always use the repo-local `create-pr` skill. For user-visible changes it orchestrates `use-vishot` and the matching runtime variant, then uploads before/after screenshots as GitHub user assets in the PR body.
+- After you create a pull request, get its review threads, comments, and check status. If a review identifies a confirmed error, fix it, run focused checks, push the update, reply with evidence, and resolve the thread.
 - Rebase pulls; branch naming `username/feat/short-name`; clear commit messages (gitmoji is prohibited).
 - Summarize changes, how tested (commands), and follow-ups.
 - Improve legacy you touch; avoid one-off patterns.

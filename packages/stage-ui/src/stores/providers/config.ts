@@ -153,6 +153,61 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       provider.status = status
   }
 
+  /**
+   * Applies configuration fields through the leader-owned provider snapshot.
+   *
+   * The caller must initialize the provider before this action runs. The leader
+   * merges the patch with its current configuration to keep unrelated changes.
+   * Returns false if the provider no longer exists.
+   */
+  async function patchProviderConfig(providerId: string, patch: Record<string, unknown>) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return false
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, ...patch },
+    }
+    return true
+  }
+
+  /**
+   * Updates the selected model in the leader-owned provider snapshot.
+   *
+   * Follower renderers must await this action instead of mutating replicated
+   * configuration directly, because `state: true` proposals contain the full
+   * store and can overwrite newer leader state.
+   */
+  async function setProviderModel(providerId: string, model: string) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, model },
+    }
+  }
+
+  /**
+   * Seeds a discovered default without replacing a model selected by the user.
+   */
+  async function setProviderModelIfUnset(providerId: string, model: string) {
+    const provider = providers.value[providerId]
+    if (!provider)
+      return
+
+    const currentModel = provider.config.model
+    if (typeof currentModel === 'string' && currentModel.length > 0)
+      return
+
+    providers.value[providerId] = {
+      ...provider,
+      config: { ...provider.config, model },
+    }
+  }
+
   function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
     providers.value = { ...providers.value, ...snapshot }
     for (const providerId of Object.keys(snapshot))
@@ -252,6 +307,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     markProviderAdded,
     unmarkProviderAdded,
     setProviderStatus,
+    patchProviderConfig,
+    setProviderModel,
+    setProviderModelIfUnset,
     fetchProviders,
     addProvider,
     removeProvider,
@@ -266,6 +324,9 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'markProviderAdded',
       'unmarkProviderAdded',
       'setProviderStatus',
+      'patchProviderConfig',
+      'setProviderModel',
+      'setProviderModelIfUnset',
       'addProvider',
       'removeProvider',
       'updateProviderConfig',

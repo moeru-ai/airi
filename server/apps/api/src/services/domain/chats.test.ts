@@ -44,6 +44,37 @@ describe('pushMessages', () => {
     db = await mockDB(schema)
   })
 
+  it('persists and returns a native reply relation', async () => {
+    await db.insert(schema.chats).values({ id: 'group', type: 'group' })
+    await db.insert(schema.chatMembers).values({ chatId: 'group', memberType: 'user', userId: 'member' })
+    await db.insert(schema.messages).values({
+      id: 'assistant-1',
+      chatId: 'group',
+      senderId: 'member',
+      role: 'assistant',
+      seq: 1,
+      content: 'Earlier answer',
+      mediaIds: [],
+      stickerIds: [],
+    })
+    const service = createChatService(db)
+
+    await service.pushMessages('member', 'group', [{
+      id: 'user-reply',
+      role: 'user',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    }])
+    const result = await service.pullMessages('member', 'group', 1)
+
+    expect(result.messages).toHaveLength(1)
+    expect(result.messages[0]).toMatchObject({
+      id: 'user-reply',
+      content: 'My follow-up',
+      replyToMessageId: 'assistant-1',
+    })
+  })
+
   it('rejects a member attempt to update another member’s message', async () => {
     await db.insert(schema.chats).values({ id: 'group', type: 'group' })
     await db.insert(schema.chatMembers).values([

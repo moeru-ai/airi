@@ -18,8 +18,8 @@ docs:
   'center-main-window': 移至屏幕中央
   'open-hearing-controls': 打开听力控制
   'drag-to-move-window': 拖动以移动窗口
-  'stop-speaking': 停止说话
-  'speaker-idle': 扬声器
+  'mute': 静音
+  'unmute': 取消静音
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
   'pin-on-top': 置顶窗口
@@ -39,6 +39,10 @@ widgets:
     description: 工具或插件生成的小部件将会出现在这里。
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
+
+inlay:
+  close: 关闭
+
 notice:
   'fade-on-hover':
     title: 悬停淡出

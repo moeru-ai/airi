@@ -2,6 +2,8 @@ import type { InferOutput } from 'valibot'
 
 import { any, array, boolean, check, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
 
+import { generationProtocolSchema } from '../../../schemas/generation-protocol'
+
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
  * entire routing surface: per-model upstream list, optional candidate groups,
@@ -48,6 +50,8 @@ export const keyEntrySchema = object({
 })
 
 export const llmUpstreamSchema = object({
+  /** Supported wire protocols. Omission permits Chat Completions only. */
+  protocols: optional(array(generationProtocolSchema)),
   id: optional(pipe(
     string(),
     nonEmpty('llm.upstreams[].id must not be empty'),
@@ -156,7 +160,10 @@ export const streamingTtsUpstreamSchema = object({
     })),
     [],
   ),
-  defaultModel: optional(string()),
+  defaultModel: optional(pipe(
+    string(),
+    nonEmpty('UNSPEECH_UPSTREAM.streaming.defaultModel must not be empty'),
+  )),
 })
 
 export const unspeechUpstreamSchema = object({
