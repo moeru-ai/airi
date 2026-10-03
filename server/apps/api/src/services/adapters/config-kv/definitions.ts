@@ -249,9 +249,6 @@ export const configEntrySchemas = {
   LLM_MINIMUM_BALANCE: optional(pipe(number(), finite(), integer(), minValue(1)), 5),
   INITIAL_USER_FLUX: optional(number(), 0),
   FLUX_PER_1K_CHARS_TTS: number(),
-  // Debt-ledger TTL: residual TTS chars below 1 Flux are forgiven on expiry.
-  // 24h gives users a long-enough window for accumulated dust to settle naturally.
-  TTS_DEBT_TTL_SECONDS: optional(number(), 86400),
   // App Store product id → Flux amount to grant. AIRI and AIRI Lite each have
   // their own product ids.
   APPLE_FLUX_PACKS: optional(record(

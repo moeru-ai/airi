@@ -106,7 +106,7 @@ The charged amount is a result snapshot committed with its ledger entry, not a s
 The ledger owns actual balance changes; settlement owns normalized cost, costSource, pricing and sanitized providerUsage.
 Do not duplicate pricing and provider cost into ledger metadata, or copy full diagnostic observations into settlement.
 No row schemaVersion or nested evidence version is needed for this single-format settlement schema.
-Existing request-log fluxConsumed and schemaVersion fields remain unchanged; they are diagnostic contracts, not settlement authority.
+The request-log schemaVersion field remains unchanged. It is a diagnostic contract, not settlement authority. The Flux usage ADR removes the request-log fluxConsumed field.
 
 Apply tracking migration 0026 before billing migration 0027. These replace unpublished PR drafts, not already-applied draft migrations.
 Settlement owns price snapshots and durable evidence. Logs do not query or update settlement storage.
