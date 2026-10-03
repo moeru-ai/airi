@@ -99,7 +99,17 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     pendingLiterals: string[]
   }>()
   const isReceivingRemoteStream = computed(() => remoteStreamGuard.value?.sessionId === chatSession.activeSessionId)
+  // Retained stream data. A guard outlives the response that filled it, because
+  // `assistant-end` keeps it for the refresh that runs when the session returns
+  // to view. Read this identifier to find the session that owns the data.
   const remoteStreamSessionId = computed(() => remoteStreamGuard.value?.sessionId)
+  // Live remote activity. The value is set only while the guarded response runs.
+  // A background `assistant-end` marks the guard completed and keeps it, so a
+  // caller that needs a running response must read this instead.
+  const liveRemoteStreamSessionId = computed(() => {
+    const guard = remoteStreamGuard.value
+    return guard && !guard.completed ? guard.sessionId : undefined
+  })
   let contextChannel: ReturnType<typeof createContextChannel> | undefined
   let localProducedStream: { sessionId: string, turnId: string } | undefined
   let initialized = false
@@ -968,7 +978,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                   break
                 if (guard.sessionId !== chatSession.activeSessionId
                   && chatSession.getSessionGenerationValue(guard.sessionId) === guard.generation) {
-                  guard.completed = true
+                  // `remoteStreamGuard` is a shallow ref, so a nested write does not
+                  // notify the stores that read it. Replace the guard so that the
+                  // completion is visible to `liveRemoteStreamSessionId`.
+                  remoteStreamGuard.value = { ...guard, completed: true }
                   break
                 }
                 try {
@@ -1064,6 +1077,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
     dispatchSparkNotifyReaction,
     dispatchSparkNotifyPerformance,
     isReceivingRemoteStream,
+    liveRemoteStreamSessionId,
     remoteStreamSessionId,
     cancelRemoteStream,
     setSparkNotifyHostRole,
