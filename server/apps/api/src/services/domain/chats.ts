@@ -251,6 +251,7 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
               senderId: schema.messages.senderId,
               role: schema.messages.role,
               content: schema.messages.content,
+              deletedAt: schema.messages.deletedAt,
             }).from(schema.messages).where(inArray(schema.messages.id, messageIds))
           : []
 
@@ -286,9 +287,12 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
         }
 
         const existingIds = new Set(existingMessages.map(m => m.id))
+        // A send never restores a deleted message. A device that queued the
+        // message before another device deleted it gets an acknowledgement.
+        const deletedIds = new Set(existingMessages.filter(m => m.deletedAt != null).map(m => m.id))
 
         const newMsgs = messages.filter(m => !existingIds.has(m.id))
-        const updateMsgs = messages.filter(m => existingIds.has(m.id) && !unchangedLegacyAssistantIds.has(m.id))
+        const updateMsgs = messages.filter(m => existingIds.has(m.id) && !unchangedLegacyAssistantIds.has(m.id) && !deletedIds.has(m.id))
 
         let currentSeq = maxSeq
 
@@ -341,6 +345,111 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
       metrics?.wsMessagesReceived.add(result.totalCount)
 
       return { seq: result.seq, fromSeq: result.fromSeq, toSeq: result.toSeq }
+    },
+
+    /**
+     * Soft-deletes messages and gives each deletion the next `seq` of the chat.
+     *
+     * Use when:
+     * - A member deletes messages that they sent. Other devices receive the
+     *   deletion as a tombstone through `pullMessages` and the broadcast.
+     *
+     * Expects:
+     * - A message without a sender can be deleted only while the caller is
+     *   the only user member of the chat.
+     * - A message of another member fails the whole request with 403.
+     * - An id without a row gets a tombstone row. A send of that id that
+     *   arrives later does not create the message.
+     *
+     * Returns:
+     * - The same range shape as `pushMessages`. `toSeq < fromSeq` when no
+     *   row changed: every id is already deleted or belongs to another chat.
+     */
+    async deleteMessages(userId: string, chatId: string, messageIds: string[]) {
+      return db.transaction(async (tx) => {
+        await verifyMembership(tx, chatId, userId)
+
+        // Lock chat row to serialize seq assignment and existence checks with pushMessages.
+        await tx
+          .select({ id: schema.chats.id })
+          .from(schema.chats)
+          .where(eq(schema.chats.id, chatId))
+          .for('update')
+
+        const [{ maxSeq }] = await tx
+          .select({ maxSeq: sql<number>`coalesce(max(${schema.messages.seq}), 0)` })
+          .from(schema.messages)
+          .where(eq(schema.messages.chatId, chatId))
+
+        const ids = [...new Set(messageIds)]
+        const existing = await tx
+          .select({
+            id: schema.messages.id,
+            chatId: schema.messages.chatId,
+            senderId: schema.messages.senderId,
+            deletedAt: schema.messages.deletedAt,
+          })
+          .from(schema.messages)
+          .where(inArray(schema.messages.id, ids))
+        const existingIds = new Set(existing.map(message => message.id))
+        const targets = existing.filter(message => message.chatId === chatId && message.deletedAt == null)
+        // An id from another chat cannot be deleted here, and its row blocks a tombstone.
+        const unknownIds = ids.filter(id => !existingIds.has(id))
+
+        if (targets.some(message => message.senderId == null)) {
+          const userMembers = await tx
+            .select({ userId: schema.chatMembers.userId })
+            .from(schema.chatMembers)
+            .where(and(eq(schema.chatMembers.chatId, chatId), eq(schema.chatMembers.memberType, 'user')))
+          if (userMembers.some(member => member.userId !== userId)) {
+            logger.withFields({ userId, chatId }).warn('Deletion of a message without a sender in a shared chat, forbidden')
+            throw createForbiddenError()
+          }
+        }
+        if (targets.some(message => message.senderId != null && message.senderId !== userId)) {
+          logger.withFields({ userId, chatId }).warn('Message deletion by a non-author, forbidden')
+          throw createForbiddenError()
+        }
+
+        const now = new Date()
+        let currentSeq = maxSeq
+        for (const message of targets) {
+          currentSeq++
+          await tx.update(schema.messages)
+            .set({ deletedAt: now, updatedAt: now, seq: currentSeq })
+            .where(eq(schema.messages.id, message.id))
+        }
+
+        // The deletion reached the server before the send of the same message.
+        // Keep the intent as a tombstone row. Clients ignore the role and
+        // content of a tombstone.
+        if (unknownIds.length > 0) {
+          await tx.insert(schema.messages).values(unknownIds.map((id) => {
+            currentSeq++
+            return {
+              id,
+              chatId,
+              senderId: userId,
+              role: 'user',
+              seq: currentSeq,
+              content: '',
+              mediaIds: [] as string[],
+              stickerIds: [] as string[],
+              createdAt: now,
+              updatedAt: now,
+              deletedAt: now,
+            }
+          }))
+        }
+
+        if (currentSeq > maxSeq) {
+          await tx.update(schema.chats)
+            .set({ updatedAt: now })
+            .where(eq(schema.chats.id, chatId))
+        }
+
+        return { seq: currentSeq, fromSeq: maxSeq + 1, toSeq: currentSeq }
+      })
     },
 
     /**
@@ -475,11 +584,13 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           chatId: r.chatId,
           senderId: r.senderId,
           role: r.role as MessageRole,
-          content: r.content,
+          // A tombstone carries no content, so a deletion also removes the text from other devices.
+          content: r.deletedAt ? '' : r.content,
           replyToMessageId: r.replyToMessageId,
           seq: r.seq!,
           createdAt: r.createdAt.getTime(),
           updatedAt: r.updatedAt.getTime(),
+          deletedAt: r.deletedAt?.getTime() ?? null,
         }))
 
         return { messages: wireMessages, seq: maxSeq }

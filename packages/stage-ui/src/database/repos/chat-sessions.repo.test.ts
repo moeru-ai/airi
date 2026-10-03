@@ -1,3 +1,5 @@
+import type { ChatSendOutboxEntry } from './chat-sessions.repo'
+
 import memoryDriver from 'unstorage/drivers/memory'
 
 import { createStorage } from 'unstorage'
@@ -63,7 +65,7 @@ describe('chatSessionsRepo.tombstones', () => {
 })
 
 describe('chatSessionsRepo.outbox', () => {
-  function makeEntry(partial: Partial<Parameters<typeof chatSessionsRepo.enqueueOutbox>[1]> & { messageId: string }): Parameters<typeof chatSessionsRepo.enqueueOutbox>[1] {
+  function makeEntry(partial: Partial<ChatSendOutboxEntry> & { messageId: string }): ChatSendOutboxEntry {
     return {
       messageId: partial.messageId,
       sessionId: partial.sessionId ?? 'session-1',
@@ -105,8 +107,51 @@ describe('chatSessionsRepo.outbox', () => {
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1', content: 'first' }))
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1', content: 'second' }))
     const entries = await chatSessionsRepo.getOutbox('user-1')
-    expect(entries.length).toBe(1)
-    expect(entries[0].content).toBe('second')
+    expect(entries).toEqual([expect.objectContaining({ messageId: 'm1', content: 'second' })])
+  })
+
+  /**
+   * @example
+   * The user deletes a message before its send reaches the server. The
+   * deletion replaces the queued send, so the message is never sent.
+   */
+  it('replaces a queued send with a deletion of the same message', async () => {
+    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1' }))
+    await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm2' }))
+    await chatSessionsRepo.enqueueOutbox('user-1', {
+      kind: 'delete',
+      messageId: 'm1',
+      sessionId: 'session-1',
+      attempts: 0,
+      queuedAt: 2,
+    })
+    const entries = await chatSessionsRepo.getOutbox('user-1')
+    expect(entries.map(entry => [entry.messageId, entry.kind ?? 'send'])).toEqual([['m1', 'delete'], ['m2', 'send']])
+  })
+
+  /**
+   * @example
+   * A send is on the wire when the user deletes the message. The deletion
+   * replaces the send in the outbox. The send then succeeds, and the delete
+   * then fails. The settled send must not remove the pending deletion.
+   */
+  it('keeps a deletion when the send that it replaced settles', async () => {
+    const send = makeEntry({ messageId: 'm1' })
+    await chatSessionsRepo.enqueueOutbox('user-1', send)
+    await chatSessionsRepo.enqueueOutbox('user-1', {
+      kind: 'delete',
+      messageId: 'm1',
+      sessionId: 'session-1',
+      attempts: 0,
+      queuedAt: 2,
+    })
+
+    await chatSessionsRepo.dequeueOutbox('user-1', [send])
+    await chatSessionsRepo.updateOutboxEntries('user-1', [{ messageId: 'm1', kind: send.kind, attempts: 5, lastError: 'send failed' }])
+
+    expect(await chatSessionsRepo.getOutbox('user-1')).toEqual([
+      expect.objectContaining({ kind: 'delete', messageId: 'm1', attempts: 0 }),
+    ])
   })
 
   /**
@@ -117,7 +162,7 @@ describe('chatSessionsRepo.outbox', () => {
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1' }))
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm2' }))
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm3' }))
-    await chatSessionsRepo.dequeueOutbox('user-1', ['m1', 'm3'])
+    await chatSessionsRepo.dequeueOutbox('user-1', [{ messageId: 'm1' }, { messageId: 'm3' }])
     const entries = await chatSessionsRepo.getOutbox('user-1')
     expect(entries.map(e => e.messageId)).toEqual(['m2'])
   })
@@ -132,10 +177,7 @@ describe('chatSessionsRepo.outbox', () => {
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1', content: 'hello', queuedAt: 1 }))
     await chatSessionsRepo.updateOutboxEntries('user-1', [{ messageId: 'm1', attempts: 3, lastError: 'HTTP 500' }])
     const entries = await chatSessionsRepo.getOutbox('user-1')
-    expect(entries[0].attempts).toBe(3)
-    expect(entries[0].lastError).toBe('HTTP 500')
-    expect(entries[0].content).toBe('hello')
-    expect(entries[0].queuedAt).toBe(1)
+    expect(entries).toEqual([expect.objectContaining({ attempts: 3, lastError: 'HTTP 500', content: 'hello', queuedAt: 1 })])
   })
 
   /**
@@ -159,7 +201,7 @@ describe('chatSessionsRepo.outbox', () => {
   it('isolates outboxes per user', async () => {
     await chatSessionsRepo.enqueueOutbox('user-1', makeEntry({ messageId: 'm1' }))
     await chatSessionsRepo.enqueueOutbox('user-2', makeEntry({ messageId: 'm1' }))
-    await chatSessionsRepo.dequeueOutbox('user-1', ['m1'])
+    await chatSessionsRepo.dequeueOutbox('user-1', [{ messageId: 'm1' }])
     expect(await chatSessionsRepo.getOutbox('user-1')).toEqual([])
     expect((await chatSessionsRepo.getOutbox('user-2')).length).toBe(1)
   })

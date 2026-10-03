@@ -1,10 +1,10 @@
-import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared/v2'
+import type { DeleteMessagesRequest, DeleteMessagesResponse, NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from '@proj-airi/server-sdk-shared/v2'
 import type { ComputedRef, Ref } from 'vue'
 
 import { defineInvoke } from '@moeru/eventa'
 import { createContext as createWsContext, wsErrorEvent } from '@moeru/eventa/adapters/websocket/native'
 import { errorMessageFrom } from '@moeru/std'
-import { authenticate, newMessages, parseAuthenticateResponse, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
+import { authenticate, deleteMessages, newMessages, parseAuthenticateResponse, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared/v2'
 import { useWebSocket } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 
@@ -46,8 +46,25 @@ const NewMessagesPayloadSchema = v.object({
     seq: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
+    deletedAt: v.optional(v.nullable(v.number())),
   })),
 })
+
+/**
+ * Validates a `chat:new-messages` push at the WebSocket boundary.
+ *
+ * Returns:
+ * - The payload, or `undefined` when the payload is malformed. An object
+ *   schema drops unknown keys, so every wire field must be declared here.
+ */
+export function parseNewMessagesPayload(body: unknown): NewMessagesPayload | undefined {
+  const result = v.safeParse(NewMessagesPayloadSchema, body)
+  if (!result.success) {
+    console.warn('[chat-ws] dropped malformed newMessages payload:', result.issues[0]?.message)
+    return undefined
+  }
+  return result.output
+}
 
 /**
  * WebSocket connection lifecycle states surfaced to the chat-sync layer.
@@ -90,6 +107,8 @@ export interface ChatWsClient {
   destroy: () => void
   /** RPC: push messages to a chat. Rejects if disconnected mid-flight. */
   sendMessages: (req: SendMessagesRequest) => Promise<SendMessagesResponse>
+  /** RPC: delete messages from a chat. Other devices receive tombstones. Rejects if disconnected mid-flight. */
+  deleteMessages: (req: DeleteMessagesRequest) => Promise<DeleteMessagesResponse>
   /** RPC: pull messages newer than `afterSeq`. Rejects if disconnected mid-flight. */
   pullMessages: (req: PullMessagesRequest) => Promise<PullMessagesResponse>
   /**
@@ -259,12 +278,9 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       // External boundary: validate the wire payload before fanning it out.
       // A malformed server push would otherwise flow unchecked into every
       // subscriber and into `mergeCloudMessagesIntoSession`.
-      const result = v.safeParse(NewMessagesPayloadSchema, event.body)
-      if (!result.success) {
-        console.warn('[chat-ws] dropped malformed newMessages payload:', result.issues[0]?.message)
+      const payload = parseNewMessagesPayload(event.body)
+      if (!payload)
         return
-      }
-      const payload = result.output
       for (const handler of newMessagesHandlers) {
         try {
           handler(payload)
@@ -413,6 +429,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
   // and wsErrorEvent as abortOnEvents, so any invoke whose socket dies before
   // a response arrives rejects with a real Error instead of hanging.
   const invokeSendMessages = defineInvoke(getContext, sendMessages)
+  const invokeDeleteMessages = defineInvoke(getContext, deleteMessages)
   const invokePullMessages = defineInvoke(getContext, pullMessages)
 
   return {
@@ -446,6 +463,7 @@ export function createChatWsClient(options: CreateChatWsClientOptions): ChatWsCl
       stopTokenWatch()
     },
     sendMessages: req => invokeSendMessages(req),
+    deleteMessages: req => invokeDeleteMessages(req),
     pullMessages: req => invokePullMessages(req),
     onNewMessages(handler) {
       newMessagesHandlers.add(handler)

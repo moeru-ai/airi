@@ -1,10 +1,12 @@
-import type { NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from './chat'
+import type { DeleteMessagesRequest, DeleteMessagesResponse, NewMessagesPayload, PullMessagesRequest, PullMessagesResponse, SendMessagesRequest, SendMessagesResponse } from './chat'
 
 import { defineInvokeEventa, defineOutboundEventa } from '@moeru/eventa'
 
 import * as v from 'valibot'
 
 export type {
+  DeleteMessagesRequest,
+  DeleteMessagesResponse,
   MessageRole,
   NewMessagesPayload,
   PullMessagesRequest,
@@ -14,6 +16,9 @@ export type {
   WireMessage,
 } from './chat'
 export {
+  DeleteMessagesRequestSchema,
+  DeleteMessagesResponseSchema,
+  parseDeleteMessagesRequest,
   parsePullMessagesRequest,
   parseSendMessagesRequest,
   PullMessagesRequestSchema,
@@ -44,5 +49,6 @@ export function parseAuthenticateResponse(response: unknown): AuthenticateRespon
 
 export const authenticate = defineInvokeEventa<AuthenticateResponse, AuthenticateRequest>('chat:authenticate')
 export const sendMessages = defineInvokeEventa<SendMessagesResponse, SendMessagesRequest>('chat:send-messages')
+export const deleteMessages = defineInvokeEventa<DeleteMessagesResponse, DeleteMessagesRequest>('chat:delete-messages')
 export const pullMessages = defineInvokeEventa<PullMessagesResponse, PullMessagesRequest>('chat:pull-messages')
 export const newMessages = defineOutboundEventa<NewMessagesPayload>('chat:new-messages')

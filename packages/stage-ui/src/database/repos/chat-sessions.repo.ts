@@ -14,6 +14,7 @@ const outboxKey = (userId: string) => `local:chat/outbox/${userId}`
  * live `sessionMetas` ref and skips the entry until the mapping lands.
  */
 export interface ChatSendOutboxEntry {
+  kind?: never
   /** Stable id matching the local message; reused on every retry so the server can dedup. */
   messageId: string
   sessionId: string
@@ -24,6 +25,33 @@ export interface ChatSendOutboxEntry {
   attempts: number
   lastError?: string
   queuedAt: number
+}
+
+/**
+ * Pending cloud deletion of one message. It shares the outbox and its
+ * `messageId` key with sends, so a deletion replaces a send of the same
+ * message that has not reached the server.
+ */
+export interface ChatDeleteOutboxEntry {
+  kind: 'delete'
+  messageId: string
+  sessionId: string
+  cloudChatId?: string
+  attempts: number
+  lastError?: string
+  queuedAt: number
+}
+
+export type ChatOutboxEntry = ChatSendOutboxEntry | ChatDeleteOutboxEntry
+
+/**
+ * Identifies one outbox operation. A deletion reuses the `messageId` of the
+ * send it replaces, so the settlement of an older send must match the kind too.
+ */
+export type ChatOutboxEntryRef = Pick<ChatOutboxEntry, 'messageId' | 'kind'>
+
+function isSameOperation(entry: ChatOutboxEntryRef, ref: ChatOutboxEntryRef) {
+  return entry.messageId === ref.messageId && entry.kind === ref.kind
 }
 
 export const chatSessionsRepo = {
@@ -87,17 +115,17 @@ export const chatSessionsRepo = {
   },
 
   /**
-   * Outbox of message sends pending cloud delivery. Drained on every
+   * Outbox of message sends and deletions pending cloud delivery. Drained on every
    * reconcile + WS-open. Survives tab close / reload — the whole point
    * of the outbox is to never lose a write that landed locally but
    * never made it to the server.
    */
-  async getOutbox(userId: string): Promise<ChatSendOutboxEntry[]> {
-    const stored = await storage.getItemRaw<ChatSendOutboxEntry[]>(outboxKey(userId))
+  async getOutbox(userId: string): Promise<ChatOutboxEntry[]> {
+    const stored = await storage.getItemRaw<ChatOutboxEntry[]>(outboxKey(userId))
     return stored ?? []
   },
 
-  async enqueueOutbox(userId: string, entry: ChatSendOutboxEntry) {
+  async enqueueOutbox(userId: string, entry: ChatOutboxEntry) {
     const current = await this.getOutbox(userId)
     // Idempotent on messageId — re-queue overwrites in place rather than
     // duplicating, so a flap between online/offline doesn't multiply rows.
@@ -109,25 +137,23 @@ export const chatSessionsRepo = {
     await storage.setItemRaw(outboxKey(userId), current)
   },
 
-  async dequeueOutbox(userId: string, messageIds: string[]) {
-    if (messageIds.length === 0)
+  async dequeueOutbox(userId: string, refs: ChatOutboxEntryRef[]) {
+    if (refs.length === 0)
       return
     const current = await this.getOutbox(userId)
-    const drop = new Set(messageIds)
-    const next = current.filter(e => !drop.has(e.messageId))
+    const next = current.filter(e => !refs.some(ref => isSameOperation(e, ref)))
     if (next.length === current.length)
       return
     await storage.setItemRaw(outboxKey(userId), next)
   },
 
-  async updateOutboxEntries(userId: string, updates: Array<Pick<ChatSendOutboxEntry, 'messageId' | 'attempts' | 'lastError'>>) {
+  async updateOutboxEntries(userId: string, updates: Array<Pick<ChatOutboxEntry, 'messageId' | 'kind' | 'attempts' | 'lastError'>>) {
     if (updates.length === 0)
       return
     const current = await this.getOutbox(userId)
-    const byId = new Map(updates.map(u => [u.messageId, u]))
     let changed = false
     const next = current.map((entry) => {
-      const update = byId.get(entry.messageId)
+      const update = updates.find(u => isSameOperation(entry, u))
       if (!update)
         return entry
       changed = true

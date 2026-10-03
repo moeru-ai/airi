@@ -7,7 +7,7 @@ import type { ChatConnectionRegistry } from './connection-registry'
 
 import { useLogger } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
-import { parsePullMessagesRequest, parseSendMessagesRequest, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
+import { deleteMessages, parseDeleteMessagesRequest, parsePullMessagesRequest, parseSendMessagesRequest, pullMessages, sendMessages } from '@proj-airi/server-sdk-shared'
 
 const log = useLogger('chat-ws').useGlobalConfig()
 
@@ -37,20 +37,20 @@ export interface RegisterChatRpcHandlersOptions {
 export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions): void {
   const { ctx, userId, chatService, registry, connectionId, broadcast, metrics } = options
 
-  defineInvokeHandler(ctx, sendMessages, async (req) => {
-    const request = parseSendMessagesRequest(req)
-    log.withFields({ userId, chatId: request.chatId, count: request.messages.length }).log('sendMessages')
-    const result = await chatService.pushMessages(userId, request.chatId, request.messages)
-
-    const wireMessages = await chatService.pullMessages(userId, request.chatId, result.fromSeq - 1, result.toSeq - result.fromSeq + 1)
+  /**
+   * Sends the messages in `fromSeq..toSeq` to every user member. The calling
+   * connection is excluded because it already has the change.
+   */
+  async function fanOut(chatId: string, fromSeq: number, toSeq: number) {
+    const wireMessages = await chatService.pullMessages(userId, chatId, fromSeq - 1, toSeq - fromSeq + 1)
     const broadcastPayload = {
-      chatId: request.chatId,
+      chatId,
       messages: wireMessages.messages,
-      fromSeq: result.fromSeq,
-      toSeq: result.toSeq,
+      fromSeq,
+      toSeq,
     }
 
-    const members = await chatService.getMembers(request.chatId)
+    const members = await chatService.getMembers(chatId)
     const memberUserIds = members
       .filter(m => m.memberType === 'user' && m.userId != null)
       .map(m => m.userId!)
@@ -61,7 +61,28 @@ export function registerChatRpcHandlers(options: RegisterChatRpcHandlersOptions)
       broadcast.publish(memberUserId, broadcastPayload)
     }
 
-    metrics?.wsMessagesSent.add(wireMessages.messages.length)
+    return wireMessages.messages.length
+  }
+
+  defineInvokeHandler(ctx, sendMessages, async (req) => {
+    const request = parseSendMessagesRequest(req)
+    log.withFields({ userId, chatId: request.chatId, count: request.messages.length }).log('sendMessages')
+    const result = await chatService.pushMessages(userId, request.chatId, request.messages)
+
+    const sentCount = await fanOut(request.chatId, result.fromSeq, result.toSeq)
+
+    metrics?.wsMessagesSent.add(sentCount)
+    return { seq: result.seq }
+  })
+
+  defineInvokeHandler(ctx, deleteMessages, async (req) => {
+    const request = parseDeleteMessagesRequest(req)
+    log.withFields({ userId, chatId: request.chatId, count: request.messageIds.length }).log('deleteMessages')
+    const result = await chatService.deleteMessages(userId, request.chatId, request.messageIds)
+
+    if (result.toSeq >= result.fromSeq)
+      await fanOut(request.chatId, result.fromSeq, result.toSeq)
+
     return { seq: result.seq }
   })
 

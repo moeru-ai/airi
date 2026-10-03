@@ -152,6 +152,8 @@ export interface CloudMergeResult {
   messages: ChatHistoryItem[]
   /** Highest seq seen, including the input cursor. */
   maxSeq: number
+  /** Deleted ids after the merge (returns the original reference when nothing changed). */
+  deletedIds: readonly string[]
   /** True when either `messages` or `maxSeq` differs from the input. */
   dirty: boolean
 }
@@ -173,16 +175,24 @@ export interface CloudMergeResult {
  * - `payload.messages` may arrive out of seq order (server pagination
  *   boundaries, pub/sub interleave). New messages are appended in seq order
  *   so the in-memory list stays monotonic.
+ * - A wire message with `deletedAt` is a tombstone. It removes the local
+ *   message with the same id and is never appended.
+ * - `deletedIds` lists ids that are already deleted. A live wire message with
+ *   one of these ids is stale: a pull that started before a pending local
+ *   deletion reached the server, or a send broadcast that arrives after the
+ *   tombstone. The server never restores a deleted message, so it is dropped.
  *
  * Returns:
  * - `messages` — the new array (same reference if no-op).
  * - `maxSeq` — the cursor to write back to meta.
+ * - `deletedIds` — the deleted ids to write back to meta.
  * - `dirty` — whether the caller should persist.
  */
 export function mergeCloudMessagesIntoLocal(
   currentMessages: ChatHistoryItem[],
   currentMaxSeq: number,
   payload: Pick<NewMessagesPayload, 'messages'> & { toSeq?: number },
+  deletedIds: readonly string[] = [],
 ): CloudMergeResult {
   const knownIds = new Set<string>()
   for (const message of currentMessages) {
@@ -196,11 +206,16 @@ export function mergeCloudMessagesIntoLocal(
   const sortedWire = [...payload.messages].sort((a, b) => a.seq - b.seq)
 
   const additions: ChatHistoryItem[] = []
+  const deleted = new Set(deletedIds)
   let maxSeq = currentMaxSeq
   for (const wire of sortedWire) {
     if (wire.seq > maxSeq)
       maxSeq = wire.seq
-    if (knownIds.has(wire.id))
+    if (wire.deletedAt != null) {
+      deleted.add(wire.id)
+      continue
+    }
+    if (knownIds.has(wire.id) || deleted.has(wire.id))
       continue
     additions.push(wireMessageToLocal(wire))
   }
@@ -210,13 +225,18 @@ export function mergeCloudMessagesIntoLocal(
   if (typeof payload.toSeq === 'number' && payload.toSeq > maxSeq)
     maxSeq = payload.toSeq
 
-  if (additions.length === 0 && maxSeq === currentMaxSeq) {
-    return { messages: currentMessages, maxSeq: currentMaxSeq, dirty: false }
+  const kept = deleted.size > 0
+    ? currentMessages.filter(message => !message.id || !deleted.has(message.id))
+    : currentMessages
+  const nextDeletedIds = deleted.size !== deletedIds.length ? [...deleted] : deletedIds
+
+  if (additions.length === 0 && kept.length === currentMessages.length && maxSeq === currentMaxSeq && nextDeletedIds === deletedIds) {
+    return { messages: currentMessages, maxSeq: currentMaxSeq, deletedIds, dirty: false }
   }
 
-  const messages = additions.length > 0
-    ? [...currentMessages, ...additions]
+  const messages = additions.length > 0 || kept.length !== currentMessages.length
+    ? [...kept, ...additions]
     : currentMessages
 
-  return { messages, maxSeq, dirty: true }
+  return { messages, maxSeq, deletedIds: nextDeletedIds, dirty: true }
 }

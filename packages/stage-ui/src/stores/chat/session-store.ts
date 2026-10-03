@@ -1,7 +1,7 @@
 import type { MessageRole, NewMessagesPayload } from '@proj-airi/server-sdk-shared'
 import type {} from 'pinia-plugin-synced'
 
-import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
+import type { ChatDeleteOutboxEntry, ChatOutboxEntry, ChatOutboxEntryRef, ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
 import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
@@ -335,20 +335,64 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ])
   }
 
-  /** Removes one message by stable id or by its current history index. */
+  /**
+   * Removes one message by stable id or by its current history index.
+   *
+   * A signed-in user also deletes the message in the cloud, so a later pull
+   * or another device does not bring it back.
+   */
   async function deleteMessage(payload: DeleteChatMessagePayload): Promise<void> {
     if (!await loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
+    const removed: ChatHistoryItem[] = []
     const nextMessages = getSessionMessages(payload.sessionId).filter((message, messageIndex) => {
-      if (payload.messageId)
-        return message.id !== payload.messageId
-      if (payload.index !== undefined)
-        return messageIndex !== payload.index
-      return true
+      const keep = payload.messageId
+        ? message.id !== payload.messageId
+        : payload.index === undefined || messageIndex !== payload.index
+      if (!keep)
+        removed.push(message)
+      return keep
     })
 
+    const cloudMessageIds = getCurrentUserId() === 'local'
+      ? []
+      : removed.filter(message => message.id && isCloudSyncableMessage(message)).map(message => message.id!)
+    const meta = sessionMetas.value[payload.sessionId]
+    // Record the deletion before any await. A pull that runs before the server
+    // confirms the deletion must not merge the message back.
+    if (meta && cloudMessageIds.length > 0) {
+      sessionMetas.value[payload.sessionId] = {
+        ...meta,
+        cloudDeletedMessageIds: [...new Set([...(meta.cloudDeletedMessageIds ?? []), ...cloudMessageIds])],
+      }
+    }
+
     setSessionMessages(payload.sessionId, nextMessages)
+
+    if (cloudMessageIds.length > 0)
+      await deleteMessagesInCloud(payload.sessionId, cloudMessageIds)
+  }
+
+  /**
+   * Combines the cloud sync state of a stored meta and the in-memory meta.
+   *
+   * Use when:
+   * - An IndexedDB record replaces the in-memory meta. The read can finish
+   *   after a merge advanced the cursor or recorded a deletion, so the
+   *   record is older than memory.
+   *
+   * Returns:
+   * - The higher cursor and the union of deleted ids. Both only grow, so
+   *   neither side can undo the other.
+   */
+  function mergeCloudSyncState(stored: ChatSessionMeta, current: ChatSessionMeta | undefined): Pick<ChatSessionMeta, 'cloudMaxSeq' | 'cloudDeletedMessageIds'> {
+    const cursors = [stored.cloudMaxSeq, current?.cloudMaxSeq].filter((seq): seq is number => seq !== undefined)
+    const deletedIds = [...new Set([...(stored.cloudDeletedMessageIds ?? []), ...(current?.cloudDeletedMessageIds ?? [])])]
+    return {
+      cloudMaxSeq: cursors.length > 0 ? Math.max(...cursors) : undefined,
+      cloudDeletedMessageIds: deletedIds.length > 0 ? deletedIds : undefined,
+    }
   }
 
   /**
@@ -402,9 +446,15 @@ export const useChatSessionStore = defineStore('chat-session', () => {
             return false
           if (stored) {
             const currentMessages = sessionMessages.value[sessionId] ?? []
-            const mergedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+            const syncState = mergeCloudSyncState(stored.meta, sessionMetas.value[sessionId])
+            const deleted = new Set(syncState.cloudDeletedMessageIds)
+            const loadedMessages = mergeLoadedSessionMessages(stored.messages, currentMessages)
+            // The record can predate a tombstone that was merged during the read.
+            const mergedMessages = loadedMessages.some(message => message.id && deleted.has(message.id))
+              ? loadedMessages.filter(message => !message.id || !deleted.has(message.id))
+              : loadedMessages
 
-            sessionMetas.value[sessionId] = stored.meta
+            sessionMetas.value[sessionId] = { ...stored.meta, ...syncState }
             replaceSessionMessages(sessionId, mergedMessages, { persist: false })
             ensureGeneration(sessionId)
 
@@ -728,12 +778,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       return
 
     const current = sessionMessages.value[sessionId] ?? []
-    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload)
+    const merged = mergeCloudMessagesIntoLocal(current, meta.cloudMaxSeq ?? 0, payload, meta.cloudDeletedMessageIds)
     if (!merged.dirty)
       return
 
     sessionMessages.value[sessionId] = merged.messages
-    sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq }
+    sessionMetas.value[sessionId] = { ...meta, cloudMaxSeq: merged.maxSeq, cloudDeletedMessageIds: [...merged.deletedIds] }
     void persistSession(sessionId)
   }
 
@@ -1161,7 +1211,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         chatId: entry.cloudChatId,
         messages: [{ id: entry.messageId, role: entry.role, content: entry.content, replyToMessageId: entry.replyToMessageId }],
       })
-      await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry.messageId]))
+      await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, [entry]))
       await refreshOutboxPendingCount()
     }
     catch (err) {
@@ -1169,10 +1219,69 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       console.warn('[chat-sync] sendMessages failed for', sessionId, errMsg)
       await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, [{
         messageId: entry.messageId,
+        kind: entry.kind,
         attempts: 1,
         lastError: errMsg,
       }]))
     }
+  }
+
+  /**
+   * Delete messages in the cloud (eventually).
+   *
+   * Use when:
+   * - A signed-in user deletes messages locally. Without the cloud deletion,
+   *   a pull from an older cursor brings the messages back (issue #2671).
+   *
+   * Expects:
+   * - The messages are already removed from local state.
+   *
+   * Returns:
+   * - Resolves after the IDB outbox write lands. The network call runs in the
+   *   background, and `drainOutbox` retries a failed deletion.
+   */
+  async function deleteMessagesInCloud(sessionId: string, messageIds: string[]) {
+    const userId = getCurrentUserId()
+    if (userId === 'local')
+      return
+
+    const cloudChatId = sessionMetas.value[sessionId]?.cloudChatId
+    const queuedAt = Date.now()
+    // Each deletion replaces a queued send of the same message, so a message
+    // that never reached the server is not sent after the user deleted it.
+    const entries: ChatDeleteOutboxEntry[] = messageIds.map(messageId => ({
+      kind: 'delete',
+      messageId,
+      sessionId,
+      cloudChatId,
+      attempts: 0,
+      queuedAt,
+    }))
+    for (const entry of entries)
+      await enqueuePersist(() => chatSessionsRepo.enqueueOutbox(userId, entry))
+    await refreshOutboxPendingCount()
+
+    if (!wsClient || wsClient.status() !== 'open' || !cloudChatId)
+      return
+
+    const client = wsClient
+    void (async () => {
+      try {
+        await client.deleteMessages({ chatId: cloudChatId, messageIds })
+        await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, entries))
+        await refreshOutboxPendingCount()
+      }
+      catch (err) {
+        const errMsg = errorMessageFrom(err) ?? 'unknown'
+        console.warn('[chat-sync] deleteMessages failed for', sessionId, errMsg)
+        await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, entries.map(entry => ({
+          messageId: entry.messageId,
+          kind: entry.kind,
+          attempts: 1,
+          lastError: errMsg,
+        }))))
+      }
+    })()
   }
 
   /**
@@ -1206,7 +1315,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
 
       // Group by sessionId for batched dispatch; preserve queuedAt order
       // within each session so user-then-assistant turns stay ordered.
-      const bySession = new Map<string, ChatSendOutboxEntry[]>()
+      const bySession = new Map<string, ChatOutboxEntry[]>()
       for (const entry of entries) {
         if (entry.attempts >= OUTBOX_MAX_ATTEMPTS)
           continue
@@ -1215,8 +1324,20 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         bySession.set(entry.sessionId, list)
       }
 
-      const succeededIds: string[] = []
-      const failedUpdates: Array<Pick<ChatSendOutboxEntry, 'messageId' | 'attempts' | 'lastError'>> = []
+      const succeeded: ChatOutboxEntryRef[] = []
+      const failedUpdates: Array<Pick<ChatOutboxEntry, 'messageId' | 'kind' | 'attempts' | 'lastError'>> = []
+      const recordFailure = (entries: ChatOutboxEntry[], err: unknown, action: string) => {
+        const errMsg = errorMessageFrom(err) ?? 'unknown'
+        console.warn(`[chat-sync] outbox ${action} failed for`, entries[0]?.sessionId, errMsg)
+        for (const entry of entries) {
+          failedUpdates.push({
+            messageId: entry.messageId,
+            kind: entry.kind,
+            attempts: entry.attempts + 1,
+            lastError: errMsg,
+          })
+        }
+      }
 
       for (const [sessionId, sessionEntries] of bySession) {
         const meta = sessionMetas.value[sessionId]
@@ -1227,28 +1348,36 @@ export const useChatSessionStore = defineStore('chat-session', () => {
           break
 
         sessionEntries.sort((a, b) => a.queuedAt - b.queuedAt)
-        try {
-          await wsClient.sendMessages({
-            chatId: cloudChatId,
-            messages: sessionEntries.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
-          })
-          succeededIds.push(...sessionEntries.map(e => e.messageId))
-        }
-        catch (err) {
-          const errMsg = errorMessageFrom(err) ?? 'unknown'
-          console.warn('[chat-sync] outbox drain failed for', sessionId, errMsg)
-          for (const entry of sessionEntries) {
-            failedUpdates.push({
-              messageId: entry.messageId,
-              attempts: entry.attempts + 1,
-              lastError: errMsg,
+        const sends = sessionEntries.filter((e): e is ChatSendOutboxEntry => e.kind !== 'delete')
+        const deletes = sessionEntries.filter((e): e is ChatDeleteOutboxEntry => e.kind === 'delete')
+        if (sends.length > 0) {
+          try {
+            await wsClient.sendMessages({
+              chatId: cloudChatId,
+              messages: sends.map(e => ({ id: e.messageId, role: e.role, content: e.content, replyToMessageId: e.replyToMessageId })),
             })
+            succeeded.push(...sends)
+          }
+          catch (err) {
+            recordFailure(sends, err, 'send')
+          }
+        }
+        if (deletes.length > 0 && wsClient.status() === 'open') {
+          try {
+            await wsClient.deleteMessages({
+              chatId: cloudChatId,
+              messageIds: deletes.map(e => e.messageId),
+            })
+            succeeded.push(...deletes)
+          }
+          catch (err) {
+            recordFailure(deletes, err, 'delete')
           }
         }
       }
 
-      if (succeededIds.length > 0)
-        await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, succeededIds))
+      if (succeeded.length > 0)
+        await enqueuePersist(() => chatSessionsRepo.dequeueOutbox(userId, succeeded))
       if (failedUpdates.length > 0)
         await enqueuePersist(() => chatSessionsRepo.updateOutboxEntries(userId, failedUpdates))
       await refreshOutboxPendingCount()
