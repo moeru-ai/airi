@@ -30,7 +30,6 @@ export function createFluxRoutes(
         records: result.records.map(record => ({
           ...record,
           createdAt: record.createdAt.toISOString(),
-          settledAt: record.settledAt?.toISOString() ?? null,
         })),
         hasMore: result.hasMore,
       })

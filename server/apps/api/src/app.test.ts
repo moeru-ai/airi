@@ -23,6 +23,7 @@ function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
     paymentService: {} as never,
     appleIapVerifier: null,
     stripe: null,
+    llmBilling: {} as never,
     billingService: {} as never,
     speechBilling: {} as never,
     requestLogService: {} as never,

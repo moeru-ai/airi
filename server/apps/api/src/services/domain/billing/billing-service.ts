@@ -2,43 +2,34 @@ import type Redis from 'ioredis'
 
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
-import type { ConfigKVService } from '../../adapters/config-kv'
-import type { RequestObservation } from '../generation-observation'
-import type { ConfirmedUsage, CostPricing, CostUsage, SpeechPricing } from './billing'
+import type { FluxUsageInput } from './flux-posting'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
-import { minValue, nonEmpty, number, object, parse, picklist, pipe, safeInteger, string } from 'valibot'
+import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 
-import { fluxUsage } from '../../../schemas/flux-usage'
+import { nanoid } from '../../../utils/id'
 import { invalidateBalanceCache } from '../flux-cache'
-import { generationObservationSchema } from '../generation-observation'
-import { billingPolicySchema, confirmedUsageSchema, costPricingSchema, MICRO_FLUX_PER_FLUX, priceLlmCost, priceSpeechUsage, speechPricingSchema } from './billing'
+import { fluxUsageInputSchema, MICRO_FLUX_PER_FLUX } from './flux-posting'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
 
 const logger = useLogger('billing-service')
 
-const settlementMethod = { unresolved: 'unresolved', providerCost: 'provider_cost' }
-const settlementStatus = { pending: 'pending', settled: 'settled', cancelled: 'cancelled' }
-
-type SettlementTransaction = Parameters<Parameters<Database['transaction']>[0]>[0]
-
-/** Database handle used when Payment CORE already owns the outer transaction. */
+/** Database handle used when the caller owns the outer transaction. */
 export type BillingTransaction = Pick<Database, 'insert' | 'update' | 'select'>
 
 export function createBillingService(
   db: Database,
   redis: Redis,
-  _configKV: ConfigKVService,
   metrics?: RevenueMetrics | null,
 ) {
   /**
    * Invalidate the wallet snapshot after a successful database transaction.
    * Best-effort: cache loss is harmless since DB is the source of truth.
    */
-  async function updateRedisCache(userId: string, _balance: number): Promise<void> {
+  async function updateRedisCache(userId: string): Promise<void> {
     try {
       await invalidateBalanceCache(redis, userId)
     }
@@ -47,7 +38,7 @@ export function createBillingService(
     }
   }
 
-  async function lockWallet(tx: SettlementTransaction, userId: string) {
+  async function lockWallet(tx: BillingTransaction, userId: string) {
     const [wallet] = await tx.select().from(fluxSchema.userFlux).where(and(
       eq(fluxSchema.userFlux.userId, userId),
       isNull(fluxSchema.userFlux.deletedAt),
@@ -62,7 +53,7 @@ export function createBillingService(
     tx: BillingTransaction,
     wallet: typeof fluxSchema.userFlux.$inferSelect,
     operationId: string,
-    usageId?: string,
+    triggerTransactionId?: string,
   ) {
     const requested = Math.floor(wallet.unsettledMicroFlux / MICRO_FLUX_PER_FLUX)
     const charged = Math.min(requested, Math.max(0, wallet.flux))
@@ -72,7 +63,9 @@ export function createBillingService(
     if (charged > 0) {
       await tx.insert(fluxTxSchema.fluxTransaction).values({
         userId: wallet.userId,
-        usageId,
+        triggerTransactionId,
+        unsettledBefore: wallet.unsettledMicroFlux,
+        unsettledAfter: unsettledMicroFlux,
         operationId,
         type: 'debit',
         amount: charged,
@@ -85,255 +78,40 @@ export function createBillingService(
     return { charged, requested, balance, unsettledMicroFlux }
   }
 
-  async function postUsage(
-    tx: SettlementTransaction,
-    wallet: typeof fluxSchema.userFlux.$inferSelect,
-    usage: typeof fluxUsage.$inferSelect,
-    costMicroFlux: number,
-  ) {
-    parse(pipe(number(), safeInteger(), minValue(0)), costMicroFlux)
-    const outstanding = wallet.unsettledMicroFlux + costMicroFlux
-    if (!Number.isSafeInteger(outstanding))
-      throw new Error('Outstanding Flux is out of range')
-    const result = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, `usage:${usage.id}:post`, usage.id)
-    await tx.update(fluxUsage).set({
-      costMicroFlux,
-      billingStatus: settlementStatus.settled,
-      pendingReason: null,
-      requestedDebitFlux: result.requested,
-      walletDebitFlux: result.charged,
-      settledAt: new Date(),
-    }).where(eq(fluxUsage.id, usage.id))
-    return { ...result, costMicroFlux, pending: false, replay: false }
-  }
-
-  function replayUsage(wallet: typeof fluxSchema.userFlux.$inferSelect, usage: typeof fluxUsage.$inferSelect) {
-    return {
-      charged: usage.walletDebitFlux!,
-      requested: usage.requestedDebitFlux!,
-      costMicroFlux: usage.costMicroFlux!,
-      balance: wallet.flux,
-      unsettledMicroFlux: wallet.unsettledMicroFlux,
-      pending: false,
-      replay: true,
-    }
-  }
-
   return {
-    /** Saves the authorized price before dispatch, independently of diagnostic logging. */
-    async beginLlmRequest(input: { userId: string, requestId: string, model: string, policy: unknown }) {
-      const policy = parse(billingPolicySchema, input.policy)
-      const userId = parse(pipe(string(), nonEmpty()), input.userId)
-      const requestId = parse(pipe(string(), nonEmpty()), input.requestId)
-      await db.insert(fluxUsage).values({
-        userId,
-        service: 'llm',
-        requestId,
-        model: input.model,
-        method: settlementMethod.unresolved,
-        billingStatus: settlementStatus.pending,
-        pendingReason: 'awaiting_result',
-        pricing: policy,
-      })
-    },
-
-    /** Closes only an unresolved intake after the caller confirms no upstream key was dispatched. */
-    async cancelUndispatchedLlmRequest(input: { userId: string, requestId: string }) {
-      await db.update(fluxUsage).set({
-        billingStatus: settlementStatus.cancelled,
-        pendingReason: 'not_dispatched',
-        settledAt: new Date(),
-      }).where(and(
-        eq(fluxUsage.userId, input.userId),
-        eq(fluxUsage.requestId, input.requestId),
-        eq(fluxUsage.service, 'llm'),
-        eq(fluxUsage.method, settlementMethod.unresolved),
-        eq(fluxUsage.billingStatus, settlementStatus.pending),
-      ))
-    },
-
-    /** Confirms a provider fee and posts it once to the shared micro-Flux pool. Missing costs stay pending. */
-    async settleLlmCost(input: {
-      provider: string
-      userId: string
-      requestId: string
-      model: string
-      usage: CostUsage
-      pricing: CostPricing
-      pendingReason?: string
-      observation: RequestObservation
-    }) {
-      const provider = parse(pipe(string(), nonEmpty()), input.provider)
-      const source = parse(picklist(['provider_reported', 'model_price_table']), input.usage.source)
-      const observation = parse(generationObservationSchema, {
-        ...input.observation,
-        ...input.usage,
-        userId: input.userId,
-        requestId: input.requestId,
-        model: input.model,
-        fluxConsumed: 0,
-      })
-      const result = await db.transaction(async (tx) => {
-        const wallet = await lockWallet(tx, input.userId)
-        const key = and(eq(fluxUsage.userId, input.userId), eq(fluxUsage.service, 'llm'), eq(fluxUsage.requestId, input.requestId))
-        const [existing] = await tx.select().from(fluxUsage).where(key)
-        if (existing?.billingStatus === settlementStatus.cancelled)
-          throw new Error('Cannot settle an undispatched request')
-        if (existing?.billingProvider != null && existing.billingProvider !== provider)
-          throw new Error('Provider does not match the cost receipt')
-        if (existing?.generationId && input.usage.generationId !== existing.generationId)
-          throw new Error('Generation ID does not match the cost receipt')
-        if (existing?.billingStatus === settlementStatus.settled) {
-          if (existing.model !== input.model)
-            throw new Error('Model does not match the cost receipt')
-          if (existing.precision === 'micro_flux' && priceLlmCost(input.usage, parse(costPricingSchema, existing.pricing)).costMicroFlux !== existing.costMicroFlux)
-            throw new Error('LLM replay does not match the original fee')
-          return replayUsage(wallet, existing)
-        }
-        if (existing && !Object.values(settlementMethod).includes(existing.method))
-          throw new Error('Billing method does not match the usage')
-        let savedPricing: unknown = input.pricing
-        if (existing?.method === settlementMethod.providerCost) {
-          savedPricing = existing.pricing
-        }
-        else if (existing?.method === settlementMethod.unresolved) {
-          const policy = parse(billingPolicySchema, existing.pricing)
-          savedPricing = policy.costPricing[provider]
-          if (!savedPricing)
-            throw new Error('Provider cost pricing was not authorized for this request')
-        }
-        const pricing = parse(costPricingSchema, savedPricing)
-        const fee = priceLlmCost(input.usage, pricing)
-        const receipt = {
-          userId: input.userId,
-          service: 'llm',
-          requestId: input.requestId,
-          model: input.model,
-          attemptId: observation.attemptId,
-          method: settlementMethod.providerCost,
-          billingProvider: provider,
-          billingStatus: settlementStatus.pending,
-          pendingReason: input.pendingReason ?? fee.pendingReason ?? 'awaiting_settlement',
-          generationId: input.usage.generationId,
-          providerUsage: observation.providerUsage,
-          costSource: source,
-          costUsd: fee.costUsd?.toString(),
-          pricing,
-        }
-        const [usage] = await tx.insert(fluxUsage).values(receipt).onConflictDoUpdate({
-          target: [fluxUsage.userId, fluxUsage.service, fluxUsage.requestId],
-          set: receipt,
-        }).returning()
-        if (input.pendingReason !== undefined || fee.costMicroFlux === undefined)
-          return { charged: 0, requested: 0, costMicroFlux: null, balance: wallet.flux, unsettledMicroFlux: wallet.unsettledMicroFlux, pending: true, replay: false }
-        return postUsage(tx, wallet, usage!, fee.costMicroFlux)
-      }).catch((error) => {
-        logger.withError(error).withFields({
-          event: 'flux.usage',
-          billingStatus: 'failed',
-          service: 'llm',
-          userId: input.userId,
-          requestId: input.requestId,
-          generationId: input.usage.generationId,
-          provider,
-        }).error('Failed to persist LLM usage')
-        throw error
-      })
-      if (!result.pending && !result.replay) {
-        await updateRedisCache(input.userId, result.balance)
-        if (result.charged < result.requested)
-          metrics?.fluxInsufficientBalance.add(1)
-      }
-      return result
-    },
-
-    /** Posts a confirmed fee from a service-owned pricing rule. Replays must preserve identity and cost. */
-    async recordUsage(input: ConfirmedUsage) {
-      const fee = parse(confirmedUsageSchema, input)
-      const result = await db.transaction(async (tx) => {
-        const wallet = await lockWallet(tx, fee.userId)
-        const key = and(eq(fluxUsage.userId, fee.userId), eq(fluxUsage.service, fee.service), eq(fluxUsage.requestId, fee.requestId))
-        const [existing] = await tx.select().from(fluxUsage).where(key)
-        if (existing) {
-          if (existing.method !== fee.method || existing.model !== fee.model || existing.billingProvider !== (fee.provider ?? null))
-            throw new Error('Usage identity does not match the original fee')
-          if (existing.billingStatus === settlementStatus.settled) {
-            if (existing.costMicroFlux !== fee.costMicroFlux)
-              throw new Error('Usage replay does not match the original fee')
-            return replayUsage(wallet, existing)
-          }
-          throw new Error('Confirmed usage cannot overwrite a pending receipt')
-        }
-        const [usage] = await tx.insert(fluxUsage).values({
-          userId: fee.userId,
-          service: fee.service,
-          requestId: fee.requestId,
-          model: fee.model,
-          method: fee.method,
-          billingProvider: fee.provider,
-          turnId: fee.turnId,
-          costSource: fee.costSource,
-          pricing: fee.pricing,
-          billingStatus: settlementStatus.pending,
-        }).returning()
-        return postUsage(tx, wallet, usage!, fee.costMicroFlux)
-      })
-      if (!result.replay)
-        await updateRedisCache(fee.userId, result.balance)
-      return result
-    },
-
-    /** Persists the speech price before dispatch so provider or database failures leave a recoverable intake. */
-    async beginSpeechUsage(input: { userId: string, requestId: string, model: string, pricing: SpeechPricing, turnId?: string }) {
-      const pricing = parse(speechPricingSchema, input.pricing)
-      await db.insert(fluxUsage).values({
-        userId: input.userId,
-        service: 'tts',
-        requestId: input.requestId,
-        model: input.model,
-        turnId: input.turnId,
-        method: 'characters',
-        billingStatus: settlementStatus.pending,
-        pendingReason: 'awaiting_result',
-        pricing,
-      }).onConflictDoNothing({ target: [fluxUsage.userId, fluxUsage.service, fluxUsage.requestId] })
-    },
-
-    /** Posts confirmed speech units using the saved price. Replay never adds the fee twice. */
-    async settleSpeechUsage(input: { userId: string, requestId: string, units: number, model: string, provider?: string, turnId?: string }) {
-      const result = await db.transaction(async (tx) => {
-        const wallet = await lockWallet(tx, input.userId)
-        const [usage] = await tx.select().from(fluxUsage).where(and(
-          eq(fluxUsage.userId, input.userId),
-          eq(fluxUsage.service, 'tts'),
-          eq(fluxUsage.requestId, input.requestId),
+    /** Posts a confirmed amount once. Service evidence is neither required nor inspected for wallet replay. */
+    async postFluxUsage(input: FluxUsageInput, transaction?: BillingTransaction) {
+      const command = parse(fluxUsageInputSchema, input)
+      const write = async (tx: BillingTransaction) => {
+        const wallet = await lockWallet(tx, command.userId)
+        const [existing] = await tx.select().from(fluxTxSchema.fluxTransaction).where(and(
+          eq(fluxTxSchema.fluxTransaction.userId, command.userId),
+          eq(fluxTxSchema.fluxTransaction.type, 'accrual'),
+          eq(fluxTxSchema.fluxTransaction.sourceType, command.source.type),
+          eq(fluxTxSchema.fluxTransaction.sourceId, command.source.id),
         ))
-        if (!usage || usage.method !== 'characters')
-          throw new Error('Speech usage intake is missing')
-        if (usage.billingStatus === settlementStatus.settled) {
-          const units = parse(pipe(number(), safeInteger(), minValue(0)), input.units)
-          if (usage.model !== input.model || usage.billingProvider !== (input.provider ?? null) || parse(object({ characters: pipe(number(), safeInteger(), minValue(0)) }), usage.providerUsage).characters !== units || priceSpeechUsage(units, parse(speechPricingSchema, usage.pricing)) !== usage.costMicroFlux)
-            throw new Error('Speech replay does not match the original fee')
-          return replayUsage(wallet, usage)
+        if (existing) {
+          if (existing.amountMicroFlux !== command.amountMicroFlux)
+            throw new Error('Flux source replay does not match the posted amount')
+          const [debit] = await tx.select().from(fluxTxSchema.fluxTransaction).where(eq(fluxTxSchema.fluxTransaction.triggerTransactionId, existing.id))
+          return { charged: debit?.amount ?? 0, requested: Math.floor(existing.unsettledAfter! / MICRO_FLUX_PER_FLUX), amountMicroFlux: existing.amountMicroFlux, balance: wallet.flux, unsettledMicroFlux: wallet.unsettledMicroFlux, replay: true, transactionId: existing.id }
         }
-        const costMicroFlux = priceSpeechUsage(input.units, parse(speechPricingSchema, usage.pricing))
-        await tx.update(fluxUsage).set({
-          model: input.model,
-          billingProvider: input.provider,
-          turnId: input.turnId,
-          providerUsage: { characters: input.units },
-          costSource: 'character_price',
-        }).where(eq(fluxUsage.id, usage.id))
-        return postUsage(tx, wallet, usage, costMicroFlux)
-      })
-      if (!result.replay)
-        await updateRedisCache(input.userId, result.balance)
+        const outstanding = wallet.unsettledMicroFlux + command.amountMicroFlux
+        parse(pipe(number(), safeInteger(), minValue(0)), outstanding)
+        const id = nanoid()
+        await tx.insert(fluxTxSchema.fluxTransaction).values({ id, userId: command.userId, type: 'accrual', amount: 0, amountMicroFlux: command.amountMicroFlux, sourceType: command.source.type, sourceId: command.source.id, balanceBefore: wallet.flux, balanceAfter: wallet.flux, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: outstanding, description: 'usage_accrual' })
+        const result = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, `accrual:${id}:settle`, id)
+        return { ...result, amountMicroFlux: command.amountMicroFlux, replay: false, transactionId: id }
+      }
+      const result = transaction ? await write(transaction) : await db.transaction(write)
+      if (!transaction && !result.replay)
+        await updateRedisCache(command.userId)
       return result
     },
 
     /** Reads authoritative admission state. Cached balances cannot authorize concurrent usage. */
-    async getWallet(userId: string) {
-      const [wallet] = await db.select().from(fluxSchema.userFlux).where(and(
+    async getWallet(userId: string, transaction?: BillingTransaction) {
+      const [wallet] = await (transaction ?? db).select().from(fluxSchema.userFlux).where(and(
         eq(fluxSchema.userFlux.userId, userId),
         isNull(fluxSchema.userFlux.deletedAt),
       ))
@@ -444,7 +222,7 @@ export function createBillingService(
       }
 
       if (!input.tx) {
-        await updateRedisCache(input.userId, txResult.balanceAfter)
+        await updateRedisCache(input.userId)
         metrics?.fluxCredited.add(input.amount, { source: input.source, type: ledgerType })
       }
 
@@ -452,8 +230,8 @@ export function createBillingService(
       return txResult
     },
 
-    async syncFluxCache(userId: string, balance: number, credited?: { amount: number, source: string }): Promise<void> {
-      await updateRedisCache(userId, balance)
+    async syncFluxCache(userId: string, _balance: number, credited?: { amount: number, source: string }): Promise<void> {
+      await updateRedisCache(userId)
       if (credited)
         metrics?.fluxCredited.add(credited.amount, { source: credited.source, type: 'credit' })
     },

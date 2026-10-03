@@ -3,8 +3,6 @@ import type { Database } from '../../libs/db'
 import { useLogger } from '@guiiai/logg'
 import { and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 
-import { fluxUsage } from '../../schemas/flux-usage'
-
 import * as schema from '../../schemas/flux-transaction'
 
 const logger = useLogger('flux-transaction')
@@ -22,22 +20,15 @@ export interface TransactionEntry {
 
 export function createFluxTransactionService(db: Database) {
   return {
-    /** Returns service fees independently of integer wallet debits, including zero and pending costs. */
+    /** Projects confirmed accruals, including zero fees, independently of integer wallet debits. */
     async getUsageHistory(userId: string, limit: number, offset: number) {
       const rows = await db.select({
-        id: fluxUsage.id,
-        service: fluxUsage.service,
-        requestId: fluxUsage.requestId,
-        turnId: fluxUsage.turnId,
-        model: fluxUsage.model,
-        provider: fluxUsage.billingProvider,
-        status: fluxUsage.billingStatus,
-        pendingReason: fluxUsage.pendingReason,
-        costMicroFlux: fluxUsage.costMicroFlux,
-        precision: fluxUsage.precision,
-        createdAt: fluxUsage.createdAt,
-        settledAt: fluxUsage.settledAt,
-      }).from(fluxUsage).where(eq(fluxUsage.userId, userId)).orderBy(desc(fluxUsage.createdAt), desc(fluxUsage.id)).limit(limit + 1).offset(offset)
+        id: schema.fluxTransaction.id,
+        sourceType: schema.fluxTransaction.sourceType,
+        sourceId: schema.fluxTransaction.sourceId,
+        amountMicroFlux: schema.fluxTransaction.amountMicroFlux,
+        createdAt: schema.fluxTransaction.createdAt,
+      }).from(schema.fluxTransaction).where(and(eq(schema.fluxTransaction.userId, userId), eq(schema.fluxTransaction.type, 'accrual'))).orderBy(desc(schema.fluxTransaction.createdAt), desc(schema.fluxTransaction.id)).limit(limit + 1).offset(offset)
       return { records: rows.slice(0, limit), hasMore: rows.length > limit }
     },
 
@@ -67,7 +58,7 @@ export function createFluxTransactionService(db: Database) {
         END`.as('group_key'),
       })
         .from(schema.fluxTransaction)
-        .where(eq(schema.fluxTransaction.userId, userId))
+        .where(and(eq(schema.fluxTransaction.userId, userId), sql`${schema.fluxTransaction.type} != 'accrual'`))
         .as('history_transactions')
       const history = db.select({
         id: transactions.id,

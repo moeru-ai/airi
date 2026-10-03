@@ -6,8 +6,6 @@ import Redis from 'ioredis'
 import { array, check, minValue, nonEmpty, number, object, parse, pipe, safeInteger, string } from 'valibot'
 
 import { createDrizzle } from '../libs/db'
-import { createConfigKVService } from '../services/adapters/config-kv'
-import { createConfigKVStore } from '../services/adapters/config-kv/store'
 import { priceSpeechUsage, speechPricingSchema } from '../services/domain/billing/billing'
 import { createBillingService } from '../services/domain/billing/billing-service'
 
@@ -27,7 +25,7 @@ const snapshotSchema = object({
  * Call stack:
  * main
  *   -> createBillingService
- *     -> recordUsage
+ *     -> postFluxUsage
  *       -> PostgreSQL wallet lock, fee posting, and integer debit
  */
 async function main() {
@@ -50,19 +48,13 @@ async function main() {
     DB_POOL_KEEPALIVE_INITIAL_DELAY_MS: 1000,
   })
   const redis = new Redis(redisUrl)
-  const config = createConfigKVService(createConfigKVStore(database.db, redis))
-  const billing = createBillingService(database.db, redis, config)
+  const billing = createBillingService(database.db, redis)
   try {
     for (const entry of entries) {
-      await billing.recordUsage({
+      await billing.postFluxUsage({
         userId: entry.userId,
-        service: 'tts',
-        requestId: `redis-import:${snapshot.batchId}:${entry.userId}`,
-        model: 'redis_debt_import',
-        method: 'redis_import',
-        costSource: 'frozen_redis_counter',
-        costMicroFlux: entry.costMicroFlux,
-        pricing: { ...entry.pricing, characters: entry.units, batchId: snapshot.batchId },
+        source: { type: 'tts_debt_import', id: `${snapshot.batchId}:${entry.userId}` },
+        amountMicroFlux: entry.costMicroFlux,
       })
     }
     console.info(JSON.stringify({ imported: entries.length }))

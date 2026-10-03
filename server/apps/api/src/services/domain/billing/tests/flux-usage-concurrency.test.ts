@@ -2,14 +2,12 @@ import type { Database } from '../../../../libs/db'
 
 import { env } from 'node:process'
 
-import { sum } from 'drizzle-orm'
+import { eq, sum } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 
 import { createDrizzle, migrateDatabase } from '../../../../libs/db'
 import { createTestRedis } from '../../../../libs/tests/redis'
-import { fluxTransaction, fluxUsage, userFlux } from '../../../../schemas'
-import { createConfigKVService } from '../../../adapters/config-kv'
-import { createConfigKVStore } from '../../../adapters/config-kv/store'
+import { fluxTransaction, userFlux } from '../../../../schemas'
 import { createBillingService } from '../billing-service'
 
 const databaseUrl = env.BILLING_TEST_DATABASE_URL
@@ -39,35 +37,24 @@ afterAll(async () => {
 
 it.skipIf(!databaseUrl)('conserves mixed fees across concurrent connections and duplicate events', async () => {
   await db.delete(fluxTransaction)
-  await db.delete(fluxUsage)
   await db.delete(userFlux)
   await db.insert(userFlux).values({ userId: 'concurrent', flux: 500 })
   const redis = createTestRedis()
-  const config = createConfigKVService(createConfigKVStore(db, redis))
-  const billing = createBillingService(db, redis, config)
+  const billing = createBillingService(db, redis)
   const calls: Array<() => Promise<unknown>> = []
   for (let index = 0; index < 100; index++) {
     const requestId = `event-${index}`
-    await billing.beginSpeechUsage({ userId: 'concurrent', requestId, model: 'tts', pricing: { fluxPer1kChars: 1 } })
-    const receipt = {
-      userId: 'concurrent',
-      requestId,
-      model: 'llm',
-      provider: 'provider',
-      pricing: { fluxPerUsd: 1000, multiplier: 1 },
-      usage: { source: 'provider_reported' as const, costUsd: 0.0006, generationId: requestId },
-      observation: { status: 200, durationMs: 1 },
-    }
-    calls.push(() => billing.settleLlmCost(receipt))
-    calls.push(() => billing.settleSpeechUsage({ userId: 'concurrent', requestId, model: 'tts', units: 550 }))
-    calls.push(() => billing.settleLlmCost(receipt))
+    const receipt = { userId: 'concurrent', source: { type: 'llm', id: requestId }, amountMicroFlux: 600_000 }
+    calls.push(() => billing.postFluxUsage(receipt))
+    calls.push(() => billing.postFluxUsage({ userId: 'concurrent', source: { type: 'tts', id: requestId }, amountMicroFlux: 550_000 }))
+    calls.push(() => billing.postFluxUsage(receipt))
   }
   await Promise.all(calls.map(call => call()))
   const wallet = await billing.getWallet('concurrent')
   expect(wallet).toMatchObject({ flux: 385, unsettledMicroFlux: 0 })
-  expect(await db.select().from(fluxUsage)).toHaveLength(200)
+  expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.type, 'accrual'))).toHaveLength(200)
   const [debits] = await db.select({ total: sum(fluxTransaction.amount) }).from(fluxTransaction)
-  const [fees] = await db.select({ total: sum(fluxUsage.costMicroFlux) }).from(fluxUsage)
+  const [fees] = await db.select({ total: sum(fluxTransaction.amountMicroFlux) }).from(fluxTransaction)
   expect(Number(debits.total)).toBe(115)
   expect(Number(fees.total)).toBe(115_000_000)
 })

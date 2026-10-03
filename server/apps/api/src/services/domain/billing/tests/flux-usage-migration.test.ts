@@ -25,12 +25,13 @@ it('migrates historical billing evidence without repricing or changing wallet ba
       await client.exec(statement)
     const wallet = await client.query('SELECT flux, unsettled_micro_flux FROM user_flux')
     expect(wallet.rows).toEqual([{ flux: 7, unsettled_micro_flux: 0 }])
-    const usage = await client.query('SELECT service, precision, cost_micro_flux, wallet_debit_flux, cost_usd FROM flux_usage')
-    expect(usage.rows).toEqual([{ service: 'llm', precision: 'whole_flux', cost_micro_flux: 3_000_000, wallet_debit_flux: 2, cost_usd: '0.0012' }])
-    const ledger = await client.query('SELECT usage_id, amount, balance_after FROM flux_transaction')
-    expect(ledger.rows).toEqual([{ usage_id: 'receipt', amount: 2, balance_after: 7 }])
+    const usage = await client.query('SELECT precision, cost_micro_flux, charged_flux, cost_usd FROM llm_billing_receipt')
+    expect(usage.rows).toEqual([{ precision: 'whole_flux', cost_micro_flux: 3_000_000, charged_flux: 2, cost_usd: '0.0012' }])
+    const ledger = await client.query('SELECT settlement_id, amount, balance_after FROM flux_transaction')
+    expect(ledger.rows).toEqual([{ settlement_id: 'receipt', amount: 2, balance_after: 7 }])
+    await expect(client.exec('INSERT INTO flux_transaction (id,user_id,type,amount,balance_before,balance_after,description,source_type,source_id,amount_micro_flux,unsettled_before) VALUES (\'missing-after\',\'historical\',\'accrual\',0,7,7,\'invalid\',\'test\',\'missing-after\',1,0)')).rejects.toThrow()
     await expect(client.exec('UPDATE user_flux SET unsettled_micro_flux = -1')).rejects.toThrow()
-    await expect(client.exec('UPDATE flux_usage SET cost_micro_flux = -1')).rejects.toThrow()
+    await expect(client.exec('INSERT INTO flux_transaction (id,user_id,type,amount,balance_before,balance_after,description,amount_micro_flux) VALUES (\'invalid\',\'historical\',\'accrual\',0,7,7,\'invalid\',1)')).rejects.toThrow()
   }
   finally {
     await client.close()

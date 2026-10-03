@@ -28,16 +28,18 @@ The cache functions do not add a key prefix.
 
 ## Flux usage
 
-`flux_usage` records service fees. `user_flux` stores integer Flux and outstanding micro-Flux.
-`flux_transaction` records integer balance changes. One Flux equals 1,000,000 micro-Flux.
+`flux_transaction` records fee accruals and integer balance changes. `user_flux` stores integer Flux and outstanding micro-Flux.
+One Flux equals 1,000,000 micro-Flux.
 LLM and TTS fees share the same accumulator. Outstanding fees do not expire.
-`BillingService.recordUsage` accepts confirmed fees from service-owned pricing rules.
-LLM and speech entry points save prices before dispatch and preserve unknown costs as pending receipts.
+`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux })` accepts confirmed monetary amounts.
+The accounting core has no model, provider, turn, attempt, or pricing dependency.
+`llm_billing_receipt` and `speech_billing_receipt` own prices and service evidence.
+Their entry points save prices before dispatch and preserve unknown costs as pending receipts.
 Posted fees never enter the wallet twice. A pooled debit can include earlier fees from other services.
 Admission reads PostgreSQL. The display cache contains both wallet fields and expires after 60 seconds.
 Credits settle affordable outstanding fees. Admin balance changes preserve outstanding fees.
 
-`GET /api/v1/flux/usage` returns paginated service fees. Wallet history continues to return integer balance changes.
+`GET /api/v1/flux/usage` projects paginated accruals from the ledger. Wallet history continues to return integer balance changes.
 Use the fee amount for service spend reports. Do not attribute a pooled debit to its triggering service.
 
 ### Frozen TTS debt import
@@ -251,8 +253,10 @@ Zero charges do not create debit ledger rows. Underfunded settlements increment 
 Routing failures before any upstream dispatch close the intake as `cancelled/not_dispatched`.
 Unknown outcomes after dispatch stay pending.
 Billing retains the original price snapshot, cost source, sanitized provider usage and provider/generation identity for reconciliation.
-`flux_usage` stores the fee and its triggered wallet effects. Those effects are committed with the ledger.
-`flux_transaction` owns actual balance changes and references the triggering usage without copying its cost and price fields.
+`llm_billing_receipt` owns provider evidence and its pending, posted, or cancelled state.
+`flux_transaction` owns monetary accruals and balance changes. A debit references its triggering accrual.
+Service receipts and financial postings commit in one transaction. Ledger replay does not depend on service receipts.
+Migration 0028 preserves historical integer settlement fields as archival evidence. New receipts do not write those fields.
 Request-log `fluxConsumed` remains an observation-time summary, not a live billing total.
 There is no automatic reconciliation worker in this release.
 
@@ -262,7 +266,7 @@ This release does not implement that adapter.
 
 Request tracking #2673 is merged. Billing #2644 adds only migration 0027.
 Apply `0026_llm_request_tracking.sql` before `0027_llm_cost_settlement.sql`.
-Configure supported provider prices before deploying the billing change; missing prices intentionally stop LLM calls.
+Configure supported provider prices before deploying the billing change. Missing prices stop LLM calls.
 These migrations replace unpublished PR drafts and must not be applied over an already-applied earlier draft.
 
 See the [billing ADR](../../docs/ai/adr/2026-09-23-provider-cost-billing.md) for accounting ownership and verification boundaries.

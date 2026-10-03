@@ -2,6 +2,7 @@ import type { RevenueMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../../services/adapters/config-kv'
 import type { BillingPolicy, CostPricing, CostUsage } from '../../../../services/domain/billing/billing'
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
+import type { LlmBillingService } from '../../../../services/domain/billing/llm-billing'
 import type { SpeechBilling } from '../../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../../services/domain/flux'
 import type { RequestObservation } from '../../../../services/domain/generation-observation'
@@ -15,7 +16,7 @@ import { createPaymentRequiredError, createServiceUnavailableError } from '../..
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
 export interface ChatFluxDebitInput extends UsageInfo {
-  billingService: BillingService
+  llmBilling: LlmBillingService
   revenue?: RevenueMetrics | null
   userId: string
   requestId: string
@@ -48,11 +49,12 @@ export interface OpenAiRouteBilling {
     model: string
     stage: 'streaming' | 'non_streaming'
   }) => void
-  settleChat: (input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>) => Promise<number>
+  settleChat: (input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>) => Promise<number>
 
 }
 
 export function createOpenAiRouteBilling(deps: {
+  llmBilling: LlmBillingService
   billingService: BillingService
   configKV: ConfigKVService
   fluxService: FluxService
@@ -89,10 +91,10 @@ export function createOpenAiRouteBilling(deps: {
     return { amount, costReceipt: { provider: adapter.provider, usage: costUsage, pricing } }
   }
 
-  async function settleChat(input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>): Promise<number> {
+  async function settleChat(input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>): Promise<number> {
     return debitChatFlux({
       ...input,
-      billingService: deps.billingService,
+      llmBilling: deps.llmBilling,
       revenue: deps.revenue,
     })
   }
@@ -113,7 +115,7 @@ export function createOpenAiRouteBilling(deps: {
 }
 
 export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> {
-  const result = await input.billingService.settleLlmCost({
+  const result = await input.llmBilling.settleLlmCost({
     provider: input.costReceipt.provider,
     userId: input.userId,
     requestId: input.requestId,

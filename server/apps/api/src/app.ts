@@ -5,6 +5,7 @@ import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { BillingService } from './services/domain/billing/billing-service'
+import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
@@ -67,6 +68,7 @@ import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
+import { createLlmBillingService } from './services/domain/billing/llm-billing'
 import { SpeechBilling } from './services/domain/billing/speech-billing'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
@@ -95,6 +97,7 @@ interface AppDeps {
   paymentService: PaymentService
   appleIapVerifier: AppleIapVerifier | null
   stripe: Stripe | null
+  llmBilling: LlmBillingService
   billingService: BillingService
   speechBilling: SpeechBilling
   requestLogService: RequestLogService
@@ -284,6 +287,7 @@ export async function buildApp(deps: AppDeps) {
   const v1Routes = createV1Routes({
     fluxService: deps.fluxService,
     billingService: deps.billingService,
+    llmBilling: deps.llmBilling,
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
@@ -690,8 +694,13 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, configKV, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.otel?.revenue),
+  })
+
+  const llmBilling = injeca.provide('services:llmBilling', {
+    dependsOn: { db, billingService, otel },
+    build: ({ dependsOn }) => createLlmBillingService(dependsOn.db, dependsOn.billingService, dependsOn.otel?.revenue),
   })
 
   const paymentService = injeca.provide('services:payment', {
@@ -722,8 +731,8 @@ export async function createApp() {
   })
 
   const speechBilling = injeca.provide('services:speechBilling', {
-    dependsOn: { billingService, configKV, otel },
-    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, billingService, configKV, otel },
+    build: ({ dependsOn }) => new SpeechBilling(dependsOn.db, dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   // Redis coordinates upstream pool capacity across API replicas.
@@ -759,6 +768,7 @@ export async function createApp() {
     appleIapVerifier,
     stripe,
     billingService,
+    llmBilling,
     speechBilling,
     configKV,
     envelopeCrypto,
@@ -787,6 +797,7 @@ export async function createApp() {
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
+    llmBilling: resolved.llmBilling,
     speechBilling: resolved.speechBilling,
     requestLogService: resolved.requestLogService,
     productEventService: resolved.productEventService,

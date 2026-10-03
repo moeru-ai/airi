@@ -115,7 +115,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
     await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
-    await deps.billingService.beginLlmRequest({ userId: input.userId, requestId, model, policy })
+    await deps.llmBilling.beginLlmRequest({ userId: input.userId, requestId, model, policy })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
@@ -147,7 +147,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     }
     catch (error) {
       if (routeCtx.triedKeys === 0) {
-        await deps.billingService.cancelUndispatchedLlmRequest({ userId: input.userId, requestId }).catch((error) => {
+        await deps.llmBilling.cancelUndispatchedLlmRequest({ userId: input.userId, requestId }).catch((error) => {
           logger.withError(error).withFields({ requestId }).error('Failed to close undispatched LLM intake')
         })
       }

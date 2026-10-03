@@ -2,10 +2,10 @@ import type { InferOutput } from 'valibot'
 
 import type { UsageInfo } from '../generation-usage'
 
-import { boolean, finite, integer, minValue, nonEmpty, number, object, optional, pipe, record, safeInteger, safeParse, string, union } from 'valibot'
+import { finite, integer, minValue, nonEmpty, number, object, pipe, record, safeParse, string } from 'valibot'
 
 /** Number of micro-Flux units in one integer wallet Flux. */
-export const MICRO_FLUX_PER_FLUX = 1_000_000
+export { MICRO_FLUX_PER_FLUX } from './flux-posting'
 
 /** Price snapshot for provider-reported USD costs. There are no default sale prices. */
 export const costPricingSchema = object({
@@ -93,18 +93,3 @@ export function priceSpeechUsage(units: number, pricing: SpeechPricing): number 
     throw new Error('Speech cost is out of range')
   return Number(fee)
 }
-
-/** Confirmed fees from service-owned pricing rules enter the wallet through this provider-neutral contract. */
-export const confirmedUsageSchema = object({
-  userId: pipe(string(), nonEmpty()),
-  service: pipe(string(), nonEmpty()),
-  requestId: pipe(string(), nonEmpty()),
-  model: pipe(string(), nonEmpty()),
-  method: pipe(string(), nonEmpty()),
-  costSource: pipe(string(), nonEmpty()),
-  costMicroFlux: pipe(number(), safeInteger(), minValue(0)),
-  pricing: record(pipe(string(), nonEmpty()), union([pipe(number(), finite()), string(), boolean()])),
-  provider: optional(pipe(string(), nonEmpty())),
-  turnId: optional(pipe(string(), nonEmpty())),
-})
-export type ConfirmedUsage = InferOutput<typeof confirmedUsageSchema>

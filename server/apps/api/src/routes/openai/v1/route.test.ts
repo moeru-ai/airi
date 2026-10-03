@@ -1,7 +1,8 @@
 import type { Database } from '../../../libs/db'
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
-import type { BillingService } from '../../../services/domain/billing/billing-service'
+import type { BillingService as WalletBillingService } from '../../../services/domain/billing/billing-service'
+import type { LlmBillingService } from '../../../services/domain/billing/llm-billing'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
@@ -19,11 +20,12 @@ import { mockDB } from '../../../libs/mock-db'
 import { createTestRedis } from '../../../libs/tests/redis'
 import { userFlux } from '../../../schemas/flux'
 import { fluxTransaction } from '../../../schemas/flux-transaction'
-import { fluxUsage } from '../../../schemas/flux-usage'
+import { llmBillingReceipt } from '../../../schemas/llm-billing-receipt'
 import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
 import { llmRequestLog } from '../../../schemas/llm-request-log'
 import { priceLlmCost } from '../../../services/domain/billing/billing'
 import { createBillingService } from '../../../services/domain/billing/billing-service'
+import { createLlmBillingService } from '../../../services/domain/billing/llm-billing'
 import { createRequestLogService } from '../../../services/domain/request-log'
 import { ApiError } from '../../../utils/error'
 import {
@@ -38,6 +40,13 @@ function createMockFluxService(flux = 100): FluxService {
   return {
     getFlux: vi.fn(async () => ({ userId: 'user-1', flux })),
   } as any
+}
+
+type BillingService = WalletBillingService & LlmBillingService
+
+function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], _config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[2]): BillingService {
+  const billing = createBillingService(db, redis, metrics)
+  return { ...billing, ...createLlmBillingService(db, billing, metrics) }
 }
 
 function createMockBillingService(flux = 100): BillingService {
@@ -374,6 +383,7 @@ function createTestApp(
   const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
     billingService: billingService ?? createMockBillingService(),
+    llmBilling: billingService ?? createMockBillingService(),
     configKV,
     requestLogService: requestLogService ?? createMockRequestLogService(),
     productEventService,
@@ -2575,6 +2585,7 @@ describe('openRouter cost billing through HTTP routes', () => {
   it('uses a separate minimum balance rather than the old per-request rate', async () => {
     const policy = createOpenAiRouteBilling({
       billingService: createMockBillingService(),
+      llmBilling: createMockBillingService(),
       configKV: createMockConfigKV({ LLM_COST_BILLING: { openrouter: pricing }, LLM_MINIMUM_BALANCE: 1, FLUX_PER_REQUEST: 999 }),
       fluxService: createMockFluxService(2),
       speechBilling: createMockTtsMeter(),
@@ -2585,6 +2596,7 @@ describe('openRouter cost billing through HTTP routes', () => {
   it('rejects an adapter whose price is absent from an otherwise valid policy', async () => {
     const policy = createOpenAiRouteBilling({
       billingService: createMockBillingService(),
+      llmBilling: createMockBillingService(),
       configKV: createMockConfigKV({ LLM_COST_BILLING: { another: pricing } }),
       fluxService: createMockFluxService(),
       speechBilling: createMockTtsMeter(),
@@ -2597,6 +2609,7 @@ describe('openRouter cost billing through HTTP routes', () => {
   it('quotes a nonzero failure estimate and selects prices by adapter provider ID', async () => {
     const policy = createOpenAiRouteBilling({
       billingService: createMockBillingService(),
+      llmBilling: createMockBillingService(),
       configKV: createMockConfigKV({ LLM_COST_BILLING: { openrouter: pricing, other: { fluxPerUsd: 20, multiplier: 7 } } }),
       fluxService: createMockFluxService(),
       speechBilling: createMockTtsMeter(),
@@ -2608,10 +2621,10 @@ describe('openRouter cost billing through HTTP routes', () => {
     expect(() => policy.priceChatUsage({ providerUsage: { cost: 10 } }, authorization, 'other.example')).toThrow('LLM cost adapter or price is missing')
   })
   beforeAll(async () => {
-    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestAttempt, fluxUsage })
+    db = await mockDB({ userFlux, fluxTransaction, llmRequestLog, llmRequestAttempt, llmBillingReceipt })
   })
   beforeEach(async () => {
-    await db.delete(fluxUsage)
+    await db.delete(llmBillingReceipt)
     await db.delete(llmRequestAttempt)
     await db.delete(llmRequestLog)
     await db.delete(fluxTransaction)
@@ -2621,7 +2634,7 @@ describe('openRouter cost billing through HTTP routes', () => {
 
   function harness(response: () => Response, provider = 'openrouter.ai', pricesProvided = true) {
     const config = createMockConfigKV({ LLM_COST_BILLING: pricesProvided ? { openrouter: pricing } : undefined, FLUX_PER_1K_TOKENS: 999999, FLUX_PER_REQUEST: 999999 })
-    const billing = createBillingService(db, createTestRedis(), config)
+    const billing = createTestBillingService(db, createTestRedis(), config)
     const logs = createRequestLogService(db)
     vi.spyOn(logs, 'logRequest')
     const router = createMockLlmRouter({ route: vi.fn(async (_request, context) => {
@@ -2646,7 +2659,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     }, { user: testUser })
     expect(response.status).toBe(503)
     expect(upstream).not.toHaveBeenCalled()
-    expect(await db.select().from(fluxUsage)).toEqual([expect.objectContaining({ billingStatus: 'cancelled', pendingReason: 'not_dispatched' })])
+    expect(await db.select().from(llmBillingReceipt)).toEqual([expect.objectContaining({ billingStatus: 'cancelled', pendingReason: 'not_dispatched' })])
     expect(await db.select().from(fluxTransaction)).toHaveLength(0)
   })
 
@@ -2659,13 +2672,13 @@ describe('openRouter cost billing through HTTP routes', () => {
       body: JSON.stringify({ messages: [], stream: true }),
     }, { user: testUser })
     await response.text()
-    await vi.waitFor(async () => expect(await db.select().from(fluxUsage)).toEqual([expect.objectContaining({ generationId: 'first', billingStatus: 'pending' })]))
+    await vi.waitFor(async () => expect(await db.select().from(llmBillingReceipt)).toEqual([expect.objectContaining({ generationId: 'first', billingStatus: 'pending' })]))
     expect(await db.select().from(fluxTransaction)).toHaveLength(0)
   })
 
   for (const protocol of ['chat/completions', 'responses']) {
     for (const stream of [false, true]) {
-      it.each([{ cost: 0.0002, expectedFlux: 0 }, { cost: 0.0008, expectedFlux: 1 }, { cost: 0.002, expectedFlux: 3 }])(`settles rounded cost for ${protocol}, stream=${stream}: $cost USD`, async ({ cost, expectedFlux }) => {
+      it.each([{ cost: 0.0002, expectedFlux: 0, expectedMicroFlux: 300_000 }, { cost: 0.0008, expectedFlux: 1, expectedMicroFlux: 1_200_000 }, { cost: 0.002, expectedFlux: 3, expectedMicroFlux: 3_000_000 }])(`settles rounded cost for ${protocol}, stream=${stream}: $cost USD`, async ({ cost, expectedFlux, expectedMicroFlux }) => {
         const result = protocol === 'responses'
           ? { ...responsesResult(), id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', usage: { input_tokens: 100, output_tokens: 50, total_tokens: 150, cost, input_tokens_details: { cached_tokens: 90 }, output_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
           : { id: 'gen-cost', model: 'returned-model', provider: 'Inference Provider', choices: [{ finish_reason: 'stop' }], usage: { prompt_tokens: 100, completion_tokens: 50, cost, prompt_tokens_details: { cached_tokens: 90 }, completion_tokens_details: { reasoning_tokens: 12 }, future_meter: { units: 4 } } }
@@ -2688,8 +2701,8 @@ describe('openRouter cost billing through HTTP routes', () => {
         expect(response.status).toBe(200)
         expect(await response.text()).toContain('gen-cost')
         await vi.waitFor(async () => {
-          const [receipt] = await db.select().from(fluxUsage)
-          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'settled', walletDebitFlux: expectedFlux, costUsd: String(cost), pricing })
+          const [receipt] = await db.select().from(llmBillingReceipt)
+          expect(receipt).toMatchObject({ billingProvider: 'openrouter', billingStatus: 'posted', costMicroFlux: expectedMicroFlux, costUsd: String(cost), pricing })
         })
         const [wallet] = await db.select().from(userFlux)
         expect(wallet.flux).toBe(100 - expectedFlux)
@@ -2698,7 +2711,7 @@ describe('openRouter cost billing through HTTP routes', () => {
         const entries = await db.select().from(llmRequestLog)
         expect(entries).toHaveLength(1)
         expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, fluxConsumed: expectedFlux, state: 'completed' })
-        const [settlement] = await db.select().from(fluxUsage)
+        const [settlement] = await db.select().from(llmBillingReceipt)
         expect(settlement).toMatchObject({
           costSource: 'provider_reported',
           providerUsage: { future_meter: { units: 4 } },
@@ -2716,8 +2729,8 @@ describe('openRouter cost billing through HTTP routes', () => {
       body: JSON.stringify({ messages: [] }),
     }, { user: testUser })
     expect(response.status).toBe(200)
-    const [receipt] = await db.select().from(fluxUsage)
-    expect(receipt.billingStatus).toBe(cost === 0 ? 'settled' : 'pending')
+    const [receipt] = await db.select().from(llmBillingReceipt)
+    expect(receipt.billingStatus).toBe(cost === 0 ? 'posted' : 'pending')
     const [wallet] = await db.select().from(userFlux)
     expect(wallet.flux).toBe(100)
   })
@@ -2745,7 +2758,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     }, { user: testUser })
     await response.text()
     await vi.waitFor(async () => {
-      const [receipt] = await db.select().from(fluxUsage)
+      const [receipt] = await db.select().from(llmBillingReceipt)
       expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'incomplete_or_invalid_stream', generationId: 'gen-partial' })
     })
     const [wallet] = await db.select().from(userFlux)
@@ -2780,7 +2793,7 @@ describe('openRouter cost billing through HTTP routes', () => {
       await reader.read()
       await reader.read()
       await vi.waitFor(async () => {
-        const [settlement] = await db.select().from(fluxUsage)
+        const [settlement] = await db.select().from(llmBillingReceipt)
         expect(settlement).toMatchObject({ generationId: 'gen-timing', costSource: 'provider_reported', costUsd: '0.002' })
         expect(JSON.stringify(settlement)).not.toContain('private output')
         const [entry] = await db.select().from(llmRequestLog)
@@ -2847,7 +2860,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     await reader.cancel()
     await vi.waitFor(async () => {
       expect(cancelled).toHaveBeenCalled()
-      const [receipt] = await db.select().from(fluxUsage)
+      const [receipt] = await db.select().from(llmBillingReceipt)
       expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'stream_interrupted', generationId: 'gen-disconnect' })
     })
     expect(await db.select().from(fluxTransaction)).toHaveLength(0)
@@ -2863,7 +2876,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     }, { user: testUser })
     await expect(response.text()).rejects.toThrow()
     await vi.waitFor(async () => {
-      const [receipt] = await db.select().from(fluxUsage)
+      const [receipt] = await db.select().from(llmBillingReceipt)
       expect(receipt).toMatchObject({ billingStatus: 'pending', pendingReason: 'response_not_completed', generationId: 'gen-eof' })
     })
     expect(await db.select().from(fluxTransaction)).toHaveLength(0)

@@ -1,64 +1,57 @@
-# Unified Flux usage
+# Flux posting and service receipts
 
 Status: accepted
 
 ## Decision
 
-`flux_usage` owns durable service fees. `user_flux` owns the wallet snapshot. `flux_transaction` owns integer balance changes.
-LLM and TTS share `user_flux.unsettled_micro_flux`. One Flux equals 1,000,000 micro-Flux.
-A known fee enters the wallet once, even when no integer debit occurs. Unknown fees remain pending.
-Each account serializes fee posting and wallet changes with a PostgreSQL row lock.
-Network calls run outside the wallet transaction.
+The wallet accepts `postFluxUsage({ userId, source: { type, id }, amountMicroFlux })`.
+The contract contains no model, turn, attempt, pricing, provider, or pending state.
+`flux_transaction` owns immutable consumption accruals and integer balance changes.
+`user_flux` stores integer Flux and shared outstanding micro-Flux.
+One Flux equals 1,000,000 micro-Flux.
+LLM and speech services own their durable pricing and execution receipts.
 
 ## Scope
 
-- Rename `llm_request_settlement` to `flux_usage` and migrate its financial evidence.
-- Store service, pricing, receipt, exact micro-Flux fee, and posting status.
-- Replace Redis TTS character debt with durable usage and the shared wallet accumulator.
-- Preserve integer transaction amounts and label pooled debits as `usage_settlement`.
-- Settle confirmed outstanding fees after credits. Admin balance changes preserve outstanding fees.
-- Return the outstanding amount with the wallet. Read admission state from PostgreSQL.
+Remove the proposed `flux_usage` table. Extend the existing ledger with accrual amounts, outstanding snapshots, and source identity.
+Keep historical integer ledger facts. Rename the LLM evidence table to `llm_billing_receipt`.
+Speech receipts own authorized prices and final weighted units. Unknown fees never enter the ledger.
+Credits settle affordable outstanding fees. Admin adjustments preserve outstanding fees.
 
 ## Non-goals
 
-- Distributed admission reservations or background reconciliation workers.
-- Changing payment amounts, upstream adapters, audio delivery, or currency units in historical transactions.
-- Repricing historical usage or editing posted fees. Corrections require a separate financial operation.
+Admission reservations, automatic receipt reconciliation, refunds, and historical repricing remain outside this change.
 
 ## Invariants
 
-A posted usage event never enters the accumulator twice.
-A wallet debit never exceeds its integer balance.
-Outstanding micro-Flux never expires and can exceed one Flux when the wallet cannot cover confirmed fees.
-For new usage, confirmed fees equal settlement debits times 1,000,000 plus the change in outstanding micro-Flux.
-Zero fees are distinct from unknown fees.
-Historical posted usage retains its original billed precision. Migration does not invent exact historical costs.
+Source identity is unique per wallet for consumption accruals, including zero amounts.
+A duplicate source with a different amount fails. An identical replay never accrues twice.
+The posting transaction writes the accrual, integer settlement, wallet snapshot, and service receipt together.
+Accrual rows do not change integer balance. Settlement rows reduce outstanding fees by their integer debit times 1,000,000.
+Service evidence survives diagnostic deletion. Ledger replay never requires service evidence.
 
-## Module dependencies
+## Module graph
 
 ```mermaid
-flowchart TD
-  LLM[LLM gateway] --> Billing[BillingService]
-  HTTP[HTTP speech] --> Speech[TTS pricing and admission]
-  WS[WebSocket speech] --> Speech
-  Speech --> Billing
-  Billing --> Usage[flux_usage]
-  Billing --> Wallet[user_flux]
+flowchart LR
+  LLM[LlmBilling] -->|confirmed amount and source| Billing[BillingService]
+  Speech[SpeechBilling] -->|confirmed amount and source| Billing
+  LLM --> LlmReceipt[llm_billing_receipt]
+  Speech --> SpeechReceipt[speech_billing_receipt]
   Billing --> Ledger[flux_transaction]
-  Billing --> Cache[Redis balance invalidation]
+  Billing --> Wallet[user_flux]
+  Billing --> Cache[Redis invalidation]
 ```
 
 ## Affected files
 
 ```text
 server/apps/api/
-  drizzle/0028_flux_usage.sql
-  src/schemas/{flux,flux-usage,flux-transaction,index}.ts
-  src/services/domain/billing/{billing,billing-service,speech-billing}.ts
-  src/services/domain/{flux,flux-cache,openai-speech}/
+  drizzle/0028_flux_posting.sql
+  src/schemas/{flux,flux-transaction,llm-billing-receipt,speech-billing-receipt}.ts
+  src/services/domain/billing/{billing-service,llm-billing,speech-billing}.ts
   src/routes/{flux,openai/v1,audio-speech-ws}/
   src/app.ts
-  src/services/adapters/config-kv/definitions.ts
 ```
 
 ## Posting sequence
@@ -66,39 +59,33 @@ server/apps/api/
 ```mermaid
 sequenceDiagram
   participant Service
+  participant Receipt
   participant Billing
   participant DB
-  Service->>Billing: Save price before upstream dispatch
-  Billing->>DB: Insert pending usage
-  Service->>Service: Call upstream
-  Service->>Billing: Confirm usage and receipt
-  Billing->>DB: Begin transaction and lock wallet
-  Billing->>DB: Read usage idempotency state
-  Billing->>DB: Add known micro-Flux fee
-  Billing->>DB: Debit affordable integer portion and append transaction
-  Billing->>DB: Mark usage settled and commit
-  Billing-->>Service: Fee, wallet debit, balance, outstanding amount, replay
+  Service->>Receipt: Persist authorized price before dispatch
+  Service->>Service: Call provider
+  Service->>Receipt: Confirm measured result
+  Receipt->>DB: Begin transaction and lock receipt
+  Receipt->>Billing: postFluxUsage(minimal command, transaction)
+  Billing->>DB: Lock wallet and inspect source identity
+  Billing->>DB: Append accrual and affordable integer settlement
+  Receipt->>DB: Mark receipt posted and commit
+  Receipt->>Billing: Invalidate display cache after commit
 ```
 
 ## Migration and rollout
 
-Stop old API writers before the schema migration. Do not run mixed old and new billing writers.
-Retain historical request and transaction identifiers. Preserve historical integer billing amounts without replaying them into the wallet.
-Pending LLM receipts use their saved pricing when confirmed under the new policy.
-Before deployment, export Redis TTS counters while old writers are stopped. Keep the export for audit.
-Import each counter once as a `tts` usage event with an explicit migration identifier and pricing snapshot.
-Do not delete old counters until import conservation checks pass. Then deploy new writers and remove the obsolete counters.
-No production import or deployment runs as part of this source change.
+Migration 0028 is unpublished to production. This PR replaces its proposed shape rather than adding a migration for the rejected shape.
+Stop old API writers before migration and freeze TTS Redis debt with the cutover rate.
+Historical LLM requested and charged fields retain their original whole-Flux evidence. They do not enter the new accumulator.
+Import frozen TTS debt through the same minimal posting contract. Keep the immutable export as its source evidence.
+Compare imported totals before removing old counters. Then start new writers.
+Mixed old and new writers and an application-only rollback are unsupported.
+No production migration or deployment runs in this task.
 
-## Test plan
+## Verification
 
-Cover exact decimal pricing, shared LLM/TTS thresholds, zero fees, missing costs, replay, conflicting receipts, partial debits, and credit recovery.
-Cover transaction rollback, admission against outstanding fees, HTTP speech, WebSocket speech, and cache-independent wallet reads.
-Run the API typecheck, API tests, root typecheck for exported contracts, and root lint.
-Use production migrations for migration tests. Use a dedicated local PostgreSQL database for concurrent row-lock checks when available.
-
-## Delivery checks
-
-The usage status `settled` means that the fee entered the shared accumulator. It does not mean that its whole amount left the wallet.
-`wallet_debit_flux` records the debit triggered by posting, which can include other services. It is not the service fee.
-The migration importer defaults to a dry preview and requires explicit import database and Redis URLs for writes.
+Run service tests, wallet ablation tests, full API tests, API and root typechecks, schema generation, and root lint.
+Ablation proves that direct posting without models, prices, receipts, or execution IDs still supports deduplication, concurrency, and conservation.
+Delete service receipts after posting and repeat the ledger command to prove independent replay.
+Use actual SQL migrations for historical preservation tests and local PostgreSQL for concurrent connections.

@@ -27,17 +27,10 @@ function createMockFluxTransactionService(): FluxTransactionService {
     getUsageHistory: vi.fn(async () => ({
       records: [{
         id: 'usage-1',
-        service: 'tts',
-        requestId: 'request-1',
-        turnId: null,
-        model: 'speech-model',
-        provider: null,
-        status: 'settled',
-        pendingReason: null,
-        costMicroFlux: 550_000,
-        precision: 'micro_flux',
+        sourceType: 'tts',
+        sourceId: 'request-1',
+        amountMicroFlux: 550_000,
         createdAt: new Date('2026-03-27T10:00:00.000Z'),
-        settledAt: new Date('2026-03-27T10:00:01.000Z'),
       }],
       hasMore: false,
     })),
@@ -88,7 +81,7 @@ describe('fluxRoutes', () => {
     expect(response.status).toBe(200)
     expect(transactions.getUsageHistory).toHaveBeenCalledWith('user-1', 20, 5)
     expect(await response.json()).toMatchObject({
-      records: [{ service: 'tts', costMicroFlux: 550_000, createdAt: '2026-03-27T10:00:00.000Z', settledAt: '2026-03-27T10:00:01.000Z' }],
+      records: [{ sourceType: 'tts', amountMicroFlux: 550_000, createdAt: '2026-03-27T10:00:00.000Z' }],
       hasMore: false,
     })
   })
