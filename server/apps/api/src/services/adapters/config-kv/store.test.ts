@@ -14,7 +14,7 @@ describe('configKV store', () => {
 
   it('returns a Redis cache hit without reading PostgreSQL', async () => {
     const redis = createTestRedis()
-    await redis.set('cache:config:FLUX_PER_REQUEST', '7')
+    await redis.set('config:FLUX_PER_REQUEST', '7')
     const set = vi.spyOn(redis, 'set')
     const store = createConfigKVStore(db, redis)
 
@@ -29,7 +29,7 @@ describe('configKV store', () => {
     const store = createConfigKVStore(db, redis)
 
     await expect(store.getRaw('FLUX_PER_REQUEST')).resolves.toBe('8')
-    expect(set).toHaveBeenCalledWith('cache:config:FLUX_PER_REQUEST', '8', 'EX', 300)
+    expect(set).toHaveBeenCalledWith('config:FLUX_PER_REQUEST', '8', 'EX', 300)
   })
 
   it('fails when Redis reads fail', async () => {
@@ -61,14 +61,14 @@ describe('configKV store', () => {
 
   it('deletes the derived cache entry during invalidation', async () => {
     const redis = createTestRedis()
-    await redis.set('cache:config:LLM_ROUTER_CONFIG', '{}')
+    await redis.set('config:LLM_ROUTER_CONFIG', '{}')
     const del = vi.spyOn(redis, 'del')
     const store = createConfigKVStore(db, redis)
 
     await store.invalidateCache('LLM_ROUTER_CONFIG')
 
-    expect(del).toHaveBeenCalledWith('cache:config:LLM_ROUTER_CONFIG')
-    await expect(redis.get('cache:config:LLM_ROUTER_CONFIG')).resolves.toBeNull()
+    expect(del).toHaveBeenCalledWith('config:LLM_ROUTER_CONFIG')
+    await expect(redis.get('config:LLM_ROUTER_CONFIG')).resolves.toBeNull()
   })
 
   it('fails invalidation when Redis cannot delete the derived value', async () => {
@@ -81,13 +81,13 @@ describe('configKV store', () => {
 
   it('removes a stale cache entry when a fresh database read is missing', async () => {
     const redis = createTestRedis()
-    await redis.set('cache:config:FLUX_PER_REQUEST', '20')
+    await redis.set('config:FLUX_PER_REQUEST', '20')
     const del = vi.spyOn(redis, 'del')
     const store = createConfigKVStore(db, redis)
 
     await expect(store.getFreshRaw('FLUX_PER_REQUEST')).resolves.toBeNull()
 
-    expect(del).toHaveBeenCalledWith('cache:config:FLUX_PER_REQUEST')
-    await expect(redis.get('cache:config:FLUX_PER_REQUEST')).resolves.toBeNull()
+    expect(del).toHaveBeenCalledWith('config:FLUX_PER_REQUEST')
+    await expect(redis.get('config:FLUX_PER_REQUEST')).resolves.toBeNull()
   })
 })

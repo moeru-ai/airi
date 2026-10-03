@@ -159,7 +159,7 @@ export function useAnalytics() {
    *
    * Expects:
    * - `entry_surface` is a stable identifier — don't rename without coordinating
-   *   PostHog funnel definitions in `docs/ai-context/metrics-ownership.md`.
+   *   OpenPanel funnel definitions in `docs/ai-context/metrics-ownership.md`.
    */
   function trackPricingViewed(entrySurface: string, planPeriod?: 'monthly' | 'annual' | 'one_time') {
     if (!canCapture())
@@ -187,7 +187,7 @@ export function useAnalytics() {
    *   `window.location.href = ...`. `beforeNavigation` lets the installed
    *   adapter choose a delivery mechanism that survives document unload.
    *
-   * The funnel terminator `payment_completed` is forwarded to PostHog
+   * The funnel terminator `payment_completed` is forwarded to OpenPanel
    * server-side by the product-events service, keyed by the Better Auth
    * user id.
    */
@@ -233,7 +233,7 @@ export function useAnalytics() {
   }
 
   // ─── Account lifecycle (same event names as apps/ui-server-auth's
-  // analytics module — both surfaces feed one PostHog series) ───────────
+  // analytics module — both surfaces feed one OpenPanel series) ───────────
 
   function trackPasswordChanged() {
     if (!canCapture())
@@ -308,7 +308,7 @@ export function useAnalytics() {
     captureAnalyticsEvent('character_created', properties)
   }
 
-  /** Feature adoption — voice mode is a candidate retention lever; cohort comparisons live in PostHog. */
+  /** Feature adoption — voice mode is a candidate retention lever; cohort comparisons live in OpenPanel. */
   function trackVoiceModeActivated(characterId?: string) {
     if (!canCapture())
       return
@@ -336,55 +336,12 @@ export function useAnalytics() {
   /**
    * Retention cohort denominator — every chat session start. Pair with
    * `payment_completed` cohort to compute "active paying user" retention
-   * curves in PostHog.
+   * curves in OpenPanel.
    */
   function trackChatSessionStarted(modelId: string, sessionIndex?: number) {
     if (!canCapture())
       return
     captureAnalyticsEvent('chat_session_started', { model_id: modelId, ...(sessionIndex != null && { session_index: sessionIndex }) })
-  }
-
-  /** Cost-fact event for one custom-provider generation; content is intentionally excluded. */
-  function trackAiGeneration(properties: {
-    conversation_id: string
-    round_id: string
-    provider_type: ProviderMode
-    provider_id: string
-    model_id: string
-    usage_source: AiUsageSource
-    input_tokens?: number
-    output_tokens?: number
-    total_tokens?: number
-  }) {
-    if (!canCapture())
-      return
-
-    const totalTokens = properties.total_tokens
-      ?? (properties.input_tokens != null && properties.output_tokens != null
-        ? properties.input_tokens + properties.output_tokens
-        : undefined)
-
-    captureAnalyticsEvent('$ai_generation', {
-      $ai_trace_id: properties.conversation_id,
-      $ai_session_id: properties.conversation_id,
-      $ai_span_id: properties.round_id,
-      $ai_model: properties.model_id,
-      $ai_provider: properties.provider_id,
-      ...(properties.input_tokens != null && { $ai_input_tokens: properties.input_tokens }),
-      ...(properties.output_tokens != null && { $ai_output_tokens: properties.output_tokens }),
-      ...(totalTokens != null && { $ai_total_tokens: totalTokens }),
-      $insert_id: `ai-generation:${properties.round_id}`,
-      app_surface: getConversationAnalyticsSurface(),
-      capture_surface: 'client',
-      conversation_id: properties.conversation_id,
-      conversation_id_source: 'client_runtime',
-      round_id: properties.round_id,
-      provider_type: properties.provider_type,
-      usage_source: properties.usage_source,
-      token_usage_available: properties.usage_source !== 'unavailable',
-      cost_usd_source: 'unavailable',
-      cost_usd_known: false,
-    })
   }
 
   /** Closing event for one full message round (user send → assistant render). */
@@ -1047,7 +1004,6 @@ export function useAnalytics() {
     trackModelSwitched,
     trackChatSessionStarted,
 
-    trackAiGeneration,
     trackMessageRound,
     trackMessageRoundFailed,
     trackMessageSent,

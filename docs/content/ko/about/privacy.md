@@ -36,7 +36,6 @@ description: Project AIRI의 개인정보 처리방침
 애플리케이션은 데이터 처리에 관한 자체 개인정보 처리방침을 가진 서드파티 서비스를 이용한다는 점에 유의해 주세요. 아래는 애플리케이션이 사용하는 서드파티 서비스 제공자의 개인정보 처리방침 링크입니다.
 
 *   [Posthog](https://posthog.com/privacy)
-*   [Plausible Analytics](https://plausible.io/privacy)
 
 서비스 제공자는 다음의 경우 사용자가 제공한 정보와 자동으로 수집된 정보를 공개할 수 있습니다.
 

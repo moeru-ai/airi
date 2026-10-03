@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useAuthStore } from '../stores/auth'
 import { authedFetch } from './auth-fetch'
 
-const posthogMocks = vi.hoisted(() => ({
+const analyticsMocks = vi.hoisted(() => ({
   getAnalyticsIdentitySnapshot: vi.fn<() => { distinctId: string, sessionId: string } | null>(() => ({
     distinctId: 'distinct-1',
     sessionId: 'session-1',
@@ -12,7 +12,7 @@ const posthogMocks = vi.hoisted(() => ({
 }))
 
 vi.mock('./product-signals', () => ({
-  getAnalyticsIdentitySnapshot: posthogMocks.getAnalyticsIdentitySnapshot,
+  getAnalyticsIdentitySnapshot: analyticsMocks.getAnalyticsIdentitySnapshot,
 }))
 
 describe('authedFetch', () => {
@@ -20,13 +20,13 @@ describe('authedFetch', () => {
     vi.restoreAllMocks()
     setActivePinia(createPinia())
     useAuthStore().token = 'access-token'
-    posthogMocks.getAnalyticsIdentitySnapshot.mockReturnValue({
+    analyticsMocks.getAnalyticsIdentitySnapshot.mockReturnValue({
       distinctId: 'distinct-1',
       sessionId: 'session-1',
     })
   })
 
-  it('sends PostHog identity headers with authenticated API requests', async () => {
+  it('sends analytics identity headers with authenticated API requests', async () => {
     const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () => new Response('{}', { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -37,12 +37,12 @@ describe('authedFetch', () => {
     const headers = fetchMock.mock.calls[0]?.[1]?.headers
     expect(headers).toBeInstanceOf(Headers)
     expect((headers as Headers).get('Authorization')).toBe('Bearer access-token')
-    expect((headers as Headers).get('x-posthog-distinct-id')).toBe('distinct-1')
-    expect((headers as Headers).get('x-posthog-session-id')).toBe('session-1')
+    expect((headers as Headers).get('x-openpanel-device-id')).toBe('distinct-1')
+    expect((headers as Headers).get('x-openpanel-session-id')).toBe('session-1')
   })
 
-  it('omits PostHog identity headers when analytics has no active identity', async () => {
-    posthogMocks.getAnalyticsIdentitySnapshot.mockReturnValue(null)
+  it('omits analytics identity headers when analytics has no active identity', async () => {
+    analyticsMocks.getAnalyticsIdentitySnapshot.mockReturnValue(null)
     const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () => new Response('{}', { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -51,11 +51,11 @@ describe('authedFetch', () => {
     const headers = fetchMock.mock.calls[0]?.[1]?.headers
     expect(headers).toBeInstanceOf(Headers)
     expect((headers as Headers).get('Authorization')).toBe('Bearer access-token')
-    expect((headers as Headers).get('x-posthog-distinct-id')).toBeNull()
-    expect((headers as Headers).get('x-posthog-session-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-device-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-session-id')).toBeNull()
   })
 
-  it('does not send PostHog identity headers to non-server origins', async () => {
+  it('does not send analytics identity headers to non-server origins', async () => {
     const fetchMock = vi.fn<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(async () => new Response('{}', { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -64,7 +64,7 @@ describe('authedFetch', () => {
     const headers = fetchMock.mock.calls[0]?.[1]?.headers
     expect(headers).toBeInstanceOf(Headers)
     expect((headers as Headers).get('Authorization')).toBe('Bearer access-token')
-    expect((headers as Headers).get('x-posthog-distinct-id')).toBeNull()
-    expect((headers as Headers).get('x-posthog-session-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-device-id')).toBeNull()
+    expect((headers as Headers).get('x-openpanel-session-id')).toBeNull()
   })
 })

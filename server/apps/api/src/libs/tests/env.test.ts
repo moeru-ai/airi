@@ -14,12 +14,26 @@ function baseEnv(): Record<string, string> {
 }
 
 describe('parseEnv', () => {
+  it('includes validated S3 settings in the API environment', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      S3_BUCKET: 'private-bucket',
+      S3_REGION: 'auto',
+      S3_FORCE_PATH_STYLE: 'false',
+    })
+    expect(env.S3_BUCKET).toBe('private-bucket')
+    expect(env.S3_REGION).toBe('auto')
+    expect(env.S3_FORCE_PATH_STYLE).toBe(false)
+  })
+
   it('parses the API environment without Identity-provider credentials', () => {
     const env = parseEnv(baseEnv())
 
     expect(env.DATABASE_URL).toBe('postgres://example')
     expect(env.REDIS_URL).toBe('redis://example')
     expect(env.ADDITIONAL_TRUSTED_ORIGINS).toEqual([])
+    expect(env.APPLE_IAP_APPS).toEqual([])
+    expect(env.APPLE_IAP_SANDBOX_USER_IDS).toEqual([])
     expect('BETTER_AUTH_SECRET' in env).toBe(false)
     expect('AUTH_GOOGLE_CLIENT_ID' in env).toBe(false)
     expect('RESEND_API_KEY' in env).toBe(false)
@@ -96,5 +110,25 @@ describe('parseEnv', () => {
     expect(env.LLM_ROUTER_MASTER_KEY.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY_PREVIOUS?.length).toBe(32)
     expect(env.LLM_ROUTER_MASTER_KEY.equals(env.LLM_ROUTER_MASTER_KEY_PREVIOUS!)).toBe(false)
+  })
+
+  it('parses APPLE_IAP_APPS as a list of Apple apps', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      APPLE_IAP_APPS: ' ai.moeru.airi-pocket , ai.moeru.airi-lite:123456 ',
+    })
+
+    expect(env.APPLE_IAP_APPS).toEqual([
+      { bundleId: 'ai.moeru.airi-pocket' },
+      { bundleId: 'ai.moeru.airi-lite', appAppleId: 123456 },
+    ])
+  })
+
+  it('parses exact sandbox user IDs and removes empty or repeated entries', () => {
+    const env = parseEnv({
+      ...baseEnv(),
+      APPLE_IAP_SANDBOX_USER_IDS: ' user-1, ,user-2,user-1 ',
+    })
+    expect(env.APPLE_IAP_SANDBOX_USER_IDS).toEqual(['user-1', 'user-2'])
   })
 })

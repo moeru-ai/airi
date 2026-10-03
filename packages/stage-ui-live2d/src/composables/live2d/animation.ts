@@ -2,7 +2,7 @@ import type { InternalModel } from 'pixi-live2d-display/cubism4'
 
 import { MathUtils } from 'three'
 
-import { randomSaccadeInterval } from '../../utils'
+import { randomSaccadeInterval } from '../../utils/eye-motions'
 
 /**
  * This is to simulate idle eye saccades and focus (head) movements in a *pretty* naive way.

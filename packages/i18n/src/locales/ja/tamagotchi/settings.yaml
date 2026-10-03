@@ -49,16 +49,49 @@ devtools:
   pages:
     context-flow:
       title: コンテキストのフロー
+    editor:
+      title: AIRIエディタ
+      description: AIRIエディタウィンドウを開く
+      button: エディタを開く
     lag-visualizer:
       title: ラグビジュアライザー
     performance-visualizer:
       title: パフォーマンスビジュアライザー
       description: FPS/ロングタスク/メモリーオーバーレイの切り替え
+      controls:
+        enable-all:
+          label: 利用可能なすべてのメトリックを有効にする
+          description: このブラウザがサポートする各メトリックを有効にします。
+        start-recording: 記録開始
+        stop-recording: 録音停止 ({seconds}s)
+        export-last-recording: 最後の録音をエクスポート
+      metrics:
+        frame-duration:
+          label: フレーム時間 (ミリ秒)
+          description: 直近10秒間のアニメーションフレーム間隔。
+        long-task:
+          label: ロングタスク
+          description: 少なくとも50ミリ秒を要するメインスレッドのタスク。
+          unsupported: このブラウザーは長時間のタスクタイミングを表示しません。
+        memory:
+          label: JS ヒープ（MB）
+          description: Chromiumのperformance.memory APIからのJavaScriptのヒープ使用量。
+          unsupported: このブラウザはJavaScriptヒープの使用状況を公開しません。
+      recording:
+        title: 前回の録音
+        duration: 期間 {duration} ms
+        limit: 録音は60秒後に停止します。
+      overlay:
+        title: 生産力
+        move: パフォーマンスオーバーレイを移動
+        reset-position: オーバーレイ位置をリセット
+        record: ゲスト記録
+        stop: 停止
+        export: 最後の録音をエクスポート
+        average: 平均
     markdown-stress:
       title: Markdown ストレス
       description: 大量のチャットデータを含むMarkdownの解析とレンダリング負荷のテスト
-    io-tracer:
-      title: IO Tracer
     widgets-calling:
       title: ウィジェット呼び出し
 screen-capture:

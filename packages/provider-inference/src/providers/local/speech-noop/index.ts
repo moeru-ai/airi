@@ -27,6 +27,7 @@ export const providerSpeechNoop = defineProvider({
   validationRequiredWhen: () => false,
   extraMethods: {
     listModels: async () => [],
+    voiceCatalogConfig: () => ({}),
     listVoices: async () => [],
   },
 })

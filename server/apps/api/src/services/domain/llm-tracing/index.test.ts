@@ -16,6 +16,7 @@ vi.mock('@langfuse/tracing', () => ({
 }))
 
 const BASE_INPUT = {
+  protocol: 'chat-completions' as const,
   input: [{ role: 'user', content: 'hi' }],
   model: 'openai/gpt-5-mini',
   requestId: 'req-1',
@@ -59,7 +60,7 @@ describe('startChatGeneration', () => {
       startChatGeneration({ ...BASE_INPUT, sessionId: 'sess-9', stream: true })
 
       expect(startObservation).toHaveBeenCalledWith(
-        'chat.completion',
+        'chat-completions.create',
         {
           input: BASE_INPUT.input,
           model: BASE_INPUT.model,
@@ -69,6 +70,58 @@ describe('startChatGeneration', () => {
       )
       expect(generationStub.otelSpan.setAttribute).toHaveBeenCalledWith('langfuse.user.id', 'user-1')
       expect(generationStub.otelSpan.setAttribute).toHaveBeenCalledWith('langfuse.session.id', 'sess-9')
+    })
+
+    it('omits inline media payloads from trace input', () => {
+      startChatGeneration({
+        ...BASE_INPUT,
+        protocol: 'responses',
+        input: [{
+          role: 'user',
+          content: [
+            { type: 'input_file', filename: 'report.pdf', file_data: 'AAAA' },
+            { type: 'input_image', image_url: 'data:image/png;base64,BBBB' },
+            { type: 'input_video', video_url: 'https://example.com/video.mp4' },
+          ],
+        }],
+      })
+
+      expect(startObservation).toHaveBeenCalledWith(
+        'responses.create',
+        expect.objectContaining({
+          input: [{
+            role: 'user',
+            content: [
+              { type: 'input_file', filename: 'report.pdf', file_data: '[inline data omitted: 4 chars]' },
+              { type: 'input_image', image_url: '[inline data URL omitted: 26 chars]' },
+              { type: 'input_video', video_url: 'https://example.com/video.mp4' },
+            ],
+          }],
+        }),
+        expect.anything(),
+      )
+    })
+
+    it('bounds large text in trace input', () => {
+      startChatGeneration({ ...BASE_INPUT, input: 'x'.repeat(1_000_001) })
+
+      expect(startObservation).toHaveBeenCalledWith(
+        'chat-completions.create',
+        expect.objectContaining({ input: `${'x'.repeat(1_000_000)}[truncated 1 chars]` }),
+        expect.anything(),
+      )
+    })
+
+    it('bounds large terminal output before updating the trace', () => {
+      const trace = startChatGeneration(BASE_INPUT)
+      trace.succeed({ output: { text: 'x'.repeat(1_000_001), image_url: 'data:image/png;base64,AAAA' } })
+
+      expect(generationStub.update).toHaveBeenCalledWith(expect.objectContaining({
+        output: {
+          text: `${'x'.repeat(1_000_000)}[truncated 1 chars]`,
+          image_url: '[inline data URL omitted: 26 chars]',
+        },
+      }))
     })
 
     it('omits session attribute when no sessionId is supplied', () => {
@@ -203,4 +256,10 @@ describe('startChatGeneration', () => {
       expect(generationStub.end).toHaveBeenCalledTimes(1)
     })
   })
+})
+
+it('uses the Responses create identity without a Chat fallback', () => {
+  vi.stubEnv('LANGFUSE_TRACING_ACTIVE', '1')
+  startChatGeneration({ ...BASE_INPUT, protocol: 'responses' })
+  expect(startObservation).toHaveBeenCalledWith('responses.create', expect.anything(), expect.anything())
 })

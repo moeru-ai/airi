@@ -190,6 +190,7 @@ export const providerOpenRouterAudioSpeech = defineProvider<OpenRouterAudioConfi
         return []
       }
     },
+    voiceCatalogConfig: () => ({}),
     listVoices: async () => openAIVoices.map(id => ({
       id,
       name: `${id[0].toUpperCase()}${id.slice(1)}`,

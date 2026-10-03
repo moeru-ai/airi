@@ -1,10 +1,11 @@
 import type { createContext } from '@moeru/eventa'
 import type {
   BindingRecord,
-  ExtensionManifestV1,
+  ExtensionManifestV2,
   HostDataRecord,
   ModulePermissionDeclaration,
 } from '@proj-airi/plugin-sdk/plugin-host'
+import type { ExtensionDirectoryImportPrepareResult, PluginRegistrySnapshot } from '@proj-airi/stage-shared/plugin-host'
 
 import type { WidgetsAddPayload, WidgetSnapshot, WidgetsUpdatePayload } from '../../../../shared/eventa'
 import type { ExtensionHostService } from './types'
@@ -22,10 +23,13 @@ import { afterEach, beforeEach, describe, expect, expectTypeOf, it, vi } from 'v
 import { electronPluginGetAssetBaseUrl } from '../../../../shared/eventa/plugin/assets'
 import { electronPluginUpdateCapability } from '../../../../shared/eventa/plugin/capabilities'
 import {
+  electronPluginCancelDirectoryImport,
+  electronPluginCommitDirectoryImport,
   electronPluginInspect,
   electronPluginList,
   electronPluginLoad,
   electronPluginLoadEnabled,
+  electronPluginPrepareDirectoryImport,
   electronPluginSetAutoReload,
   electronPluginSetEnabled,
   electronPluginUnload,
@@ -40,6 +44,14 @@ import { widgetPluginKitDescriptor } from './kits/widget'
 
 const appMock = vi.hoisted(() => ({
   getPath: vi.fn(),
+  getVersion: vi.fn(() => '0.12.0-beta.5'),
+  startAccessingSecurityScopedResource: vi.fn(),
+}))
+const dialogMock = vi.hoisted(() => ({
+  showOpenDialog: vi.fn(),
+}))
+const browserWindowMock = vi.hoisted(() => ({
+  fromWebContents: vi.fn(),
 }))
 const protocolMock = vi.hoisted(() => ({
   handle: vi.fn(),
@@ -55,9 +67,37 @@ const sessionMock = vi.hoisted(() => ({
 const contextState = vi.hoisted(() => ({
   lastContext: undefined as ReturnType<typeof createContext<any, any>> | undefined,
 }))
+const lifecycleMock = vi.hoisted(() => ({
+  beforeQuitHooks: [] as Array<() => Promise<void> | void>,
+  onAppBeforeQuit: vi.fn((hook: () => Promise<void> | void) => {
+    lifecycleMock.beforeQuitHooks.push(hook)
+  }),
+}))
+const logMock = vi.hoisted(() => {
+  const logger = {
+    useGlobalConfig: vi.fn(),
+    withError: vi.fn(),
+    withFields: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    log: vi.fn(),
+    warn: vi.fn(),
+  }
+  logger.useGlobalConfig.mockReturnValue(logger)
+  logger.withError.mockReturnValue(logger)
+  logger.withFields.mockReturnValue(logger)
+  return logger
+})
+
+vi.mock('@guiiai/logg', () => ({
+  useLogg: vi.fn(() => logMock),
+}))
 
 vi.mock('electron', () => ({
   app: appMock,
+  BrowserWindow: browserWindowMock,
+  dialog: dialogMock,
   ipcMain: {},
   protocol: protocolMock,
   session: sessionMock,
@@ -73,6 +113,10 @@ vi.mock('@moeru/eventa/adapters/electron/main', async () => {
     },
   }
 })
+
+vi.mock('../../../libs/bootkit/lifecycle', () => ({
+  onAppBeforeQuit: lifecycleMock.onAppBeforeQuit,
+}))
 
 const testDataRoot = resolve(
   import.meta.dirname,
@@ -99,22 +143,65 @@ const repoRoot = resolve(
   '..',
   '..',
 )
-const samplePluginRoot = resolve(
+const pluginExamplesRoot = resolve(
   import.meta.dirname,
   'examples',
-  'devtools-sample-plugin',
 )
 const extensionManifestFileName = 'extension.airi.json'
+let extensionManagementWebContentsId = 42
 
-async function writeManifest(params: { dir: string, name: string, entrypoint: string }) {
+function invokeAsRenderer<TResult>(invoke: unknown, payload: unknown, senderId = extensionManagementWebContentsId): Promise<TResult> {
+  if (typeof invoke !== 'function') {
+    throw new TypeError('Expected an Eventa invoke function.')
+  }
+
+  return Reflect.apply(invoke, undefined, [payload, {
+    raw: {
+      ipcMainEvent: { sender: { id: senderId } },
+    },
+  }]) as Promise<TResult>
+}
+
+function createOwnerWindowDouble() {
+  let destroyed = false
+  let closedListener: (() => void) | undefined
+  const ownerWindow = {
+    id: 7,
+    isDestroyed: vi.fn(() => destroyed),
+    once: vi.fn((event: string, listener: () => void) => {
+      if (event === 'closed') {
+        closedListener = listener
+      }
+      return ownerWindow
+    }),
+  }
+
+  return {
+    ownerWindow,
+    close: () => {
+      destroyed = true
+      closedListener?.()
+    },
+  }
+}
+
+async function writeManifest(params: {
+  dir: string
+  name: string
+  entrypoint: string
+  kits?: ExtensionManifestV2['kits']
+}) {
   const manifest = {
-    apiVersion: 'v1',
+    manifestVersion: 2,
     kind: 'manifest.extension.airi.moeru.ai' as const,
     id: params.name,
+    version: '1.0.0',
+    engines: { airi: '*', runtimes: ['electron'] },
     permissions: {},
     entrypoints: {
       electron: params.entrypoint,
     },
+    kits: params.kits,
   }
 
   const path = join(params.dir, extensionManifestFileName)
@@ -147,6 +234,24 @@ async function writeEntrypoint(params: { dir: string, name: string, contents: st
   const destination = join(params.dir, params.name)
   await writeFile(destination, params.contents)
   return destination
+}
+
+async function installExampleExtension(pluginsRoot: string, extensionId: string, entrypointFileName: string) {
+  const sourceDir = join(pluginExamplesRoot, extensionId)
+  const destinationDir = join(pluginsRoot, extensionId)
+  await mkdir(destinationDir, { recursive: true })
+  await writeFile(
+    join(destinationDir, extensionManifestFileName),
+    await readFile(join(sourceDir, extensionManifestFileName), 'utf-8'),
+  )
+  await writeFile(
+    join(destinationDir, entrypointFileName),
+    (await readFile(join(sourceDir, entrypointFileName), 'utf-8'))
+      .replace(
+        '\'@proj-airi/plugin-sdk\'',
+        JSON.stringify(pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href),
+      ),
+  )
 }
 
 async function linkWorkspacePackageForPlugin(pluginDir: string, packageName: '@proj-airi/plugin-sdk' | '@proj-airi/plugin-sdk-tamagotchi') {
@@ -188,6 +293,14 @@ function createEmptyExtensionEntrypoint(id: string) {
   ].join('\n')
 }
 
+function createDeferred() {
+  let resolvePromise: () => void = () => {}
+  const promise = new Promise<void>((resolve) => {
+    resolvePromise = resolve
+  })
+  return { promise, resolve: resolvePromise }
+}
+
 async function removeDirWithRetry(path: string, options: { attempts?: number, waitMs?: number } = {}) {
   const attempts = Math.max(1, options.attempts ?? 5)
   const waitMs = Math.max(1, options.waitMs ?? 20)
@@ -206,7 +319,7 @@ async function removeDirWithRetry(path: string, options: { attempts?: number, wa
   }
 }
 
-function createDynamicModuleManifest(entrypoint: string, id = 'test-dynamic-module'): ExtensionManifestV1 {
+function createDynamicModuleManifest(entrypoint: string, id = 'test-dynamic-module'): ExtensionManifestV2 {
   const providersCapability = 'proj-airi:plugin-sdk:apis:protocol:resources:providers:list-providers'
   const permissions: ModulePermissionDeclaration = {
     apis: [
@@ -229,9 +342,11 @@ function createDynamicModuleManifest(entrypoint: string, id = 'test-dynamic-modu
   }
 
   return {
-    apiVersion: 'v1',
+    manifestVersion: 2,
     kind: 'manifest.extension.airi.moeru.ai' as const,
     id,
+    version: '1.0.0',
+    engines: { airi: '*', runtimes: ['electron'] },
     permissions,
     entrypoints: {
       electron: entrypoint,
@@ -239,11 +354,13 @@ function createDynamicModuleManifest(entrypoint: string, id = 'test-dynamic-modu
   }
 }
 
-function createExtensionGameletKitManifest(entrypoint: string, id = 'test-extension-gamelet-kit'): ExtensionManifestV1 {
+function createExtensionGameletKitManifest(entrypoint: string, id = 'test-extension-gamelet-kit'): ExtensionManifestV2 {
   return {
-    apiVersion: 'v1',
+    manifestVersion: 2,
     kind: 'manifest.extension.airi.moeru.ai' as const,
     id,
+    version: '1.0.0',
+    engines: { airi: '*', runtimes: ['electron'] },
     permissions: {
       apis: [
         { key: 'kit.gamelet', actions: ['invoke'] },
@@ -319,7 +436,10 @@ function createWidgetsManagerDouble(options: { respondToRequests?: boolean } = {
 
 async function setupExtensionHostForTest() {
   const widgets = createWidgetsManagerDouble()
-  const service = await setupExtensionHostService({ widgetsManager: widgets.widgetsManager })
+  const service = await setupExtensionHostService({
+    widgetsManager: widgets.widgetsManager,
+    getExtensionManagementWebContentsId: () => extensionManagementWebContentsId,
+  })
   return { service, ...widgets }
 }
 
@@ -336,6 +456,7 @@ async function setupExtensionHost() {
 describe('setupExtensionHost', () => {
   let userDataDir: string
   let pluginsDir: string
+  let ownerWindowDouble: ReturnType<typeof createOwnerWindowDouble>
 
   it('types the setup host service as the plain ExtensionHost surface', () => {
     expectTypeOf<ExtensionHostService['host']>().toMatchTypeOf<ExtensionHost>()
@@ -343,6 +464,22 @@ describe('setupExtensionHost', () => {
 
   it('types getBinding as an optional lookup on the plain ExtensionHost surface', () => {
     expectTypeOf<ReturnType<ExtensionHost['getBinding']>>().toMatchTypeOf<BindingRecord<HostDataRecord> | undefined>()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013408003
+  it('returns Host disposal to the awaited application shutdown lifecycle (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // The Electron before-quit listener discarded the Host disposal promise,
+    // so application shutdown could finish before an active import settled.
+    await setupExtensionHostService({ widgetsManager: createWidgetsManagerDouble().widgetsManager })
+
+    expect(lifecycleMock.onAppBeforeQuit).toHaveBeenCalledOnce()
+    expect(lifecycleMock.beforeQuitHooks).toHaveLength(1)
+
+    const disposal = lifecycleMock.beforeQuitHooks[0]?.()
+    expect(disposal).toBeInstanceOf(Promise)
+    await disposal
   })
 
   it('loads manifests through the internal host bootstrap helper', async () => {
@@ -363,10 +500,16 @@ describe('setupExtensionHost', () => {
   })
 
   beforeEach(async () => {
+    lifecycleMock.beforeQuitHooks.length = 0
+    extensionManagementWebContentsId = 42
     userDataDir = await mkdtemp(join(tmpdir(), 'airi-plugins-'))
     pluginsDir = join(userDataDir, 'extensions', 'v1')
     await mkdir(pluginsDir, { recursive: true })
     appMock.getPath.mockReturnValue(userDataDir)
+    appMock.startAccessingSecurityScopedResource.mockReturnValue(vi.fn())
+    ownerWindowDouble = createOwnerWindowDouble()
+    browserWindowMock.fromWebContents.mockReturnValue(ownerWindowDouble.ownerWindow)
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
   })
 
   afterEach(async () => {
@@ -407,6 +550,327 @@ describe('setupExtensionHost', () => {
     ]))
   })
 
+  it('previews and imports a selected Extension folder without enabling or loading it', async () => {
+    const sourceDir = join(userDataDir, 'selected-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('imported-extension'))
+    await writeManifest({
+      dir: sourceDir,
+      name: 'imported-extension',
+      entrypoint: './extension.mjs',
+    })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    expect(prepared.status).toBe('ready')
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+    expect(prepared.plan).toMatchObject({
+      extensionId: 'imported-extension',
+      version: '1.0.0',
+      runtimes: ['electron'],
+    })
+
+    const snapshot = await invokeAsRenderer<PluginRegistrySnapshot>(invokeCommit, { planId: prepared.plan.planId })
+
+    expect(snapshot.plugins).toEqual([
+      expect.objectContaining({
+        extensionId: 'imported-extension',
+        enabled: false,
+        loaded: false,
+        isNew: false,
+      }),
+    ])
+    expect(await readFile(join(pluginsDir, 'imported-extension', 'extension.mjs'), 'utf8')).toContain('defineExtension')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4015043919
+  it('rejects an import while the same Extension id has a live session (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Refresh removed an Extension from the registry after its folder
+    // disappeared, but the runtime session continued to own the same id. The
+    // importer checked only the registry and allowed a replacement package.
+    const extensionId = 'live-extension'
+    const installedDir = join(pluginsDir, extensionId)
+    const sourceDir = join(userDataDir, 'replacement-live-extension')
+    await mkdir(installedDir, { recursive: true })
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(installedDir, 'extension.mjs'), createEmptyExtensionEntrypoint(extensionId))
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint(extensionId))
+    await writeManifest({ dir: installedDir, name: extensionId, entrypoint: './extension.mjs' })
+    await writeManifest({ dir: sourceDir, name: extensionId, entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+
+    await invokeLoad({ extensionId })
+    await rm(installedDir, { recursive: true, force: true })
+
+    await expect(invokeAsRenderer(invokePrepare, undefined)).rejects.toThrow('already installed')
+
+    await invokeUnload({ extensionId })
+    await expect(invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)).resolves.toEqual(
+      expect.objectContaining({ status: 'ready' }),
+    )
+  })
+
+  it('opens the Extension folder picker for the invoking window', async () => {
+    const sender = { id: 42 }
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: true, filePaths: [] })
+    await setupExtensionHost()
+
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    await invokeAsRenderer(invokePrepare, undefined, sender.id)
+
+    expect(browserWindowMock.fromWebContents).toHaveBeenCalledExactlyOnceWith(sender)
+    expect(dialogMock.showOpenDialog).toHaveBeenCalledExactlyOnceWith(ownerWindowDouble.ownerWindow, {
+      properties: ['openDirectory'],
+      securityScopedBookmarks: true,
+    })
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013551590
+  it('rejects folder import preparation from a renderer outside the Extension management window (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // The global IPC handler used the sender only as the dialog parent. It did
+    // not verify that the sender was the Settings renderer.
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+
+    await expect(invokeAsRenderer(invokePrepare, undefined, 84)).rejects.toThrow(
+      'Extension folder import is available only from the Extension management window.',
+    )
+    expect(dialogMock.showOpenDialog).not.toHaveBeenCalled()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013551590
+  it('binds folder import commit to the renderer that prepared the plan (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Commit accepted any valid plan id, so another authorized renderer could
+    // publish a package that it did not present for review.
+    const sourceDir = join(userDataDir, 'owned-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('owned-extension'))
+    await writeManifest({ dir: sourceDir, name: 'owned-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+
+    extensionManagementWebContentsId = 84
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+
+    extensionManagementWebContentsId = 42
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).resolves.toEqual(
+      expect.objectContaining({
+        plugins: [expect.objectContaining({ extensionId: 'owned-extension' })],
+      }),
+    )
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013551590
+  it('binds folder import cancellation to the renderer that prepared the plan (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Cancel used the same unowned plan lookup and could invalidate another
+    // renderer's pending review.
+    const sourceDir = join(userDataDir, 'owned-cancel-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('owned-cancel-extension'))
+    await writeManifest({ dir: sourceDir, name: 'owned-cancel-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCancel = defineInvoke(contextState.lastContext!, electronPluginCancelDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+
+    extensionManagementWebContentsId = 84
+    await expect(invokeAsRenderer(invokeCancel, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+
+    extensionManagementWebContentsId = 42
+    await expect(invokeAsRenderer(invokeCancel, { planId: prepared.plan.planId })).resolves.toBeUndefined()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013971562
+  it('replaces the pending folder import owned by the same renderer (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Each prepare call added another plan for the same renderer. The renderer
+    // displayed only the latest review and could no longer cancel older plans.
+    const sourceDir = join(userDataDir, 'replacement-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('replacement-extension'))
+    await writeManifest({ dir: sourceDir, name: 'replacement-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const first = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    const second = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (first.status !== 'ready' || second.status !== 'ready') {
+      throw new Error('Expected ready import plans.')
+    }
+
+    await expect(invokeAsRenderer(invokeCommit, { planId: first.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+    await expect(invokeAsRenderer(invokeCommit, { planId: second.plan.planId })).resolves.toEqual(
+      expect.objectContaining({
+        plugins: [expect.objectContaining({ extensionId: 'replacement-extension' })],
+      }),
+    )
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4013971562
+  it('cancels pending folder imports when their management renderer closes (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // Closing Settings removed the authorized renderer id but left its import
+    // plan and security-scoped bookmark in the Host until application shutdown.
+    const sourceDir = join(userDataDir, 'closed-renderer-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('closed-renderer-extension'))
+    await writeManifest({ dir: sourceDir, name: 'closed-renderer-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+
+    ownerWindowDouble.close()
+
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2506#discussion_r4014231041
+  it('cancels a folder import prepared after its management renderer closes (PR #2506)', async () => {
+    // ROOT CAUSE:
+    //
+    // The close listener ran before prepare stored its plan. Prepare then
+    // assigned the new plan to a renderer that no longer existed.
+    const sourceDir = join(userDataDir, 'closed-during-prepare-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('closed-during-prepare-extension'))
+    await writeManifest({ dir: sourceDir, name: 'closed-during-prepare-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [sourceDir],
+      bookmarks: ['sandbox-bookmark'],
+    })
+    appMock.startAccessingSecurityScopedResource.mockImplementation(() => {
+      ownerWindowDouble.close()
+      return vi.fn()
+    })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+
+    await expect(invokeAsRenderer(invokePrepare, undefined)).rejects.toThrow(
+      'The Extension management window is no longer available.',
+    )
+  })
+
+  it('retains security-scoped folder access through import confirmation', async () => {
+    const sourceDir = join(userDataDir, 'sandboxed-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('sandboxed-extension'))
+    await writeManifest({
+      dir: sourceDir,
+      name: 'sandboxed-extension',
+      entrypoint: './extension.mjs',
+    })
+    const stopAccessing = vi.fn()
+    appMock.startAccessingSecurityScopedResource.mockReturnValue(stopAccessing)
+    dialogMock.showOpenDialog.mockResolvedValue({
+      canceled: false,
+      filePaths: [sourceDir],
+      bookmarks: ['sandbox-bookmark'],
+    })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+    expect(appMock.startAccessingSecurityScopedResource).toHaveBeenCalledExactlyOnceWith('sandbox-bookmark')
+    expect(stopAccessing).toHaveBeenCalledOnce()
+
+    await invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })
+
+    // ROOT CAUSE:
+    //
+    // The picker returned only a path, so a Mac App Store build lost its
+    // sandbox grant before the reviewed import was committed. The Host now
+    // keeps the bookmark in the plan and opens a fresh access scope for each
+    // file-system phase.
+    expect(appMock.startAccessingSecurityScopedResource).toHaveBeenCalledTimes(2)
+    expect(appMock.startAccessingSecurityScopedResource).toHaveBeenLastCalledWith('sandbox-bookmark')
+    expect(stopAccessing).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats closing the Extension folder picker as cancellation', async () => {
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+
+    await expect(invokeAsRenderer(invokePrepare, undefined)).resolves.toEqual({ status: 'cancelled' })
+  })
+
+  it('cancels a prepared Extension import plan', async () => {
+    const sourceDir = join(userDataDir, 'cancelled-extension')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('cancelled-extension'))
+    await writeManifest({ dir: sourceDir, name: 'cancelled-extension', entrypoint: './extension.mjs' })
+    dialogMock.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: [sourceDir] })
+
+    await setupExtensionHost()
+    const invokePrepare = defineInvoke(contextState.lastContext!, electronPluginPrepareDirectoryImport)
+    const invokeCancel = defineInvoke(contextState.lastContext!, electronPluginCancelDirectoryImport)
+    const invokeCommit = defineInvoke(contextState.lastContext!, electronPluginCommitDirectoryImport)
+    const prepared = await invokeAsRenderer<ExtensionDirectoryImportPrepareResult>(invokePrepare, undefined)
+    if (prepared.status !== 'ready') {
+      throw new Error('Expected a ready import plan.')
+    }
+
+    await invokeAsRenderer(invokeCancel, { planId: prepared.plan.planId })
+
+    await expect(invokeAsRenderer(invokeCommit, { planId: prepared.plan.planId })).rejects.toThrow(
+      'Extension import plan is not available to this renderer.',
+    )
+  })
+
   it('discovers extension manifests and ignores legacy extension manifests', async () => {
     const extensionDir = join(pluginsDir, 'extension-test')
     const legacyDir = join(pluginsDir, 'plugin-legacy')
@@ -414,9 +878,11 @@ describe('setupExtensionHost', () => {
     await mkdir(legacyDir, { recursive: true })
 
     await writeFile(join(extensionDir, extensionManifestFileName), JSON.stringify({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'airi-extension-test',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {},
       entrypoints: {
         electron: './extension.mjs',
@@ -516,6 +982,905 @@ describe('setupExtensionHost', () => {
     expect(error).toEqual(expect.objectContaining({ enabled: true, loaded: false }))
   })
 
+  it('keeps config unchanged when enablement has a missing required Kit', async () => {
+    const extensionDir = join(pluginsDir, 'missing-kit-consumer')
+    await mkdir(extensionDir, { recursive: true })
+    await writeEntrypoint({
+      dir: extensionDir,
+      name: 'extension.ts',
+      contents: createEmptyExtensionEntrypoint('missing-kit-consumer'),
+    })
+    await writeManifest({
+      dir: extensionDir,
+      name: 'missing-kit-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.missing', version: '^1.0.0' }],
+      },
+    })
+
+    await setupExtensionHost()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+
+    await expect(invokeSetEnabled({
+      extensionId: 'missing-kit-consumer',
+      enabled: true,
+    })).rejects.toThrow('requires missing Kit "dev.airi.missing"')
+
+    const snapshot = await invokeList()
+    expect(snapshot.plugins).toContainEqual(expect.objectContaining({
+      extensionId: 'missing-kit-consumer',
+      enabled: false,
+      loaded: false,
+    }))
+  })
+
+  it('keeps a Provider enabled while an enabled Consumer requires it', async () => {
+    const providerDir = join(pluginsDir, 'required-provider')
+    const consumerDir = join(pluginsDir, 'required-consumer')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('required-provider'))
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('required-consumer'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'required-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.required', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'required-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.required', version: '^1.0.0' }],
+      },
+    })
+
+    await setupExtensionHost()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+    await invokeSetEnabled({ extensionId: 'required-provider', enabled: true })
+    await invokeSetEnabled({ extensionId: 'required-consumer', enabled: true })
+
+    await expect(invokeSetEnabled({
+      extensionId: 'required-provider',
+      enabled: false,
+    })).rejects.toThrow('requires missing Kit "dev.airi.required"')
+
+    const snapshot = await invokeList()
+    expect(snapshot.plugins).toContainEqual(expect.objectContaining({
+      extensionId: 'required-provider',
+      enabled: true,
+    }))
+  })
+
+  it('loads enabled Providers before their required Consumers', async () => {
+    const consumerDir = join(pluginsDir, 'a-consumer')
+    const providerDir = join(pluginsDir, 'z-provider')
+    await mkdir(consumerDir, { recursive: true })
+    await mkdir(providerDir, { recursive: true })
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('ordered-consumer'))
+    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('ordered-provider'))
+    await writeManifest({
+      dir: consumerDir,
+      name: 'ordered-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.ordered', version: '^1.0.0' }],
+      },
+    })
+    await writeManifest({
+      dir: providerDir,
+      name: 'ordered-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.ordered', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    await invokeSetEnabled({ extensionId: 'ordered-provider', enabled: true })
+    await invokeSetEnabled({ extensionId: 'ordered-consumer', enabled: true })
+    const startSpy = vi.spyOn(service.host, 'start')
+
+    await invokeLoadEnabled()
+
+    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
+      'ordered-provider',
+      'ordered-consumer',
+    ])
+  })
+
+  it('runs the Activation Planner examples in dependency order', async () => {
+    await installExampleExtension(pluginsDir, 'activation-planner-provider', 'activation-planner-provider.mjs')
+    await installExampleExtension(pluginsDir, 'activation-planner-consumer', 'activation-planner-consumer.mjs')
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.setEnabled({ extensionId: 'activation-planner-provider', enabled: true })
+    await service.setEnabled({ extensionId: 'activation-planner-consumer', enabled: true })
+    const startSpy = vi.spyOn(service.host, 'start')
+
+    const loadedSnapshot = await service.loadEnabled()
+
+    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
+      'activation-planner-provider',
+      'activation-planner-consumer',
+    ])
+    expect(loadedSnapshot.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'activation-planner-provider', loaded: true }),
+      expect.objectContaining({ extensionId: 'activation-planner-consumer', loaded: true }),
+    ]))
+
+    const extensionIdBySessionId = new Map(
+      service.host.listSessions().map(session => [session.id, session.extension.id]),
+    )
+    const stopSpy = vi.spyOn(service.host, 'stop')
+
+    await service.setSystemEnabled(false)
+
+    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdBySessionId.get(sessionId))).toEqual([
+      'activation-planner-consumer',
+      'activation-planner-provider',
+    ])
+  })
+
+  it('stops enabled Extensions without clearing enabled intent when the system is disabled', async () => {
+    const providerDir = join(pluginsDir, 'system-provider')
+    const consumerDir = join(pluginsDir, 'system-consumer')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('system-provider'))
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('system-consumer'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'system-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.system', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'system-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.system', version: '^1.0.0' }],
+      },
+    })
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.setEnabled({ extensionId: 'system-provider', enabled: true })
+    await service.setEnabled({ extensionId: 'system-consumer', enabled: true })
+    await service.loadEnabled()
+    const stopSpy = vi.spyOn(service.host, 'stop')
+
+    const disabledReport = await service.setSystemEnabled(false)
+
+    expect(disabledReport.plan.enabledExtensionIds).toEqual([
+      'system-consumer',
+      'system-provider',
+    ])
+    expect(disabledReport.plan.targetLoadedExtensionIds).toEqual([])
+    expect(stopSpy.mock.calls.map(([sessionId]) => sessionId)).toHaveLength(2)
+    expect(service.host.listSessions()).toEqual([])
+    const disabledSnapshot = await service.list()
+    expect(disabledSnapshot.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'system-provider', enabled: true, loaded: false }),
+      expect.objectContaining({ extensionId: 'system-consumer', enabled: true, loaded: false }),
+    ]))
+
+    const startSpy = vi.spyOn(service.host, 'start')
+    const enabledReport = await service.setSystemEnabled(true)
+
+    expect(enabledReport.plan.loadOrder).toEqual([
+      'system-provider',
+      'system-consumer',
+    ])
+    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
+      'system-provider',
+      'system-consumer',
+    ])
+    await service.dispose()
+  })
+
+  it('keeps raw-loaded Extensions when loading enabled Extensions', async () => {
+    const rawDir = join(pluginsDir, 'raw-loaded-extension')
+    const enabledDir = join(pluginsDir, 'enabled-extension')
+    await mkdir(rawDir, { recursive: true })
+    await mkdir(enabledDir, { recursive: true })
+    await writeFile(join(rawDir, 'extension.ts'), createEmptyExtensionEntrypoint('raw-loaded-extension'))
+    await writeFile(join(enabledDir, 'extension.ts'), createEmptyExtensionEntrypoint('enabled-extension'))
+    await writeManifest({ dir: rawDir, name: 'raw-loaded-extension', entrypoint: './extension.ts' })
+    await writeManifest({ dir: enabledDir, name: 'enabled-extension', entrypoint: './extension.ts' })
+
+    await setupExtensionHost()
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    await invokeLoad({ extensionId: 'raw-loaded-extension' })
+    await invokeSetEnabled({ extensionId: 'enabled-extension', enabled: true })
+
+    const snapshot = await invokeLoadEnabled()
+
+    expect(snapshot.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'raw-loaded-extension', enabled: false, loaded: true }),
+      expect.objectContaining({ extensionId: 'enabled-extension', enabled: true, loaded: true }),
+    ]))
+  })
+
+  it('serializes concurrent Extension load requests', async () => {
+    const firstDir = join(pluginsDir, 'first-concurrent-load')
+    const secondDir = join(pluginsDir, 'second-concurrent-load')
+    await mkdir(firstDir, { recursive: true })
+    await mkdir(secondDir, { recursive: true })
+    await writeFile(join(firstDir, 'extension.ts'), createEmptyExtensionEntrypoint('first-concurrent-load'))
+    await writeFile(join(secondDir, 'extension.ts'), createEmptyExtensionEntrypoint('second-concurrent-load'))
+    await writeManifest({ dir: firstDir, name: 'first-concurrent-load', entrypoint: './extension.ts' })
+    await writeManifest({ dir: secondDir, name: 'second-concurrent-load', entrypoint: './extension.ts' })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const firstStartGate = createDeferred()
+    const originalStart = service.host.start.bind(service.host)
+    let isFirstStart = true
+    const startSpy = vi.spyOn(service.host, 'start').mockImplementation(async (manifest, options) => {
+      if (isFirstStart) {
+        isFirstStart = false
+        await firstStartGate.promise
+      }
+      return await originalStart(manifest, options)
+    })
+
+    const firstLoad = invokeLoad({ extensionId: 'first-concurrent-load' })
+    await vi.waitFor(() => expect(startSpy).toHaveBeenCalledTimes(1))
+    const secondLoad = invokeLoad({ extensionId: 'second-concurrent-load' })
+    await new Promise(resolve => setImmediate(resolve))
+    expect(startSpy).toHaveBeenCalledTimes(1)
+
+    firstStartGate.resolve()
+    await Promise.all([firstLoad, secondLoad])
+    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
+      'first-concurrent-load',
+      'second-concurrent-load',
+    ])
+  })
+
+  it('waits for the active Extension operation before Host disposal', async () => {
+    const extensionId = 'load-before-dispose'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeManifest({ dir: extensionDir, name: extensionId, entrypoint: './extension.ts' })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const startGate = createDeferred()
+    const originalStart = service.host.start.bind(service.host)
+    const startSpy = vi.spyOn(service.host, 'start').mockImplementation(async (manifest, options) => {
+      await startGate.promise
+      return await originalStart(manifest, options)
+    })
+    const loadPromise = invokeLoad({ extensionId })
+    await vi.waitFor(() => expect(startSpy).toHaveBeenCalledOnce())
+
+    const disposeHost = lifecycleMock.beforeQuitHooks.at(-1)
+    if (!disposeHost) {
+      throw new Error('Expected the Extension Host disposal hook.')
+    }
+    let disposalComplete = false
+    const disposalPromise = Promise.resolve(disposeHost()).then(() => {
+      disposalComplete = true
+    })
+    await new Promise(resolve => setImmediate(resolve))
+    expect(disposalComplete).toBe(false)
+
+    startGate.resolve()
+    await loadPromise
+    await disposalPromise
+    expect(disposalComplete).toBe(true)
+    expect(service.host.listSessions()).toEqual([])
+  })
+
+  it('waits for in-flight asset inspection before disposing its owner', async () => {
+    const extensionId = 'inspect-before-dispose'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(join(extensionDir, 'ui'), { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeFile(join(extensionDir, 'ui', 'index.html'), '<!doctype html><title>inspect lock</title>')
+    await writeFile(join(extensionDir, extensionManifestFileName), JSON.stringify({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: extensionId,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {
+        apis: [{ key: 'kit.widget', actions: ['invoke'] }],
+        resources: [{ key: 'proj-airi:plugin-sdk:resources:kits:kit.widget:bindings', actions: ['read', 'write'] }],
+      },
+      entrypoints: { electron: './extension.ts' },
+    }, null, 2))
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.load(extensionId)
+    const extensionSession = service.host.listSessions().find(session => session.extension.id === extensionId)
+    if (!extensionSession) {
+      throw new Error('Expected the Extension session before the inspection lock test.')
+    }
+    service.host.bindExtensionKitModule(extensionSession.id, {
+      moduleId: 'inspect-before-dispose-widget',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: {
+        title: 'Inspect Before Dispose',
+        entrypoint: './ui/index.html',
+        widget: {
+          mount: 'iframe',
+          iframe: { assetPath: './ui/index.html' },
+        },
+      },
+    })
+
+    const cookieSetGate = createDeferred()
+    const operationOrder: string[] = []
+    sessionMock.defaultSession.cookies.set.mockImplementationOnce(async () => {
+      await cookieSetGate.promise
+      operationOrder.push('cookie-set-complete')
+    })
+    const inspection = service.inspect()
+    await vi.waitFor(() => expect(sessionMock.defaultSession.cookies.set).toHaveBeenCalledOnce())
+
+    const originalStop = service.host.stop.bind(service.host)
+    const stopSpy = vi.spyOn(service.host, 'stop').mockImplementation(async (sessionId) => {
+      operationOrder.push('stop-started')
+      return await originalStop(sessionId)
+    })
+    const disposal = service.dispose()
+
+    // ROOT CAUSE:
+    //
+    // Inspection can create an asset session after it reads the owner binding.
+    // Cleanup must wait for that creation, or a late cookie can outlive its owner.
+    // We fixed this by holding the lifecycle mutex until inspection completes.
+    cookieSetGate.resolve()
+    await inspection
+    await disposal
+    expect(operationOrder).toEqual([
+      'cookie-set-complete',
+      'stop-started',
+    ])
+    expect(stopSpy).toHaveBeenCalledOnce()
+    expect(sessionMock.defaultSession.cookies.remove).toHaveBeenCalledOnce()
+  })
+
+  it('disposes required Consumers before their Providers', async () => {
+    const providerDir = join(pluginsDir, 'z-dispose-provider')
+    const consumerDir = join(pluginsDir, 'a-dispose-consumer')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('z-dispose-provider'))
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('a-dispose-consumer'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'z-dispose-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.dispose', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'a-dispose-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.dispose', version: '^1.0.0' }],
+      },
+    })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    await invokeSetEnabled({ extensionId: 'z-dispose-provider', enabled: true })
+    await invokeSetEnabled({ extensionId: 'a-dispose-consumer', enabled: true })
+    await invokeLoadEnabled()
+    const extensionIdBySessionId = new Map(
+      service.host.listSessions().map(session => [session.id, session.extension.id]),
+    )
+    const stopSpy = vi.spyOn(service.host, 'stop')
+
+    const disposeHost = lifecycleMock.beforeQuitHooks.at(-1)
+    if (!disposeHost) {
+      throw new Error('Expected the Extension Host disposal hook.')
+    }
+    await disposeHost()
+
+    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdBySessionId.get(sessionId))).toEqual([
+      'a-dispose-consumer',
+      'z-dispose-provider',
+    ])
+  })
+
+  it('does not unload a Provider while a loaded Consumer requires it', async () => {
+    const providerDir = join(pluginsDir, 'runtime-provider')
+    const consumerDir = join(pluginsDir, 'runtime-consumer')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    await writeFile(join(providerDir, 'extension.ts'), createEmptyExtensionEntrypoint('runtime-provider'))
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('runtime-consumer'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'runtime-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.runtime', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'runtime-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.runtime', version: '^1.0.0' }],
+      },
+    })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+    await invokeSetEnabled({ extensionId: 'runtime-provider', enabled: true })
+    await invokeSetEnabled({ extensionId: 'runtime-consumer', enabled: true })
+    await invokeLoadEnabled()
+    const stopSpy = vi.spyOn(service.host, 'stop')
+
+    await expect(
+      invokeUnload({ extensionId: 'runtime-provider' }),
+    ).rejects.toThrow('requires missing Kit "dev.airi.runtime"')
+    expect(stopSpy).not.toHaveBeenCalled()
+  })
+
+  it('retries runtime cleanup when unloading a cleanup-pending Extension', async () => {
+    const extensionDir = join(pluginsDir, 'stop-failure-extension')
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint('stop-failure-extension'))
+    await writeManifest({
+      dir: extensionDir,
+      name: 'stop-failure-extension',
+      entrypoint: './extension.ts',
+    })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeLoad = defineInvoke(contextState.lastContext!, electronPluginLoad)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+    await invokeLoad({ extensionId: 'stop-failure-extension' })
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    stopSpy.mockRejectedValueOnce(new Error('runtime stop failed'))
+
+    await expect(
+      invokeUnload({ extensionId: 'stop-failure-extension' }),
+    ).rejects.toThrow('runtime stop failed')
+
+    const snapshot = await invokeList()
+    expect(snapshot.plugins).toContainEqual(expect.objectContaining({
+      extensionId: 'stop-failure-extension',
+      loaded: false,
+    }))
+
+    // ROOT CAUSE:
+    //
+    // The loaded projection used to be the only input to unload planning. A failed
+    // runtime stop hid the Extension from that projection, so a second unload made
+    // an empty plan and never retried the session that still belonged to the Host.
+    //
+    // We keep cleanup ownership separate from loaded state. A later unload can then
+    // retry the remaining runtime cleanup without advertising the Extension as loaded.
+    await invokeUnload({ extensionId: 'stop-failure-extension' })
+
+    expect(stopSpy).toHaveBeenCalledTimes(2)
+    expect(service.host.listSessions()).not.toContainEqual(expect.objectContaining({
+      extension: expect.objectContaining({ id: 'stop-failure-extension' }),
+    }))
+  })
+
+  it('retries cleanup debt during Host disposal', async () => {
+    const extensionId = 'dispose-cleanup-retry'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeManifest({
+      dir: extensionDir,
+      name: extensionId,
+      entrypoint: './extension.ts',
+    })
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.load(extensionId)
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    stopSpy.mockRejectedValueOnce(new Error('runtime stop failed'))
+
+    await expect(service.unload(extensionId)).rejects.toThrow('runtime stop failed')
+    await service.dispose()
+
+    expect(stopSpy).toHaveBeenCalledTimes(2)
+    expect(service.host.listSessions()).not.toContainEqual(expect.objectContaining({
+      extension: expect.objectContaining({ id: extensionId }),
+    }))
+  })
+
+  it('retries only asset cleanup after runtime cleanup succeeds', async () => {
+    const extensionId = 'asset-cleanup-retry'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(join(extensionDir, 'ui'), { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeFile(join(extensionDir, 'ui', 'index.html'), '<!doctype html><title>cleanup retry</title>')
+    await writeFile(join(extensionDir, extensionManifestFileName), JSON.stringify({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: extensionId,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {
+        apis: [{ key: 'kit.widget', actions: ['invoke'] }],
+        resources: [{ key: 'proj-airi:plugin-sdk:resources:kits:kit.widget:bindings', actions: ['read', 'write'] }],
+      },
+      entrypoints: { electron: './extension.ts' },
+    }, null, 2))
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.load(extensionId)
+    const session = service.host.listSessions().find(item => item.extension.id === extensionId)
+    if (!session) {
+      throw new Error('Expected the Extension session before the cleanup retry test.')
+    }
+    service.host.bindExtensionKitModule(session.id, {
+      moduleId: 'asset-cleanup-retry-widget',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: {
+        title: 'Asset Cleanup Retry',
+        entrypoint: './ui/index.html',
+        widget: {
+          mount: 'iframe',
+          iframe: { assetPath: './ui/index.html' },
+        },
+      },
+    })
+    await service.inspect()
+
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    sessionMock.defaultSession.cookies.remove.mockRejectedValueOnce(new Error('asset cleanup failed'))
+
+    await expect(service.unload(extensionId)).rejects.toThrow('asset cleanup failed')
+    await service.unload(extensionId)
+
+    expect(stopSpy).toHaveBeenCalledOnce()
+    expect(sessionMock.defaultSession.cookies.remove).toHaveBeenCalledTimes(2)
+    expect(service.host.listSessions()).not.toContainEqual(expect.objectContaining({
+      extension: expect.objectContaining({ id: extensionId }),
+    }))
+  })
+
+  it('cleans a previous session before loading the Extension again', async () => {
+    const extensionId = 'load-after-cleanup-debt'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeManifest({
+      dir: extensionDir,
+      name: extensionId,
+      entrypoint: './extension.ts',
+    })
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.load(extensionId)
+    const firstSessionId = service.host.listSessions()
+      .find(session => session.extension.id === extensionId)
+      ?.id
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    stopSpy.mockRejectedValueOnce(new Error('runtime stop failed'))
+
+    await expect(service.unload(extensionId)).rejects.toThrow('runtime stop failed')
+    await service.load(extensionId)
+
+    const secondSessionId = service.host.listSessions()
+      .find(session => session.extension.id === extensionId)
+      ?.id
+    expect(stopSpy).toHaveBeenCalledTimes(2)
+    expect(secondSessionId).toBeDefined()
+    expect(secondSessionId).not.toBe(firstSessionId)
+  })
+
+  it('keeps the cleanup owner when a load retries cleanup debt', async () => {
+    const extensionId = 'load-cleanup-report'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeManifest({
+      dir: extensionDir,
+      name: extensionId,
+      entrypoint: './extension.ts',
+    })
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.setEnabled({ extensionId, enabled: true })
+    await service.loadEnabled()
+    vi.spyOn(service.host, 'stop')
+      .mockRejectedValueOnce(new Error('initial runtime cleanup failed'))
+      .mockRejectedValueOnce(new Error('runtime cleanup retry failed'))
+
+    await expect(service.unload(extensionId)).rejects.toThrow('initial runtime cleanup failed')
+    const report = await service.setSystemEnabled(true)
+
+    // ROOT CAUSE:
+    //
+    // The load path converted a structured cleanup report into a plain error.
+    // The activation report then lost the owner of the cleanup debt.
+    expect(report.failures).toContainEqual(expect.objectContaining({
+      extensionId,
+      operation: 'load',
+      owner: 'runtime',
+      message: 'runtime cleanup retry failed',
+    }))
+  })
+
+  it('records runtime and asset cleanup failures independently', async () => {
+    const extensionId = 'combined-cleanup-retry'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(join(extensionDir, 'ui'), { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeFile(join(extensionDir, 'ui', 'index.html'), '<!doctype html><title>combined cleanup</title>')
+    await writeFile(join(extensionDir, extensionManifestFileName), JSON.stringify({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: extensionId,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {
+        apis: [{ key: 'kit.widget', actions: ['invoke'] }],
+        resources: [{ key: 'proj-airi:plugin-sdk:resources:kits:kit.widget:bindings', actions: ['read', 'write'] }],
+      },
+      entrypoints: { electron: './extension.ts' },
+    }, null, 2))
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.load(extensionId)
+    const session = service.host.listSessions().find(item => item.extension.id === extensionId)
+    if (!session) {
+      throw new Error('Expected the Extension session before the combined cleanup test.')
+    }
+    service.host.bindExtensionKitModule(session.id, {
+      moduleId: 'combined-cleanup-widget',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: {
+        title: 'Combined Cleanup',
+        entrypoint: './ui/index.html',
+        widget: {
+          mount: 'iframe',
+          iframe: { assetPath: './ui/index.html' },
+        },
+      },
+    })
+    await service.inspect()
+
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    stopSpy.mockRejectedValueOnce(new Error('runtime cleanup failed'))
+    sessionMock.defaultSession.cookies.remove.mockRejectedValueOnce(new Error('asset cleanup failed'))
+
+    const firstReport = await service.setSystemEnabled(false)
+    expect(firstReport.failures).toEqual([
+      expect.objectContaining({ extensionId, operation: 'unload', owner: 'runtime', message: 'runtime cleanup failed' }),
+      expect.objectContaining({ extensionId, operation: 'unload', owner: 'assets', message: 'asset cleanup failed' }),
+    ])
+
+    const retryReport = await service.setSystemEnabled(false)
+    expect(retryReport.failures).toEqual([])
+    expect(stopSpy).toHaveBeenCalledTimes(2)
+    expect(sessionMock.defaultSession.cookies.remove).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not recreate assets for a session with pending runtime cleanup', async () => {
+    const extensionId = 'pending-runtime-cleanup-assets'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(join(extensionDir, 'ui'), { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeFile(join(extensionDir, 'ui', 'index.html'), '<!doctype html><title>pending cleanup</title>')
+    await writeFile(join(extensionDir, extensionManifestFileName), JSON.stringify({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: extensionId,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {
+        apis: [{ key: 'kit.widget', actions: ['invoke'] }],
+        resources: [{ key: 'proj-airi:plugin-sdk:resources:kits:kit.widget:bindings', actions: ['read', 'write'] }],
+      },
+      entrypoints: { electron: './extension.ts' },
+    }, null, 2))
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.load(extensionId)
+    const session = service.host.listSessions().find(item => item.extension.id === extensionId)
+    if (!session) {
+      throw new Error('Expected the Extension session before the pending cleanup test.')
+    }
+    service.host.bindExtensionKitModule(session.id, {
+      moduleId: 'pending-runtime-cleanup-widget',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: {
+        title: 'Pending Runtime Cleanup',
+        entrypoint: './ui/index.html',
+        widget: {
+          mount: 'iframe',
+          iframe: { assetPath: './ui/index.html' },
+        },
+      },
+    })
+    await service.inspect()
+
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    stopSpy.mockRejectedValueOnce(new Error('runtime cleanup failed'))
+    const firstReport = await service.setSystemEnabled(false)
+    expect(firstReport.failures).toEqual([
+      expect.objectContaining({ extensionId, operation: 'unload', owner: 'runtime', message: 'runtime cleanup failed' }),
+    ])
+    expect(sessionMock.defaultSession.cookies.remove).toHaveBeenCalledOnce()
+
+    // ROOT CAUSE:
+    //
+    // The failed runtime remains in ExtensionHost after its assets are revoked.
+    // Inspection must not create new assets for that cleanup-pending owner.
+    // We fixed this by allowing asset materialization only for the exact loaded session.
+    await service.inspect()
+    expect(sessionMock.defaultSession.cookies.set).toHaveBeenCalledOnce()
+
+    const retryReport = await service.setSystemEnabled(false)
+    expect(retryReport.failures).toEqual([])
+    expect(stopSpy).toHaveBeenCalledTimes(2)
+    expect(sessionMock.defaultSession.cookies.remove).toHaveBeenCalledOnce()
+  })
+
+  it('rejects Host disposal when Extension session cleanup remains incomplete', async () => {
+    const extensionId = 'persistent-stop-failure'
+    const extensionDir = join(pluginsDir, extensionId)
+    await mkdir(extensionDir, { recursive: true })
+    await writeFile(join(extensionDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeManifest({
+      dir: extensionDir,
+      name: extensionId,
+      entrypoint: './extension.ts',
+    })
+
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    await service.load(extensionId)
+    const cleanupError = new Error('persistent runtime stop failure')
+    vi.spyOn(service.host, 'stop').mockRejectedValue(cleanupError)
+
+    // ROOT CAUSE:
+    //
+    // Disposal rebuilt cleanup failures from their messages. That replacement lost
+    // the original error type, stack, cause, and custom fields.
+    // We fixed this by keeping the original error in the execution report.
+    await expect(service.dispose()).rejects.toBe(cleanupError)
+    expect(service.getAssetBaseUrl()).toBe('')
+  })
+
+  it('saves disabled intent before Extension asset cleanup', async () => {
+    const extensionId = 'disable-before-cleanup'
+    const pluginDir = join(pluginsDir, extensionId)
+    await mkdir(join(pluginDir, 'ui'), { recursive: true })
+    await writeFile(join(pluginDir, 'extension.ts'), createEmptyExtensionEntrypoint(extensionId))
+    await writeFile(join(pluginDir, 'ui', 'index.html'), '<!doctype html><title>cleanup</title>')
+    await writeFile(join(pluginDir, extensionManifestFileName), JSON.stringify({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: extensionId,
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {
+        apis: [{ key: 'kit.widget', actions: ['invoke'] }],
+        resources: [{ key: 'proj-airi:plugin-sdk:resources:kits:kit.widget:bindings', actions: ['read', 'write'] }],
+      },
+      entrypoints: { electron: './extension.ts' },
+    }, null, 2))
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
+    const invokeList = defineInvoke(contextState.lastContext!, electronPluginList)
+    await invokeSetEnabled({ extensionId, enabled: true })
+    await invokeLoadEnabled()
+    const session = service.host.listSessions().find(item => item.extension.id === extensionId)
+    if (!session) {
+      throw new Error('Expected the Extension session before the disable test.')
+    }
+    service.host.bindExtensionKitModule(session.id, {
+      moduleId: 'disable-before-cleanup-widget',
+      kitId: 'kit.widget',
+      kitModuleType: 'window',
+      config: {
+        title: 'Disable Before Cleanup',
+        entrypoint: './ui/index.html',
+        widget: {
+          mount: 'iframe',
+          iframe: { assetPath: './ui/index.html' },
+        },
+      },
+    })
+    await invokeInspect()
+    sessionMock.defaultSession.cookies.remove.mockRejectedValueOnce(new Error('asset cleanup failed'))
+
+    await expect(invokeSetEnabled({ extensionId, enabled: false })).rejects.toThrow('asset cleanup failed')
+
+    const snapshot = await invokeList()
+    expect(snapshot.plugins).toContainEqual(expect.objectContaining({
+      extensionId,
+      enabled: false,
+    }))
+  })
+
+  it('skips required Consumers after Provider setup fails and continues independent branches', async () => {
+    const providerDir = join(pluginsDir, 'failing-provider')
+    const consumerDir = join(pluginsDir, 'dependent-consumer')
+    const independentDir = join(pluginsDir, 'independent-extension')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    await mkdir(independentDir, { recursive: true })
+    await writeFile(
+      join(providerDir, 'extension.ts'),
+      createEmptyExtensionEntrypoint('failing-provider').replace(
+        '  setup() {},',
+        '  setup() { throw new Error(\'Provider setup failed.\') },',
+      ),
+    )
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('dependent-consumer'))
+    await writeFile(join(independentDir, 'extension.ts'), createEmptyExtensionEntrypoint('independent-extension'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'failing-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.failure', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'dependent-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.failure', version: '^1.0.0' }],
+      },
+    })
+    await writeManifest({
+      dir: independentDir,
+      name: 'independent-extension',
+      entrypoint: './extension.ts',
+    })
+
+    await setupExtensionHost()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    await invokeSetEnabled({ extensionId: 'failing-provider', enabled: true })
+    await invokeSetEnabled({ extensionId: 'dependent-consumer', enabled: true })
+    await invokeSetEnabled({ extensionId: 'independent-extension', enabled: true })
+
+    const snapshot = await invokeLoadEnabled()
+
+    expect(snapshot.plugins).toEqual(expect.arrayContaining([
+      expect.objectContaining({ extensionId: 'failing-provider', loaded: false }),
+      expect.objectContaining({ extensionId: 'dependent-consumer', loaded: false }),
+      expect.objectContaining({ extensionId: 'independent-extension', loaded: true }),
+    ]))
+  })
+
   it('emits a plugin tools changed event after loading an extension through IPC', async () => {
     const pluginDir = join(pluginsDir, 'test-tools-changed')
     await mkdir(pluginDir, { recursive: true })
@@ -553,7 +1918,7 @@ describe('setupExtensionHost', () => {
     ])
   })
 
-  it('loads the first matching manifest when duplicate plugin names exist', async () => {
+  it('rejects activation when duplicate Extension ids exist', async () => {
     const errorEntrypoint = join(testDataRoot, 'test-error-plugin.ts')
 
     const firstPluginDir = join(pluginsDir, 'duplicate-plugin-first')
@@ -581,15 +1946,18 @@ describe('setupExtensionHost', () => {
     const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
     const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
 
-    await invokeSetEnabled({ extensionId: 'duplicate-plugin', enabled: true })
-    await invokeLoadEnabled()
+    await expect(
+      invokeSetEnabled({ extensionId: 'duplicate-plugin', enabled: true }),
+    ).rejects.toThrow('Installed Extension id "duplicate-plugin" appears more than once.')
+    await expect(
+      invokeLoadEnabled(),
+    ).rejects.toThrow('Installed Extension id "duplicate-plugin" appears more than once.')
 
     const duplicateSession = service.host
       .listSessions()
       .find(session => session.manifest.id === 'duplicate-plugin')
 
-    expect(duplicateSession).toBeDefined()
-    expect(duplicateSession?.manifest.entrypoints.electron).toBe('./test-normal-plugin.ts')
+    expect(duplicateSession).toBeUndefined()
   })
 
   it('persists plugin auto-reload state and surfaces it in registry snapshots', async () => {
@@ -684,7 +2052,228 @@ describe('setupExtensionHost', () => {
     expect(afterSessionId).not.toEqual(beforeSession?.id)
 
     await invokeSetAutoReload({ extensionId: 'test-auto-reload-reload', enabled: false })
+    await invokeSetEnabled({ extensionId: 'test-auto-reload-reload', enabled: false })
     await invokeUnload({ extensionId: 'test-auto-reload-reload' })
+  })
+
+  it('reloads a Provider after its required Consumer stops', async () => {
+    const providerDir = join(pluginsDir, 'reload-provider')
+    const consumerDir = join(pluginsDir, 'reload-consumer')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    const providerEntrypointPath = await writeEntrypoint({
+      dir: providerDir,
+      name: 'extension.ts',
+      contents: createEmptyExtensionEntrypoint('reload-provider'),
+    })
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('reload-consumer'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'reload-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.reload-order', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'reload-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.reload-order', version: '^1.0.0' }],
+      },
+    })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    const invokeSetAutoReload = defineInvoke(contextState.lastContext!, electronPluginSetAutoReload)
+    const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+    await invokeSetEnabled({ extensionId: 'reload-provider', enabled: true })
+    await invokeSetEnabled({ extensionId: 'reload-consumer', enabled: true })
+    await invokeLoadEnabled()
+    await invokeSetAutoReload({ extensionId: 'reload-provider', enabled: true })
+
+    const before = await invokeInspect()
+    const oldSessionIdByExtensionId = new Map(
+      before.sessions.map(session => [session.extensionId, session.id]),
+    )
+    const extensionIdByOldSessionId = new Map(
+      before.sessions.map(session => [session.id, session.extensionId]),
+    )
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    const startSpy = vi.spyOn(service.host, 'start')
+
+    await writeFile(
+      providerEntrypointPath,
+      `${createEmptyExtensionEntrypoint('reload-provider')}\n// reload change`,
+    )
+
+    const deadline = Date.now() + 3000
+    let after = before
+    while (Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 100))
+      after = await invokeInspect()
+      const providerSessionId = after.sessions.find(session => session.extensionId === 'reload-provider')?.id
+      const consumerSessionId = after.sessions.find(session => session.extensionId === 'reload-consumer')?.id
+      if (
+        providerSessionId
+        && consumerSessionId
+        && providerSessionId !== oldSessionIdByExtensionId.get('reload-provider')
+        && consumerSessionId !== oldSessionIdByExtensionId.get('reload-consumer')
+      ) {
+        break
+      }
+    }
+
+    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdByOldSessionId.get(sessionId))).toEqual([
+      'reload-consumer',
+      'reload-provider',
+    ])
+    expect(startSpy.mock.calls.map(([manifest]) => manifest.id)).toEqual([
+      'reload-provider',
+      'reload-consumer',
+    ])
+
+    await invokeSetAutoReload({ extensionId: 'reload-provider', enabled: false })
+    await invokeSetEnabled({ extensionId: 'reload-consumer', enabled: false })
+    await invokeSetEnabled({ extensionId: 'reload-provider', enabled: false })
+    await invokeUnload({ extensionId: 'reload-consumer' })
+    await invokeUnload({ extensionId: 'reload-provider' })
+  })
+
+  it('continues a Provider reload after its Consumer stop fails', async () => {
+    const providerDir = join(pluginsDir, 'failure-reload-provider')
+    const consumerDir = join(pluginsDir, 'failure-reload-consumer')
+    await mkdir(providerDir, { recursive: true })
+    await mkdir(consumerDir, { recursive: true })
+    const providerEntrypointPath = await writeEntrypoint({
+      dir: providerDir,
+      name: 'extension.ts',
+      contents: createEmptyExtensionEntrypoint('failure-reload-provider'),
+    })
+    await writeFile(join(consumerDir, 'extension.ts'), createEmptyExtensionEntrypoint('failure-reload-consumer'))
+    await writeManifest({
+      dir: providerDir,
+      name: 'failure-reload-provider',
+      entrypoint: './extension.ts',
+      kits: {
+        provides: [{ id: 'dev.airi.reload-failure', version: '1.0.0', exposure: 'local-only' }],
+      },
+    })
+    await writeManifest({
+      dir: consumerDir,
+      name: 'failure-reload-consumer',
+      entrypoint: './extension.ts',
+      kits: {
+        uses: [{ id: 'dev.airi.reload-failure', version: '^1.0.0' }],
+      },
+    })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    const invokeSetAutoReload = defineInvoke(contextState.lastContext!, electronPluginSetAutoReload)
+    const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
+    await invokeSetEnabled({ extensionId: 'failure-reload-provider', enabled: true })
+    await invokeSetEnabled({ extensionId: 'failure-reload-consumer', enabled: true })
+    await invokeLoadEnabled()
+    await invokeSetAutoReload({ extensionId: 'failure-reload-provider', enabled: true })
+
+    const before = await invokeInspect()
+    const extensionIdByOldSessionId = new Map(
+      before.sessions.map(session => [session.id, session.extensionId]),
+    )
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    stopSpy.mockRejectedValueOnce(new Error('Consumer stop failed.'))
+    const startSpy = vi.spyOn(service.host, 'start')
+
+    await writeFile(
+      providerEntrypointPath,
+      `${createEmptyExtensionEntrypoint('failure-reload-provider')}\n// reload after failure`,
+    )
+
+    await vi.waitFor(() => {
+      expect(stopSpy).toHaveBeenCalledTimes(2)
+      expect(startSpy).toHaveBeenCalledOnce()
+    }, { timeout: 3000 })
+    expect(stopSpy.mock.calls.map(([sessionId]) => extensionIdByOldSessionId.get(sessionId))).toEqual([
+      'failure-reload-consumer',
+      'failure-reload-provider',
+    ])
+    expect(startSpy.mock.calls[0]?.[0].id).toBe('failure-reload-provider')
+
+    await invokeSetAutoReload({ extensionId: 'failure-reload-provider', enabled: false })
+    await invokeSetEnabled({ extensionId: 'failure-reload-consumer', enabled: false })
+    await invokeSetEnabled({ extensionId: 'failure-reload-provider', enabled: false })
+    const disposeHost = lifecycleMock.beforeQuitHooks.at(-1)
+    if (!disposeHost) {
+      throw new Error('Expected the Extension Host disposal hook.')
+    }
+    await disposeHost()
+    expect(service.host.listSessions()).toEqual([])
+  })
+
+  it('keeps the live session when an auto-reload manifest has an invalid activation plan', async () => {
+    const pluginDir = join(pluginsDir, 'test-auto-reload-invalid-plan')
+    await mkdir(pluginDir, { recursive: true })
+    await writeFile(
+      join(pluginDir, 'extension.ts'),
+      createEmptyExtensionEntrypoint('test-auto-reload-invalid-plan'),
+    )
+    const manifestPath = await writeManifest({
+      dir: pluginDir,
+      name: 'test-auto-reload-invalid-plan',
+      entrypoint: './extension.ts',
+    })
+
+    const { service } = await setupExtensionHostForTest()
+    const invokeSetEnabled = defineInvoke(contextState.lastContext!, electronPluginSetEnabled)
+    const invokeLoadEnabled = defineInvoke(contextState.lastContext!, electronPluginLoadEnabled)
+    const invokeSetAutoReload = defineInvoke(contextState.lastContext!, electronPluginSetAutoReload)
+    const invokeInspect = defineInvoke(contextState.lastContext!, electronPluginInspect)
+    const invokeUnload = defineInvoke(contextState.lastContext!, electronPluginUnload)
+    await invokeSetEnabled({ extensionId: 'test-auto-reload-invalid-plan', enabled: true })
+    await invokeLoadEnabled()
+    await invokeSetAutoReload({ extensionId: 'test-auto-reload-invalid-plan', enabled: true })
+
+    const before = await invokeInspect()
+    const beforeSessionId = before.sessions.find(
+      session => session.extensionId === 'test-auto-reload-invalid-plan',
+    )?.id
+    expect(beforeSessionId).toBeDefined()
+    const stopSpy = vi.spyOn(service.host, 'stop')
+    const startSpy = vi.spyOn(service.host, 'start')
+    logMock.error.mockClear()
+
+    await writeFile(manifestPath, JSON.stringify({
+      manifestVersion: 2,
+      kind: 'manifest.extension.airi.moeru.ai',
+      id: 'test-auto-reload-invalid-plan',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
+      permissions: {},
+      entrypoints: { electron: './extension.ts' },
+      kits: {
+        uses: [{ id: 'dev.airi.missing-after-change', version: '^1.0.0' }],
+      },
+    }, null, 2))
+
+    await vi.waitFor(() => {
+      expect(logMock.error).toHaveBeenCalledWith('extension auto-reload failed')
+    }, { timeout: 3000 })
+    const after = await invokeInspect()
+    const afterSessionId = after.sessions.find(
+      session => session.extensionId === 'test-auto-reload-invalid-plan',
+    )?.id
+    expect(afterSessionId).toBe(beforeSessionId)
+    expect(stopSpy).not.toHaveBeenCalled()
+    expect(startSpy).not.toHaveBeenCalled()
+
+    await invokeSetAutoReload({ extensionId: 'test-auto-reload-invalid-plan', enabled: false })
+    await invokeSetEnabled({ extensionId: 'test-auto-reload-invalid-plan', enabled: false })
+    await invokeUnload({ extensionId: 'test-auto-reload-invalid-plan' })
   })
 
   it('loads enabled plugins with absolute manifest entrypoints outside the plugin directory', async () => {
@@ -723,20 +2312,7 @@ describe('setupExtensionHost', () => {
   })
 
   it('loads the devtools sample plugin with its declared protocol permissions', async () => {
-    const pluginDir = join(pluginsDir, 'devtools-sample-plugin')
-    await mkdir(pluginDir, { recursive: true })
-    await writeFile(
-      join(pluginDir, extensionManifestFileName),
-      await readFile(join(samplePluginRoot, extensionManifestFileName), 'utf-8'),
-    )
-    await writeFile(
-      join(pluginDir, 'devtools-sample-plugin.mjs'),
-      (await readFile(join(samplePluginRoot, 'devtools-sample-plugin.mjs'), 'utf-8'))
-        .replace(
-          '\'@proj-airi/plugin-sdk\'',
-          JSON.stringify(pathToFileURL(resolve(repoRoot, 'packages/plugin-sdk/src/index.ts')).href),
-        ),
-    )
+    await installExampleExtension(pluginsDir, 'devtools-sample-plugin', 'devtools-sample-plugin.mjs')
 
     await setupExtensionHost()
 
@@ -758,9 +2334,11 @@ describe('setupExtensionHost', () => {
     await writeFile(
       join(pluginDir, extensionManifestFileName),
       JSON.stringify({
-        apiVersion: 'v1',
+        manifestVersion: 2,
         kind: 'manifest.extension.airi.moeru.ai' as const,
         id: 'airi-plugin-game-chess',
+        version: '1.0.0',
+        engines: { airi: '*', runtimes: ['electron'] },
         permissions: {
           apis: [
             { key: 'kit.gamelet', actions: ['invoke'] },
@@ -874,9 +2452,11 @@ describe('setupExtensionHost', () => {
       contents: createEmptyExtensionEntrypoint('test-plugin-widget-asset-url'),
     })
     await writeFile(join(pluginDir, extensionManifestFileName), JSON.stringify({
-      apiVersion: 'v1',
+      manifestVersion: 2,
       kind: 'manifest.extension.airi.moeru.ai' as const,
       id: 'test-plugin-widget-asset-url',
+      version: '1.0.0',
+      engines: { airi: '*', runtimes: ['electron'] },
       permissions: {
         apis: [
           { key: 'kit.widget', actions: ['invoke'] },

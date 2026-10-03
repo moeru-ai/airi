@@ -1,6 +1,21 @@
 allow-visible-on-all-workspaces:
   title: 跨桌面可见性
   description: 允许窗口在所有虚拟桌面中可见，仅限 macOS。
+microphone-permission:
+  prompt:
+    title: 允许使用麦克风吗？
+    description: AIRI 会使用麦克风进行语音输入和转写。此选择会一直生效，直到你在设置中重置。
+    allow: 允许
+    deny: 拒绝
+  states:
+    not-determined: 未设置
+    granted: 已允许
+    denied: 已拒绝
+  settings:
+    title: 麦克风
+    description: 控制 AIRI 是否可以使用麦克风。
+    revoke: 撤销权限
+    reset: 重置选择
 spotlight:
   errors:
     unknown: 未知错误
@@ -12,6 +27,12 @@ pages:
       description: 连接与管理 MCP 服务器和工具
       title: MCP 服务器
   system:
+    general:
+      hide-app-icon:
+        title: 隐藏任务栏 / Dock 图标
+        description: 仅保留托盘图标，通过托盘菜单打开窗口或退出应用。修改立即生效。
+        load-error: 无法加载应用图标设置。
+        save-error: 无法更新应用图标设置。
     sections:
       section:
         window-shortcuts:
@@ -48,7 +69,20 @@ devtools:
   title: 开发者选项
   pages:
     context-flow:
-      title: Context Flow
+      title: 上下文流
+    presence-bubble:
+      title: 状态气泡
+      description: 从这里驱动角色头顶的气泡，效果显示在主窗口
+      override:
+        title: 由此处驱动气泡
+        description: 关闭时，除非有对话回合正在进行，舞台不显示气泡。
+      thinking:
+        title: 思考中
+        description: 显示三个点。优先级高于未读数量。
+      unread:
+        title: 未读消息
+        description: 在头部旁以气泡显示，内含提示标记和数量。
+      main-window-note: 改动会即时反映在 AIRI 主窗口。
     editor:
       title: AIRI 编辑器
       description: 打开独立的 AIRI 编辑器窗口
@@ -58,6 +92,18 @@ devtools:
     performance-visualizer:
       title: 性能可视化
       description: 检查实时性能指标和运行时诊断数据
+      resource-events:
+        title: 最近的资源事件
+        description: 按接收顺序倒序显示。时间为来源渲染进程启动后的毫秒数。
+        empty: 暂无资源事件。请在启用追踪时加载或切换 VRM 模型。
+        columns:
+          time: 时间（毫秒）
+          phase: 阶段
+          reason: 原因
+          textures: 纹理
+          geometries: 几何体
+          meshes: 网格
+          materials: 材质
       controls:
         enable-all:
           label: 启用所有可用指标
@@ -67,8 +113,7 @@ devtools:
         export-last-recording: 导出上次录制
       metrics:
         fps:
-          label: FPS
-          description: 最近 10 秒内的每秒帧数。
+          description: 最近 10 秒内的动画帧率。每个样本为 1000 除以帧间隔（毫秒）。
         frame-duration:
           label: 帧时间（毫秒）
           description: 最近 10 秒内动画帧之间的时间。
@@ -84,6 +129,14 @@ devtools:
         title: 上次录制
         duration: 时长 {duration} 毫秒
         limit: 录制会在 60 秒后停止。
+      history:
+        title: FPS 历史
+        latest: 最新
+        minimum: 最低
+        maximum: 最高
+        seconds-ago: '-{seconds} 秒'
+        end: 0 秒
+        empty: 暂无 FPS 样本，请启用 FPS 采集。
       overlay:
         title: 性能
         move: 移动性能浮窗
@@ -96,7 +149,9 @@ devtools:
       title: Markdown 压力测试
       description: 用大量聊天负载来测试 Markdown 的解析和渲染能力
     io-tracer:
-      title: IO Tracer
+      recording:
+        title: 自动记录 IO Trace
+        description: 把已结束的 IO span 以 JSON Lines 保存在应用数据目录，供 Agent 分析。七天前的文件会被自动删除。
     widgets-calling:
       title: 小组件调用
 screen-capture:

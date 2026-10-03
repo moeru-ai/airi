@@ -3,6 +3,7 @@ import type { AiriCard } from './airi-card'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
 import { useAiriCardStore } from './airi-card'
 import { useConsciousnessStore } from './consciousness'
@@ -63,20 +64,6 @@ vi.mock('./consciousness', async () => {
   }
 })
 
-vi.mock('./speech', async () => {
-  const { defineStore } = await import('pinia')
-
-  return {
-    useSpeechStore: defineStore('speech', {
-      state: () => ({
-        activeSpeechProvider: 'mock-speech-provider',
-        activeSpeechModel: 'mock-speech-model',
-        activeSpeechVoiceId: 'mock-speech-voice',
-      }),
-    }),
-  }
-})
-
 vi.mock('./vision', async () => {
   const { defineStore } = await import('pinia')
 
@@ -86,6 +73,14 @@ vi.mock('./vision', async () => {
         activeProvider: 'mock-vision-provider',
         activeModel: 'mock-vision-model',
       }),
+      actions: {
+        resetModelSelection() {
+          this.activeModel = ''
+        },
+        // The real action loads the catalog into the provider store. Each test
+        // writes that catalog state itself.
+        async loadModelsForProvider() {},
+      },
     }),
   }
 })
@@ -104,6 +99,11 @@ describe('airi-card store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     resetArtistryToGlobal.mockClear()
+    useSpeechStore().$patch({
+      activeSpeechProvider: 'mock-speech-provider',
+      activeSpeechModel: 'mock-speech-model',
+      activeSpeechVoiceId: 'mock-speech-voice',
+    })
   })
 
   // ROOT CAUSE:
@@ -128,6 +128,87 @@ describe('airi-card store', () => {
     expect(speechStore.activeSpeechVoiceId).toBe('mock-speech-voice')
     expect(visionStore.activeProvider).toBe('mock-vision-provider')
     expect(visionStore.activeModel).toBe('mock-vision-model')
+  })
+
+  // ROOT CAUSE:
+  //
+  // The default card took a snapshot before sign-in. Its speech provider was
+  // `speech-noop`, so a later activation replaced the official speech provider.
+  // The card then showed missing module settings instead of inherited settings.
+  //
+  // We fix this by keeping the default card module fields empty. Empty fields
+  // inherit the global module settings and never replace them during activation.
+  it('keeps default card modules inherited after authenticated defaults load', async () => {
+    const consciousnessStore = useConsciousnessStore()
+    const speechStore = useSpeechStore()
+    const visionStore = useVisionStore()
+    const cardStore = useAiriCardStore()
+
+    consciousnessStore.activeProvider = ''
+    consciousnessStore.activeModel = ''
+    speechStore.activeSpeechProvider = 'speech-noop'
+    speechStore.activeSpeechModel = ''
+    speechStore.activeSpeechVoiceId = ''
+    visionStore.activeProvider = ''
+    visionStore.activeModel = ''
+
+    await cardStore.initialize()
+
+    consciousnessStore.activeProvider = 'official-provider'
+    consciousnessStore.activeModel = 'auto'
+    speechStore.activeSpeechProvider = 'official-provider-speech'
+    speechStore.activeSpeechModel = 'auto'
+    visionStore.activeProvider = 'vision-official-provider'
+    visionStore.activeModel = 'auto'
+
+    await cardStore.activateCard('default')
+
+    expect(cardStore.activeCard?.extensions.airi.modules.consciousness).toEqual({
+      provider: '',
+      model: '',
+    })
+    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
+      provider: '',
+      model: '',
+      voice_id: '',
+    })
+    expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({
+      provider: '',
+      model: '',
+    })
+    expect(consciousnessStore.activeProvider).toBe('official-provider')
+    expect(consciousnessStore.activeModel).toBe('auto')
+    expect(speechStore.activeSpeechProvider).toBe('official-provider-speech')
+    expect(speechStore.activeSpeechModel).toBe('auto')
+    expect(visionStore.activeProvider).toBe('vision-official-provider')
+    expect(visionStore.activeModel).toBe('auto')
+  })
+
+  it('preserves ambiguous old default speech settings', async () => {
+    const cardStore = useAiriCardStore()
+    cardStore.cards.set('default', {
+      name: 'ReLU',
+      version: '1.0.0',
+      description: 'Built-in card from before provider defaults loaded.',
+      extensions: {
+        airi: {
+          modules: {
+            consciousness: { provider: '', model: '' },
+            speech: { provider: 'speech-noop', model: '', voice_id: '' },
+            vision: { provider: '', model: '' },
+          },
+          agents: {},
+        },
+      },
+    })
+
+    await cardStore.initialize()
+
+    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
+      provider: 'speech-noop',
+      model: '',
+      voice_id: '',
+    })
   })
 
   // ROOT CAUSE:
@@ -159,50 +240,6 @@ describe('airi-card store', () => {
     expect(speechStore.activeSpeechModel).toBe('auto')
     expect(visionStore.activeProvider).toBe('vision-official-provider')
     expect(visionStore.activeModel).toBe('auto')
-  })
-
-  // ROOT CAUSE:
-  //
-  // The authentication hook updated the runtime module stores, but the active
-  // card kept its older empty selections. A later card activation restored
-  // speech-noop and erased the authenticated defaults.
-  //
-  // We fixed this by persisting the resolved runtime selections in one card
-  // command without applying the card back to the runtime.
-  it('persists runtime module selections without reapplying the active card', async () => {
-    const consciousnessStore = useConsciousnessStore()
-    const speechStore = useSpeechStore()
-    const visionStore = useVisionStore()
-    const cardStore = useAiriCardStore()
-    await cardStore.initialize()
-    resetArtistryToGlobal.mockClear()
-
-    consciousnessStore.activeProvider = 'official-provider'
-    consciousnessStore.activeModel = 'auto'
-    speechStore.activeSpeechProvider = 'official-provider-speech'
-    speechStore.activeSpeechModel = 'auto'
-    speechStore.activeSpeechVoiceId = ''
-    visionStore.activeProvider = 'vision-official-provider'
-    visionStore.activeModel = 'auto'
-
-    await expect(cardStore.persistActiveCardModuleSelections()).resolves.toBe(true)
-
-    expect(cardStore.activeCard?.extensions.airi.modules.consciousness).toEqual({
-      provider: 'official-provider',
-      model: 'auto',
-    })
-    expect(cardStore.activeCard?.extensions.airi.modules.speech).toMatchObject({
-      provider: 'official-provider-speech',
-      model: 'auto',
-      voice_id: '',
-    })
-    expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({
-      provider: 'vision-official-provider',
-      model: 'auto',
-    })
-    expect(resetArtistryToGlobal).not.toHaveBeenCalled()
-
-    await expect(cardStore.persistActiveCardModuleSelections()).resolves.toBe(false)
   })
 
   // ROOT CAUSE:
@@ -289,17 +326,39 @@ describe('airi-card store', () => {
     const cardStore = useAiriCardStore()
     await cardStore.initialize()
 
-    expect(await cardStore.updateActiveCardDisplayModel('display-model-iru-v2')).toBe(true)
+    expect(await cardStore.updateActiveCardDisplayModel('preset-vrm-1')).toBe(true)
     expect(await cardStore.updateActiveCardConsciousness({ provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' })).toBe(true)
     expect(await cardStore.updateActiveCardVision({ provider: 'ollama', model: 'llava' })).toBe(true)
     expect(await cardStore.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' })).toBe(true)
     expect(cardStore.activeCard?.extensions.airi.modules).toMatchObject({
-      displayModelId: 'display-model-iru-v2',
+      displayModelId: 'preset-vrm-1',
       consciousness: { provider: 'openrouter-ai', model: 'anthropic/claude-sonnet' },
       vision: { provider: 'ollama', model: 'llava' },
       speech: { provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'aria' },
     })
-    expect(stageModelStore.stageModelSelected).toBe('display-model-iru-v2')
+    expect(stageModelStore.stageModelSelected).toBe('preset-vrm-1')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Selecting Apple Vision stored an empty model on the card before the catalog
+  // loaded. The catalog default changed only the runtime model, so applying the
+  // card again restored the empty model.
+  //
+  // We fixed this by storing the catalog default on the card.
+  it('keeps the catalog default of a selected vision provider when the card applies again', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+    useProviderStore().providerRuntimeState = {
+      'apple-vision': { models: [], defaultModel: 'system', modelStatus: 'ready', modelError: null },
+    }
+
+    expect(await cardStore.selectActiveCardVisionProvider('apple-vision')).toBe(true)
+    expect(cardStore.activeCard?.extensions.airi.modules.vision).toEqual({ provider: 'apple-vision', model: 'system' })
+
+    await cardStore.activateCard(cardStore.activeCardId)
+
+    expect(useVisionStore()).toMatchObject({ activeProvider: 'apple-vision', activeModel: 'system' })
   })
 
   // ROOT CAUSE:

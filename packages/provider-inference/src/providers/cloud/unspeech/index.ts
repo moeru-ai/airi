@@ -133,6 +133,7 @@ export const providerDeepgramTts = defineProvider<UnspeechConfig, 'deepgram-tts'
       { id: 'aura-1', name: 'Aura 1', provider: 'deepgram-tts', description: 'First generation Aura model', deprecated: false },
       { id: 'aura', name: 'Aura (Legacy)', provider: 'deepgram-tts', description: 'Original Aura model', deprecated: true },
     ],
+    voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
     listVoices: async (config) => {
       const provider = createUnDeepgram(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnDeepgramOptions>
       const voices = await listVoices(toListVoicesOptions(provider))
@@ -162,6 +163,7 @@ export const providerMicrosoftSpeech = defineProvider<MicrosoftSpeechConfig, 'mi
   validators: createUnspeechValidators('microsoft-speech'),
   extraMethods: {
     listModels: async () => [{ id: 'v1', name: 'v1', provider: 'microsoft-speech', description: '', deprecated: false }],
+    voiceCatalogConfig: ({ apiKey, baseUrl, region }) => ({ apiKey, baseUrl, region }),
     listVoices: async (config) => {
       const provider = createUnMicrosoft(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnMicrosoftOptions>
       const voices = await listVoices(toListVoicesOptions(provider, { region: config.region ?? '' }))
@@ -194,6 +196,7 @@ export const providerAlibabaCloudModelStudio = defineProvider<UnspeechConfig, 'a
       { id: 'cosyvoice-v1', name: 'CosyVoice', provider: 'alibaba-cloud-model-studio', description: '', deprecated: false },
       { id: 'cosyvoice-v2', name: 'CosyVoice (New)', provider: 'alibaba-cloud-model-studio', description: '', deprecated: false },
     ],
+    voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
     listVoices: async (config) => {
       const provider = createUnAlibabaCloud(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnAlibabaCloudOptions>
       const voices = await listVoices(toListVoicesOptions(provider))
@@ -224,6 +227,7 @@ export const providerVolcengineSpeech = defineProvider<VolcengineSpeechConfig, '
   validators: createUnspeechValidators<VolcengineSpeechConfig>('volcengine', true),
   extraMethods: {
     listModels: async () => [{ id: 'v1', name: 'v1', provider: 'volcano-engine', description: '', deprecated: false }],
+    voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
     listVoices: async (config) => {
       const provider = createUnVolcengine(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnVolcengineOptions>
       const voices = await listVoices(toListVoicesOptions(provider))

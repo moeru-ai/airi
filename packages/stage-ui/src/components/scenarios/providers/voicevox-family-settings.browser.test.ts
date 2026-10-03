@@ -37,7 +37,7 @@ function stubUnreachableEngine() {
   })
 }
 
-async function mountSettings(pinia: Pinia) {
+async function mountSettings(pinia: Pinia, providerId = 'voicevox') {
   const i18n = createI18n({
     // Every label resolves to its own key. These cases assert on engine data and
     // on store state, so they need no message catalogue.
@@ -57,7 +57,7 @@ async function mountSettings(pinia: Pinia) {
 
   return await render(VoicevoxFamilySettings, {
     props: {
-      providerId: 'voicevox',
+      providerId,
       intonationLabelKey: 'intonation.label',
       intonationDescriptionKey: 'intonation.description',
       defaultText: 'こんにちは',
@@ -69,6 +69,25 @@ async function mountSettings(pinia: Pinia) {
       directives: { motion: {} },
     },
   })
+}
+
+async function expectVoiceSettingsPersistence(providerId: 'voicevox' | 'aivis-speech') {
+  stubReachableEngine()
+  const pinia = createPinia()
+
+  const screen = await mountSettings(pinia, providerId)
+  const providerConfig = useProviderConfigStore(pinia)
+  const sliders = screen.getByRole('slider').all()
+
+  await sliders[0].fill('15000')
+
+  await expect.poll(() => providerConfig.getProviderConfig(providerId)?.voiceSettings).toMatchObject({ speed: 1.5 })
+  await expect.poll(() => {
+    const stored = localStorage.getItem('settings/providers/configured')
+    if (!stored)
+      return undefined
+    return JSON.parse(stored)[providerId]?.config?.voiceSettings?.speed
+  }).toBe(1.5)
 }
 
 describe('voicevox family settings', () => {
@@ -112,6 +131,23 @@ describe('voicevox family settings', () => {
 
     await expect.poll(() => providerConfig.providers.voicevox?.status).toBe('invalid')
     expect(speech.availableVoices.voicevox).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // `SpeechProviderSettings` replaced an entry on the computed `configs` map.
+  // The replacement did not update the full provider record, so local storage
+  // kept the old voice settings.
+  //
+  // The shared component now updates configuration through the owning store.
+  // https://github.com/moeru-ai/airi/issues/2449
+  it('persists voice settings through the provider record (Issue #2449)', async () => {
+    await expectVoiceSettingsPersistence('voicevox')
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2449
+  it('persists AivisSpeech voice settings through the provider record (Issue #2449)', async () => {
+    await expectVoiceSettingsPersistence('aivis-speech')
   })
 
   // ROOT CAUSE:

@@ -21,3 +21,7 @@ Use this package when two or more stage applications need the same page behavior
 Keep application-specific pages in the owning application. Put reusable business components in `@proj-airi/stage-ui`.
 
 Put primitive UI components in `@proj-airi/ui`. Put shared layouts in `@proj-airi/stage-layouts`.
+
+## Provider settings
+
+The active chat and vision provider routes live under `/settings/providers`. They use `ProviderGenerationSettings` from stage-ui to render protocol and native search options from the provider catalog. The V2 editor is a separate consumer and does not replace these routes.

@@ -62,6 +62,18 @@ describe('useStopSpeakingButton', () => {
     })
   })
 
+  it('interrupts speech for a replacement message without tracking a stop-button click', () => {
+    requestStopSpeakingMock.mockClear()
+    trackTtsStopClickedMock.mockClear()
+
+    const { interruptSpeakingFromChat } = useStopSpeakingButton()
+
+    interruptSpeakingFromChat()
+
+    expect(requestStopSpeakingMock).toHaveBeenCalledWith('manual-chat')
+    expect(trackTtsStopClickedMock).not.toHaveBeenCalled()
+  })
+
   it('requests a manual-all stop without touching chat input state', () => {
     requestStopSpeakingMock.mockClear()
     trackTtsStopClickedMock.mockClear()

@@ -1,4 +1,5 @@
-import type { Message, RawMessage } from './types'
+import type { ProjectionEntry } from './turns'
+import type { RawMessage } from './types'
 
 import { describe, expect, it } from 'vitest'
 
@@ -60,7 +61,7 @@ describe('compactConversationEntries', () => {
               ],
             },
           ],
-        } satisfies Message,
+        } satisfies ProjectionEntry,
       ],
       recentTurnLimit: 1,
     })

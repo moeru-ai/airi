@@ -1,8 +1,8 @@
 import type { AiriCard } from '../../types/airiCard'
 
 import { PiniaColada } from '@pinia/colada'
-import { createPinia } from 'pinia'
-import { expect, it } from 'vitest'
+import { createPinia, disposePinia } from 'pinia'
+import { afterEach, beforeEach, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page, userEvent } from 'vitest/browser'
 import { defineComponent } from 'vue'
@@ -12,9 +12,23 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 import CharacterSwitcherDrawer from './character-switcher-drawer.vue'
 
 import { useAiriCardStore } from '../../stores/modules/airi-card'
+import { useConsciousnessStore } from '../../stores/modules/consciousness'
+import { useSpeechStore } from '../../stores/modules/speech'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
+
+const piniaInstances: ReturnType<typeof createPinia>[] = []
+
+beforeEach(() => {
+  localStorage.clear()
+})
+
+afterEach(() => {
+  for (const pinia of piniaInstances.splice(0))
+    disposePinia(pinia)
+  localStorage.clear()
+})
 
 function card(name: string): AiriCard {
   return {
@@ -35,6 +49,7 @@ function card(name: string): AiriCard {
 
 async function mountSwitcher(name = 'ReLU') {
   const pinia = createPinia()
+  piniaInstances.push(pinia)
   pinia.state.value['airi-card'] = {
     cards: new Map([['default', card(name)], ['second', card('Hiyori')]]),
     activeCardId: 'default',
@@ -44,10 +59,15 @@ async function mountSwitcher(name = 'ReLU') {
     routes: [{ path: '/', component: { template: '<div />' } }, { path: '/settings/airi-card', component: { template: '<div />' } }],
   })
   await router.push('/')
+  let initialization: Promise<void> | undefined
   const screen = await render(defineComponent({
     components: { CharacterSwitcherDrawer },
     setup() {
-      void useAiriCardStore().initialize()
+      // The app creates these translated stores during setup. Card
+      // initialization resumes after an await, outside the component context.
+      useConsciousnessStore()
+      useSpeechStore()
+      initialization = useAiriCardStore().initialize()
     },
     template: '<header style="display:flex;width:100%"><span style="width:44px;flex-shrink:0" /><CharacterSwitcherDrawer /><span style="width:44px;flex-shrink:0" /></header>',
   }), {
@@ -61,9 +81,14 @@ async function mountSwitcher(name = 'ReLU') {
       })],
     },
   })
+  await initialization
   return { screen, router, store: useAiriCardStore(pinia) }
 }
 
+// https://github.com/moeru-ai/airi/actions/runs/34237304157/job/102098223378
+// ROOT CAUSE:
+// The fixture first created translated module stores after an await. useI18n
+// then threw, so activation changed the card id but never closed the drawer.
 it('selects a character through the real store and opens character management', async () => {
   await page.viewport(390, 844)
   const { screen, store, router } = await mountSwitcher()

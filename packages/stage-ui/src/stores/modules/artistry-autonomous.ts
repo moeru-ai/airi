@@ -2,8 +2,8 @@ import type { Message } from '@xsai/shared-chat'
 
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
+import { chatMessagesToTurns, streamFrom } from '@proj-airi/core-agent'
 import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
-import { generateText } from '@xsai/generate-text'
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import { toast } from 'vue-sonner'
@@ -157,10 +157,7 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         throw new Error(`Missing LLM configuration (Model: ${modelId}, Provider: ${providerId})`)
       }
 
-      const chatProvider = await providersStore.getProviderInstance(providerId) as any
-      if (!chatProvider) {
-        throw new Error(`Failed to resolve chat provider instance for: ${providerId}`)
-      }
+      const chatProvider = await providersStore.getChatProviderInstance(providerId)
 
       // NOTICE: Artificial 10s delay for USER target to avoid race conditions/429s.
       // Skipped for ASSISTANT target as the main response is already finalized.
@@ -176,14 +173,18 @@ LATEST ${target === 'assistant' ? 'COMPANION RESPONSE' : 'USER INPUT'}:
         model: modelId,
         reason: target,
       })
-      const chatConfig = chatProvider.chat(modelId)
-      const response = await generateText({
-        ...chatConfig,
-        messages,
-        headers: { 'Accept-Encoding': 'identity' },
+      let responseText = ''
+      await streamFrom({
+        model: modelId,
+        chatProvider,
+        conversation: { turns: chatMessagesToTurns(messages) },
+        options: { onStreamEvent: (event) => {
+          if (event.type === 'text-delta')
+            responseText += event.text
+        } },
       })
 
-      const rawContent = (response.text || '').trim()
+      const rawContent = responseText.trim()
       artistLog('Received raw response from Director LLM:', rawContent)
 
       // 3. Parse and analyze

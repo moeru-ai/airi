@@ -39,8 +39,7 @@
       "vue-macros/macros-global",
       "electron-vite/node",
       "unplugin-info/client",
-      "@proj-airi/stage-shared/electron-renderer",
-      "@webgpu/types"
+      "@proj-airi/stage-shared/electron-renderer"
     ],
     "allowJs": true,
     "strict": true,

@@ -186,7 +186,7 @@ export function configureAnalyticsAdapter(loader: AnalyticsAdapterLoader): void 
 }
 
 export function isAnalyticsAvailableInBuild(): boolean {
-  return isEnvTruthy(import.meta.env.VITE_ENABLE_POSTHOG)
+  return isEnvTruthy(import.meta.env.VITE_ENABLE_ANALYTICS)
 }
 
 export function enableAnalyticsCapture(): boolean {

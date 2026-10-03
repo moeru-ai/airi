@@ -1,11 +1,42 @@
 catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
+  # NOTICE:
+  # logg 1.2.12 preserves nested Error cause details in logs.
+  # pnpm blocks packages published within the last 72 hours.
+  # Source: https://github.com/guiiai/logg/pull/28
+  # Remove this exception after 2026-10-02 13:54 UTC.
+  - '@guiiai/logg@1.2.12'
+  # NOTICE:
+  # electron-builder 26.16.1 fixes macOS signing on the current GitHub runner.
+  # Remove these exact exceptions after the 72-hour release-age window expires.
+  - app-builder-lib@26.16.1
+  - dmg-builder@26.16.1
+  - electron-builder-squirrel-windows@26.16.1
+  - electron-builder@26.16.1
+  # NOTICE:
+  # Kirie 0.7.0 is the selected desktop migration baseline.
+  # Keep these exceptions exact so later Kirie releases use the normal age rule.
+  - '@gd-kirie/build@0.7.0'
+  - '@gd-kirie/ipc-eventa@0.7.0'
+  - '@gd-kirie/ipc@0.7.0'
+  - '@gd-kirie/platform@0.7.0'
+  - kirie@0.7.0
   - '@moeru/*'
   - '@proj-airi/*'
+  # NOTICE:
+  # Sherpaw 0.2.1 contains the browser worker fix required by AIRI.
+  # pnpm blocks packages published within the last 72 hours.
+  # Source: https://github.com/moeru-ai/sherpaw/pull/18
+  # Remove these exceptions after 2026-09-30 19:54 UTC.
+  - '@sherpaw/asr@0.2.1'
+  - '@sherpaw/preloader@0.2.1'
+  - '@sherpaw/shared@0.2.1'
+  - '@sherpaw/xsai-transcription@0.2.1'
   - '@vishot/*'
   - '@xsai/*'
   - '@xsai-apple-speech/*'
+  - '@xsai-apple-vision/*'
   - '@xsai-ext/*'
   - '@xsai-transformers/*'
   - xsschema
@@ -37,6 +68,7 @@ overrides:
   side-channel: npm:@nolyfill/side-channel@^1.0.44
   string.prototype.matchall: npm:@nolyfill/string.prototype.matchall@^1.0.44
 patchedDependencies:
+  '@xsai-ext/responses@0.5.1': patches/@xsai-ext__responses@0.5.1.patch
   mineflayer-pathfinder: patches/mineflayer-pathfinder.patch
   pixi-live2d-display: patches/pixi-live2d-display.patch
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
@@ -48,7 +80,12 @@ catalog:
   '@alint-js/plugin-js': ^0.6.0
   '@antfu/eslint-config': 8.2.0
   '@anthropic-ai/claude-code': ^2.1.241
+  '@apple/app-store-server-library': ^3.1.0
   '@arethetypeswrong/core': ^0.18.5
+  '@auv-js/cli': 0.0.16
+  '@auv-js/sdk': 0.0.16
+  '@aws-sdk/client-s3': ^3.1135.0
+  '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
   '@better-auth/cli': ^1.4.22
   '@better-auth/drizzle-adapter': 1.6.25
@@ -60,6 +97,7 @@ catalog:
   '@capacitor/cli': ^8.5.0
   '@capacitor/core': ^8.5.0
   '@capacitor/ios': ^8.5.0
+  '@capacitor/keyboard': ^8.0.5
   '@capacitor/local-notifications': ^8.3.1
   '@date-fns/utc': ^2.1.1
   '@discordjs/voice': ^0.19.2
@@ -88,7 +126,7 @@ catalog:
   '@fontsource/m-plus-rounded-1c': ^5.3.0
   '@formkit/auto-animate': ^0.10.0
   '@grammyjs/files': ^1.2.0
-  '@guiiai/logg': ^1.2.11
+  '@guiiai/logg': ^1.2.12
   '@histoire/plugin-vue': 1.0.0-beta.1
   '@hono/node-server': ^2.1.1
   '@hono/node-ws': ^1.3.1
@@ -123,12 +161,14 @@ catalog:
   '@mediapipe/tasks-vision': ^1.0.1
   '@modelcontextprotocol/sdk': ^1.30.0
   '@moeru/eslint-config': 0.1.0-beta.19
-  '@moeru/eventa': 1.0.0
+  '@moeru/eventa': 1.0.2
   '@moeru/std': 0.1.0-beta.17
   '@moeru/three-mmd': 0.2.0-beta.2
   '@moeru/three-mmd-physics-ammo': 0.2.0-beta.2
   '@napi-rs/image': ^1.14.0
   '@nekopaw/tempora': 0.4.0-alpha.1
+  '@openpanel/sdk': 1.3.1
+  '@openpanel/web': 1.4.1
   '@opentelemetry/api': ^1.9.1
   '@opentelemetry/api-logs': ^0.221.0
   '@opentelemetry/auto-instrumentations-node': ^0.79.0
@@ -178,6 +218,7 @@ catalog:
   '@radix-ui/colors': ^3.0.0
   '@ricky0123/vad-web': ^0.0.30
   '@rive-app/canvas-lite': ^2.40.1
+  '@sherpaw/xsai-transcription': 0.2.1
   '@shikijs/markdown-it': ^4.4.3
   '@shikijs/rehype': ^4.4.3
   '@shopify/draggable': ^1.2.1
@@ -224,28 +265,32 @@ catalog:
   '@vueuse/core': ^14.4.0
   '@vueuse/motion': ^3.0.3
   '@vueuse/shared': ^14.4.0
-  '@webgpu/types': ^0.1.72
   '@wxt-dev/module-vue': ^1.0.3
   '@xsai-apple-speech/transcription': 0.1.3
   '@xsai-apple-speech/transcription-electron-plugin': 0.1.3
   '@xsai-apple-speech/transcription-native': 0.1.3
   '@xsai-apple-speech/transcription-native-darwin-arm64': 0.1.3
   '@xsai-apple-speech/transcription-native-darwin-x64': 0.1.3
-  '@xsai-ext/providers': 0.5.0
+  '@xsai-apple-vision/vision-electron-plugin': 0.1.0
+  '@xsai-apple-vision/vision-native': 0.1.0
+  '@xsai-apple-vision/vision-native-darwin-arm64': 0.1.0
+  '@xsai-ext/providers': 0.5.1
+  '@xsai-ext/responses': 0.5.1
   '@xsai-transformers/embed': ^0.1.0
   '@xsai-transformers/shared': ^0.1.0
   '@xsai-transformers/transcription': ^0.1.0
-  '@xsai/embed': 0.5.0
-  '@xsai/generate-speech': 0.5.0
-  '@xsai/generate-text': 0.5.0
-  '@xsai/generate-transcription': 0.5.0
-  '@xsai/model': 0.5.0
-  '@xsai/shared': 0.5.0
-  '@xsai/shared-chat': 0.5.0
-  '@xsai/stream-text': 0.5.0
-  '@xsai/stream-transcription': 0.5.0
-  '@xsai/tool': 0.5.0
-  '@xsai/utils-chat': 0.5.0
+  '@xsai/embed': 0.5.1
+  '@xsai/generate-speech': 0.5.1
+  '@xsai/generate-text': 0.5.1
+  '@xsai/generate-transcription': 0.5.1
+  '@xsai/model': 0.5.1
+  '@xsai/shared': 0.5.1
+  '@xsai/shared-chat': 0.5.1
+  '@xsai/shared-stream': 0.5.1
+  '@xsai/stream-text': 0.5.1
+  '@xsai/stream-transcription': 0.5.1
+  '@xsai/tool': 0.5.1
+  '@xsai/utils-chat': 0.5.1
   alien-signals: ^3.2.1
   animejs: ^4.5.0
   async-mutex: 0.5.0
@@ -276,7 +321,7 @@ catalog:
   drizzle-orm: ^0.45.2
   drizzle-valibot: ^0.4.2
   electron: ^43.4.1
-  electron-builder: ^26.15.3
+  electron-builder: ^26.16.1
   electron-click-drag-plugin: ^2.0.2
   electron-updater: ^6.8.9
   electron-vite: ^5.0.0
@@ -287,6 +332,7 @@ catalog:
   eslint-plugin-format: ^2.0.1
   eslint-plugin-oxlint: ^1.79.0
   eslint-plugin-perfectionist: ^5.10.1
+  eslint-plugin-slop: 0.1.3
   eventemitter3: ^5.0.4
   fflate: ^0.8.3
   floating-vue: ^5.2.2
@@ -331,6 +377,7 @@ catalog:
   mineflayer-tool: ^1.2.0
   minisearch: ^7.2.0
   mkcert: ^3.2.0
+  model-bank: 1.0.20260904203849
   motion-v: ^2.4.0
   nano-staged: ^1.0.2
   nanoid: ^6.0.1
@@ -353,8 +400,6 @@ catalog:
   popmotion: ^11.0.5
   postcss: ^8.5.26
   postgres: ^3.4.9
-  posthog-js: 1.306.1
-  posthog-node: ^5.50.0
   postprocessing: ^6.39.4
   prismarine-block: ^1.23.0
   prismarine-entity: ^2.6.0
@@ -436,13 +481,15 @@ catalog:
   wavefile: ^11.0.0
   web-haptics: ^0.0.6
   whatwg-mimetype: ^5.0.0
+  wheel-gestures: ^2.2.48
   wlipsync: ^1.3.1
   workbox-window: ^7.4.1
   ws: ^8.21.3
   wxt: ^0.21.4
   xast-util-to-xml: ^4.0.0
   xastscript: ^4.0.0
-  xsschema: 0.5.0
+  xsai-chromium-prompt: ^0.2.2
+  xsschema: 0.5.1
   yaml: ^2.9.0
   yauzl: ^3.4.0
   zod: ^4.4.3

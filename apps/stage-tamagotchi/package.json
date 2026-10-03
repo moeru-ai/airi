@@ -37,6 +37,8 @@
     "update-test:matrix": "bash scripts/update-test/run-matrix.sh"
   },
   "dependencies": {
+    "@auv-js/cli": "catalog:",
+    "@auv-js/sdk": "catalog:",
     "@date-fns/utc": "catalog:",
     "@fontsource-variable/comfortaa": "catalog:",
     "@fontsource-variable/dm-sans": "catalog:",
@@ -67,6 +69,7 @@
     "@proj-airi/model-driver-lipsync": "workspace:^",
     "@proj-airi/pipelines-audio": "workspace:^",
     "@proj-airi/plugin-sdk-tamagotchi": "workspace:^",
+    "@proj-airi/provider-inference": "workspace:^",
     "@proj-airi/server-sdk": "workspace:*",
     "@proj-airi/stage-layouts": "workspace:^",
     "@proj-airi/stage-pages": "workspace:^",
@@ -86,6 +89,8 @@
     "@xsai-apple-speech/transcription": "catalog:",
     "@xsai-apple-speech/transcription-electron-plugin": "catalog:",
     "@xsai-apple-speech/transcription-native": "catalog:",
+    "@xsai-apple-vision/vision-electron-plugin": "catalog:",
+    "@xsai-apple-vision/vision-native": "catalog:",
     "@xsai-ext/providers": "catalog:",
     "@xsai-transformers/embed": "catalog:",
     "@xsai-transformers/transcription": "catalog:",
@@ -115,12 +120,12 @@
     "jszip": "catalog:",
     "localforage": "catalog:",
     "mediabunny": "catalog:",
+    "nanoid": "catalog:",
     "node-vibrant": "catalog:",
     "nprogress": "catalog:",
     "onnxruntime-web": "catalog:",
     "pinia": "catalog:",
     "popmotion": "catalog:",
-    "posthog-js": "catalog:",
     "rehype-stringify": "catalog:",
     "reka-ui": "catalog:",
     "remark-parse": "catalog:",
@@ -149,7 +154,8 @@
   },
   "optionalDependencies": {
     "@xsai-apple-speech/transcription-native-darwin-arm64": "catalog:",
-    "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:"
+    "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:",
+    "@xsai-apple-vision/vision-native-darwin-arm64": "catalog:"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "catalog:",
@@ -180,6 +186,7 @@
     "@proj-airi/ui-transitions": "workspace:^",
     "@proj-airi/unplugin-fetch": "catalog:",
     "@proj-airi/unplugin-live2d-sdk": "catalog:",
+    "@proj-airi/vite-plugin-sherpaw": "workspace:^",
     "@types/audioworklet": "catalog:",
     "@types/culori": "catalog:",
     "@types/nprogress": "catalog:",
@@ -190,7 +197,6 @@
     "@types/yauzl": "catalog:",
     "@vitejs/plugin-vue": "catalog:",
     "@vue-macros/volar": "catalog:",
-    "@webgpu/types": "catalog:",
     "builder-util-runtime": "catalog:",
     "cac": "catalog:",
     "crossws": "catalog:",
