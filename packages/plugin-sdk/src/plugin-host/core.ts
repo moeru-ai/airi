@@ -1,5 +1,6 @@
 import type {
   Extension,
+  ExtensionKitConsumer,
   ExtensionKitRegistry,
   ExtensionModuleContext,
   ExtensionSetupContext,
@@ -7,13 +8,15 @@ import type {
 } from '../extension/shared'
 import type { KitAvailability, KitRef, KitUseResult } from '../kit'
 import type { AnnounceBindingInput, UpdateBindingInput } from '../plugin/apis/client/bindings'
-import type { BindingRecord, KitCapabilityDescriptor, KitDescriptor } from './shared'
+import type { ExtensionProviderTransaction, ExtensionRegistrationLease } from './hosted-kits'
+import type { BindingRecord, HostSourceLease, KitCapabilityDescriptor, KitCapabilityDescriptorSnapshot, KitDescriptor, KitDescriptorSnapshot } from './shared'
 import type {
   ExtensionHostContribution,
   ExtensionHostInstallContext,
   ExtensionHostOptions,
   ExtensionHostPermissionRequest,
   ExtensionManifestV2,
+  ExtensionProvidedKitDeclaration,
   ExtensionStartOptions,
   HostDataRecord,
   HostDataValue,
@@ -36,15 +39,18 @@ import {
 import {
   protocolListProvidersEventName,
 } from '../plugin/apis/protocol/resources/providers'
+import { KitProviderRegistry } from './hosted-kits'
 import { FileSystemLoader } from './runtimes/node/loaders'
 import {
   DependencyService,
   ExtensionSessionService,
   KitApiBindingRegistryService,
-  KitRegistryService,
   PermissionService,
   ResourceService,
 } from './runtimes/shared'
+
+/** Stable empty declaration set for Manifests that do not provide Kits. */
+const emptyProvidedKitDeclarations: readonly ExtensionProvidedKitDeclaration[] = Object.freeze([])
 
 /**
  * Extension host lifecycle overview.
@@ -53,7 +59,8 @@ import {
  * permission grants, and module cleanup. Extension code uses `setup(ctx)` as
  * the common authoring entrypoint and requests host-installed kits through
  * `ctx.kits`. Explicit modules are optional lifecycle and attribution scopes
- * that can narrow kit usage through `module.kits`.
+ * that can narrow kit usage through `module.kits`. Root setup can also provide
+ * Kits declared in its Manifest. The Host publishes them only after setup succeeds.
  *
  * Permission checks are intentionally two-layered: the extension grant is the
  * package/session ceiling. Extension-scoped kit usage is checked against that
@@ -107,6 +114,8 @@ export interface ExtensionSession {
   }
   /** Extension-session cleanup callbacks. */
   subscriptions: DisposableStore
+  /** Exact Provider registrations published by this setup session. */
+  providerLease?: ExtensionRegistrationLease
 }
 
 /**
@@ -160,16 +169,17 @@ function cloneHostDataRecord<T extends HostDataRecord>(record: T): T {
   return cloneHostDataValue(record)
 }
 
-function cloneKitCapabilities(capabilities: KitCapabilityDescriptor[]): KitCapabilityDescriptor[] {
+function cloneKitCapabilities(capabilities: readonly KitCapabilityDescriptorSnapshot[]): KitCapabilityDescriptor[] {
   return capabilities.map(capability => ({
     key: capability.key,
     actions: [...capability.actions],
   }))
 }
 
-function cloneKitDescriptor<TKit extends KitDescriptor>(kit: TKit): TKit {
+function cloneKitDescriptor(kit: KitDescriptorSnapshot): KitDescriptor {
   return {
-    ...kit,
+    kitId: kit.kitId,
+    version: kit.version,
     runtimes: [...kit.runtimes],
     capabilities: cloneKitCapabilities(kit.capabilities),
   }
@@ -209,8 +219,7 @@ export class ExtensionHost {
   private readonly extensionSessionService = new ExtensionSessionService<ExtensionSession>()
   private readonly runtime: PluginRuntime
   private readonly dependencies = new DependencyService()
-  private readonly kits = new KitRegistryService()
-  private readonly kitApis = new Map<string, KitRef<unknown>>()
+  private readonly providers = new KitProviderRegistry()
   private readonly kitApiWatchers = new Map<string, Set<() => Promise<void>>>()
   private readonly modules = new KitApiBindingRegistryService()
   private readonly extensionModuleResources = new Map<string, ExtensionModuleResourceTracker>()
@@ -274,10 +283,21 @@ export class ExtensionHost {
       requested: options.manifest.permissions,
       persisted: persistedGrant,
     }) ?? options.manifest.permissions
-    const permissionSnapshot = this.permissions.initialize(sessionIdentity.sessionId, options.manifest.permissions, {
-      grant: resolvedGrant,
-      persisted: this.permissionResolver ? undefined : persistedGrant,
+    const providerTransaction = this.providers.beginExtensionSession({
+      owner: { kind: 'extension', extensionId: extension.id, sessionId: sessionIdentity.sessionId },
+      declarations: options.manifest.kits?.provides ?? emptyProvidedKitDeclarations,
     })
+    let permissionSnapshot: ReturnType<PermissionService['initialize']>
+    try {
+      permissionSnapshot = this.permissions.initialize(sessionIdentity.sessionId, options.manifest.permissions, {
+        grant: resolvedGrant,
+        persisted: this.permissionResolver ? undefined : persistedGrant,
+      })
+    }
+    catch (error) {
+      providerTransaction.rollback()
+      throw error
+    }
     this.persistedPermissionGrants.set(extension.id, permissionSnapshot.granted)
     const subscriptions = new DisposableStore()
     const session: ExtensionSession = {
@@ -301,7 +321,7 @@ export class ExtensionHost {
 
     const ctx: ExtensionSetupContext = {
       extension: session.extension,
-      kits: this.createExtensionKitRegistry(session),
+      kits: this.createExtensionKitRegistry(session, providerTransaction),
       subscriptions,
       modules: {
         register: async (input: RegisterExtensionModuleInput) => {
@@ -338,12 +358,20 @@ export class ExtensionHost {
 
     try {
       await extension.setup(ctx)
+      const committed = providerTransaction.commit()
+      session.providerLease = committed.lease
       session.phase = 'ready'
       return session
     }
     catch (error) {
       session.phase = 'failed'
-      await this.cleanupExtensionSession(session)
+      providerTransaction.rollback()
+      try {
+        await this.cleanupExtensionSession(session)
+      }
+      catch (cleanupError) {
+        throw new AggregateError([error, cleanupError], `Extension \`${extension.id}\` setup and cleanup both failed.`, { cause: error })
+      }
       throw error
     }
   }
@@ -354,16 +382,30 @@ export class ExtensionHost {
       .flatMap(session => [...session.modules.values()])
   }
 
-  registerKitApi<TClient>(kit: KitRef<TClient>) {
-    this.kitApis.set(kit.id, kit as KitRef<unknown>)
-    void this.notifyKitApiWatchers(kit.id)
-    return kit
-  }
-
-  unregisterKitApi(kitId: string) {
-    const deleted = this.kitApis.delete(kitId)
-    void this.notifyKitApiWatchers(kitId)
-    return deleted
+  /**
+   * Registers one Host Client factory.
+   *
+   * The returned lease owns this exact registration. A duplicate current factory causes a conflict.
+   * A current lease disposal notifies Kit watchers.
+   *
+   * @template TClient Client type that the factory creates.
+   * @param kit Host Client factory to register.
+   */
+  registerKitApi<TClient>(kit: KitRef<TClient>): HostSourceLease<KitRef<TClient>> {
+    const lease = this.providers.contributeHost({ kind: 'client-factory', factory: kit })
+    void this.notifyKitApiWatchers(lease.kitId)
+    return Object.freeze({
+      accepted: lease.accepted,
+      kitId: lease.kitId,
+      sourceKind: lease.sourceKind,
+      dispose: () => {
+        const changed = lease.dispose()
+        if (changed) {
+          void this.notifyKitApiWatchers(lease.kitId)
+        }
+        return changed
+      },
+    })
   }
 
   private async cleanupExtensionSessionModules(session: ExtensionSession) {
@@ -429,8 +471,8 @@ export class ExtensionHost {
     subscriptions: DisposableStore,
     moduleId?: string,
   ): KitUseResult<TClient> {
-    const registered = this.kitApis.get(kit.id) as KitRef<TClient> | undefined
-    if (!registered) {
+    const createClient = this.providers.getHostClientFactory<TClient>(kit.id)
+    if (!createClient) {
       return kitUseFailure(kit, 'missing-kit')
     }
 
@@ -444,16 +486,16 @@ export class ExtensionHost {
 
     return {
       ok: true,
-      client: registered.createClient({
+      client: Reflect.apply(createClient, undefined, [{
         extensionId: session.extension.id,
         sessionId: session.id,
         moduleId,
         subscriptions,
-      }),
+      }]),
     }
   }
 
-  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitRegistry {
+  private createKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId?: string): ExtensionKitConsumer {
     return {
       use: async <TClient>(kit: KitRef<TClient>) => {
         const result = this.resolveKitApi(session, kit, subscriptions, moduleId)
@@ -503,8 +545,16 @@ export class ExtensionHost {
     }
   }
 
-  private createExtensionKitRegistry(session: ExtensionSession): ExtensionKitRegistry {
-    return this.createKitRegistry(session, session.subscriptions)
+  private createExtensionKitRegistry(session: ExtensionSession, transaction: ExtensionProviderTransaction): ExtensionKitRegistry {
+    return {
+      ...this.createKitRegistry(session, session.subscriptions),
+      provide: (contract, provider) => {
+        if (session.phase !== 'setting-up') {
+          throw new Error(`Extension session ${session.id} cannot provide Kits after setup.`)
+        }
+        return transaction.provide(contract, provider)
+      },
+    }
   }
 
   private createModuleKitRegistry(session: ExtensionSession, subscriptions: DisposableStore, moduleId: string): ExtensionModuleContext['kits'] {
@@ -543,7 +593,6 @@ export class ExtensionHost {
   private createInstallContext(): ExtensionHostInstallContext {
     return {
       registerKit: kit => this.registerKit(kit),
-      unregisterKit: kitId => this.unregisterKit(kitId),
       setResourceResolver: (key, resolver) => this.setResourceResolver(key, resolver),
       setResourceValue: (key, value) => this.setResourceValue(key, value),
       announceCapability: (key, metadata) => {
@@ -567,6 +616,8 @@ export class ExtensionHost {
 
   private async cleanupExtensionSession(session: ExtensionSession) {
     session.phase = 'stopped'
+    // Withdraw before module and subscription cleanup. Their callbacks must not observe a ready Provider after stop starts.
+    session.providerLease?.dispose()
 
     for (const module of this.modules.listByOwner(session.id)) {
       this.modules.withdraw(session.id, session.extension.id, module.moduleId)
@@ -587,7 +638,7 @@ export class ExtensionHost {
   }
 
   private assertKitAvailableForRuntime(kitId: string, runtime: PluginRuntime) {
-    const kit = this.kits.get(kitId)
+    const kit = this.providers.getHostDescriptor(kitId)
     if (!kit) {
       throw new Error(`Kit \`${kitId}\` is not registered.`)
     }
@@ -607,33 +658,39 @@ export class ExtensionHost {
     return this.extensionSessionService.get(sessionId)
   }
 
-  registerKit(kit: KitDescriptor) {
-    return this.kits.register(kit)
+  /**
+   * Registers one Host descriptor.
+   *
+   * The returned lease owns this exact registration. A duplicate current descriptor causes a conflict.
+   */
+  registerKit(kit: KitDescriptor): HostSourceLease<KitDescriptorSnapshot> {
+    return this.providers.contributeHost({ kind: 'descriptor', descriptor: kit })
   }
 
-  unregisterKit(kitId: string) {
-    return this.kits.remove(kitId)
+  /** Returns a point-in-time Provider snapshot without its endpoint. Re-query after stop or reload. */
+  getKitProvider(kitId: string) {
+    return this.providers.getReady(kitId)
   }
 
-  getKit(kitId: string) {
-    const kit = this.kits.get(kitId)
-    if (!kit) {
-      return undefined
-    }
-
-    return cloneKitDescriptor(kit)
+  /** Returns a point-in-time Provider list without endpoints. Re-query after stop or reload. */
+  listKitProviders() {
+    return this.providers.listReady()
   }
 
-  listKits(runtime?: PluginRuntime) {
-    const kits = runtime
-      ? this.kits.listByRuntime(runtime)
-      : this.kits.list()
-
-    return kits.map(kit => cloneKitDescriptor(kit))
+  /** Returns a mutable descriptor copy from the current registration. Re-query after registration changes. */
+  getKit(kitId: string): KitDescriptor | undefined {
+    const kit = this.providers.getHostDescriptor(kitId)
+    return kit ? cloneKitDescriptor(kit) : undefined
   }
 
+  /** Returns mutable descriptor copies from the current registrations. Re-query after registration changes. */
+  listKits(runtime?: PluginRuntime): KitDescriptor[] {
+    return this.providers.listHostDescriptors(runtime).map(cloneKitDescriptor)
+  }
+
+  /** Returns a mutable capability copy from the current registration. Re-query after registration changes. */
   getKitCapabilities(kitId: string): KitCapabilityDescriptor[] {
-    const capabilities = this.kits.get(kitId)?.capabilities
+    const capabilities = this.providers.getHostDescriptor(kitId)?.capabilities
     if (!capabilities) {
       return []
     }

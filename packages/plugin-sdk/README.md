@@ -36,18 +36,47 @@ Manifest parsing is strict. Unknown fields, unsafe ids, empty entrypoints, and m
 
 Kit Provider declarations use exact semantic versions. Kit Consumer declarations accept semantic version ranges.
 
+## Extension-hosted Kit Registration
+
+An Extension-hosted Kit has a shared Contract and a Provider implementation. The Manifest declares the Kit before the Extension runs. Root setup calls `ctx.kits.provide(...)` with the same ID, version, and exposure policy.
+
+```ts
+const statusKit = defineKitContract({
+  id: 'dev.airi.example-status',
+  version: '1.0.0',
+  methods: { read: defineKitMethod<undefined, { status: string }>() },
+  events: {},
+  allowedExposePolicies: ['local-only'],
+})
+
+export default defineExtension({
+  id: 'example-status-provider',
+  setup(ctx) {
+    ctx.kits.provide(statusKit, {
+      methods: { read: () => ({ status: 'ready' }) },
+    })
+  },
+})
+```
+
+The Host reserves every declared Kit before setup starts. It publishes all registrations only after setup succeeds. If setup fails or omits a declared Kit, the Host rolls back the registrations. Stop and reload withdraw the exact Provider session. A stale handle cannot withdraw a later generation.
+
+Only root setup can provide a Kit. Module scopes can consume Host-provided Kits, but they cannot provide an Extension-hosted Kit. Phase 3 stores Provider handlers without invoking them. Consumer Clients, method calls, events, permissions, and transport belong to Phase 4.
+
+Load the [registration example](../../apps/stage-tamagotchi/src/main/services/airi/plugins/examples/hosted-kit-provider/README.md) through the Extension Host Inspector.
+
 The manifest owns the Extension version for the Host session. `defineExtension(...)` must use the same Extension id.
 
 ## Kit API Naming
 
-Kits should hide transport details from extension authors. A normal extension should use a kit as a normal API object directly from setup:
+Trusted Host-provided Kits hide transport details from extension authors. A normal extension uses a Host Kit as an API object directly from setup:
 
 ```ts
 const gamelets = await ctx.kits.use(gameletKit)
 await gamelets.mount(input)
 ```
 
-Explicit module scopes are an advanced lifecycle and attribution API. Use `module.kits.use(...)` only when the host needs a contribution to be associated with a sub-scope that may later be inspected, disposed, or restarted independently.
+Explicit module scopes provide advanced lifecycle and attribution. Use `module.kits.use(...)` only for a contribution with an independent lifecycle.
 
 When a kit needs to work across process or network boundaries, expose shared Eventa invoke contracts from the kit package and build the client from those contracts. Do not introduce kit-specific transport method names such as `invokeGamelet`, `gameletRpc`, or `gameletRuntime`.
 
@@ -87,7 +116,9 @@ export function createGameletKit(options: { service: GameletKitService }) {
 }
 ```
 
-Remote clients should reuse Eventa invoke instead of defining a parallel RPC protocol. Use a lazy context callback when the underlying transport can reconnect or be created after the client object:
+Remote clients reuse Eventa invoke instead of defining a parallel RPC protocol.
+
+If the transport can reconnect or start after the Client, use a lazy context callback:
 
 ```ts
 const mount = defineInvoke(getContext, gameletKitApis.mount)
@@ -99,4 +130,4 @@ const gamelets = {
 }
 ```
 
-The shared artifact is the Eventa API contract, not the implementation function. Local clients may call `gameletKitService` directly; remote clients call the same API through Eventa. Both should expose the same authoring shape.
+The shared artifact is the Eventa API contract, not the implementation function. Local clients can call `gameletKitService` directly. Remote clients call the same API through Eventa. Both expose the same authoring shape.

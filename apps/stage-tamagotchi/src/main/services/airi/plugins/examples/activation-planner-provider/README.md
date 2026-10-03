@@ -13,4 +13,4 @@ Use it with the `activation-planner-consumer` example:
 
 The Host loads this Provider before the Consumer. It also rejects disabling or unloading this Provider while the Consumer still requires it.
 
-This example has no runtime Kit implementation. Its `kits.provides` entry is a static Phase 2 declaration. Runtime Kit registration belongs to Phase 3.
+The Manifest declaration supplies the Phase 2 dependency graph. The entrypoint also registers a Provider during root setup, as Phase 3 requires. The example does not call its method handler.
