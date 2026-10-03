@@ -81,4 +81,10 @@ async function selectCreateAction(screen: Awaited<ReturnType<typeof render>>) {
   createOption.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
   createOption.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }))
   createOption.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+  // NOTICE:
+  // VueUse suppresses duplicate clicks until the current task ends.
+  // This helper dispatches all option events in one task.
+  // Source/context: @vueuse/core onClickOutside click listener.
+  // Remove when the option selection uses browser input across separate tasks.
+  await new Promise(resolve => setTimeout(resolve, 0))
 }
