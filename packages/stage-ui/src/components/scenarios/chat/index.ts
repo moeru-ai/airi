@@ -4,6 +4,7 @@ export { default as ChatBackgroundTasks } from './components/background-tasks.vu
 export { default as ChatErrorItem } from './components/error-item.vue'
 export { default as ChatHistory } from './components/history.vue'
 export { default as ChatImageAttachmentPreview } from './components/image-attachment-preview.vue'
+export { default as ChatModeBanner } from './components/mode-banner.vue'
 export { default as ChatReplyPreview } from './components/reply-preview.vue'
 export { default as ChatSessionsDrawer } from './components/sessions-drawer.vue'
 export { createToolResultError, normalizeToolResultText } from './components/tool-call-display'

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DecisionAction, Recipe } from '@proj-airi/stage-ui/stores/recipes'
 
-import { Button, FieldInput, FieldSelect, FieldTextArea } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldSelect, FieldTextArea } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -31,7 +31,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  (e: 'save', fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate'>): void
+  (e: 'save', fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate' | 'handover'>): void
   (e: 'cancel'): void
 }>()
 
@@ -75,6 +75,7 @@ const triggerMinutes = ref(storedTrigger?.kind === 'schedule'
   : storedTrigger?.kind === 'idle' ? storedTrigger.afterMinutes : storedTrigger?.kind === 'event' ? storedTrigger.cooldownMinutes : 60)
 const eventSource = ref(storedTrigger?.kind === 'event' ? storedTrigger.source : '')
 const gate = ref(props.recipe?.gate ?? '')
+const handover = ref(props.recipe?.handover ?? false)
 const question = ref(decision?.question.instructions ?? '')
 const questionType = ref<QuestionType>(decision?.question.type ?? 'noul')
 const answers = ref<AnswerRow[]>(decision ? rowsFrom(decision) : [emptyRow(), emptyRow()])
@@ -168,6 +169,7 @@ function save() {
     style: props.type === 'instructions' ? { kind: 'instructions', instructions: instructions.value.trim() } : decisionStyle(),
     triggers,
     gate: props.autoRun && gate.value.trim() ? gate.value.trim() : undefined,
+    handover: props.type === 'instructions' && !props.autoRun && handover.value ? true : undefined,
   })
 }
 </script>
@@ -189,7 +191,10 @@ function save() {
         <FieldInput v-model="triggerMinutes" type="number" :label="t(`${KEY}.auto_run.minutes.label`)" :description="t(`${KEY}.auto_run.minutes.${triggerKind}`)" />
         <FieldInput v-model="gate" :label="t(`${KEY}.auto_run.gate.label`)" :description="t(`${KEY}.auto_run.gate.description`)" :placeholder="t(`${KEY}.auto_run.gate.placeholder`)" />
       </template>
-      <FieldInput v-else v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.add.keywords.description`)" />
+      <template v-else>
+        <FieldInput v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.add.keywords.description`)" />
+        <FieldCheckbox v-model="handover" :label="t(`${KEY}.handover.label`)" :description="t(`${KEY}.handover.description`)" />
+      </template>
     </template>
     <template v-else>
       <FieldInput v-model="question" :label="t(`${KEY}.decision.question`)" />

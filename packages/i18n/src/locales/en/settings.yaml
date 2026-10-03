@@ -945,6 +945,10 @@ pages:
           auto_run: Auto-run
           conversation_description: Recipes the character uses in a conversation. They act only when a message arrives.
           auto_run_description: Recipes that start on their own when a trigger fires, without your message. Each run costs a model call. With all of them off, nothing is called.
+        handover:
+          label: Take over the conversation
+          description: For a way of talking, such as a focus mode. It answers in its own space until you end it, then hands back to the main conversation.
+          tag: Takes over
         auto_run:
           title: Auto-run recipe
           when:

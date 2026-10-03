@@ -18,7 +18,7 @@ async function saveUnchanged(stored: Recipe, autoRun = false) {
     global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
   await screen.getByRole('button', { name: 'Save' }).click()
-  return screen.emitted<[Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate'>]>('save')?.[0]?.[0]
+  return screen.emitted<[Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate' | 'handover'>]>('save')?.[0]?.[0]
 }
 
 describe('recipe editor', () => {
@@ -30,18 +30,18 @@ describe('recipe editor', () => {
       actions: { option_1: { kind: 'hint', text: 'Keep it short.' }, option_2: { kind: 'stay-quiet' }, option_3: { kind: 'reply' } },
     })
 
-    expect(await saveUnchanged(stored)).toEqual({ name: stored.name, description: stored.description, style: stored.style, triggers: [], gate: undefined })
+    expect(await saveUnchanged(stored)).toEqual({ name: stored.name, description: stored.description, style: stored.style, triggers: [], gate: undefined, handover: undefined })
   })
 
   it('loads instructions with their keywords and saves them back unchanged', async () => {
     const stored = recipe({ kind: 'instructions', instructions: 'Start with the next step.' }, [{ kind: 'keyword', keywords: ['adhd', '专注'] }])
 
-    expect(await saveUnchanged(stored)).toEqual({ name: stored.name, description: stored.description, style: stored.style, triggers: stored.triggers, gate: undefined })
+    expect(await saveUnchanged(stored)).toEqual({ name: stored.name, description: stored.description, style: stored.style, triggers: stored.triggers, gate: undefined, handover: undefined })
   })
 
   it('loads an auto-run recipe with its trigger and gate and saves it back unchanged', async () => {
     const stored = { ...recipe({ kind: 'instructions', instructions: 'Greet softly.' }, [{ kind: 'schedule', everyMinutes: 45 }]), gate: 'Is it late at night?' }
 
-    expect(await saveUnchanged(stored, true)).toEqual({ name: stored.name, description: stored.description, style: stored.style, triggers: stored.triggers, gate: stored.gate })
+    expect(await saveUnchanged(stored, true)).toEqual({ name: stored.name, description: stored.description, style: stored.style, triggers: stored.triggers, gate: stored.gate, handover: undefined })
   })
 })

@@ -1515,6 +1515,12 @@ export const useChatSessionStore = defineStore('chat-session', () => {
    * Stores a summary of a session's history. It keeps the session audience at the time of writing.
    * Generation belongs to history compaction. This entry only validates and stores the result.
    */
+  /** Records the conversation that a session returns to, for example the main conversation of a handover mode. */
+  async function setSessionParent(sessionId: string, parentSessionId: string) {
+    if (writeSessionMeta(sessionId, { parentSessionId }))
+      await persistIndex()
+  }
+
   async function setSessionDigest(sessionId: string, digest: Pick<ChatSessionDigest, 'text' | 'upToMessageId'>) {
     const audience = getSessionAudience(sessionId)
     if (!audience)
@@ -1729,6 +1735,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     getSessionAudience,
     narrowSessionAudience,
     markSessionRunStarted,
+    setSessionParent,
     markSessionRunEnded,
     updateSessionLifecycle,
     setSessionDigest,

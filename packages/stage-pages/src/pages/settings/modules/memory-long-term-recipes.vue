@@ -92,6 +92,8 @@ function descriptionOf(recipe: Recipe) {
 /** One line of facts: style, source, and what starts the recipe. */
 function metaOf(recipe: Recipe) {
   const parts = [t(`${KEY}.styles.${recipe.style.kind}`), t(`${KEY}.sources.${recipe.source}`)]
+  if (recipe.handover)
+    parts.push(t(`${KEY}.handover.tag`))
   for (const trigger of recipe.triggers) {
     if (trigger.kind === 'keyword' && trigger.keywords.length) {
       const extra = trigger.keywords.length - KEYWORDS_SHOWN
@@ -117,12 +119,12 @@ function editableType(recipe: Recipe): EditableRecipeType | undefined {
   return recipe.style.kind === 'instructions' || recipe.style.kind === 'decision' ? recipe.style.kind : undefined
 }
 
-function addRecipe(fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate'>) {
+function addRecipe(fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate' | 'handover'>) {
   recipesStore.add({ ...fields, enabled: true })
   closeForms()
 }
 
-function saveRecipe(id: string, fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate'>) {
+function saveRecipe(id: string, fields: Pick<Recipe, 'name' | 'description' | 'style' | 'triggers' | 'gate' | 'handover'>) {
   recipesStore.update(id, fields)
   closeForms()
 }

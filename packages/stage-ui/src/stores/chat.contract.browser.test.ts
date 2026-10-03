@@ -107,6 +107,7 @@ vi.mock('../composables/use-io-tracer', () => ({
 
 vi.mock('./chat/context-providers', () => ({
   createMinecraftContext: () => createMinecraftContextMock(),
+  createHandoverContext: (text: string) => ({ id: 'handover', contextId: 'system:airi-handover', strategy: 'replace-self', text, createdAt: 0 }),
   createMoodContext: (text: string) => ({ id: 'mood', contextId: 'system:airi-mood', strategy: 'replace-self', text, createdAt: 0 }),
   createRuntimePromptContext: (prompt: string) => createRuntimePromptContextMock(prompt),
   createUserAccountContext: () => createUserAccountContextMock(),
@@ -184,6 +185,12 @@ vi.mock('./chat/session-store', () => ({
     },
     forkSession: forkSessionMock,
     createSession: createSessionMock,
+    setActiveSession: async (sessionId: string) => {
+      activeSessionIdRef.value = sessionId
+    },
+    setSessionParent: async (sessionId: string, parentSessionId: string) => {
+      sessionMetas[sessionId] = { ...sessionMetas[sessionId]!, parentSessionId }
+    },
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
     pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
@@ -464,6 +471,41 @@ describe('chat store contract', () => {
     // The notice never becomes owner speech in the conversation history.
     await vi.waitFor(() => expect(sessionMessages['session-1']?.filter(message => message.role === 'user')).toHaveLength(1))
     expect(useSchedulerStore().runs.snapshot().find(run => run.sessionId === recipeSession)).toMatchObject({ envelope: { outputs: [] }, parentRunId: expect.any(String) })
+  })
+
+  // A mode takes over the conversation in its own space and hands back on request. The main conversation then gets a notice.
+  it('hands the conversation to a mode recipe and back, with recent context and a summary', async () => {
+    const prompts: Array<{ sessionId: string, prompt: string }> = []
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
+      const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
+      prompts.push({ sessionId: options.requestCorrelation?.conversationId, prompt: JSON.stringify(context) })
+      if (JSON.stringify(context).includes('Mode steps:'))
+        expect(tools.map((tool: Tool) => tool.function.name)).toContain('builtIn_endMode')
+      await options.onStreamEvent({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [{ role: 'user', content: 'I am planning a bar.', createdAt: 1, id: 'earlier' }, { role: 'assistant', content: 'Start with the budget.', slices: [{ type: 'text', text: 'Start with the budget.' }], tool_results: [], createdAt: 2, id: 'earlier-reply' }]
+    useRecipesStore().add({ name: 'i-have-adhd', description: 'ADHD-friendly answers.', style: { kind: 'instructions', instructions: 'Start with the next step.' }, triggers: [{ kind: 'keyword', keywords: ['/i-have-adhd'] }], handover: true, enabled: true })
+    const store = useChatStore()
+
+    await store.send({ sessionId: 'session-1', text: '/i-have-adhd help me plan' })
+    const modeSession = await createSessionMock.mock.results[0]?.value
+    await vi.waitFor(() => expect(prompts.some(entry => entry.prompt.includes('Mode steps:'))).toBe(true))
+
+    // The main conversation stays quiet, and the chat now shows the mode.
+    expect(prompts.filter(entry => !entry.prompt.includes('Mode steps:'))).toEqual([])
+    expect(createSessionMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ hidden: false, recipeId: expect.any(String) }))
+    expect(store.activeMode).toEqual({ sessionId: modeSession, name: 'i-have-adhd' })
+    const modePrompt = prompts.find(entry => entry.prompt.includes('Mode steps:'))!.prompt
+    expect(modePrompt).toContain('Start with the next step.')
+    expect(modePrompt).toContain('/i-have-adhd help me plan')
+    expect(modePrompt).toContain('The main conversation before this mode:')
+    expect(modePrompt).toContain('Owner: I am planning a bar.')
+
+    await store.endHandover(modeSession, 'We listed three first steps.')
+    await vi.waitFor(() => expect(prompts.some(entry => entry.prompt.includes('[Notice from mode:i-have-adhd'))).toBe(true))
+
+    expect(store.activeMode).toBeUndefined()
+    expect(prompts.find(entry => entry.prompt.includes('[Notice from mode:i-have-adhd'))!.prompt).toContain('Summary: We listed three first steps.')
   })
 
   // Members of a scene cannot save recipes or memories for the owner, and never see the owner's private memories.

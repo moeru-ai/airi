@@ -897,6 +897,10 @@ pages:
           auto_run: 自动运行
           conversation_description: 角色在对话里使用的配方。它们只在有消息时起作用。
           auto_run_description: 不用你发消息、按触发条件自己开始的配方。每次运行都会调用一次模型。全部关闭时，不会有任何调用。
+        handover:
+          label: 接管对话（人格交接）
+          description: 适合改变说话方式的配方，比如专注模式。它会在自己的空间里接管对话，直到你结束，再交回主对话。
+          tag: 接管对话
         auto_run:
           title: 自动运行的配方
           when:

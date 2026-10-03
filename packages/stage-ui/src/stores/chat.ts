@@ -12,7 +12,7 @@ import { audienceFromBindings, audienceIncludes, createChatOrchestratorRuntime, 
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { shallowRef, toRaw, watch } from 'vue'
+import { computed, shallowRef, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
@@ -28,6 +28,7 @@ import {
   AIRI_CHAT_SESSION_ID_HEADER,
 } from '../libs/product-signals/headers'
 import { createContextSourceTool } from '../tools/context-source'
+import { createEndModeTool } from '../tools/end-mode'
 import { composeMemoryPrompt, createMemoryTools } from '../tools/memory'
 import { createProposeRecipeTool } from '../tools/propose-recipe'
 import { createUseRecipeTool, describeRecipesForRun, USE_RECIPE_TOOL_NAME } from '../tools/use-recipe'
@@ -37,7 +38,7 @@ import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
 import { useCharacterMoodStore } from './character/mood'
-import { createMoodContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { createHandoverContext, createMoodContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
 import { composeRecipeSpacePrompt, composeSystemPrompt } from './chat/prompt-recipe'
@@ -101,6 +102,10 @@ export interface BackgroundTask {
 
 /** Characters of a background result that travel in the notice. The rest stays in the recipe's session, which the reference names. */
 const RECIPE_RESULT_NOTICE_LIMIT = 1500
+
+/** Main conversation turns that a handover mode reads, and the characters kept from each. */
+const HANDOVER_CONTEXT_TURNS = 6
+const HANDOVER_CONTEXT_CHARS = 400
 
 /** Text of a stored reply, without tool calls. */
 function replyTextOf(message: ChatHistoryItem) {
@@ -443,7 +448,12 @@ export const useChatStore = defineStore('chat', () => {
    * Proposes a task recipe to the scheduler. It runs as derived work in the recipe's own session, without voice.
    * Resolves once the run is admitted or refused. When the run settles, its result reaches the parent conversation as a notice, with a reference back to the run.
    */
-  async function startRecipe(recipe: Recipe, request: { parentSessionId: string, parentRunId?: string, task: string }): Promise<{ status: 'started' } | { status: 'refused', reason: string }> {
+  async function startRecipe(recipe: Recipe, request: { parentSessionId: string, parentRunId?: string, task: string }): Promise<{ status: 'started' | 'switched' } | { status: 'refused', reason: string }> {
+    // A handover recipe takes over the conversation and answers the owner's latest message itself.
+    if (recipe.handover) {
+      const latest = chatSession.getSessionMessages(request.parentSessionId).findLast(message => message.role === 'user')
+      return await handOver(recipe, { parentSessionId: request.parentSessionId, message: latest ? replyTextOf(latest) : request.task })
+    }
     const tools = recipeToolsFor(recipe, request.parentSessionId)
     let sessionId: string
     try {
@@ -485,6 +495,63 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
+   * Hands the conversation to a handover recipe. The chat switches to the recipe's own visible session, and that persona answers the owner's message.
+   * The persona keeps its own prefix and the shared memory. Recent turns of the main conversation reach it as context, never as copied history.
+   */
+  async function handOver(recipe: Recipe, request: { parentSessionId: string, message: string }): Promise<{ status: 'switched' } | { status: 'refused', reason: string }> {
+    let sessionId: string
+    try {
+      sessionId = await recipeSessionFor(recipe, request.parentSessionId)
+    }
+    catch (error) {
+      return { status: 'refused', reason: errorMessageFrom(error) ?? 'The mode could not open' }
+    }
+    // The latest main conversation is where the mode hands back.
+    await chatSession.setSessionParent(sessionId, request.parentSessionId)
+    await chatSession.setActiveSession(sessionId)
+    void executeSend({ sessionId, text: request.message, tools: recipeToolsFor(recipe, request.parentSessionId) }).catch((error) => {
+      console.warn('[chat] The mode could not answer:', errorMessageFrom(error))
+    })
+    return { status: 'switched' }
+  }
+
+  /**
+   * Ends a handover mode. The chat returns to the main conversation, which receives the summary as a notice and decides what to say.
+   */
+  async function endHandover(sessionId: string, summary = '') {
+    const meta = chatSession.sessionMetas[sessionId]
+    const recipe = recipes.recipes.find(entry => entry.id === meta?.recipeId)
+    if (!meta?.parentSessionId || !recipe?.handover)
+      return
+    if (chatSession.activeSessionId === sessionId)
+      await chatSession.setActiveSession(meta.parentSessionId)
+    void notifyConversation(meta.parentSessionId, {
+      source: `mode:${recipe.name}`,
+      text: `The mode "${recipe.name}" ended, and the conversation is back with you.${summary ? ` Summary: ${summary}` : ''}`,
+    })
+  }
+
+  /** The handover mode that the chat shows now, if any. */
+  const activeMode = computed(() => {
+    const meta = chatSession.sessionMetas[activeSessionId.value]
+    const recipe = meta?.recipeId ? recipes.recipes.find(entry => entry.id === meta.recipeId) : undefined
+    return recipe?.handover ? { sessionId: activeSessionId.value, name: recipe.name } : undefined
+  })
+
+  /** Recent turns of the main conversation, for a handover mode's context slot. */
+  function handoverContextText(sessionId: string) {
+    const meta = chatSession.sessionMetas[sessionId]
+    const recipe = meta?.recipeId ? recipes.recipes.find(entry => entry.id === meta.recipeId) : undefined
+    if (!recipe?.handover || !meta?.parentSessionId)
+      return undefined
+    const recent = chatSession.getSessionMessagesIfLoaded(meta.parentSessionId)
+      ?.filter(message => message.role === 'user' || message.role === 'assistant')
+      .slice(-HANDOVER_CONTEXT_TURNS)
+      .map(message => `${message.role === 'user' ? 'Owner' : 'You'}: ${replyTextOf(message).slice(0, HANDOVER_CONTEXT_CHARS)}`)
+    return recent?.length ? `The main conversation before this mode:\n${recent.join('\n')}` : undefined
+  }
+
+  /**
    * Tools that a recipe run may use: those granted to the owner's latest message in the parent conversation, narrowed by the recipe's own list.
    * A selected tool such as computer use reaches the recipe only when the owner granted it to that message, so derived work never widens access.
    */
@@ -504,8 +571,16 @@ export const useChatStore = defineStore('chat', () => {
     const decided = await triage.decideRecipes(recipes.usable, input.message, input.signal)
     if (decided?.silent || !audienceIncludes(OWNER_AUDIENCE, input.envelope.audience))
       return decided
-    const triggered = [...matchKeywordRecipes(recipes.usable, input.message), ...recipes.usable.filter(recipe => decided?.recipeIds.includes(recipe.id))]
-      .filter((recipe, index, list) => list.indexOf(recipe) === index && recipe.style.kind === 'instructions' && !recipe.handover)
+    const matched = [...matchKeywordRecipes(recipes.usable, input.message), ...recipes.usable.filter(recipe => decided?.recipeIds.includes(recipe.id))]
+      .filter((recipe, index, list) => list.indexOf(recipe) === index && recipe.style.kind === 'instructions')
+    // A handover mode answers this message itself, so the main conversation stays quiet.
+    const mode = matched.find(recipe => recipe.handover)
+    if (mode) {
+      const outcome = await handOver(mode, { parentSessionId: input.sessionId, message: input.message })
+      if (outcome.status === 'switched')
+        return { silent: { reason: `handover:${mode.name}` }, hints: [], applied: [mode.name] }
+    }
+    const triggered = matched.filter(recipe => !recipe.handover)
     const started: string[] = []
     for (const recipe of triggered) {
       const outcome = await startRecipe(recipe, { parentSessionId: input.sessionId, parentRunId: input.runId, task: `The owner said: ${input.message}` })
@@ -538,8 +613,14 @@ export const useChatStore = defineStore('chat', () => {
       ...await createMemoryTools({ ownerOnly, read: name => memory.read(name, ownerOnly), write: entry => memory.write(entry), forget: name => memory.forget(name) }),
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
-    if (chatSession.sessionMetas[sessionId]?.recipeId)
-      return sourceTools
+    // A handover mode can also end itself and hand the conversation back.
+    const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
+    if (recipeId) {
+      const handover = recipes.recipes.find(recipe => recipe.id === recipeId)?.handover
+      return handover
+        ? async () => [...await sourceTools(), ...await createEndModeTool({ end: summary => endHandover(sessionId, summary) })]
+        : sourceTools
+    }
     // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
     return async () => [
       ...await sourceTools(),
@@ -800,6 +881,11 @@ export const useChatStore = defineStore('chat', () => {
       () => createRuntimePromptContext(runtimePrompt.value),
       // The mood slot replaces itself each turn. It describes the persona's mood, never its causes.
       sessionId => mood.active ? createMoodContext(mood.describe(personaOf(sessionId))) : undefined,
+      // A handover mode reads what the main conversation said last.
+      (sessionId) => {
+        const text = handoverContextText(sessionId)
+        return text ? createHandoverContext(text) : undefined
+      },
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
@@ -1074,6 +1160,8 @@ export const useChatStore = defineStore('chat', () => {
     send,
     startRecipe,
     notifyConversation,
+    activeMode,
+    endHandover,
     cancelPendingSends,
     cancelRun,
     recordDeliveredSpeech,
@@ -1105,7 +1193,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['cancelPendingSends', 'cancelRun', 'cleanup', 'deleteSession', 'recordDeliveredSpeech', 'rerunToolCall', 'retry', 'send'],
+    actions: ['cancelPendingSends', 'cancelRun', 'cleanup', 'deleteSession', 'endHandover', 'recordDeliveredSpeech', 'rerunToolCall', 'retry', 'send'],
     state: true,
   },
 })

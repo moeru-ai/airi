@@ -27,6 +27,9 @@ chat:
     working: 正在执行
     waiting: 等待中
     stop: '停止{name}'
+  mode:
+    current: 当前模式
+    end: 回到主对话
   recipe:
     using: 正在启动配方
     started: 交给了配方

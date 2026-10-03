@@ -26,6 +26,7 @@ describe('recipe proposal tool', () => {
       question: null,
       answerType: null,
       answers: null,
+      handover: false,
       autoRun: null,
     })
 
@@ -52,6 +53,7 @@ describe('recipe proposal tool', () => {
         { meaning: 'Tired', action: 'hint', hint: 'Keep it short.' },
         { meaning: 'Fine', action: 'reply', hint: null },
       ],
+      handover: false,
       autoRun: null,
     })
 
@@ -63,7 +65,7 @@ describe('recipe proposal tool', () => {
   })
 
   it('explains what is missing instead of saving an incomplete recipe', async () => {
-    const nulls = { instructions: null, keywords: null, question: null, answerType: null, answers: null, autoRun: null }
+    const nulls = { instructions: null, keywords: null, question: null, answerType: null, answers: null, handover: false, autoRun: null }
     expect((await proposeWith({ ...nulls, name: 'Empty', description: '', style: 'instructions' })).result).toBe('Recipe not saved: An instructions recipe needs instructions.')
     expect((await proposeWith({ ...nulls, name: 'Odd', description: '', style: 'decision', question: 'Yes?', answerType: 'noul', answers: [{ meaning: 'a', action: 'reply', hint: null }, { meaning: 'b', action: 'reply', hint: null }, { meaning: 'c', action: 'reply', hint: null }] })).result)
       .toBe('Recipe not saved: A yes-or-no decision needs exactly two answers, yes first.')
@@ -83,6 +85,7 @@ describe('recipe proposal tool', () => {
       question: null,
       answerType: null,
       answers: null,
+      handover: false,
       autoRun: { when: 'idle', minutes: 60, source: null, gate: 'Is the owner likely still awake?' },
     })
 
@@ -91,10 +94,17 @@ describe('recipe proposal tool', () => {
   })
 
   it('saves an event trigger on a registered source, and refuses one without a source', async () => {
-    const base = { name: 'Game watch', description: '', style: 'instructions', instructions: 'Comment on the game.', keywords: null, question: null, answerType: null, answers: null }
+    const base = { name: 'Game watch', description: '', style: 'instructions', instructions: 'Comment on the game.', keywords: null, question: null, answerType: null, answers: null, handover: false }
     expect((await proposeWith({ ...base, autoRun: { when: 'event', minutes: 10, source: 'minecraft', gate: null } })).proposals[0]?.triggers)
       .toEqual([{ kind: 'event', source: 'minecraft', cooldownMinutes: 10 }])
     expect((await proposeWith({ ...base, autoRun: { when: 'event', minutes: 10, source: null, gate: null } })).result).toBe('Recipe not saved: An event trigger needs its source.')
+  })
+
+  // A focus mode changes how the character talks, so it takes over the conversation. A mode never starts on its own.
+  it('marks a mode as a handover, and never an auto-run recipe', async () => {
+    const base = { name: 'i-have-adhd', description: 'ADHD-friendly answers.', style: 'instructions', instructions: 'Start with the next step.', keywords: ['/i-have-adhd'], question: null, answerType: null, answers: null, handover: true }
+    expect((await proposeWith({ ...base, autoRun: null })).proposals[0]?.handover).toBe(true)
+    expect((await proposeWith({ ...base, autoRun: { when: 'schedule', minutes: 60, source: null, gate: null } })).proposals[0]?.handover).toBeUndefined()
   })
 
   // Strict function calling rejects a schema whose objects leave a property out of `required`.
