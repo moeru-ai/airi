@@ -22,6 +22,7 @@ import {
 } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
+import { getKWinCursorBridge } from './kwin-cursor-bridge'
 
 /** `customTitleBarWindowConfig` puts the traffic lights at y 15 to center them in a 44px title bar, so half of them is 7px. */
 const TRAFFIC_LIGHTS_HALF_HEIGHT = 7
@@ -66,7 +67,7 @@ export function createWindowService(params: {
   const { start, stop } = createRendererLoop({
     window: params.window,
     run: () => {
-      params.context.emit(bounds, params.window.getBounds())
+      params.context.emit(bounds, getWindowBounds())
     },
   })
 
@@ -97,7 +98,7 @@ export function createWindowService(params: {
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      return params.window.getBounds()
+      return getWindowBounds()
     }
 
     return {
@@ -198,4 +199,8 @@ export function createWindowService(params: {
       y: Math.round(payload.centerY - TRAFFIC_LIGHTS_HALF_HEIGHT),
     })
   })
+
+  function getWindowBounds() {
+    return getKWinCursorBridge()?.getWindowBounds(params.window.getTitle()) ?? params.window.getBounds()
+  }
 }
