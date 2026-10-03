@@ -222,13 +222,14 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-useTranscriptions(
+const { receiveTranscription } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
     isStageTamagotchi,
   },
 )
+defineExpose({ receiveTranscription })
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const characterVoiceEnabled = computed({
   get: () => !speechMuted.value,

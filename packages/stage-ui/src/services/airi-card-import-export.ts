@@ -9,6 +9,7 @@ import JSZip from 'jszip'
 import { exportToJSON } from '@proj-airi/ccc'
 import { array, literal, object, optional, parse, picklist, record, string, unknown as unknownSchema } from 'valibot'
 
+import { wakeWordSchema } from '../libs/voice/wake-words'
 import { DisplayModelFormat } from '../stores/display-models'
 
 const FORMAT = 'airi-character-card'
@@ -222,6 +223,7 @@ function sanitizeAiri(value: unknown, displayModelIdOverride?: string): AiriExte
   const displayModelId = displayModelIdOverride ?? stringValue(modules.displayModelId)
 
   return {
+    ...(source.wakeWords === undefined ? {} : { wakeWords: parse(array(wakeWordSchema), source.wakeWords) }),
     modules: {
       consciousness: providerModel(modules.consciousness),
       vision: providerModel(modules.vision),
