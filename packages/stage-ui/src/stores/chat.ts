@@ -605,12 +605,12 @@ export const useChatStore = defineStore('chat', () => {
       return tools
     const { conversationId: sessionId, runId } = correlation
     const audience = (runId ? activeRuns.get(runId)?.audience : undefined) ?? OWNER_AUDIENCE
-    // Only the owner alone sees owner memories, writes them, or forgets them.
-    const ownerOnly = audienceIncludes(OWNER_AUDIENCE, audience)
+    // Each persona keeps general memories and its own. A scene's persona keeps its own as well.
+    const persona = personaOf(sessionId)
     const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
-      ...await createMemoryTools({ ownerOnly, read: name => memory.read(name, ownerOnly), write: entry => memory.write(entry), forget: name => memory.forget(name) }),
+      ...await createMemoryTools({ read: name => memory.read(name, persona), write: entry => memory.write(entry, persona), forget: name => memory.forget(name, persona) }),
     ]
     // A recipe's own session runs only that recipe. It cannot start recipes, save them, or choose silence.
     // A handover mode can also end itself and hand the conversation back.
@@ -622,6 +622,7 @@ export const useChatStore = defineStore('chat', () => {
         : sourceTools
     }
     // Only the owner's private conversations start or save recipes. Each recipe runs in its own space.
+    const ownerOnly = audienceIncludes(OWNER_AUDIENCE, audience)
     return async () => [
       ...await sourceTools(),
       ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, parentRunId: runId, task }) }) : []),
@@ -870,9 +871,9 @@ export const useChatStore = defineStore('chat', () => {
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
     // A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
     getSystemPrompt: (envelope) => {
-      const ownerOnly = audienceIncludes(OWNER_AUDIENCE, envelope.audience)
-      // The memory index follows the identity. A scene run sees only shared entries.
-      const identity = composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default')) + composeMemoryPrompt(memory.indexFor(ownerOnly), ownerOnly)
+      const persona = envelope.personaId || cardStore.activeCardId || 'default'
+      // The memory index of the run's persona follows the identity: its own memories and the general ones.
+      const identity = composeSystemPrompt(cardStore.systemPromptOf(persona)) + composeMemoryPrompt(memory.indexFor(persona))
       const recipeId = chatSession.sessionMetas[envelope.sessionId]?.recipeId
       const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
       return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity

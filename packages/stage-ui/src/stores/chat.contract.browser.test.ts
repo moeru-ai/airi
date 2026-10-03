@@ -525,9 +525,9 @@ describe('chat store contract', () => {
     expect(prompts.find(entry => entry.prompt.includes('[Notice from mode:i-have-adhd'))!.prompt).toContain('Summary: We listed three first steps.')
   })
 
-  // Members of a scene cannot save recipes or memories for the owner, and never see the owner's private memories.
-  it('keeps recipe proposals, memory writes, and owner memories out of scene runs', async () => {
-    sessionMetas['scene-session'] = { sessionId: 'scene-session', userId: 'local', characterId: 'default', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 1 }
+  // A scene belongs to a persona. Its run reads general memories and its persona's own, and cannot save recipes.
+  it('gives a scene run its persona memories and no recipe proposals', async () => {
+    sessionMetas['scene-session'] = { sessionId: 'scene-session', userId: 'local', characterId: 'discord-host', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 1 }
     const toolNames: string[][] = []
     let prompt = ''
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
@@ -537,16 +537,17 @@ describe('chat store contract', () => {
       await options.onStreamEvent({ type: 'finish' })
     })
     const memory = useMemoryStore()
-    memory.write({ name: 'allergy', description: 'Food the owner avoids.', body: 'Peanuts.', visibility: 'owner' })
-    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.', visibility: 'shared' })
+    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.', scope: 'general' }, 'default')
+    memory.write({ name: 'channel-rules', description: 'Rules of this channel.', body: 'No spoilers.', scope: 'persona' }, 'discord-host')
+    memory.write({ name: 'focus-steps', description: 'How the focus persona answers.', body: 'Next step first.', scope: 'persona' }, 'focus')
 
     await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me', outputTarget: 'discord-connection' })
 
     expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
-    expect(toolNames[0]).toContain('builtIn_readMemory')
-    expect(toolNames[0]).not.toContain('builtIn_writeMemory')
+    expect(toolNames[0]).toContain('builtIn_writeMemory')
+    expect(prompt).toContain('- channel-rules: Rules of this channel.')
     expect(prompt).toContain('- nickname: What the owner likes to be called.')
-    expect(prompt).not.toContain('allergy')
+    expect(prompt).not.toContain('focus-steps')
   })
 
   it('preserves image attachments when retrying a failed turn', async () => {
@@ -1352,7 +1353,7 @@ describe('chat store contract', () => {
     await store.ingest('second', { model: 'gpt-test', chatProvider: provider })
 
     // The owner's run reads the memory index after the identity.
-    const memoryPrompt = composeMemoryPrompt('', true)
+    const memoryPrompt = composeMemoryPrompt('')
     expect(systemTexts).toEqual([`${CHAT_FORMAT_RULES}system prompt${memoryPrompt}`, `${CHAT_FORMAT_RULES}edited prompt${memoryPrompt}`])
   })
 
@@ -1459,7 +1460,7 @@ describe('chat store contract', () => {
     if (composedMessages[0].type !== 'system' || composedMessages[1].type !== 'user')
       throw new Error('Expected system and user turns')
     expect(composedMessages[0].content).toEqual([
-      { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt${composeMemoryPrompt('', true)}` },
+      { type: 'text', text: `${CHAT_FORMAT_RULES}system prompt${composeMemoryPrompt('')}` },
       { type: 'text', text: '\n\nPlugin toolset guidance.' },
     ])
     expect(composedMessages[1].content[0]).toMatchObject({

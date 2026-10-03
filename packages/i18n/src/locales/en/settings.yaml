@@ -876,12 +876,13 @@ pages:
     memory-long-term:
       memories:
         title: Memories
-        description: Facts the character keeps across conversations and personas. Ask the character to remember or forget something, or remove an entry here.
+        description: The character keeps these facts itself. General memories reach every persona. Each persona also keeps its own, which no other persona reads. You can remove any entry here.
         empty: No memories yet.
         forget: 'Forget {name}'
-        visibility:
-          owner: Only you
-          shared: Shared
+        general: General
+        entry:
+          title: Memories
+          description: General memories and each persona's own, kept by the character.
       recipes:
         title: Recipes
         empty: No recipes yet.

@@ -8,35 +8,38 @@ describe('memory store', () => {
     setActivePinia(createPinia())
   })
 
-  it('keeps one entry per name and lists each in the index', () => {
+  it('keeps one entry per name in a scope and lists it in the index', () => {
     const memory = useMemoryStore()
-    memory.write({ name: 'Favorite Game', description: 'What the owner plays.', body: 'Porridge games.', visibility: 'owner' })
-    memory.write({ name: 'favorite-game', description: 'What the owner plays now.', body: 'Minecraft.', visibility: 'owner' })
+    memory.write({ name: 'Favorite Game', description: 'What the owner plays.', body: 'Porridge games.', scope: 'general' }, 'airi')
+    memory.write({ name: 'favorite-game', description: 'What the owner plays now.', body: 'Minecraft.', scope: 'general' }, 'airi')
 
     expect(memory.entries.map(entry => entry.name)).toEqual(['favorite-game'])
-    expect(memory.indexFor(true)).toBe('- favorite-game: What the owner plays now.')
-    expect(memory.read('Favorite Game', true)?.body).toBe('Minecraft.')
+    expect(memory.indexFor('airi')).toBe('General:\n- favorite-game: What the owner plays now.')
+    expect(memory.read('Favorite Game', 'luna')?.body).toBe('Minecraft.')
   })
 
-  // An owner-only memory never reaches a reader that is not the owner alone.
-  it('shows owner entries only to the owner alone', () => {
+  // General memories reach every persona. A persona's own memories reach only that persona.
+  it('gives each persona the general memories and its own', () => {
     const memory = useMemoryStore()
-    memory.write({ name: 'allergy', description: 'Food the owner avoids.', body: 'Peanuts.', visibility: 'owner' })
-    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.', visibility: 'shared' })
+    memory.write({ name: 'nickname', description: 'What the owner likes to be called.', body: 'Yumeka.', scope: 'general' }, 'airi')
+    memory.write({ name: 'channel-rules', description: 'Rules of the Discord channel.', body: 'No spoilers.', scope: 'persona' }, 'discord-host')
 
-    expect(memory.indexFor(false)).toBe('- nickname: What the owner likes to be called.')
-    expect(memory.read('allergy', false)).toBeUndefined()
-    expect(memory.read('allergy', true)?.body).toBe('Peanuts.')
+    expect(memory.indexFor('discord-host')).toBe('Your own:\n- channel-rules: Rules of the Discord channel.\nGeneral:\n- nickname: What the owner likes to be called.')
+    expect(memory.indexFor('airi')).not.toContain('channel-rules')
+    expect(memory.read('channel-rules', 'airi')).toBeUndefined()
+    expect(memory.read('channel-rules', 'discord-host')?.body).toBe('No spoilers.')
   })
 
-  it('refuses an empty name or body, and forgets by name', () => {
+  it('prefers the persona own entry, forgets it first, and refuses an empty name or body', () => {
     const memory = useMemoryStore()
-    expect(memory.write({ name: '!!', description: '', body: 'x', visibility: 'owner' })).toBeUndefined()
-    expect(memory.write({ name: 'x', description: '', body: ' ', visibility: 'owner' })).toBeUndefined()
-    memory.write({ name: 'x', description: '', body: 'y', visibility: 'owner' })
+    memory.write({ name: 'tone', description: '', body: 'Calm.', scope: 'general' }, 'airi')
+    memory.write({ name: 'tone', description: '', body: 'Short sentences.', scope: 'persona' }, 'focus')
 
-    expect(memory.forget('X')).toBe(true)
-    expect(memory.forget('x')).toBe(false)
+    expect(memory.read('tone', 'focus')?.body).toBe('Short sentences.')
+    expect(memory.forget('tone', 'focus')).toBe(true)
+    expect(memory.read('tone', 'focus')?.body).toBe('Calm.')
+    expect(memory.write({ name: '!!', description: '', body: 'x', scope: 'general' }, 'airi')).toBeUndefined()
+    expect(memory.write({ name: 'x', description: '', body: ' ', scope: 'general' }, 'airi')).toBeUndefined()
     expect(memoryName('  我的 猫咪！ ')).toBe('我的-猫咪')
   })
 })

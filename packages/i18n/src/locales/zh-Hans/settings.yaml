@@ -828,12 +828,13 @@ pages:
     memory-long-term:
       memories:
         title: 记忆
-        description: 角色跨会话、跨人格保存的事实。你可以让角色记住或忘掉某件事，也可以在这里删除。
+        description: 这些事实由角色自己维护。通用记忆所有人格都能读到，每个人格还有自己的独占记忆，其他人格读不到。你可以在这里删除任意一条。
         empty: 还没有记忆。
         forget: '忘掉{name}'
-        visibility:
-          owner: 仅你可见
-          shared: 可共享
+        general: 通用记忆
+        entry:
+          title: 记忆
+          description: 通用记忆和每个人格的独占记忆，由角色自己维护。
       recipes:
         title: 配方
         empty: 还没有配方。
