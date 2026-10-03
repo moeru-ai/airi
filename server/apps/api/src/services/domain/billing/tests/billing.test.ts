@@ -8,31 +8,31 @@ describe('provider cost pricing', () => {
 
   it('uses the reported cost without applying a second cache discount', () => {
     const usage = { costUsd: 0.002, ...extractUsageFromBody({ id: 'gen-1', usage: { prompt_tokens: 10_000, prompt_tokens_details: { cached_tokens: 9000 } } }) }
-    expect(priceLlmCost(usage, pricing)).toEqual({ pricing, costUsd: 0.002, requestedFlux: 3 })
+    expect(priceLlmCost(usage, pricing)).toEqual({ pricing, costUsd: 0.002, costMicroFlux: 3_000_000 })
     expect(usage.providerUsage).toMatchObject({ prompt_tokens_details: { cached_tokens: 9000 } })
   })
 
   it('preserves a free request as an explicit zero cost', () => {
     expect(priceLlmCost({ generationId: 'gen-free', costUsd: 0 }, pricing))
-      .toEqual({ pricing, costUsd: 0, requestedFlux: 0 })
+      .toEqual({ pricing, costUsd: 0, costMicroFlux: 0 })
   })
 
   it('multiplies decimal prices without floating point boundary overcharges', () => {
-    expect(priceLlmCost({ generationId: 'gen-decimal', costUsd: 0.07 }, { fluxPerUsd: 100, multiplier: 1 }).requestedFlux)
-      .toBe(7)
-    expect(priceLlmCost({ generationId: 'gen-small', costUsd: 1e-10 }, pricing).requestedFlux)
+    expect(priceLlmCost({ generationId: 'gen-decimal', costUsd: 0.07 }, { fluxPerUsd: 100, multiplier: 1 }).costMicroFlux)
+      .toBe(7_000_000)
+    expect(priceLlmCost({ generationId: 'gen-small', costUsd: 1e-10 }, pricing).costMicroFlux)
       .toBe(1)
   })
 
   it.each([
-    [0.0002, 1],
-    [0.0008, 2],
-    [0.002, 3],
-    [0.002000000000001, 4],
+    [0.0002, 300_000],
+    [0.0008, 1_200_000],
+    [0.002, 3_000_000],
+    [0.002000000000001, 3_000_001],
     [Number.MIN_VALUE, 1],
-  ])('rounds each priced request up after multiplying: %s USD', (costUsd, requestedFlux) => {
+  ])('rounds each priced request up after multiplying: %s USD', (costUsd, costMicroFlux) => {
     expect(priceLlmCost({ generationId: 'gen-rounded', costUsd }, pricing))
-      .toEqual({ pricing, costUsd, requestedFlux })
+      .toEqual({ pricing, costUsd, costMicroFlux })
   })
 
   it.each([undefined, -1, Number.NaN, Number.POSITIVE_INFINITY])('keeps invalid cost %s pending', (costUsd) => {

@@ -26,6 +26,47 @@ ConfigKV shares the write function while retaining its existing read policy.
 Keys use domain names: `config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
 The cache functions do not add a key prefix.
 
+## Flux usage
+
+`flux_usage` records service fees. `user_flux` stores integer Flux and outstanding micro-Flux.
+`flux_transaction` records integer balance changes. One Flux equals 1,000,000 micro-Flux.
+LLM and TTS fees share the same accumulator. Outstanding fees do not expire.
+`BillingService.recordUsage` accepts confirmed fees from service-owned pricing rules.
+LLM and speech entry points save prices before dispatch and preserve unknown costs as pending receipts.
+Posted fees never enter the wallet twice. A pooled debit can include earlier fees from other services.
+Admission reads PostgreSQL. The display cache contains both wallet fields and expires after 60 seconds.
+Credits settle affordable outstanding fees. Admin balance changes preserve outstanding fees.
+
+`GET /api/v1/flux/usage` returns paginated service fees. Wallet history continues to return integer balance changes.
+Use the fee amount for service spend reports. Do not attribute a pooled debit to its triggering service.
+
+### Frozen TTS debt import
+
+Stop old API writers before migration and export the remaining Redis character counters.
+The snapshot contains the rate at cutover. Expired counters cannot be recovered.
+
+```json
+{
+  "batchId": "cutover-2026-10-04",
+  "entries": [
+    { "userId": "example", "units": 550, "pricing": { "fluxPer1kChars": 1 } }
+  ]
+}
+```
+
+From this workspace, run the dry import preview:
+
+```sh
+pnpm exec tsx src/scripts/import-tts-debt.ts /absolute/path/snapshot.json
+```
+
+After migration, set `FLUX_IMPORT_DATABASE_URL` and `FLUX_IMPORT_REDIS_URL` to the intended targets.
+Add `--apply` to import the snapshot. Reuse the same batch ID when retrying the same snapshot.
+Do not change the snapshot after a partial import. Do not delete Redis counters until import totals match the export.
+Then start new API writers. Mixed old and new writers are unsupported during this schema cutover.
+
+See [the Flux usage ADR](../../docs/ai/adr/2026-10-04-flux-usage.md) for invariants and migration policy.
+
 ## Object storage
 
 The API provides an optional S3 adapter for private objects. It supports server
@@ -197,21 +238,21 @@ This example is not a production sale-price recommendation. No default sale pric
 `LLM_MINIMUM_BALANCE` is the minimum callable balance. It defaults to five Flux.
 It is not a fixed request charge or a maximum-cost reservation.
 `FLUX_PER_REQUEST` and `FLUX_PER_1K_TOKENS` are no longer read by hosted LLM billing.
-The shared debit primitive, TTS character metering and ASR metering remain available.
+Confirmed service fees enter the shared micro-Flux accumulator.
 
 Before any network dispatch, each eligible upstream must have a supported cost adapter and complete pricing.
 Missing configuration rejects the request with `LLM_BILLING_UNAVAILABLE`; alias fallback cannot hide this error.
 Only the OpenRouter adapter is implemented. Other gateways cannot serve hosted LLM traffic until they have an explicit adapter and prices.
 
 Missing or invalid returned cost, BYOK fees, and incomplete output leave a pending settlement without a token-rate estimate.
-Each request charges `ceil(costUsd * fluxPerUsd * multiplier)` in whole Flux, after applying the multiplier.
-An explicit zero cost settles at zero. Every positive cost rounds up; no fractional remainder carries between requests.
+Each request records `ceil(costUsd * fluxPerUsd * multiplier * 1,000,000)` in micro-Flux.
+An explicit zero cost posts at zero. Fractional fees accumulate across services before integer wallet settlement.
 Zero charges do not create debit ledger rows. Underfunded settlements increment the insufficient-balance metric once, not on replay.
 Routing failures before any upstream dispatch close the intake as `cancelled/not_dispatched`.
 Unknown outcomes after dispatch stay pending.
 Billing retains the original price snapshot, cost source, sanitized provider usage and provider/generation identity for reconciliation.
-Settlement stores `requestedFlux` and `chargedFlux`; its charged amount is a result snapshot committed with the ledger.
-`flux_transaction` owns actual balance changes and references the settlement, without copying its cost and price fields.
+`flux_usage` stores the fee and its triggered wallet effects. Those effects are committed with the ledger.
+`flux_transaction` owns actual balance changes and references the triggering usage without copying its cost and price fields.
 Request-log `fluxConsumed` remains an observation-time summary, not a live billing total.
 There is no automatic reconciliation worker in this release.
 

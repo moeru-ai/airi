@@ -2,7 +2,7 @@ import type { RevenueMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../../services/adapters/config-kv'
 import type { BillingPolicy, CostPricing, CostUsage } from '../../../../services/domain/billing/billing'
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
-import type { FluxMeter } from '../../../../services/domain/billing/flux-meter'
+import type { SpeechBilling } from '../../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../../services/domain/flux'
 import type { RequestObservation } from '../../../../services/domain/generation-observation'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
@@ -39,15 +39,9 @@ interface ChatUsagePrice {
   costReceipt: ChatFluxDebitInput['costReceipt']
 }
 
-export interface TtsBillingAuthorization {
-  balance: number
-  inputChars: number
-}
-
 export interface OpenAiRouteBilling {
   authorizeChat: (userId: string) => Promise<ChatBillingPolicy>
   authorizeDispatch: (policy: ChatBillingPolicy, route: { gateway: string, model: string }) => void
-  authorizeTts: (userId: string, inputText: string) => Promise<TtsBillingAuthorization>
   priceChatUsage: (usage: UsageInfo, policy: ChatBillingPolicy, provider: string) => ChatUsagePrice
   recordChatDebitFailure: (input: {
     amount: number
@@ -55,13 +49,7 @@ export interface OpenAiRouteBilling {
     stage: 'streaming' | 'non_streaming'
   }) => void
   settleChat: (input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>) => Promise<number>
-  settleTts: (input: {
-    userId: string
-    inputText: string
-    currentBalance: number
-    requestId: string
-    model: string
-  }) => Promise<{ fluxDebited: number }>
+
 }
 
 export function createOpenAiRouteBilling(deps: {
@@ -69,7 +57,7 @@ export function createOpenAiRouteBilling(deps: {
   configKV: ConfigKVService
   fluxService: FluxService
   revenue?: RevenueMetrics | null
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
 }): OpenAiRouteBilling {
   async function authorizeChat(userId: string): Promise<ChatBillingPolicy> {
     const costPricing = await deps.configKV.getOptional('LLM_COST_BILLING')
@@ -77,8 +65,9 @@ export function createOpenAiRouteBilling(deps: {
     const parsed = safeParse(billingPolicySchema, { minimumBalance, costPricing })
     if (!parsed.success)
       throw createServiceUnavailableError('LLM pricing configuration is incomplete', 'LLM_BILLING_UNAVAILABLE')
-    const flux = await deps.fluxService.getFlux(userId)
-    if (flux.flux < parsed.output.minimumBalance)
+    await deps.fluxService.getFlux(userId)
+    const flux = await deps.billingService.getWallet(userId)
+    if (flux.flux - flux.unsettledMicroFlux / 1_000_000 < parsed.output.minimumBalance)
       throw createPaymentRequiredError('Insufficient flux')
     return parsed.output
   }
@@ -96,7 +85,7 @@ export function createOpenAiRouteBilling(deps: {
     const pricing = policy.costPricing[adapter.provider]
     const costUsage = adapter.extractUsage(usage)
     const charge = priceLlmCost(costUsage, pricing)
-    const amount = charge.requestedFlux ?? 0
+    const amount = (charge.costMicroFlux ?? 0) / 1_000_000
     return { amount, costReceipt: { provider: adapter.provider, usage: costUsage, pricing } }
   }
 
@@ -120,36 +109,7 @@ export function createOpenAiRouteBilling(deps: {
     })
   }
 
-  async function authorizeTts(userId: string, inputText: string): Promise<TtsBillingAuthorization> {
-    const flux = await deps.fluxService.getFlux(userId)
-    if (flux.flux <= 0) {
-      throw createPaymentRequiredError('Insufficient flux')
-    }
-
-    // Pre-flight: refuse before hitting upstream if this segment would push the
-    // user past their balance. Cheap-path requests below the Flux threshold
-    // still pass when the user has at least 1 Flux.
-    await deps.ttsMeter.assertCanAfford(userId, inputText.length, flux.flux)
-    return { balance: flux.flux, inputChars: inputText.length }
-  }
-
-  async function settleTts(input: {
-    userId: string
-    inputText: string
-    currentBalance: number
-    requestId: string
-    model: string
-  }) {
-    return deps.ttsMeter.accumulate({
-      userId: input.userId,
-      units: input.inputText.length,
-      currentBalance: input.currentBalance,
-      requestId: input.requestId,
-      metadata: { model: input.model },
-    })
-  }
-
-  return { authorizeChat, authorizeDispatch, authorizeTts, priceChatUsage, recordChatDebitFailure, settleChat, settleTts }
+  return { authorizeChat, authorizeDispatch, priceChatUsage, recordChatDebitFailure, settleChat }
 }
 
 export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> {
@@ -164,7 +124,7 @@ export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> 
     observation: input.observation,
   })
 
-  if (result.charged < result.requested) {
+  if (!result.replay && result.charged < result.requested) {
     input.revenue?.fluxUnbilled.add(result.requested - result.charged, {
       [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
       reason: 'partial_debit_drained',

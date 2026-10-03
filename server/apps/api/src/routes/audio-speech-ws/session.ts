@@ -135,7 +135,7 @@ export function createSessionState(
     // afford the worst-case session.
     try {
       const flux = await opts.fluxService.getFlux(userId)
-      await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
+      await opts.speechBilling.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux, { requestId, model: modelLabel, turnId: analyticsInput.turnId })
     }
     catch (err) {
       log.withError(err).withFields({ userId }).warn('pre-flight rejected streaming tts')
@@ -454,7 +454,7 @@ export function createSessionState(
     let fluxConsumed = 0
     try {
       const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
-        opts.ttsMeter.accumulate({
+        opts.speechBilling.accumulate({
           userId,
           units,
           currentBalance: flux.flux,
@@ -467,8 +467,7 @@ export function createSessionState(
     }
     catch (err) {
       // Billing failure is surfaced but does not retroactively reject the
-      // already-delivered audio — the user got the audio, the meter retains
-      // the debt for the next request to settle (per FluxMeter rollback path).
+      // already-delivered audio. The durable intake remains pending for reconciliation.
       log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
       span.recordException(err as Error)
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })

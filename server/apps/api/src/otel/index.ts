@@ -122,7 +122,7 @@ export interface RevenueMetrics {
    * - Tracking real revenue leak in the LLM proxy.
    *
    * Labels (`reason`):
-   * - `debit_failed` — `consumeFluxForLLM` threw (DB error, or `balance <= 0`
+   * - `debit_failed` — fee posting failed (DB error, or `balance <= 0`
    *   after a race lost). Counter records the *full* requested amount.
    * - `partial_debit_drained` — user had `0 < balance < requested`, so we
    *   drained the balance to zero and charged what we could. Counter records
@@ -370,7 +370,7 @@ export function initOtel(env: Env): OtelInstance | null {
       description: 'TTS input characters processed (billing base unit)',
     }),
     ttsPreflightRejections: meter.createCounter(METRIC_AIRI_TTS_PREFLIGHT_REJECTIONS, {
-      description: 'Pre-flight rejections from flux-meter assertCanAfford',
+      description: 'Speech admission rejections against confirmed outstanding fees',
     }),
   }
 

@@ -24,7 +24,7 @@ function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
     appleIapVerifier: null,
     stripe: null,
     billingService: {} as never,
-    ttsMeter: {} as never,
+    speechBilling: {} as never,
     requestLogService: {} as never,
     voicePackService: {} as never,
     providerCatalogService: {} as never,
