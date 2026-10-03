@@ -186,7 +186,7 @@ watch(hearingOpen, async (open) => {
     @close-auto-focus="event => event.preventDefault()"
     @after-close="settingsOpen = true"
   >
-    <HearingConfig :granted="true" />
+    <HearingConfig />
   </BottomDrawer>
   <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
   <ActionAbout v-model="aboutOpen" hide-trigger />

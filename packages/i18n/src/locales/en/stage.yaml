@@ -20,10 +20,33 @@ mobile-tools:
   close-view: Save and close view controls
   hearing: Hearing
 chat:
+  provider-configuration:
+    title: Chat provider isn't configured
+    description: Choose and validate a provider in Settings before sending a message.
+    action: Open provider settings
+  voice-input: Voice input
+  error-details:
+    show: Show details
+    hide: Hide details
+  images:
+    empty: Share a thought or a picture.
+    use-vision: Use the vision model for chat images
+    use-vision-description: Choose a provider and model below. It reads attached images before your chat model replies. Without a vision model, images go directly to the chat model.
+    attach: 'Attach images'
+    remove: 'Remove {name}'
+    unsupported: 'Use PNG, JPEG, WebP, or GIF images.'
+    too-large: 'Each image must be 3 MB or smaller.'
+    too-many: 'Attach up to {count} images at a time.'
+    total-too-large: 'All attached images together must be 3 MB or smaller.'
+    read-failed: 'Could not read this image. Try again.'
+    no-description: 'The vision model returned no image description. Check Settings → Modules → Vision and try again.'
+    reading: 'Reading images…'
+    description: 'Image attachment'
   actions:
     reply: Reply
     retry: Retry
     send: Send message
+    stop: Stop response
   message:
     character-name:
       airi: AIRI
@@ -43,6 +66,7 @@ chat:
     row: 'Conversation {n}'
   sessions:
     delete-short: Delete
+    confirm-delete-short: Confirm delete
     title: Conversations
     new: New conversation
     current: Current
@@ -59,6 +83,27 @@ render-error:
     {renderer} failed to render the selected model.
     Model ID: {modelId}
     Error: {error}
+startup:
+  failed: Startup failed
+  failed-resource: Could not load {resource}
+  recover: Try again. If it fails again, open the details below.
+  recover-model: Try again, or continue without a character. You can select another model later.
+  details: What happened?
+  close-details: Close details
+  retry: Retry
+  continue-without-model: Continue Anyway
+  model-timeout: The character model took too long to load. Check your connection and retry.
+  resources:
+    auth: account settings
+    modelIndex: model list
+    card: character settings
+    chat: chat history
+    services: app services
+    modelData: saved models
+    modelSelection: model settings
+    audio: audio settings
+    route: page
+    model: character model
 message: Say something...
 send-mode:
   title: Send key
@@ -149,3 +194,18 @@ websocket-status:
 computer-use:
   label: Use computer
   description: Allow this chat window to inspect and control native apps on this computer.
+
+status:
+  preparing: Preparing microphone
+  listening: Listening
+  paused: Listening paused while AIRI speaks
+  transcribing: Transcribing
+  hearing-error: Could not transcribe audio
+  no-transcript: Recognized speech will appear here.
+  signing-in: Finish signing in in your browser
+  confirming: Confirming sign-in
+  signed-in: Signed in
+  sign-in-error: Sign-in failed
+  sign-in-unconfirmed: Could not confirm your session. Please sign in again.
+  dismiss: Dismiss
+  configure-hearing: Select and configure a Hearing provider in Settings.

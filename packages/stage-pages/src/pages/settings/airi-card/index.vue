@@ -12,7 +12,6 @@ import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
 import CardCreate from './components/CardCreate.vue'
-import CardCreationDialog from './components/CardCreationDialog.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
@@ -28,13 +27,10 @@ const router = useRouter()
 
 // Currently selected card ID (different from active card ID)
 const selectedCardId = ref<string>('')
-// Currently editing card ID
-const editingCardId = ref<string>('')
 // Initial tab to open in the dialog
 const initialTabId = ref<string>('')
 // Dialog state
 const isCardDialogOpen = ref(false)
-const isCardCreationDialogOpen = ref(false)
 
 // Search query
 const searchQuery = ref('')
@@ -138,18 +134,15 @@ function handleSelectCard(cardId: string) {
 }
 
 function handleEditCard(cardId: string) {
-  // Verify card exists before opening edit dialog
   if (!cards.value.has(cardId)) {
     console.error(`Card with id ${cardId} not found`)
     return
   }
-  editingCardId.value = cardId
-  isCardCreationDialogOpen.value = true
+  void router.push(`/settings/airi-card/${encodeURIComponent(cardId)}/edit`)
 }
 
 function handleCardCreationDialog() {
-  editingCardId.value = '' // Clear editing state for new card creation
-  isCardCreationDialogOpen.value = true
+  void router.push('/settings/airi-card/new')
 }
 
 // Card activation
@@ -164,14 +157,6 @@ watch(activeCardId, (cardId, previousCardId) => {
   const activeCard = cards.value.get(cardId)
   if (activeCard)
     toast(t('settings.pages.card.activation_notice', { name: activeCard.name }))
-})
-
-// Clear editing state when creation/edit dialog closes
-watch(isCardCreationDialogOpen, (isOpen) => {
-  if (!isOpen) {
-    editingCardId.value = ''
-    initialTabId.value = ''
-  }
 })
 
 // Clear initial tab when detail dialog closes
@@ -193,18 +178,18 @@ watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
   // Gallery or other viewing tabs go to Detail dialog
   if (['gallery', 'description', 'notes', 'character'].includes(targetTab)) {
     isCardDialogOpen.value = true
-    isCardCreationDialogOpen.value = false
   }
   // Artistry or other editing tabs go to Creation/Edit dialog
   else if (['artistry', 'identity', 'behavior', 'modules', 'settings'].includes(targetTab)) {
-    editingCardId.value = cardId
-    isCardCreationDialogOpen.value = true
-    isCardDialogOpen.value = false
+    void router.replace({
+      path: `/settings/airi-card/${encodeURIComponent(cardId)}/edit`,
+      query: { section: targetTab },
+    })
+    return
   }
   else {
     // Default to detail if tab is unknown
     isCardDialogOpen.value = true
-    isCardCreationDialogOpen.value = false
   }
 
   // Clear query params to prevent re-triggering and keep URL clean
@@ -362,13 +347,6 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   <CardDetailDialog
     v-model="isCardDialogOpen"
     :card-id="selectedCardId"
-    :initial-tab="initialTabId"
-  />
-
-  <!-- Card creation/edit dialog -->
-  <CardCreationDialog
-    v-model="isCardCreationDialogOpen"
-    :card-id="editingCardId"
     :initial-tab="initialTabId"
   />
 

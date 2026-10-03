@@ -92,7 +92,6 @@ The component forwards HTML attributes to the scroll-area root.
 | `viewportClass` | `string \| string[]?` | — | Classes for the Reka UI viewport |
 
 **Slots**: `default`
-**Emits**: `scrollbarPointerdown(event: PointerEvent)` before a custom scrollbar changes the viewport position. Use this to distinguish user scrolling from layout changes.
 **Exposed**: `viewport` (the native scroll owner. Reka UI hides its native scrollbar and renders the configured custom track.)
 
 ### Skeleton
@@ -259,6 +258,23 @@ Catches synchronous render/setup errors in descendants via `onErrorCaptured` and
 **Emits**: `error(err, instance, info)`, `retry()`
 **Exposed**: `retry()`, `hasError()`
 
+### DropdownMenu
+
+Shared dropdown-menu surface built on Reka UI. It owns the root, trigger,
+portal, content surface, and `AnimatedContent` lifecycle. Callers own the menu
+items and their business actions.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `align` | `DropdownMenuContentProps['align']?` | `'start'` | Preferred content alignment before collision handling |
+| `contentClass` | `string \| string[]?` | — | Additional classes for the content surface |
+| `disabled` | `boolean?` | `false` | Disables the trigger |
+| `side` | `DropdownMenuContentProps['side']?` | `'bottom'` | Preferred content side before collision handling |
+| `sideOffset` | `number?` | `6` | Offset between the trigger and content |
+| `variant` | `'blurry' \| 'default'?` | `'default'` | Selects a translucent or opaque content surface |
+
+**Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
+
 ### DoubleCheckButton
 
 Two-stage confirmation button — click once to reveal confirm/cancel.
@@ -366,23 +382,6 @@ so flex layouts do not stretch the empty measurement box.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `defaultHeight` | `string?` | — | Initial height when empty |
-| `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
-
-**v-model**: `input: string`
-**Emits**: `submit(message: string)`, `pasteFile(files: File[])`
-
-### BasicContentEditable
-
-Plain-text multiline contenteditable control with submit and paste-file events. Use it when text entry must avoid Safari Form Assistant.
-
-The browser owns typing, plain-text paste, text drop, selection, and undo. Only external model changes replace editor content. External updates preserve rendered-text selection offsets and direction while focused; a collapsed end caret follows appended text. Enter submits outside IME composition. Shift+Enter adds a line.
-
-The control exposes a multiline textbox role. Its placeholder supplies the default accessible name. Use `aria-label` or `aria-labelledby` for a separate name. This does not replace iOS VoiceOver testing.
-
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `defaultHeight` | `string?` | — | Reactive height when empty |
-| `placeholder` | `string?` | — | Placeholder text |
 | `submitOnEnter` | `boolean?` | `true` | Submit on Enter (Shift+Enter for newline) |
 
 **v-model**: `input: string`

@@ -48,17 +48,51 @@ devtools:
   title: Nhà phát triển
   pages:
     context-flow:
-      title: Luồng ngữ cảnh (Context Flow)
+      title: Luồng ngữ cảnh
+    editor:
+      title: Trình chỉnh sửa AIRI
+      description: Mở cửa sổ Trình chỉnh sửa AIRI độc lập
+      button: Mở trình chỉnh sửa
     lag-visualizer:
       title: Trình trực quan hóa độ trễ
     performance-visualizer:
       title: Trình trực quan hóa hiệu năng
       description: Bật/Tắt lớp phủ hiển thị FPS/tác vụ dài/bộ nhớ
+      controls:
+        enable-all:
+          label: Bật tất cả các chỉ số khả dụng
+          description: Bật từng chỉ số mà trình duyệt này hỗ trợ.
+        start-recording: Bắt đầu ghi
+        stop-recording: Dừng ghi ({seconds} giây)
+        export-last-recording: Xuất bản ghi gần nhất
+      metrics:
+        frame-duration:
+          label: Thời gian khung hình (ms)
+          description: Thời gian giữa các khung hình hoạt ảnh trong 10 giây qua.
+        long-task:
+          label: Tác vụ dài
+          description: Các tác vụ luồng chính (main-thread) mất ít nhất 50 ms.
+          unsupported: Trình duyệt này không hiển thị thời gian tác vụ dài.
+        memory:
+          description: Dung lượng bộ nhớ JavaScript heap từ API performance.memory của Chromium.
+          unsupported: Trình duyệt này không hiển thị dung lượng bộ nhớ JavaScript heap.
+      recording:
+        title: Bản ghi gần nhất
+        duration: Thời lượng {duration} ms
+        limit: Bản ghi sẽ dừng sau 60 giây.
+      overlay:
+        title: Hiệu năng
+        move: Di chuyển lớp phủ hiệu năng
+        reset-position: Đặt lại vị trí lớp phủ
+        record: Ghi
+        stop: Dừng
+        export: Xuất bản ghi gần nhất
+        average: trung bình
     markdown-stress:
       title: Kiểm thử áp lực Markdown
       description: Kiểm tra khả năng xử lý và hiển thị Markdown với dữ liệu hội thoại lớn
     io-tracer:
-      title: IO Tracer
+      title: Trình theo dõi I/O (IO Tracer)
     widgets-calling:
       title: Gọi Widget
 screen-capture:

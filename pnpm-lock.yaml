@@ -21,6 +21,9 @@ catalogs:
     '@anthropic-ai/claude-code':
       specifier: ^2.1.241
       version: 2.1.241
+    '@apple/app-store-server-library':
+      specifier: ^3.1.0
+      version: 3.1.0
     '@arethetypeswrong/core':
       specifier: ^0.18.5
       version: 0.18.5
@@ -30,6 +33,12 @@ catalogs:
     '@auv-js/sdk':
       specifier: 0.0.16
       version: 0.0.16
+    '@aws-sdk/client-s3':
+      specifier: ^3.1135.0
+      version: 3.1139.0
+    '@aws-sdk/s3-request-presigner':
+      specifier: ^3.1135.0
+      version: 3.1139.0
     '@ax-llm/ax':
       specifier: ^24.0.5
       version: 24.0.5
@@ -63,6 +72,9 @@ catalogs:
     '@capacitor/ios':
       specifier: ^8.5.0
       version: 8.5.0
+    '@capacitor/keyboard':
+      specifier: ^8.0.5
+      version: 8.0.5
     '@capacitor/local-notifications':
       specifier: ^8.3.1
       version: 8.3.1
@@ -148,8 +160,8 @@ catalogs:
       specifier: ^1.2.0
       version: 1.2.0
     '@guiiai/logg':
-      specifier: ^1.2.11
-      version: 1.2.11
+      specifier: ^1.2.12
+      version: 1.2.12
     '@histoire/plugin-vue':
       specifier: 1.0.0-beta.1
       version: 1.0.0-beta.1
@@ -253,8 +265,8 @@ catalogs:
       specifier: 0.1.0-beta.19
       version: 0.1.0-beta.19
     '@moeru/eventa':
-      specifier: 1.0.0
-      version: 1.0.0
+      specifier: 1.0.2
+      version: 1.0.2
     '@moeru/std':
       specifier: 0.1.0-beta.17
       version: 0.1.0-beta.17
@@ -423,6 +435,9 @@ catalogs:
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
+    '@sherpaw/xsai-transcription':
+      specifier: 0.2.1
+      version: 0.2.1
     '@shikijs/markdown-it':
       specifier: ^4.4.3
       version: 4.4.3
@@ -576,12 +591,21 @@ catalogs:
     '@xsai-apple-speech/transcription-native-darwin-x64':
       specifier: 0.1.3
       version: 0.1.3
+    '@xsai-apple-vision/vision-electron-plugin':
+      specifier: 0.1.0
+      version: 0.1.0
+    '@xsai-apple-vision/vision-native':
+      specifier: 0.1.0
+      version: 0.1.0
+    '@xsai-apple-vision/vision-native-darwin-arm64':
+      specifier: 0.1.0
+      version: 0.1.0
     '@xsai-ext/providers':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai-ext/responses':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai-transformers/embed':
       specifier: ^0.1.0
       version: 0.1.0
@@ -592,38 +616,41 @@ catalogs:
       specifier: ^0.1.0
       version: 0.1.0
     '@xsai/embed':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/generate-speech':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/generate-text':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/generate-transcription':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/model':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/shared':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/shared-chat':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
+    '@xsai/shared-stream':
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/stream-text':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/stream-transcription':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/tool':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     '@xsai/utils-chat':
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     alien-signals:
       specifier: ^3.2.1
       version: 3.2.1
@@ -1213,8 +1240,8 @@ catalogs:
       specifier: ^0.2.2
       version: 0.2.2
     xsschema:
-      specifier: 0.5.0
-      version: 0.5.0
+      specifier: 0.5.1
+      version: 0.5.1
     yaml:
       specifier: ^2.9.0
       version: 2.9.0
@@ -1259,7 +1286,7 @@ overrides:
 packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 
 patchedDependencies:
-  '@xsai-ext/responses@0.5.0': 58f91d94e326cbd7359ae644b6c86dad09128ffc8fd0a7eceef2b90117d44ef5
+  '@xsai-ext/responses@0.5.1': 869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed
   mineflayer-pathfinder: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
   pixi-live2d-display: 7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d
   sponsorkit@17.1.0: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
@@ -1428,13 +1455,13 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       valibot:
         specifier: 'catalog:'
         version: 1.4.2(typescript@6.0.3)
@@ -1443,7 +1470,7 @@ importers:
         version: 3.5.41(typescript@6.0.3)
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
     devDependencies:
       '@iconify-json/solar':
         specifier: 'catalog:'
@@ -1487,6 +1514,9 @@ importers:
       '@capacitor/ios':
         specifier: 'catalog:'
         version: 8.5.0(@capacitor/core@8.5.0)
+      '@capacitor/keyboard':
+        specifier: 'catalog:'
+        version: 8.0.5(@capacitor/core@8.5.0)
       '@capacitor/local-notifications':
         specifier: 'catalog:'
         version: 8.3.1(@capacitor/core@8.5.0)
@@ -1504,7 +1534,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1516,7 +1546,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))
+        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../../packages/font-chillroundm
@@ -1579,34 +1609,34 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
@@ -1726,7 +1756,7 @@ importers:
         version: 7.4.1
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       yauzl:
         specifier: 'catalog:'
         version: 3.4.0
@@ -1776,12 +1806,18 @@ importers:
       '@proj-airi/lobe-icons':
         specifier: 'catalog:'
         version: 1.0.19
+      '@proj-airi/provider-inference':
+        specifier: workspace:^
+        version: link:../../packages/provider-inference
       '@proj-airi/unplugin-fetch':
         specifier: 'catalog:'
         version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@proj-airi/vite-plugin-sherpaw':
+        specifier: workspace:^
+        version: link:../../packages/vite-plugin-sherpaw
       '@shikijs/markdown-it':
         specifier: 'catalog:'
         version: 4.4.3
@@ -1904,7 +1940,7 @@ importers:
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@huggingface/transformers':
         specifier: 'catalog:'
         version: 3.8.1
@@ -1913,7 +1949,7 @@ importers:
         version: 11.4.9
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -1928,7 +1964,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))
+        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../../packages/font-chillroundm
@@ -1953,6 +1989,9 @@ importers:
       '@proj-airi/plugin-sdk-tamagotchi':
         specifier: workspace:^
         version: link:../../packages/plugin-sdk-tamagotchi
+      '@proj-airi/provider-inference':
+        specifier: workspace:^
+        version: link:../../packages/provider-inference
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
@@ -2003,49 +2042,55 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai-apple-speech/transcription':
         specifier: 'catalog:'
-        version: 0.1.3(@xsai/generate-transcription@0.5.0)
+        version: 0.1.3(@xsai/generate-transcription@0.5.1)
       '@xsai-apple-speech/transcription-electron-plugin':
         specifier: 'catalog:'
-        version: 0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-apple-speech/transcription-native':
         specifier: 'catalog:'
-        version: 0.1.3(@xsai/generate-transcription@0.5.0)
+        version: 0.1.3(@xsai/generate-transcription@0.5.1)
+      '@xsai-apple-vision/vision-electron-plugin':
+        specifier: 'catalog:'
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+      '@xsai-apple-vision/vision-native':
+        specifier: 'catalog:'
+        version: 0.1.0
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai-transformers/transcription':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       alien-signals:
         specifier: 'catalog:'
         version: 3.2.1
@@ -2087,7 +2132,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       jszip:
         specifier: 'catalog:'
         version: 3.10.1
@@ -2097,6 +2142,9 @@ importers:
       mediabunny:
         specifier: 'catalog:'
         version: 1.55.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -2183,7 +2231,7 @@ importers:
         version: 5.0.0
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -2272,6 +2320,9 @@ importers:
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@proj-airi/vite-plugin-sherpaw':
+        specifier: workspace:^
+        version: link:../../packages/vite-plugin-sherpaw
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.100
@@ -2390,6 +2441,499 @@ importers:
       '@xsai-apple-speech/transcription-native-darwin-x64':
         specifier: 'catalog:'
         version: 0.1.3
+      '@xsai-apple-vision/vision-native-darwin-arm64':
+        specifier: 'catalog:'
+        version: 0.1.0
+
+  apps/stage-tamagotchi-kirie:
+    dependencies:
+      '@date-fns/utc':
+        specifier: 'catalog:'
+        version: 2.1.1
+      '@fontsource-variable/comfortaa':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/dm-sans':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/jura':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/nunito':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/quicksand':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource-variable/urbanist':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/dm-mono':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/dm-serif-display':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/gugi':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/kiwi-maru':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/m-plus-rounded-1c':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@formkit/auto-animate':
+        specifier: 'catalog:'
+        version: 0.10.0(vue@3.5.41(typescript@6.0.3))
+      '@gd-kirie/ipc':
+        specifier: 0.7.0
+        version: 0.7.0
+      '@gd-kirie/ipc-eventa':
+        specifier: 0.7.0
+        version: 0.7.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@gd-kirie/platform':
+        specifier: 0.7.0
+        version: 0.7.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@guiiai/logg':
+        specifier: 'catalog:'
+        version: 1.2.12
+      '@huggingface/transformers':
+        specifier: 'catalog:'
+        version: 3.8.1
+      '@intlify/core':
+        specifier: 'catalog:'
+        version: 11.4.9
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      '@pinia/colada':
+        specifier: 'catalog:'
+        version: 1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      '@proj-airi/audio':
+        specifier: workspace:^
+        version: link:../../packages/audio
+      '@proj-airi/ccc':
+        specifier: workspace:^
+        version: link:../../packages/ccc
+      '@proj-airi/drizzle-duckdb-wasm':
+        specifier: 'catalog:'
+        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
+      '@proj-airi/font-chillroundm':
+        specifier: workspace:^
+        version: link:../../packages/font-chillroundm
+      '@proj-airi/font-cjkfonts-allseto':
+        specifier: workspace:^
+        version: link:../../packages/font-cjkfonts-allseto
+      '@proj-airi/font-xiaolai':
+        specifier: workspace:^
+        version: link:../../packages/font-xiaolai
+      '@proj-airi/i18n':
+        specifier: workspace:^
+        version: link:../../packages/i18n
+      '@proj-airi/input-gamepad-vueuse':
+        specifier: workspace:^
+        version: link:../../packages/input-gamepad-vueuse
+      '@proj-airi/model-driver-lipsync':
+        specifier: workspace:^
+        version: link:../../packages/model-driver-lipsync
+      '@proj-airi/pipelines-audio':
+        specifier: workspace:^
+        version: link:../../packages/pipelines-audio
+      '@proj-airi/plugin-sdk-tamagotchi':
+        specifier: workspace:^
+        version: link:../../packages/plugin-sdk-tamagotchi
+      '@proj-airi/server-sdk':
+        specifier: workspace:*
+        version: link:../../packages/server-sdk
+      '@proj-airi/stage-layouts':
+        specifier: workspace:^
+        version: link:../../packages/stage-layouts
+      '@proj-airi/stage-pages':
+        specifier: workspace:^
+        version: link:../../packages/stage-pages
+      '@proj-airi/stage-ui':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui
+      '@proj-airi/stage-ui-live2d':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-live2d
+      '@proj-airi/stage-ui-mmd':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-mmd
+      '@proj-airi/stage-ui-spine':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-spine
+      '@proj-airi/stage-ui-three':
+        specifier: workspace:^
+        version: link:../../packages/stage-ui-three
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../../packages/ui
+      '@shikijs/markdown-it':
+        specifier: 'catalog:'
+        version: 4.4.3
+      '@tresjs/cientos':
+        specifier: 'catalog:'
+        version: 5.8.1(@tresjs/core@5.8.3(@types/three@0.185.4)(three@0.185.1)(vue@3.5.41(typescript@6.0.3)))(three@0.185.1)(vue@3.5.41(typescript@6.0.3))
+      '@tresjs/core':
+        specifier: 'catalog:'
+        version: 5.8.3(@types/three@0.185.4)(three@0.185.1)(vue@3.5.41(typescript@6.0.3))
+      '@unocss/reset':
+        specifier: 'catalog:'
+        version: 66.7.5
+      '@vueuse/core':
+        specifier: 'catalog:'
+        version: 14.4.0(vue@3.5.41(typescript@6.0.3))
+      '@vueuse/motion':
+        specifier: 'catalog:'
+        version: 3.0.3(magicast@0.5.4)(vue@3.5.41(typescript@6.0.3))
+      '@vueuse/shared':
+        specifier: 'catalog:'
+        version: 14.4.0(vue@3.5.41(typescript@6.0.3))
+      '@xsai-apple-speech/transcription':
+        specifier: 'catalog:'
+        version: 0.1.3(@xsai/generate-transcription@0.5.1)
+      '@xsai-apple-speech/transcription-electron-plugin':
+        specifier: 'catalog:'
+        version: 0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+      '@xsai-apple-speech/transcription-native':
+        specifier: 'catalog:'
+        version: 0.1.3(@xsai/generate-transcription@0.5.1)
+      '@xsai-ext/providers':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai-transformers/embed':
+        specifier: 'catalog:'
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@xsai-transformers/transcription':
+        specifier: 'catalog:'
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
+      '@xsai/generate-speech':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/generate-text':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/model':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/shared':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/shared-chat':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/stream-text':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/stream-transcription':
+        specifier: 'catalog:'
+        version: 0.5.1
+      '@xsai/tool':
+        specifier: 'catalog:'
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/utils-chat':
+        specifier: 'catalog:'
+        version: 0.5.1
+      alien-signals:
+        specifier: 'catalog:'
+        version: 3.2.1
+      animejs:
+        specifier: 'catalog:'
+        version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
+      async-mutex:
+        specifier: 'catalog:'
+        version: 0.5.0
+      chess.js:
+        specifier: 'catalog:'
+        version: 1.4.0
+      colorjs.io:
+        specifier: 'catalog:'
+        version: 0.7.1
+      culori:
+        specifier: 'catalog:'
+        version: 4.0.2
+      date-fns:
+        specifier: 'catalog:'
+        version: 4.4.0
+      defu:
+        specifier: 'catalog:'
+        version: 6.1.7
+      destr:
+        specifier: 'catalog:'
+        version: 2.0.5
+      dompurify:
+        specifier: 'catalog:'
+        version: 3.4.14
+      electron-click-drag-plugin:
+        specifier: 'catalog:'
+        version: 2.0.2
+      embla-carousel-vue:
+        specifier: 'catalog:'
+        version: 9.0.0-rc02(vue@3.5.41(typescript@6.0.3))
+      es-toolkit:
+        specifier: 'catalog:'
+        version: 1.51.0
+      injeca:
+        specifier: 'catalog:'
+        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+      jszip:
+        specifier: 'catalog:'
+        version: 3.10.1
+      localforage:
+        specifier: 'catalog:'
+        version: 1.10.0
+      mediabunny:
+        specifier: 'catalog:'
+        version: 1.55.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
+      node-vibrant:
+        specifier: 'catalog:'
+        version: 4.0.4
+      nprogress:
+        specifier: 'catalog:'
+        version: 0.2.0
+      onnxruntime-web:
+        specifier: npm:onnxruntime-web@^1.27.0
+        version: 1.27.0
+      pinia:
+        specifier: 'catalog:'
+        version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
+      popmotion:
+        specifier: 'catalog:'
+        version: 11.0.5
+      rehype-stringify:
+        specifier: 'catalog:'
+        version: 10.0.1
+      reka-ui:
+        specifier: 'catalog:'
+        version: 2.10.3(vue@3.5.41(typescript@6.0.3))
+      remark-parse:
+        specifier: 'catalog:'
+        version: 11.0.0(supports-color@10.2.2)
+      remark-rehype:
+        specifier: 'catalog:'
+        version: 11.1.2
+      replicate:
+        specifier: 'catalog:'
+        version: 1.4.0
+      semver:
+        specifier: 'catalog:'
+        version: 7.8.5
+      shiki:
+        specifier: 'catalog:'
+        version: 4.4.3
+      splitpanes:
+        specifier: 'catalog:'
+        version: 4.1.2(vue@3.5.41(typescript@6.0.3))
+      three:
+        specifier: 'catalog:'
+        version: 0.185.1
+      uiohook-napi:
+        specifier: 'catalog:'
+        version: 1.5.5(patch_hash=012c5e5ad881d5ae40fc0af58832e31a0772ab0a74c038c8f4dfe51efaf398dd)
+      unified:
+        specifier: 'catalog:'
+        version: 11.0.5
+      unspeech:
+        specifier: catalog:xsai
+        version: 0.1.16
+      uqr:
+        specifier: 'catalog:'
+        version: 0.1.3
+      uuid:
+        specifier: 'catalog:'
+        version: 14.0.2
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
+      vaul-vue:
+        specifier: 'catalog:'
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      vue:
+        specifier: 'catalog:'
+        version: 3.5.41(typescript@6.0.3)
+      vue-demi:
+        specifier: 'catalog:'
+        version: 0.14.10(vue@3.5.41(typescript@6.0.3))
+      vue-i18n:
+        specifier: 'catalog:'
+        version: 11.4.9(vue@3.5.41(typescript@6.0.3))
+      vue-router:
+        specifier: 'catalog:'
+        version: 5.2.0(@pinia/colada@1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)))(@vue/compiler-sfc@3.5.41)(esbuild@0.28.2)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
+      vue-sonner:
+        specifier: 'catalog:'
+        version: 2.0.9(@nuxt/kit@3.21.11(magicast@0.5.4))(vue@3.5.41(typescript@6.0.3))
+      web-haptics:
+        specifier: 'catalog:'
+        version: 0.0.6(vue@3.5.41(typescript@6.0.3))
+      whatwg-mimetype:
+        specifier: 'catalog:'
+        version: 5.0.0
+      xsschema:
+        specifier: 'catalog:'
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      zod:
+        specifier: 'catalog:'
+        version: 4.4.3
+    devDependencies:
+      '@iconify-json/carbon':
+        specifier: 'catalog:'
+        version: 1.2.25
+      '@iconify-json/eos-icons':
+        specifier: 'catalog:'
+        version: 1.2.4
+      '@iconify-json/lucide':
+        specifier: 'catalog:'
+        version: 1.2.125
+      '@iconify-json/mingcute':
+        specifier: 'catalog:'
+        version: 1.2.8
+      '@iconify-json/ph':
+        specifier: 'catalog:'
+        version: 1.2.2
+      '@iconify-json/simple-icons':
+        specifier: 'catalog:'
+        version: 1.2.93
+      '@iconify-json/solar':
+        specifier: 'catalog:'
+        version: 1.2.9
+      '@iconify-json/svg-spinners':
+        specifier: 'catalog:'
+        version: 1.2.4
+      '@iconify-json/vscode-icons':
+        specifier: 'catalog:'
+        version: 1.2.74
+      '@iconify/utils':
+        specifier: 'catalog:'
+        version: 3.1.4
+      '@intlify/unplugin-vue-i18n':
+        specifier: 'catalog:'
+        version: 11.2.5(@vue/compiler-dom@3.5.41)(eslint@10.9.0(jiti@2.7.0)(supports-color@10.2.2))(rollup@4.62.5)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue-i18n@11.4.9(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
+      '@pnpm/find-workspace-dir':
+        specifier: 'catalog:'
+        version: 1000.1.5
+      '@proj-airi/electron-eventa':
+        specifier: workspace:^
+        version: link:../../packages/electron-eventa
+      '@proj-airi/electron-screen-capture':
+        specifier: workspace:^
+        version: link:../../packages/electron-screen-capture
+      '@proj-airi/electron-vueuse':
+        specifier: workspace:^
+        version: link:../../packages/electron-vueuse
+      '@proj-airi/iconify-meteocons':
+        specifier: 'catalog:'
+        version: 0.1.5
+      '@proj-airi/lobe-icons':
+        specifier: 'catalog:'
+        version: 1.0.19
+      '@proj-airi/plugin-sdk':
+        specifier: workspace:^
+        version: link:../../packages/plugin-sdk
+      '@proj-airi/server-runtime':
+        specifier: workspace:^
+        version: link:../../packages/server-runtime
+      '@proj-airi/stage-shared':
+        specifier: workspace:^
+        version: link:../../packages/stage-shared
+      '@proj-airi/ui-transitions':
+        specifier: workspace:^
+        version: link:../../packages/ui-transitions
+      '@proj-airi/unplugin-fetch':
+        specifier: 'catalog:'
+        version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: 'catalog:'
+        version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@types/audioworklet':
+        specifier: 'catalog:'
+        version: 0.0.100
+      '@types/culori':
+        specifier: 'catalog:'
+        version: 4.0.1
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      '@types/nprogress':
+        specifier: 'catalog:'
+        version: 0.2.3
+      '@types/semver':
+        specifier: 'catalog:'
+        version: 7.8.0
+      '@types/splitpanes':
+        specifier: 'catalog:'
+        version: 2.2.6
+      '@types/three':
+        specifier: 'catalog:'
+        version: 0.185.4
+      '@types/whatwg-mimetype':
+        specifier: 'catalog:'
+        version: 5.0.0
+      '@vitejs/plugin-vue':
+        specifier: 'catalog:'
+        version: 6.0.8(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
+      '@vue-macros/volar':
+        specifier: 'catalog:'
+        version: 3.1.4(typescript@6.0.3)(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.41(typescript@6.0.3))
+      csstype:
+        specifier: 'catalog:'
+        version: 3.2.3
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
+      electron:
+        specifier: 'catalog:'
+        version: 43.4.1(supports-color@10.2.2)
+      kirie:
+        specifier: 0.7.0
+        version: 0.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      less:
+        specifier: 'catalog:'
+        version: 4.9.0(supports-color@10.2.2)
+      std-env:
+        specifier: 'catalog:'
+        version: 4.2.0
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unocss-preset-scrollbar:
+        specifier: 'catalog:'
+        version: 4.0.0(unocss@66.7.5(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)))
+      unplugin-info:
+        specifier: 'catalog:'
+        version: 1.3.2(@nuxt/kit@3.21.11(magicast@0.5.4))(esbuild@0.28.2)(rollup@4.62.5)(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      unplugin-yaml:
+        specifier: 'catalog:'
+        version: 4.2.1(@nuxt/kit@3.21.11(magicast@0.5.4))(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      vite-plugin-vue-devtools:
+        specifier: 'catalog:'
+        version: 8.2.1(@nuxt/kit@3.21.11(magicast@0.5.4))(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
+      vite-plugin-vue-layouts:
+        specifier: 'catalog:'
+        version: 0.11.0(supports-color@10.2.2)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue-router@5.2.0(@pinia/colada@1.4.2(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)))(@vue/compiler-sfc@3.5.41)(esbuild@0.28.2)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+      vue-macros:
+        specifier: 'catalog:'
+        version: 3.1.4(@vueuse/core@14.4.0(vue@3.5.41(typescript@6.0.3)))(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(typescript@6.0.3)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue-tsc@3.3.11(typescript@6.0.3))(vue@3.5.41(typescript@6.0.3))
+      vue-tsc:
+        specifier: 'catalog:'
+        version: 3.3.11(typescript@6.0.3)
+      yaml:
+        specifier: 'catalog:'
+        version: 2.9.0
 
   apps/stage-web:
     dependencies:
@@ -2407,7 +2951,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -2422,7 +2966,7 @@ importers:
         version: link:../../packages/ccc
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))
+        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../../packages/font-chillroundm
@@ -2441,6 +2985,9 @@ importers:
       '@proj-airi/pipelines-audio':
         specifier: workspace:^
         version: link:../../packages/pipelines-audio
+      '@proj-airi/provider-inference':
+        specifier: workspace:^
+        version: link:../../packages/provider-inference
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../../packages/server-sdk
@@ -2468,6 +3015,9 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
+      '@proj-airi/ui-loading-screens':
+        specifier: workspace:^
+        version: link:../../packages/ui-loading-screens
       '@proj-airi/ui-transitions':
         specifier: workspace:^
         version: link:../../packages/ui-transitions
@@ -2488,34 +3038,34 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
@@ -2641,7 +3191,7 @@ importers:
         version: 7.4.1
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       yauzl:
         specifier: 'catalog:'
         version: 3.4.0
@@ -2697,6 +3247,9 @@ importers:
       '@proj-airi/unplugin-live2d-sdk':
         specifier: 'catalog:'
         version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      '@proj-airi/vite-plugin-sherpaw':
+        specifier: workspace:^
+        version: link:../../packages/vite-plugin-sherpaw
       '@shikijs/markdown-it':
         specifier: 'catalog:'
         version: 4.4.3
@@ -2786,7 +3339,7 @@ importers:
         version: 0.10.0(vue@3.5.41(typescript@6.0.3))
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3114,7 +3667,7 @@ importers:
         version: 0.19.2(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)(bufferutil@4.1.0)(opusscript@0.1.1)(utf-8-validate@5.0.10)
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@huggingface/transformers':
         specifier: 'catalog:'
         version: 3.8.1
@@ -3132,19 +3685,19 @@ importers:
         version: 0.1.12(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.3)
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       discord.js:
         specifier: 'catalog:'
         version: 14.27.0(bufferutil@4.1.0)(utf-8-validate@5.0.10)
@@ -3165,7 +3718,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
@@ -3175,12 +3728,15 @@ importers:
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
+      '@proj-airi/server-shared':
+        specifier: workspace:*
+        version: link:../../packages/server-shared
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       alien-signals:
         specifier: 'catalog:'
         version: 3.2.1
@@ -3277,7 +3833,7 @@ importers:
         version: 0.5.6
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3286,13 +3842,13 @@ importers:
         version: 0.4.1(typescript@6.0.3)
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       best-effort-json-parser:
         specifier: 'catalog:'
         version: 1.5.1
@@ -3332,7 +3888,7 @@ importers:
         version: 1.2.0(grammy@1.45.1(supports-color@10.2.2))
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3374,19 +3930,19 @@ importers:
         version: 0.4.1(typescript@6.0.3)
       '@xsai/embed':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       best-effort-json-parser:
         specifier: 'catalog:'
         version: 1.5.1
@@ -3435,7 +3991,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
@@ -3465,7 +4021,7 @@ importers:
     devDependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3480,7 +4036,7 @@ importers:
         version: 1.51.0
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -3511,7 +4067,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       crossws:
         specifier: 'catalog:'
         version: 0.4.12(srvx@0.12.7)
@@ -3574,31 +4130,31 @@ importers:
         version: link:../stream-kit
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai-ext/responses':
         specifier: 'catalog:'
-        version: 0.5.0(patch_hash=58f91d94e326cbd7359ae644b6c86dad09128ffc8fd0a7eceef2b90117d44ef5)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -3619,7 +4175,7 @@ importers:
         version: 0.0.12(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -3656,7 +4212,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       builder-util-runtime:
         specifier: 'catalog:'
         version: 9.7.0(supports-color@10.2.2)
@@ -3668,7 +4224,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: '>=1 <2'
-        version: 1.2.11
+        version: 1.2.12
       electron:
         specifier: '>=40 <44'
         version: 43.4.1(supports-color@10.2.2)
@@ -3681,7 +4237,7 @@ importers:
         version: 3.0.2(electron@43.4.1(supports-color@10.2.2))
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3702,7 +4258,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3777,7 +4333,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@proj-airi/server-sdk':
         specifier: workspace:^
         version: link:../server-sdk
@@ -3849,7 +4405,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3861,16 +4417,16 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
 
   packages/plugin-sdk:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -3898,7 +4454,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@proj-airi/plugin-sdk':
         specifier: workspace:*
         version: link:../plugin-sdk
@@ -3910,7 +4466,7 @@ importers:
         version: 1.4.2(typescript@6.0.3)
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
 
   packages/provider-inference:
     dependencies:
@@ -3920,27 +4476,33 @@ importers:
       '@proj-airi/audio':
         specifier: workspace:^
         version: link:../audio
+      '@sherpaw/asr':
+        specifier: 0.2.1
+        version: 0.2.1(onnxruntime-web@1.27.0)
+      '@sherpaw/xsai-transcription':
+        specifier: 'catalog:'
+        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai-ext/responses':
         specifier: 'catalog:'
-        version: 0.5.0(patch_hash=58f91d94e326cbd7359ae644b6c86dad09128ffc8fd0a7eceef2b90117d44ef5)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       clustr:
         specifier: 'catalog:'
         version: 1.0.2
@@ -3958,7 +4520,7 @@ importers:
         version: 0.1.16
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -3971,7 +4533,7 @@ importers:
         version: 4.1.11(bufferutil@4.1.0)(playwright@1.62.1)(utf-8-validate@5.0.10)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       playwright:
         specifier: 'catalog:'
         version: 1.62.1
@@ -4056,7 +4618,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4113,7 +4675,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4143,13 +4705,13 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
@@ -4222,7 +4784,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4270,13 +4832,13 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
@@ -4324,7 +4886,7 @@ importers:
         version: 0.2.2
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -4395,7 +4957,7 @@ importers:
         version: 3.0.2(electron@43.4.1(supports-color@10.2.2))
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@nekopaw/tempora':
         specifier: 'catalog:'
         version: 0.4.0-alpha.1
@@ -4422,7 +4984,7 @@ importers:
         version: 3.8.1
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -4458,7 +5020,7 @@ importers:
         version: link:../core-character
       '@proj-airi/drizzle-duckdb-wasm':
         specifier: 'catalog:'
-        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))
+        version: 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       '@proj-airi/font-chillroundm':
         specifier: workspace:^
         version: link:../font-chillroundm
@@ -4516,9 +5078,18 @@ importers:
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../ui
+      '@proj-airi/ui-loading-screens':
+        specifier: workspace:^
+        version: link:../ui-loading-screens
+      '@proj-airi/vite-plugin-sherpaw':
+        specifier: workspace:^
+        version: link:../vite-plugin-sherpaw
       '@ricky0123/vad-web':
         specifier: 'catalog:'
         version: 0.0.30
+      '@sherpaw/xsai-transcription':
+        specifier: 'catalog:'
+        version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
       '@shikijs/rehype':
         specifier: 'catalog:'
         version: 4.4.3
@@ -4536,52 +5107,55 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai-apple-speech/transcription':
         specifier: 'catalog:'
-        version: 0.1.3(@xsai/generate-transcription@0.5.0)
+        version: 0.1.3(@xsai/generate-transcription@0.5.1)
       '@xsai-apple-speech/transcription-electron-plugin':
         specifier: 'catalog:'
-        version: 0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+      '@xsai-apple-vision/vision-electron-plugin':
+        specifier: 'catalog:'
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai-transformers/embed':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai-transformers/shared':
         specifier: 'catalog:'
-        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+        version: 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai/embed':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-speech':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/model':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-transcription':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       '@xsai/utils-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
@@ -4734,7 +5308,7 @@ importers:
         version: 0.2.2
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       zod:
         specifier: 'catalog:'
         version: 4.4.3
@@ -4889,6 +5463,9 @@ importers:
       '@lemonneko/crop-empty-pixels':
         specifier: 'catalog:'
         version: 0.1.1
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
       '@pixi/app':
         specifier: 'catalog:'
         version: 6.5.10(@pixi/core@6.5.10(@pixi/constants@6.5.10)(@pixi/extensions@6.5.10)(@pixi/math@6.5.10)(@pixi/runner@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/ticker@6.5.10(@pixi/extensions@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/display@6.5.10(@pixi/constants@6.5.10)(@pixi/math@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10))))(@pixi/math@6.5.10)(@pixi/utils@6.5.10(@pixi/constants@6.5.10)(@pixi/settings@6.5.10(@pixi/constants@6.5.10)))
@@ -4942,7 +5519,7 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       animejs:
         specifier: 'catalog:'
         version: 4.5.0(@types/three@0.185.4)(three@0.185.1)
@@ -4980,6 +5557,9 @@ importers:
       '@types/three':
         specifier: 'catalog:'
         version: 0.185.4
+      '@vitest/browser-playwright':
+        specifier: catalog:vitest
+        version: 4.1.11(bufferutil@4.1.0)(playwright@1.62.1)(utf-8-validate@5.0.10)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vitest@4.1.11)
       vitest:
         specifier: catalog:vitest
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
@@ -5012,7 +5592,7 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       culori:
         specifier: 'catalog:'
         version: 4.0.2
@@ -5025,6 +5605,9 @@ importers:
       localforage:
         specifier: 'catalog:'
         version: 1.10.0
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
@@ -5079,7 +5662,7 @@ importers:
         version: 14.4.0(vue@3.5.41(typescript@6.0.3))
       '@xsai/tool':
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0
@@ -5153,7 +5736,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@pixiv/three-vrm':
         specifier: 'catalog:'
         version: 3.5.5(@types/three@0.185.4)(three@0.185.1)
@@ -5282,12 +5865,18 @@ importers:
 
   packages/ui-loading-screens:
     dependencies:
+      '@fontsource-variable/comfortaa':
+        specifier: 'catalog:'
+        version: 5.3.0
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
       '@proj-airi/font-departure-mono':
         specifier: workspace:^
         version: link:../font-departure-mono
+      '@proj-airi/ui':
+        specifier: workspace:^
+        version: link:../ui
       '@rive-app/canvas-lite':
         specifier: 'catalog:'
         version: 2.40.1
@@ -5297,13 +5886,13 @@ importers:
       '@vueuse/motion':
         specifier: 'catalog:'
         version: 3.0.3(magicast@0.5.4)(vue@3.5.41(typescript@6.0.3))
+      vaul-vue:
+        specifier: 'catalog:'
+        version: 0.4.1(reka-ui@2.10.3(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       vue:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
     devDependencies:
-      '@proj-airi/ui':
-        specifier: workspace:^
-        version: link:../ui
       '@unocss/reset':
         specifier: 'catalog:'
         version: 66.7.5
@@ -5372,6 +5961,34 @@ importers:
         specifier: '>=66'
         version: 66.8.1
 
+  packages/vite-plugin-sherpaw:
+    dependencies:
+      '@proj-airi/provider-inference':
+        specifier: workspace:^
+        version: link:../provider-inference
+      '@proj-airi/unplugin-fetch':
+        specifier: 'catalog:'
+        version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 26.2.0
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.22.14(@arethetypeswrong/core@0.18.5)(@volar/typescript@2.4.28(typescript@6.0.3))(oxc-resolver@11.24.2)(publint@0.3.24)(tsx@4.23.12)(typescript@6.0.3)(unplugin-unused@0.6.0(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)))(vue-tsc@3.3.11(typescript@6.0.3))
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      unplugin-basemove:
+        specifier: 'catalog:'
+        version: 0.0.1(esbuild@0.28.2)(rolldown@1.2.5)(rollup@4.62.5)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+      vite:
+        specifier: 'catalog:'
+        version: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      vitest:
+        specifier: catalog:vitest
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
+
   packages/vitest-plugin-fakemic:
     dependencies:
       playwright:
@@ -5392,7 +6009,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@laplace.live/event-bridge-sdk':
         specifier: 'catalog:'
         version: 1.1.0(typescript@6.0.3)
@@ -5407,7 +6024,7 @@ importers:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
@@ -5438,7 +6055,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5493,16 +6110,16 @@ importers:
         version: 6.0.8(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.41(typescript@6.0.3))
       '@xsai-ext/providers':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/generate-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/shared-chat':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       '@xsai/stream-text':
         specifier: 'catalog:'
-        version: 0.5.0
+        version: 0.5.1
       pinia:
         specifier: 'catalog:'
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
@@ -5514,13 +6131,13 @@ importers:
         version: 0.0.12(@types/node@26.2.0)(@vitest/browser-playwright@4.1.11)(@vitest/coverage-v8@4.1.11)(chokidar@5.0.0)(dotenv@17.4.2)(esbuild@0.28.2)(giget@3.3.1)(jiti@2.7.0)(jsdom@30.0.1(@noble/hashes@2.3.0)(canvas@3.2.3))(less@4.9.0(supports-color@10.2.2))(magicast@0.5.4)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       xsschema:
         specifier: 'catalog:'
-        version: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+        version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
 
   plugins/airi-plugin-homeassistant:
     dependencies:
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@proj-airi/server-sdk':
         specifier: workspace:*
         version: link:../../packages/server-sdk
@@ -5535,7 +6152,7 @@ importers:
         version: 1.2.4
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5569,6 +6186,15 @@ importers:
 
   server/apps/api:
     dependencies:
+      '@apple/app-store-server-library':
+        specifier: 'catalog:'
+        version: 3.1.0
+      '@aws-sdk/client-s3':
+        specifier: 'catalog:'
+        version: 3.1139.0
+      '@aws-sdk/s3-request-presigner':
+        specifier: 'catalog:'
+        version: 3.1139.0
       '@dotenvx/dotenvx':
         specifier: 'catalog:'
         version: 2.21.0
@@ -5580,7 +6206,7 @@ importers:
         version: 0.0.7(@electric-sql/pglite@0.5.6)
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.1(hono@4.13.3)
@@ -5598,7 +6224,7 @@ importers:
         version: 5.10.1(@opentelemetry/api@1.9.1)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
@@ -5662,6 +6288,9 @@ importers:
       '@proj-airi/server-sdk-shared':
         specifier: workspace:*
         version: link:../../packages/server-sdk-shared
+      '@xsai/shared-stream':
+        specifier: 'catalog:'
+        version: 0.5.1
       drizzle-orm:
         specifier: 'catalog:'
         version: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
@@ -5679,13 +6308,16 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
       jose:
         specifier: 'catalog:'
         version: 6.2.10
+      model-bank:
+        specifier: 'catalog:'
+        version: 1.0.20260904203849(zod@4.4.3)
       nanoid:
         specifier: 'catalog:'
         version: 6.0.1
@@ -5740,7 +6372,7 @@ importers:
         version: 2.21.0
       '@guiiai/logg':
         specifier: 'catalog:'
-        version: 1.2.11
+        version: 1.2.12
       '@hono/node-server':
         specifier: 'catalog:'
         version: 2.1.1(hono@4.13.3)
@@ -5812,7 +6444,7 @@ importers:
         version: 0.5.3(hono@4.13.3)(unstorage@1.17.5(idb-keyval@6.3.0)(ioredis@6.0.0(supports-color@10.2.2)))
       injeca:
         specifier: 'catalog:'
-        version: 0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1)
+        version: 0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1)
       ioredis:
         specifier: 'catalog:'
         version: 6.0.0(supports-color@10.2.2)
@@ -5867,7 +6499,7 @@ importers:
     dependencies:
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       valibot:
         specifier: 'catalog:'
         version: 1.4.2(typescript@6.0.3)
@@ -6089,6 +6721,9 @@ packages:
     peerDependencies:
       ajv: '>=8'
 
+  '@apple/app-store-server-library@3.1.0':
+    resolution: {integrity: sha512-d26SICRz8BwCV2qPR0BSXBMxmw0NEvJLwsdREcBmCrus8NmyHw2XgOOP0fiFjcctPn/JXtmSDuGVnaHe+dqO+A==}
+
   '@arethetypeswrong/core@0.18.5':
     resolution: {integrity: sha512-9ytjzGwxjm9Uz7I9avfbt5vlQt6uk9uRRESzJjqrznl6WKvI6dwYTo+vJ3U02Wrq/mR3iql/PzhvHhKdJIAjDQ==}
     engines: {node: '>=20'}
@@ -6151,6 +6786,82 @@ packages:
 
   '@auv-js/sdk@0.0.16':
     resolution: {integrity: sha512-0pm+8Y1N2dNtApHQJZvglJatBtVUew8lfkaIqYNHCluwIq+wAtfcsryrwnqxtXluZYcAgiBNmmD9+uHuWB5XGg==}
+
+  '@aws-sdk/checksums@3.1001.1':
+    resolution: {integrity: sha512-x12Q17KYlJAd3nKf8LV5LV0vt8sh8/6YfQLGPtrGnQf/tW4jqxPGq5GPpuVitpQYM3eUR4XB7CbxZf751NMbLw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/client-s3@3.1139.0':
+    resolution: {integrity: sha512-HwMHlXgJSsQmZhpFLJaovAIBoC2eVBep4wjTaPCV+qySFd4giXCFuDZC/8Btz1KCr4JzEO5AhXPb5FMflqoQig==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/core@3.978.1':
+    resolution: {integrity: sha512-LbY9aGsEiznDWmUc30Nwv3aIX/+dbwTx8KfS0yOC3NPYMO+O91e6jkT1azf34FwjOndq8/Q+RcVVZz5xnerwdg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-env@3.972.72':
+    resolution: {integrity: sha512-xTKO/FWJPozTIXbozVnVGoNBhaGba8TBcx+KyUjRVeOlXE+dUc7GTR1cLvu0uTdIdmemzaFbqqCshXeZA1fZew==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-http@3.972.74':
+    resolution: {integrity: sha512-u91E/hT8f4d1xy0Jl7VG4nVKJ3lxbrZkoBTeSVoJdWBiSEUMwMS/9+e0H/aJVQV//Lt5wuzP+E69v4aRSsNTmw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-ini@3.973.17':
+    resolution: {integrity: sha512-ged4KXdBkvIC81bLvNHHuQKdKak/VXhQTR1NWYTTqW0474nlmsxy9O/vlgTIohDDWH3xpBdtVMZRyjb+DnocDA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-login@3.972.79':
+    resolution: {integrity: sha512-L+Z85anONJd8MaiuraO4wRxATCdEejBZ3K3eymzWI5JPXa9sOS9CkIm72PBKqXKX+Z9p9NGMX5AIMXm0LEflgw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-node@3.972.84':
+    resolution: {integrity: sha512-oHt854odINVwzwsh+c5x69j0ajm4DbqqqVJ+O1ECsCIZeMDAbzFpXItaqP7UZstJj/ATdTk/KFSH0LaNAgV+kA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-process@3.972.72':
+    resolution: {integrity: sha512-rLIp2xbMjX/k9/od7APpqq1ZgXXnV0pOL1Th3ZsL8Wu0TRtBsDTVS8iPqcfRFcHakFxPvR04OSTv2ka2qOb/2A==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-sso@3.973.16':
+    resolution: {integrity: sha512-IGihaJfFZYacJJr/odqILCoK7W/mvrZ7cuK7ECn3sAu4vLC6u0V8bS7mCGbdugJ8Aum2tnvqmx0F2MRFp2rn9g==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/credential-provider-web-identity@3.972.78':
+    resolution: {integrity: sha512-/y9WvNtlcPBGLR0qc1a+9J/xtYZfVczvLUOuXaVWylzttH7ewsxwHtjmiJSolNrVSDorIxHGHMU61CbonRkmwA==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/middleware-sdk-s3@3.972.77':
+    resolution: {integrity: sha512-E7W2UOeUoc+lg3uIfR/dM7ZwusHwhBQrKMnlkRv4EXRR+C0YtV1pg25xC7GdZIhXH+NAMgZPCbE7o5to2cjFiw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/nested-clients@3.997.46':
+    resolution: {integrity: sha512-oRxtBcka/JGHGs9l9p9IVajGoTP8vTPmoAzdHGy4Qcy9P5vPnDf6nhIeM/COQNY9k/OahImTRaLkHftoXvfcmQ==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/s3-request-presigner@3.1139.0':
+    resolution: {integrity: sha512-crOQr6GrVZC6Ov6jzCAkeQZN7IiStG2yJ2QOse1rFsBgqGCWXllFnVLf7n97yuBJMbtoKeWMfrbFnWKKqhSwtw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/signature-v4-multi-region@3.996.47':
+    resolution: {integrity: sha512-Zk08macMvQTHzQJCLJVkOlviVoqwYMrpXv4lmLN7b7sAbiMoOK7Go0NYdR5UeF+MW8LIbRmwrNy9u/5VvX1U5g==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/token-providers@3.1138.0':
+    resolution: {integrity: sha512-GpyAr0DD63YOEmYFM6Df+gJuIgC92MMTiBK4FTKfxii5MJ9ge20epR7LyroulscYlG89J+ZB2ivFDPjvfQhzdw==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/types@3.974.6':
+    resolution: {integrity: sha512-v/clNZzZnDxGyvpHMOGpJKVXFAExJzUNAAjaWGdcx8QAcXLGwTaOkw33p5SHAi0YAioK32xB3hWwOekRVfmfKg==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws-sdk/xml-builder@3.972.41':
+    resolution: {integrity: sha512-ctjVSyCMegrWfXlx6VqzSBFI6UqmQ5ZlnfMhdLIiWmhoH8UAQxSCP5N3OpG7X3k4LnS7ou74C4mt20+bfTW2aQ==}
+    engines: {node: '>=20.0.0'}
+
+  '@aws/lambda-invoke-store@0.3.0':
+    resolution: {integrity: sha512-sl4Bm6yiMNYrZKkqqDFWN0UfnWhlS8ivKxrYl+6t0gCLrqr8y3B2IqZZbFRkfaVVp7C/baApyh71P+LeE1A2sQ==}
+    engines: {node: '>=18.0.0'}
 
   '@ax-llm/ax@24.0.5':
     resolution: {integrity: sha512-hQoHPWRCumvZJ1YyLWQwH17gDhIcREUZoP5UFQUS0l6Y4L8qkEKBJ1qfbtUjta+ah7stkzctewDfUzdi+Svzew==}
@@ -6926,6 +7637,11 @@ packages:
     resolution: {integrity: sha512-7k1TfohJu5BzRXc1F3g04Q8QQ0fyQgms6h1AvhnHb04VaNr9EdHOx03hL8O+OigEKMQnyJd1ZOjTPPNHCqL5Yw==}
     peerDependencies:
       '@capacitor/core': ^8.5.0
+
+  '@capacitor/keyboard@8.0.5':
+    resolution: {integrity: sha512-oFXygC4eKYA5l2MdpTR06L2M/4x6e2SLD5yS1T9+UBDKTkzyvhWKEhbYLUaTIBPpLKqlfGudJw1X73S1H9eUzQ==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   '@capacitor/local-notifications@8.3.1':
     resolution: {integrity: sha512-F7zu/+p/mIR958YP4axOkeI5hBKRaXDyYjbNPrAil2wWfd7OxScPSTvP9t85NpQ0eULVRu0/sntoxOg6ck477A==}
@@ -7861,6 +8577,18 @@ packages:
     peerDependencies:
       vue: '*'
 
+  '@gd-kirie/build@0.7.0':
+    resolution: {integrity: sha512-CE3eQlJAUaoWZHUHX4hF9IevYShx3q8cqwkmT9xWkotMCym71y9IL4UYPtPdFuo3gNI816iQImwIGzub5G6aRw==}
+
+  '@gd-kirie/ipc-eventa@0.7.0':
+    resolution: {integrity: sha512-jSWkhQL1XEPvEzqU1jO01Ue0POqUXz8R41cZiLOD9i+qD8TrDJkxMc2U5mR0MKS3HVXKgnzj/4zwEZXlrcvD0Q==}
+
+  '@gd-kirie/ipc@0.7.0':
+    resolution: {integrity: sha512-OJaiF9ZG+hiXbfDXNGve5ZXV1cFzamA44BI+8XcNHRd8Jg+YPFWWcjCyEgcaKfDJ/W3Jy3BOvBdNK10RjJh3Yg==}
+
+  '@gd-kirie/platform@0.7.0':
+    resolution: {integrity: sha512-1AGcuEAGsUp6y8sCM0kQOxfIY3dxA+ehJj/aOyk8+FSx5gIbZdHB/WH/HGtgYnJpwwCR6w3CX4cmblGtai7Cgw==}
+
   '@grammyjs/files@1.2.0':
     resolution: {integrity: sha512-UhQNGe2gpGgGMdrAUFXrZld3qQjt/3oYBHIo1aU0zIrKKvI5bgxzXSjPaJpx69HUO9mM7TbOaSsJL8lWbqnzJw==}
     engines: {node: ^12.20.0 || >=14.13.1}
@@ -7879,8 +8607,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  '@guiiai/logg@1.2.11':
-    resolution: {integrity: sha512-OE4tpTa3NCw/A0YC6TcRD09fLeatpyQ22625syiW7amygCAnHpswIjQRMDLkZnxFTHvleKomBpaXyIsk0qDk3g==}
+  '@guiiai/logg@1.2.12':
+    resolution: {integrity: sha512-f8rXJiIixxX8qb0Ldn7n6MNil1M+fY9r2xiCC2+XnVB4YTWPI6951+UNYErnt+ou7S0TMR39qvlb1FkyHwPQNQ==}
 
   '@henrygd/queue@1.2.0':
     resolution: {integrity: sha512-jW/BLSTpcvExDhqJGxtIPgGr2O0IFF8XUNDwEbfCfhrXT8a4xztQ9Lv6U/vbYzYC0xVWn+3zv6YnLUh3bEFUKA==}
@@ -8520,8 +9248,22 @@ packages:
       web-worker:
         optional: true
 
-  '@moeru/eventa@1.0.0':
-    resolution: {integrity: sha512-7Tz42aRNR5V3kzFuQb5evaAQ9szSxWq0sEBOQJ30KzR+0vCDd2d2XHh6oGQyQvF/HTQgk9w8JlgBti/xAeFG4A==}
+  '@moeru/eventa@1.0.0-beta.1':
+    resolution: {integrity: sha512-4VPs+FlTdIMtlNdBvERvF+e9pnSbz+PN7dgztADtaETCQsSDk9ptHJuzajRBhOlr364k4TotroZa9rrIoVelRQ==}
+    peerDependencies:
+      electron: '>=30'
+      h3: 2.0.0-beta.1
+      web-worker: ^1.5.0
+    peerDependenciesMeta:
+      electron:
+        optional: true
+      h3:
+        optional: true
+      web-worker:
+        optional: true
+
+  '@moeru/eventa@1.0.2':
+    resolution: {integrity: sha512-GlgLTPxVN9A/1lxlAktB/zyjPZc4i6YFYbd6YHY+0dsoOPAjofzV+hzqtKCAzIEZ90waZ5OgiVFlkqcA0lzdkg==}
     peerDependencies:
       '@tauri-apps/api': '>=2'
       electron: '>=39'
@@ -11028,6 +11770,26 @@ packages:
     resolution: {integrity: sha512-xzvBr1Q1c4lCe7i6sRnrofxeO1QTP/LKQ6A6qy0iB4x5yfiSfARMEQEghojzTNALDTcv8En04qYNIco9/K9eZQ==}
     engines: {node: '>=v14.0.0', npm: '>=7.0.0'}
 
+  '@sec-ant/readable-stream@0.4.1':
+    resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
+
+  '@sherpaw/asr@0.2.1':
+    resolution: {integrity: sha512-cJN9B9MGcVA83nzJcY1dpBa89ZD2vvNhZPzsYgH7Pp1h7MbmDxOGM2eeE4AMAmGawQtVdWytSZ903SiZ8WMeOA==}
+    peerDependencies:
+      onnxruntime-web: 1.27.0
+    peerDependenciesMeta:
+      onnxruntime-web:
+        optional: true
+
+  '@sherpaw/preloader@0.2.1':
+    resolution: {integrity: sha512-iKSfK2AyHKZTrbTtDRZo06sWrI56BH5C4o7eCS+UJzK9I8bLgXyUvy4TafXCeJVG/owAr28xXU7J1BAn02wq6Q==}
+
+  '@sherpaw/shared@0.2.1':
+    resolution: {integrity: sha512-diadhrP2nXyy7wxSvEW/2H6CjgDIqek7OmDN/+zxplZYab8KvJS/gu0JWaFk5tuY+9wpNQqvt+OnASGCwwhh4A==}
+
+  '@sherpaw/xsai-transcription@0.2.1':
+    resolution: {integrity: sha512-Ee5StEYLvgFvRJlMbumLKqS1cXFcS0ADJrAUPW3njGh4WjFHhX6gJA/X3LC9lbITvXrNw3yJ/F0QmpkSXFKu4w==}
+
   '@shikijs/core@3.23.0':
     resolution: {integrity: sha512-NSWQz0riNb67xthdm5br6lAkvpDJRTgB36fxlo37ZzM2yq0PQFFzbd8psqC2XMPgCzo1fW6cVi18+ArJ44wqgA==}
 
@@ -11113,6 +11875,34 @@ packages:
   '@sindresorhus/merge-streams@2.3.0':
     resolution: {integrity: sha512-LtoMMhxAlorcGhmFYI+LhPgbPZCkgP6ra1YL604EeF6U98pLlQ3iWIGMdWSC+vWmPBWBNgmDBAhnAobLROJmwg==}
     engines: {node: '>=18'}
+
+  '@sindresorhus/merge-streams@4.0.0':
+    resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
+    engines: {node: '>=18'}
+
+  '@smithy/core@3.35.0':
+    resolution: {integrity: sha512-zRMhfkByhT2snNdr1si24vJitU6Cr9ix2MikUfWmkAgp4jrNP0GcKSP5YvwQ+TlI8AZXER5QOGJn3JsVtSD9/A==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/credential-provider-imds@4.5.2':
+    resolution: {integrity: sha512-A9uSdn72ozbRUSit0eib0TW7nXuNPlaeM0zcGkJ+nE6tFcSDbnmtwoxbTCFBukVQcszDAyvsd7+rTduPTXpygg==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/fetch-http-handler@5.8.0':
+    resolution: {integrity: sha512-ycSJu3tFAQ4v04CBB0agqFMVsSQ1iG3yw+SpgxRqKfaURpQD4CZ8Wn0zPMmSnOuTpTh65Vz+EA0rMrw089wvkA==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/node-http-handler@4.12.1':
+    resolution: {integrity: sha512-ThMkboGeONWXAelq9FvGsuJC4rOi+qyC4/zhUF58xYpxUg5sQKx2VXZYJmtNjr4dSuBJ1HeJXETQILCz3wOHvw==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/signature-v4@5.7.3':
+    resolution: {integrity: sha512-7ImGm+FkHRLcBaRttIAMZ6bzJZWb2cJGoYjq46F2UjycujWzrL9GEN9h4w7eQyXJYnltrUhxbbieBAIRrdqpow==}
+    engines: {node: '>=18.0.0'}
+
+  '@smithy/types@4.19.0':
+    resolution: {integrity: sha512-r7jh49VJxGerfAcTQA6gXcKc+98zOp/tqRwzYjgOE+iSQsP6cEU1hq2QzbuipmP68QtYdY9wKEhiCQZIzHgZ4Q==}
+    engines: {node: '>=18.0.0'}
 
   '@snazzah/davey-android-arm-eabi@0.1.12':
     resolution: {integrity: sha512-6VC/an+Sx5dI5skb+90rYcIB1jhm48Rl0nDaw0UNT4bz1rMjpVfmmZqeocYXMq96IdbBMlE6OTKGcBm2C3gkQg==}
@@ -11512,6 +12302,9 @@ packages:
   '@types/earcut@2.1.4':
     resolution: {integrity: sha512-qp3m9PPz4gULB9MhjGID7wpo3gJ4bTGXm7ltNDsmOvsPduTeHp8wSW9YckBj3mljeOh4F0m2z/0JKAALRKbmLQ==}
 
+  '@types/emscripten@1.41.6':
+    resolution: {integrity: sha512-uN+9i8bFT5CUcZfyIEYDrSueACEyKGbUs5kC/72DGlZZoinh84sJfVV0i8UOJD1asdzkvLPBRrKs41kZ8MdEXg==}
+
   '@types/esrecurse@4.3.1':
     resolution: {integrity: sha512-xJBAbDifo5hpffDBuHl0Y8ywswbiAp/Wi7Y/GtAgSlZyIABppyurxVueOPE8LUQOxdlgi6Zqce7uoEpqNTeiUw==}
 
@@ -11559,6 +12352,12 @@ packages:
   '@types/jsonfile@6.1.4':
     resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
 
+  '@types/jsonwebtoken@9.0.10':
+    resolution: {integrity: sha512-asx5hIG9Qmf/1oStypjanR7iKTv0gXQ1Ov/jfrX6kS/EO0OFni8orbmGCn0672NHR3kXHwpAwR+B368ZGN/2rA==}
+
+  '@types/jsrsasign@10.5.15':
+    resolution: {integrity: sha512-3stUTaSRtN09PPzVWR6aySD9gNnuymz+WviNHoTb85dKu+BjaV4uBbWWGykBBJkfwPtcNZVfTn2lbX00U+yhpQ==}
+
   '@types/katex@0.16.8':
     resolution: {integrity: sha512-trgaNyfU+Xh2Tc+ABIb44a5AYUpicB3uwirOioeOkNPPbmgRNtcWyDeeFRzjPZENO9Vq8gvVqfhaaXWLlevVwg==}
 
@@ -11585,6 +12384,9 @@ packages:
 
   '@types/mysql@2.15.27':
     resolution: {integrity: sha512-YfWiV16IY0OeBfBCk8+hXKmdTKrKlwKN1MNKAPBu5JYxLwBEZl7QzeEpGnlZb3VMGJrrGmB84gXiH+ofs/TezA==}
+
+  '@types/node-fetch@2.6.13':
+    resolution: {integrity: sha512-QGpRVpzSaUs30JBSGPjOg4Uveu384erbHBoT1zeONvyCfwQxIkUshLAOqN/k9EjGviPRmWTTe6aH2qySWKTVSw==}
 
   '@types/node-rsa@1.1.4':
     resolution: {integrity: sha512-dB0ECel6JpMnq5ULvpUTunx3yNm8e/dIkv8Zu9p2c8me70xIRUUG3q+qXRwcSf9rN3oqamv4116iHy90dJGRpA==}
@@ -12413,17 +13215,36 @@ packages:
     peerDependencies:
       '@xsai/generate-transcription': '>=0.5.0-beta.8 <0.6.0'
 
+  '@xsai-apple-vision/vision-electron-plugin@0.1.0':
+    resolution: {integrity: sha512-9vWu4wJqk4znsZ6100d0icKLAQz5vJRsDYnc301ARWpdtpBOI9GPHEXQV7zzokIr4zgcMydfhKt22WXFAJTqjQ==}
+    peerDependencies:
+      electron: '>=39'
+    peerDependenciesMeta:
+      electron:
+        optional: true
+
+  '@xsai-apple-vision/vision-native-darwin-arm64@0.1.0':
+    resolution: {integrity: sha512-VQ+/wAaWpuc8l8LCRhn8YROfuFX4aj/KQ7pfvTD8spMfxWnvt1KqB8HC2W5NaSKZKCFYFzArjKzav8Q4FOiqVg==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@xsai-apple-vision/vision-native@0.1.0':
+    resolution: {integrity: sha512-HwbgzRbV/GEvZUHGidzzJjk2ytYThMf9h+D/QV2kfuCAAJAlnQl6cuWPEjb1e+TSsUiGJrzuUlxsphMNMzHmFQ==}
+
+  '@xsai-apple-vision/vision@0.1.0':
+    resolution: {integrity: sha512-Q3XxBy3pqTtgpxuN7LzWHtwvpp8os4xKx54rRjmbOPkZUJ+5o0sJ6uK+XbwZuSpo+9LtDPfT/oP1vltFhwShgQ==}
+
   '@xsai-ext/providers@0.4.4':
     resolution: {integrity: sha512-PVk3IFOPzPyvss9zY6IO6pJ890F5B6LWGWuhU6DzofWMTnqcUzm0hR2Ml/Qo8kZa3Qy/DZkUT0O1T+5g/fZkWw==}
-
-  '@xsai-ext/providers@0.5.0':
-    resolution: {integrity: sha512-aCDgQfnyOZaDj3NDOuUnqYI3+IQB0a0uRnGYiwg3SbZiP+VIlcDrCj/5qlC9OeXs6VEH+Xxgyxs5SnM0BS4grQ==}
 
   '@xsai-ext/providers@0.5.0-beta.6':
     resolution: {integrity: sha512-DNvYbSN+/xQEYV2Kpq+4k2haZNGdQebZ06Zs87/0DHqSCyZyacFhHSriLQrkhFmDbDWI+2pVV+DRs0qjvHNa+w==}
 
-  '@xsai-ext/responses@0.5.0':
-    resolution: {integrity: sha512-b49cuZS/pt68xCgPmasis0cHM47kFXTrvhOT0IYFm++ehngqCYGGNOg5JGkEvCJo/lP6aAnHOnDFyi8akqUb5Q==}
+  '@xsai-ext/providers@0.5.1':
+    resolution: {integrity: sha512-OmyPnJDFh/P6Lt4t75zwZA6w1iTWxDuG4Gg/wQHVyKvB9CYCCIiOXXKDc9c89v/WgYtSHgGBzThG/EGkNtlKLQ==}
+
+  '@xsai-ext/responses@0.5.1':
+    resolution: {integrity: sha512-HD+ZrbTydbEHVDOMN8xuiM2LIW6FNGNT8lIlt6J38jb3KdWUw2bPul8hXwwB4Q422l2J84QeQYqphjh9eSaO4g==}
 
   '@xsai-ext/shared-providers@0.4.0-beta.12':
     resolution: {integrity: sha512-ME9L8BtapghM0W2SiTdulq0IvU3WR0h7dZ3k1bg/eXag2XUdbh1jy0zYY3oGmpMBmKXO8JXcArS1mq87gpsK0A==}
@@ -12451,44 +13272,41 @@ packages:
   '@xsai/embed@0.4.4':
     resolution: {integrity: sha512-3qKtjjerzola+ggmpfEgESbxQsTkPAKY/Y3hEZiDSFDbRc+3m1AHmMMW+kNiis+Fz+GK8/zDAeVUNMx457XntA==}
 
-  '@xsai/embed@0.5.0':
-    resolution: {integrity: sha512-paJrpzbFads8L/P5HCOHVXhncLfwh2UTeWDfEb3Zf/lkRRWZZfyc5rkYkxFRbq9TYw85y3gh4K9Rc74L/HOzNQ==}
+  '@xsai/embed@0.5.1':
+    resolution: {integrity: sha512-FUeEj31Q1f90NQ5N/JpAqFSubunJZWYpmvk+StZ8D9eSc5BZkTFtU9eZuSmTAgZlKj7phcw1WH6SoPQYqiwm9w==}
 
-  '@xsai/generate-speech@0.5.0':
-    resolution: {integrity: sha512-chOL/1M+qK3T0mRy/NMwQPqvJnQbKtZ7r4AJRsYsJmHSzMZAsW9sZENbPH/z0GbDRu5GpxFF+P00ULHxM4riag==}
-
-  '@xsai/generate-text@0.5.0':
-    resolution: {integrity: sha512-VONNlaayHgijhovG6cv8FGe0fpwRu+vB35IR4hhLKUQqBUHUrLczf6Mc9PyfbRniyKFwYO8icD0YbYCgGKa2Yg==}
+  '@xsai/generate-speech@0.5.1':
+    resolution: {integrity: sha512-LTUxzRwwEPqDLCV3ocDjIAPxGU3RtLZLjJ+pYvvfmlnVSBova0ySFbmgJJQPJoL3EIcDrcWVG6ft80yum7bkgQ==}
 
   '@xsai/generate-text@0.5.0-beta.6':
     resolution: {integrity: sha512-UVxruh9192qcYdkR4dxiWefBM2+Tp4+5fw3eR2DHTgXohnPKRZ5sJwQBNvJpZOUE648KsyvbU42Dwhwnacb/Pg==}
 
+  '@xsai/generate-text@0.5.1':
+    resolution: {integrity: sha512-HUFtaa6ekB3CsOGO+7TQN+prgNCwcRQoLkUaG4fpjMwhBi+OtMSRk6Rf2Ef/L+M7OvxsK3aTS1U6ZhXCL53nIA==}
+
   '@xsai/generate-transcription@0.4.4':
     resolution: {integrity: sha512-4xAOSHLSV0yAFo0YHxL1F31NbcUj/vIVEUsi+7FSvL/HuKicAvHyEnFoew9+vB0B0e9u9lvgJt8bd5rM0dxgbg==}
-
-  '@xsai/generate-transcription@0.5.0':
-    resolution: {integrity: sha512-qFTZkU5qJkZ8BSxc9CKP+P4hlukC9yxSJWl69clyV5/DyrFz9cXQc5qd+WjyM20GGa/7wAUoCCy2wao/JlIeXA==}
 
   '@xsai/generate-transcription@0.5.0-beta.8':
     resolution: {integrity: sha512-GrPYtuQzPT/3RdSiIClKREZRupfoExwFfzA3SUArDDTGWrfKlEAFtpln8WcAfcL73Ul/zfjaWwr3x2D+jkMtnw==}
 
-  '@xsai/model@0.5.0':
-    resolution: {integrity: sha512-54PhfpIi4w9Gq+d1gZpTiS7ejVBOJZw8+ylQUya41c+C/kn80L6oFAf7gW/FNiHOrgXYxajkSOIaWXK71jAV1w==}
+  '@xsai/generate-transcription@0.5.1':
+    resolution: {integrity: sha512-Jkf7QFzfqtFn/MadYh+PiurnmGB7si2VX23zJwWzNufGq/cNnJWMaooC2sMTcLqL0YtvriRPfrvIWUBv7nHHUA==}
 
-  '@xsai/shared-chat@0.5.0':
-    resolution: {integrity: sha512-y3hr0vqul6BHPNmwnGEbIgC/P7eVyRgik+srdGYDJc+IsCBlD0Aw2QhmxJtQd89XrJkv0XN9GG7/5HoDLpYeOw==}
+  '@xsai/model@0.5.1':
+    resolution: {integrity: sha512-KTVFwevD2s9XAzPK4y0IJ9SCld1bxL39xMXeVNG1UxX+TTe7ZagUVYsdEEhyRkpR+jSMsMLfzrpPkWjLTtGb3A==}
 
   '@xsai/shared-chat@0.5.0-beta.6':
     resolution: {integrity: sha512-0j9/UfYlpjU0ngXjHIEpFfj+nQFIezHivj3VWgf85kn+0RsVNMCX48QKF1nk2VmPDM1LEYXv0fCAftRyP44wFQ==}
 
-  '@xsai/shared-stream@0.5.0':
-    resolution: {integrity: sha512-SYCrnjD63Uc2JaxuN+nLKNq24Csspz/+fqHIXFVMQXwoNUuNZzPUd1fverPYJmQ2IGCvdQD6+Jue7rm6OQTJZA==}
+  '@xsai/shared-chat@0.5.1':
+    resolution: {integrity: sha512-BUGPc9JBgY+72AklrXG/6BTd9mX1tbn/Xbmjm3a83fXAA1ooAYhevfmCO8yUudeeuhPNHNYzOGwPVc27BJgc3w==}
+
+  '@xsai/shared-stream@0.5.1':
+    resolution: {integrity: sha512-+yOgmQgFFJsUVAqoU44cunraSTEJWyONHBkidW+tHvA3vGRxE5R17lIaf3uJ7vNuvBf3mlUVRkUEuMJ9AE+gUg==}
 
   '@xsai/shared@0.4.4':
     resolution: {integrity: sha512-ZrOeRJ0fqV8YRDwyQbYJx1N8Fe2UTl2psjV7ucYJ+gMr3oWzrmNfTX9zrpV9zwzBMUe6VvqhK/iJzz8p4jYlsw==}
-
-  '@xsai/shared@0.5.0':
-    resolution: {integrity: sha512-o8arA7Lew9pedOG2bmbLLpmjLU9DyYqW6ByvHK1pxQdhLDRRngyDA8PeEFHwn1SZ0shuedNhI5vYfYIGaUvJ5w==}
 
   '@xsai/shared@0.5.0-beta.6':
     resolution: {integrity: sha512-fE3+vEzDe+NftOIYbxdjFtnTAaHpYBCQ2Bsa/9vfQ03l9Mz9KeC83bOdiz/pvndrBlARtVhZC26h4wnRK3/A0A==}
@@ -12496,17 +13314,20 @@ packages:
   '@xsai/shared@0.5.0-beta.8':
     resolution: {integrity: sha512-oXIP5KPPdyKJu0UKZfxOckCU60EBEY6Ds6hAYtsjH2chXmLmsBkH9R+163Eki4fBXaLz/v8+iwfsHgrkxRig4g==}
 
-  '@xsai/stream-text@0.5.0':
-    resolution: {integrity: sha512-JmWQl9kiobGyWEjU3N68aFsiN6u+0okm6eT/G6n4/C/XznF0nAgj8BhEAxfFE+Jq+YA9Gl4iukUdbt/JzBGtmw==}
+  '@xsai/shared@0.5.1':
+    resolution: {integrity: sha512-Zj27Q46a85zTwWgLz8e+l+/Ajja70LYdLu4FHlwMTaY9OzcAAnpFTgtvpEAmqpnJjW92QmwiYOJg/mEBP3gfNA==}
 
-  '@xsai/stream-transcription@0.5.0':
-    resolution: {integrity: sha512-M7P3ilN6A2QF1dY3XW7S/Wk+ezaF/kc5zAVRlh8k3E35NV1SfwtoJunm+cZ2E2uc66RFFZXWldq+BjjPLuOhWQ==}
+  '@xsai/stream-text@0.5.1':
+    resolution: {integrity: sha512-wNPYnIl4V88mkos80JoaZHmOElFGz7NnEz4R/OiJ6bHEko9qXXLvXHWk5DSGs6B/fjDvlNg+hEqCnYNtrqGShg==}
 
-  '@xsai/tool@0.5.0':
-    resolution: {integrity: sha512-Wg70lQ5bAvnATYV3W32kbGpivaKbvMoFNA4ZcFk66Ttfjjf6HSI0KrtZS+VR2FlCSbP1Nc9zYc6qtd6rE9P27w==}
+  '@xsai/stream-transcription@0.5.1':
+    resolution: {integrity: sha512-Jj9ecfD+INCRfYLT1HL9cJCZTjdQ1Q0LboOiDV7gWyEC9bSETPazR91/lV0eg516+JspXmzwFXs04WYhw7WKsw==}
 
-  '@xsai/utils-chat@0.5.0':
-    resolution: {integrity: sha512-z6HZHngL1q9Uasc8L0uQkeGXc7UzqY5LSTc2eYW7EjEgFK4WjGt7iTo0TM+p/ruoQHKy8AAigMkmUQcuGvwPlA==}
+  '@xsai/tool@0.5.1':
+    resolution: {integrity: sha512-+n68DvQRS9Q+Oya+vwcx5QKfjqXCYluQqb3M2OdNzsW2qxvzs9mYSLiIHaTqaoU/fxD3rfKuH9JC19PLQlPPGw==}
+
+  '@xsai/utils-chat@0.5.1':
+    resolution: {integrity: sha512-JhwPPGq8MgwyAYWlBRNta4VYwSYusyddyZzxShwump3ruRjD3iNUK0w3cUMgLtCNt+/j/oJFNzf5Su0VNGbxmg==}
 
   '@xstate/fsm@1.6.5':
     resolution: {integrity: sha512-b5o1I6aLNeYlU/3CPlj/Z91ybk1gUsKT+5NAJI+2W4UjvS5KLG28K9v5UvNoFVjHV8PajVZ00RH3vnjyQO7ZAw==}
@@ -12515,133 +13336,157 @@ packages:
     resolution: {integrity: sha512-C/0zV5IhgVdYhGJTwrY0v8dknxlhiKwtVJkMUaexu9/QvRmzlV4vfU3hZlUSgqc2BxQHntL1mCVbDq8j0FRFDw==}
     cpu: [arm64]
     os: [android]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-darwin-arm64@0.8.7':
     resolution: {integrity: sha512-/u+REDMI4a0/lsJXTM4c53/w31OGZLOReZIyg62uhgLs0kc8NHsj/nOcxTdlQjq5gi0zhdkccD9LaLTXcdzPvw==}
     cpu: [arm64]
     os: [darwin]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-darwin-x64@0.8.7':
     resolution: {integrity: sha512-sMMzFOwCo4WXR+/6zIBThOocSC50iIIZZdfiIDbaLvj0Ax/rWt/iavyfEAqajyvzydLyCqR/ZItdLWSRlu1umw==}
     cpu: [x64]
     os: [darwin]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-freebsd-x64@0.8.7':
     resolution: {integrity: sha512-MpdpKXix9P+Y1rKgjvcNeNtGjXeL1CmttNhYINrWls8kRpm4xM/oBGTmn6w7to8lAlwj5jm8q03dQPl5mRv4Qw==}
     cpu: [x64]
     os: [freebsd]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-gnu@0.8.7':
     resolution: {integrity: sha512-rr1srFLlPAmC1vtxfc9C1YLDe3iH09YjfSeeIidBqKhzx1MATjOAq4mjlRUOnhr/L27MotWIYOFKwVsd5JZFOg==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm-musl@0.8.7':
     resolution: {integrity: sha512-eAufXh8qBRpiSO6ueaMDL+yyoXIGLhpUce72YbcACtZU2qhExwBIJyEtQf5kH2Ki0X2aqkSjSfog4OPtKXan3Q==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-gnu@0.8.7':
     resolution: {integrity: sha512-gw4w6wPoHObBrdIC4duVWLmJOvpdE25j5D7yrM5mACNlK4klRz/lv8hK+ssQk9EJHBgZjSaqZIJVFgqNYbfv7A==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-arm64-musl@0.8.7':
     resolution: {integrity: sha512-L68N6Y4XkqcIaKo3Ra88JEvBEH4AHff44A4INcrxeVWZ8CZtu2tCpfVxe3hR8qQQMcvBSQlDn24KpkCKEhVvfA==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-gnu@0.8.7':
     resolution: {integrity: sha512-dzyAbltJmf3Cqlb8HcFuYIf5Yn0fl1vTr3XJ9HiVNNvOlhqPSArOqtw9vI1p6/VTXTjrMLXlU+s+/kNHiIy/Cw==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-linux-x64-musl@0.8.7':
     resolution: {integrity: sha512-Otw4MH3404q0Bbvl+YTdW9aoUV5vXmUw8260bWvt1XlaoIX/ceSgI4ygheRDMfBPoHt6FDayQaO9OLVUZAgkFA==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-win32-arm64@0.8.7':
     resolution: {integrity: sha512-qo/jyrzryiBuKEsFiuWaBCBe3tRMynQ0qFWFgOEjcCMQeZfBm+wKiVEUEFXXLc7bh8YezguAWp0Mtnhq4ARNyA==}
     cpu: [arm64]
     os: [win32]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-codegen/binding-win32-x64@0.8.7':
     resolution: {integrity: sha512-D5lDsVDx6m00E6bWySlWdH72Ca4TPSaphDqB6QjU6MpuNLIJqoGoatYyq2rOmBE8Zv/kunot/o58KGL03P3eiA==}
     cpu: [x64]
     os: [win32]
+    deprecated: yuku-codegen is pure JavaScript since 0.14
 
   '@yuku-parser/binding-android-arm64@0.8.7':
     resolution: {integrity: sha512-eGKYiUDX7Y0V7tDTmg+JTVnXnjMqfXXsorZ+EDf5kxwchQ3Or1HS14MzI2fw+jFhHR85fCWt+mtX33Yao73hIQ==}
     cpu: [arm64]
     os: [android]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-darwin-arm64@0.8.7':
     resolution: {integrity: sha512-Re0RHelKLnjEURulY2/KxW+Ngb8zuNA4BRZuMwgGQNzVumT6u4U2N2hc01oeYVNVof0i7GrXE4UCNBgbpRRnjQ==}
     cpu: [arm64]
     os: [darwin]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-darwin-x64@0.8.7':
     resolution: {integrity: sha512-Hn8DROtQkjlA1ACbPgj4a7eP9IuVOI504oiTwpkWPbpaDWD9KdmnVYCqW+1LfenNK/g7O9NhWGpXEdaCNX7lIA==}
     cpu: [x64]
     os: [darwin]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-freebsd-x64@0.8.7':
     resolution: {integrity: sha512-bAP2OV8wRuzplX/jYxv9+vvqQT8JxyNphI8fLfXGL054Xs+4/J5u33cIm3y4rxY8rdoLmmdiJs2Tq7r7lrDRfA==}
     cpu: [x64]
     os: [freebsd]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-gnu@0.8.7':
     resolution: {integrity: sha512-kTYwJQQgmZeAWdDIWabiReIZMpmfLueIj1tCmjStUtFGhR1Z0qwxonKVfUC4N7h/VhGGzLZ//7O1kgt1QKqgCg==}
     cpu: [arm]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm-musl@0.8.7':
     resolution: {integrity: sha512-uL4jE8HPT2BLlxAXyD10LqgPuXa9eDa0BKpCdSANmzIJghq/2eZo3/gQNtaxPZMupWoxjYzSad9IXrwu7aYPXQ==}
     cpu: [arm]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-gnu@0.8.7':
     resolution: {integrity: sha512-3gVN4pWSKZmXiNX7cU164dR9MPvesCHnlH6nPfpK+yQsCuYphjKKplcb4SnZBrhiqmXbgb2HR0c2TS0IZUPhgA==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-arm64-musl@0.8.7':
     resolution: {integrity: sha512-S0mwfEjoLpxzXeZw802Wa4RaELsQiPtWqG6INcy8j4GtvNFtl4LCX3eGO1XLn9pyLAISLzTRyU3zUCBUPin8lg==}
     cpu: [arm64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-gnu@0.8.7':
     resolution: {integrity: sha512-lnbWdPmerE5D1uH1G4IEZKnPzCrWCStRGrtgpSIe1RibAo5bZIjDbbbPYXmMHCEh4F+x/JaJpElh26a3r+BPbg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-linux-x64-musl@0.8.7':
     resolution: {integrity: sha512-769uwndMvMzUvATWbAcEvyLHKA+DzhHSCl/obBUrRdYfRo26yxui6S8y3z7uJ+Naup7UKrDxrpK7OnQkxkl9KQ==}
     cpu: [x64]
     os: [linux]
     libc: [musl]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-win32-arm64@0.8.7':
     resolution: {integrity: sha512-mEB/9PlaAkisJ6KWGz0zvywXoU6+80dTlR2LwS7s/jcXXoU6fm2+sitBZXtqu3+Q4DcDgPxM45uWMCzPs0TSRw==}
     cpu: [arm64]
     os: [win32]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-parser/binding-win32-x64@0.8.7':
     resolution: {integrity: sha512-8vNB2DP0ou61nGb8tc/qfi41gfyDXz1MHr2zqL3nR+cJ6CEbiuWV/l/a/vv151gCgiZLLAyGkQGENpozdg716w==}
     cpu: [x64]
     os: [win32]
+    deprecated: yuku-parser runs on yuku-core since 0.14
 
   '@yuku-toolchain/types@0.8.7':
     resolution: {integrity: sha512-2Z53dNxAJL6UvFoIrDZvYf3zlO8s4VJK4O2hhaB4mXVwwpX/7ajtss3cmfqKvamlNLWyt9FSWs4eoYdlbxpnHA==}
@@ -12967,6 +13812,10 @@ packages:
     resolution: {integrity: sha512-lGe34o6EHj9y3Kts9R4ZYs/Gr+6N7MCaMlIFA3F1R2O5/m7K06AxfSeO5530PEERE6/WyEg3lsuyw4GHlPZHog==}
     engines: {node: ^4.5.0 || >= 5.9}
 
+  base64url@3.0.1:
+    resolution: {integrity: sha512-ir1UPr3dkwexU7FdV8qBBbNDRUhMmIekYMFZfi+C/sLNnRESKPl23nB9b2pltqfOQNnGzsDdId90AEtG5tCx4A==}
+    engines: {node: '>=6.0.0'}
+
   baseline-browser-mapping@2.11.18:
     resolution: {integrity: sha512-1iEmLEYSiE1SeBoAfPo/Mnx3PzfzHUkDK61ASkCpuk3YXugYLH5DYK1SzqV55F8FMI6s0F+/tCP7Polz1QRjxw==}
     engines: {node: '>=6.0.0'}
@@ -13175,6 +14024,9 @@ packages:
     resolution: {integrity: sha512-d0II/GO9uf9lfUHH2BQsjxzRJZBdsjgsBiW4BvhWk/3qoKwQFjIDVN19PfX8F2D/r9PCMTtLWjYVCFrpeYUzsw==}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
+  bowser@2.14.1:
+    resolution: {integrity: sha512-tzPjzCxygAKWFOJP011oxFHs57HzIhOEracIgAePE4pqB3LikALKnSzUyU4MGs9/iCEUuHlAJTjTc5M+u7YEGg==}
+
   bplist-creator@0.1.0:
     resolution: {integrity: sha512-sXaHZicyEEmY86WyueLTQesbeoH/mquvarJaQNbjuOQO+7gbFcDEWqKmcWA4cOTLzFlfgvkiVxolk1k5bBIpmg==}
 
@@ -13333,6 +14185,10 @@ packages:
 
   caseless@0.12.0:
     resolution: {integrity: sha512-4tYFyifaFfGacoiObjJegolkwSU4xQNGbVgUiNYVUxbQ2x2lUsFvY4hVgVzGiIe6WLOPqycWXA40l+PWsxthUw==}
+
+  cborg@4.5.8:
+    resolution: {integrity: sha512-6/viltD51JklRhq4L7jC3zgy6gryuG5xfZ3kzpE+PravtyeQLeQmCYLREhQH7pWENg5pY4Yu/XCd6a7dKScVlw==}
+    hasBin: true
 
   ccount@2.0.1:
     resolution: {integrity: sha512-eyrF0jiFpY+3drT6383f1qhkbGsLSifNAjA61IUjZjmLCWjItY6LB9ft9YhoDgwfmclB2zhu51Lc7+95b8NRAg==}
@@ -14821,6 +15677,10 @@ packages:
     resolution: {integrity: sha512-CRT1WTyuQoD771GW56XEZFQ/ZoSfWid1alKGDYMmkt2yl8UXrVR4pspqWNEcqKvVIzg6PAltWjxcSSPrboA4iA==}
     engines: {node: '>=18.0.0'}
 
+  execa@9.6.1:
+    resolution: {integrity: sha512-9Be3ZoN4LmYR90tUoVu2te2BsbzHfhJyfEiAVfz7N5/zv+jduIfLrV2xdQXOHbaD6KgpGdO9PRPM1Y4Q9QkPkA==}
+    engines: {node: ^18.19.0 || >=20.5.0}
+
   exif-parser@0.1.12:
     resolution: {integrity: sha512-c2bQfLNbMzLPmzQuOr8fy0csy84WmwnER81W88DzTp9CYNPJ6yzOj2EZAh9pywYpqHnshVLHQJ8WzldAyfY+Iw==}
 
@@ -14941,6 +15801,10 @@ packages:
 
   fflate@0.8.3:
     resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
+
+  figures@6.1.0:
+    resolution: {integrity: sha512-d+l3qxjSesT4V7v2fh+QnmFnUWv9lSpjarhShNTgBOfA0ttejbQUAlHLitbjkoRiDulW0OPoQPYIGhIC8ohejg==}
+    engines: {node: '>=18'}
 
   file-entry-cache@8.0.0:
     resolution: {integrity: sha512-XXTUwCvisa5oacNGRP9SfNtYBNAMi+RPwBFmblZEF7N7swHYQS6/Zfk7SRwx4D5j3CH211YNRco1DEMNVfZCnQ==}
@@ -15199,6 +16063,10 @@ packages:
     resolution: {integrity: sha512-nBF+F1rAZVCu/p7rjzgA+Yb4lfYXrpl7a6VmJrU8wF9I1CKvP/QwPNZHnOlwbTkY6dvtFIzFMSyQXbLoTQPRpA==}
     engines: {node: '>=8'}
 
+  get-stream@9.0.1:
+    resolution: {integrity: sha512-kVCxPF3vQM/N0B1PmoqVUqgHP+EeVjmZSQn+1oCRPxd2P21P2F19lIgbR3HBosbB1PUhOAoctJnfEn2GbN2eZA==}
+    engines: {node: '>=18'}
+
   get-tsconfig@4.14.1:
     resolution: {integrity: sha512-Dz/6HxkrxgNehhxLVeyv8sad9UzF2xBVeaKBQNDfJ5XiSXmp2gTR0eO0RWiT2NCKS5aGP9jjkOMggTN90qU50A==}
 
@@ -15219,6 +16087,10 @@ packages:
 
   gifwrap@0.10.1:
     resolution: {integrity: sha512-2760b1vpJHNmLzZ/ubTtNnEx5WApN/PYWJvXvgS+tL1egTTthayFYIQQNi136FLEDcN/IyEY2EcGpIITD6eYUw==}
+
+  giget@3.3.0:
+    resolution: {integrity: sha512-gzi2D96p+AMfDcmJHGDj3KJ9NRiwvlFAU5yfa3ROwWZmFUjX4P43x3BcyRaOMMLto1vUo7C+86+MFhYTl6Ryiw==}
+    hasBin: true
 
   giget@3.3.1:
     resolution: {integrity: sha512-r+mvuDjrjMpsdw46Kmeydb8bdHm7wOKw8wNBtTndkjbPjgAp5oUJUxRE76wZFknxIPokfWvep2qSXK37aXE6zg==}
@@ -15544,6 +16416,10 @@ packages:
     resolution: {integrity: sha512-vK9P5/iUfdl95AI+JVyUuIcVtd4ofvtrOr3HNtM2yxC9bnMbEdp3x01OhQNnjb8IJYi38VlTE3mBXwcfvywuSw==}
     engines: {node: '>= 14'}
 
+  human-signals@8.0.1:
+    resolution: {integrity: sha512-eKCa6bwnJhvxj14kZk5NCPc6Hb6BdsU9DZcOnmQKSnO1VKrfV0zCvtttPZUsBvjmNDn8rpcJfpwSYnHBjc95MQ==}
+    engines: {node: '>=18.18.0'}
+
   iconv-lite@0.4.24:
     resolution: {integrity: sha512-v3MXnZAcvnywkTUEZomIActle7RXXeedOR31wwl7VlyoXO4Qi9arvSenNQWne1TcRwhCL1HwLI21bEqdpj8/rA==}
     engines: {node: '>=0.10.0'}
@@ -15619,6 +16495,10 @@ packages:
   ini@4.1.3:
     resolution: {integrity: sha512-X7rqawQBvfdjS10YU1y1YVreA3SsLrW9dX2CewP2EbBJM4ypVNLDkO5y04gejPwKIY9lR+7r9gn3rFPt/kmWFg==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
+
+  ini@7.0.0:
+    resolution: {integrity: sha512-ifK0CgjALofS5bkrcTy4RaQ9Vx2Knf/eLeIO+NaswQEpH1UblrtTSCIvN71qQDMq0PeQ/SSPojvEJp9vvvfr+w==}
+    engines: {node: ^22.22.2 || ^24.15.0 || >=26.0.0}
 
   injeca@0.2.0:
     resolution: {integrity: sha512-uV++UZJQMx/wGzIFQzPB1/+3Xc3QQxZ0zvFZFyNlcSpbNqcn/8X7vGvRM2K9Nrj1qMsodQhAhCHP4GCMhXrDfQ==}
@@ -15760,8 +16640,16 @@ packages:
     resolution: {integrity: sha512-hFoiJiTl63nn+kstHGBtewWSKnQLpyb155KHheA1l39uvtO9nWIop1p3udqPcUd/xbF1VLMO4n7OI6p7RbngDg==}
     engines: {node: '>=8'}
 
+  is-stream@4.0.1:
+    resolution: {integrity: sha512-Dnz92NInDqYckGEUJv689RbRiTSEHCQ7wOVeALbkOz999YpqT46yMRIGtSNl2iCL1waAZSx40+h59NV/EwzV/A==}
+    engines: {node: '>=18'}
+
   is-typedarray@1.0.0:
     resolution: {integrity: sha512-cyA56iCMHAh5CdzjJIa4aohJyeO1YbwLi3Jc35MmRU6poroFjIGZzUzupGiRPOjgHg9TLu43xbpwXk523fMxKA==}
+
+  is-unicode-supported@2.1.0:
+    resolution: {integrity: sha512-mE00Gnza5EEB3Ds0HfMyllZzbBrmLOX3vfWoj9A9PEnTfratQ/BcaJOuMhnkhjXvb2+FkY3VuHqtAGpTPmglFQ==}
+    engines: {node: '>=18'}
 
   is-what@4.1.16:
     resolution: {integrity: sha512-ZhMwEosbFJkA0YhFnNDgTM4ZxDRsS6HqTo7qsZM08fehyRYIYa0yHu5R6mgo1n/8MgaPBXiPimPD77baVFYg+A==}
@@ -15962,6 +16850,10 @@ packages:
     resolution: {integrity: sha512-P2bSOMAc/ciLz6DzgjVlGJP9+BrJWu5UDGK70C2iweC5QBIeFf0ZXRvGjEj2uYgrY2MkAAhsSWHDWlFtEroZWw==}
     engines: {node: '>=0.6.0'}
 
+  jsrsasign@11.1.5:
+    resolution: {integrity: sha512-i6mAjey0/4UQmlOaNS2vROl8EkWV8Ei436reJAby2OPQ3lF6uXSs1VYpnM8hndmmCMFIzNc04Uw2GF+0JVLFbg==}
+    deprecated: This package is no longer maintained.
+
   jsx-ast-utils-x@0.1.0:
     resolution: {integrity: sha512-eQQBjBnsVtGacsG9uJNB8qOr3yA8rga4wAaGG1qRcBzSIvfhERLrWxMAM1hp5fcS6Abo8M4+bUBTekYR0qTPQw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
@@ -15985,6 +16877,10 @@ packages:
   kind-of@6.0.3:
     resolution: {integrity: sha512-dcS1ul+9tmeD95T+x28/ehLgd9mENa3LsvDTtzm3vyBEO7RPptvAD+t44WVXaUjTBRcrpFeFlC8WCruUR456hw==}
     engines: {node: '>=0.10.0'}
+
+  kirie@0.7.0:
+    resolution: {integrity: sha512-45KZUHESAFxY145U3pwvkxKdzARBn6LBfvq/akeiXtvo8Lfj2xARsGDHQHWzeGf81S8F0OBmiDrfBhIEAa1O6g==}
+    hasBin: true
 
   klaw@1.3.1:
     resolution: {integrity: sha512-TED5xi9gGQjGpNnvRWknrwAB1eL5GciPfVFOt3Vk1OJCVDQbzuSfrF3hkUQKlsgKrG1F+0t5W0m+Fje1jIt8rw==}
@@ -16863,6 +17759,10 @@ packages:
   nostics@1.2.0:
     resolution: {integrity: sha512-FGqEfhQjrvo1lL8KFifdTQiNwwQHJxC1jtYE1Rc54qF/jxONUNL+kC9gS1krX8Q65PgrQ5fCqH/I4NhWBvdSqg==}
 
+  npm-run-path@6.0.0:
+    resolution: {integrity: sha512-9qny7Z9DsQU8Ou39ERsPU4OZQlSTP47ShQzuKZ6PRXpYLtIFgl/DEBYEXKlvcEa+9tHVcK8CF81Y2V72qaZhWA==}
+    engines: {node: '>=18'}
+
   nprogress@0.2.0:
     resolution: {integrity: sha512-I19aIingLgR1fmhftnbWWO3dXc0hSxqHQHQb3H8m+K3TnEn/iSeTZZOyvKXWqQESMwuUVnatlCnZdLBZZt2VSA==}
 
@@ -17071,6 +17971,10 @@ packages:
   parse-imports-exports@0.2.4:
     resolution: {integrity: sha512-4s6vd6dx1AotCx/RCI2m7t7GCh5bDRUtGNvRfHSP2wbBQdMi67pPe7mtzmgwcaQ8VKK/6IB7Glfyu3qdZJPybQ==}
 
+  parse-ms@4.0.0:
+    resolution: {integrity: sha512-TXfryirbmq34y8QBwgqCVLi+8oA3oWx2eAnSn62ITyEhEYaWRlVZ2DvMM9eZbMs/RfxPu/PK/aBLyGj4IrqMHw==}
+    engines: {node: '>=18'}
+
   parse-node-version@1.0.1:
     resolution: {integrity: sha512-3YHlOa/JgH6Mnpr05jP9eDG254US9ek25LyIxZlDItp2iJtwyaXQb57lBYLdT3MowkUFYEV2XXNAYIPlESvJlA==}
     engines: {node: '>= 0.10'}
@@ -17116,6 +18020,10 @@ packages:
   path-key@3.1.1:
     resolution: {integrity: sha512-ojmeN0qd+y0jszEtoY48r0Peq5dwMEkIlCOu6Q5f41lfkswXuKtYrhgoTpLnyIcHm24Uhqx+5Tqm2InSwLhE6Q==}
     engines: {node: '>=8'}
+
+  path-key@4.0.0:
+    resolution: {integrity: sha512-haREypq7xkM7ErfgIyA0z+Bj4AGKlMSdlQE2jvJo6huWD1EdkKYV+G/T4nq0YEF2vgTT8kqMFKo1uHn950r4SQ==}
+    engines: {node: '>=12'}
 
   path-parse@1.0.7:
     resolution: {integrity: sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw==}
@@ -17405,6 +18313,10 @@ packages:
   pretty-bytes@6.1.1:
     resolution: {integrity: sha512-mQUvGU6aUFQ+rNvTIAcZuWGRT9a6f6Yrg9bHs4ImKF+HZCEK+plBvnAZYSIQztknZF2qnzNtr6F8s0+IuptdlQ==}
     engines: {node: ^14.13.1 || >=16.0.0}
+
+  pretty-ms@9.3.1:
+    resolution: {integrity: sha512-HzMy3Geq23nVALD/M2LliU+F+M+gVNsvkQWWqeBZ8HDiCgzo6YPJ/Omrmtq24EFrIsk0a3EkQGEd7bDOo+IhGA==}
+    engines: {node: '>=18'}
 
   prism-media@1.3.5:
     resolution: {integrity: sha512-IQdl0Q01m4LrkN1EGIE9lphov5Hy7WWlH6ulf5QdGePLlPas9p2mhgddTEHrlaXYjjFToM1/rWuwF37VF4taaA==}
@@ -18308,6 +19220,10 @@ packages:
     resolution: {integrity: sha512-ZprKx+bBLXv067WTCALv8SSz5l2+XhpYCsVtSqlMnkAXMWDq+/ekVbl1ghqP9rUHTzv6sm/DwCOiYutU/yp1fw==}
     engines: {node: '>=10'}
 
+  strip-final-newline@4.0.0:
+    resolution: {integrity: sha512-aulFJcD6YK8V1G7iRB5tigAP4TsHBZZrOV8pjV++zdUwmeV8uzbY7yn6h9MswN62adStNZFuCIx4haBnRuMDaw==}
+    engines: {node: '>=18'}
+
   strip-indent@4.1.1:
     resolution: {integrity: sha512-SlyRoSkdh1dYP0PzclLE7r0M9sgbFKKMFXpFRUMNuKhQSbC6VQIGzq3E0qsfvGJaUFJPGv6Ws1NZ/haTAjfbMA==}
     engines: {node: '>=12'}
@@ -18409,6 +19325,10 @@ packages:
   tagged-tag@1.0.0:
     resolution: {integrity: sha512-yEFYrVhod+hdNyx7g5Bnkkb0G6si8HJurOoOEgC8B/O0uXLHlaey/65KRv6cuWBNhBgHKAROVpc7QyYqE5gFng==}
     engines: {node: '>=20'}
+
+  takanawa-node@0.9.0:
+    resolution: {integrity: sha512-Gf0qk8GIAEXwcxvbu3KxRlFew0fI/IdCcU0nbR/Qp9+/1leLhhAiDPF42GDZ+Ff4Za8lAx/nqyyelzYzmrGqdQ==}
+    engines: {node: '>=18.17.0'}
 
   tapable@2.3.3:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
@@ -19684,6 +20604,9 @@ packages:
     resolution: {integrity: sha512-d2JWLCivmZYTSIoge9MsgFCZrt571BikcWGYkjC1khllbTeDlGqZ2D8vD8E/lJa8WGWbb7Plm8/XJYV7IJHZZw==}
     engines: {node: '>= 8'}
 
+  web-worker@1.5.0:
+    resolution: {integrity: sha512-RiMReJrTAiA+mBjGONMnjVDP2u3p9R1vkcGz6gDIrOMT3oGuYwX2WRMYI9ipkphSuE5XKEhydbhNEJh4NY9mlw==}
+
   webcrypto-core@1.9.2:
     resolution: {integrity: sha512-gsXecm82UQNlTBURJGuqOWy1Ww08S3kZUcr3aOJS02Pk0xLtkfeUAVC0u0xhgdonFme80edSJUIJyuvL/7250Q==}
 
@@ -19910,8 +20833,8 @@ packages:
   xsai-chromium-prompt@0.2.2:
     resolution: {integrity: sha512-XL7s/L9WhxRMUl3DOCq1F+WkL2QanfgT8N3A/8g1/5E1wsL8vmOWnBCOW6p7gpwDLHZ+/kNT7SXenk6ILwCNNw==}
 
-  xsschema@0.5.0:
-    resolution: {integrity: sha512-7hZNbGQmZTL5qVg8VwA8Ad/r9fFPFNdCoWQRfisN/3p/+riicAZSspLi0/wAz3KJ2v8lhZMyl2BkEMSGfsF2HA==}
+  xsschema@0.5.1:
+    resolution: {integrity: sha512-nbBaA90Z2mKhD6CiVUH2B2shrRih3f7qHk49pdV/jvkiR2JgMzYq4vJ0jOWCRoZQtoyHRqN0BDK48kFKdWp1HA==}
     peerDependencies:
       '@valibot/to-json-schema': ^1.0.0
       arktype: ^2.1.20
@@ -20145,10 +21068,10 @@ snapshots:
       '@alint-js/utils': 0.6.0
       '@moeru/std': 0.1.0-beta.20
       '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
-      '@xsai/generate-text': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/stream-text': 0.5.0
-      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/generate-text': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/stream-text': 0.5.1
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       es-toolkit: 1.51.0
       minimatch: 10.2.6
       oxc-parser: 0.142.0
@@ -20288,11 +21211,11 @@ snapshots:
 
   '@apeira/core@0.0.7(zod@4.4.3)':
     dependencies:
-      '@xsai-ext/responses': 0.5.0(patch_hash=58f91d94e326cbd7359ae644b6c86dad09128ffc8fd0a7eceef2b90117d44ef5)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/stream-text': 0.5.0
-      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai-ext/responses': 0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/stream-text': 0.5.1
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
       yocto-queue: 1.2.2
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
@@ -20315,6 +21238,19 @@ snapshots:
       ajv: 8.20.0
       jsonpointer: 5.0.1
       leven: 3.1.0
+
+  '@apple/app-store-server-library@3.1.0':
+    dependencies:
+      '@types/jsonwebtoken': 9.0.10
+      '@types/jsrsasign': 10.5.15
+      '@types/node': 25.9.5
+      '@types/node-fetch': 2.6.13
+      base64url: 3.0.1
+      jsonwebtoken: 9.0.3
+      jsrsasign: 11.1.5
+      node-fetch: 2.7.0
+    transitivePeerDependencies:
+      - encoding
 
   '@arethetypeswrong/core@0.18.5':
     dependencies:
@@ -20395,6 +21331,180 @@ snapshots:
       es-toolkit: 1.51.0
       std-env: 4.2.0
       tinyexec: 1.3.0
+
+  '@aws-sdk/checksums@3.1001.1':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/client-s3@3.1139.0':
+    dependencies:
+      '@aws-sdk/checksums': 3.1001.1
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/credential-provider-node': 3.972.84
+      '@aws-sdk/middleware-sdk-s3': 3.972.77
+      '@aws-sdk/signature-v4-multi-region': 3.996.47
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/core@3.978.1':
+    dependencies:
+      '@aws-sdk/types': 3.974.6
+      '@aws-sdk/xml-builder': 3.972.41
+      '@aws/lambda-invoke-store': 0.3.0
+      '@smithy/core': 3.35.0
+      '@smithy/signature-v4': 5.7.3
+      '@smithy/types': 4.19.0
+      bowser: 2.14.1
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-env@3.972.72':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-http@3.972.74':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-ini@3.973.17':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/credential-provider-env': 3.972.72
+      '@aws-sdk/credential-provider-http': 3.972.74
+      '@aws-sdk/credential-provider-login': 3.972.79
+      '@aws-sdk/credential-provider-process': 3.972.72
+      '@aws-sdk/credential-provider-sso': 3.973.16
+      '@aws-sdk/credential-provider-web-identity': 3.972.78
+      '@aws-sdk/nested-clients': 3.997.46
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/credential-provider-imds': 4.5.2
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-login@3.972.79':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/nested-clients': 3.997.46
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-node@3.972.84':
+    dependencies:
+      '@aws-sdk/credential-provider-env': 3.972.72
+      '@aws-sdk/credential-provider-http': 3.972.74
+      '@aws-sdk/credential-provider-ini': 3.973.17
+      '@aws-sdk/credential-provider-process': 3.972.72
+      '@aws-sdk/credential-provider-sso': 3.973.16
+      '@aws-sdk/credential-provider-web-identity': 3.972.78
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/credential-provider-imds': 4.5.2
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-process@3.972.72':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-sso@3.973.16':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/nested-clients': 3.997.46
+      '@aws-sdk/token-providers': 3.1138.0
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/credential-provider-web-identity@3.972.78':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/nested-clients': 3.997.46
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/middleware-sdk-s3@3.972.77':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/signature-v4-multi-region': 3.996.47
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/nested-clients@3.997.46':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/signature-v4-multi-region': 3.996.47
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/fetch-http-handler': 5.8.0
+      '@smithy/node-http-handler': 4.12.1
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/s3-request-presigner@3.1139.0':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/signature-v4-multi-region': 3.996.47
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/signature-v4-multi-region@3.996.47':
+    dependencies:
+      '@aws-sdk/types': 3.974.6
+      '@smithy/signature-v4': 5.7.3
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/token-providers@3.1138.0':
+    dependencies:
+      '@aws-sdk/core': 3.978.1
+      '@aws-sdk/nested-clients': 3.997.46
+      '@aws-sdk/types': 3.974.6
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/types@3.974.6':
+    dependencies:
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws-sdk/xml-builder@3.972.41':
+    dependencies:
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@aws/lambda-invoke-store@0.3.0': {}
 
   '@ax-llm/ax@24.0.5(zod@4.4.3)':
     dependencies:
@@ -21441,6 +22551,10 @@ snapshots:
     dependencies:
       '@capacitor/core': 8.5.0
 
+  '@capacitor/keyboard@8.0.5(@capacitor/core@8.5.0)':
+    dependencies:
+      '@capacitor/core': 8.5.0
+
   '@capacitor/local-notifications@8.3.1(@capacitor/core@8.5.0)':
     dependencies:
       '@capacitor/core': 8.5.0
@@ -22272,6 +23386,51 @@ snapshots:
     dependencies:
       vue: 3.5.41(typescript@6.0.3)
 
+  '@gd-kirie/build@0.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)':
+    dependencies:
+      execa: 9.6.1
+      ini: 7.0.0
+      vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
+
+  '@gd-kirie/ipc-eventa@0.7.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+    dependencies:
+      '@gd-kirie/ipc': 0.7.0
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
+
+  '@gd-kirie/ipc@0.7.0':
+    dependencies:
+      cborg: 4.5.8
+
+  '@gd-kirie/platform@0.7.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)':
+    dependencies:
+      '@gd-kirie/ipc-eventa': 0.7.0(electron@43.4.1(supports-color@10.2.2))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - electron
+      - h3
+      - hono
+      - web-worker
+
   '@grammyjs/files@1.2.0(grammy@1.45.1(supports-color@10.2.2))':
     dependencies:
       grammy: 1.45.1(supports-color@10.2.2)
@@ -22290,7 +23449,7 @@ snapshots:
       protobufjs: 7.6.5
       yargs: 17.7.3
 
-  '@guiiai/logg@1.2.11':
+  '@guiiai/logg@1.2.12':
     dependencies:
       error-stack-parser: 2.1.4
       pathe: 2.0.3
@@ -23000,15 +24159,24 @@ snapshots:
       - supports-color
       - typescript
 
-  '@moeru/eventa@0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))':
+  '@moeru/eventa@0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
     dependencies:
       nanoid: 5.1.16
       picomatch: 4.0.5
     optionalDependencies:
       electron: 43.4.1(supports-color@10.2.2)
       h3: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
+      web-worker: 1.5.0
 
-  '@moeru/eventa@1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)':
+  '@moeru/eventa@1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)':
+    dependencies:
+      nanoid: 5.1.16
+      picomatch: 4.0.5
+    optionalDependencies:
+      electron: 43.4.1(supports-color@10.2.2)
+      web-worker: 1.5.0
+
+  '@moeru/eventa@1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
       nanoid: 6.0.1
       picomatch: 4.0.5
@@ -23016,6 +24184,7 @@ snapshots:
       electron: 43.4.1(supports-color@10.2.2)
       h3: 2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7))
       hono: 4.13.3
+      web-worker: 1.5.0
 
   '@moeru/std@0.1.0-beta.1': {}
 
@@ -24793,18 +25962,20 @@ snapshots:
     dependencies:
       culori: 4.0.2
 
-  '@proj-airi/drizzle-duckdb-wasm@0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))':
+  '@proj-airi/drizzle-duckdb-wasm@0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.5.0
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
       '@moeru/std': 0.1.0-beta.1
-      '@proj-airi/duckdb-wasm': 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))
+      '@proj-airi/duckdb-wasm': 0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)
       apache-arrow: 21.2.0
       date-fns: 4.4.0
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
       es-toolkit: 1.51.0
+    optionalDependencies:
+      web-worker: 1.5.0
 
-  '@proj-airi/duckdb-wasm@0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))':
+  '@proj-airi/duckdb-wasm@0.6.0(drizzle-orm@0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9))(web-worker@1.5.0)':
     dependencies:
       '@date-fns/tz': 1.5.0
       '@duckdb/duckdb-wasm': 1.29.1-dev68.0
@@ -24814,6 +25985,8 @@ snapshots:
       defu: 6.1.7
       drizzle-orm: 0.45.2(@electric-sql/pglite@0.5.6)(@opentelemetry/api@1.9.1)(@prisma/client@5.22.0)(@types/pg@8.23.1)(better-sqlite3@12.11.1)(kysely@0.29.5)(pg@8.23.0)(postgres@3.4.9)
       es-toolkit: 1.51.0
+    optionalDependencies:
+      web-worker: 1.5.0
 
   '@proj-airi/iconify-meteocons@0.1.5':
     dependencies:
@@ -25063,6 +26236,31 @@ snapshots:
 
   '@sapphire/snowflake@3.5.5': {}
 
+  '@sec-ant/readable-stream@0.4.1': {}
+
+  '@sherpaw/asr@0.2.1(onnxruntime-web@1.27.0)':
+    optionalDependencies:
+      onnxruntime-web: 1.27.0
+
+  '@sherpaw/preloader@0.2.1': {}
+
+  '@sherpaw/shared@0.2.1':
+    dependencies:
+      '@types/emscripten': 1.41.6
+
+  '@sherpaw/xsai-transcription@0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)':
+    dependencies:
+      '@moeru/eventa': 1.0.0-beta.1(electron@43.4.1(supports-color@10.2.2))(web-worker@1.5.0)
+      '@moeru/std': 0.1.0-beta.17
+      '@sherpaw/asr': 0.2.1(onnxruntime-web@1.27.0)
+      '@sherpaw/preloader': 0.2.1
+      '@sherpaw/shared': 0.2.1
+    transitivePeerDependencies:
+      - electron
+      - h3
+      - onnxruntime-web
+      - web-worker
+
   '@shikijs/core@3.23.0':
     dependencies:
       '@shikijs/types': 3.23.0
@@ -25166,6 +26364,41 @@ snapshots:
   '@sindresorhus/is@4.6.0': {}
 
   '@sindresorhus/merge-streams@2.3.0': {}
+
+  '@sindresorhus/merge-streams@4.0.0': {}
+
+  '@smithy/core@3.35.0':
+    dependencies:
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@smithy/credential-provider-imds@4.5.2':
+    dependencies:
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@smithy/fetch-http-handler@5.8.0':
+    dependencies:
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@smithy/node-http-handler@4.12.1':
+    dependencies:
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@smithy/signature-v4@5.7.3':
+    dependencies:
+      '@smithy/core': 3.35.0
+      '@smithy/types': 4.19.0
+      tslib: 2.8.1
+
+  '@smithy/types@4.19.0':
+    dependencies:
+      tslib: 2.8.1
 
   '@snazzah/davey-android-arm-eabi@0.1.12':
     optional: true
@@ -25553,6 +26786,8 @@ snapshots:
 
   '@types/earcut@2.1.4': {}
 
+  '@types/emscripten@1.41.6': {}
+
   '@types/esrecurse@4.3.1': {}
 
   '@types/estree@1.0.9': {}
@@ -25598,6 +26833,13 @@ snapshots:
     dependencies:
       '@types/node': 26.2.0
 
+  '@types/jsonwebtoken@9.0.10':
+    dependencies:
+      '@types/ms': 2.1.0
+      '@types/node': 26.2.0
+
+  '@types/jsrsasign@10.5.15': {}
+
   '@types/katex@0.16.8': {}
 
   '@types/keyv@3.1.4':
@@ -25626,6 +26868,11 @@ snapshots:
   '@types/mysql@2.15.27':
     dependencies:
       '@types/node': 26.2.0
+
+  '@types/node-fetch@2.6.13':
+    dependencies:
+      '@types/node': 26.2.0
+      form-data: 4.0.6
 
   '@types/node-rsa@1.1.4':
     dependencies:
@@ -26799,9 +28046,9 @@ snapshots:
 
   '@xmldom/xmldom@0.9.12': {}
 
-  '@xsai-apple-speech/transcription-electron-plugin@0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)':
+  '@xsai-apple-speech/transcription-electron-plugin@0.1.3(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
     dependencies:
-      '@moeru/eventa': 1.0.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0-beta.8)
       '@xsai/generate-transcription': 0.5.0-beta.8
     optionalDependencies:
@@ -26818,44 +28065,69 @@ snapshots:
   '@xsai-apple-speech/transcription-native-darwin-x64@0.1.3':
     optional: true
 
-  '@xsai-apple-speech/transcription-native@0.1.3(@xsai/generate-transcription@0.5.0)':
+  '@xsai-apple-speech/transcription-native@0.1.3(@xsai/generate-transcription@0.5.1)':
     dependencies:
       '@moeru/std': 0.1.0-beta.17
-      '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.0)
+      '@xsai-apple-speech/transcription': 0.1.3(@xsai/generate-transcription@0.5.1)
     optionalDependencies:
       '@xsai-apple-speech/transcription-native-darwin-arm64': 0.1.3
       '@xsai-apple-speech/transcription-native-darwin-x64': 0.1.3
     transitivePeerDependencies:
       - '@xsai/generate-transcription'
 
-  '@xsai-apple-speech/transcription@0.1.3(@xsai/generate-transcription@0.5.0)':
-    dependencies:
-      '@xsai/generate-transcription': 0.5.0
-      '@xsai/shared': 0.5.0-beta.8
-
   '@xsai-apple-speech/transcription@0.1.3(@xsai/generate-transcription@0.5.0-beta.8)':
     dependencies:
       '@xsai/generate-transcription': 0.5.0-beta.8
+      '@xsai/shared': 0.5.0-beta.8
+
+  '@xsai-apple-speech/transcription@0.1.3(@xsai/generate-transcription@0.5.1)':
+    dependencies:
+      '@xsai/generate-transcription': 0.5.1
+      '@xsai/shared': 0.5.0-beta.8
+
+  '@xsai-apple-vision/vision-electron-plugin@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)':
+    dependencies:
+      '@moeru/eventa': 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+      '@xsai-apple-vision/vision': 0.1.0
+    optionalDependencies:
+      electron: 43.4.1(supports-color@10.2.2)
+    transitivePeerDependencies:
+      - '@tauri-apps/api'
+      - h3
+      - hono
+      - web-worker
+
+  '@xsai-apple-vision/vision-native-darwin-arm64@0.1.0':
+    optional: true
+
+  '@xsai-apple-vision/vision-native@0.1.0':
+    dependencies:
+      '@xsai-apple-vision/vision': 0.1.0
+    optionalDependencies:
+      '@xsai-apple-vision/vision-native-darwin-arm64': 0.1.0
+
+  '@xsai-apple-vision/vision@0.1.0':
+    dependencies:
       '@xsai/shared': 0.5.0-beta.8
 
   '@xsai-ext/providers@0.4.4':
     dependencies:
       '@xsai/shared': 0.4.4
 
-  '@xsai-ext/providers@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
-
   '@xsai-ext/providers@0.5.0-beta.6':
     dependencies:
       '@xsai/shared': 0.5.0-beta.6
 
-  '@xsai-ext/responses@0.5.0(patch_hash=58f91d94e326cbd7359ae644b6c86dad09128ffc8fd0a7eceef2b90117d44ef5)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@xsai-ext/providers@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/shared-stream': 0.5.0
-      '@xsai/tool': 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/shared': 0.5.1
+
+  '@xsai-ext/responses@0.5.1(patch_hash=869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed)(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/shared-stream': 0.5.1
+      '@xsai/tool': 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -26868,24 +28140,26 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.4
 
-  '@xsai-transformers/embed@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))':
+  '@xsai-transformers/embed@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/shared': 0.4.4
       gpuu: 1.0.7
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - electron
       - h3
 
-  '@xsai-transformers/shared@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))':
+  '@xsai-transformers/shared@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
       '@xsai-ext/shared-providers': 0.4.0-beta.12
       '@xsai/shared': 0.4.4
@@ -26895,17 +28169,19 @@ snapshots:
       - h3
       - web-worker
 
-  '@xsai-transformers/transcription@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))':
+  '@xsai-transformers/transcription@0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)':
     dependencies:
       '@huggingface/transformers': 3.8.1
-      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+      '@moeru/eventa': 0.3.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@moeru/std': 0.1.0-beta.20
       '@xsai-ext/shared-providers': 0.4.0-beta.12
-      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))
+      '@xsai-transformers/shared': 0.1.0(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(web-worker@1.5.0)
       '@xsai/embed': 0.4.4
       '@xsai/generate-transcription': 0.4.4
       '@xsai/shared': 0.4.4
       gpuu: 1.0.7
+    optionalDependencies:
+      web-worker: 1.5.0
     transitivePeerDependencies:
       - electron
       - h3
@@ -26914,76 +28190,76 @@ snapshots:
     dependencies:
       '@xsai/shared': 0.4.4
 
-  '@xsai/embed@0.5.0':
+  '@xsai/embed@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
+      '@xsai/shared': 0.5.1
 
-  '@xsai/generate-speech@0.5.0':
+  '@xsai/generate-speech@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
-
-  '@xsai/generate-text@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
+      '@xsai/shared': 0.5.1
 
   '@xsai/generate-text@0.5.0-beta.6':
     dependencies:
       '@xsai/shared': 0.5.0-beta.6
       '@xsai/shared-chat': 0.5.0-beta.6
 
+  '@xsai/generate-text@0.5.1':
+    dependencies:
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+
   '@xsai/generate-transcription@0.4.4':
     dependencies:
       '@xsai/shared': 0.4.4
-
-  '@xsai/generate-transcription@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
 
   '@xsai/generate-transcription@0.5.0-beta.8':
     dependencies:
       '@xsai/shared': 0.5.0-beta.8
 
-  '@xsai/model@0.5.0':
+  '@xsai/generate-transcription@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
+      '@xsai/shared': 0.5.1
 
-  '@xsai/shared-chat@0.5.0':
+  '@xsai/model@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
+      '@xsai/shared': 0.5.1
 
   '@xsai/shared-chat@0.5.0-beta.6':
     dependencies:
       '@xsai/shared': 0.5.0-beta.6
 
-  '@xsai/shared-stream@0.5.0':
+  '@xsai/shared-chat@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
+      '@xsai/shared': 0.5.1
+
+  '@xsai/shared-stream@0.5.1':
+    dependencies:
+      '@xsai/shared': 0.5.1
 
   '@xsai/shared@0.4.4': {}
-
-  '@xsai/shared@0.5.0': {}
 
   '@xsai/shared@0.5.0-beta.6': {}
 
   '@xsai/shared@0.5.0-beta.8': {}
 
-  '@xsai/stream-text@0.5.0':
-    dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/shared-stream': 0.5.0
+  '@xsai/shared@0.5.1': {}
 
-  '@xsai/stream-transcription@0.5.0':
+  '@xsai/stream-text@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-stream': 0.5.0
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/shared-stream': 0.5.1
 
-  '@xsai/tool@0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+  '@xsai/stream-transcription@0.5.1':
     dependencies:
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      xsschema: 0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-stream': 0.5.1
+
+  '@xsai/tool@0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)':
+    dependencies:
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      xsschema: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
     transitivePeerDependencies:
       - '@valibot/to-json-schema'
       - arktype
@@ -26992,9 +28268,9 @@ snapshots:
       - zod
       - zod-to-json-schema
 
-  '@xsai/utils-chat@0.5.0':
+  '@xsai/utils-chat@0.5.1':
     dependencies:
-      '@xsai/shared-chat': 0.5.0
+      '@xsai/shared-chat': 0.5.1
 
   '@xstate/fsm@1.6.5': {}
 
@@ -27403,6 +28679,8 @@ snapshots:
 
   base64id@2.0.0: {}
 
+  base64url@3.0.1: {}
+
   baseline-browser-mapping@2.11.18: {}
 
   bcp-47-match@2.0.3: {}
@@ -27554,6 +28832,8 @@ snapshots:
   boolbase@2.0.0: {}
 
   boolean@3.2.0: {}
+
+  bowser@2.14.1: {}
 
   bplist-creator@0.1.0:
     dependencies:
@@ -27735,6 +29015,8 @@ snapshots:
       '@capacitor/core': 8.5.0
 
   caseless@0.12.0: {}
+
+  cborg@4.5.8: {}
 
   ccount@2.0.1: {}
 
@@ -29268,6 +30550,21 @@ snapshots:
     dependencies:
       eventsource-parser: 3.1.1
 
+  execa@9.6.1:
+    dependencies:
+      '@sindresorhus/merge-streams': 4.0.0
+      cross-spawn: 7.0.6
+      figures: 6.1.0
+      get-stream: 9.0.1
+      human-signals: 8.0.1
+      is-plain-obj: 4.1.0
+      is-stream: 4.0.1
+      npm-run-path: 6.0.0
+      pretty-ms: 9.3.1
+      signal-exit: 4.1.0
+      strip-final-newline: 4.0.0
+      yoctocolors: 2.2.0
+
   exif-parser@0.1.12: {}
 
   expand-template@2.0.3: {}
@@ -29441,6 +30738,10 @@ snapshots:
   fflate@0.6.11: {}
 
   fflate@0.8.3: {}
+
+  figures@6.1.0:
+    dependencies:
+      is-unicode-supported: 2.1.0
 
   file-entry-cache@8.0.0:
     dependencies:
@@ -29732,6 +31033,11 @@ snapshots:
     dependencies:
       pump: 3.0.4
 
+  get-stream@9.0.1:
+    dependencies:
+      '@sec-ant/readable-stream': 0.4.1
+      is-stream: 4.0.1
+
   get-tsconfig@4.14.1:
     dependencies:
       resolve-pkg-maps: 1.0.0
@@ -29762,6 +31068,8 @@ snapshots:
     dependencies:
       image-q: 4.0.0
       omggif: 1.0.10
+
+  giget@3.3.0: {}
 
   giget@3.3.1: {}
 
@@ -30267,6 +31575,8 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  human-signals@8.0.1: {}
+
   iconv-lite@0.4.24:
     dependencies:
       safer-buffer: '@nolyfill/safer-buffer@1.0.44'
@@ -30334,12 +31644,14 @@ snapshots:
 
   ini@4.1.3: {}
 
-  injeca@0.2.0(@guiiai/logg@1.2.11)(error-stack-parser@2.1.4)(nanoid@6.0.1):
+  ini@7.0.0: {}
+
+  injeca@0.2.0(@guiiai/logg@1.2.12)(error-stack-parser@2.1.4)(nanoid@6.0.1):
     dependencies:
       error-stack-parser: 2.1.4
       nanoid: 6.0.1
     optionalDependencies:
-      '@guiiai/logg': 1.2.11
+      '@guiiai/logg': 1.2.12
 
   inspect-function@0.2.2:
     dependencies:
@@ -30460,7 +31772,11 @@ snapshots:
 
   is-stream@2.0.1: {}
 
+  is-stream@4.0.1: {}
+
   is-typedarray@1.0.0: {}
+
+  is-unicode-supported@2.1.0: {}
 
   is-what@4.1.16: {}
 
@@ -30696,6 +32012,8 @@ snapshots:
       json-schema: 0.4.0
       verror: 1.10.0
 
+  jsrsasign@11.1.5: {}
+
   jsx-ast-utils-x@0.1.0: {}
 
   jszip@3.10.1:
@@ -30725,6 +32043,28 @@ snapshots:
       json-buffer: 3.0.1
 
   kind-of@6.0.3: {}
+
+  kirie@0.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0):
+    dependencies:
+      '@gd-kirie/build': 0.7.0(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+      citty: 0.2.2
+      execa: 9.6.1
+      giget: 3.3.0
+      takanawa-node: 0.9.0
+      vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+    transitivePeerDependencies:
+      - '@types/node'
+      - '@vitejs/devtools'
+      - esbuild
+      - jiti
+      - less
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
 
   klaw@1.3.1:
     optionalDependencies:
@@ -31873,6 +33213,11 @@ snapshots:
 
   nostics@1.2.0: {}
 
+  npm-run-path@6.0.0:
+    dependencies:
+      path-key: 4.0.0
+      unicorn-magic: 0.3.0
+
   nprogress@0.2.0: {}
 
   nth-check@2.1.1:
@@ -32237,6 +33582,8 @@ snapshots:
     dependencies:
       parse-statements: 1.0.11
 
+  parse-ms@4.0.0: {}
+
   parse-node-version@1.0.1: {}
 
   parse-path@7.1.0:
@@ -32271,6 +33618,8 @@ snapshots:
   path-is-absolute@1.0.1: {}
 
   path-key@3.1.1: {}
+
+  path-key@4.0.0: {}
 
   path-parse@1.0.7: {}
 
@@ -32569,6 +33918,10 @@ snapshots:
   pretty-bytes@5.6.0: {}
 
   pretty-bytes@6.1.1: {}
+
+  pretty-ms@9.3.1:
+    dependencies:
+      parse-ms: 4.0.0
 
   prism-media@1.3.5(opusscript@0.1.1):
     optionalDependencies:
@@ -33744,6 +35097,8 @@ snapshots:
 
   strip-comments@2.0.1: {}
 
+  strip-final-newline@4.0.0: {}
+
   strip-indent@4.1.1: {}
 
   strip-json-comments@2.0.1: {}
@@ -33838,6 +35193,8 @@ snapshots:
       strip-ansi: 6.0.1
 
   tagged-tag@1.0.0: {}
+
+  takanawa-node@0.9.0: {}
 
   tapable@2.3.3: {}
 
@@ -35180,6 +36537,9 @@ snapshots:
 
   web-streams-polyfill@3.3.3: {}
 
+  web-worker@1.5.0:
+    optional: true
+
   webcrypto-core@1.9.2:
     dependencies:
       '@peculiar/asn1-schema': 2.9.4
@@ -35499,19 +36859,19 @@ snapshots:
 
   xsai-chromium-prompt@0.2.2:
     dependencies:
-      '@xsai-ext/providers': 0.5.0
-      '@xsai/generate-text': 0.5.0
-      '@xsai/shared': 0.5.0
-      '@xsai/shared-chat': 0.5.0
-      '@xsai/stream-text': 0.5.0
+      '@xsai-ext/providers': 0.5.1
+      '@xsai/generate-text': 0.5.1
+      '@xsai/shared': 0.5.1
+      '@xsai/shared-chat': 0.5.1
+      '@xsai/stream-text': 0.5.1
 
-  xsschema@0.5.0(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
+  xsschema@0.5.1(@valibot/to-json-schema@1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
     optionalDependencies:
       '@valibot/to-json-schema': 1.0.0-rc.0(valibot@1.4.2(typescript@6.0.3))
       zod: 4.4.3
       zod-to-json-schema: 3.25.2(zod@4.4.3)
 
-  xsschema@0.5.0(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
+  xsschema@0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3):
     optionalDependencies:
       '@valibot/to-json-schema': 1.7.1(valibot@1.4.2(typescript@6.0.3))
       zod: 4.4.3

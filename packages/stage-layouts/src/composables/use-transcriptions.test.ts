@@ -26,7 +26,7 @@ interface MockStreamingCallbacks {
 
 function createMockPipeline() {
   return {
-    removeStreamingTranscriptionConsumer: vi.fn(),
+    releaseStreamingTranscriptionConsumer: vi.fn().mockResolvedValue(undefined),
     transcribeForMediaStream: vi.fn().mockImplementation((_stream, options: MockStreamingCallbacks) => {
       options.onSentenceEnd(mockTranscribedContent)
     }),
@@ -179,6 +179,32 @@ describe('useTranscriptions', () => {
         = useTranscriptions(createOptions(true))
       await stopStreamingTranscription()
       expect(isListening.value).toBe(false)
+    })
+  })
+
+  describe('receiveTranscription', () => {
+    it('keeps the draft without sending when auto-send is disabled', () => {
+      mockHearingStore.autoSendEnabled.value = false
+      const options = createOptions()
+      const { receiveTranscription } = useTranscriptions(options)
+
+      receiveTranscription('hello')
+      vi.advanceTimersByTime(10000)
+
+      expect(options.messageInputRef.value).toBe('hello')
+      expect(options.sendMessage).not.toHaveBeenCalled()
+    })
+
+    it('sends once after the configured delay when auto-send is enabled', () => {
+      const options = createOptions()
+      const { receiveTranscription } = useTranscriptions(options)
+
+      receiveTranscription('hello')
+      vi.advanceTimersByTime(1999)
+      expect(options.sendMessage).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(1)
+
+      expect(options.sendMessage).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -385,8 +411,7 @@ describe('useTranscriptions', () => {
       await stopStreamingTranscription()
       await nextTick()
       expect(isListening.value).toBe(false)
-      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalledWith(true)
-      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalledOnce()
     })
 
     it('should stop streaming on unmount', async () => {
@@ -407,8 +432,7 @@ describe('useTranscriptions', () => {
 
       app.unmount()
       await nextTick()
-      expect(mockHearingPipeline.stopStreamingTranscription).toHaveBeenCalled()
-      expect(mockHearingPipeline.removeStreamingTranscriptionConsumer).toHaveBeenCalled()
+      expect(mockHearingPipeline.releaseStreamingTranscriptionConsumer).toHaveBeenCalled()
     })
   })
 

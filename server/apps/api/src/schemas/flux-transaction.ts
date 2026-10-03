@@ -15,12 +15,16 @@ export const fluxTransaction = pgTable('flux_transaction', {
   balanceBefore: bigint('balance_before', { mode: 'number' }).notNull(),
   balanceAfter: bigint('balance_after', { mode: 'number' }).notNull(),
   requestId: text('request_id'), // nullable; used for idempotency on debit/credit
+  settlementId: text('settlement_id'),
+  operationId: text('operation_id'),
   description: text('description').notNull(),
   metadata: jsonb('metadata'), // { promptTokens, completionTokens, stripeSessionId, ... }
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, table => [
   index('flux_tx_user_id_idx').on(table.userId),
   index('flux_tx_created_at_idx').on(table.createdAt),
+  index('flux_tx_settlement_idx').on(table.settlementId),
+  uniqueIndex('flux_tx_user_operation_uidx').on(table.userId, table.operationId).where(sql`operation_id IS NOT NULL`),
   uniqueIndex('flux_tx_user_request_uniq')
     .on(table.userId, table.requestId)
     .where(sql`request_id IS NOT NULL`),

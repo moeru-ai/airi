@@ -29,6 +29,42 @@ describe('useChatComposer', () => {
     expect(composer.replyTarget.value).toBeUndefined()
   })
 
+  it('captures the submission before awaiting pre-send work', async () => {
+    const activeSessionId = shallowRef('session-1')
+    const send = vi.fn().mockResolvedValue(undefined)
+    const composer = useChatComposer({ activeSessionId, send })
+    composer.draft.value = 'Interrupt here'
+
+    await composer.submit({
+      beforeSend: async (submission) => {
+        activeSessionId.value = 'session-2'
+        expect(submission.sessionId).toBe('session-1')
+        expect(submission.text).toBe('Interrupt here')
+      },
+    })
+
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({
+      sessionId: 'session-1',
+      text: 'Interrupt here',
+    }))
+  })
+
+  it('announces that sending started after invoking the send boundary', async () => {
+    const events: string[] = []
+    const activeSessionId = shallowRef('session-1')
+    const send = vi.fn(async () => {
+      events.push('send-started')
+    })
+    const composer = useChatComposer({ activeSessionId, send })
+    composer.draft.value = 'Interrupt here'
+
+    await composer.submit({
+      afterSendStarted: () => events.push('announced'),
+    })
+
+    expect(events).toEqual(['send-started', 'announced'])
+  })
+
   it('restores a failed send without replacing newer input state', async () => {
     const activeSessionId = shallowRef('session-1')
     const firstTarget: ChatHistoryReplyPayload = {

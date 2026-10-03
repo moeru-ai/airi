@@ -36,7 +36,6 @@ signIn:
       description: 我们将为 {email} 创建一个新账户...
   email:
     label: 邮箱
-    placeholder: you{'@'}example.com
   password:
     label: 密码
     placeholder: 您的密码
@@ -57,6 +56,8 @@ signIn:
     useDifferentEmail: 使用其他邮箱
   divider:
     or: 或
+  message:
+    redirecting: 重定向到{provider}……
   error:
     fallback: 登录失败
     unknown: 发生了未知错误
@@ -85,7 +86,6 @@ forgotPassword:
   description: 输入与账户关联的邮箱，我们会向您发送重置链接。
   email:
     label: 邮箱
-    placeholder: you{'@'}example.com
   action:
     send: 发送重置链接
     backToSignIn: 返回登录
