@@ -26,6 +26,12 @@ import InteractiveArea from './InteractiveArea.vue'
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
+const openSettings = vi.hoisted(() => vi.fn())
+
+vi.mock('@proj-airi/electron-vueuse', () => ({
+  useElectronEventaInvoke: () => openSettings,
+}))
+
 function createTestI18n() {
   return createI18n({
     legacy: false,
@@ -36,7 +42,7 @@ function createTestI18n() {
   })
 }
 
-async function renderArea(component: Component = InteractiveArea) {
+async function renderArea(component: Component = InteractiveArea, options: { providerConfigured?: boolean } = {}) {
   useL2dViewControl().viewControlsEnabled.value = false
   useThreeViewControl().viewControlsEnabled.value = false
   const sessionB: ChatSessionMeta = {
@@ -64,6 +70,10 @@ async function renderArea(component: Component = InteractiveArea) {
       },
     },
   }
+  // The consciousness store reads these keys when the area first uses it.
+  localStorage.setItem('settings/consciousness/active-provider', options.providerConfigured === false ? '' : 'openai')
+  localStorage.setItem('settings/consciousness/active-model', options.providerConfigured === false ? '' : 'gpt-test')
+  onTestFinished(() => localStorage.clear())
   const router = createRouter({
     history: createMemoryHistory(),
     routes: [{ path: '/', component: { template: '<div />' } }],
@@ -531,6 +541,20 @@ describe('interactive area synchronized state', () => {
     })
   })
 
+  it('keeps the draft and offers provider settings when no chat provider is configured', async () => {
+    const { chat, screen } = await renderArea(InteractiveArea, { providerConfigured: false })
+    const send = vi.spyOn(chat, 'send')
+
+    const input = await submitDraft(screen, 'Hello')
+
+    await expect.element(screen.getByText('stage.chat.provider-configuration.action')).toBeVisible()
+    await expect.element(input).toHaveValue('Hello')
+    expect(send).not.toHaveBeenCalled()
+
+    await screen.getByText('stage.chat.provider-configuration.action').click()
+    expect(openSettings).toHaveBeenCalledWith({ route: '/settings/providers' })
+  })
+
   // https://github.com/moeru-ai/airi/pull/2399
   it('keeps the input visible when a short window contains many attachments', async () => {
     // ROOT CAUSE:
@@ -859,123 +883,29 @@ describe('interactive area synchronized state', () => {
   })
 
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743121861
-  it('renders the active synchronized stream through the real chat history for Issue #2085', async () => {
-    // ROOT CAUSE:
-    //
-    // A follower received the leader-owned active stream in the real chat
-    // store, but InteractiveArea passed its unrelated foreground stream to
-    // ChatHistory. Mocking either store or component hid that broken binding.
-    const { chat, chatStream, screen } = await renderArea()
-    chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'follower-b-stream',
-        role: 'assistant',
-        content: 'Follower B live response',
-        slices: [{ type: 'text', text: 'Follower B live response' }],
-        tool_results: [],
-        createdAt: 2,
-      },
-      sending: true,
-    })
-    chatStream.$patch({
-      streamingMessage: {
-        id: 'leader-a-stream',
-        role: 'assistant',
-        content: 'Leader A foreground response',
-        slices: [{ type: 'text', text: 'Leader A foreground response' }],
-        tool_results: [],
-        createdAt: 3,
-      },
-    })
-    await nextTick()
-
-    await expect.element(screen.getByText('Follower B live response')).toBeVisible()
-    await expect.element(screen.getByText('Leader A foreground response')).not.toBeInTheDocument()
-  })
-
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743309235
-  it('scopes the mobile synchronized stream to its local session for Issue #2085', async () => {
-    // ROOT CAUSE:
-    //
-    // MobileInteractiveArea passed the synchronized global sending state and
-    // foreground stream directly to ChatHistory. A mobile window on session B
-    // therefore rendered the live response from a send targeting session A.
-    const { chat, chatStream, screen } = await renderArea(MobileInteractiveArea)
-    chat.$patch({
-      activeSendSessionId: 'session-a',
-      activeStreamingMessage: {
-        id: 'session-a-stream',
-        role: 'assistant',
-        content: 'Session A live response',
-        slices: [{ type: 'text', text: 'Session A live response' }],
-        tool_results: [],
-        createdAt: 2,
-      },
-      sending: true,
-    })
-    chatStream.$patch({
-      streamingMessage: {
-        id: 'session-a-foreground',
-        role: 'assistant',
-        content: 'Session A live response',
-        slices: [{ type: 'text', text: 'Session A live response' }],
-        tool_results: [],
-        createdAt: 2,
-      },
-    })
-    await nextTick()
-    await expect.element(screen.getByText('Session A live response')).not.toBeInTheDocument()
-
-    chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'session-b-stream',
-        role: 'assistant',
-        content: 'Session B live response',
-        slices: [{ type: 'text', text: 'Session B live response' }],
-        tool_results: [],
-        createdAt: 3,
-      },
-    })
-    await nextTick()
-    await expect.element(screen.getByText('Session B live response')).toBeVisible()
-  })
-
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743366443
-  it('scopes the stage-web desktop synchronized stream to its local session for Issue #2085', async () => {
-    // ROOT CAUSE:
-    //
-    // The shared desktop layout derived sending from the target session but
-    // still passed the leader foreground stream to ChatHistory. A web window
-    // on B could therefore append A's live response.
-    const { chat, chatStream, screen } = await renderArea(SharedInteractiveArea)
-    chat.$patch({
-      activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        id: 'session-b-web-stream',
-        role: 'assistant',
-        content: 'Session B web response',
-        slices: [{ type: 'text', text: 'Session B web response' }],
-        tool_results: [],
-        createdAt: 2,
-      },
-      sending: true,
-    })
-    chatStream.$patch({
-      streamingMessage: {
-        id: 'session-a-web-foreground',
-        role: 'assistant',
-        content: 'Session A foreground response',
-        slices: [{ type: 'text', text: 'Session A foreground response' }],
-        tool_results: [],
-        createdAt: 3,
-      },
-    })
+  // ROOT CAUSE:
+  //
+  // Every layout passed one global foreground stream to ChatHistory.
+  // A window on session B therefore showed session A's live response.
+  //
+  // We fixed this by storing one live message per active turn.
+  // Each layout renders only its selected session's turn.
+  it.each([
+    ['desktop', InteractiveArea],
+    ['mobile', MobileInteractiveArea],
+    ['web', SharedInteractiveArea],
+  ] as const)('renders only the selected session live response in %s for Issue #2085', async (_name, component) => {
+    const { chat, chatStream, screen } = await renderArea(component)
+    chat.$patch({ activeTurns: [{ sessionId: 'session-a', turnId: 'a' }, { sessionId: 'session-b', turnId: 'b' }], sending: true })
+    chatStream.updateActiveTurns([
+      { sessionId: 'session-a', turnId: 'a', message: { id: 'a', role: 'assistant', content: 'Other session response', slices: [{ type: 'text', text: 'Other session response' }], tool_results: [] } },
+      { sessionId: 'session-b', turnId: 'b', message: { id: 'b', role: 'assistant', content: 'Selected session response', slices: [{ type: 'text', text: 'Selected session response' }], tool_results: [] } },
+    ])
     await nextTick()
-
-    await expect.element(screen.getByText('Session B web response')).toBeVisible()
-    await expect.element(screen.getByText('Session A foreground response')).not.toBeInTheDocument()
+    await expect.element(screen.getByText('Selected session response')).toBeVisible()
+    await expect.element(screen.getByText('Other session response')).not.toBeInTheDocument()
   })
 
   it('routes a stage-web send through the synchronized chat action', async () => {

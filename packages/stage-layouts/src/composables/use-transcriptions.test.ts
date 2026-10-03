@@ -182,6 +182,32 @@ describe('useTranscriptions', () => {
     })
   })
 
+  describe('receiveTranscription', () => {
+    it('keeps the draft without sending when auto-send is disabled', () => {
+      mockHearingStore.autoSendEnabled.value = false
+      const options = createOptions()
+      const { receiveTranscription } = useTranscriptions(options)
+
+      receiveTranscription('hello')
+      vi.advanceTimersByTime(10000)
+
+      expect(options.messageInputRef.value).toBe('hello')
+      expect(options.sendMessage).not.toHaveBeenCalled()
+    })
+
+    it('sends once after the configured delay when auto-send is enabled', () => {
+      const options = createOptions()
+      const { receiveTranscription } = useTranscriptions(options)
+
+      receiveTranscription('hello')
+      vi.advanceTimersByTime(1999)
+      expect(options.sendMessage).not.toHaveBeenCalled()
+      vi.advanceTimersByTime(1)
+
+      expect(options.sendMessage).toHaveBeenCalledTimes(1)
+    })
+  })
+
   describe('streaming Logic', () => {
     it('should start streaming if stream exists and provider supports it', async () => {
       mockHearingStore.configured.value = true

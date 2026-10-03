@@ -123,6 +123,11 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return !!activeProvider.value && !!activeModel.value
   })
 
+  /** Whether chat can send. The `prompt-api` provider runs without a selected model. */
+  const chatReady = computed(() => {
+    return !!activeProvider.value && (!!activeModel.value || activeProvider.value === 'prompt-api')
+  })
+
   async function resetState() {
     activeProvider.reset()
     resetModelSelection()
@@ -135,6 +140,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
   return {
     // State
     configured,
+    chatReady,
     activeProvider,
     activeModel,
     activeTemperature,

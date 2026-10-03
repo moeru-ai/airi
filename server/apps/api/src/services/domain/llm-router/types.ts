@@ -24,6 +24,7 @@ import type {
   ttsRoutingSchema,
   ttsUpstreamSchema,
 } from '../../adapters/config-kv'
+import type { RequestContent } from '../request-content'
 import type { AttemptObserver } from './attempt'
 
 /**
@@ -117,6 +118,8 @@ export type ModelKind = 'llm' | 'tts'
  * chosen upstream.
  */
 export interface LlmRouteRequest {
+  /** Hosted billing validates every eligible route before any network call; standalone router users may omit this policy. */
+  authorizeDispatch?: (route: { gateway: string, model: string }) => void
   attempts?: AttemptObserver
   /** Wire protocol. @default 'chat-completions' */
   protocol?: GenerationProtocol
@@ -163,4 +166,6 @@ export interface LlmRouteContext {
   triedKeys: number
   /** Most recent upstream failure status or `'timeout'`. */
   lastStatus: number | 'timeout' | null
+  /** Captured body of the most recent upstream HTTP error, so callers do not read it again. */
+  errorBody?: RequestContent
 }

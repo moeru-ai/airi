@@ -50,6 +50,7 @@ function handleSettingsOpen(open: boolean) {
 const positionCursor = useMouse()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
+const mobileInteractiveArea = useTemplateRef<InstanceType<typeof MobileInteractiveArea>>('mobileInteractiveArea')
 const stageViewport = shallowRef({ height: 0, offsetTop: 0 })
 const stageSurfaceStyle = computed(() => isMobile.value
   ? {
@@ -123,6 +124,13 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
   }
 }
 
+function handleVoiceInputText(text: string | undefined) {
+  if (!isMobile.value)
+    return sendVoiceInputTextToChat(text)
+  if (text?.trim())
+    mobileInteractiveArea.value?.receiveTranscription(text)
+}
+
 async function startAudioInteraction(binding: VoiceInputBinding) {
   currentBinding = binding
   if (binding.mode === 'stream') {
@@ -130,7 +138,7 @@ async function startAudioInteraction(binding: VoiceInputBinding) {
       consumerId: transcriptionConsumerId,
       onSentenceEnd: (text) => {
         if (currentBinding === binding)
-          void sendVoiceInputTextToChat(text)
+          void handleVoiceInputText(text)
       },
     })
     if (hearingPipeline.error)
@@ -148,7 +156,7 @@ async function startAudioInteraction(binding: VoiceInputBinding) {
   stopOnStopRecord = onStopRecord(async (recording) => {
     const text = await transcribeForRecording(recording)
     if (currentBinding === binding)
-      await sendVoiceInputTextToChat(text)
+      await handleVoiceInputText(text)
   })
 }
 
@@ -240,6 +248,7 @@ onUnmounted(() => {
     <Teleport to="body">
       <MobileInteractiveArea
         v-if="isMobile"
+        ref="mobileInteractiveArea"
         @settings-open="handleSettingsOpen"
         @stage-viewport-change="stageViewport = $event"
       >

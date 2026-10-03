@@ -2,16 +2,13 @@
 import type { ChatWindowPreferences } from '../../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { DropdownMenu } from '@proj-airi/ui'
 import {
   DropdownMenuCheckboxItem,
-  DropdownMenuContent,
   DropdownMenuItemIndicator,
-  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuRoot,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from 'reka-ui'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -95,16 +92,21 @@ async function setPinned(pinned: boolean) {
 }
 
 const itemClasses = [
-  'w-full flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
-  'text-neutral-600 dark:text-neutral-300',
-  'data-[highlighted]:bg-primary-50 data-[highlighted]:text-primary-700 dark:data-[highlighted]:bg-primary-900/30 dark:data-[highlighted]:text-primary-200',
-  'data-[state=checked]:font-semibold data-[state=checked]:text-primary-600 dark:data-[state=checked]:text-primary-300',
+  'w-full flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-left',
+  'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+  'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+  'data-[state=checked]:font-semibold data-[state=checked]:text-primary-500 dark:data-[state=checked]:text-primary-300',
+  'transition-colors duration-150 ease-in-out',
 ]
 </script>
 
 <template>
-  <DropdownMenuRoot>
-    <DropdownMenuTrigger as-child :disabled="!preferences">
+  <DropdownMenu
+    align="end"
+    :content-class="['min-w-[220px]']"
+    :disabled="!preferences"
+  >
+    <template #trigger>
       <button
         v-bind="$attrs"
         :disabled="!preferences"
@@ -119,47 +121,37 @@ const itemClasses = [
       >
         <div class="i-solar:layers-minimalistic-bold-duotone" />
       </button>
-    </DropdownMenuTrigger>
-    <DropdownMenuPortal>
-      <DropdownMenuContent
-        align="end"
-        :side-offset="6"
-        :class="[
-          'z-200 min-w-[220px] flex flex-col gap-1 rounded-xl p-1 shadow-lg',
-          'bg-white dark:bg-neutral-800',
-        ]"
+    </template>
+
+    <DropdownMenuRadioGroup :model-value="currentStyleId">
+      <DropdownMenuRadioItem
+        v-for="style in styles"
+        :key="style.id"
+        :value="style.id"
+        :class="itemClasses"
+        @select="selectStyle(style.id)"
       >
-        <DropdownMenuRadioGroup :model-value="currentStyleId">
-          <DropdownMenuRadioItem
-            v-for="style in styles"
-            :key="style.id"
-            :value="style.id"
-            :class="itemClasses"
-            @select="selectStyle(style.id)"
-          >
-            <div :class="[style.icon, 'size-4 shrink-0']" />
-            <span class="flex-1">{{ style.label }}</span>
-            <DropdownMenuItemIndicator>
-              <div class="i-ph:check-bold size-4 shrink-0" />
-            </DropdownMenuItemIndicator>
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
-        <template v-if="pinnable && preferences">
-          <DropdownMenuSeparator :class="['mx-2 h-px bg-neutral-200 dark:bg-neutral-700']" />
-          <DropdownMenuCheckboxItem
-            :model-value="preferences.pinned"
-            :class="itemClasses"
-            @update:model-value="setPinned"
-            @select.prevent
-          >
-            <div :class="[preferences.pinned ? 'i-solar:pin-bold-duotone' : 'i-solar:pin-linear', 'size-4 shrink-0']" />
-            <span class="flex-1">{{ t('tamagotchi.stage.chat-window.style.pinned') }}</span>
-            <DropdownMenuItemIndicator>
-              <div class="i-ph:check-bold size-4 shrink-0" />
-            </DropdownMenuItemIndicator>
-          </DropdownMenuCheckboxItem>
-        </template>
-      </DropdownMenuContent>
-    </DropdownMenuPortal>
-  </DropdownMenuRoot>
+        <div :class="[style.icon, 'size-4 shrink-0']" />
+        <span class="flex-1">{{ style.label }}</span>
+        <DropdownMenuItemIndicator>
+          <div class="i-ph:check-bold size-4 shrink-0" />
+        </DropdownMenuItemIndicator>
+      </DropdownMenuRadioItem>
+    </DropdownMenuRadioGroup>
+    <template v-if="pinnable && preferences">
+      <DropdownMenuSeparator :class="['mx-2 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
+      <DropdownMenuCheckboxItem
+        :model-value="preferences.pinned"
+        :class="itemClasses"
+        @update:model-value="setPinned"
+        @select.prevent
+      >
+        <div :class="[preferences.pinned ? 'i-solar:pin-bold-duotone' : 'i-solar:pin-linear', 'size-4 shrink-0']" />
+        <span class="flex-1">{{ t('tamagotchi.stage.chat-window.style.pinned') }}</span>
+        <DropdownMenuItemIndicator>
+          <div class="i-ph:check-bold size-4 shrink-0" />
+        </DropdownMenuItemIndicator>
+      </DropdownMenuCheckboxItem>
+    </template>
+  </DropdownMenu>
 </template>
