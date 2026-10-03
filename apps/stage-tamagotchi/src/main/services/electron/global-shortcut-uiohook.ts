@@ -126,8 +126,48 @@ function buildPredicate(acc: ShortcutAccelerator, platform: NodeJS.Platform): { 
   return { predicate, expectedKeycode }
 }
 
-function isNativeWayland(platform: NodeJS.Platform, sessionType: string | undefined): boolean {
-  return platform === 'linux' && sessionType === 'wayland'
+function getArgSwitchValue(args: readonly string[], flag: string): string | undefined {
+  const prefix = `${flag}=`
+  for (let index = 0; index < args.length; index++) {
+    if (args[index] === flag)
+      return args[index + 1]
+    if (args[index].startsWith(prefix))
+      return args[index].slice(prefix.length)
+  }
+  return undefined
+}
+
+// NOTICE:
+// `--ozone-platform` forces a backend outright; `--ozone-platform-hint` only
+// selects one when `--ozone-platform` is absent or 'auto' (Chromium falls
+// back to session auto-detection otherwise). AIRI's own `main/app/ozone.ts`
+// resolver (`resolveIsWayland`) applies that same precedence — an explicit
+// non-auto platform always wins over the hint — so the uiohook driver must
+// mirror it exactly. Treating the two switches as an OR (as an earlier
+// version of this function did) would misread `--ozone-platform=wayland
+// --ozone-platform-hint=x11` as X11, permitting registration for a shortcut
+// that then silently never fires.
+// Removal condition: never, unless the two switches are unified upstream.
+function usesX11OzoneBackend(args: readonly string[]): boolean {
+  const explicitPlatform = getArgSwitchValue(args, '--ozone-platform')
+  if (explicitPlatform && explicitPlatform !== 'auto')
+    return explicitPlatform === 'x11'
+
+  const platformHint = getArgSwitchValue(args, '--ozone-platform-hint')
+  if (platformHint && platformHint !== 'auto')
+    return platformHint === 'x11'
+
+  return false
+}
+
+function isNativeWayland(
+  platform: NodeJS.Platform,
+  sessionType: string | undefined,
+  args: readonly string[],
+): boolean {
+  return platform === 'linux'
+    && sessionType === 'wayland'
+    && !usesX11OzoneBackend(args)
 }
 
 function isMacAccessibilityTrusted(platform: NodeJS.Platform, prompt: boolean): boolean {
@@ -145,15 +185,8 @@ export interface UiohookDriverOptions {
   broadcastTriggered: (id: string, phase: 'down' | 'up') => void
   logger: Logger
   /**
-   * Host platform; injected so tests can exercise cross-platform
-   * modifier mapping without stubbing `process`.
-   *
-   * @default process.platform
-   */
-  platform?: NodeJS.Platform
-  /**
    * `XDG_SESSION_TYPE` value used for the Wayland refusal check;
-   * injected for the same reason as `platform`.
+   * injected so compositor-session cases remain explicit.
    *
    * @default process.env.XDG_SESSION_TYPE
    */
@@ -183,16 +216,25 @@ export interface UiohookDriver {
  * Constraints:
  * - macOS: requires the Accessibility permission. First registration
  *   triggers the system prompt; subsequent failures return `Denied`.
- * - Linux: requires X11 or XWayland. Native Wayland sessions return
- *   `Unsupported` because XRecord cannot observe Wayland clients.
+ * - Linux: requires X11 or XWayland (an explicit `--ozone-platform=x11` or
+ *   `--ozone-platform-hint=x11` launch). A native Wayland session with
+ *   neither switch returns `Unsupported` because XRecord cannot observe
+ *   Wayland clients at all.
+ * - Linux/XWayland: registration succeeds, but XRecord only observes X11
+ *   (XWayland) clients — a bound shortcut fires only while an XWayland
+ *   window has focus. It silently does not fire while focus is on a
+ *   native Wayland application, since that application's input never
+ *   passes through the X11 protocol XRecord hooks into. There is no
+ *   partial-refusal state for this case: Electron cannot tell the driver
+ *   which application currently holds focus.
  */
 export function createUiohookDriver(options: UiohookDriverOptions): UiohookDriver {
   const {
     broadcastTriggered,
     logger,
-    platform = process.platform,
     sessionType = process.env.XDG_SESSION_TYPE,
   } = options
+  const platform = process.platform
   const entries = new Map<string, UiohookEntry>()
   let started = false
   let listenersInstalled = false
@@ -264,7 +306,7 @@ export function createUiohookDriver(options: UiohookDriverOptions): UiohookDrive
     if (entries.has(binding.id))
       return { id: binding.id, ok: false, reason: ShortcutFailureReasons.DuplicateId }
 
-    if (isNativeWayland(platform, sessionType)) {
+    if (isNativeWayland(platform, sessionType, process.argv)) {
       // libuiohook hooks install but never receive events under
       // native Wayland. Refuse rather than register a binding that
       // would silently no-op.
