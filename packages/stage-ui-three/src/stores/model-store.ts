@@ -85,6 +85,7 @@ const { cameraDistance, cameraFOV, cameraPosition } = useThreeCamera()
 
 const modelRotationY = useLocalStorage('settings/stage-ui-three/modelRotationY', 0)
 const trackingMode = useLocalStorage<TrackingMode>('settings/stage-ui-three/trackingMode', 'none')
+const maxFps = useLocalStorage('settings/stage-ui-three/max-fps', 0)
 
 export const useModelStore = defineStore('modelStore', () => {
   const { post, data } = useBroadcastChannel<BroadcastChannelEvents, BroadcastChannelEvents>({ name: 'airi-stores-stage-ui-three-vrm' })
@@ -255,6 +256,7 @@ export const useModelStore = defineStore('modelStore', () => {
 
     lookAtTarget,
     trackingMode,
+    maxFps,
     eyeHeight,
     renderScale,
     multisampling,

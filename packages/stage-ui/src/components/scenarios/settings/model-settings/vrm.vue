@@ -27,6 +27,7 @@ const { t } = useI18n()
 const modelStore = useModelStore()
 const {
   modelSize,
+  maxFps,
   modelOffset,
   cameraFOV,
   modelRotationY,
@@ -48,6 +49,12 @@ const {
   skyBoxIntensity,
 } = storeToRefs(modelStore)
 const controlsLocked = computed(() => props.runtimeSnapshot.controlsLocked)
+// Bare numbers and an i18n'd unlimited label, matching the Live2D and Spine frame-rate controls.
+const fpsOptions = computed(() => [
+  { value: 0, label: t('settings.vrm.fps.options.unlimited') },
+  { value: 60, label: '60' },
+  { value: 30, label: '30' },
+])
 const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
 const trackingOptions = computed<{
   value: 'camera' | 'mouse' | 'none'
@@ -83,6 +90,12 @@ const envOptions = computed(() => [
 </script>
 
 <template>
+  <Container :title="t('settings.vrm.fps.title')" icon="i-solar:speedometer-bold-duotone">
+    <p :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']">
+      {{ t('settings.vrm.fps.description') }}
+    </p>
+    <SelectTab v-model="maxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
+  </Container>
   <Container
     :title="t('settings.pages.models.sections.section.scene')"
     icon="i-solar:people-nearby-bold-duotone"
