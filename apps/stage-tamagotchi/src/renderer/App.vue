@@ -2,9 +2,10 @@
 import type { ArtistrySyncPayload } from '@proj-airi/stage-shared'
 
 import { defineInvokeHandler } from '@moeru/eventa'
+import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
-import { artistrySyncConfig } from '@proj-airi/stage-shared'
+import { artistryGetConfig, artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
@@ -155,7 +156,7 @@ function createFullStageRuntime() {
     stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
   }
 
-  const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
+  const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions, replicateApiKey, nanobananaApiKey } = storeToRefs(artistryStore)
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
   const setPluginEnabled = useElectronEventaInvoke(electronPluginSetEnabled)
@@ -168,6 +169,7 @@ function createFullStageRuntime() {
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
   const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
+  const getArtistryConfig = useElectronEventaInvoke(artistryGetConfig)
   const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
   const isWidgetsWindow = initialRoutePath === '/widgets'
 
@@ -218,8 +220,26 @@ function createFullStageRuntime() {
     inspect: () => inspectPluginHost(),
   })
 
+  // NOTICE: API keys are no longer persisted to renderer localStorage (see
+  // packages/stage-ui/src/stores/modules/artistry.ts), so they start empty on every reload.
+  // Hydrate them from the main process's encrypted store BEFORE the push watcher below runs
+  // its first (`immediate`) pass — otherwise that pass would push empty keys to main and
+  // overwrite the previously-saved encrypted values.
+  async function hydrateArtistryApiKeys() {
+    try {
+      const config = await getArtistryConfig()
+      if (config?.globals) {
+        replicateApiKey.value = config.globals.replicateApiKey ?? ''
+        nanobananaApiKey.value = config.globals.nanobananaApiKey ?? ''
+      }
+    }
+    catch (error) {
+      console.warn('[App] Failed to hydrate artistry API keys from secure storage:', errorMessageFrom(error))
+    }
+  }
+
   let lastSyncedArtistryConfig: ArtistrySyncPayload | undefined
-  watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
+  function pushArtistryConfig() {
     if (!activeProvider.value)
       return
 
@@ -236,8 +256,14 @@ function createFullStageRuntime() {
     // Pinia synchronization applies cloned snapshots in every renderer. Keep
     // this IPC bridge edge-triggered so equal snapshots do not repeat IO.
     lastSyncedArtistryConfig = config
-    void syncArtistryConfig(config)
-  }, { deep: true, immediate: true })
+    void syncArtistryConfig(config).catch((error) => {
+      toast.error(errorMessageFrom(error) ?? 'Failed to save artistry settings securely')
+    })
+  }
+
+  void hydrateArtistryApiKeys().finally(() => {
+    watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], pushArtistryConfig, { deep: true, immediate: true })
+  })
 
   context.value.on(electronGodotStageStatusChanged, (event) => {
     if (!event.body) {

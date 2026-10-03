@@ -1,6 +1,7 @@
 import type {} from 'pinia-plugin-synced'
 
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
+import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, isRef, ref, watch } from 'vue'
 
@@ -55,7 +56,13 @@ export const useArtistryStore = defineStore('artistry', () => {
   )
 
   // --- Replicate provider settings ---
-  const replicateApiKey = useLocalStorageManualReset<string>('artistry-replicate-api-key', '', persistenceOptions)
+  // NOTICE: API keys must never be persisted to localStorage (Chromium's local storage in the
+  // Electron user-data dir is recoverable plaintext). This ref is memory-only — it still
+  // participates in pinia-plugin-synced's cross-window `state: true` sync below, but that
+  // transport is BroadcastChannel-based and never touches disk. The Electron app hydrates/
+  // persists the real value through main-process safeStorage instead (see
+  // apps/stage-tamagotchi/src/renderer/App.vue + src/main/configs/artistry.ts).
+  const replicateApiKey = refManualReset<string>('')
   const replicateDefaultModel = useLocalStorageManualReset<string>(
     'artistry-replicate-default-model',
     'black-forest-labs/flux-schnell',
@@ -73,7 +80,8 @@ export const useArtistryStore = defineStore('artistry', () => {
   )
 
   // --- Nano Banana (Google AI Studio) provider settings ---
-  const nanobananaApiKey = useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '', persistenceOptions)
+  // NOTICE: see replicateApiKey above — memory-only, hydrated/persisted via Electron main process.
+  const nanobananaApiKey = refManualReset<string>('')
   const nanobananaModel = useLocalStorageManualReset<string>(
     'artistry-nanobanana-model',
     'gemini-3.1-flash-image-preview',

@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { artistryGenerateHeadless, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, artistryGetConfig, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
 import { ComfyUIProvider } from './providers/comfyui'
@@ -462,23 +462,41 @@ export async function setupArtistryBridge(params: {
       return await generateHeadless(payload)
     })
 
+    defineInvokeHandler(params.context, artistryGetConfig, () => {
+      const current = params.artistryConfig.get()
+      return {
+        provider: current?.artistryProvider ?? DEFAULT_ARTISTRY_PROVIDER,
+        globals: current?.artistryGlobals ?? {},
+      }
+    })
+
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
       log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
-      params.artistryConfig.update({
-        artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
-        artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
-          comfyuiServerUrl: 'http://localhost:8188',
-          comfyuiSavedWorkflows: [],
-          comfyuiActiveWorkflow: '',
-          replicateApiKey: '',
-          replicateDefaultModel: 'black-forest-labs/flux-schnell',
-          replicateAspectRatio: '16:9',
-          replicateInferenceSteps: 4,
-          nanobananaApiKey: '',
-          nanobananaModel: 'gemini-3.1-flash-image-preview',
-          nanobananaResolution: '1K',
-        },
-      })
+
+      try {
+        params.artistryConfig.update({
+          artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
+          artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
+            comfyuiServerUrl: 'http://localhost:8188',
+            comfyuiSavedWorkflows: [],
+            comfyuiActiveWorkflow: '',
+            replicateApiKey: '',
+            replicateDefaultModel: 'black-forest-labs/flux-schnell',
+            replicateAspectRatio: '16:9',
+            replicateInferenceSteps: 4,
+            nanobananaApiKey: '',
+            nanobananaModel: 'gemini-3.1-flash-image-preview',
+            nanobananaResolution: '1K',
+          },
+        })
+      }
+      catch (error) {
+        // NOTICE: artistryConfig.update() fails closed (throws) when safeStorage can't encrypt
+        // a non-empty API key instead of persisting it in plaintext. Rethrow so the renderer's
+        // invoke promise rejects and the user sees the save actually failed.
+        log.error(`🔴 Failed to persist artistry config securely: ${errorMessageFrom(error)}`)
+        throw error
+      }
 
       // Update character-level defaults (volatile only)
       cardDefaults.provider = payload.provider

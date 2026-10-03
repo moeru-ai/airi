@@ -1,3 +1,5 @@
+import { Buffer } from 'node:buffer'
+
 import { safeStorage } from 'electron'
 import { any, array, number, object, optional, string } from 'valibot'
 
@@ -21,15 +23,32 @@ export const artistryConfigSchema = object({
 
 // Replicate/Nanobanana API keys must not be persisted in plaintext on disk.
 // Encrypt them at rest with the OS keychain-backed Electron safeStorage API.
+//
+// NOTICE:
+// Fail closed on save: silently falling back to plaintext when safeStorage is
+// unavailable would defeat this fix entirely on hosts without a keychain backend.
+// config.update() (below) must reject the whole write rather than persist plaintext.
 function encryptApiKey(value: string): string {
-  if (!value || !safeStorage.isEncryptionAvailable())
+  if (!value)
     return value
+  if (!safeStorage.isEncryptionAvailable())
+    throw new Error('Secure storage is unavailable; refusing to persist artistry API key in plaintext')
   return safeStorage.encryptString(value).toString('base64')
 }
 
 function decryptApiKey(value: string): string {
-  if (!value || !safeStorage.isEncryptionAvailable())
+  if (!value)
     return value
+  if (!safeStorage.isEncryptionAvailable()) {
+    // NOTICE:
+    // Fail closed on read too, but to "unset" rather than throwing: config.get() is called
+    // from many places (image generation, "is provider configured" checks, the get-config
+    // IPC handler) that must keep working even when the keychain backend is unavailable.
+    // Returning the undecryptable ciphertext as-is would hand callers a bogus "key" string;
+    // treating it as absent is the safe, non-crashing choice.
+    console.warn('Secure storage unavailable; treating stored artistry API key as unset')
+    return ''
+  }
   try {
     return safeStorage.decryptString(Buffer.from(value, 'base64'))
   }
