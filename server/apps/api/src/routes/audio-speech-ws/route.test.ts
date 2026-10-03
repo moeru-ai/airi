@@ -290,7 +290,6 @@ describe('audio-speech-ws route', () => {
       userId: 'user-123',
       model: 'volcengine/seed-tts-2.0',
       status: 200,
-      fluxConsumed: 1,
     })
   })
 

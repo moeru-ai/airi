@@ -11,7 +11,7 @@ import { safeParse } from 'valibot'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
 import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/billing'
-import { availableMicroFlux, MICRO_FLUX_PER_FLUX } from '../../../../services/domain/billing/flux-posting'
+import { availableMicroFlux, MICRO_FLUX_PER_FLUX, microFluxToFlux } from '../../../../services/domain/billing/flux-posting'
 import { createPaymentRequiredError, createServiceUnavailableError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
@@ -86,7 +86,7 @@ export function createOpenAiRouteBilling(deps: {
     const pricing = policy.costPricing[adapter.provider]
     const costUsage = adapter.extractUsage(usage)
     const charge = priceLlmCost(costUsage, pricing)
-    const amount = (charge.costMicroFlux ?? 0) / MICRO_FLUX_PER_FLUX
+    const amount = microFluxToFlux(charge.costMicroFlux ?? 0)
     return { amount, costReceipt: { provider: adapter.provider, usage: costUsage, pricing } }
   }
 
@@ -141,5 +141,5 @@ export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> 
       : 'Partial debit on non-streaming completion — flux drained to zero')
   }
 
-  return result.charged
+  return result.feeFlux
 }

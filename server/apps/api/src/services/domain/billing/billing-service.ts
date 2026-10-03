@@ -229,7 +229,7 @@ export function createBillingService(
       return txResult
     },
 
-    async syncFluxCache(userId: string, _balance: number, credited?: { amount: number, source: string }): Promise<void> {
+    async syncFluxCache(userId: string, credited?: { amount: number, source: string }): Promise<void> {
       await updateRedisCache(userId)
       if (credited)
         metrics?.fluxCredited.add(credited.amount, { source: credited.source, type: 'credit' })

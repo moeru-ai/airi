@@ -449,7 +449,7 @@ export function createSessionState(
           model: modelLabel,
           turnId: analyticsInput.turnId,
         }))
-      fluxConsumed = result.charged
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
     }
     catch (err) {
@@ -466,7 +466,6 @@ export function createSessionState(
         model: modelLabel,
         status: 200,
         durationMs,
-        fluxConsumed,
       })
     }
     catch (err) {
