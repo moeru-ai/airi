@@ -78,6 +78,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
     description: string
     imageIndex: number
   }>
+  /** ASR results indexed by the audio parts in the original user message. */
+  audioTranscripts?: string[]
   /** Message that this message replies to in the same chat session. */
   replyToMessageId?: string
   /** Tools selected for this message. The runtime rebuilds executors from these names. */
@@ -85,6 +87,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
 }
 
 export interface ChatStreamEventContext {
+  /** Session ownership travels with the event across concurrent turns and renderer transports. */
+  sessionId: string
   /** Stable correlation id shared by every hook emitted for one user turn. */
   turnId: string
   message: ChatHistoryItem
