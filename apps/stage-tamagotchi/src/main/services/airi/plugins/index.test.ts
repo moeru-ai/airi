@@ -90,6 +90,26 @@ const logMock = vi.hoisted(() => {
   return logger
 })
 
+const manifestRead = vi.hoisted(() => ({
+  gate: undefined as { path: string, entered: () => void, wait: Promise<void> } | undefined,
+}))
+
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:fs/promises')>()
+  return {
+    ...actual,
+    async readFile(...args: Parameters<typeof actual.readFile>) {
+      const gate = manifestRead.gate
+      if (gate && String(args[0]) === gate.path) {
+        manifestRead.gate = undefined
+        gate.entered()
+        await gate.wait
+      }
+      return await actual.readFile(...args)
+    },
+  }
+})
+
 vi.mock('@guiiai/logg', () => ({
   useLogg: vi.fn(() => logMock),
 }))
@@ -1289,6 +1309,86 @@ describe('setupExtensionHost', () => {
     await disposalPromise
     expect(disposalComplete).toBe(true)
     expect(service.host.listSessions()).toEqual([])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2776#discussion_r4172223609
+  it('drains auto-reload changes paused in manifest refresh before the final flush (PR #2776)', async () => {
+    // ROOT CAUSE:
+    // Configuration requests could resume after disposal flushed their store.
+    // The host must drain admitted requests before flushing and reject new ones.
+    const { manifestPath } = await writeManifestInPluginDir({
+      rootDir: pluginsDir,
+      pluginDirName: 'shutdown-auto-reload',
+      pluginName: 'shutdown-auto-reload',
+      entrypointPath: join(testDataRoot, 'test-normal-plugin.ts'),
+    })
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    const entered = createDeferred()
+    const resume = createDeferred()
+    manifestRead.gate = { path: manifestPath, entered: entered.resolve, wait: resume.promise }
+    const change = service.setAutoReload({ extensionId: 'shutdown-auto-reload', enabled: true })
+    await entered.promise
+    let disposed = false
+    const disposal = service.dispose().then(() => {
+      disposed = true
+    })
+    try {
+      await new Promise(resolve => setTimeout(resolve, 30))
+      expect(disposed).toBe(false)
+      await expect(service.setAutoReload({ extensionId: 'late-change', enabled: true })).rejects.toThrow('shutting down')
+      resume.resolve()
+      await change
+      await disposal
+      const persisted = JSON.parse(await readFile(join(userDataDir, 'extensions-v1.json'), 'utf8'))
+      expect(persisted.autoReload).toEqual(['shutdown-auto-reload'])
+      await expect(service.setAutoReload({ extensionId: 'late-change', enabled: true })).rejects.toThrow('shutting down')
+      await expect(service.prepareDirectoryImport(pluginsDir)).rejects.toThrow('shutting down')
+      await expect(service.setEnabled({ extensionId: 'late-change', enabled: true })).rejects.toThrow('shutting down')
+    }
+    finally {
+      resume.resolve()
+      await Promise.allSettled([change, disposal])
+    }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2776#discussion_r4172223609
+  it('drains a committed directory import paused in manifest refresh before shutdown (PR #2776)', async () => {
+    const { manifestPath } = await writeManifestInPluginDir({
+      rootDir: pluginsDir,
+      pluginDirName: 'refresh-gate',
+      pluginName: 'refresh-gate',
+      entrypointPath: join(testDataRoot, 'test-normal-plugin.ts'),
+    })
+    const sourceDir = join(userDataDir, 'shutdown-import-source')
+    await mkdir(sourceDir, { recursive: true })
+    await writeFile(join(sourceDir, 'extension.mjs'), createEmptyExtensionEntrypoint('shutdown-import'))
+    await writeManifest({ dir: sourceDir, name: 'shutdown-import', entrypoint: './extension.mjs' })
+    const { service } = await setupExtensionHostServiceInternalForTest()
+    const plan = await service.prepareDirectoryImport(sourceDir)
+    const entered = createDeferred()
+    const resume = createDeferred()
+    manifestRead.gate = { path: manifestPath, entered: entered.resolve, wait: resume.promise }
+    const change = service.commitDirectoryImport(plan.planId)
+    const changeSettled = Promise.allSettled([change])
+    await entered.promise
+    let disposed = false
+    const disposal = service.dispose().then(() => {
+      disposed = true
+    })
+    try {
+      await new Promise(resolve => setTimeout(resolve, 30))
+      expect(disposed).toBe(false)
+      resume.resolve()
+      await change
+      await disposal
+      const persisted = JSON.parse(await readFile(join(userDataDir, 'extensions-v1.json'), 'utf8'))
+      expect(persisted.known['shutdown-import']).toBeDefined()
+      await expect(service.commitDirectoryImport(plan.planId)).rejects.toThrow('shutting down')
+    }
+    finally {
+      resume.resolve()
+      await Promise.allSettled([changeSettled, disposal])
+    }
   })
 
   it('waits for in-flight asset inspection before disposing its owner', async () => {
