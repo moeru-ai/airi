@@ -18,7 +18,7 @@ export async function setupInlayWindowInvokes(params: {
   // manage events within eventa's context system.
   ipcMain.setMaxListeners(0)
 
-  const { context } = createContext(ipcMain, params.inlayWindow)
+  const { context } = createContext(ipcMain, params.inlayWindow, { onlySameWindow: true })
 
   await setupBaseWindowElectronInvokes({
     context,
