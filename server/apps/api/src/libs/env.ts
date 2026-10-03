@@ -78,6 +78,11 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   // mounted and returns 503 APPLE_IAP_DISABLED.
   APPLE_IAP_APPS: optional(AppleIapAppsSchema, ''),
   APPLE_IAP_ENV: optional(picklist(['sandbox', 'production', 'xcode']), 'sandbox'),
+  // Exact internal IDs of dedicated accounts that can receive Sandbox Flux.
+  APPLE_IAP_SANDBOX_USER_IDS: optional(pipe(
+    string(),
+    transform(raw => [...new Set(raw.split(',').map(id => id.trim()).filter(Boolean))]),
+  ), ''),
 
   AUTH_SERVER_INTERNAL_URL: optional(string()),
   AUTH_SERVER_URL: optional(string(), 'http://localhost:3000'),

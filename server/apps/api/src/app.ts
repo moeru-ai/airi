@@ -33,6 +33,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
+import { parseAccept } from 'hono/utils/accept'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
@@ -124,6 +125,8 @@ function apiBodyLimit(maxSize: number) {
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
+  const webAppUrl = deps.env.WEB_APP_URL
+  const docsUrl = new URL('/docs', webAppUrl).toString()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -371,17 +374,19 @@ export async function buildApp(deps: AppDeps) {
       )
     })
 
-    /**
-     * Service identity at the API root. Visitors who land here from a stray
-     * email link, search engine, or copy-pasted URL get a clear pointer to
-     * the actual product UI instead of the framework's default "404 Not Found".
-     */
-    .on('GET', '/', c => c.json({
-      service: 'airi-api',
-      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
-      docs: 'https://airi.moeru.ai/docs',
-      ui: 'https://airi.moeru.ai',
-    }))
+    .on('GET', '/', (context) => {
+      context.header('Vary', 'Accept')
+      const accept = context.req.header('Accept')
+      if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
+        return context.redirect(webAppUrl, 302)
+
+      return context.json({
+        service: 'airi-api',
+        message: `This is the Project AIRI API server. Visit ${webAppUrl} to use the product, or see the docs at ${docsUrl}.`,
+        docs: docsUrl,
+        ui: webAppUrl,
+      })
+    })
 
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
@@ -446,6 +451,7 @@ export async function buildApp(deps: AppDeps) {
       deps.appleIapVerifier,
       deps.configKV,
       deps.otel?.rateLimit ?? null,
+      deps.env.APPLE_IAP_SANDBOX_USER_IDS,
     ))
 
     /**
@@ -455,8 +461,8 @@ export async function buildApp(deps: AppDeps) {
      */
     .notFound(c => c.json({
       error: 'NOT_FOUND',
-      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at https://airi.moeru.ai.`,
-      ui: 'https://airi.moeru.ai',
+      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at ${webAppUrl}.`,
+      ui: webAppUrl,
     }, 404))
 
   return { app: builtApp, injectWebSocket }
@@ -649,6 +655,7 @@ export async function createApp() {
         return await createAppleIapVerifier({
           apps: dependsOn.env.APPLE_IAP_APPS,
           env: dependsOn.env.APPLE_IAP_ENV,
+          allowSandbox: dependsOn.env.APPLE_IAP_SANDBOX_USER_IDS.length > 0,
         })
       }
       catch (error) {

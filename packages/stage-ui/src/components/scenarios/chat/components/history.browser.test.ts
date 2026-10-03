@@ -167,6 +167,41 @@ describe('chat history', () => {
 
   // ROOT CAUSE:
   //
+  // ChatHistoryMessageFrame always applied opacity-0, then added opacity-100
+  // when IntersectionObserver reported visibility. UnoCSS kept both utilities
+  // on the same node. In Kirie CEF software OSR the opacity transition never
+  // flushed, so computed opacity stayed 0 and the conversation looked empty
+  // after a successful send.
+  //
+  // Visible messages now start opaque and never keep both opacity utilities.
+  it('paints on-screen desktop messages without an opacity-0 class', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'Hello from the chat window' }],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-message-item')).not.toBeNull()
+    })
+
+    const item = screen.container.querySelector<HTMLElement>('.chat-message-item')
+    expect(item).not.toBeNull()
+    if (!item)
+      throw new Error('Expected a rendered chat message.')
+
+    expect(item.classList.contains('opacity-0')).toBe(false)
+    expect(item.classList.contains('opacity-100')).toBe(true)
+    expect(getComputedStyle(item).opacity).toBe('1')
+    expect(item.textContent).toContain('Hello from the chat window')
+  })
+
+  // ROOT CAUSE:
+  //
   // The desktop chat needs the styled Reka viewport, but forcing its track to
   // stay mounted leaves an inert scrollbar visible when short content cannot scroll.
   // Reka's automatic visibility must own the track without changing the viewport.
@@ -324,7 +359,9 @@ describe('chat history', () => {
       expect(visibleMessages.length).toBeGreaterThan(0)
       expect(hiddenMessages.length).toBeGreaterThan(0)
       expect(visibleMessages[0].classList.contains('opacity-100')).toBe(true)
+      expect(visibleMessages[0].classList.contains('opacity-0')).toBe(false)
       expect(visibleMessages[0].classList.contains('transition-opacity')).toBe(true)
+      expect(getComputedStyle(visibleMessages[0]).opacity).toBe('1')
       expect(hiddenMessages[0].classList.contains('opacity-0')).toBe(true)
     })
 
@@ -429,6 +466,48 @@ describe('chat history', () => {
         key: getChatHistoryItemKey(messages[1], 1),
       },
     ]])
+  })
+
+  it('keeps short error formatting', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'error', content: '**Retry this request**' }],
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.querySelector('strong')?.textContent).toBe('Retry this request'))
+    expect(screen.container.querySelector('button[aria-expanded]')).toBeNull()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A provider can place a full response body inside one chat error message.
+  // The error item rendered that body immediately and filled the mobile Stage.
+  // Keep a short summary visible and reveal the complete message on request.
+  it('keeps a long provider error compact until the user opens its details', async () => {
+    const responseBody = JSON.stringify({ error: { message: 'Invalid schema for configure_wake_words', metadata: 'x'.repeat(1200) } })
+    const content = `Remote sent 400 response: ${responseBody}`
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'user', content: 'Set a wake word' }, { role: 'error', content }],
+        variant: 'mobile',
+        style: 'height: 480px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.textContent).toContain('Remote sent 400 response'))
+    expect(screen.container.textContent).toContain('Remote sent 400 response')
+    expect(screen.container.textContent).not.toContain('Invalid schema for configure_wake_words')
+
+    const disclosure = screen.getByRole('button', { name: 'Show details' })
+    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false')
+    await disclosure.click()
+    await expect.element(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true')
+
+    expect(screen.container.textContent).toContain('Invalid schema for configure_wake_words')
+    expect(screen.container.querySelector('pre')?.textContent).toBe(content)
   })
 
   it('emits retry-message for an error after partial assistant output', async () => {

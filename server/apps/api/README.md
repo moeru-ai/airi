@@ -236,3 +236,45 @@ This server-owned protocol layer derives schemas from OpenResponses and adds Ope
 It permits provider-side references; the AIRI request policy rejects them for shared upstream accounts.
 The schema directory retains its generation input and instructions. Compiled JavaScript is not stored in source.
 xsai's existing client patch remains unchanged. No schema export or new peer dependency is added to xsai.
+
+## Apple sandbox purchases on the shared API
+
+Keep `APPLE_IAP_ENV=production` to accept real App Store purchases.
+Set `APPLE_IAP_SANDBOX_USER_IDS` to a comma-separated list of exact internal
+user IDs for dedicated test accounts. Do not use email addresses, Apple IDs,
+or `appAccountToken` values in this list. Restart the API after a change.
+An empty list disables Sandbox verification on the production API.
+Sandbox-only deployments also require this list before they can grant Flux.
+
+This list enables Sandbox JWS verification beside Production verification.
+Both use Apple's signature checks. It never enables Xcode's unsigned mode.
+Both `/api/v1/apple-iap/transactions` and `/api/v1/apple-iap/notifications`
+check the resolved Sandbox account before settlement. A blocked device gets
+403 and can retry later. A blocked notification gets 200 without a grant.
+
+Use **new, dedicated accounts**. Sandbox Flux enters their existing balance
+and can spend real provider resources. This is account-level access control,
+not a separate wallet or database. Do not use a normal account for this list.
+Sandbox orders use `sandbox:<bundleId>:<transactionId>` as the processor order
+ID from their first settlement. The existing `(processor, processor_order_id)`
+unique index prevents repeat and concurrent grants. This rollout assumes no
+historical Sandbox orders and no old Sandbox writers, as confirmed by the
+deployment owner. It requires no schema migration.
+Production order IDs do not change.
+
+Before the first device test:
+
+1. Deploy the change and configure `APPLE_IAP_APPS` with each bundle and App Store Connect ID.
+2. Add a dedicated account's internal user ID to `APPLE_IAP_SANDBOX_USER_IDS`.
+3. Configure `APPLE_FLUX_PACKS` in ConfigKV, not in environment variables. Use exact App Store product IDs and positive `fluxAmount` values.
+4. Set the App Store Connect Sandbox Notifications V2 URL to the public `/api/v1/apple-iap/notifications` endpoint.
+5. Install a build with the iOS settlement fixes. Sign in to the dedicated AIRI account and complete a sandbox purchase.
+
+Check purchase credit, device retries, and duplicate Apple notifications.
+Each purchase must credit once. Check that a normal account cannot receive
+Sandbox Flux. A TestFlight purchase uses Sandbox and does not charge money.
+A test notification alone does not prove purchase settlement.
+
+Remove the user IDs and restart the API after testing. Removing an ID does
+not delete its existing Flux balance. Keep test accounts separate after the test.
+Live sandbox purchases and notification delivery require deployment verification.
