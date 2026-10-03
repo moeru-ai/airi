@@ -1,3 +1,5 @@
+import type { VoiceInfo } from '../../../types'
+
 import { z } from 'zod'
 
 import { defineProvider } from '../../registry'
@@ -8,6 +10,119 @@ const minimaxSpeechConfigSchema = z.object({
 })
 
 type MinimaxSpeechConfig = z.input<typeof minimaxSpeechConfigSchema>
+
+/** Locale of a voice that the catalog cannot resolve from its ID. */
+const UNKNOWN_VOICE_LANGUAGE = { code: 'und', title: 'Unknown' }
+
+/**
+ * Maps the voice ID prefix to a locale. MiniMax prefixes system voice IDs with
+ * the language, for example `Spanish_Serene_Woman` or `Chinese (Mandarin)_Anchor`.
+ */
+const VOICE_LANGUAGE_BY_PREFIX: Record<string, { code: string, title: string }> = {
+  'english': { code: 'en', title: 'English' },
+  'spanish': { code: 'es', title: 'Spanish' },
+  'chinese (mandarin)': { code: 'zh', title: 'Chinese' },
+  'cantonese': { code: 'yue', title: 'Cantonese' },
+  'chinese': { code: 'zh', title: 'Chinese' },
+  'japanese': { code: 'ja', title: 'Japanese' },
+  'korean': { code: 'ko', title: 'Korean' },
+  'french': { code: 'fr', title: 'French' },
+  'german': { code: 'de', title: 'German' },
+  'italian': { code: 'it', title: 'Italian' },
+  'portuguese': { code: 'pt', title: 'Portuguese' },
+  'russian': { code: 'ru', title: 'Russian' },
+  'turkish': { code: 'tr', title: 'Turkish' },
+  'indonesian': { code: 'id', title: 'Indonesian' },
+  'vietnamese': { code: 'vi', title: 'Vietnamese' },
+  'thai': { code: 'th', title: 'Thai' },
+}
+
+/**
+ * Every ID here is listed in the MiniMax System Voice ID List. An ID that the
+ * account does not own makes the synthesis call fail, so never invent one.
+ * Source: https://platform.minimax.io/docs/api-reference/system-voice-id
+ */
+const builtinMinimaxVoices: VoiceInfo[] = [
+  { id: 'English_Graceful_Lady', name: 'Graceful Lady', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+  { id: 'English_radiant_girl', name: 'Radiant Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+  { id: 'English_expressive_narrator', name: 'Expressive Narrator', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
+  { id: 'English_Upbeat_Woman', name: 'Upbeat Woman', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
+  { id: 'English_Trustworth_Man', name: 'Trustworthy Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
+  { id: 'Spanish_SereneWoman', name: 'Serene Woman', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'es', title: 'Spanish' }] },
+  { id: 'Spanish_Narrator', name: 'Narrator', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'es', title: 'Spanish' }] },
+  { id: 'Spanish_WiseScholar', name: 'Wise Scholar', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'es', title: 'Spanish' }] },
+  { id: 'Spanish_ConfidentWoman', name: 'Confident Woman', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'es', title: 'Spanish' }] },
+  { id: 'Chinese (Mandarin)_Reliable_Executive', name: 'Reliable Executive', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
+  { id: 'Chinese (Mandarin)_News_Anchor', name: 'News Anchor', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
+  { id: 'Cantonese_ProfessionalHost (F)', name: 'Professional Female Host', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'yue', title: 'Cantonese' }] },
+]
+
+/** Reads the language that the ID prefix names. Cloned and generated voices have no prefix. */
+function resolveVoiceLanguage(voiceId: string): { code: string, title: string } {
+  const separatorIndex = voiceId.indexOf('_')
+  if (separatorIndex <= 0)
+    return UNKNOWN_VOICE_LANGUAGE
+  return VOICE_LANGUAGE_BY_PREFIX[voiceId.slice(0, separatorIndex).trim().toLowerCase()] ?? UNKNOWN_VOICE_LANGUAGE
+}
+
+interface MinimaxVoiceEntry {
+  voice_id?: string
+  voice_name?: string
+  description?: string[]
+}
+
+/**
+ * Reads the account voice catalog from `POST /v1/get_voice`. The account holds
+ * every system voice, plus cloned and generated voices.
+ * Returns an empty list when the API key is missing or the call fails.
+ */
+async function fetchMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceInfo[]> {
+  const apiKey = config.apiKey?.trim()
+  if (!apiKey)
+    return []
+
+  const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
+
+  try {
+    const response = await fetch(`${baseUrl}/v1/get_voice`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ voice_type: 'all' }),
+    })
+
+    if (!response.ok)
+      return []
+
+    const payload = await response.json() as {
+      system_voice?: MinimaxVoiceEntry[]
+      voice_cloning?: MinimaxVoiceEntry[]
+      voice_generation?: MinimaxVoiceEntry[]
+    }
+
+    const entries = [
+      ...(payload.system_voice ?? []),
+      ...(payload.voice_cloning ?? []),
+      ...(payload.voice_generation ?? []),
+    ]
+
+    return entries
+      .filter(entry => !!entry.voice_id)
+      .map(entry => ({
+        id: entry.voice_id as string,
+        name: entry.voice_name || entry.voice_id as string,
+        provider: 'minimax-speech',
+        description: entry.description?.join(' '),
+        languages: [resolveVoiceLanguage(entry.voice_id as string)],
+      }))
+  }
+  // The built-in voices keep the page usable when the account call fails.
+  catch {
+    return []
+  }
+}
 
 export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minimax-speech'>({
   id: 'minimax-speech',
@@ -137,17 +252,9 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
       { id: 'speech-2.8-turbo', name: 'Speech 2.8 Turbo', provider: 'minimax-speech', description: 'Fast TTS model for low-latency scenarios', deprecated: false },
     ],
     voiceCatalogConfig: () => ({}),
-    listVoices: async () => [
-      { id: 'English_Graceful_Lady', name: 'Graceful Lady', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-      { id: 'English_Insightful_Speaker', name: 'Insightful Speaker', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
-      { id: 'English_radiant_girl', name: 'Radiant Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'en', title: 'English' }] },
-      { id: 'English_Persuasive_Man', name: 'Persuasive Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'en', title: 'English' }] },
-      { id: 'English_Lucky_Robot', name: 'Lucky Robot', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
-      { id: 'English_expressive_narrator', name: 'Expressive Narrator', provider: 'minimax-speech', gender: 'neutral', languages: [{ code: 'en', title: 'English' }] },
-      { id: 'Mandarin_Gentle_Woman', name: 'Gentle Woman', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-      { id: 'Mandarin_Steadfast_Man', name: 'Steadfast Man', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
-      { id: 'Mandarin_Sweet_Girl', name: 'Sweet Girl', provider: 'minimax-speech', gender: 'female', languages: [{ code: 'zh', title: 'Chinese' }] },
-      { id: 'Mandarin_Magnetic_Gentleman', name: 'Magnetic Gentleman', provider: 'minimax-speech', gender: 'male', languages: [{ code: 'zh', title: 'Chinese' }] },
-    ],
+    listVoices: async (config) => {
+      const voices = await fetchMinimaxVoices(config)
+      return voices.length > 0 ? voices : builtinMinimaxVoices
+    },
   },
 })
