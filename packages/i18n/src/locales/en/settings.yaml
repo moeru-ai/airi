@@ -1523,6 +1523,18 @@ pages:
       minimax-speech:
         description: minimax.io
         title: MiniMax Speech
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: A BCP-47 tag that hints at the spoken language. Leave it empty to recognise mixed languages.
+              label: Language
+              placeholder: Leave empty for automatic detection
+            model:
+              description: The speech-to-text model version used for this request.
+              label: Model
+        title: MiniMax Transcription
       mimo:
         description: api.xiaomimimo.com
         title: Xiaomi MiMo

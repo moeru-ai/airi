@@ -648,6 +648,18 @@ pages:
               label: Vitesse
             volume:
               description: Ajuster le volume de la parole
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: Une balise BCP-47 indiquant la langue parlée. Laissez vide pour reconnaître des langues mixtes.
+              label: Langue
+              placeholder: Vide pour détection automatique
+            model:
+              description: La version du modèle de transcription utilisée pour cette requête.
+              label: Modèle
+        title: MiniMax Transcription
       speech-noop:
         title: Aucun
         description: Aucune sortie vocale.

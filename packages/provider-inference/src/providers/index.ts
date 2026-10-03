@@ -23,6 +23,7 @@ import { providerMimo } from './cloud/mimo'
 import { providerMimoAudioSpeech, providerMimoAudioTranscription } from './cloud/mimo-audio'
 import { providerMinimax, providerMinimaxGlobal } from './cloud/minimax'
 import { providerMinimaxSpeech } from './cloud/minimax-speech'
+import { providerMinimaxTranscription } from './cloud/minimax-transcription'
 import { providerMistralAI } from './cloud/mistral-ai'
 import { providerModelScope } from './cloud/modelscope'
 import { providerMoonshotAI } from './cloud/moonshot-ai'
@@ -109,6 +110,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerMinimax,
   providerMinimaxGlobal,
   providerMinimaxSpeech,
+  providerMinimaxTranscription,
   providerMimo,
   providerMimoAudioSpeech,
   providerMimoAudioTranscription,

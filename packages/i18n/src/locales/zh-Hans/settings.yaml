@@ -1142,6 +1142,18 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: 提示主要口语语言的 BCP-47 标签。留空则启用混合语言识别。
+              label: 语言
+              placeholder: 留空则自动检测
+            model:
+              description: 本次请求使用的语音转文字模型版本。
+              label: 模型
+        title: MiniMax 语音识别
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:

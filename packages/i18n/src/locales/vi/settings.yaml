@@ -1082,6 +1082,18 @@ pages:
             volume:
               description: Điều chỉnh âm lượng
               label: Âm lượng
+      minimax-transcription:
+        description: minimax.io
+        fields:
+          field:
+            language:
+              description: Thẻ BCP-47 gợi ý ngôn ngữ đang nói. Để trống để nhận diện nhiều ngôn ngữ.
+              label: Ngôn ngữ
+              placeholder: Để trống để tự động nhận diện
+            model:
+              description: Phiên bản mô hình chuyển giọng nói dùng cho yêu cầu này.
+              label: Mô hình
+        title: MiniMax Chuyển giọng nói
       speech-noop:
         title: Không có
         description: Không phát âm thanh.
