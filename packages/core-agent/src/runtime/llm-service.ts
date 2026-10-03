@@ -86,6 +86,9 @@ async function streamOnce({
   const request = currentProvider.generation(currentModel)
   const supportedTools = supportsTools(currentModel, request, options)
   const contentArraySupported = supportsContentArray(currentModel, request, options)
+  if (request.protocol === 'chat-completions' && !contentArraySupported && options?.prepareStringContent)
+    conversation = await options.prepareStringContent(conversation)
+  options?.abortSignal?.throwIfAborted()
   const builtinTools = supportedTools && !initialStep
     ? await (builtinToolsResolver?.(model, chatProvider) ?? Promise.resolve([]))
     : []
