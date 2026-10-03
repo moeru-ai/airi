@@ -339,6 +339,24 @@ Navigate to [moeru-ai/airi](https://github.com/moeru-ai/airi) page, click on the
 
 Review the changes, and click on the **Create pull request** button.
 
+## Unit Test merge requirement
+
+The `Unit Test` check must pass before a pull request merges into `main`.
+Organization member `luoling8192` described failed unit tests as a CI blocker in
+[PR #2290](https://github.com/moeru-ai/airi/pull/2290#issuecomment-5802515112) and
+[PR #2214](https://github.com/moeru-ai/airi/pull/2214#issuecomment-5802515813).
+
+The proposed [Require Unit Test ruleset](rulesets/require-unit-test.json) adds this requirement alongside the existing `Protect main` ruleset.
+It requires the `Unit Test` check from GitHub Actions and has no bypass actors.
+Existing required checks remain in effect.
+
+A repository administrator must import the JSON file under **Settings → Rules → Rulesets → New ruleset → Import a ruleset**.
+Do not create a duplicate if `Require Unit Test` already exists. Update that ruleset instead.
+Merging this document does not apply the GitHub configuration.
+
+Auto-merge is already enabled for the repository.
+With this ruleset active, auto-merge waits for `Unit Test` and the other required checks before a merge.
+
 ## Whooo-ya! You made it!
 
 Congratulations! You made your first contribution to this project. You can now wait for the maintainers to review your pull request.

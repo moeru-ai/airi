@@ -1,7 +1,6 @@
 import type { WSContext } from 'hono/ws'
 import type { RawData } from 'ws'
 
-import type { FluxService } from '../../services/domain/flux'
 import type { AudioSpeechWsHandlersOptions } from './types'
 
 import { Buffer } from 'node:buffer'
@@ -134,8 +133,7 @@ export function createSessionState(
     // Pre-flight balance check: refuse before dialing if the user cannot
     // afford the worst-case session.
     try {
-      const flux = await opts.fluxService.getFlux(userId)
-      await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
+      await opts.speechBilling.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE)
     }
     catch (err) {
       log.withError(err).withFields({ userId }).warn('pre-flight rejected streaming tts')
@@ -441,35 +439,22 @@ export function createSessionState(
     billed = true
     span.setAttribute(GEN_AI_ATTR_REQUEST_MODEL, modelLabel)
 
-    let flux: Awaited<ReturnType<FluxService['getFlux']>>
-    try {
-      flux = await opts.fluxService.getFlux(userId)
-    }
-    catch (err) {
-      log.withError(err).withFields({ userId }).warn('flux read failed at session end')
-      finalize()
-      return
-    }
-
     let fluxConsumed = 0
     try {
       const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
-        opts.ttsMeter.accumulate({
+        opts.speechBilling.settle({
           userId,
           units,
-          currentBalance: flux.flux,
           requestId,
-          metadata: { model: modelLabel },
+          model: modelLabel,
           turnId: analyticsInput.turnId,
         }))
-      fluxConsumed = result.fluxDebited
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
     }
     catch (err) {
-      // Billing failure is surfaced but does not retroactively reject the
-      // already-delivered audio — the user got the audio, the meter retains
-      // the debt for the next request to settle (per FluxMeter rollback path).
-      log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
+      // Billing failure is surfaced but does not retroactively reject the already-delivered audio.
+      log.withError(err).withFields({ userId, units, reason }).error('billing settle failed for streaming tts')
       span.recordException(err as Error)
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
     }
@@ -481,7 +466,6 @@ export function createSessionState(
         model: modelLabel,
         status: 200,
         durationMs,
-        fluxConsumed,
       })
     }
     catch (err) {
