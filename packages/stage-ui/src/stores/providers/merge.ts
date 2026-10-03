@@ -3,6 +3,7 @@ import type { ProviderReplicaRow } from '../../services/inference-service-provid
 export interface ProviderSyncRow {
   id: string
   definitionId: string
+  displayName?: string
   config: Record<string, unknown>
   replicaUpdatedAt?: string
 }
@@ -32,6 +33,7 @@ function copyRemoteLive(remoteRow: ProviderReplicaRow): ProviderSyncRow {
   return {
     id: remoteRow.id,
     definitionId: remoteRow.definitionId,
+    ...(remoteRow.displayName !== undefined ? { displayName: remoteRow.displayName } : {}),
     // Clone so later local writes do not mutate the GET payload.
     config: { ...remoteRow.config },
     replicaUpdatedAt: remoteRow.updatedAt,

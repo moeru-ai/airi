@@ -87,6 +87,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     providers.value[providerId] = {
       id: providerId,
       definitionId,
+      displayName: definition.name,
       config,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
@@ -108,8 +109,12 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   // Uploaded fields only. status and replicaUpdatedAt stay local; a successful
   // push writes replicaUpdatedAt and must not look like a new local edit.
-  function replicaBody(row: { definitionId: string, config: Record<string, unknown> }) {
-    return { definitionId: row.definitionId, config: row.config }
+  function replicaBody(row: { definitionId: string, displayName?: string, config: Record<string, unknown> }) {
+    return {
+      definitionId: row.definitionId,
+      ...(row.displayName !== undefined ? { displayName: row.displayName } : {}),
+      config: row.config,
+    }
   }
 
   function snapshotLocal(): ProviderSyncSnapshot {
@@ -138,6 +143,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       next[row.id] = {
         id: row.id,
         definitionId: row.definitionId,
+        ...(row.displayName !== undefined ? { displayName: row.displayName } : {}),
         config: { ...row.config },
         updatedAt: row.replicaUpdatedAt ?? '',
         deletedAt: null,
@@ -221,6 +227,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const provider: StoredProvider = {
       id: providerId,
       definitionId,
+      displayName: definition.name,
       config,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
@@ -325,6 +332,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       next[id] = {
         id: row.id,
         definitionId: row.definitionId,
+        ...(row.displayName !== undefined ? { displayName: row.displayName } : {}),
         config: row.config,
         replicaUpdatedAt: row.replicaUpdatedAt,
         status: current?.status ?? 'unconfigured',
@@ -420,6 +428,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
         const remote = await service.upsertRemote(client, {
           id: provider.id,
           definitionId: provider.definitionId,
+          displayName: provider.displayName,
           config: provider.config,
         })
         const current = providers.value[provider.id]
@@ -489,7 +498,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     schedulePush()
   }
 
-  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
+  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus, displayName?: string) {
     const provider = providers.value[providerId]
     if (!provider)
       return
@@ -498,6 +507,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       ...provider,
       config: { ...config },
       status,
+      ...(displayName !== undefined ? { displayName } : {}),
     }
     providers.value[providerId] = next
     schedulePush()

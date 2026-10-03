@@ -17,6 +17,7 @@ interface ProviderConfigDto {
   instanceId: string
   ownerId: string
   definitionId: string
+  displayName?: string | null
   config: Record<string, unknown>
   createdAt: string
   updatedAt: string
@@ -27,6 +28,7 @@ interface UpsertProviderConfigInput {
   instanceId: string
   ownerId: string
   definitionId: string
+  displayName?: string | null
   config: Record<string, unknown>
 }
 
@@ -53,6 +55,7 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
       instanceId: row.instanceId,
       ownerId: row.ownerId,
       definitionId: row.definitionId,
+      displayName: row.displayName,
       config: decryptConfig(row.ownerId, row.instanceId, row.config),
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -84,6 +87,7 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
         ownerId: input.ownerId,
         instanceId: input.instanceId,
         definitionId: input.definitionId,
+        displayName: input.displayName,
         config: ciphertext,
         createdAt: now,
         updatedAt: now,
@@ -91,6 +95,7 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
         target: [schema.userProviderConfigs.ownerId, schema.userProviderConfigs.instanceId],
         set: {
           definitionId: input.definitionId,
+          displayName: input.displayName,
           config: ciphertext,
           updatedAt: now,
           deletedAt: null,

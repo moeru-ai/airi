@@ -132,6 +132,7 @@ describe('provider config store', () => {
     mocks.service.listRemote.mockResolvedValue([{
       id: 'remote-provider',
       definitionId: 'openai-compatible',
+      displayName: 'Remote OpenAI',
       config: { apiKey: 'sk-remote' },
       updatedAt: '2026-01-02T00:00:00.000Z',
       deletedAt: null,
@@ -147,6 +148,7 @@ describe('provider config store', () => {
     expect(store.providers[localProvider.id]?.config).toEqual({ apiKey: 'sk-local' })
     expect(store.providers[localProvider.id]?.replicaUpdatedAt).toBeUndefined()
     expect(store.listedProviders['remote-provider']?.config).toEqual({ apiKey: 'sk-remote' })
+    expect(store.listedProviders['remote-provider']?.displayName).toBe('Remote OpenAI')
     expect(mocks.service.upsertRemote).not.toHaveBeenCalled()
     expect(afterSync).toHaveBeenCalledTimes(1)
   })

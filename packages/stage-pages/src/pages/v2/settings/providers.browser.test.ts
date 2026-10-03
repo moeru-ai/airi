@@ -2,6 +2,7 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { PiniaColada } from '@pinia/colada'
 import { registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
@@ -10,6 +11,7 @@ import { createI18n } from 'vue-i18n'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import ProvidersCatalogPage from './providers.vue'
+import ProviderEditPage from './providers/edit/[providerId]/index.vue'
 
 import 'virtual:uno.css'
 
@@ -74,5 +76,35 @@ describe('v2 providers catalog availability (Issue #2559)', () => {
     const menu = page.getByRole('menu')
     await expect.element(menu).toBeVisible()
     await expect.poll(async () => (await menu.getByText('OpenAI', { exact: true }).all()).length, { timeout: 8000 }).toBeGreaterThan(0)
+  })
+
+  it('saves a custom provider display name from the edit page', async () => {
+    const provider = {
+      id: 'provider-display-name',
+      definitionId: 'openai-compatible',
+      displayName: 'OpenAI Compatible',
+      config: { baseUrl: 'https://example.com/v1' },
+      status: 'configured',
+      configuredBy: 'user',
+    }
+    localStorage.setItem('settings/providers/configured', JSON.stringify({ [provider.id]: provider }))
+    localStorage.setItem('settings/providers/added', JSON.stringify({ [provider.id]: true }))
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/v2/settings/providers/edit/:providerId', component: ProviderEditPage }],
+    })
+    await router.push(`/v2/settings/providers/edit/${provider.id}`)
+
+    const screen = await render(ProviderEditPage, {
+      global: {
+        plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+        directives: { autoAnimate: {}, motion: {} },
+      },
+    })
+    await screen.getByRole('textbox').first().fill('My OpenAI')
+
+    await expect.poll(() => useProviderConfigStore(pinia).getProvider(provider.id)?.displayName, { timeout: 8000 }).toBe('My OpenAI')
+    await expect.element(screen.getByText('My OpenAI', { exact: true })).toBeInTheDocument()
   })
 })

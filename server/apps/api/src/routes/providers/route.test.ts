@@ -70,14 +70,16 @@ describe('providerRoutes', () => {
       method: 'PUT',
       body: JSON.stringify({
         definitionId: 'openai',
+        displayName: 'Personal OpenAI',
         config: { apiKey: 'sk-123' },
       }),
       headers: { 'Content-Type': 'application/json' },
     }), { user: testUser } as never)
 
     expect(res.status).toBe(200)
-    const data = await res.json() as { instanceId: string, config: Record<string, unknown> }
+    const data = await res.json() as { instanceId: string, displayName: string | null, config: Record<string, unknown> }
     expect(data.instanceId).toBe('prov-1')
+    expect(data.displayName).toBe('Personal OpenAI')
     expect(data.config).toEqual({ apiKey: 'sk-123' })
   })
 
