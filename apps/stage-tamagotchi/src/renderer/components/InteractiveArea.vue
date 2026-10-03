@@ -7,7 +7,7 @@ import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { ChatBackgroundTasks, ChatHistory, ChatModeBanner, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatBackgroundTasks, ChatHistory, ChatModeBanner, ChatPersonaSwitch, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
@@ -418,6 +418,7 @@ defineExpose({
             'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <ChatPersonaSwitch />
           <ChatModeBanner :name="activeMode?.name" @end="activeMode && chatStore.endHandover(activeMode.sessionId)" />
           <ChatBackgroundTasks :tasks="backgroundTasks" @stop="runId => chatStore.cancelRun(runId)" />
           <!-- Journal Preview Chips -->

@@ -27,6 +27,7 @@ chat:
     working: Working on
     waiting: Waiting
     stop: 'Stop {name}'
+  persona-switched: 'Now speaking: {name}'
   mode:
     current: Mode
     end: Back to the main conversation

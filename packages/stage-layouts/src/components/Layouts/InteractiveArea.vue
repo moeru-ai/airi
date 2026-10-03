@@ -2,7 +2,7 @@
 import type { ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { ChatBackgroundTasks, ChatHistory, ChatModeBanner } from '@proj-airi/stage-ui/components'
+import { ChatBackgroundTasks, ChatHistory, ChatModeBanner, ChatPersonaSwitch } from '@proj-airi/stage-ui/components'
 import { useChatComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -93,6 +93,7 @@ async function handleRetryMessage(index: number) {
             @vue:mounted="isLoading = false"
           />
         </div>
+        <ChatPersonaSwitch />
         <ChatModeBanner :name="activeMode?.name" @end="activeMode && chatOrchestrator.endHandover(activeMode.sessionId)" />
         <ChatBackgroundTasks :tasks="backgroundTasks" @stop="runId => chatOrchestrator.cancelRun(runId)" />
         <ChatArea :composer="composer" :generating="isActiveSessionSending" />
