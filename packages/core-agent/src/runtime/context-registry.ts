@@ -36,6 +36,8 @@ export interface ContextIngestResult {
 export interface ContextRegistry {
   /** Stores a context message and returns a mutation summary for known strategies. */
   ingest: (envelope: ContextMessage) => ContextIngestResult | undefined
+  /** Deletes one active context bucket by source key. Missing keys are no-ops. */
+  remove: (sourceKey: string) => void
   /** Clears active context buckets and ingest history. */
   reset: () => void
   /** Returns a cloned active context bucket snapshot. */
@@ -139,6 +141,12 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
     return result
   }
 
+  function remove(sourceKey: string) {
+    // Only the active bucket participates in prompt snapshots. The ingest
+    // history is an observability record, so it stays untouched.
+    currentActiveContexts.delete(sourceKey)
+  }
+
   function reset() {
     currentActiveContexts = new Map<string, ContextMessage[]>()
     currentContextHistory = []
@@ -155,6 +163,7 @@ export function createContextRegistry(options: CreateContextRegistryOptions = {}
 
   return {
     ingest,
+    remove,
     reset,
     snapshot,
     activeContexts: snapshot,

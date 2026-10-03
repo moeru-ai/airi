@@ -6,6 +6,7 @@ import type {
   IntentOptions,
   LoggerLike,
   PlaybackItem,
+  SentenceBoundaryMode,
   SpeechPipelineEvents,
   TextSegment,
   TextToken,
@@ -31,6 +32,12 @@ export interface SpeechPipelineOptions<TAudio> {
   ttsMaxConcurrent?: number
   playback: {
     schedule: (item: PlaybackItem<TAudio>) => void
+    /**
+     * Seals an intent after its producer finished. The playback manager can
+     * then emit its terminal drain event once every item ended. Optional
+     * for adapter compatibility; without it no drain event is emitted.
+     */
+    sealIntent?: (intentId: string, turnId?: string) => void
     stopAll: (reason: string) => void
     stopByIntent: (intentId: string, reason: string) => void
     stopByOwner: (ownerId: string, reason: string) => void
@@ -41,7 +48,7 @@ export interface SpeechPipelineOptions<TAudio> {
   }
   logger?: LoggerLike
   priority?: ReturnType<typeof createPriorityResolver>
-  segmenter?: (tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string, turnId?: string }) => ReadableStream<TextSegment>
+  segmenter?: (tokens: ReadableStream<TextToken>, meta: { streamId: string, intentId: string, turnId?: string, flushBoundaries?: boolean }) => ReadableStream<TextSegment>
 }
 
 interface IntentState {
@@ -51,6 +58,7 @@ interface IntentState {
   priority: number
   ownerId?: string
   behavior: 'queue' | 'interrupt' | 'replace'
+  boundaryMode: SentenceBoundaryMode
   createdAt: number
   controller: AbortController
   stream: ReadableStream<TextToken>
@@ -130,7 +138,12 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       context.emit(speechPipelineEventMap.onTurnStart, intent.turnId)
 
     const tokenStream = intent.stream
-    const segmentStream = segmenter(tokenStream, { streamId: intent.streamId, intentId: intent.intentId, turnId: intent.turnId })
+    const segmentStream = segmenter(tokenStream, {
+      streamId: intent.streamId,
+      intentId: intent.intentId,
+      turnId: intent.turnId,
+      flushBoundaries: intent.boundaryMode === 'flush',
+    })
     const completedRequests = new Map<number, TtsResult<TAudio> | null>()
     const inFlightTasks = new Set<Promise<void>>()
     let nextRequestSequence = 0
@@ -195,6 +208,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
             priority: intent.priority,
             text: completedRequest.text,
             special: completedRequest.special,
+            sentenceBoundary: completedRequest.sentenceBoundary,
             audio: completedRequest.audio,
             createdAt: Date.now(),
           })
@@ -236,6 +250,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           sequence: request.sequence,
           text: request.text,
           special: request.special,
+          sentenceBoundary: request.sentenceBoundary,
           audio,
           createdAt: Date.now(),
         }
@@ -285,6 +300,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           sequence: nextRequestSequence++,
           text: value.text,
           special: value.special,
+          sentenceBoundary: value.sentenceBoundary,
           priority: intent.priority,
           createdAt: Date.now(),
         }
@@ -296,10 +312,22 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       await Promise.allSettled(inFlightTasks)
       scheduleCompletedRequests()
       await timeline.flush('speech')
+      // Producer side is finished and every scheduled playback item has
+      // ended. Seal so the manager emits the single terminal drain event.
+      // Without the seal, transient gaps between streaming items would
+      // look like premature drains and dump subtitles mid-turn.
+      options.playback.sealIntent?.(intent.intentId, intent.turnId)
       reader.releaseLock()
     }
     catch (err) {
       logger.warn('Speech pipeline intent failed:', err)
+      // The producer is dead: no further items will be scheduled. Seal so
+      // the manager emits intentDrained once items already playing finish
+      // (or immediately when none were scheduled). Without this the manager
+      // keeps tracking an intent that never drains, and the terminal turn
+      // cleanup never runs for that intent. Idempotent with the cancel
+      // path, which seals through stopByIntent.
+      options.playback.sealIntent?.(intent.intentId, intent.turnId)
     }
     finally {
       if (intent.canceled) {
@@ -331,6 +359,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
     const streamId = optionsInput?.streamId ?? createId('stream')
     const priority = priorityResolver.resolve(optionsInput?.priority)
     const behavior = optionsInput?.behavior ?? 'queue'
+    const boundaryMode = optionsInput?.boundaryMode ?? 'punctuation'
     const ownerId = optionsInput?.ownerId
 
     const controller = new AbortController()
@@ -344,6 +373,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
       priority,
       ownerId,
       behavior,
+      boundaryMode,
       createdAt: Date.now(),
       controller,
       stream,

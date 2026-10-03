@@ -44,6 +44,7 @@
     "./tools/mcp": "./src/tools/mcp.ts",
     "./stores/character": "./src/stores/character/index.ts",
     "./stores/settings/analytics": "./src/stores/settings/analytics.ts",
+    "./stores/settings/bilingual-subtitles": "./src/stores/settings/bilingual-subtitles.ts",
     "./stores/settings/stage-model": "./src/stores/settings/stage-model.ts",
     "./stores/settings": "./src/stores/settings/index.ts",
     "./stores/modules/vision": "./src/stores/modules/vision/index.ts",

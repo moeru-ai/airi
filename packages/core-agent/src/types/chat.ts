@@ -93,12 +93,28 @@ export interface ChatStreamEventContext {
   input?: WebSocketEventInputs
 }
 
+/**
+ * One translated fragment split from a bilingual response.
+ *
+ * The splitter emits these on the subtitle track only. TTS never receives
+ * this text. Fragments with one pair id belong to one spoken sentence.
+ */
+export interface TokenTranslationPayload {
+  /** ISO 639-1 code of the translation language, for example `zh`. */
+  language: string
+  /** Spoken-sentence pair this fragment translates. Ids increase in turn order. */
+  pairId: number
+  /** Raw fragment text, including surrounding whitespace from the model. */
+  text: string
+}
+
 export type ChatStreamEvent
   = | { type: 'before-compose', message: string, sessionId: string, context: Omit<ChatStreamEventContext, 'composedMessage'> }
     | { type: 'after-compose', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'before-send', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'after-send', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'token-literal', literal: string, sessionId: string, context: ChatStreamEventContext }
+    | { type: 'token-translation', translation: TokenTranslationPayload, sessionId: string, context: ChatStreamEventContext }
     | { type: 'token-special', special: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'stream-end', sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }

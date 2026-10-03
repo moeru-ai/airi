@@ -32,11 +32,13 @@ const getAttached = defineInvoke(context.value, captionGetIsFollowingWindow)
 const captionAnimatorByType = {
   'caption-speaker': createFadeAnimator({ duration: 180 }),
   'caption-assistant': createFadeAnimator({ duration: 180 }),
+  'caption-assistant-translation': createFadeAnimator({ duration: 180 }),
 } satisfies Record<CaptionChannelEvent['type'], ReturnType<typeof createFadeAnimator>>
 
 const captionTypes = [
   'caption-speaker',
   'caption-assistant',
+  'caption-assistant-translation',
 ] satisfies CaptionChannelEvent['type'][]
 
 function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
@@ -51,7 +53,13 @@ function toCaptionTextSegments(type: CaptionChannelEvent['type']) {
 const captionTextByType = computed(() => ({
   'caption-speaker': toCaptionTextSegments('caption-speaker'),
   'caption-assistant': toCaptionTextSegments('caption-assistant'),
+  'caption-assistant-translation': toCaptionTextSegments('caption-assistant-translation'),
 }))
+
+/** Returns the language badge text for one caption type, if present. */
+function captionLabelFor(type: CaptionChannelEvent['type']) {
+  return captionItems.value.find(item => item.type === type)?.label
+}
 
 onMounted(async () => {
   try {
@@ -68,16 +76,12 @@ onMounted(async () => {
   catch {}
 
   try {
-    // Update texts from broadcast channel
+    // Every caption source renders through the same add path. Clear events
+    // arrive as empty text and remove only their own source line.
     watch(data, (event) => {
       if (!event)
         return
-      if (event.type === 'caption-speaker') {
-        addCaptionItem(event)
-      }
-      else if (event.type === 'caption-assistant') {
-        addCaptionItem(event)
-      }
+      addCaptionItem(event)
     }, { immediate: true })
   }
   catch {}
@@ -111,15 +115,50 @@ onUnmounted(() => {
           v-show="captionTextByType[type].length > 0"
           :key="type"
           :class="[
-            type === 'caption-speaker' ? 'rounded-md px-2 py-1 text-[1.1rem] text-neutral-50 font-medium text-shadow-lg text-shadow-color-neutral-900/60' : '',
-            type === 'caption-assistant' ? 'rounded-md px-2 py-1 text-[1.35rem] text-primary-50 font-semibold text-stroke-4 text-stroke-primary-300/50 text-shadow-lg text-shadow-color-primary-700/50' : '',
+            type === 'caption-speaker'
+              ? [
+                'rounded-md px-2 py-1',
+                'text-[1.1rem] text-neutral-50 font-medium',
+                'text-shadow-lg text-shadow-color-neutral-900/60',
+              ]
+              : '',
+            type === 'caption-assistant'
+              ? [
+                'rounded-md px-2 py-1',
+                'text-[1.35rem] text-primary-50 font-semibold',
+                'text-stroke-4 text-stroke-primary-300/50',
+                'text-shadow-lg text-shadow-color-primary-700/50',
+              ]
+              : '',
+            type === 'caption-assistant-translation'
+              ? [
+                'flex flex-col items-center gap-0.5',
+                'rounded-md px-2 py-0.5',
+                'text-[1rem] text-neutral-200/90 dark:text-neutral-300/90',
+                'text-shadow-lg text-shadow-color-neutral-900/50',
+              ]
+              : '',
           ]"
           :style="type === 'caption-assistant' ? { paintOrder: 'stroke fill' } : undefined"
         >
+          <span
+            v-if="type === 'caption-assistant-translation' && captionLabelFor(type)"
+            :class="[
+              'rounded-full px-2 py-0.25',
+              'text-[0.7rem] leading-tight',
+              'bg-neutral-900/40 dark:bg-neutral-100/15',
+            ]"
+          >
+            {{ captionLabelFor(type) }}
+          </span>
           <PoppinText
             :text="captionTextByType[type]"
             :animator="captionAnimatorByType[type]"
-            :text-class="type === 'caption-assistant' ? 'color-neutral-50! align-middle' : type === 'caption-speaker' ? 'color-neutral-50! align-middle' : ''"
+            :text-class="
+              type === 'caption-assistant-translation'
+                ? 'color-neutral-200! dark:color-neutral-300! align-middle'
+                : 'color-neutral-50! align-middle'
+            "
           />
         </div>
       </div>

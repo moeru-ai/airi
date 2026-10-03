@@ -1,5 +1,6 @@
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { getBeatSyncState, isBeatSyncSupported, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,6 +17,7 @@ import { useSpeechStore } from '../stores/modules/speech'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
 import { useWebSearchStore } from '../stores/modules/web-search'
+import { useSettingsBilingualSubtitles } from '../stores/settings/bilingual-subtitles'
 
 export interface Module {
   id: string
@@ -36,6 +38,7 @@ export function useModulesList() {
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
   const hearingStore = useHearingStore()
+  const bilingualSubtitlesStore = useSettingsBilingualSubtitles()
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
   const twitterStore = useTwitterStore()
@@ -45,6 +48,9 @@ export function useModulesList() {
   const artistryStore = useArtistryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
   const beatSyncSupported = isBeatSyncSupported()
+  // Bilingual captions render in the Electron caption window. Stage Web and
+  // the mobile app have no caption receiver yet, so hide the entry there.
+  const bilingualSubtitlesSupported = isStageTamagotchi()
 
   minecraftStore.initialize()
 
@@ -67,6 +73,17 @@ export function useModulesList() {
       configured: speechStore.configured,
       category: 'essential',
     },
+    ...(bilingualSubtitlesSupported
+      ? [{
+          id: 'bilingual-subtitles',
+          name: t('settings.pages.modules.bilingual_subtitles.title'),
+          description: t('settings.pages.modules.bilingual_subtitles.description'),
+          icon: 'i-solar:translation-2-bold-duotone',
+          to: '/settings/modules/bilingual-subtitles',
+          configured: bilingualSubtitlesStore.enabled,
+          category: 'essential',
+        }]
+      : []),
     {
       id: 'hearing',
       name: t('settings.pages.modules.hearing.title'),
