@@ -38,8 +38,9 @@ Production expects:
 
 ```sh
 VITE_SERVER_URL=https://api.airi.build
+VITE_WEB_APP_URL=https://airi.moeru.ai/
 ```
 
 The server redirects historical `/auth/*` URLs to `AUTH_UI_URL`, which defaults to `https://accounts.airi.build/ui`.
 
-The `server-dev` workflow deploys a Cloudflare Pages branch build at `https://server-dev.airi-server-auth.pages.dev/ui/` with `VITE_SERVER_URL=https://airi-server-dev.up.railway.app`. Set the server-dev API environment variable `AUTH_UI_URL=https://server-dev.airi-server-auth.pages.dev/ui` when the full dev auth redirect chain should stay on server-dev.
+The `server-dev` workflow deploys a Cloudflare Pages branch build at `https://server-dev.airi-server-auth.pages.dev/ui/` with `VITE_SERVER_URL=https://airi-server-dev.up.railway.app`. Both auth UI builds set `VITE_WEB_APP_URL` for the verification-success destination; local development must provide it too. Set the server-dev API environment variable `AUTH_UI_URL=https://server-dev.airi-server-auth.pages.dev/ui` when the full dev auth redirect chain should stay on server-dev.

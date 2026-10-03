@@ -118,6 +118,7 @@ jobs:
         run: pnpm -F @proj-airi/ui-server-auth run build
         env:
           VITE_SERVER_URL: 'https://airi-server-dev.up.railway.app'
+          VITE_WEB_APP_URL: 'https://airi.moeru.ai/'
 
       - name: Wrangler Pages Deploy
         uses: cloudflare/wrangler-action@v4

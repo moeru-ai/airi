@@ -3,12 +3,66 @@ import type { Usage } from '@xsai/shared-chat'
 import type { AssistantTurn, GenerationRound } from '../messages/types'
 import type { StreamEvent, StreamFromOptions, StreamOptions } from '../types/llm'
 
+import { APICallError } from '@xsai/shared'
+
 import { streamChatCompletions } from './chat-completions'
 import { createContinuationScope, supportsContentArray, supportsTools } from './request-context'
 import { RequestSwitch } from './request-switch'
 import { streamResponses } from './responses'
 
 export { modelKey } from './request-context'
+
+/**
+ * Automatic retry for provider requests that fail with a temporary HTTP status
+ * before any stream event reaches the consumer.
+ */
+const transientRetry = {
+  /** Wait before each retry when the provider sends no usable `Retry-After`; its length caps the retry count. */
+  backoffMs: [3_000, 6_000, 12_000],
+  /** Longest server-requested `Retry-After` to wait silently; a longer one fails the turn so the user decides. */
+  maxRetryAfterMs: 30_000,
+}
+
+/** Returns the wait before the next attempt, or `undefined` when the failure is permanent or retries are spent. */
+function transientRetryDelayMs(error: unknown, attempt: number): number | undefined {
+  if (attempt >= transientRetry.backoffMs.length || !(error instanceof APICallError))
+    return undefined
+  // Timeout, rate limit, and server-side failures can succeed later. Other
+  // 4xx statuses (auth, validation, unknown model) fail the same way again.
+  if (error.statusCode !== 408 && error.statusCode !== 429 && error.statusCode < 500)
+    return undefined
+
+  // NOTICE:
+  // Browsers hide `Retry-After` from cross-origin responses unless the provider
+  // lists it in `Access-Control-Expose-Headers`, so the backoff is the common path.
+  const retryAfter = error.responseHeaders['retry-after']
+  if (!retryAfter)
+    return transientRetry.backoffMs[attempt]
+  // `Retry-After` is either delay seconds or an HTTP date.
+  const seconds = Number(retryAfter)
+  const delayMs = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now()
+  if (Number.isNaN(delayMs))
+    return transientRetry.backoffMs[attempt]
+  return delayMs <= transientRetry.maxRetryAfterMs ? Math.max(delayMs, 0) : undefined
+}
+
+function waitBeforeRetry(delayMs: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason)
+      return
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, delayMs)
+    signal?.addEventListener('abort', onAbort, { once: true })
+    function onAbort() {
+      clearTimeout(timer)
+      reject(signal?.reason)
+    }
+  })
+}
 
 async function resolveTools(options?: StreamOptions) {
   const tools = typeof options?.tools === 'function'
@@ -161,6 +215,39 @@ async function streamOnce({
   })
 }
 
+/**
+ * Runs one request and repeats it while the provider reports temporary unavailability.
+ *
+ * Retrying is only safe while the consumer has seen no stream event. After the
+ * first event, text may already be rendered or spoken and tools may already have
+ * run, so a repeat would duplicate them; those failures surface for manual Retry.
+ * Cancelling through `abortSignal` also ends a pending retry wait.
+ */
+async function streamWithTransientRetry(input: StreamFromOptions) {
+  for (let attempt = 0; ; attempt++) {
+    let consumerNotified = false
+    try {
+      return await streamOnce({
+        ...input,
+        options: {
+          ...input.options,
+          onStreamEvent: (event) => {
+            consumerNotified = true
+            return input.options?.onStreamEvent?.(event)
+          },
+        },
+      })
+    }
+    catch (error) {
+      const delayMs = consumerNotified ? undefined : transientRetryDelayMs(error, attempt)
+      if (delayMs == null)
+        throw error
+      console.warn(`[llm] Retrying provider request in ${delayMs}ms (retry ${attempt + 1}/${transientRetry.backoffMs.length}):`, error)
+      await waitBeforeRetry(delayMs, input.options?.abortSignal)
+    }
+  }
+}
+
 function mergeGenerationUsage(rounds: GenerationRound[], last?: Parameters<NonNullable<StreamOptions['onUsage']>>[0]) {
   const partial = rounds.flatMap(round => round.modelCall?.usage ? [round.modelCall.usage] : [])
   if (partial.length === 0)
@@ -177,7 +264,7 @@ function mergeGenerationUsage(rounds: GenerationRound[], last?: Parameters<NonNu
 /** Keeps one assistant turn across xsAI tool loops when the next request changes provider scope. */
 export async function streamFrom(input: StreamFromOptions): Promise<void> {
   if (!input.options?.resolveStep)
-    return streamOnce(input)
+    return streamWithTransientRetry(input)
 
   const completedRounds: GenerationRound[] = []
   let turnId = input.options.requestCorrelation?.turnId
@@ -187,7 +274,7 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
     let finalTurn: AssistantTurn | undefined
     let lastUsage: Parameters<NonNullable<StreamOptions['onUsage']>>[0] | undefined
     try {
-      await streamOnce({
+      await streamWithTransientRetry({
         ...request,
         options: {
           ...request.options,
@@ -231,15 +318,14 @@ export async function streamFrom(input: StreamFromOptions): Promise<void> {
 }
 
 // Runtime auto-degrade: patterns that indicate the model/provider does not support tool calling.
+// An error about one tool is not in this list. An invalid schema or a failed tool call
+// (`invalid_function_parameters`, `tool_use_failed`) does not show that the model has no tool support.
 const TOOLS_RELATED_ERROR_PATTERNS: RegExp[] = [
   /does not support tools/i, // Ollama
   /no endpoints found that support tool use/i, // OpenRouter
-  /invalid schema for function/i, // OpenAI-compatible
-  /invalid.?function.?parameters/i, // OpenAI-compatible
   /functions are not supported/i, // Azure AI Foundry
   /unrecognized request argument.+tools/i, // Azure AI Foundry
   /tool use with function calling is unsupported/i, // Google Generative AI
-  /tool_use_failed/i, // Groq
   /does not support function.?calling/i, // Anthropic
   /tools?\s+(is|are)\s+not\s+supported/i, // Cloudflare Workers AI
 ]

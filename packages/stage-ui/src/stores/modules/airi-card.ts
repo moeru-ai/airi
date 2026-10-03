@@ -8,11 +8,13 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
+import { array, parse } from 'valibot'
 import { computed, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
+import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -387,6 +389,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     // Fill known fields without discarding settings owned by imported extensions.
     return {
       ...existingExtension,
+      ...(existingExtension.wakeWords === undefined ? {} : { wakeWords: parse(array(wakeWordSchema), existingExtension.wakeWords) }),
       modules: {
         ...existingExtension.modules,
         consciousness: {
