@@ -30,8 +30,8 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   const deps: V1RouteDeps = { ...input, llmTracing: input.llmTracing ?? defaultLlmTracing }
   const gateway = createV1Gateway(deps)
     .useHono('*', '*', authGuard)
-    .useHono('openai', '/chat/*', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
-    .useHono('openai', '/responses', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
+    .useHono('openai', '/chat/*', configGuard(deps.configKV, ['LLM_MINIMUM_BALANCE'], 'Service is not available yet'))
+    .useHono('openai', '/responses', configGuard(deps.configKV, ['LLM_MINIMUM_BALANCE'], 'Service is not available yet'))
     .useHono('audio', '/speech', configGuard(deps.configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet'))
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that

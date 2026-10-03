@@ -7,6 +7,7 @@ import { onMounted } from 'vue'
 
 export const useSettingsGeneral = defineStore('settings-general', () => {
   const language = useLocalStorageManualReset<string>('settings/language', '')
+  const streamerMode = useLocalStorageManualReset<boolean>('settings/streamer-mode', false)
 
   const disableTransitions = useLocalStorageManualReset<boolean>('settings/disable-transitions', true)
   const usePageSpecificTransitions = useLocalStorageManualReset<boolean>('settings/use-page-specific-transitions', true)
@@ -26,6 +27,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
 
   function resetState() {
     language.reset()
+    streamerMode.reset()
     disableTransitions.reset()
     usePageSpecificTransitions.reset()
     websocketSecureEnabled.reset()
@@ -35,6 +37,7 @@ export const useSettingsGeneral = defineStore('settings-general', () => {
 
   return {
     language,
+    streamerMode,
     disableTransitions,
     usePageSpecificTransitions,
     websocketSecureEnabled,

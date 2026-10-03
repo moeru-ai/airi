@@ -8,6 +8,7 @@
 */
 
 import type { VRM } from '@pixiv/three-vrm'
+import type { PresenceBubblePalette, PresenceBubbleState } from '@proj-airi/stage-shared'
 import type { TresContext } from '@tresjs/core'
 import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
@@ -15,11 +16,11 @@ import type { VrmInteractionTarget } from '../composables/vrm/interaction'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 import type { VrmLifecycleReason } from '../trace'
 
-import { coverRect } from '@proj-airi/stage-shared'
+import { coverRect, presenceBubbleIdle } from '@proj-airi/stage-shared'
 import { Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
-import { useResizeObserver } from '@vueuse/core'
+import { defaultWindow, useElementBounding, useEventListener, useResizeObserver } from '@vueuse/core'
 import { formatHex } from 'culori'
 import { storeToRefs } from 'pinia'
 import { BlendFunction } from 'postprocessing'
@@ -34,7 +35,9 @@ import {
   Vector2,
   Vector3,
 } from 'three'
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, useTemplateRef, watch } from 'vue'
+
+import PresenceBubble from './presence-bubble.vue'
 
 // From stage-ui-three package
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
@@ -54,8 +57,11 @@ import {
 import { OrbitControls } from './Controls'
 import { SkyBox } from './Environment'
 import { VRMModel } from './Model'
+import { presenceBubblePaletteKey } from './presence-bubble-palette'
 
 const props = withDefaults(defineProps<{
+  /** Drives the bubble above the character. */
+  presence?: PresenceBubbleState
   /** The context that owns `currentAudioSource`. */
   audioContext?: AudioContext
   currentAudioSource?: AudioBufferSourceNode
@@ -88,6 +94,7 @@ const props = withDefaults(defineProps<{
   idleAnimation?: string
   paused?: boolean
 }>(), {
+  presence: () => presenceBubbleIdle,
   enableOrbitControls: true,
   showAxes: false,
   idleAnimation: new URL('../assets/vrm/animations/idle_loop.vrma', import.meta.url).href,
@@ -99,6 +106,42 @@ const emit = defineEmits<{
   (e: 'error', value: unknown): void
   (e: 'vrmInteract', value: VrmInteractionTarget): void
 }>()
+/**
+ * Colours for the presence bubble, read from elements carrying the project's own
+ * utilities.
+ *
+ * They live here rather than in the bubble because the bubble is mounted by the
+ * Tres renderer, which turns a template into Three objects and cannot build a
+ * plain element.
+ */
+const presencePanelProbe = useTemplateRef<HTMLDivElement>('presencePanelProbe')
+const presenceShadowProbe = useTemplateRef<HTMLDivElement>('presenceShadowProbe')
+const presenceInkProbe = useTemplateRef<HTMLDivElement>('presenceInkProbe')
+const presenceBadgeProbe = useTemplateRef<HTMLDivElement>('presenceBadgeProbe')
+const presenceBadgeInkProbe = useTemplateRef<HTMLDivElement>('presenceBadgeInkProbe')
+
+const presenceFallbackPalette: PresenceBubblePalette = {
+  panel: '#fafafa',
+  shadow: '#171717',
+  ink: '#404040',
+  badge: '#404040',
+  badgeInk: '#fafafa',
+}
+
+function readPresenceProbe(element: HTMLDivElement | null, fallback: string) {
+  if (!element)
+    return fallback
+
+  return formatHex(getComputedStyle(element).backgroundColor) ?? fallback
+}
+
+provide(presenceBubblePaletteKey, (): PresenceBubblePalette => ({
+  panel: readPresenceProbe(presencePanelProbe.value, presenceFallbackPalette.panel),
+  shadow: readPresenceProbe(presenceShadowProbe.value, presenceFallbackPalette.shadow),
+  ink: readPresenceProbe(presenceInkProbe.value, presenceFallbackPalette.ink),
+  badge: readPresenceProbe(presenceBadgeProbe.value, presenceFallbackPalette.badge),
+  badgeInk: readPresenceProbe(presenceBadgeInkProbe.value, presenceFallbackPalette.badgeInk),
+}))
 
 type ModelPhase = 'no-model' | 'loading' | 'ready' | 'error'
 interface ModelLoadIdentity {
@@ -914,7 +957,24 @@ function updateDirLightTarget(newRotation: { x: number, y: number, z: number }) 
   directionalLightTarget.value = { x: target.x, y: target.y, z: target.z }
 }
 
-const getScreenBBox = () => screenRef.value?.containerRef?.getBoundingClientRect() ?? { top: 0, left: 0, width: 500, height: 500 }
+// Eye tracking reads cached bounds instead of forcing layout on each cursor update.
+const screenContainerBounding = useElementBounding(() => screenRef.value?.containerRef, { updateTiming: 'next-frame' })
+// Mobile viewport panning moves an ancestor without resizing this container.
+// Measure after Vue applies that transform, so eye tracking uses the new position.
+useEventListener(defaultWindow?.visualViewport, ['resize', 'scroll'], screenContainerBounding.update)
+
+function getScreenBBox() {
+  // No measured box before the first observation; the previous inline read had the same fallback.
+  if (!screenContainerBounding.width.value && !screenContainerBounding.height.value)
+    return { top: 0, left: 0, width: 500, height: 500 }
+
+  return {
+    top: screenContainerBounding.top.value,
+    left: screenContainerBounding.left.value,
+    width: screenContainerBounding.width.value,
+    height: screenContainerBounding.height.value,
+  }
+}
 
 watch(directionalLightRotation, (newRotation) => {
   updateDirLightTarget(newRotation)
@@ -954,6 +1014,13 @@ defineExpose({
 
 <template>
   <Screen ref="screenRef" v-slot="{ width, height }" relative>
+    <div hidden>
+      <div ref="presencePanelProbe" :class="['bg-neutral-50 dark:bg-neutral-800']" />
+      <div ref="presenceShadowProbe" :class="['bg-neutral-900 dark:bg-neutral-950']" />
+      <div ref="presenceInkProbe" :class="['bg-neutral-700 dark:bg-neutral-200']" />
+      <div ref="presenceBadgeProbe" :class="['bg-primary-500 dark:bg-primary-400']" />
+      <div ref="presenceBadgeInkProbe" :class="['bg-neutral-50 dark:bg-neutral-900']" />
+    </div>
     <TresCanvas
       :width="width"
       :height="height"
@@ -1032,7 +1099,13 @@ defineExpose({
         @scene-bootstrap="onVRMSceneBootstrap"
         @error="onVRMModelError"
         @loaded="onVRMModelLoaded"
-      />
+      >
+        <PresenceBubble
+          :head-anchor="() => modelRef?.headAnchor()"
+          :state="props.presence"
+          :resolution="renderScale"
+        />
+      </VRMModel>
       <TresAxesHelper v-if="props.showAxes" :size="1" />
     </TresCanvas>
   </Screen>

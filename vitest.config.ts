@@ -13,6 +13,7 @@ export default defineConfig({
       'packages/ccc',
       'packages/core-agent',
       'packages/i18n',
+      'packages/pipelines-audio',
       'packages/input-gamepad',
       'packages/input-gamepad-vueuse',
       'packages/input-playstation-dualsense-5',
@@ -29,6 +30,14 @@ export default defineConfig({
       'packages/stage-ui-live2d/vitest.node.config.ts',
       'packages/stage-ui-three',
       'packages/vitest-plugin-fakemic',
+      'packages/vite-plugin-sherpaw',
+      // Scripts that GitHub Actions run. They belong to no package.
+      {
+        test: {
+          name: 'github-scripts',
+          include: ['.github/scripts/**/*.test.ts'],
+        },
+      },
     ],
   },
 })

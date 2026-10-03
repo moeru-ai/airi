@@ -313,7 +313,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function persistSessionMessages(sessionId: string) {
-    void persistSession(sessionId)
+    return persistSession(sessionId)
   }
 
   function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
@@ -333,6 +333,35 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       ...(sessionMessages.value[sessionId] ?? []),
       message,
     ])
+  }
+
+  /** Acknowledge a user message only after storage succeeds. Retries use its stable identity. */
+  async function commitUserMessage(sessionId: string, message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }) {
+    if (!sessionMetas.value[sessionId])
+      throw new Error('Cannot commit a message to an unknown session')
+    const generation = getSessionGeneration(sessionId)
+    const messages = ensureSessionMessageIds(sessionId)
+    const existing = messages.find(item => item.id === message.id)
+    if (existing && existing.role !== 'user')
+      throw new Error('Message identity belongs to another message type')
+    if (!existing)
+      replaceSessionMessages(sessionId, [...messages, message], { persist: false })
+    try {
+      await persistSession(sessionId)
+      if (getSessionGeneration(sessionId) !== generation || !sessionMetas.value[sessionId]
+        || !sessionMessages.value[sessionId]?.some(item => item.id === message.id)) {
+        throw new Error('Chat session changed before message persistence completed')
+      }
+    }
+    catch (error) {
+      if (!existing) {
+        const current = sessionMessages.value[sessionId]
+        if (current)
+          replaceSessionMessages(sessionId, current.filter(item => item.id !== message.id), { persist: false })
+      }
+      throw error
+    }
+    return { status: existing ? 'existing' as const : 'inserted' as const, messageId: message.id }
   }
 
   /** Removes one message by stable id or by its current history index. */
@@ -1582,13 +1611,6 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     // every follower would fan one deletion out into several empty chats.
   })
 
-  watch(index, () => {
-    if (!ready.value)
-      return
-
-    selectWindowSessionFromIndex()
-  })
-
   watch(activeCardId, async () => {
     if (!ready.value)
       return
@@ -1638,6 +1660,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     deleteMessage,
     setSessionMessages,
     appendSessionMessage,
+    commitUserMessage,
     persistSessionMessages,
     getSessionMessages,
     getSessionMessagesIfLoaded,
@@ -1667,6 +1690,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
+      'commitUserMessage',
       'createSession',
       'deleteMessage',
       'deleteSession',

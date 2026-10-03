@@ -3,6 +3,8 @@ import type { Database } from '../../libs/db'
 import { useLogger } from '@guiiai/logg'
 import { and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 
+import { fluxUsage } from '../../schemas/flux-usage'
+
 import * as schema from '../../schemas/flux-transaction'
 
 const logger = useLogger('flux-transaction')
@@ -20,6 +22,18 @@ export interface TransactionEntry {
 
 export function createFluxTransactionService(db: Database) {
   return {
+    /** Lists confirmed fees, including zero fees, independently of pooled integer wallet debits. */
+    async getUsageHistory(userId: string, limit: number, offset: number) {
+      const rows = await db.select({
+        id: fluxUsage.id,
+        sourceType: fluxUsage.sourceType,
+        sourceId: fluxUsage.sourceId,
+        amountMicroFlux: fluxUsage.amountMicroFlux,
+        createdAt: fluxUsage.createdAt,
+      }).from(fluxUsage).where(eq(fluxUsage.userId, userId)).orderBy(desc(fluxUsage.createdAt), desc(fluxUsage.id)).limit(limit + 1).offset(offset)
+      return { records: rows.slice(0, limit), hasMore: rows.length > limit }
+    },
+
     async log(entry: TransactionEntry) {
       await db.insert(schema.fluxTransaction).values(entry)
       logger.withFields({ userId: entry.userId, type: entry.type, amount: entry.amount }).log('Transaction recorded')

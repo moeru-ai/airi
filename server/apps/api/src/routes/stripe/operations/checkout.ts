@@ -63,6 +63,7 @@ export function createCheckoutOperation(
       cancel_url: `${redirectBase}/settings/flux?canceled=true`,
       customer: order.customerId,
       customer_email: order.customerId ? undefined : user.email,
+      customer_creation: order.customerId ? undefined : 'always',
       metadata: {
         payment_order_id: order.id,
         userId: user.id,

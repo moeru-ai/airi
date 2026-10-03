@@ -27,6 +27,212 @@ function provider(fetch: typeof globalThis.fetch): GenerationProvider {
   }
 }
 
+it('refreshes Responses settings after a tool changes the character configuration', async () => {
+  const live = { model: 'first-model', prompt: 'First prompt', baseURL: 'https://first.example/v1/', toolName: 'rename' }
+  const reasoning: ItemParam = { type: 'reasoning', id: 'private-1', summary: [], encrypted_content: 'first-provider-state' }
+  const requests: Array<{ url: string, body: { model?: string, input?: ItemParam[], tools?: Array<{ name?: string }> } }> = []
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    return sse(completed(requests.length === 1
+      ? [reasoning, { type: 'function_call', call_id: 'rename-1', name: 'rename', arguments: '{}' }]
+      : []))
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => ({ protocol: 'responses', webSearch: false, config: { model, baseURL: live.baseURL, fetch } }),
+  }
+  const changeSettings = () => {
+    live.model = 'second-model'
+    live.prompt = 'Edited prompt'
+    live.baseURL = 'https://second.example/v1/'
+    live.toolName = 'new_tool'
+    return 'done'
+  }
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation: { turns: [] },
+    options: {
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: live.prompt,
+        tools: [{
+          type: 'function',
+          function: { name: live.toolName, parameters: { type: 'object', properties: {} } },
+          execute: changeSettings,
+        }],
+      }),
+    },
+  })
+
+  expect(requests).toHaveLength(2)
+  expect(requests[0].url).toContain('first.example')
+  expect(requests[0].body.model).toBe('first-model')
+  expect(requests[0].body.input?.find(item => item.type === 'message' && item.role === 'system')?.content).toBe('First prompt')
+  expect(requests[1].url).toContain('second.example')
+  expect(requests[1].body.model).toBe('second-model')
+  expect(requests[1].body.input?.find(item => item.type === 'message' && item.role === 'system')?.content).toBe('Edited prompt')
+  expect(requests[1].body.input?.some(item => item.type === 'reasoning')).toBe(false)
+  expect(requests[1].body.tools?.[0]?.name).toBe('new_tool')
+})
+
+it('removes local and hosted tools for a newly incompatible Responses model', async () => {
+  const live = { model: 'first', baseURL: 'https://first.test/v1/' }
+  const requests: Array<{ tools?: unknown, tool_choice?: string }> = []
+  const fetch: typeof globalThis.fetch = async (_url, init) => {
+    requests.push(JSON.parse(String(init?.body)))
+    return sse(completed(requests.length === 1
+      ? [{ type: 'function_call', call_id: 'change-1', name: 'change', arguments: '{}' }]
+      : []))
+  }
+  const chatProvider: GenerationProvider = {
+    generation: model => ({ protocol: 'responses', webSearch: true, config: { model, baseURL: live.baseURL, fetch } }),
+  }
+  await streamFrom({
+    model: live.model,
+    chatProvider,
+    conversation: { turns: [] },
+    options: {
+      toolsCompatibility: new Map([['responses:https://second.test/v1/-second', false]]),
+      toolChoice: 'required',
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider,
+        providerId: 'live',
+        systemPrompt: '',
+        tools: [{ type: 'function', function: { name: 'change', parameters: { type: 'object', properties: {} } }, execute: () => {
+          live.model = 'second'
+          live.baseURL = 'https://second.test/v1/'
+          return 'changed'
+        } }],
+      }),
+    },
+  })
+  expect(requests).toHaveLength(2)
+  expect(requests[0].tools).toHaveLength(2)
+  expect(requests[0].tool_choice).toBe('required')
+  expect(requests[1].tools).toBeUndefined()
+  expect(requests[1].tool_choice).toBeUndefined()
+})
+
+it('continues one assistant turn in Chat Completions after a Responses tool switches protocol', async () => {
+  const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'responses', model: 'responses-model' }
+  const requests: Array<{ url: string, body: Record<string, unknown> }> = []
+  const events: unknown[] = []
+  const onGeneratedTurn = vi.fn()
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    if (requests.length === 1)
+      return sse(completed([{ type: 'function_call', call_id: 'switch-1', name: 'switch_protocol', arguments: '{}' }]))
+    return sse([{ choices: [{ index: 0, delta: { content: 'Continued.' }, finish_reason: 'stop' }] }])
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => live.protocol === 'responses'
+      ? { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } }
+      : { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.example/v1/', fetch } },
+  }
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation: { turns: [] },
+    options: {
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: 'The character stays the same.',
+        tools: [{
+          type: 'function',
+          function: { name: 'switch_protocol', parameters: { type: 'object', properties: {} } },
+          execute: () => {
+            live.protocol = 'chat-completions'
+            live.model = 'chat-model'
+            return 'switched'
+          },
+        }],
+      }),
+      onGeneratedTurn,
+      onStreamEvent: (event) => { events.push(event) },
+    },
+  })
+
+  expect(requests).toHaveLength(2)
+  expect(requests[0].url).toContain('responses.example')
+  expect(requests[1].url).toContain('chat.example')
+  expect(requests[1].body.model).toBe('chat-model')
+  expect(JSON.stringify(requests[1].body.messages)).toContain('switched')
+  expect(onGeneratedTurn).toHaveBeenCalledOnce()
+  const rounds = onGeneratedTurn.mock.calls[0][0].rounds
+  expect(rounds.map((round: { continuation?: { protocol: string } }) => round.continuation?.protocol))
+    .toEqual(['responses', 'chat-completions'])
+  expect(new Set(rounds.map((round: { id: string }) => round.id)).size).toBe(rounds.length)
+  expect(new Set(rounds.flatMap((round: { toolInvocations: Array<{ id: string }> }) => round.toolInvocations.map(call => call.id))).size)
+    .toBe(rounds.flatMap((round: { toolInvocations: unknown[] }) => round.toolInvocations).length)
+  expect(rounds[0].toolInvocations[0].id).toBe(`${rounds[0].id}/switch-1`)
+  expect(events.filter(event => (event as { type: string }).type === 'finish')).toHaveLength(1)
+})
+
+it('continues one assistant turn in Responses after a Chat Completions tool switches protocol', async () => {
+  const live: { protocol: 'responses' | 'chat-completions', model: string } = { protocol: 'chat-completions', model: 'chat-model' }
+  const requests: Array<{ url: string, body: Record<string, unknown> }> = []
+  const onGeneratedTurn = vi.fn()
+  const fetch: typeof globalThis.fetch = async (url, init) => {
+    requests.push({ url: String(url), body: JSON.parse(String(init?.body)) })
+    if (requests.length === 1) {
+      return sse([
+        { choices: [{ index: 0, delta: { role: 'assistant', tool_calls: [{ index: 0, id: 'switch-1', type: 'function', function: { name: 'switch_protocol', arguments: '{}' } }] }, finish_reason: null }] },
+        { choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] },
+      ])
+    }
+    return sse(completed([{ type: 'message', role: 'assistant', id: 'answer-1', content: [{ type: 'output_text', text: 'Continued.', annotations: [] }] }]))
+  }
+  const liveProvider: GenerationProvider = {
+    generation: model => live.protocol === 'chat-completions'
+      ? { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.example/v1/', fetch } }
+      : { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.example/v1/', fetch } },
+  }
+
+  await streamFrom({
+    model: live.model,
+    chatProvider: liveProvider,
+    conversation: { turns: [] },
+    options: {
+      resolveStep: async () => ({
+        model: live.model,
+        chatProvider: liveProvider,
+        providerId: 'live',
+        systemPrompt: 'The character stays the same.',
+        tools: [{
+          type: 'function',
+          function: { name: 'switch_protocol', parameters: { type: 'object', properties: {} } },
+          execute: () => {
+            live.protocol = 'responses'
+            live.model = 'responses-model'
+            return 'switched'
+          },
+        }],
+      }),
+      onGeneratedTurn,
+    },
+  })
+
+  expect(requests).toHaveLength(2)
+  expect(requests[0].url).toContain('chat.example')
+  expect(requests[1].url).toContain('responses.example')
+  expect(requests[1].body.model).toBe('responses-model')
+  expect(JSON.stringify(requests[1].body.input)).toContain('switched')
+  expect(onGeneratedTurn).toHaveBeenCalledOnce()
+  const rounds: AssistantTurn['rounds'] = onGeneratedTurn.mock.calls[0][0].rounds
+  expect(rounds.map(round => round.continuation?.protocol)).toEqual(['chat-completions', 'responses'])
+  expect(new Set(rounds.map(round => round.id)).size).toBe(rounds.length)
+  const invocationIds = rounds.flatMap(round => round.toolInvocations.map(call => call.id))
+  expect(new Set(invocationIds).size).toBe(invocationIds.length)
+  expect(rounds[0].toolInvocations[0].id).toBe(`${rounds[0].id}/switch-1`)
+})
+
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005498788
 // https://github.com/moeru-ai/airi/pull/2477#discussion_r4005940671
 it.each([

@@ -1,17 +1,21 @@
 import type {} from 'pinia-plugin-synced'
 
 import type { InferenceServiceProvider, ProviderValidationStatus } from '../../libs/providers/types'
+import type { ProviderReplicaRow } from '../../services/inference-service-providers'
+import type { ProviderSyncRow, ProviderSyncSnapshot } from './merge'
 
-import { useMutation, useQuery } from '@pinia/colada'
-import { useLocalStorage } from '@vueuse/core'
+import { useDebounceFn, useIntervalFn, useLocalStorage } from '@vueuse/core'
+import { isEqual } from 'es-toolkit'
+import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { computed } from 'vue'
+import { computed, shallowRef, watch } from 'vue'
 
 import { client } from '../../composables/api'
 import { getDefinedProvider } from '../../libs/providers'
 import { inferenceServiceProvidersService as service } from '../../services/inference-service-providers'
+import { useAuthStore } from '../auth'
+import { mergeProviderSync } from './merge'
 
-const PROVIDERS_QUERY_KEY = ['inference-service-providers']
 const providerStorageOptions = {
   // pinia-plugin-synced is the only cross-window propagation channel for this
   // store. Listening to storage events would feed replicated state back into
@@ -19,33 +23,53 @@ const providerStorageOptions = {
   listenToStorageChanges: false,
 } as const
 
-/**
- * Creates the remote provider-list query.
- *
- * The query returns a remote snapshot. The Provider Config Store merges that snapshot
- * into its persisted, cross-window state after the request succeeds.
- */
-function createProvidersQueryOptions() {
-  return {
-    key: PROVIDERS_QUERY_KEY,
-    query: async (context: { signal: AbortSignal }) => {
-      const remote = await service.fetchRemote(client, { abortSignal: context.signal })
-      return remote
-    },
-    enabled: false,
-  }
+const PUSH_DEBOUNCE_MS = 1000
+/** Same idle interval as VS Code Settings Sync. */
+const PULL_INTERVAL_MS = 5 * 60 * 1000
+
+export type ProviderReplicaSyncState = 'synced' | 'pending' | 'not-uploaded'
+
+const emptyReplicaSyncState: Record<string, ProviderReplicaSyncState> = Object.freeze({})
+
+type StoredProvider = InferenceServiceProvider & {
+  replicaUpdatedAt?: string
+}
+
+function isUserProvider(provider: InferenceServiceProvider) {
+  return provider.configuredBy !== 'authentication'
 }
 
 /**
- * Stores serializable provider instances and their configuration.
- *
- * Pinia Colada owns remote request state. This store remains the source of
- * truth for the local, cross-window provider snapshot.
+ * Local providers are the primary copy. Cloud is a replica: pull on login
+ * and every five minutes while signed in, push after a debounce. Upsert only
+ * configured rows. Do not upload status. Merge prefers a config that works
+ * on this device, then replica time.
  */
 export const useProviderConfigStore = defineStore('provider-config', () => {
-  const providers = useLocalStorage<Record<string, InferenceServiceProvider>>('settings/providers/configured', {}, providerStorageOptions)
+  const authStore = useAuthStore()
+  const providers = useLocalStorage<Record<string, StoredProvider>>('settings/providers/configured', {}, providerStorageOptions)
   const addedProviders = useLocalStorage<Record<string, boolean>>('settings/providers/added', {}, providerStorageOptions)
+  const pendingDeletes = useLocalStorage<Record<string, string | null>>('settings/providers/pending-deletes', {}, providerStorageOptions)
   const legacyConfigs = useLocalStorage<Record<string, Record<string, unknown>>>('settings/credentials/providers', {}, providerStorageOptions)
+
+  const lastLiveRemote = shallowRef<Record<string, ProviderReplicaRow>>({})
+  let replicaMerged = false
+  let syncInFlight: Promise<void> | undefined
+  const afterSyncHooks: Array<() => void | Promise<void>> = []
+  let remoteWorkingCheck: ((row: ProviderReplicaRow) => Promise<boolean>) | undefined
+
+  function onAfterSync(hook: () => void | Promise<void>) {
+    afterSyncHooks.push(hook)
+    return () => {
+      const index = afterSyncHooks.indexOf(hook)
+      if (index >= 0)
+        afterSyncHooks.splice(index, 1)
+    }
+  }
+
+  function onRemoteWorking(check: (row: ProviderReplicaRow) => Promise<boolean>) {
+    remoteWorkingCheck = check
+  }
 
   // Import the previous provider configuration shape once. Provider ids remain
   // stable, so existing model selections keep pointing at the same provider.
@@ -82,19 +106,71 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     }
   }
 
-  const providersQuery = useQuery(createProvidersQueryOptions())
-  const addProviderMutation = useMutation({
-    mutation: async (provider: InferenceServiceProvider) => service.createRemote(client, provider),
+  // Uploaded fields only. status and replicaUpdatedAt stay local; a successful
+  // push writes replicaUpdatedAt and must not look like a new local edit.
+  function replicaBody(row: { definitionId: string, config: Record<string, unknown> }) {
+    return { definitionId: row.definitionId, config: row.config }
+  }
+
+  function snapshotLocal(): ProviderSyncSnapshot {
+    const live: Record<string, ProviderSyncRow> = {}
+    for (const provider of Object.values(providers.value)) {
+      if (!isUserProvider(provider))
+        continue
+      live[provider.id] = {
+        id: provider.id,
+        ...replicaBody(provider),
+        replicaUpdatedAt: provider.replicaUpdatedAt,
+      }
+    }
+    return {
+      live,
+      pendingDeletes: { ...pendingDeletes.value },
+    }
+  }
+
+  function indexAcceptedReplica(merged: ProviderSyncSnapshot, remote: ProviderReplicaRow[]) {
+    const remoteLiveIds = new Set(remote.filter(row => !row.deletedAt).map(row => row.id))
+    const next: Record<string, ProviderReplicaRow> = {}
+    for (const row of Object.values(merged.live)) {
+      if (!remoteLiveIds.has(row.id))
+        continue
+      next[row.id] = {
+        id: row.id,
+        definitionId: row.definitionId,
+        config: { ...row.config },
+        updatedAt: row.replicaUpdatedAt ?? '',
+        deletedAt: null,
+      }
+    }
+    lastLiveRemote.value = next
+  }
+
+  function isDirty(provider: StoredProvider) {
+    const remote = lastLiveRemote.value[provider.id]
+    if (!remote)
+      return true
+    return !isEqual(replicaBody(provider), replicaBody(remote))
+  }
+
+  const schedulePush = useDebounceFn(() => {
+    void pushProviders()
+  }, PUSH_DEBOUNCE_MS)
+
+  // Nested config writes skip actions, so the replica payload is watched.
+  const replicaSignature = computed(() => {
+    const snapshot = snapshotLocal()
+    const live = Object.fromEntries(
+      Object.entries(snapshot.live).map(([id, row]) => [id, replicaBody(row)]),
+    )
+    return JSON.stringify({
+      live,
+      pendingDeletes: snapshot.pendingDeletes,
+    })
   })
-  const removeProviderMutation = useMutation({
-    mutation: async (providerId: string) => service.deleteRemote(client, providerId),
-  })
-  const updateProviderMutation = useMutation({
-    mutation: async (payload: {
-      providerId: string
-      config: Record<string, unknown>
-      status: ProviderValidationStatus
-    }) => service.patchConfigRemote(client, payload.providerId, payload.config, payload.status),
+
+  watch(replicaSignature, () => {
+    void schedulePush()
   })
 
   const configs = computed(() => Object.fromEntries(
@@ -106,10 +182,24 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
   const configuredProviders = computed(() => Object.fromEntries(
     Object.entries(providers.value).map(([providerId, provider]) => [providerId, provider.status === 'configured']),
   ))
-  const mutationError = computed(() =>
-    addProviderMutation.error.value
-    ?? removeProviderMutation.error.value
-    ?? updateProviderMutation.error.value)
+
+  const replicaSyncState = computed(() => {
+    if (!authStore.isAuthenticated)
+      return emptyReplicaSyncState
+
+    const states: Record<string, ProviderReplicaSyncState> = {}
+    for (const provider of Object.values(providers.value)) {
+      if (!isUserProvider(provider))
+        continue
+      if (!isDirty(provider))
+        states[provider.id] = 'synced'
+      else if (provider.status === 'configured')
+        states[provider.id] = 'pending'
+      else
+        states[provider.id] = 'not-uploaded'
+    }
+    return Object.keys(states).length === 0 ? emptyReplicaSyncState : states
+  })
 
   function getProvider(providerId: string) {
     return providers.value[providerId]
@@ -128,14 +218,15 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!definition)
       throw new Error(`Provider definition with id "${definitionId}" not found.`)
 
-    const provider = {
+    const provider: StoredProvider = {
       id: providerId,
       definitionId,
       config,
-      status: 'unconfigured' as const,
+      status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
     }
     providers.value[providerId] = provider
+    delete pendingDeletes.value[providerId]
     return provider
   }
 
@@ -149,8 +240,14 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   function setProviderStatus(providerId: string, status: ProviderValidationStatus) {
     const provider = providers.value[providerId]
-    if (provider)
-      provider.status = status
+    if (!provider)
+      return
+
+    provider.status = status
+    // Config often changes first; validation marks configured later.
+    // Push then, or a finished key never uploads.
+    if (status === 'configured')
+      schedulePush()
   }
 
   /**
@@ -188,6 +285,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       ...provider,
       config: { ...provider.config, model },
     }
+    schedulePush()
   }
 
   /**
@@ -206,61 +304,189 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       ...provider,
       config: { ...provider.config, model },
     }
+    schedulePush()
   }
 
-  function mergeProviderSnapshot(snapshot: Record<string, InferenceServiceProvider>) {
-    providers.value = { ...providers.value, ...snapshot }
-    for (const providerId of Object.keys(snapshot))
-      markProviderAdded(providerId)
-  }
+  function applyMerged(merged: ProviderSyncSnapshot) {
+    const previousIds = new Set(Object.keys(providers.value))
+    const next: Record<string, StoredProvider> = {}
+    for (const [id, provider] of Object.entries(providers.value)) {
+      if (!isUserProvider(provider))
+        next[id] = provider
+    }
 
-  async function fetchProviders() {
-    try {
-      const state = await providersQuery.refetch(true)
-      if (state.data) {
-        // The server snapshot has the highest priority for ids that exist remotely.
-        mergeProviderSnapshot(state.data)
+    for (const [id, provider] of Object.entries(providers.value)) {
+      if (isUserProvider(provider) && !merged.live[id])
+        unmarkProviderAdded(id)
+    }
+
+    for (const [id, row] of Object.entries(merged.live)) {
+      const current = providers.value[id]
+      next[id] = {
+        id: row.id,
+        definitionId: row.definitionId,
+        config: row.config,
+        replicaUpdatedAt: row.replicaUpdatedAt,
+        status: current?.status ?? 'unconfigured',
+        configuredBy: 'user',
       }
-      return providers.value
+      if (!previousIds.has(id))
+        markProviderAdded(id)
     }
-    catch {
-      // The merged local snapshot is authoritative while the remote endpoint is unavailable.
-      return providers.value
+
+    providers.value = next
+    pendingDeletes.value = merged.pendingDeletes
+  }
+
+  function localWorkingIds() {
+    const ids = new Set<string>()
+    for (const provider of Object.values(providers.value)) {
+      if (isUserProvider(provider) && provider.status === 'configured')
+        ids.add(provider.id)
+    }
+    return ids
+  }
+
+  async function remoteWorkingIds(remote: ProviderReplicaRow[]) {
+    const ids = new Set<string>()
+    for (const row of remote) {
+      if (row.deletedAt)
+        continue
+      if (!remoteWorkingCheck) {
+        ids.add(row.id)
+        continue
+      }
+      try {
+        if (await remoteWorkingCheck(row))
+          ids.add(row.id)
+      }
+      catch {}
+    }
+    return ids
+  }
+
+  async function syncProviders() {
+    if (!authStore.isAuthenticated)
+      return
+
+    if (syncInFlight) {
+      await syncInFlight
+      return syncProviders()
+    }
+
+    syncInFlight = (async () => {
+      try {
+        const remote = await service.listRemote(client)
+        const merged = mergeProviderSync(snapshotLocal(), remote, {
+          local: localWorkingIds(),
+          remote: await remoteWorkingIds(remote),
+        })
+        applyMerged(merged)
+        indexAcceptedReplica(merged, remote)
+        replicaMerged = true
+      }
+      catch {
+        return
+      }
+      await pushProviders()
+      for (const hook of afterSyncHooks)
+        await hook()
+    })()
+
+    try {
+      await syncInFlight
+    }
+    finally {
+      syncInFlight = undefined
     }
   }
+
+  async function pushProviders() {
+    if (!authStore.isAuthenticated)
+      return
+
+    const toUpsert = Object.values(providers.value).filter(provider =>
+      isUserProvider(provider) && isDirty(provider) && provider.status === 'configured',
+    )
+
+    if (!replicaMerged) {
+      if (toUpsert.length === 0 && Object.keys(pendingDeletes.value).length === 0)
+        return
+      return syncProviders()
+    }
+
+    for (const provider of toUpsert) {
+      try {
+        const remote = await service.upsertRemote(client, {
+          id: provider.id,
+          definitionId: provider.definitionId,
+          config: provider.config,
+        })
+        const current = providers.value[provider.id]
+        if (current)
+          current.replicaUpdatedAt = remote.updatedAt
+        lastLiveRemote.value = {
+          ...lastLiveRemote.value,
+          [provider.id]: remote,
+        }
+      }
+      catch {
+        return
+      }
+    }
+
+    for (const id of Object.keys(pendingDeletes.value)) {
+      try {
+        await service.deleteRemote(client, id)
+        delete pendingDeletes.value[id]
+        const nextRemote = { ...lastLiveRemote.value }
+        delete nextRemote[id]
+        lastLiveRemote.value = nextRemote
+      }
+      catch {
+        return
+      }
+    }
+  }
+
+  const periodicSync = useIntervalFn(
+    () => {
+      void syncProviders()
+    },
+    PULL_INTERVAL_MS,
+    { immediate: false },
+  )
+
+  authStore.onAuthenticated(() => {
+    void syncProviders()
+    periodicSync.resume()
+  })
+
+  authStore.onLogout(() => {
+    periodicSync.pause()
+  })
 
   async function addProvider(definitionId: string, initialConfig: Record<string, unknown> = {}) {
-    const provider = service.buildLocal(definitionId, initialConfig)
-    providers.value[provider.id] = provider
+    const provider = ensureProvider(nanoid(), definitionId, initialConfig)
     markProviderAdded(provider.id)
-
-    try {
-      const remote = await addProviderMutation.mutateAsync(provider)
-      delete providers.value[provider.id]
-      unmarkProviderAdded(provider.id)
-      providers.value[remote.id] = remote
-      markProviderAdded(remote.id)
-      return remote
-    }
-    catch {
-      // A failed remote create does not discard the local provider.
-      return provider
-    }
+    schedulePush()
+    return provider
   }
 
   async function removeProvider(providerId: string) {
-    if (!providers.value[providerId])
+    const provider = providers.value[providerId]
+    if (!provider)
       return
+
+    if (isUserProvider(provider))
+      pendingDeletes.value[providerId] = new Date().toISOString()
 
     delete providers.value[providerId]
     unmarkProviderAdded(providerId)
-
-    try {
-      await removeProviderMutation.mutateAsync(providerId)
-    }
-    catch {
-      // A failed remote delete does not restore a provider that the user removed locally.
-    }
+    const nextRemote = { ...lastLiveRemote.value }
+    delete nextRemote[providerId]
+    lastLiveRemote.value = nextRemote
+    schedulePush()
   }
 
   async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus) {
@@ -268,38 +494,32 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     if (!provider)
       return
 
-    const localProvider = {
+    const next: StoredProvider = {
       ...provider,
       config: { ...config },
       status,
     }
-    providers.value[providerId] = localProvider
-
-    try {
-      const remote = await updateProviderMutation.mutateAsync({ providerId, config, status })
-      providers.value[remote.id] = remote
-      return remote
-    }
-    catch {
-      // A failed remote update keeps the local provider configuration.
-      return localProvider
-    }
+    providers.value[providerId] = next
+    schedulePush()
+    return next
   }
 
   async function resetProviders() {
     providers.value = {}
     addedProviders.value = {}
+    pendingDeletes.value = {}
+    lastLiveRemote.value = {}
+    replicaMerged = false
   }
 
   return {
     providers,
     configs,
     addedProviders,
+    pendingDeletes,
     listedProviders,
     configuredProviders,
-    isLoading: computed(() => providersQuery.isLoading.value),
-    error: computed(() => providersQuery.error.value),
-    mutationError,
+    replicaSyncState,
 
     getProvider,
     getProviderConfig,
@@ -310,16 +530,18 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     patchProviderConfig,
     setProviderModel,
     setProviderModelIfUnset,
-    fetchProviders,
+    syncProviders,
+    pushProviders,
     addProvider,
     removeProvider,
     updateProviderConfig,
     resetProviders,
+    onAfterSync,
+    onRemoteWorking,
   }
 }, {
   synced: {
     actions: [
-      'fetchProviders',
       'ensureProvider',
       'markProviderAdded',
       'unmarkProviderAdded',
@@ -327,6 +549,8 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
       'patchProviderConfig',
       'setProviderModel',
       'setProviderModelIfUnset',
+      'syncProviders',
+      'pushProviders',
       'addProvider',
       'removeProvider',
       'updateProviderConfig',
