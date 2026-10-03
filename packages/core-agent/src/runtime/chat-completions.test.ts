@@ -2,7 +2,7 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 
 import type { AssistantTurn } from '../messages/types'
 
-import { expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { streamFrom } from './llm-service'
 
@@ -231,4 +231,91 @@ it('removes provider options omitted by a later request in the same scope', asyn
   expect(requests).toHaveLength(2)
   expect(requests[0].reasoning_effort).toBe('high')
   expect(requests[1].reasoning_effort).toBeUndefined()
+})
+
+// https://github.com/moeru-ai/airi/issues/2660
+// ROOT CAUSE:
+//
+// A provider 429/503 rejected `streamFrom` on the first attempt, so each
+// temporary spike became a chat error the user retried by hand.
+//
+// We now repeat the request after `Retry-After` or backoff, only while no
+// stream event reached the consumer, so output and tools never duplicate.
+describe('transient provider failures (Issue #2660)', () => {
+  const provider = (fetch: typeof globalThis.fetch): GenerationProvider => ({
+    generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.test/v1/', fetch } }),
+  })
+  const unavailable = () => new Response('{"error":"overloaded"}', { status: 503, headers: { 'retry-after': '0' } })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('retries temporary provider statuses until the provider answers', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>()
+      .mockResolvedValueOnce(unavailable())
+      .mockResolvedValueOnce(new Response('{"error":"rate limited"}', { status: 429, headers: { 'retry-after': '0' } }))
+      .mockResolvedValueOnce(new Response('data: {"choices":[{"index":0,"delta":{"content":"done"},"finish_reason":"stop"}]}\n\n', { headers: { 'content-type': 'text/event-stream' } }))
+    const text: string[] = []
+    await streamFrom({
+      model: 'test',
+      chatProvider: provider(fetch),
+      conversation: { turns: [] },
+      options: { onStreamEvent: (event) => {
+        if (event.type === 'text-delta')
+          text.push(event.text)
+      } },
+    })
+    expect(fetch).toHaveBeenCalledTimes(3)
+    expect(text).toEqual(['done'])
+  })
+
+  it('surfaces the provider error after three retries', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => unavailable())
+    await expect(streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: [] } })).rejects.toMatchObject({ statusCode: 503 })
+    expect(fetch).toHaveBeenCalledTimes(4)
+  })
+
+  it('does not retry permanent request errors', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response('{"error":"invalid api key"}', { status: 401 }))
+    await expect(streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: [] } })).rejects.toMatchObject({ statusCode: 401 })
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+
+  it('does not repeat a tool call when a later step fails', async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
+      const body: { messages: Array<{ role: string }> } = JSON.parse(String(init?.body))
+      if (body.messages.some(message => message.role === 'tool'))
+        return unavailable()
+      const chunk = { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'save-1', type: 'function', function: { name: 'save', arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }
+      return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { 'content-type': 'text/event-stream' } })
+    })
+    const execute = vi.fn(() => 'saved')
+    await expect(streamFrom({
+      model: 'test',
+      chatProvider: provider(fetch),
+      conversation: { turns: [] },
+      options: { tools: [{ type: 'function', function: { name: 'save', parameters: { type: 'object', properties: {} } }, execute }] },
+    })).rejects.toMatchObject({ statusCode: 503 })
+    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(execute).toHaveBeenCalledOnce()
+  })
+
+  it('stops waiting to retry when the request is cancelled', async () => {
+    vi.useFakeTimers()
+    const controller = new AbortController()
+    const reason = new Error('cancelled')
+    // No Retry-After, so the first retry waits for the 3s backoff.
+    const fetch = vi.fn<typeof globalThis.fetch>(async () => new Response('{"error":"overloaded"}', { status: 503 }))
+    const rejection = expect(streamFrom({
+      model: 'test',
+      chatProvider: provider(fetch),
+      conversation: { turns: [] },
+      options: { abortSignal: controller.signal },
+    })).rejects.toBe(reason)
+    await vi.advanceTimersByTimeAsync(1_000)
+    controller.abort(reason)
+    await rejection
+    expect(fetch).toHaveBeenCalledOnce()
+  })
 })
