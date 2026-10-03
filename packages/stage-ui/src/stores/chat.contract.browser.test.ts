@@ -185,11 +185,8 @@ vi.mock('./chat/session-store', () => ({
     },
     forkSession: forkSessionMock,
     createSession: createSessionMock,
-    setActiveSession: async (sessionId: string) => {
-      activeSessionIdRef.value = sessionId
-    },
-    setSessionParent: async (sessionId: string, parentSessionId: string) => {
-      sessionMetas[sessionId] = { ...sessionMetas[sessionId]!, parentSessionId }
+    setSessionMode: async (sessionId: string, mode: ChatSessionMeta['mode']) => {
+      sessionMetas[sessionId] = { sessionId, userId: 'local', characterId: 'default', createdAt: 1, updatedAt: 1, ...sessionMetas[sessionId], mode }
     },
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
@@ -490,14 +487,16 @@ describe('chat store contract', () => {
     expect(useSchedulerStore().runs.snapshot().find(run => run.sessionId === recipeSession)).toMatchObject({ envelope: { outputs: [] }, parentRunId: expect.any(String) })
   })
 
-  // A mode takes over the conversation in its own space and hands back on request. The main conversation then gets a notice.
-  it('hands the conversation to a mode recipe and back, with recent context and a summary', async () => {
-    const prompts: Array<{ sessionId: string, prompt: string }> = []
+  // A mode is its own persona with its own session, shown in the same chat window.
+  // The owner's message goes to the mode as the owner wrote it, and the main persona never reads the mode's turns.
+  it('lets a mode answer in its own session while the chat shows it, and hands back with a summary', async () => {
+    const requests: Array<{ sessionId?: string, prompt: string, tools: string[] }> = []
     llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, context: Conversation, options: any) => {
       const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
-      prompts.push({ sessionId: options.requestCorrelation?.conversationId, prompt: JSON.stringify(context) })
-      if (JSON.stringify(context).includes('Mode steps:'))
-        expect(tools.map((tool: Tool) => tool.function.name)).toContain('builtIn_endMode')
+      const prompt = JSON.stringify(context)
+      requests.push({ prompt, tools: tools.map((tool: Tool) => tool.function.name) })
+      if (prompt.includes('Mode steps:'))
+        await options.onStreamEvent({ type: 'text-delta', text: 'Next step: write the budget.' })
       await options.onStreamEvent({ type: 'finish' })
     })
     sessionMessages['session-1'] = [{ role: 'user', content: 'I am planning a bar.', createdAt: 1, id: 'earlier' }, { role: 'assistant', content: 'Start with the budget.', slices: [{ type: 'text', text: 'Start with the budget.' }], tool_results: [], createdAt: 2, id: 'earlier-reply' }]
@@ -506,23 +505,32 @@ describe('chat store contract', () => {
 
     await store.send({ sessionId: 'session-1', text: '/i-have-adhd help me plan' })
     const modeSession = await createSessionMock.mock.results[0]?.value
-    await vi.waitFor(() => expect(prompts.some(entry => entry.prompt.includes('Mode steps:'))).toBe(true))
 
-    // The main conversation stays quiet, and the chat now shows the mode.
-    expect(prompts.filter(entry => !entry.prompt.includes('Mode steps:'))).toEqual([])
-    expect(createSessionMock).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ hidden: false, recipeId: expect.any(String) }))
-    expect(store.activeMode).toEqual({ sessionId: modeSession, name: 'i-have-adhd' })
-    const modePrompt = prompts.find(entry => entry.prompt.includes('Mode steps:'))!.prompt
-    expect(modePrompt).toContain('Start with the next step.')
-    expect(modePrompt).toContain('/i-have-adhd help me plan')
-    expect(modePrompt).toContain('The main conversation before this mode:')
-    expect(modePrompt).toContain('Owner: I am planning a bar.')
+    // The chat stays on the main conversation, which shows both sides marked with the mode.
+    expect(activeSessionIdRef.value).toBe('session-1')
+    expect(store.activeMode).toEqual({ sessionId: 'session-1', name: 'i-have-adhd' })
+    expect(sessionMessages['session-1']?.slice(2)).toMatchObject([
+      { role: 'user', content: '/i-have-adhd help me plan', persona: { name: 'i-have-adhd' } },
+      { role: 'assistant', content: 'Next step: write the budget.', persona: { name: 'i-have-adhd' } },
+    ])
+    // The mode reads the owner's own words, the mode steps, and the main conversation before it.
+    const modeRun = requests.find(request => request.prompt.includes('Mode steps:'))!
+    expect(requests).toHaveLength(1)
+    expect(modeRun.prompt).toContain('/i-have-adhd help me plan')
+    expect(modeRun.prompt).toContain('The main conversation before this mode:')
+    expect(modeRun.prompt).toContain('Owner: I am planning a bar.')
+    expect(modeRun.tools).toContain('builtIn_endMode')
+    expect(sessionMessages[modeSession]?.filter(message => message.role === 'user')).toMatchObject([{ content: '/i-have-adhd help me plan' }])
 
-    await store.endHandover(modeSession, 'We listed three first steps.')
-    await vi.waitFor(() => expect(prompts.some(entry => entry.prompt.includes('[Notice from mode:i-have-adhd'))).toBe(true))
+    await store.endHandover('session-1', 'We listed three first steps.')
+    await vi.waitFor(() => expect(requests.some(request => request.prompt.includes('[Notice from mode:i-have-adhd'))).toBe(true))
 
     expect(store.activeMode).toBeUndefined()
-    expect(prompts.find(entry => entry.prompt.includes('[Notice from mode:i-have-adhd'))!.prompt).toContain('Summary: We listed three first steps.')
+    const notice = requests.find(request => request.prompt.includes('[Notice from mode:i-have-adhd'))!.prompt
+    expect(notice).toContain('Summary: We listed three first steps.')
+    // The main persona never reads the turns that the mode held.
+    expect(notice).not.toContain('help me plan')
+    expect(notice).not.toContain('write the budget')
   })
 
   // A scene belongs to a persona. Its run reads general memories and its persona's own, and cannot save recipes.

@@ -35,6 +35,9 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+
+// A message that the owner sent to a mode names the mode it went to.
+const sentToMode = computed(() => (props.message as ChatHistoryItem).persona?.name)
 const content = computed(() => {
   const raw = props.message.content
   if (typeof raw === 'string')
@@ -98,6 +101,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <ChatReplyQuote v-if="replyTarget" :target="replyTarget" />
           <div>
             <span text-sm text="black/60 dark:white/65" font-normal class="inline <sm:hidden">{{ label }}</span>
+            <span v-if="sentToMode" :class="['ml-1.5', 'text-xs', 'text-primary-600 dark:text-primary-300']">{{ t('stage.chat.mode.sent_to', { name: sentToMode }) }}</span>
           </div>
           <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
             <img v-for="(image, index) in images" :key="index" :src="image" :alt="t('stage.chat.images.description')" :class="['max-h-64 max-w-full rounded-xl object-contain']">

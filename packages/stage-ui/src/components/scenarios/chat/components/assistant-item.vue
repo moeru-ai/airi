@@ -50,6 +50,9 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 
+// A mode's reply shown in the main conversation names the mode as its speaker.
+const speaker = computed(() => (props.message as ChatHistoryItem).persona?.name ?? props.label)
+
 /** Renderers that every chat surface shares. A runtime registry can still replace them. */
 const builtinToolCallRenderers: ChatToolCallRendererRegistry = {
   [USE_RECIPE_TOOL_NAME]: RecipeCallBlock,
@@ -162,7 +165,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             :variant="variant"
           />
           <div class="<sm:hidden">
-            <span text-sm text="black/60 dark:white/65" font-normal>{{ label }}</span>
+            <span text-sm text="black/60 dark:white/65" font-normal>{{ speaker }}</span>
           </div>
           <!-- Decision recipes changed this reply before generation, so the reply names them. -->
           <div v-if="message.recipes?.length" :class="['flex flex-wrap', 'gap-1.5']">

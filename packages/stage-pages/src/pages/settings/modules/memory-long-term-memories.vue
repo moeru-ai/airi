@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { MemoryEntry } from '@proj-airi/stage-ui/stores/memory'
 
+import { modePersonaId } from '@proj-airi/stage-ui/stores/chat'
 import { useMemoryStore } from '@proj-airi/stage-ui/stores/memory'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useRecipesStore } from '@proj-airi/stage-ui/stores/recipes'
 import { GhostButton } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -11,14 +13,17 @@ import { useI18n } from 'vue-i18n'
 const { t } = useI18n()
 const memory = useMemoryStore()
 const { cards } = storeToRefs(useAiriCardStore())
+const { recipes } = storeToRefs(useRecipesStore())
 
 const KEY = 'settings.pages.modules.memory-long-term.memories'
 
-/** General memories first, then every persona: each character card, and any other persona that kept a memory. */
+/** General memories first, then every persona: each character card, each mode, and any other persona that kept a memory. */
 const groups = computed(() => {
   const personas = new Map<string, string>()
   for (const [id, card] of cards.value)
     personas.set(id, card.name || id)
+  for (const recipe of recipes.value.filter(entry => entry.handover))
+    personas.set(modePersonaId(recipe.id), recipe.name)
   for (const entry of memory.entries) {
     if (entry.persona && !personas.has(entry.persona))
       personas.set(entry.persona, entry.persona)

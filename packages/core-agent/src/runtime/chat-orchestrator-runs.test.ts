@@ -589,6 +589,22 @@ describe('orchestrator runs', () => {
     expect(harness.getSessionAudience()).toEqual(OWNER_AUDIENCE)
   })
 
+  // A mode shows its turns in the main chat window, but they belong to the mode's own context.
+  it('never reads messages that another persona showed in this session', async () => {
+    const harness = createRunHarness()
+    harness.messages.push(
+      { role: 'user', content: 'Plan my week.', id: 'own' },
+      { role: 'user', content: 'Focus mode question.', id: 'mode-user', persona: { id: 'mode:focus', name: 'Focus' } },
+      { role: 'assistant', content: 'Focus mode answer.', slices: [{ type: 'text', text: 'Focus mode answer.' }], tool_results: [], id: 'mode-reply', persona: { id: 'mode:focus', name: 'Focus' } },
+    )
+
+    await harness.runtime.ingest('And today?', { model: 'test', chatProvider: provider })
+
+    const prompt = JSON.stringify(harness.stream.mock.calls[0]![2])
+    expect(prompt).toContain('Plan my week.')
+    expect(prompt).not.toContain('Focus mode')
+  })
+
   // A background result or a module event reaches the main conversation as a notice. History gains the reply, never a fake user turn.
   it('answers a notice without storing it as owner speech, and marks the reply as proactive', async () => {
     const decideBeforeReply = vi.fn(async () => undefined)

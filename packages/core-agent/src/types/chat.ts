@@ -92,6 +92,11 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   context?: ContextMessage
   createdAt?: number
   id?: string
+  /**
+   * Set on a message that belongs to another persona's conversation and is only shown in this session, for example a mode.
+   * Runs in this session never read it, so each persona keeps its own context.
+   */
+  persona?: { id: string, name: string }
   /** Vision output stored by image order so later turns can reuse it without copying the image URL. */
   imageDescriptions?: Array<{
     description: string

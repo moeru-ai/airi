@@ -103,6 +103,11 @@ export interface BackgroundTask {
 /** Characters of a background result that travel in the notice. The rest stays in the recipe's session, which the reference names. */
 const RECIPE_RESULT_NOTICE_LIMIT = 1500
 
+/** The persona id of a mode, used for its own memories and for the messages it shows in the main conversation. */
+export function modePersonaId(recipeId: string) {
+  return `mode:${recipeId}`
+}
+
 /** Main conversation turns that a handover mode reads, and the characters kept from each. */
 const HANDOVER_CONTEXT_TURNS = 6
 const HANDOVER_CONTEXT_CHARS = 400
@@ -259,6 +264,12 @@ export const useChatStore = defineStore('chat', () => {
   /** The persona of a session. A session without one uses the selected card. */
   function personaOf(sessionId: string) {
     return chatSession.sessionMetas[sessionId]?.characterId || cardStore.activeCardId || 'default'
+  }
+
+  /** The persona whose memories a session's runs keep. A mode is its own persona, so its session keeps the mode's memories. */
+  function memoryPersonaOf(sessionId: string) {
+    const recipeId = chatSession.sessionMetas[sessionId]?.recipeId
+    return recipeId && recipes.recipes.find(recipe => recipe.id === recipeId)?.handover ? modePersonaId(recipeId) : personaOf(sessionId)
   }
   const contextObservability = useContextObservabilityStore()
   const scheduler = useSchedulerStore()
@@ -450,10 +461,8 @@ export const useChatStore = defineStore('chat', () => {
    */
   async function startRecipe(recipe: Recipe, request: { parentSessionId: string, parentRunId?: string, task: string }): Promise<{ status: 'started' | 'switched' } | { status: 'refused', reason: string }> {
     // A handover recipe takes over the conversation and answers the owner's latest message itself.
-    if (recipe.handover) {
-      const latest = chatSession.getSessionMessages(request.parentSessionId).findLast(message => message.role === 'user')
-      return await handOver(recipe, { parentSessionId: request.parentSessionId, message: latest ? replyTextOf(latest) : request.task })
-    }
+    if (recipe.handover)
+      return await handOver(recipe, { parentSessionId: request.parentSessionId })
     const tools = recipeToolsFor(recipe, request.parentSessionId)
     let sessionId: string
     try {
@@ -495,59 +504,77 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Hands the conversation to a handover recipe. The chat switches to the recipe's own visible session, and that persona answers the owner's message.
-   * The persona keeps its own prefix and the shared memory. Recent turns of the main conversation reach it as context, never as copied history.
+   * Gives the conversation to a mode. The mode is its own persona with its own session, so it keeps its own context.
+   * The chat window stays on the main conversation. From now on the owner's messages there go to the mode, and the chat shows both sides marked with the mode's name.
    */
-  async function handOver(recipe: Recipe, request: { parentSessionId: string, message: string }): Promise<{ status: 'switched' } | { status: 'refused', reason: string }> {
-    let sessionId: string
+  async function handOver(recipe: Recipe, request: { parentSessionId: string }): Promise<{ status: 'switched' } | { status: 'refused', reason: string }> {
     try {
-      sessionId = await recipeSessionFor(recipe, request.parentSessionId)
+      const sessionId = await recipeSessionFor(recipe, request.parentSessionId)
+      await chatSession.setSessionMode(request.parentSessionId, { recipeId: recipe.id, sessionId })
+      return { status: 'switched' }
     }
     catch (error) {
       return { status: 'refused', reason: errorMessageFrom(error) ?? 'The mode could not open' }
     }
-    // The latest main conversation is where the mode hands back.
-    await chatSession.setSessionParent(sessionId, request.parentSessionId)
-    await chatSession.setActiveSession(sessionId)
-    void executeSend({ sessionId, text: request.message, tools: recipeToolsFor(recipe, request.parentSessionId) }).catch((error) => {
-      console.warn('[chat] The mode could not answer:', errorMessageFrom(error))
-    })
-    return { status: 'switched' }
+  }
+
+  /** The main conversation that a mode session serves, if any. */
+  function mainSessionOf(modeSessionId: string) {
+    return Object.values(chatSession.sessionMetas).find(meta => meta.mode?.sessionId === modeSessionId)?.sessionId
   }
 
   /**
-   * Ends a handover mode. The chat returns to the main conversation, which receives the summary as a notice and decides what to say.
+   * Ends the mode of a conversation. The main persona takes the conversation back and receives the summary as a notice.
+   * Accepts the main conversation or the mode's own session.
    */
   async function endHandover(sessionId: string, summary = '') {
-    const meta = chatSession.sessionMetas[sessionId]
-    const recipe = recipes.recipes.find(entry => entry.id === meta?.recipeId)
-    if (!meta?.parentSessionId || !recipe?.handover)
+    const mainSessionId = chatSession.sessionMetas[sessionId]?.mode ? sessionId : mainSessionOf(sessionId)
+    const mode = mainSessionId ? chatSession.sessionMetas[mainSessionId]?.mode : undefined
+    if (!mainSessionId || !mode)
       return
-    if (chatSession.activeSessionId === sessionId)
-      await chatSession.setActiveSession(meta.parentSessionId)
-    void notifyConversation(meta.parentSessionId, {
-      source: `mode:${recipe.name}`,
-      text: `The mode "${recipe.name}" ended, and the conversation is back with you.${summary ? ` Summary: ${summary}` : ''}`,
+    const name = recipes.recipes.find(entry => entry.id === mode.recipeId)?.name ?? mode.recipeId
+    await chatSession.setSessionMode(mainSessionId, undefined)
+    void notifyConversation(mainSessionId, {
+      source: `mode:${name}`,
+      text: `The mode "${name}" ended, and the conversation is back with you.${summary ? ` Summary: ${summary}` : ''}`,
     })
   }
 
-  /** The handover mode that the chat shows now, if any. */
+  /** The mode that holds the conversation in the chat window now, if any. */
   const activeMode = computed(() => {
-    const meta = chatSession.sessionMetas[activeSessionId.value]
-    const recipe = meta?.recipeId ? recipes.recipes.find(entry => entry.id === meta.recipeId) : undefined
-    return recipe?.handover ? { sessionId: activeSessionId.value, name: recipe.name } : undefined
+    const mode = chatSession.sessionMetas[activeSessionId.value]?.mode
+    const recipe = mode ? recipes.recipes.find(entry => entry.id === mode.recipeId) : undefined
+    return mode ? { sessionId: activeSessionId.value, name: recipe?.name ?? mode.recipeId } : undefined
   })
 
-  /** Recent turns of the main conversation, for a handover mode's context slot. */
-  function handoverContextText(sessionId: string) {
-    const meta = chatSession.sessionMetas[sessionId]
-    const recipe = meta?.recipeId ? recipes.recipes.find(entry => entry.id === meta.recipeId) : undefined
-    if (!recipe?.handover || !meta?.parentSessionId)
+  /**
+   * Sends the owner's message to the mode that holds the conversation. The mode answers in its own session.
+   * The main conversation shows the message and the reply marked with the mode's name, and its own persona never reads them.
+   */
+  async function sendToMode(payload: ChatSendPayload, mode: { recipeId: string, sessionId: string }): Promise<ChatSendResult> {
+    const persona = { id: modePersonaId(mode.recipeId), name: recipes.recipes.find(entry => entry.id === mode.recipeId)?.name ?? mode.recipeId }
+    const shown: ChatHistoryItem[] = [{ role: 'user', content: payload.text, id: nanoid(), createdAt: Date.now(), persona }]
+    chatSession.appendSessionMessage(payload.sessionId, shown[0]!)
+    const result = await executeSend({ ...payload, sessionId: mode.sessionId })
+    for (const message of result.messages) {
+      if (message.role !== 'assistant')
+        continue
+      const copy: ChatHistoryItem = { ...structuredClone(toRaw(message)), id: nanoid(), persona }
+      chatSession.appendSessionMessage(payload.sessionId, copy)
+      shown.push(copy)
+    }
+    return { messages: shown, sessionId: payload.sessionId }
+  }
+
+  /** Recent turns of the main conversation before the mode, for the mode's context slot. Turns shown for a mode are left out. */
+  function handoverContextText(modeSessionId: string) {
+    const mainSessionId = mainSessionOf(modeSessionId)
+    if (!mainSessionId)
       return undefined
-    const recent = chatSession.getSessionMessagesIfLoaded(meta.parentSessionId)
-      ?.filter(message => message.role === 'user' || message.role === 'assistant')
+    const recent = chatSession.getSessionMessagesIfLoaded(mainSessionId)
+      ?.filter(message => (message.role === 'user' || message.role === 'assistant') && !message.persona)
       .slice(-HANDOVER_CONTEXT_TURNS)
-      .map(message => `${message.role === 'user' ? 'Owner' : 'You'}: ${replyTextOf(message).slice(0, HANDOVER_CONTEXT_CHARS)}`)
+      .map(message => `${message.role === 'user' ? 'Owner' : 'The main persona'}: ${replyTextOf(message).slice(0, HANDOVER_CONTEXT_CHARS)}`)
     return recent?.length ? `The main conversation before this mode:\n${recent.join('\n')}` : undefined
   }
 
@@ -573,13 +600,7 @@ export const useChatStore = defineStore('chat', () => {
       return decided
     const matched = [...matchKeywordRecipes(recipes.usable, input.message), ...recipes.usable.filter(recipe => decided?.recipeIds.includes(recipe.id))]
       .filter((recipe, index, list) => list.indexOf(recipe) === index && recipe.style.kind === 'instructions')
-    // A handover mode answers this message itself, so the main conversation stays quiet.
-    const mode = matched.find(recipe => recipe.handover)
-    if (mode) {
-      const outcome = await handOver(mode, { parentSessionId: input.sessionId, message: input.message })
-      if (outcome.status === 'switched')
-        return { silent: { reason: `handover:${mode.name}` }, hints: [], applied: [mode.name] }
-    }
+    // A mode keyword already moved the message to the mode before this run, so only task recipes start here.
     const triggered = matched.filter(recipe => !recipe.handover)
     const started: string[] = []
     for (const recipe of triggered) {
@@ -606,7 +627,7 @@ export const useChatStore = defineStore('chat', () => {
     const { conversationId: sessionId, runId } = correlation
     const audience = (runId ? activeRuns.get(runId)?.audience : undefined) ?? OWNER_AUDIENCE
     // Each persona keeps general memories and its own. A scene's persona keeps its own as well.
-    const persona = personaOf(sessionId)
+    const persona = memoryPersonaOf(sessionId)
     const sourceTools = async () => [
       ...(typeof tools === 'function' ? await tools() ?? [] : tools ?? []),
       ...await createContextSourceTool({ read: sourceRef => contextSource.readSource(contextReaderFor(sessionId, audience), sourceRef) }),
@@ -871,9 +892,8 @@ export const useChatStore = defineStore('chat', () => {
     // Identity follows the session's persona at request time, so a card switch never rewrites another session.
     // A recipe's own session adds the recipe's steps after the identity. They stay the same there, so its prefix stays cacheable.
     getSystemPrompt: (envelope) => {
-      const persona = envelope.personaId || cardStore.activeCardId || 'default'
       // The memory index of the run's persona follows the identity: its own memories and the general ones.
-      const identity = composeSystemPrompt(cardStore.systemPromptOf(persona)) + composeMemoryPrompt(memory.indexFor(persona))
+      const identity = composeSystemPrompt(cardStore.systemPromptOf(envelope.personaId || cardStore.activeCardId || 'default')) + composeMemoryPrompt(memory.indexFor(memoryPersonaOf(envelope.sessionId)))
       const recipeId = chatSession.sessionMetas[envelope.sessionId]?.recipeId
       const recipe = recipeId ? recipes.recipes.find(entry => entry.id === recipeId) : undefined
       return recipe ? identity + composeRecipeSpacePrompt(recipe) : identity
@@ -1024,6 +1044,15 @@ export const useChatStore = defineStore('chat', () => {
   /** Sends one serializable chat request through the elected leader. */
   async function send(payload: ChatSendPayload): Promise<ChatSendResult> {
     try {
+      // A mode keyword in the owner's own conversation gives that message to the mode.
+      if (!payload.outputTarget && !chatSession.sessionMetas[payload.sessionId]?.mode && !chatSession.sessionMetas[payload.sessionId]?.recipeId) {
+        const mode = matchKeywordRecipes(recipes.usable, payload.text).find(recipe => recipe.handover && recipe.style.kind === 'instructions')
+        if (mode)
+          await handOver(mode, { parentSessionId: payload.sessionId })
+      }
+      const mode = payload.outputTarget ? undefined : chatSession.sessionMetas[payload.sessionId]?.mode
+      if (mode)
+        return await sendToMode(payload, mode)
       return await executeSend(payload)
     }
     catch (error) {

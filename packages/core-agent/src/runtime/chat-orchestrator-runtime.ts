@@ -1007,7 +1007,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       // Identity comes from the run's persona at request time. Without a host identity, the stored history keeps its own system message.
       const systemPrompt = deps.getSystemPrompt?.(run.envelope)
-      const projected = deps.getSystemPrompt ? sessionMessagesForSend.filter(message => message.role !== 'system') : sessionMessagesForSend
+      // Messages shown here for another persona belong to that persona's own context.
+      const ownMessages = sessionMessagesForSend.filter(message => !message.persona)
+      const projected = deps.getSystemPrompt ? ownMessages.filter(message => message.role !== 'system') : ownMessages
       const { turns, note } = await fitSessionHistory(sessionId, projected)
       const context: Conversation = { turns }
       // The notice follows the history in this request only. It says plainly that the owner did not write it.

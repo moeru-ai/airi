@@ -29,6 +29,7 @@ chat:
     stop: '停止{name}'
   persona-switched: '已切换到 {name}'
   mode:
+    sent_to: '→ {name}'
     current: 当前模式
     end: 回到主对话
   recipe:

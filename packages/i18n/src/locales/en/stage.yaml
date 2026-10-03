@@ -29,6 +29,7 @@ chat:
     stop: 'Stop {name}'
   persona-switched: 'Now speaking: {name}'
   mode:
+    sent_to: '→ {name}'
     current: Mode
     end: Back to the main conversation
   recipe:

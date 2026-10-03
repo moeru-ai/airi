@@ -27,6 +27,11 @@ export interface ChatSessionMeta {
   hidden?: boolean
   /** The recipe whose own space this session is. Its runs read the recipe's steps, and only the scheduler starts them. */
   recipeId?: string
+  /**
+   * The mode that holds this conversation now. The owner's messages go to the mode's own session,
+   * and the chat shows both sides here, marked with the mode's name.
+   */
+  mode?: { recipeId: string, sessionId: string }
   title?: string
   createdAt: number
   updatedAt: number
