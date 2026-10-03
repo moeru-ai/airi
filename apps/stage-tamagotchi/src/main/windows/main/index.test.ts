@@ -1,5 +1,8 @@
+import type { ChatWindowManager } from '../chat'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { IOTraceRecordingService } from '../../services/airi/io-trace-recording'
 import { setupMainWindow } from './index'
 
 const mocks = vi.hoisted(() => {
@@ -69,6 +72,7 @@ vi.mock('../shared', () => ({
   transparentWindowConfig: vi.fn(() => ({})),
 }))
 vi.mock('./rpc/index.electron', () => ({ setupMainWindowElectronInvokes: vi.fn() }))
+vi.mock('../../services/airi/io-trace-recording')
 
 type SetupMainWindowParams = Parameters<typeof setupMainWindow>[0]
 
@@ -76,7 +80,12 @@ function createSetupMainWindowParams(): SetupMainWindowParams {
   return {
     editorWindow: {} as SetupMainWindowParams['editorWindow'],
     settingsWindow: {} as SetupMainWindowParams['settingsWindow'],
-    chatWindow: vi.fn() as SetupMainWindowParams['chatWindow'],
+    chatWindow: {
+      open: vi.fn(async () => {}),
+      toggle: vi.fn(async () => {}),
+      getButtonState: vi.fn<ChatWindowManager['getButtonState']>(() => ({ mode: 'legacy', floatingShown: false })),
+      onButtonStateChange: vi.fn(() => vi.fn()),
+    },
     widgetsManager: {} as SetupMainWindowParams['widgetsManager'],
     noticeWindow: {} as SetupMainWindowParams['noticeWindow'],
     autoUpdater: {} as SetupMainWindowParams['autoUpdater'],
@@ -85,6 +94,11 @@ function createSetupMainWindowParams(): SetupMainWindowParams {
     mcpStdioManager: {} as SetupMainWindowParams['mcpStdioManager'],
     i18n: {} as SetupMainWindowParams['i18n'],
     onboardingWindowManager: {} as SetupMainWindowParams['onboardingWindowManager'],
+    ioTraceRecording: new IOTraceRecordingService({
+      directory: '',
+      getStoredEnabled: vi.fn(() => false),
+      setStoredEnabled: vi.fn(),
+    }),
   }
 }
 
