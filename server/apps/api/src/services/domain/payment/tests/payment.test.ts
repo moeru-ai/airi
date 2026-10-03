@@ -94,7 +94,7 @@ describe('payment CORE', () => {
     expect(paid?.fluxAmount).toBe(500)
     expect(paid?.processorOrderId).toBe(`cs_test_${order.id}`)
 
-    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBeNull()
   })
 
   it('settle replay returns applied false and does not double credit', async () => {
@@ -289,7 +289,7 @@ describe('payment CORE', () => {
 
     const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
     expect(flux?.flux).toBe(500)
-    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBeNull()
   })
 
   it('evidence settle replay returns applied false and does not double credit', async () => {

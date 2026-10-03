@@ -1,6 +1,6 @@
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { FluxMeter } from '../billing/flux-meter'
+import type { SpeechBilling } from '../billing/speech-billing'
 import type { FluxService } from '../flux'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
@@ -50,7 +50,7 @@ export interface OpenAiSpeechServiceDeps {
   fluxService: FluxService
   configKV: ConfigKVService
   requestLogService: RequestLogService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
   providerCatalogService: ProviderCatalogService
@@ -124,7 +124,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
     const flux = await deps.fluxService.getFlux(input.userId)
     try {
-      await deps.ttsMeter.assertCanAfford(input.userId, billingUnits, flux.flux)
+      await deps.speechBilling.assertCanAfford(input.userId, billingUnits, flux.flux, { requestId, model: requestModel, turnId: analytics.turnId })
     }
     catch (err) {
       if (!(err instanceof ApiError) || err.statusCode !== 402)
@@ -211,13 +211,14 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
     let fluxConsumed = 0
     try {
-      const result = await deps.ttsMeter.accumulate({
+      const result = await deps.speechBilling.accumulate({
         userId: input.userId,
         units: billingUnits,
         currentBalance: flux.flux,
         requestId,
         metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
         turnId: analytics.turnId,
+        provider: routeCtx.provider,
       })
       fluxConsumed = result.fluxDebited
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)

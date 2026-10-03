@@ -5,7 +5,6 @@ import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { BillingService } from './services/domain/billing/billing-service'
-import type { FluxMeter } from './services/domain/billing/flux-meter'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
@@ -68,7 +67,7 @@ import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
-import { createFluxMeter } from './services/domain/billing/flux-meter'
+import { SpeechBilling } from './services/domain/billing/speech-billing'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
@@ -97,7 +96,7 @@ interface AppDeps {
   appleIapVerifier: AppleIapVerifier | null
   stripe: Stripe | null
   billingService: BillingService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
   requestLogService: RequestLogService
   voicePackService: VoicePackService
   productEventService: ProductEventService
@@ -233,7 +232,7 @@ export async function buildApp(deps: AppDeps) {
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
     fluxService: deps.fluxService,
-    ttsMeter: deps.ttsMeter,
+    speechBilling: deps.speechBilling,
     requestLogService: deps.requestLogService,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
@@ -288,7 +287,7 @@ export async function buildApp(deps: AppDeps) {
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
-    ttsMeter: deps.ttsMeter,
+    speechBilling: deps.speechBilling,
     llmRouter: deps.llmRouter,
     providerCatalogService: deps.providerCatalogService,
     voicePackService: deps.voicePackService,
@@ -722,29 +721,12 @@ export async function createApp() {
     },
   })
 
-  const ttsMeter = injeca.provide('services:ttsMeter', {
-    dependsOn: { redis, billingService, configKV, otel },
-    build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
-      name: 'tts',
-      // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
-      // per-request 503 (via route-level configGuard), not a server boot
-      // failure that would take chat/auth/stripe down with it.
-      resolveRuntime: async () => {
-        const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
-        const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
-        return {
-          unitsPerFlux: Math.max(1, Math.floor(1000 / fluxPer1kChars)),
-          debtTtlSeconds: ttl,
-        }
-      },
-    }, dependsOn.otel?.revenue),
+  const speechBilling = injeca.provide('services:speechBilling', {
+    dependsOn: { billingService, configKV, otel },
+    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
-  // LLM router (KTD-5 in-process replacement for the knoway sidecar).
-  // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
-  // always builds a real router — the legacy `null` fallback path is gone.
-  // Shared by the TTS router (acquires slots) and the pool watermark gauge
-  // (reads the snapshot). Cluster-wide Redis state — the server is multi-instance.
+  // Redis coordinates upstream pool capacity across API replicas.
   const ttsConcurrencyLedger = injeca.provide('services:ttsConcurrencyLedger', {
     dependsOn: { redis },
     build: ({ dependsOn }) => createConcurrencyLedger(dependsOn.redis),
@@ -777,7 +759,7 @@ export async function createApp() {
     appleIapVerifier,
     stripe,
     billingService,
-    ttsMeter,
+    speechBilling,
     configKV,
     envelopeCrypto,
     redis,
@@ -805,7 +787,7 @@ export async function createApp() {
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
-    ttsMeter: resolved.ttsMeter,
+    speechBilling: resolved.speechBilling,
     requestLogService: resolved.requestLogService,
     productEventService: resolved.productEventService,
     configKV: resolved.configKV,
