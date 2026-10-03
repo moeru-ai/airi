@@ -4,6 +4,7 @@ import type { ChatFloatingState } from '../../shared/eventa'
 import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -22,6 +23,7 @@ import {
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
+import { useControlsIslandStore } from '../stores/controls-island'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -49,9 +51,22 @@ onMounted(async () => {
 })
 
 useChatDraftHandover(interactiveArea)
-const { hitTest } = useChatFloatingClickThrough({ pinned: () => state.value.pinned })
 
-const freePlacement = computed(() => state.value.placement === 'free')
+// `free` and `danmaku` both stay where the user drags them.
+const freePlacement = computed(() => state.value.placement !== 'attached')
+const danmaku = computed(() => state.value.placement === 'danmaku')
+// The danmaku feed starts with its composer folded, because it is mostly read.
+const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
+// Fade on hover, which the main window's controls island switches, turns the
+// folded danmaku feed passive: the history only follows new messages, and it
+// fades out and passes clicks through under the cursor. The header and the
+// composer tab stay in control, and an unfolded composer pauses all of this.
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const passiveFeed = computed(() => danmaku.value && fadeOnHoverEnabled.value && composerFolded.value)
+const { hitTest } = useChatFloatingClickThrough({
+  pinned: () => state.value.pinned,
+  passiveArea: () => passiveFeed.value ? interactiveArea.value?.historyLayer : undefined,
+})
 // The content stays mounted while it is hidden, so a fold or a move to the
 // other side keeps the unsent draft, attachments and reply target.
 const contentShown = computed(() => !state.value.folded && !state.value.relocating)
@@ -194,7 +209,8 @@ function moveByKeyboard(delta: WindowDelta) {
               @lostpointercapture="releasePointer"
               @keydown="handleArrowKey($event, resizeBy)"
             >
-              <div :class="[characterOnLeft ? 'i-solar:arrow-right-up-linear' : 'i-solar:arrow-left-up-linear', 'size-4']" />
+              <!-- The two-headed arrow matches the resize cursor of the grip corner. -->
+              <div :class="[characterOnLeft ? 'i-lucide:move-diagonal' : 'i-lucide:move-diagonal-2', 'size-4']" />
             </button>
           </div>
 
@@ -232,12 +248,7 @@ function moveByKeyboard(delta: WindowDelta) {
             <ChatWindowStyleMenu :class="['shrink-0 rounded-full!']" />
           </div>
 
-          <!--
-            A free chat can sit far from the character and its chat button, so
-            it folds from here too. An attached chat sits beside that button.
-          -->
           <div
-            v-if="freePlacement"
             :class="[
               'shrink-0 rounded-full p-0.5 shadow-md',
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
@@ -249,14 +260,19 @@ function moveByKeyboard(delta: WindowDelta) {
               :class="['size-8 rounded-full', 'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
               @click="foldChat()"
             >
-              <!-- A free chat folds into its bottom-right corner, so the arrow points there. -->
-              <div class="i-solar:minimize-square-3-linear size-4 -scale-x-100" />
+              <div class="i-lucide:minimize-2 size-4" />
             </button>
           </div>
         </div>
 
         <div :class="['relative min-h-0 flex-1']">
-          <InteractiveArea ref="interactive-area" floating />
+          <InteractiveArea
+            ref="interactive-area"
+            v-model:composer-folded="composerFolded"
+            floating
+            :composer-foldable="danmaku"
+            :passive="passiveFeed"
+          />
         </div>
       </div>
     </Transition>

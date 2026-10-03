@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { OnboardingDialog, OnboardingStepAnalyticsNotice, ToasterRoot } from '@proj-airi/stage-ui/components'
+import { OnboardingDialog, OnboardingStepAnalyticsNotice, StartupOverlay, ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { useStartupResourceTimeout } from '@proj-airi/stage-ui/composables/use-startup-resource-timeout'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -18,12 +19,13 @@ import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
+import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
 import { ErrorBoundary, useTheme } from '@proj-airi/ui'
 import { StageTransitionGroup } from '@proj-airi/ui-transitions'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
 import { toast, Toaster } from 'vue-sonner'
 
 import PerformanceOverlay from './components/Devtools/PerformanceOverlay.vue'
@@ -35,6 +37,7 @@ usePWAStore()
 const contextBridgeStore = useContextBridgeStore()
 const authStore = useAuthStore()
 const i18n = useI18n()
+const router = useRouter()
 const displayModelsStore = useDisplayModelsStore()
 const settingsStore = useSettings()
 const settings = storeToRefs(settingsStore)
@@ -76,6 +79,15 @@ function registerAuthenticatedSetup() {
 }
 
 const inferencePreload = useInferencePreload()
+const startup = useStartupResourcesStore()
+startup.reset()
+startup.register(['auth', 'modelIndex', 'card', 'chat', 'services', 'modelData', 'modelSelection', 'audio', 'route', 'model'])
+useStartupResourceTimeout('model', 120_000, () => i18n.t('stage.startup.model-timeout'))
+const startupOnboarding = ref(false)
+watch(showingSetup, (visible) => {
+  if (!visible)
+    startupOnboarding.value = false
+})
 
 const primaryColor = computed(() => {
   return isDark.value
@@ -117,31 +129,45 @@ watch(settings.themeColorsHueDynamic, () => {
   document.documentElement.classList.toggle('dynamic-hue', settings.themeColorsHueDynamic.value)
 }, { immediate: true })
 
-// Initialize first-time setup check when app mounts
-onMounted(async () => {
-  initializeAnalytics()
-  await authStore.initialize()
-  await displayModelsStore.initialize()
-  await cardStore.initialize()
-  registerAuthenticatedSetup()
-  if (!authStore.isAuthenticated)
-    await removeAuthenticationProviderConfiguration()
-
-  if (onboardingStore.needsOnboarding) {
-    onboardingStore.showingSetup = true
+async function loadStartup() {
+  try {
+    initializeAnalytics()
+    await startup.run('auth', () => authStore.initialize())
+    await startup.run('modelIndex', () => displayModelsStore.initialize())
+    await startup.run('card', async () => {
+      await cardStore.initialize()
+      registerAuthenticatedSetup()
+      if (!authStore.isAuthenticated)
+        await removeAuthenticationProviderConfiguration()
+    })
+    await startup.run('chat', () => chatStore.initialize(syncedPinia))
+    await startup.run('services', () => {
+      void serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(error => console.error('Mods server initialization failed:', error))
+      contextBridgeStore.initialize()
+      characterOrchestratorStore.initialize()
+    })
+    await startup.run('modelData', () => displayModelsStore.loadDisplayModelsFromIndexedDB())
+    await startup.run('modelSelection', () => settingsStore.initializeStageModel())
+    await startup.run('audio', () => settingsAudioDeviceStore.initialize())
+    inferencePreload.triggerPreload()
   }
+  catch (error) {
+    console.error('Startup failed:', error)
+  }
+}
 
-  await chatStore.initialize(syncedPinia)
-  await serverChannelStore.initialize({ possibleEvents: ['ui:configure'] }).catch(err => console.error('Failed to initialize Mods Server Channel in App.vue:', err))
-  contextBridgeStore.initialize()
-  characterOrchestratorStore.initialize()
+onMounted(() => {
+  void startup.run('route', () => router.isReady()).catch(error => console.error('Initial route failed:', error))
+  void loadStartup()
+})
 
-  await displayModelsStore.loadDisplayModelsFromIndexedDB()
-  await settingsStore.initializeStageModel()
-  await settingsAudioDeviceStore.initialize()
-
-  // Preload local inference models (Kokoro TTS, etc.) in background after a delay
-  inferencePreload.triggerPreload()
+watch(() => [startup.resources.find(resource => resource.id === 'modelSelection')?.status, startup.resources.find(resource => resource.id === 'route')?.status], ([selection, route]) => {
+  if (selection !== 'ready' || route !== 'ready' || startup.resources.find(resource => resource.id === 'model')?.status !== 'queued')
+    return
+  if (router.currentRoute.value.name !== 'IndexScenePage' || settings.stageModelRenderer.value === 'disabled' || !settings.stageModelSelectedUrl.value)
+    startup.skip('model')
+  else
+    startup.start('model')
 })
 
 onUnmounted(() => {
@@ -151,49 +177,56 @@ onUnmounted(() => {
   contextBridgeStore.dispose()
 })
 
-// Handle first-time setup events
-function handleSetupConfigured() {
-  onboardingStore.markSetupCompleted()
+function continueWithoutModel() {
+  settingsStore.setStageModelRenderer('disabled')
+  startup.skip('model')
 }
 
-function handleSetupSkipped() {
-  onboardingStore.markSetupSkipped()
+function openOnboardingAfterStartup() {
+  if (onboardingStore.needsOnboarding) {
+    startupOnboarding.value = true
+    onboardingStore.showingSetup = true
+  }
 }
 </script>
 
 <template>
-  <StageTransitionGroup
-    :primary-color="primaryColor"
-    :secondary-color="secondaryColor"
-    :tertiary-color="tertiaryColor"
-    :colors="colors"
-    :z-index="100"
-    :disable-transitions="settings.disableTransitions.value"
-    :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
-  >
-    <RouterView v-slot="{ Component }">
-      <ErrorBoundary
-        title="Something went wrong while rendering this page."
-        @error="(err, _, info) => console.error('[ErrorBoundary]', info, err)"
-      >
-        <component :is="Component" />
-      </ErrorBoundary>
-    </RouterView>
-  </StageTransitionGroup>
+  <StartupOverlay logo-src="/favicon.svg" @finished="openOnboardingAfterStartup" @skip-model="continueWithoutModel">
+    <StageTransitionGroup
+      :primary-color="primaryColor"
+      :secondary-color="secondaryColor"
+      :tertiary-color="tertiaryColor"
+      :colors="colors"
+      :z-index="100"
+      :disable-transitions="settings.disableTransitions.value"
+      :use-page-specific-transitions="settings.usePageSpecificTransitions.value"
+    >
+      <RouterView v-slot="{ Component }">
+        <ErrorBoundary
+          title="Something went wrong while rendering this page."
+          @error="(err, _, info) => console.error('[ErrorBoundary]', info, err)"
+        >
+          <component :is="Component" />
+        </ErrorBoundary>
+      </RouterView>
+    </StageTransitionGroup>
 
-  <ToasterRoot @close="id => toast.dismiss(id)">
-    <Toaster />
-  </ToasterRoot>
+    <ToasterRoot @close="id => toast.dismiss(id)">
+      <Toaster />
+    </ToasterRoot>
 
-  <!-- First Time Setup Dialog -->
-  <OnboardingDialog
-    v-model="showingSetup"
-    :extra-steps="onboardingExtraSteps"
-    @configured="handleSetupConfigured"
-    @skipped="handleSetupSkipped"
-  />
+    <!-- First Time Setup Dialog -->
+    <OnboardingDialog
+      v-model="showingSetup"
+      :scale-background="false"
+      :instant-open="startupOnboarding"
+      :extra-steps="onboardingExtraSteps"
+      @configured="onboardingStore.markSetupCompleted()"
+      @skipped="onboardingStore.markSetupSkipped()"
+    />
 
-  <PerformanceOverlay />
+    <PerformanceOverlay />
+  </StartupOverlay>
 </template>
 
 <style>

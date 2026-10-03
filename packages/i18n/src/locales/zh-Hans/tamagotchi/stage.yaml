@@ -39,10 +39,14 @@ docs:
     legacy: 经典窗口
     floating-attached: 悬浮，吸附在角色旁
     floating-free: 悬浮，自由摆放
+    floating-danmaku: 悬浮，弹幕机
     pinned: 保持置顶
   resize: 拖动以调整聊天大小
   move: 拖动以移动聊天
   fold: 收起聊天
+  composer:
+    show: 展开输入框
+    hide: 收起输入框
 widgets:
   close: 关闭小部件
   empty:

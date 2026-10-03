@@ -40,10 +40,14 @@ docs:
     legacy: Classic window
     floating-attached: Floating, beside the character
     floating-free: Floating, anywhere on screen
+    floating-danmaku: Floating, message feed
     pinned: Keep on top
   resize: Drag to resize the chat
   move: Drag to move the chat
   fold: Hide chat
+  composer:
+    show: Show the message box
+    hide: Hide the message box
 
 widgets:
   close: Close widget

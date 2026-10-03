@@ -268,7 +268,6 @@ watch(replyTarget, async (target) => {
               <HearingConfig
                 v-model:auto-send="autoSendEnabled"
                 :transcription="isListening"
-                :granted="true"
                 @toggle-transcription="() => isListening ? stopStreamingTranscription() : startStreamingTranscription()"
               />
             </PopoverContent>
