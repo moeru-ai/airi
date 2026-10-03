@@ -85,10 +85,8 @@ const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
 const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
-const { activeModel, activeProvider } = storeToRefs(useConsciousnessStore())
+const { chatReady } = storeToRefs(useConsciousnessStore())
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
-// Mirrors the check in `chatStore.send`, which rejects the same state with a generic error.
-const providerSetupNeeded = computed(() => (!activeProvider.value || !activeModel.value) && activeProvider.value !== 'prompt-api')
 
 const composer = useChatComposer<ChatImageAttachment>({
   activeSessionId,
@@ -156,7 +154,7 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 
 async function handleSend() {
   // The draft stays in the composer while the setup callout is shown.
-  if (!pendingImages.value && !providerSetupNeeded.value)
+  if (!pendingImages.value && chatReady.value)
     await submitInterruptingResponse()
 }
 
@@ -407,7 +405,7 @@ defineExpose({
         <div :class="[composerFolded ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear', 'size-4']" />
       </button>
       <Callout
-        v-if="providerSetupNeeded"
+        v-if="!chatReady"
         class="mx-2 mb-1"
         theme="orange"
         :label="t('stage.chat.provider-configuration.title')"

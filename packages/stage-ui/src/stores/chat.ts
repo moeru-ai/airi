@@ -190,7 +190,7 @@ export const useChatStore = defineStore('chat', () => {
   const consciousnessStore = useConsciousnessStore()
   const chatVision = useChatVision()
   const artistryAutonomousStore = useAutonomousArtistryStore()
-  const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
+  const { activeModel, activeProvider, chatReady } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
@@ -553,7 +553,7 @@ export const useChatStore = defineStore('chat', () => {
   async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
     const providerId = activeProvider.value
     const modelId = activeModel.value
-    if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
+    if (!chatReady.value)
       throw new Error('No active chat provider or model configured')
 
     if (!await chatSession.loadSession(payload.sessionId))
