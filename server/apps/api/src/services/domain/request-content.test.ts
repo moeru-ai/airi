@@ -44,6 +44,18 @@ describe('request content', () => {
     expect(await response.json()).toMatchObject({ error: { code: 429 } })
   })
 
+  it('keeps the bounded prefix of an oversized error body', async () => {
+    const captured = await captureErrorResponse(new Response('x'.repeat(8 * 1024 * 1024 + 10)))
+    expect(captured.state).toBe('truncated')
+    expect(captured.text.length).toBe(8 * 1024 * 1024)
+  })
+
+  it('omits parameterized base64 data URIs from text errors', () => {
+    const captured = captureResponseText('bad image data:image/png;charset=utf-8;base64,c2VjcmV0 end')
+    expect(captured.text).not.toContain('c2VjcmV0')
+    expect(captured.omittedMedia).toBe(true)
+  })
+
   it('retains a partial body when the diagnostic reader fails', async () => {
     let reads = 0
     const body = new ReadableStream<Uint8Array>({

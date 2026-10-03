@@ -155,7 +155,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
     })
 
     if (!response.ok) {
-      observation.errorBody = await captureErrorResponse(response.clone())
+      observation.errorBody = routeCtx.errorBody ?? await captureErrorResponse(response.clone())
       telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId, model: requestModel, fluxConsumed: 0 })
       telemetry.failSpan(span, `Gateway ${response.status}`)
       generationTrace.fail(`Gateway ${response.status}`)
@@ -354,7 +354,10 @@ function streamChatCompletion(input: {
         observation.state = 'failed'
       parserWriter.releaseLock()
       events.releaseLock()
-      if (streamInterrupted) {
+      if (streamError && !streamInterrupted) {
+        await writer.close().catch(err => input.logger.withError(err).warn('Failed to close stream writer'))
+      }
+      if (streamInterrupted || streamError) {
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })

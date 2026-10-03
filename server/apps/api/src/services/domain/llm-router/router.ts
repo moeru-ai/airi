@@ -357,6 +357,8 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
         }
 
         const errorBody = response.ok || !attemptId ? undefined : await captureErrorResponse(response.clone())
+        if (ctx && errorBody)
+          ctx.errorBody = errorBody
         if (attemptId) {
           persisting = true
           await req.attempts!.finish(attemptId, { state: response.ok ? 'headers_received' : 'failed', status: response.status, errorCode: response.ok ? undefined : 'upstream_http', errorBody }).catch(async (error) => {

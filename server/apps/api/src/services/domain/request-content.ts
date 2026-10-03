@@ -94,7 +94,7 @@ export function captureResponseText(text: string, partial = false): RequestConte
     return content
   }
   catch {
-    const sanitized = text.replace(/data:([^;,\s]*);base64,[a-z0-9+/=]+/gi, '[inline media omitted: $1]')
+    const sanitized = text.replace(/data:([^;,\s]*)(?:;[^;,\s]+)*;base64,[a-z0-9+/=]+/gi, '[inline media omitted: $1]')
     const bytes = encoder.encode(sanitized)
     return { format: 'text', text: truncateUtf8(bytes), state: bytes.byteLength > contentLimit ? 'truncated' : partial ? 'partial' : 'complete', omittedMedia: sanitized !== text }
   }
@@ -170,7 +170,6 @@ export async function captureErrorResponse(response: Response): Promise<RequestC
     joined.set(chunk, offset)
     offset += chunk.byteLength
   }
-  if (size > contentLimit)
-    return { format: 'text', text: 'Upstream error body exceeds the capture limit.', state: 'truncated', omittedMedia: false }
-  return captureResponseText(decoder.decode(joined), !complete)
+  const content = captureResponseText(truncateUtf8(joined), !complete)
+  return size > contentLimit ? { ...content, state: 'truncated' } : content
 }

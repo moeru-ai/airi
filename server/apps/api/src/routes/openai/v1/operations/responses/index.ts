@@ -227,7 +227,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
 
     telemetry.setHttpStatus(span, upstream.status)
     if (!upstream.ok) {
-      observation.errorBody = await captureErrorResponse(upstream.clone())
+      observation.errorBody = routeCtx.errorBody ?? await captureErrorResponse(upstream.clone())
       fail(upstream.status, `Responses upstream returned ${upstream.status}`)
       return new Response(upstream.body, { status: upstream.status, headers: buildSafeErrorResponseHeaders(upstream) })
     }

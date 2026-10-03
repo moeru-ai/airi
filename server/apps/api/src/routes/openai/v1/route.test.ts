@@ -3546,9 +3546,10 @@ it('captures Responses input and complete SSE output without dropping tool or re
 
 it('captures Chat SSE output as complete and keeps upstream error frames separate', async () => {
   const logs = createMockRequestLogService()
+  const billing = createMockBillingService()
   const event = { choices: [{ delta: { content: 'Answer', reasoning: 'Thought', tool_calls: [{ function: { name: 'weather', arguments: '{}' } }] } }], usage: { prompt_tokens: 1, completion_tokens: 1, cost: 0.001 } }
   const router = createMockLlmRouter({ route: vi.fn(async () => new Response(`data: ${JSON.stringify(event)}\n\ndata: [DONE]\n\n`)) })
-  const app = createTestApp(createMockFluxService(), createMockConfigKV(), undefined, logs, undefined, router)
+  const app = createTestApp(createMockFluxService(), createMockConfigKV(), billing, logs, undefined, router)
   const response = await app.request('/api/v1/openai/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -3569,6 +3570,7 @@ it('captures Chat SSE output as complete and keeps upstream error frames separat
   }, { user: testUser })
   await failed.text()
   await vi.waitFor(() => expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ state: 'failed', errorBody: { format: 'json', text: JSON.stringify(failure), state: 'complete', omittedMedia: false } })))
+  expect(billing.settleLlmCost).toHaveBeenCalledTimes(1)
 })
 
 it('keeps partial Responses content on unexpected EOF', async () => {

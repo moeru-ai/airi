@@ -80,6 +80,7 @@ export function createRequestLogService(db: Database) {
           responseModel: observation.responseModel,
           providerUsage: observation.providerUsage,
           providerMetadata: observation.providerMetadata,
+          errorBody: observation.errorBody,
           timeToFirstTokenMs: observation.startedAt && observation.timeToFirstTokenMs != null
             ? sql`greatest(0, round(extract(epoch from (${new Date(observation.startedAt.getTime() + observation.timeToFirstTokenMs).toISOString()}::timestamp - ${llmRequestAttempt.startedAt})) * 1000))::integer`
             : undefined,
