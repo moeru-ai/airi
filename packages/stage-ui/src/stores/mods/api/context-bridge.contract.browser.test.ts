@@ -900,6 +900,39 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  // https://github.com/moeru-ai/airi/pull/2741#discussion_r4170050033
+  it('reports no live remote activity after a background response completes', async () => {
+    // ROOT CAUSE:
+    //
+    // `assistant-end` marks a background remote guard completed and keeps it for
+    // the later refresh. `remoteStreamSessionId` then names a finished response.
+    //
+    // After: `liveRemoteStreamSessionId` publishes the guard only while it is not
+    // completed, and has no value after `assistant-end`.
+    activeSessionIdRef.value = 'session-1'
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const streamSender = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
+    const context = {
+      turnId: 'turn-5',
+      message: { role: 'user', content: 'background ping' },
+      contexts: {},
+      composedMessage: [],
+    } satisfies ChatStreamEventContext
+
+    streamSender.postMessage({ type: 'before-send', message: 'background ping', sessionId: 'session-2', context })
+    await vi.waitFor(() => expect(store.liveRemoteStreamSessionId).toBe('session-2'))
+    expect(store.remoteStreamSessionId).toBe('session-2')
+
+    streamSender.postMessage({ type: 'assistant-end', message: 'complete answer', sessionId: 'session-2', context })
+    await waitForBroadcastDelivery()
+
+    expect(store.liveRemoteStreamSessionId).toBeUndefined()
+    expect(store.remoteStreamSessionId).toBe('session-2')
+
+    await store.dispose()
+  })
+
   it('ignores remote literal and end events when generation guard is stale', async () => {
     const store = useContextBridgeStore()
     await store.initialize()

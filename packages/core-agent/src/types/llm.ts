@@ -27,6 +27,22 @@ export type StreamEvent
 
 /** Options shared by generation adapters. SDK payloads stay inside each adapter. */
 export interface StreamOptions {
+  /** Reads the pinned character's current settings before each model request. */
+  resolveStep?: () => Promise<{
+    model: string
+    chatProvider: GenerationProvider
+    providerId: string
+    systemPrompt: string
+    /** Replaces request header overrides for this provider. */
+    headers?: Record<string, string>
+    temperature?: number
+    topP?: number
+    tools?: Tool[]
+  }>
+  /** Internal turn identity reused after a protocol change. */
+  generationTurnId?: string
+  /** Internal number of rounds completed before a protocol change. */
+  generationRoundOffset?: number
   /** Provider registry identity used to isolate native continuation data. */
   providerId?: string
   /** Called once with this turn only, after every tool step has settled. */

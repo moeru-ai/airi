@@ -9,6 +9,7 @@ import { mockDB } from '../../libs/mock-db'
 import { createTestRedis } from '../../libs/tests/redis'
 import { createBillingService } from '../../services/domain/billing/billing-service'
 import { createPaymentService } from '../../services/domain/payment'
+import { claimReceiptFromCheckoutSession } from './claim'
 import { createCheckoutOperation } from './operations/checkout'
 
 import * as schema from '../../schemas'
@@ -247,6 +248,68 @@ describe('stripe checkout', () => {
     }))
   })
 
+  it.each([false, true])('creates and binds a customer for the next checkout (deleted binding: %s)', async (deletedBinding) => {
+    if (deletedBinding) {
+      await db.insert(schema.paymentCustomer).values({
+        userId: testUser.id,
+        processor: 'stripe',
+        customerId: 'cus_deleted',
+        deletedAt: new Date(),
+      })
+    }
+
+    const create = vi.fn().mockResolvedValue({
+      id: 'cs_first',
+      url: 'https://checkout.stripe.test/cs_first',
+      amount_total: 500,
+      currency: 'usd',
+    })
+    const checkout = createCheckout(payment, { checkout: { sessions: { create } } })
+    const request = new Request('http://localhost/api/v1/stripe/checkout')
+
+    await checkout(testUser, { stripePriceId: 'price_starter' }, request)
+
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      customer: undefined,
+      customer_email: testUser.email,
+      customer_creation: 'always',
+    }))
+
+    const [order] = await db.select().from(schema.paymentOrder).where(eq(schema.paymentOrder.userId, testUser.id))
+    const receipt = claimReceiptFromCheckoutSession({
+      id: 'cs_first',
+      mode: 'payment',
+      status: 'complete',
+      payment_status: 'paid',
+      customer: 'cus_created',
+      amount_total: 500,
+      currency: 'usd',
+    }, order!.id)
+    expect(receipt).not.toBeNull()
+    expect(await payment.settle(receipt!)).toMatchObject({ applied: true, fluxAmount: 500 })
+    expect(await payment.settle(receipt!)).toEqual({ applied: false })
+
+    const customers = await db.select().from(schema.paymentCustomer).where(eq(schema.paymentCustomer.customerId, 'cus_created'))
+    expect(customers).toHaveLength(1)
+    expect(customers[0]).toMatchObject({ userId: testUser.id, processor: 'stripe', deletedAt: null })
+    const [balance] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, testUser.id))
+    expect(balance?.flux).toBe(500)
+
+    create.mockResolvedValueOnce({
+      id: 'cs_next',
+      url: 'https://checkout.stripe.test/cs_next',
+      amount_total: 500,
+      currency: 'usd',
+    })
+    await checkout(testUser, { stripePriceId: 'price_starter' }, request)
+
+    expect(create).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      customer: 'cus_created',
+      customer_email: undefined,
+      customer_creation: undefined,
+    }))
+  })
+
   it('reuses the live Stripe customer on the Checkout Session', async () => {
     await db.insert(schema.paymentCustomer).values({
       userId: 'user-pay-1',
@@ -254,9 +317,10 @@ describe('stripe checkout', () => {
       customerId: 'cus_existing',
     })
 
-    const create = vi.fn(async (params: { customer?: string, customer_email?: string }) => {
+    const create = vi.fn(async (params: { customer?: string, customer_email?: string, customer_creation?: string }) => {
       expect(params.customer).toBe('cus_existing')
       expect(params.customer_email).toBeUndefined()
+      expect(params.customer_creation).toBeUndefined()
       return {
         id: 'cs_test_customer',
         url: 'https://checkout.stripe.test/cs_test_customer',

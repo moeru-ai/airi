@@ -3,12 +3,14 @@ import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
+import type { LlmStreamOptions } from './ai/chat-llm/llm'
+
 import { errorMessageFrom } from '@moeru/std'
 import { IOAttributes, IOSpanNames } from '@proj-airi/stage-shared'
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createApp, nextTick, ref } from 'vue'
+import { createApp, nextTick, reactive, ref } from 'vue'
 
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
@@ -76,14 +78,17 @@ const disposeSessionMock = vi.fn()
 const ensureCurrentSessionMock = vi.fn()
 const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
-const visionMocks = vi.hoisted(() => ({ configured: false, runInference: vi.fn() }))
-const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] }))
+const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn(), useForToolImages: true }))
+/** A catalog model can omit its abilities, as most provider catalogs do. */
+interface CatalogModel { id: string, metadata: { abilities?: { vision: boolean } } }
+const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] as CatalogModel[] }))
 
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
 const activeModelRef = ref('gpt-test')
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
-const sessionMessages: Record<string, any[]> = {}
+// The chat session store keeps messages in reactive state, so the mock does too.
+const sessionMessages = reactive<Record<string, any[]>>({})
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
@@ -148,7 +153,19 @@ vi.mock('./chat/context-store', () => ({
 }))
 
 vi.mock('./modules/vision', () => ({
-  useVisionStore: () => ({ get configured() { return visionMocks.configured }, useForChat: true }),
+  useVisionStore: () => ({
+    get configured() {
+      return visionMocks.configured
+    },
+    activeProvider: 'apple-vision',
+    get activeModel() {
+      return visionMocks.model
+    },
+    useForChat: true,
+    get useForToolImages() {
+      return visionMocks.useForToolImages
+    },
+  }),
 }))
 
 vi.mock('../composables/vision/use-vision-inference', () => ({
@@ -203,6 +220,7 @@ vi.mock('./ai/chat-llm/llm', () => ({
 
 vi.mock('./ai/chat-llm/tools', () => ({
   useLlmToolsStore: () => ({
+    activeTools: [],
     getToolsByNames: (...names: string[]) => getToolsByNamesMock(names),
     tools: [{ function: { name: 'computer_use' }, requiresExplicitSelection: true }],
   }),
@@ -248,6 +266,29 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
+/** An assistant message whose stored tool result holds an original screenshot. */
+function storedToolImageMessage() {
+  return {
+    role: 'assistant',
+    id: 'assistant-1',
+    content: '',
+    createdAt: 3,
+    slices: [],
+    tool_results: [],
+    generationTranscript: {
+      type: 'assistant',
+      id: 'assistant-1',
+      status: 'completed',
+      rounds: [{
+        id: 'round-1',
+        content: [{ type: 'tool', invocationId: 'invocation-1' }],
+        projectionIssues: [],
+        toolInvocations: [{ id: 'invocation-1', callId: 'call-1', name: 'computer_use_read_image', arguments: '{}', execution: { status: 'succeeded', output: [{ type: 'image', url: 'data:image/png;base64,aW1hZ2U=' }] } }],
+      }],
+    },
+  }
+}
+
 describe('chat store contract', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -285,6 +326,8 @@ describe('chat store contract', () => {
       execute: vi.fn(),
     })))
     visionMocks.configured = false
+    visionMocks.model = 'system'
+    visionMocks.useForToolImages = true
     visionMocks.runInference.mockReset()
     consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }]
     ioTracerMocks.activeTurnSpan.value = undefined
@@ -500,7 +543,7 @@ describe('chat store contract', () => {
     })
 
     const store = useChatStore()
-    await store.send({
+    const result = await store.send({
       sessionId: 'session-1',
       text: 'Read this',
       attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
@@ -510,6 +553,9 @@ describe('chat store contract', () => {
       text: 'What color was it?',
     })
 
+    // Storing the description spread the reactive message. Its content array
+    // stayed a proxy, and `structuredClone` rejected the send result.
+    expect(() => structuredClone(result)).not.toThrow()
     expect(visionMocks.runInference).toHaveBeenCalledOnce()
     expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions).toEqual([
       {
@@ -517,6 +563,221 @@ describe('chat store contract', () => {
         imageIndex: 0,
       },
     ])
+  })
+
+  it('reports a failed read of the current image and stores no description', async () => {
+    // ROOT CAUSE:
+    //
+    // An earlier fix stored each failed read as the image description. A
+    // temporary failure then hid the image for good, and the send reported no error.
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+
+    const store = useChatStore()
+    await expect(store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })).rejects.toThrow('Vision inference timed out after 60000ms')
+
+    expect(sessionMessages['session-1'].find(message => message.role === 'user')?.imageDescriptions).toBeUndefined()
+  })
+
+  it('reads a failed earlier image once for each vision selection', async () => {
+    // ROOT CAUSE:
+    //
+    // Nothing kept a failed read, so each later turn read the same earlier
+    // image again and failed, even a text message.
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await expect(store.send({
+      sessionId: 'session-1',
+      text: 'Read this',
+      attachments: [{ type: 'image', mimeType: 'image/png', data: 'aW1hZ2U=' }],
+    })).rejects.toThrow()
+    await store.send({ sessionId: 'session-1', text: 'Hello again' })
+
+    expect(visionMocks.runInference).toHaveBeenCalledOnce()
+    expect(useContextObservabilityStore().lastPromptProjection?.composedMessage).toEqual(expect.arrayContaining([
+      expect.objectContaining({ role: 'user', content: expect.stringContaining('The vision model failed to read it.') }),
+    ]))
+
+    visionMocks.model = 'another-model'
+    visionMocks.runInference.mockResolvedValue('A red square.')
+    await store.send({ sessionId: 'session-1', text: 'Try again' })
+
+    expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
+    expect(sessionMessages['session-1'].find(message => message.role === 'user' && Array.isArray(message.content))?.imageDescriptions)
+      .toEqual([{ description: 'A red square.', imageIndex: 0 }])
+  })
+
+  it('forgets the failed reads of a deleted session', async () => {
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const imageMessage = { role: 'user', content: [{ type: 'text', text: 'Read this' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }], createdAt: 2 }
+    const store = useChatStore()
+    sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }, { ...imageMessage }]
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+
+    await store.deleteSession('session-1')
+    sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }, { ...imageMessage }]
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+
+    expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a failed earlier read inside its session', async () => {
+    // ROOT CAUSE:
+    //
+    // A stored message without an id gets its turn id from its position. The
+    // failed read of one session then skipped the image at that position in
+    // another session.
+    visionMocks.configured = true
+    visionMocks.runInference.mockRejectedValue(new Error('Vision inference timed out after 60000ms'))
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    for (const sessionId of ['session-1', 'session-2']) {
+      sessionMessages[sessionId] = [
+        { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+        { role: 'user', content: [{ type: 'text', text: 'Read this' }, { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }], createdAt: 2 },
+      ]
+    }
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Hello' })
+    await store.send({ sessionId: 'session-2', text: 'Hello' })
+
+    expect(visionMocks.runInference).toHaveBeenCalledTimes(2)
+  })
+
+  it('reads tool images with the vision model only for a chat model that cannot see them', async () => {
+    visionMocks.configured = true
+    visionMocks.runInference.mockResolvedValue('A settings window.')
+    const toolImageReaders: Array<LlmStreamOptions['describeToolImage']> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: LlmStreamOptions) => {
+      toolImageReaders.push(options.describeToolImage)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Look at my screen' })
+
+    expect(await toolImageReaders[0]?.('data:image/png;base64,aW1hZ2U=')).toBe('A settings window.')
+    expect(visionMocks.runInference).toHaveBeenCalledWith(expect.objectContaining({ workloadId: 'tool:image' }))
+  })
+
+  it('stores the description of an image that a rerun tool returns', async () => {
+    // ROOT CAUSE:
+    //
+    // The rerun entry points resolved tools without the image reader. A rerun
+    // stored the original screenshot, and the next turn sent it again.
+    visionMocks.configured = true
+    visionMocks.runInference.mockResolvedValue('A settings window.')
+    getToolsByNamesMock.mockImplementation(() => [{
+      type: 'function',
+      function: { name: 'computer_use_read_image', parameters: {} },
+      execute: async () => [{ type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } }],
+    }])
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      {
+        role: 'assistant',
+        id: 'assistant-1',
+        content: '',
+        createdAt: 2,
+        slices: [{ type: 'tool-call', toolCall: { toolCallId: 'call-1', toolCallType: 'function', toolName: 'computer_use_read_image', args: '{}' } }],
+        tool_results: [],
+      },
+    ]
+
+    await useChatStore().rerunToolCall({
+      sessionId: 'session-1',
+      messageId: 'assistant-1',
+      toolCallId: 'call-1',
+      toolName: 'computer_use_read_image',
+      args: '{}',
+      tools: [{ name: 'computer_use_read_image' }],
+    })
+
+    const stored = JSON.stringify(sessionMessages['session-1'][1])
+    expect(stored).not.toContain('data:image')
+    expect(stored).toContain('A settings window.')
+  })
+
+  it('sends a note in place of a stored tool image while the vision model reads tool images', async () => {
+    visionMocks.configured = true
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'user', content: 'Look at my screen', createdAt: 2, id: 'user-1' },
+      storedToolImageMessage(),
+    ]
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'What did you see?' })
+
+    const prompt = JSON.stringify(useContextObservabilityStore().lastPromptProjection?.composedMessage)
+    expect(prompt).not.toContain('data:image')
+    expect(prompt).toContain('A tool image was left out of the history.')
+  })
+
+  it('replays a stored tool image when no vision model reads tool images', async () => {
+    // ROOT CAUSE:
+    //
+    // The note replaced stored tool images for each model without a declared
+    // vision ability. Most catalogs omit it, so a model that sees images lost
+    // its earlier screenshots and was told that it cannot see images.
+    consciousnessModels.value = [{ id: 'gpt-test', metadata: {} }]
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      { role: 'user', content: 'Look at my screen', createdAt: 2, id: 'user-1' },
+      storedToolImageMessage(),
+    ]
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'What did you see?' })
+
+    expect(JSON.stringify(useContextObservabilityStore().lastPromptProjection?.composedMessage)).not.toContain('left out')
+  })
+
+  it('leaves tool images alone when the tool image setting is off', async () => {
+    visionMocks.configured = true
+    visionMocks.useForToolImages = false
+    const toolImageReaders: Array<LlmStreamOptions['describeToolImage']> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: LlmStreamOptions) => {
+      toolImageReaders.push(options.describeToolImage)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Look at my screen' })
+
+    expect(toolImageReaders).toEqual([undefined])
+  })
+
+  it('leaves tool images to a chat model that supports vision', async () => {
+    visionMocks.configured = true
+    consciousnessModels.value = [{ id: 'gpt-test', metadata: { abilities: { vision: true } } }]
+    const toolImageReaders: Array<LlmStreamOptions['describeToolImage']> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: LlmStreamOptions) => {
+      toolImageReaders.push(options.describeToolImage)
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'Look at my screen' })
+
+    expect(toolImageReaders).toEqual([undefined])
   })
 
   it('sends images directly when the selected chat model supports vision', async () => {

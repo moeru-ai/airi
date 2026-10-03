@@ -42,6 +42,7 @@ const styleChoices = {
   'legacy': { mode: 'legacy' },
   'floating-attached': { mode: 'floating', placement: 'attached' },
   'floating-free': { mode: 'floating', placement: 'free' },
+  'floating-danmaku': { mode: 'floating', placement: 'danmaku' },
 } as const satisfies Record<string, Partial<ChatWindowPreferences>>
 
 type ChatWindowStyleId = keyof typeof styleChoices
@@ -50,6 +51,7 @@ const styles = computed(() => [
   { id: 'legacy', icon: 'i-solar:window-frame-bold-duotone', label: t('tamagotchi.stage.chat-window.style.legacy') },
   { id: 'floating-attached', icon: 'i-solar:magnet-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-attached') },
   { id: 'floating-free', icon: 'i-solar:chat-round-dots-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-free') },
+  { id: 'floating-danmaku', icon: 'i-solar:subtitles-bold-duotone', label: t('tamagotchi.stage.chat-window.style.floating-danmaku') },
 ] satisfies { id: ChatWindowStyleId, icon: string, label: string }[])
 
 const currentStyleId = computed<ChatWindowStyleId | undefined>(() => {
@@ -58,8 +60,8 @@ const currentStyleId = computed<ChatWindowStyleId | undefined>(() => {
   return preferences.value.mode === 'legacy' ? 'legacy' : `floating-${preferences.value.placement}`
 })
 
-// An attached chat follows the main window's pin, so only a free one offers
-// its own.
+// An attached or danmaku chat follows the main window's pin, so only a free
+// one offers its own.
 const pinnable = computed(() => currentStyleId.value === 'floating-free')
 
 /** Counts choices, so only the latest one decides what the menu shows. */
