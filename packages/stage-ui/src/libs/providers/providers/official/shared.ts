@@ -9,7 +9,7 @@ import { AIRI_CHAT_SESSION_ID_HEADER } from '../../../product-signals/headers'
 export const OFFICIAL_ICON = 'i-solar:star-bold-duotone'
 
 export function withCredentials() {
-  return (input: RequestInfo | URL, init?: RequestInit) => {
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
     const headers = new Headers(init?.headers)
     const token = getAuthToken()
     if (token) {
@@ -19,13 +19,22 @@ export function withCredentials() {
     if (chatSession?.activeSessionId)
       headers.set(AIRI_CHAT_SESSION_ID_HEADER, chatSession.activeSessionId)
 
+    // NOTICE:
+    // Native fetch cannot upload a ReadableStream on Safari and Firefox.
+    // Source: https://developer.mozilla.org/en-US/docs/Web/API/Request/duplex
+    // Removal condition: `'duplex' in Request.prototype` is true in the Safari and Firefox versions we support.
+    let body = init?.body
+    if (!('duplex' in Request.prototype) && body instanceof ReadableStream)
+      body = await new Response(body).arrayBuffer()
+
     const requestInit = {
       ...init,
+      body,
       headers,
       credentials: 'omit',
     } as RequestInit & { duplex?: 'half' }
 
-    if (init?.body instanceof ReadableStream)
+    if (body instanceof ReadableStream)
       requestInit.duplex = 'half'
 
     return globalThis.fetch(input, requestInit)
