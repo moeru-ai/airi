@@ -513,6 +513,10 @@ describe('setupExtensionHost', () => {
   })
 
   afterEach(async () => {
+    // Host shutdown drains configuration writes before fixture files disappear.
+    for (const disposeHost of lifecycleMock.beforeQuitHooks) {
+      await disposeHost()
+    }
     await removeDirWithRetry(userDataDir)
     contextState.lastContext = undefined
     vi.restoreAllMocks()

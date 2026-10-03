@@ -852,6 +852,8 @@ export async function setupExtensionHostServiceInternal(
           cleanupFailures.push(error)
         }
 
+        await extensionConfig.flush()
+
         moduleAssetSessionCache.clear()
         try {
           await extensionAssetService.revokeAll()
