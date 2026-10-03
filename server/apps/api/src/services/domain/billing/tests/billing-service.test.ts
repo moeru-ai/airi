@@ -30,7 +30,6 @@ describe('billingService', () => {
     billingService = createBillingService(db, redis)
 
     await db.delete(schema.fluxTransaction)
-    await db.delete(schema.llmBillingReceipt)
     await db.delete(schema.userFlux).where(eq(schema.userFlux.userId, 'user-billing-1'))
   })
 

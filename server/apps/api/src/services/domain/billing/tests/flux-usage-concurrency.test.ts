@@ -2,12 +2,12 @@ import type { Database } from '../../../../libs/db'
 
 import { env } from 'node:process'
 
-import { eq, sum } from 'drizzle-orm'
+import { sum } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 
 import { createDrizzle, migrateDatabase } from '../../../../libs/db'
 import { createTestRedis } from '../../../../libs/tests/redis'
-import { fluxTransaction, userFlux } from '../../../../schemas'
+import { fluxTransaction, fluxUsage, userFlux } from '../../../../schemas'
 import { createBillingService } from '../billing-service'
 
 const databaseUrl = env.BILLING_TEST_DATABASE_URL
@@ -37,6 +37,7 @@ afterAll(async () => {
 
 it.skipIf(!databaseUrl)('conserves mixed fees across concurrent connections and duplicate events', async () => {
   await db.delete(fluxTransaction)
+  await db.delete(fluxUsage)
   await db.delete(userFlux)
   await db.insert(userFlux).values({ userId: 'concurrent', flux: 500 })
   const redis = createTestRedis()
@@ -52,9 +53,9 @@ it.skipIf(!databaseUrl)('conserves mixed fees across concurrent connections and 
   await Promise.all(calls.map(call => call()))
   const wallet = await billing.getWallet('concurrent')
   expect(wallet).toMatchObject({ flux: 385, unsettledMicroFlux: 0 })
-  expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.type, 'accrual'))).toHaveLength(200)
+  expect(await db.select().from(fluxUsage)).toHaveLength(200)
   const [debits] = await db.select({ total: sum(fluxTransaction.amount) }).from(fluxTransaction)
-  const [fees] = await db.select({ total: sum(fluxTransaction.amountMicroFlux) }).from(fluxTransaction)
+  const [fees] = await db.select({ total: sum(fluxUsage.amountMicroFlux) }).from(fluxUsage)
   expect(Number(debits.total)).toBe(115)
   expect(Number(fees.total)).toBe(115_000_000)
 })

@@ -5,13 +5,13 @@ import type { BillingService } from '../../../../services/domain/billing/billing
 import type { LlmBillingService } from '../../../../services/domain/billing/llm-billing'
 import type { SpeechBilling } from '../../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../../services/domain/flux'
-import type { RequestObservation } from '../../../../services/domain/generation-observation'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
 
 import { safeParse } from 'valibot'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
 import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/billing'
+import { availableMicroFlux, MICRO_FLUX_PER_FLUX } from '../../../../services/domain/billing/flux-posting'
 import { createPaymentRequiredError, createServiceUnavailableError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
@@ -22,7 +22,6 @@ export interface ChatFluxDebitInput extends UsageInfo {
   requestId: string
   model: string
   amount: number
-  observation: RequestObservation
   costReceipt: { provider: string, usage: CostUsage, pricing: CostPricing }
   pendingReason?: string
   stage: 'streaming' | 'non_streaming'
@@ -69,7 +68,7 @@ export function createOpenAiRouteBilling(deps: {
       throw createServiceUnavailableError('LLM pricing configuration is incomplete', 'LLM_BILLING_UNAVAILABLE')
     await deps.fluxService.getFlux(userId)
     const flux = await deps.billingService.getWallet(userId)
-    if (flux.flux - flux.unsettledMicroFlux / 1_000_000 < parsed.output.minimumBalance)
+    if (availableMicroFlux(flux) < BigInt(parsed.output.minimumBalance) * BigInt(MICRO_FLUX_PER_FLUX))
       throw createPaymentRequiredError('Insufficient flux')
     return parsed.output
   }
@@ -87,7 +86,7 @@ export function createOpenAiRouteBilling(deps: {
     const pricing = policy.costPricing[adapter.provider]
     const costUsage = adapter.extractUsage(usage)
     const charge = priceLlmCost(costUsage, pricing)
-    const amount = (charge.costMicroFlux ?? 0) / 1_000_000
+    const amount = (charge.costMicroFlux ?? 0) / MICRO_FLUX_PER_FLUX
     return { amount, costReceipt: { provider: adapter.provider, usage: costUsage, pricing } }
   }
 
@@ -123,7 +122,6 @@ export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> 
     usage: input.costReceipt.usage,
     pricing: input.costReceipt.pricing,
     pendingReason: input.pendingReason,
-    observation: input.observation,
   })
 
   if (!result.replay && result.charged < result.requested) {

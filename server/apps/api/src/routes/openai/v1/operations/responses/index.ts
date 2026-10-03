@@ -115,7 +115,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
     await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
-    await deps.llmBilling.beginLlmRequest({ userId: input.userId, requestId, model, policy })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
@@ -146,11 +145,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       model = routed.modelId
     }
     catch (error) {
-      if (routeCtx.triedKeys === 0) {
-        await deps.llmBilling.cancelUndispatchedLlmRequest({ userId: input.userId, requestId }).catch((error) => {
-          logger.withError(error).withFields({ requestId }).error('Failed to close undispatched LLM intake')
-        })
-      }
       let status = 502
       if (input.abortSignal?.aborted)
         status = 499
@@ -170,7 +164,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     let terminal = false
     let lastUsage: UsageInfo = {}
     let timeToFirstTokenMs: number | undefined
-    let pendingReceipt: Promise<void> | undefined
     const observation: RequestObservation = {
       startedAt: new Date(startedAt),
       attemptId: routeCtx.attemptId,
@@ -189,20 +182,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         return
       terminal = true
       const durationMs = Date.now() - startedAt
-      const price = billing.priceChatUsage(lastUsage, policy, routeCtx.provider)
-      if (upstream.ok) {
-        pendingReceipt = billing.settleChat({
-          observation: { ...observation, status, durationMs, timeToFirstTokenMs },
-          ...lastUsage,
-          ...price,
-          userId: input.userId,
-          requestId,
-          model,
-          pendingReason: 'response_not_completed',
-          stage: input.policy.stream ? 'streaming' : 'non_streaming',
-          logger,
-        }).then(() => {}).catch(error => logger.withError(error).withFields({ requestId, generationId: lastUsage.generationId }).error('Failed to save pending cost receipt'))
-      }
       generation.fail(message)
       telemetry.failSpan(span, message)
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
@@ -224,7 +203,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       const stage = input.policy.stream ? 'streaming' : 'non_streaming'
       let charged = 0
       try {
-        charged = await billing.settleChat({ ...usage, ...price, observation: { ...observation, durationMs, timeToFirstTokenMs }, userId: input.userId, requestId, model, stage, logger })
+        charged = await billing.settleChat({ ...usage, ...price, userId: input.userId, requestId, model, stage, logger })
       }
       catch (error) {
         // Generation has completed. A debit failure is revenue telemetry, not a new provider attempt.
@@ -245,7 +224,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     }
     if (!upstream.body) {
       fail(502, 'Responses upstream returned no body')
-      await pendingReceipt
       throw createBadGatewayError('Responses upstream returned no body')
     }
 
@@ -269,9 +247,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         if (input.abortSignal?.aborted)
           throw error
         throw createBadGatewayError('Invalid Responses JSON response')
-      }
-      finally {
-        await pendingReceipt
       }
     }
 
@@ -374,7 +349,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
         logger.withFields({ requestId, reason: errorMessageFrom(error) }).warn('Responses stream interrupted')
       }
       finally {
-        await pendingReceipt
         input.abortSignal?.removeEventListener('abort', cancel)
         await reader.cancel().catch(error => logger.withError(error).warn('Failed to close Responses reader'))
         reader.releaseLock()

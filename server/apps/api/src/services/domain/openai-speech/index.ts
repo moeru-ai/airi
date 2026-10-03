@@ -1,7 +1,6 @@
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { SpeechBilling } from '../billing/speech-billing'
-import type { FluxService } from '../flux'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProviderCatalogService } from '../provider-catalog'
@@ -47,7 +46,6 @@ function readOptionalNumber(record: Record<string, unknown> | undefined, key: st
 }
 
 export interface OpenAiSpeechServiceDeps {
-  fluxService: FluxService
   configKV: ConfigKVService
   requestLogService: RequestLogService
   speechBilling: SpeechBilling
@@ -122,9 +120,8 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
       voice: requestVoice,
     }).log('tts speech request')
 
-    const flux = await deps.fluxService.getFlux(input.userId)
     try {
-      await deps.speechBilling.assertCanAfford(input.userId, billingUnits, flux.flux, { requestId, model: requestModel, turnId: analytics.turnId })
+      await deps.speechBilling.assertCanAfford(input.userId, billingUnits)
     }
     catch (err) {
       if (!(err instanceof ApiError) || err.statusCode !== 402)
@@ -211,16 +208,15 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
 
     let fluxConsumed = 0
     try {
-      const result = await deps.speechBilling.accumulate({
+      const result = await deps.speechBilling.settle({
         userId: input.userId,
         units: billingUnits,
-        currentBalance: flux.flux,
         requestId,
-        metadata: { model: requestModel, costMultiplier: voicePackRequest.costMultiplier },
+        model: requestModel,
         turnId: analytics.turnId,
         provider: routeCtx.provider,
       })
-      fluxConsumed = result.fluxDebited
+      fluxConsumed = result.charged
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       generationTrace.succeed({
         inputChars: inputText.length,

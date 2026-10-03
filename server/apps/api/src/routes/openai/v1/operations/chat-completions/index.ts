@@ -68,7 +68,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
     }).log('chat completion request')
     const startedAt = Date.now()
     await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0 })
-    await deps.llmBilling.beginLlmRequest({ userId: input.userId, requestId, model: requestModel, policy: billingPolicy })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
 
     // Server-connection attrs come from the router (which knows the actual
@@ -104,11 +103,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       requestModel = routed.modelId
     }
     catch (err) {
-      if (routeCtx.triedKeys === 0) {
-        await deps.llmBilling.cancelUndispatchedLlmRequest({ userId: input.userId, requestId }).catch((error) => {
-          logger.withError(error).withFields({ requestId }).error('Failed to close undispatched LLM intake')
-        })
-      }
       let status: number = err instanceof ApiError ? err.statusCode : 500
       if (clientAbort?.aborted)
         status = 499
@@ -343,23 +337,6 @@ function streamChatCompletion(input: {
       parserWriter.releaseLock()
       events.releaseLock()
       if (streamInterrupted) {
-        const price = input.billing.priceChatUsage(usage, input.billingPolicy, input.routeCtxProvider)
-        try {
-          await input.billing.settleChat({
-            observation,
-            ...usage,
-            ...price,
-            pendingReason: 'stream_interrupted',
-            userId: input.userId,
-            requestId: input.requestId,
-            model: input.requestModel,
-            stage: 'streaming',
-            logger: input.logger,
-          })
-        }
-        catch (error) {
-          input.logger.withError(error).withFields({ requestId: input.requestId, generationId: usage.generationId }).error('Failed to save pending cost receipt')
-        }
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
@@ -385,7 +362,6 @@ function streamChatCompletion(input: {
         let actualCharged = 0
         try {
           actualCharged = await input.billing.settleChat({
-            observation,
             userId: input.userId,
             ...price,
             pendingReason: invalidReceipt || !receivedDone ? 'incomplete_or_invalid_stream' : undefined,
@@ -477,22 +453,6 @@ async function completeNonStreamingChat(input: {
   }
   catch {
     const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
-    const price = input.billing.priceChatUsage({}, input.billingPolicy, input.routeCtxProvider)
-    try {
-      await input.billing.settleChat({
-        observation,
-        ...price,
-        userId: input.userId,
-        requestId: input.requestId,
-        model: input.requestModel,
-        stage: 'non_streaming',
-        logger: input.logger,
-        pendingReason: 'invalid_response_body',
-      })
-    }
-    catch (error) {
-      input.logger.withError(error).withFields({ requestId: input.requestId }).error('Failed to save pending cost receipt')
-    }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: 0 })
     input.generationTrace.fail('Failed to parse upstream response body')
@@ -508,7 +468,6 @@ async function completeNonStreamingChat(input: {
   let actualCharged = 0
   try {
     actualCharged = await input.billing.settleChat({
-      observation,
       userId: input.userId,
       ...price,
       requestId: input.requestId,

@@ -28,44 +28,24 @@ The cache functions do not add a key prefix.
 
 ## Flux usage
 
-`flux_transaction` records fee accruals and integer balance changes. `user_flux` stores integer Flux and outstanding micro-Flux.
+`flux_usage` records one confirmed micro-Flux fee for each `(userId, source.type, source.id)`. Rows are append-only.
+`flux_transaction` records integer balance changes only. `user_flux` stores integer Flux and outstanding micro-Flux.
 One Flux equals 1,000,000 micro-Flux.
-LLM and TTS fees share the same accumulator. Outstanding fees do not expire.
-`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux })` accepts confirmed monetary amounts.
+LLM and TTS fees share one pool. Outstanding fees do not expire.
+`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux, detail? })` accepts confirmed amounts.
 The accounting core has no model, provider, turn, attempt, or pricing dependency.
-`llm_billing_receipt` and `speech_billing_receipt` own prices and service evidence.
-Their entry points save prices before dispatch and preserve unknown costs as pending receipts.
-Posted fees never enter the wallet twice. A pooled debit can include earlier fees from other services.
+A service puts its own evidence in `detail`. A new service needs a new `source.type` and no new table.
+A fee posts once. A replay with the same amount returns the first result. A replay with another amount fails.
+A pooled debit can include earlier fees from other services.
+Use `flux_usage` for service spend reports. Do not attribute a pooled debit to one service.
 Admission reads PostgreSQL. The display cache contains both wallet fields and expires after 60 seconds.
 Credits settle affordable outstanding fees. Admin balance changes preserve outstanding fees.
+The ledger must always satisfy: sum of fees = debited Flux x 1,000,000 + outstanding micro-Flux.
 
-`GET /api/v1/flux/usage` projects paginated accruals from the ledger. Wallet history continues to return integer balance changes.
-Use the fee amount for service spend reports. Do not attribute a pooled debit to its triggering service.
+`GET /api/v1/flux/usage` returns paginated fees from `flux_usage`. Wallet history returns integer balance changes.
 
-### Frozen TTS debt import
-
-Stop old API writers before migration and export the remaining Redis character counters.
-The snapshot contains the rate at cutover. Expired counters cannot be recovered.
-
-```json
-{
-  "batchId": "cutover-2026-10-04",
-  "entries": [
-    { "userId": "example", "units": 550, "pricing": { "fluxPer1kChars": 1 } }
-  ]
-}
-```
-
-From this workspace, run the dry import preview:
-
-```sh
-pnpm exec tsx src/scripts/import-tts-debt.ts /absolute/path/snapshot.json
-```
-
-After migration, set `FLUX_IMPORT_DATABASE_URL` and `FLUX_IMPORT_REDIS_URL` to the intended targets.
-Add `--apply` to import the snapshot. Reuse the same batch ID when retrying the same snapshot.
-Do not change the snapshot after a partial import. Do not delete Redis counters until import totals match the export.
-Then start new API writers. Mixed old and new writers are unsupported during this schema cutover.
+Old Redis TTS character counters are not migrated. The old meter already forgave a residual of less than one Flux.
+Stop old API writers before the new version starts. Mixed old and new writers are unsupported.
 
 See [the Flux usage ADR](../../docs/ai/adr/2026-10-04-flux-usage.md) for invariants and migration policy.
 
@@ -246,17 +226,14 @@ Before any network dispatch, each eligible upstream must have a supported cost a
 Missing configuration rejects the request with `LLM_BILLING_UNAVAILABLE`; alias fallback cannot hide this error.
 Only the OpenRouter adapter is implemented. Other gateways cannot serve hosted LLM traffic until they have an explicit adapter and prices.
 
-Missing or invalid returned cost, BYOK fees, and incomplete output leave a pending settlement without a token-rate estimate.
-Each request records `ceil(costUsd * fluxPerUsd * multiplier * 1,000,000)` in micro-Flux.
+Missing or invalid returned cost, BYOK fees, and incomplete output post no fee. There is no token-rate estimate.
+Each request posts `ceil(costUsd * fluxPerUsd * multiplier * 1,000,000)` micro-Flux with source `llm:{requestId}`.
 An explicit zero cost posts at zero. Fractional fees accumulate across services before integer wallet settlement.
-Zero charges do not create debit ledger rows. Underfunded settlements increment the insufficient-balance metric once, not on replay.
-Routing failures before any upstream dispatch close the intake as `cancelled/not_dispatched`.
-Unknown outcomes after dispatch stay pending.
-Billing retains the original price snapshot, cost source, sanitized provider usage and provider/generation identity for reconciliation.
-`llm_billing_receipt` owns provider evidence and its pending, posted, or cancelled state.
-`flux_transaction` owns monetary accruals and balance changes. A debit references its triggering accrual.
-Service receipts and financial postings commit in one transaction. Ledger replay does not depend on service receipts.
-Migration 0028 preserves historical integer settlement fields as archival evidence. New receipts do not write those fields.
+Zero fees do not create debit ledger rows. Underfunded settlements increment the insufficient-balance metric once, not on replay.
+`flux_usage.detail` keeps the price snapshot, cost source, provider, model, and generation ID.
+The request log and attempts keep the provider evidence. A request with a log and no `flux_usage` row is unbilled.
+Reconcile unbilled requests by joining the request log with `flux_usage` on the request ID.
+The `llm_request_settlement` table is a read-only archive of whole-Flux settlements. No code writes to it.
 Request-log `fluxConsumed` remains an observation-time summary, not a live billing total.
 There is no automatic reconciliation worker in this release.
 

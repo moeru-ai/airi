@@ -13,7 +13,6 @@ export interface SpeechGenerationOperationRequest {
 export function speechGeneration(deps: V1RouteDeps): GatewayCallback<'speech.generate'> {
   const speechService = createOpenAiSpeechService({
     configKV: deps.configKV,
-    fluxService: deps.fluxService,
     genAi: deps.genAi,
     llmRouter: deps.llmRouter,
     llmTracing: deps.llmTracing,

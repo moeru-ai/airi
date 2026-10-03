@@ -8,12 +8,12 @@ import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 
-import { nanoid } from '../../../utils/id'
 import { invalidateBalanceCache } from '../flux-cache'
 import { fluxUsageInputSchema, MICRO_FLUX_PER_FLUX } from './flux-posting'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
+import * as fluxUsageSchema from '../../../schemas/flux-usage'
 
 const logger = useLogger('billing-service')
 
@@ -53,7 +53,7 @@ export function createBillingService(
     tx: BillingTransaction,
     wallet: typeof fluxSchema.userFlux.$inferSelect,
     operationId: string,
-    triggerTransactionId?: string,
+    usageId?: string,
   ) {
     const requested = Math.floor(wallet.unsettledMicroFlux / MICRO_FLUX_PER_FLUX)
     const charged = Math.min(requested, Math.max(0, wallet.flux))
@@ -63,55 +63,54 @@ export function createBillingService(
     if (charged > 0) {
       await tx.insert(fluxTxSchema.fluxTransaction).values({
         userId: wallet.userId,
-        triggerTransactionId,
-        unsettledBefore: wallet.unsettledMicroFlux,
-        unsettledAfter: unsettledMicroFlux,
         operationId,
         type: 'debit',
         amount: charged,
         balanceBefore: wallet.flux,
         balanceAfter: balance,
         description: 'usage_settlement',
-        metadata: { source: 'usage.settlement', unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: unsettledMicroFlux },
+        metadata: { source: 'usage.settlement', usageId, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: unsettledMicroFlux },
       })
     }
     return { charged, requested, balance, unsettledMicroFlux }
   }
 
   return {
-    /** Posts a confirmed amount once. Service evidence is neither required nor inspected for wallet replay. */
-    async postFluxUsage(input: FluxUsageInput, transaction?: BillingTransaction) {
+    /** Posts a confirmed fee once per source. The wallet row lock serializes pooled settlement. */
+    async postFluxUsage(input: FluxUsageInput) {
       const command = parse(fluxUsageInputSchema, input)
-      const write = async (tx: BillingTransaction) => {
+      const result = await db.transaction(async (tx) => {
         const wallet = await lockWallet(tx, command.userId)
-        const [existing] = await tx.select().from(fluxTxSchema.fluxTransaction).where(and(
-          eq(fluxTxSchema.fluxTransaction.userId, command.userId),
-          eq(fluxTxSchema.fluxTransaction.type, 'accrual'),
-          eq(fluxTxSchema.fluxTransaction.sourceType, command.source.type),
-          eq(fluxTxSchema.fluxTransaction.sourceId, command.source.id),
-        ))
-        if (existing) {
-          if (existing.amountMicroFlux !== command.amountMicroFlux)
+        const [usage] = await tx.insert(fluxUsageSchema.fluxUsage).values({
+          userId: command.userId,
+          sourceType: command.source.type,
+          sourceId: command.source.id,
+          amountMicroFlux: command.amountMicroFlux,
+          detail: command.detail,
+        }).onConflictDoNothing().returning({ id: fluxUsageSchema.fluxUsage.id })
+        if (!usage) {
+          const [existing] = await tx.select({ amountMicroFlux: fluxUsageSchema.fluxUsage.amountMicroFlux }).from(fluxUsageSchema.fluxUsage).where(and(
+            eq(fluxUsageSchema.fluxUsage.userId, command.userId),
+            eq(fluxUsageSchema.fluxUsage.sourceType, command.source.type),
+            eq(fluxUsageSchema.fluxUsage.sourceId, command.source.id),
+          ))
+          if (existing!.amountMicroFlux !== command.amountMicroFlux)
             throw new Error('Flux source replay does not match the posted amount')
-          const [debit] = await tx.select().from(fluxTxSchema.fluxTransaction).where(eq(fluxTxSchema.fluxTransaction.triggerTransactionId, existing.id))
-          return { charged: debit?.amount ?? 0, requested: Math.floor(existing.unsettledAfter! / MICRO_FLUX_PER_FLUX), amountMicroFlux: existing.amountMicroFlux, balance: wallet.flux, unsettledMicroFlux: wallet.unsettledMicroFlux, replay: true, transactionId: existing.id }
+          return { charged: 0, requested: 0, balance: wallet.flux, unsettledMicroFlux: wallet.unsettledMicroFlux, amountMicroFlux: command.amountMicroFlux, replay: true }
         }
         const outstanding = wallet.unsettledMicroFlux + command.amountMicroFlux
         parse(pipe(number(), safeInteger(), minValue(0)), outstanding)
-        const id = nanoid()
-        await tx.insert(fluxTxSchema.fluxTransaction).values({ id, userId: command.userId, type: 'accrual', amount: 0, amountMicroFlux: command.amountMicroFlux, sourceType: command.source.type, sourceId: command.source.id, balanceBefore: wallet.flux, balanceAfter: wallet.flux, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: outstanding, description: 'usage_accrual' })
-        const result = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, `accrual:${id}:settle`, id)
-        return { ...result, amountMicroFlux: command.amountMicroFlux, replay: false, transactionId: id }
-      }
-      const result = transaction ? await write(transaction) : await db.transaction(write)
-      if (!transaction && !result.replay)
+        const settled = await settleOutstanding(tx, { ...wallet, unsettledMicroFlux: outstanding }, `usage:${usage.id}:settle`, usage.id)
+        return { ...settled, amountMicroFlux: command.amountMicroFlux, replay: false }
+      })
+      if (!result.replay)
         await updateRedisCache(command.userId)
       return result
     },
 
     /** Reads authoritative admission state. Cached balances cannot authorize concurrent usage. */
-    async getWallet(userId: string, transaction?: BillingTransaction) {
-      const [wallet] = await (transaction ?? db).select().from(fluxSchema.userFlux).where(and(
+    async getWallet(userId: string) {
+      const [wallet] = await db.select().from(fluxSchema.userFlux).where(and(
         eq(fluxSchema.userFlux.userId, userId),
         isNull(fluxSchema.userFlux.deletedAt),
       ))

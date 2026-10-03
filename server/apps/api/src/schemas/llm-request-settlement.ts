@@ -2,8 +2,13 @@ import { bigint, index, jsonb, pgTable, text, timestamp, uniqueIndex } from 'dri
 
 import { nanoid } from '../utils/id'
 
-/** Durable billing evidence survives deletion of diagnostic requests and attempts. */
-export const llmBillingReceipt = pgTable('llm_billing_receipt', {
+// NOTICE:
+// Read-only archive. Nothing writes to this table after `flux_usage` replaced it.
+// Root cause: LLM fees now post through `flux_usage`. The request log keeps provider evidence.
+// Source: `server/docs/ai/adr/2026-10-04-flux-usage.md`.
+// Removal condition: drop the table in a later migration after finance exports the history.
+/** Historical whole-Flux billing evidence. */
+export const llmRequestSettlement = pgTable('llm_request_settlement', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
   userId: text('user_id').notNull(),
   requestId: text('request_id').notNull(),
@@ -18,9 +23,6 @@ export const llmBillingReceipt = pgTable('llm_billing_receipt', {
   costSource: text('cost_source'),
   providerUsage: jsonb('provider_usage'),
   costUsd: text('cost_usd'),
-  costMicroFlux: bigint('cost_micro_flux', { mode: 'number' }),
-  precision: text('precision').notNull().default('micro_flux'),
-  // Historical whole-Flux evidence. New receipts store costMicroFlux and leave these fields empty.
   requestedFlux: bigint('requested_flux', { mode: 'number' }),
   chargedFlux: bigint('charged_flux', { mode: 'number' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),

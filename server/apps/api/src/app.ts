@@ -234,7 +234,6 @@ export async function buildApp(deps: AppDeps) {
   const audioSpeechWsSetup = createAudioSpeechWsHandlers({
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
-    fluxService: deps.fluxService,
     speechBilling: deps.speechBilling,
     requestLogService: deps.requestLogService,
   })
@@ -699,8 +698,8 @@ export async function createApp() {
   })
 
   const llmBilling = injeca.provide('services:llmBilling', {
-    dependsOn: { db, billingService, otel },
-    build: ({ dependsOn }) => createLlmBillingService(dependsOn.db, dependsOn.billingService, dependsOn.otel?.revenue),
+    dependsOn: { billingService, otel },
+    build: ({ dependsOn }) => createLlmBillingService(dependsOn.billingService, dependsOn.otel?.revenue),
   })
 
   const paymentService = injeca.provide('services:payment', {
@@ -731,8 +730,8 @@ export async function createApp() {
   })
 
   const speechBilling = injeca.provide('services:speechBilling', {
-    dependsOn: { db, billingService, configKV, otel },
-    build: ({ dependsOn }) => new SpeechBilling(dependsOn.db, dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { billingService, configKV, otel },
+    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   // Redis coordinates upstream pool capacity across API replicas.
