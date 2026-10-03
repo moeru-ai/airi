@@ -1,4 +1,4 @@
-import type { Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
+import type { ChatOrchestratorSessionPort, Conversation, StreamOptions, Turn } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
@@ -185,6 +185,14 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] ??= []
       sessionMessages[sessionId].push(message)
     },
+    commitUserMessage: (async (sessionId, message) => {
+      sessionMessages[sessionId] ??= []
+      const existing = sessionMessages[sessionId].some(item => item.id === message.id)
+      if (!existing)
+        sessionMessages[sessionId].push(message)
+      await persistSessionMessagesMock(sessionId)
+      return { status: existing ? 'existing' : 'inserted', messageId: message.id }
+    }) satisfies ChatOrchestratorSessionPort['commitUserMessage'],
     cleanupMessages: (sessionId: string) => {
       sessionMessages[sessionId] = []
     },
@@ -210,6 +218,8 @@ vi.mock('./chat/session-store', () => ({
 vi.mock('./chat/stream-store', () => ({
   useChatStreamStore: () => ({
     streamingMessage: streamingMessageRef,
+    activeTurns: [],
+    updateActiveTurns: vi.fn(),
   }),
 }))
 
@@ -345,6 +355,19 @@ describe('chat store contract', () => {
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]
+  })
+
+  it('cancels a named send while session preparation is pending', async () => {
+    const loading = Promise.withResolvers<boolean>()
+    loadSessionMock.mockReturnValueOnce(loading.promise)
+    const store = useChatStore()
+    const submission = store.send({ sessionId: 'session-1', messageId: 'pending-input', text: 'Stop this request' })
+    const rejected = expect(submission).rejects.toThrow('Chat turn cancelled')
+    await store.cancelTurn({ sessionId: 'session-1', turnId: 'pending-input' })
+    loading.resolve(true)
+    await rejected
+    expect(llmStreamMock).not.toHaveBeenCalled()
+    expect(sessionMessages['session-1'].some(message => message.id === 'pending-input')).toBe(false)
   })
 
   it('resolves the provider and rebuilds prior tools inside the serializable send action', async () => {
@@ -1225,7 +1248,7 @@ describe('chat store contract', () => {
     // applied at message-assembly time as per-message [HH:MM] prefixes. The
     // runtime-rule and Minecraft providers are disabled in this test.
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
-    expect(persistSessionMessagesMock).not.toHaveBeenCalled()
+    expect(persistSessionMessagesMock).toHaveBeenCalledWith('session-1')
     expect(hookOrder).toEqual([
       'before-compose',
       'after-compose',
@@ -1312,18 +1335,14 @@ describe('chat store contract', () => {
     store.$patch({
       sending: true,
       activeSendSessionId: 'session-b',
-      activeStreamingMessage: {
-        role: 'assistant',
-        content: 'authority stream',
-        slices: [],
-        tool_results: [],
-      },
+      activeTurns: [{ sessionId: 'session-b', turnId: 'turn-b' }],
     })
     await nextTick()
 
     expect(store.sending).toBe(true)
     expect(store.activeSendSessionId).toBe('session-b')
-    expect(store.activeStreamingMessage?.content).toBe('authority stream')
+    expect(store.activeTurns).toEqual([{ sessionId: 'session-b', turnId: 'turn-b' }])
+    expect(store.$state).not.toHaveProperty('activeStreamingMessage')
   })
 
   it('does not end the owned IO turn span when external sending mirror is cleared mid-send', async () => {

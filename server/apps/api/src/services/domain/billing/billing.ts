@@ -4,6 +4,10 @@ import type { UsageInfo } from '../generation-usage'
 
 import { finite, integer, minValue, nonEmpty, number, object, pipe, record, safeParse, string } from 'valibot'
 
+import { MICRO_FLUX_PER_FLUX } from './flux-posting'
+
+const microFluxPerFlux = BigInt(MICRO_FLUX_PER_FLUX)
+
 /** Price snapshot for provider-reported USD costs. There are no default sale prices. */
 export const costPricingSchema = object({
   fluxPerUsd: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
@@ -32,12 +36,12 @@ const generationIdSchema = pipe(string(), nonEmpty())
 export type CostCharge = {
   pricing: CostPricing
   costUsd: number
-  requestedFlux: number
+  costMicroFlux: number
   pendingReason?: undefined
 } | {
   pricing: CostPricing
   costUsd?: number
-  requestedFlux?: undefined
+  costMicroFlux?: undefined
   pendingReason: string
 }
 
@@ -50,7 +54,7 @@ function decimalFraction(value: number): [bigint, bigint] {
   return scale >= 0 ? [numerator, 10n ** BigInt(scale)] : [numerator * 10n ** BigInt(-scale), 1n]
 }
 
-/** Quotes a whole-Flux charge rounded up per request from normalized USD usage, without provider wire knowledge. */
+/** Quotes a micro-Flux fee rounded up per usage event from normalized USD usage, without provider wire knowledge. */
 export function priceLlmCost(usage: Pick<CostUsage, 'costUsd' | 'pendingReason' | 'generationId'>, pricing: CostPricing): CostCharge {
   if (usage.pendingReason !== undefined)
     return { pricing, costUsd: usage.costUsd, pendingReason: usage.pendingReason }
@@ -60,15 +64,33 @@ export function priceLlmCost(usage: Pick<CostUsage, 'costUsd' | 'pendingReason' 
   if (!safeParse(generationIdSchema, usage.generationId).success)
     return { pricing, pendingReason: 'missing_generation_id' }
 
-  let numerator = 1n
+  let numerator = microFluxPerFlux
   let denominator = 1n
   for (const value of [cost.output, pricing.fluxPerUsd, pricing.multiplier]) {
     const [factorNumerator, factorDenominator] = decimalFraction(value)
     numerator *= factorNumerator
     denominator *= factorDenominator
   }
-  const requestedFlux = (numerator + denominator - 1n) / denominator
-  if (requestedFlux > BigInt(Number.MAX_SAFE_INTEGER))
+  const costMicroFlux = (numerator + denominator - 1n) / denominator
+  if (costMicroFlux > BigInt(Number.MAX_SAFE_INTEGER))
     return { pricing, costUsd: cost.output, pendingReason: 'cost_out_of_range' }
-  return { pricing, costUsd: cost.output, requestedFlux: Number(requestedFlux) }
+  return { pricing, costUsd: cost.output, costMicroFlux: Number(costMicroFlux) }
+}
+
+/** Snapshot of the character price, fixed before speech dispatch. */
+export const speechPricingSchema = object({
+  fluxPer1kChars: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
+})
+export type SpeechPricing = InferOutput<typeof speechPricingSchema>
+
+/** Prices metered speech characters with decimal arithmetic before integer wallet settlement. */
+export function priceSpeechUsage(units: number, pricing: SpeechPricing): number {
+  if (!Number.isSafeInteger(units) || units < 0)
+    throw new Error('Speech units must be a non-negative safe integer')
+  const [numerator, denominator] = decimalFraction(pricing.fluxPer1kChars)
+  const divisor = denominator * 1000n
+  const fee = (BigInt(units) * numerator * microFluxPerFlux + divisor - 1n) / divisor
+  if (fee > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error('Speech cost is out of range')
+  return Number(fee)
 }
