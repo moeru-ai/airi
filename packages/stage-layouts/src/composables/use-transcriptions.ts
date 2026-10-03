@@ -60,6 +60,13 @@ export function useTranscriptions(options: TranscriptionOptions) {
     }, autoSendDelay.value)
   }
 
+  function receiveTranscription(text: string) {
+    if (streamingInput.commit(text)) {
+      console.info('Received final transcription:', text, { source: 'useTranscriptions' })
+      debouncedAutoSend()
+    }
+  }
+
   const stopStreaming = async () => {
     streamingInput.clear()
     clearPendingAutoSend()
@@ -177,12 +184,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
     try {
       await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
-        onSentenceEnd: (delta) => {
-          if (streamingInput.commit(delta)) {
-            console.info('Received final transcription:', delta, { source: 'useTranscriptions' })
-            debouncedAutoSend()
-          }
-        },
+        onSentenceEnd: receiveTranscription,
         onSpeechEnd: streamingInput.clear,
         onTranscriptionUpdate: streamingInput.replace,
       })
@@ -222,6 +224,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   })
 
   return {
+    receiveTranscription,
     startStreamingTranscription: startStreaming,
     stopStreamingTranscription: stopStreaming,
     isListening,

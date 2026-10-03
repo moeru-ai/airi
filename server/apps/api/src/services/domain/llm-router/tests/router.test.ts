@@ -149,6 +149,41 @@ function failResponse(status: number, body: object = { error: 'bad' }) {
 }
 
 describe('createLlmRouterService', () => {
+  // https://github.com/moeru-ai/airi/pull/2644#discussion_r4122406969
+  it('validates fallback model pricing without provider traffic (PR #2644)', async () => {
+    const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://priced.example/v1', keyIds: ['first'] }] })
+    config.llm.models.fallback = {
+      ...config.llm.models['openai/gpt-5-mini'],
+      upstreams: [{ ...config.llm.models['openai/gpt-5-mini'].upstreams[0], baseURL: 'https://unpriced.example/v1', overrideModel: 'actual-model' }],
+    }
+    const fetchImpl = vi.fn(async () => happyResponse({}))
+    const authorizeDispatch = vi.fn((route: { gateway: string, model: string }) => {
+      if (route.gateway === 'unpriced.example')
+        throw new ApiError(503, 'LLM_BILLING_UNAVAILABLE', 'Missing price')
+    })
+    const router = createLlmRouterService({ configKV: makeConfigKV(config), envelopeCrypto: crypto, redis: makeRedisStub(), concurrencyLedger: makeLedger(), gatewayMetrics: makeMetrics(), fetchImpl })
+    await expect(router.validateLlmRoutes({ modelNames: ['openai/gpt-5-mini', 'fallback'], authorizeDispatch })).rejects.toMatchObject({ errorCode: 'LLM_BILLING_UNAVAILABLE' })
+    expect(authorizeDispatch).toHaveBeenCalledWith({ gateway: 'priced.example', model: 'openai/gpt-5-mini' })
+    expect(authorizeDispatch).toHaveBeenCalledWith({ gateway: 'unpriced.example', model: 'actual-model' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
+  it('validates every eligible upstream before any network dispatch', async () => {
+    const { config, crypto } = makeConfig({ upstreams: [
+      { baseURL: 'https://priced.example/v1', keyIds: ['first'] },
+      { baseURL: 'https://unpriced.example/v1', keyIds: ['second'], overrideModel: 'actual-model' },
+    ] })
+    const fetchImpl = vi.fn(async () => happyResponse({}))
+    const authorizeDispatch = vi.fn((route: { gateway: string, model: string }) => {
+      if (route.gateway === 'unpriced.example')
+        throw new ApiError(503, 'LLM_BILLING_UNAVAILABLE', 'Missing price')
+    })
+    const router = createLlmRouterService({ configKV: makeConfigKV(config), envelopeCrypto: crypto, redis: makeRedisStub(), concurrencyLedger: makeLedger(), gatewayMetrics: makeMetrics(), fetchImpl })
+    await expect(router.route({ modelName: 'openai/gpt-5-mini', body: {}, authorizeDispatch })).rejects.toMatchObject({ errorCode: 'LLM_BILLING_UNAVAILABLE' })
+    expect(authorizeDispatch).toHaveBeenCalledWith({ gateway: 'unpriced.example', model: 'actual-model' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
+
   it('persists every key attempt before dispatch and never persists plaintext keys', async () => {
     const { config, crypto } = makeConfig({ upstreams: [{ baseURL: 'https://up.example/v1', keyIds: ['first', 'second'] }] })
     const events: string[] = []
