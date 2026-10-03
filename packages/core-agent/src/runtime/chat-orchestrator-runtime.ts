@@ -774,13 +774,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           context.turns.unshift({ id: 'system-supplement', type: 'system', authority: 'system', content: [{ type: 'text', text: systemPromptSupplement }] })
       }
 
-      const contextsSnapshot = promptContexts
-      const entries = Object.entries(contextsSnapshot).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
+      const entries = Object.entries(promptContexts).flatMap(([source, messages]) => messages.map(message => ({ source, text: message.text })))
       if (entries.length) {
         const lastMessage = context.turns.at(-1)
         if (lastMessage?.type === 'user')
           lastMessage.content.push({ type: 'runtime-context', entries })
-        deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: contextsSnapshot } })
+        deps.onLifecycle?.({ phase: 'prompt-context-built', channel: 'chat', sessionId, details: { contexts: promptContexts } })
       }
 
       // Hooks, diagnostics, and the plugin bridge consume a display projection. It contains
@@ -789,7 +788,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onPromptProjection?.({
         sessionId,
         message: sendingMessage,
-        contexts: contextsSnapshot,
+        contexts: promptContexts,
         composedMessage: streamingMessageContext.composedMessage,
       })
       deps.onLifecycle?.({
@@ -1063,27 +1062,27 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const queue = createQueue<QueuedSend>({
       handlers: [
         async ({ data }) => {
-          const { sendingMessage, options, generation, deferred, sessionId: queuedSessionId, cancelled, providerId } = data
+          const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
 
           if (cancelled)
             return
 
-          if (deps.session.getSessionGeneration(queuedSessionId) !== generation) {
+          if (deps.session.getSessionGeneration(sessionId) !== generation) {
             deferred.reject(new Error('Chat session was reset before send could start'))
             return
           }
 
           const controller = new AbortController()
-          activeSends.set(queuedSessionId, controller)
+          activeSends.set(sessionId, controller)
           try {
-            await performSend(sendingMessage, options, generation, queuedSessionId, controller.signal, providerId)
+            await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
             deferred.resolve()
           }
           catch (error) {
             deferred.reject(error)
           }
           finally {
-            activeSends.delete(queuedSessionId)
+            activeSends.delete(sessionId)
           }
         },
       ],
