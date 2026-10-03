@@ -1,6 +1,5 @@
 import type { MaybeRefOrGetter, Ref } from 'vue'
 
-import { useStreamingTranscriptionInput } from '@proj-airi/stage-ui/composables/use-streaming-transcription-input'
 import { useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -8,10 +7,13 @@ import { until } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { nextTick, onScopeDispose, ref, toValue, useId, watch } from 'vue'
 
+import { useTranscriptionDraft } from './use-transcription-draft'
+
 interface TranscriptionOptions {
   messageInputRef: Ref<string>
   sendMessage: () => void
   isStageTamagotchi: MaybeRefOrGetter<boolean>
+  sessionId?: Readonly<Ref<string>>
 }
 
 export function useTranscriptions(options: TranscriptionOptions) {
@@ -29,39 +31,22 @@ export function useTranscriptions(options: TranscriptionOptions) {
 
   const isListening = ref(false)
   const transcriptionConsumerId = `interactive-area:${useId()}`
-  const streamingInput = useStreamingTranscriptionInput(messageInput)
-
-  // Auto-send logic
-  let autoSendTimeout: ReturnType<typeof setTimeout> | undefined
-  function clearPendingAutoSend() {
-    if (autoSendTimeout) {
-      clearTimeout(autoSendTimeout)
-      autoSendTimeout = undefined
-    }
-  }
-  async function debouncedAutoSend() {
-    // Double-check auto-send is enabled before proceeding
-    if (!autoSendEnabled.value) {
-      clearPendingAutoSend()
-      return
-    }
-    if (autoSendTimeout) {
-      clearTimeout(autoSendTimeout)
-    }
-
-    autoSendTimeout = setTimeout(async () => {
-      // Final check before sending - auto-send might have been disabled while waiting
-      if (!autoSendEnabled.value) {
-        clearPendingAutoSend()
-        return
-      }
-      sendMessage()
-      autoSendTimeout = undefined
-    }, autoSendDelay.value)
-  }
+  const {
+    cancel: clearPendingAutoSend,
+    append: appendTranscription,
+    update: updateTranscription,
+    clear: clearTranscription,
+    receive: receiveTranscription,
+  } = useTranscriptionDraft({
+    draft: messageInput,
+    enabled: autoSendEnabled,
+    delay: autoSendDelay,
+    send: sendMessage,
+    sessionId: options.sessionId,
+  })
 
   const stopStreaming = async () => {
-    streamingInput.clear()
+    clearTranscription()
     clearPendingAutoSend()
 
     try {
@@ -177,14 +162,9 @@ export function useTranscriptions(options: TranscriptionOptions) {
     try {
       await transcribeForMediaStream(stream.value, {
         consumerId: transcriptionConsumerId,
-        onSentenceEnd: (delta) => {
-          if (streamingInput.commit(delta)) {
-            console.info('Received final transcription:', delta, { source: 'useTranscriptions' })
-            debouncedAutoSend()
-          }
-        },
-        onSpeechEnd: streamingInput.clear,
-        onTranscriptionUpdate: streamingInput.replace,
+        onSentenceEnd: appendTranscription,
+        onSpeechEnd: clearTranscription,
+        onTranscriptionUpdate: updateTranscription,
       })
 
       // Only set listening to true if transcription started successfully
@@ -193,28 +173,20 @@ export function useTranscriptions(options: TranscriptionOptions) {
       console.info('Streaming transcription initiated successfully', { source: 'useTranscriptions' })
     }
     catch (err) {
-      streamingInput.clear()
+      clearTranscription()
       console.error('Transcription error:', err, { source: 'useTranscriptions' })
       isListening.value = false
       throw err
     }
   }
 
-  // Watch for auto-send setting changes and clear pending sends if disabled
-  watch(autoSendEnabled, (enabled) => {
-    if (!enabled) {
-      clearPendingAutoSend()
-      console.info('Auto-send disabled', { source: 'useTranscriptions' })
-    }
-  })
-
-  // Watch for auto-send setting changes and clear pending sends if disabled
   watch(hearingEnabled, async (enabled) => {
+    clearPendingAutoSend()
     if (!enabled) {
       await stopStreaming()
       console.info('Stopping streaming transcription because hearing is disabled.', { source: 'useTranscriptions' })
     }
-  })
+  }, { flush: 'sync' })
 
   onScopeDispose(() => {
     clearPendingAutoSend()
@@ -222,6 +194,7 @@ export function useTranscriptions(options: TranscriptionOptions) {
   })
 
   return {
+    receiveTranscription,
     startStreamingTranscription: startStreaming,
     stopStreamingTranscription: stopStreaming,
     isListening,

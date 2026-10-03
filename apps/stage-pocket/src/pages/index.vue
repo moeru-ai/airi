@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ComposerTranscription } from '@proj-airi/stage-layouts/composables/transcription'
 import type { VoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
 
 import Header from '@proj-airi/stage-layouts/components/Layouts/Header.vue'
@@ -15,6 +16,7 @@ import { useAudioRecorder } from '@proj-airi/stage-ui/composables/audio/audio-re
 import { createVoiceInputBinding } from '@proj-airi/stage-ui/libs/audio/voice-input-binding'
 import { useVAD } from '@proj-airi/stage-ui/stores/ai/models/vad'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
@@ -50,6 +52,8 @@ function handleSettingsOpen(open: boolean) {
 const positionCursor = useMouse()
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
+const transcriptions = shallowRef<ComposerTranscription[]>([])
+const { activeSessionId } = storeToRefs(useChatSessionStore())
 const stageViewport = shallowRef({ height: 0, offsetTop: 0 })
 const stageSurfaceStyle = computed(() => isMobile.value
   ? {
@@ -72,7 +76,7 @@ onMounted(() => syncBackgroundTheme())
 // Audio + transcription pipeline (mirrors stage-tamagotchi)
 const settingsAudioDeviceStore = useSettingsAudioDevice()
 const { stream, enabled } = storeToRefs(settingsAudioDeviceStore)
-const { discardRecord, startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
+const { discardRecord, startRecord, stopRecord } = useAudioRecorder(stream)
 const hearingPipeline = useHearingSpeechInputPipeline()
 const { releaseStreamingTranscriptionConsumer, transcribeForRecording, transcribeForMediaStream } = hearingPipeline
 const { supportsStreamInput } = storeToRefs(hearingPipeline)
@@ -96,8 +100,8 @@ const {
   onSpeechCancel: () => handleSpeechCancel(),
 })
 
-let stopOnStopRecord: (() => void) | undefined
 let currentBinding: VoiceInputBinding | undefined
+let recordingSessionId: string | undefined
 
 async function sendVoiceInputTextToChat(text: string | undefined) {
   if (!text?.trim())
@@ -126,11 +130,28 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
 async function startAudioInteraction(binding: VoiceInputBinding) {
   currentBinding = binding
   if (binding.mode === 'stream') {
+    let sentenceSessionId: string | undefined
     await transcribeForMediaStream(binding.stream, {
       consumerId: transcriptionConsumerId,
+      onTranscriptionUpdate: (text) => {
+        sentenceSessionId ??= activeSessionId.value
+        if (currentBinding === binding && isMobile.value)
+          transcriptions.value = [...transcriptions.value, { kind: 'interim', text, sessionId: sentenceSessionId }]
+      },
       onSentenceEnd: (text) => {
-        if (currentBinding === binding)
+        const sessionId = sentenceSessionId ?? activeSessionId.value
+        sentenceSessionId = undefined
+        if (currentBinding !== binding)
+          return
+        if (isMobile.value)
+          transcriptions.value = [...transcriptions.value, { kind: 'final', text, sessionId }]
+        else
           void sendVoiceInputTextToChat(text)
+      },
+      onSpeechEnd: () => {
+        if (currentBinding === binding && isMobile.value)
+          transcriptions.value = [...transcriptions.value, { kind: 'clear', text: '', sessionId: sentenceSessionId ?? activeSessionId.value }]
+        sentenceSessionId = undefined
       },
     })
     if (hearingPipeline.error)
@@ -144,22 +165,31 @@ async function startAudioInteraction(binding: VoiceInputBinding) {
   if (currentBinding !== binding)
     return
   await startVAD(binding.stream)
-
-  stopOnStopRecord = onStopRecord(async (recording) => {
-    const text = await transcribeForRecording(recording)
-    if (currentBinding === binding)
-      await sendVoiceInputTextToChat(text)
-  })
 }
 
 async function handleSpeechStart() {
-  if (currentBinding?.mode === 'recording')
+  if (currentBinding?.mode === 'recording') {
+    recordingSessionId = activeSessionId.value
+    if (isMobile.value)
+      transcriptions.value = [...transcriptions.value, { kind: 'start', text: '', sessionId: recordingSessionId }]
     await startRecord()
+  }
 }
 
 async function handleSpeechEnd() {
-  if (currentBinding?.mode === 'recording')
-    await stopRecord()
+  const binding = currentBinding
+  const sessionId = recordingSessionId
+  if (binding?.mode !== 'recording' || !sessionId)
+    return
+  // Finalization releases the recorder before ASR finishes, so the next utterance can start.
+  const recording = await stopRecord()
+  const text = await transcribeForRecording(recording)
+  if (currentBinding !== binding || sessionId !== activeSessionId.value)
+    return
+  if (isMobile.value)
+    transcriptions.value = [...transcriptions.value, { kind: 'final', text: text ?? '', sessionId }]
+  else
+    await sendVoiceInputTextToChat(text)
 }
 
 async function handleSpeechCancel() {
@@ -169,8 +199,8 @@ async function handleSpeechCancel() {
 
 async function stopAudioInteraction() {
   currentBinding = undefined
-  stopOnStopRecord?.()
-  stopOnStopRecord = undefined
+  recordingSessionId = undefined
+  transcriptions.value = [{ kind: 'stop', text: '', sessionId: activeSessionId.value }]
   disposeVAD()
   await discardRecord()
   await releaseStreamingTranscriptionConsumer(transcriptionConsumerId)
@@ -240,6 +270,8 @@ onUnmounted(() => {
     <Teleport to="body">
       <MobileInteractiveArea
         v-if="isMobile"
+        :transcriptions="transcriptions"
+        @transcriptions-consumed="transcriptions = []"
         @settings-open="handleSettingsOpen"
         @stage-viewport-change="stageViewport = $event"
       >
