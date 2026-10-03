@@ -4,7 +4,7 @@ import type { Recipe } from '@proj-airi/stage-ui/stores/recipes'
 import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
 import { useModuleDirectoryStore } from '@proj-airi/stage-ui/stores/mods/api/module-directory'
 import { useRecipesStore } from '@proj-airi/stage-ui/stores/recipes'
-import { Button, Checkbox, GhostButton, SelectTab } from '@proj-airi/ui'
+import { Button, Checkbox, FieldCheckbox, GhostButton, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -18,7 +18,7 @@ type RecipeTab = 'conversation' | 'auto-run'
 
 const { t } = useI18n()
 const recipesStore = useRecipesStore()
-const { conversation, autoRun } = storeToRefs(recipesStore)
+const { conversation, autoRun, proposalsEnabled } = storeToRefs(recipesStore)
 
 const KEY = 'settings.pages.modules.memory-long-term.recipes'
 const chatContext = useChatContextStore()
@@ -89,11 +89,18 @@ function descriptionOf(recipe: Recipe) {
   return recipe.style.kind === 'decision' ? recipe.style.question.instructions : ''
 }
 
-/** One line of facts: style, source, and what starts the recipe. */
+/** One line of facts: style, source, and what the recipe may do. */
 function metaOf(recipe: Recipe) {
-  const parts = [t(`${KEY}.styles.${recipe.style.kind}`), t(`${KEY}.sources.${recipe.source}`)]
+  return [t(`${KEY}.styles.${recipe.style.kind}`), t(`${KEY}.sources.${recipe.source}`), ...grantsOf(recipe)].join(' · ')
+}
+
+/** What an approval lets the recipe do: take over the conversation, start on its own, and what starts it. */
+function grantsOf(recipe: Recipe) {
+  const parts: string[] = []
   if (recipe.handover)
     parts.push(t(`${KEY}.handover.tag`))
+  if (recipe.gate)
+    parts.push(t(`${KEY}.auto_run.gate.summary`, { question: recipe.gate }))
   for (const trigger of recipe.triggers) {
     if (trigger.kind === 'keyword' && trigger.keywords.length) {
       const extra = trigger.keywords.length - KEYWORDS_SHOWN
@@ -109,7 +116,7 @@ function metaOf(recipe: Recipe) {
       parts.push(t(`${KEY}.auto_run.summary.event`, { source: trigger.source, minutes: trigger.cooldownMinutes }))
     }
   }
-  return parts.join(' · ')
+  return parts
 }
 
 /** Only owner and model recipes in the styles that the form writes can change. */
@@ -138,6 +145,13 @@ function removeRecipe(id: string) {
 <template>
   <div :class="['flex flex-col', 'gap-4']">
     <SelectTab :model-value="tab" :options="tabOptions" size="sm" @update:model-value="selectTab" />
+
+    <FieldCheckbox
+      v-if="!isAutoRunTab"
+      v-model="proposalsEnabled"
+      :label="t(`${KEY}.proposals.label`)"
+      :description="t(`${KEY}.proposals.description`)"
+    />
 
     <div :class="['flex flex-wrap items-start justify-between', 'gap-3']">
       <p :class="['min-w-0 flex-1', 'text-sm', 'text-neutral-500 dark:text-neutral-400']">
@@ -234,7 +248,10 @@ function removeRecipe(id: string) {
           ]"
         >
           <span :class="['i-solar:shield-check-linear', 'shrink-0 text-base']" aria-hidden="true" />
-          <span :class="['min-w-0 flex-1', 'text-xs']">{{ t(`${KEY}.pending`) }}</span>
+          <span :class="['min-w-0 flex-1', 'flex flex-col', 'gap-0.5', 'text-xs']">
+            <span>{{ t(`${KEY}.pending`) }}</span>
+            <span v-if="grantsOf(recipe).length" :class="['font-medium']">{{ t(`${KEY}.grants`, { what: grantsOf(recipe).join('，') }) }}</span>
+          </span>
           <Button size="sm" variant="primary" :label="t(`${KEY}.approve`)" @click="recipesStore.approve(recipe.id)" />
         </div>
 

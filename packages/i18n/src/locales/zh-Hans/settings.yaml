@@ -901,6 +901,10 @@ pages:
           label: 接管对话（人格交接）
           description: 适合改变说话方式的配方，比如专注模式。它会在自己的空间里接管对话，直到你结束，再交回主对话。
           tag: 接管对话
+        grants: '批准后它可以：{what}'
+        proposals:
+          label: 允许角色提议配方
+          description: 你让它创建配方时，它会保存为提议，每个提议都要你批准。关掉后它无法提议任何配方。
         auto_run:
           title: 自动运行的配方
           when:
@@ -918,6 +922,7 @@ pages:
             description: 已在 AIRI 注册的模块，或者正在上报观察的来源。
             none: 还没有来源注册。先连接一个会上报观察的模块，再回来选择。
           gate:
+            summary: '先判断：{question}'
             label: 运行前先判断（可选）
             description: 触发时先让注意力分类器回答这个是或否的问题，有把握地回答“否”就不运行，只花一次分类器调用。没有设置分类器时总会运行。
             placeholder: 例如：现在是深夜吗？

@@ -23,6 +23,8 @@ export type { DecisionAction, Recipe } from '@proj-airi/core-agent'
 export const useRecipesStore = defineStore('recipes', () => {
   const custom = useLocalStorageManualReset<Recipe[]>('recipes/custom', [])
   const builtinEnabled = useLocalStorageManualReset<Record<string, boolean>>('recipes/builtin-enabled', {})
+  /** Whether the character may propose recipes in conversation. Every proposal still waits for approval. */
+  const proposalsEnabled = useLocalStorageManualReset<boolean>('recipes/proposals-enabled', true)
 
   const recipes = computed<Recipe[]>(() => [
     ...BUILTIN_RECIPES.map(recipe => ({ ...recipe, enabled: builtinEnabled.value[recipe.id] ?? recipe.enabled })),
@@ -79,11 +81,13 @@ export const useRecipesStore = defineStore('recipes', () => {
   function resetState() {
     custom.reset()
     builtinEnabled.reset()
+    proposalsEnabled.reset()
   }
 
   return {
     recipes,
     usable,
+    proposalsEnabled,
     conversation,
     autoRun,
     isUsable,

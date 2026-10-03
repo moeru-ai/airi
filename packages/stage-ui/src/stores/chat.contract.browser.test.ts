@@ -296,6 +296,7 @@ describe('chat store contract', () => {
     // Recipes persist in local storage. Each test starts from the built-in recipes.
     localStorage.removeItem('recipes/custom')
     localStorage.removeItem('recipes/builtin-enabled')
+    localStorage.removeItem('recipes/proposals-enabled')
     localStorage.removeItem('memory/entries')
     setActivePinia(createPinia())
     vi.spyOn(getAnalytics(), 'emit').mockImplementation((event, properties) => {
@@ -420,6 +421,22 @@ describe('chat store contract', () => {
     await useChatStore().send({ sessionId: 'session-1', text: 'hello' })
 
     expect(toolNames).toEqual([['builtIn_readContextSource', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe']])
+  })
+
+  // The owner's switch decides whether the character can propose recipes at all.
+  it('drops the recipe proposal tool when the owner turns proposals off', async () => {
+    const toolNames: string[][] = []
+    llmStreamMock.mockImplementation(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: any) => {
+      const tools = typeof options.tools === 'function' ? await options.tools() : options.tools
+      toolNames.push(tools.map((tool: Tool) => tool.function.name))
+      await options.onStreamEvent({ type: 'finish' })
+    })
+    useRecipesStore().proposalsEnabled = false
+
+    await useChatStore().send({ sessionId: 'session-1', text: 'make a recipe' })
+
+    expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
+    expect(toolNames[0]).toContain('builtIn_useRecipe')
   })
 
   // A keyword trigger works like a smart shortcut. The recipe runs in its own session, so its steps never enter the conversation.

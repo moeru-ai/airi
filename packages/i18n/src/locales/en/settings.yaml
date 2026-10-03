@@ -949,6 +949,10 @@ pages:
           label: Take over the conversation
           description: For a way of talking, such as a focus mode. It answers in its own space until you end it, then hands back to the main conversation.
           tag: Takes over
+        grants: 'Approving lets it: {what}'
+        proposals:
+          label: The character can propose recipes
+          description: It saves a recipe you ask for. Each proposal waits for your approval. Turn this off and it cannot propose any.
         auto_run:
           title: Auto-run recipe
           when:
@@ -966,6 +970,7 @@ pages:
             description: A module that registered with AIRI, or a source that reports observations now.
             none: No source has registered yet. Connect a module that reports observations, then choose it here.
           gate:
+            summary: 'Asks first: {question}'
             label: Decide before running (optional)
             description: When the trigger fires, the attention classifier answers this yes-or-no question first. A confident no skips the run and costs only the classifier call. Without a classifier, the recipe always runs.
             placeholder: 'For example: Is it late at night?'

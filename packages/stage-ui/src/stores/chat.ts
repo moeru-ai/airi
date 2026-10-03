@@ -627,8 +627,8 @@ export const useChatStore = defineStore('chat', () => {
       ...(ownerOnly ? await createUseRecipeTool({ recipes: () => recipes.recipes, start: (recipe, task) => startRecipe(recipe, { parentSessionId: sessionId, parentRunId: runId, task }) }) : []),
       // Reading without replying is a recipe. The owner can turn it off.
       ...(recipes.isUsable(STAY_QUIET_RECIPE_ID) ? [createStayQuietTool()] : []),
-      // Every proposal waits for the owner's approval.
-      ...(ownerOnly ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
+      // The owner can turn proposals off. Every proposal waits for the owner's approval.
+      ...(ownerOnly && recipes.proposalsEnabled ? await createProposeRecipeTool({ propose: recipe => recipes.propose(recipe) }) : []),
     ]
   }
 
