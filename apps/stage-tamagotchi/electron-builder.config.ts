@@ -114,6 +114,11 @@ export default {
   ],
   extraResources: [
     {
+      from: 'resources/kwin/airi-cursor-bridge',
+      to: 'kwin/airi-cursor-bridge',
+      filter: ['**/*'],
+    },
+    {
       from: '../../engines/stage-tamagotchi-godot/out/${os}',
       to: 'godot-stage',
       filter: ['**/*'],

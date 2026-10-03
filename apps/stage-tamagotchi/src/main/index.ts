@@ -43,6 +43,7 @@ import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
+import { startKWinCursorBridge } from './services/electron/kwin-cursor-bridge'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupSherpawModelAssetsProtocol } from './services/electron/sherpaw-model-assets'
 import { setupTray } from './tray'
@@ -76,6 +77,13 @@ setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
 
 const log = useLogg('main').useGlobalConfig()
+
+const isWaylandSession = isLinux && resolveIsWayland({
+  explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
+  ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
+  env,
+})
+let stopKWinCursorBridge: (() => void) | undefined
 
 const appUserDataPath = env.APP_USER_DATA_PATH?.trim()
 if (appUserDataPath) {
@@ -111,11 +119,7 @@ if (isLinux) {
   // When running with XWayland (e.g. '--ozone-platform=x11'), session variables like WAYLAND_DISPLAY
   // are still inherited from the Wayland desktop, but Chromium uses the explicitly specified Ozone backend.
   // Treat explicit 'auto' as an unresolved platform selection and resolve using session environment variables.
-  const isWayland = resolveIsWayland({
-    explicitOzonePlatform: app.commandLine.getSwitchValue('ozone-platform'),
-    ozonePlatformHint: app.commandLine.getSwitchValue('ozone-platform-hint'),
-    env,
-  })
+  const isWayland = isWaylandSession
 
   if (isWayland) {
     enabledFeatures.push('GlobalShortcutsPortal', 'UseOzonePlatform', 'WaylandWindowDecorations')
@@ -177,6 +181,15 @@ app.whenReady().then(async () => {
       return
     void fileLogger.appendLog(formatted)
   })
+
+  if (isWaylandSession) {
+    stopKWinCursorBridge = startKWinCursorBridge((message, error) => {
+      if (error)
+        log.withError(error).warn(message)
+      else
+        log.warn(message)
+    })
+  }
 
   injeca.setLogger(createLoggLogger(useLogg('injeca').useGlobalConfig()))
 
@@ -439,10 +452,13 @@ async function handleAppExit() {
     }
   }
 
-  await Promise.all([
+  const shutdowns = [
     logIfError('execute onAppBeforeQuit hooks', () => emitAppBeforeQuit()),
     logIfError('stop injeca', () => injeca.stop()),
-  ])
+  ]
+  if (stopKWinCursorBridge)
+    shutdowns.push(logIfError('stop KWin cursor bridge', () => stopKWinCursorBridge?.()))
+  await Promise.all(shutdowns)
 
   // Prevent the global log hook from trying to write to the file after close() is called,
   // which would cause a recursive failure if close() itself throws.
