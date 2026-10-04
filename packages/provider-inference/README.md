@@ -17,6 +17,13 @@ const providers = listProviders()
 
 Browser-only definitions, such as Web Speech API, load in Node.js. Their availability hook returns `false` when the required Browser capability is absent.
 
+The root entry exports Sherpaw model presets and a definition factory. Vite plugins can use `@proj-airi/provider-inference/sherpaw-transcription/models` to load only model metadata. The presets include stable IDs, languages, recognizer types, pinned revisions, and artifact URLs. Neither entry downloads or loads model files.
+
+`createSherpawTranscriptionDefinition` owns recognition, Worker cleanup, and the first model choice.
+The host supplies exposed models, a Worker URL, a fetch function, and the current interface language.
+The host also reports whether it runs on mobile. Chinese and English default to X-ASR on desktop and Paraformer on mobile.
+`stage-ui` supplies these resources and adds the Hearing settings view.
+
 Use `@proj-airi/stage-ui` for saved provider configuration, Vue settings views, Pinia state, authentication, and Electron-native providers. Do not use this package to manage those application concerns.
 
 ## Verify

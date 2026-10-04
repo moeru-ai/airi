@@ -6,6 +6,7 @@ import { ref, watch } from 'vue'
 
 import LoadingModules from './loading-modules.vue'
 
+import { stageOpaqueAttribute } from '../../../composables/use-stage-painted-mask'
 import { useResourcesStore } from '../../../stores/resources'
 
 const {
@@ -39,6 +40,7 @@ function handleClick() {
           <Transition name="fade">
             <div
               v-if="atLeastOneLoadingDelay5s"
+              :[stageOpaqueAttribute]="true"
               w="fit"
               bg="white/80 dark:neutral-900/80"
               pointer-events-auto mb-1 flex cursor-pointer items-center gap-2 rounded-full px-2 py-1 text-sm shadow-md backdrop-blur-md

@@ -378,6 +378,7 @@ pages:
     save: Save changes
     save_and_activate: Save and activate
     card_not_found: Card not found
+    back: Back
     character: Character
     close: Close
     chat:
@@ -397,6 +398,13 @@ pages:
     drop_here: Drop to upload
     create_card: Create a new Card
     edit_card: Edit Card
+    saved: Card saved
+    unsaved:
+      badge: Unsaved
+      title: Discard changes?
+      message: Your changes are not saved. If you leave this page, you will lose them.
+      keep_editing: Keep editing
+      discard: Discard changes
     creation:
       identity: Identity
       name: Name
@@ -456,6 +464,7 @@ pages:
         posthistoryinstructions: 'Error: Post history prompt is required.'
         invalid_artistry_json: 'Error: Artistry provider options contains invalid JSON.'
       none: None
+      none_disabled: None (Disabled)
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
@@ -650,9 +659,11 @@ pages:
       model:
         label: Artistry Model (Optional Override)
         description: Model identifier if needed by provider
+        placeholder: e.g. black-forest-labs/flux-schnell
       prompt-prefix:
         label: Artistry Prompt Default Prefix
         description: Pre-pended to every prompt sent to the image generator.
+        placeholder: e.g. Masterpiece, high quality, 1girl, anime,
       options:
         label: Artistry Provider Options (JSON)
       widget-instructions:
@@ -692,6 +703,9 @@ pages:
             show_less: Show less
             show_more: Show more
             temperature_label: Temperature
+            temperature_enabled: Custom temperature
+            top_p_enabled: Custom Top P
+            sampling_override_description: Off by default. Enable only if your model supports this parameter. Some models accept only one sampling parameter at a time.
             temperature_description: Control the randomness of the model's output. A lower value (e.g. 0.2) results in more deterministic, precise, and analytical output, while a higher value (e.g. 1.0) increases creativity and diversity.
             top_p_label: Top P
             top_p_description: Control the diversity of the model's output via nucleus sampling. A lower value (e.g. 0.2) limits the output to only high-probability tokens, while a higher value (e.g. 1.0) includes a broader set of possibilities.
@@ -853,6 +867,32 @@ pages:
     vision:
       description: Vision
       title: Vision
+      tool-images:
+        label: Use the vision model for tool images
+        description: The vision model reads the images that tools return, such as screenshots from Use computer, before your chat model replies. The chat model gets them directly when its provider reports image input. A description has no pixel positions.
+      capture:
+        title: Vision capture cadence
+        description: Tune how often the vision ticker captures a frame.
+        interval:
+          label: Capture interval
+          description: A lower value captures more often and uses more resources.
+      stats:
+        captures: Captures
+        context-updates: Context updates
+        inferences: Image recognition calls
+        inferences-description: Every call to the vision model, chat images included
+        failed-inferences: Failed calls
+        last-inference: Last call
+        error: 'Error:'
+        last-update: Last update {time}
+        since-start: Since the app started
+        never: Never
+      ollama:
+        title: Provider request toggles
+        description: Control provider-specific request flags for vision inference.
+        thinking:
+          label: Thinking (Ollama)
+          description: 'When on, vision requests through Ollama include `think: true`. When off, they include `think: false`.'
     x:
       description: X / Twitter browsing and usage
       title: X / Twitter
@@ -1066,6 +1106,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          apple-vision:
+            check-availability:
+              title: Availability
           prompt-api:
             check-availability:
               title: Availability
@@ -1116,6 +1159,10 @@ pages:
           title: Voice Settings
     labels:
       recommended: Recommended
+    sync:
+      synced: Synced
+      pending: Waiting to upload
+      not-uploaded: Not uploaded. Complete this provider on this device.
     filters:
       pricing: Pricing
       deployment: Deployment
@@ -1164,6 +1211,19 @@ pages:
         OpenAI, Azure Speech
     description: LLMs, speech providers, etc.
     provider:
+      sherpaw-transcription:
+        title: Sherpaw
+        description: Local speech recognition with bundled or on-demand models. No API key is required.
+        language:
+          label: Model language
+          description: Show models that support this language. The selected model still detects its supported languages.
+          all: All languages
+        model:
+          label: Model
+          description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.
+      apple-vision:
+        title: Apple Vision
+        description: On-device image understanding with Apple Foundation Models on macOS 27 or later. No API key is required.
       apple-speech-transcription:
         title: Apple Speech
         description: On-device speech recognition on macOS 26 or later. No API key is required.
@@ -1849,6 +1909,11 @@ theme:
 title: Settings
 voices: Voice
 vrm:
+  fps:
+    title: Frame rate limit
+    description: Limit VRM rendering in the stage and model preview. Lower limits reduce GPU use without changing animation speed.
+    options:
+      unlimited: Unlimited
   change-model:
     from-file: Load from File
     from-file-select: Select
@@ -1994,3 +2059,7 @@ wip:
   description: >-
     This feature is currently under development and not yet publicly available.
     Check back in future updates for this functionality.
+
+streamer-mode:
+  title: Streamer mode
+  description: Hide microphone and sign-in indicators on the character window.

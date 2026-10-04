@@ -80,7 +80,26 @@ export default {
     // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
     // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
     '!**/node_modules/electron{,/**}',
+    // Workspace hoisting exposes build tools to electron-builder's file walk.
+    // The packaged app has no runtime import of these tools.
+    '!**/node_modules/@rolldown{,/**}',
+    '!**/node_modules/rolldown{,/**}',
+    '!**/node_modules/lightningcss{,/**}',
+    '!**/node_modules/lightningcss-*{,/**}',
+    '!**/node_modules/fsevents{,/**}',
+    // Transformers runs inside browser workers in the desktop app. Sharp is its
+    // Node-only image backend and has no packaged main-process consumer.
+    '!**/node_modules/sharp{,/**}',
+    '!**/node_modules/@img/sharp-*{,/**}',
+    // uiohook-napi loads the selected prebuild. Its bundled libuiohook C source is
+    // only used to build that binary and does not participate in runtime loading.
+    '!**/node_modules/uiohook-napi/libuiohook{,/**}',
     '!**/.vscode/*',
+    // The renderer uses the browser ONNX backend. The node package and its
+    // platform binaries are not loaded by the packaged renderer.
+    '!**/node_modules/onnxruntime-node{,/**}',
+    // Vite bundles the browser runtime and its WASM assets into `out/renderer`.
+    '!**/node_modules/onnxruntime-web{,/**}',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
     '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',

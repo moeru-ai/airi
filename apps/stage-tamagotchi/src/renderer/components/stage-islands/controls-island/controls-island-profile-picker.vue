@@ -12,6 +12,7 @@ const props = defineProps<{ active: boolean }>()
 const emit = defineEmits<{ interactionChange: [active: boolean] }>()
 
 const open = defineModel<boolean>('open', { default: false })
+const creating = defineModel<boolean>('creating', { default: false })
 
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
 const { isLeft, isTop } = useControlsIslandPlacement()
@@ -26,6 +27,7 @@ function handleManage() {
 <template>
   <ProfileSwitcherPopover
     v-model:open="open"
+    v-model:creating="creating"
     :active="props.active"
     :content-side="contentSide"
     :content-align="contentAlign"

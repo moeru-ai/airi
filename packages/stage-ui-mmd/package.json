@@ -45,6 +45,7 @@
     "es-toolkit": "catalog:",
     "jszip": "catalog:",
     "localforage": "catalog:",
+    "nanoid": "catalog:",
     "pinia": "catalog:",
     "three": "catalog:",
     "three-stdlib": "catalog:",

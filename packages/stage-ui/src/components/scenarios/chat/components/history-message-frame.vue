@@ -23,8 +23,14 @@ const emit = defineEmits<{
 
 const messageRef = useTemplateRef<HTMLDivElement>('message')
 const scrollTarget = computed(() => props.scrollContainer)
+// NOTICE:
+// Messages start visible. Combining opacity-0 with opacity-100 leaves the
+// cascade and CSS transition stuck at 0 in Godot CEF software OSR, so the
+// conversation paints empty while the composer still works.
+// Source: Kirie chat window CDP screenshot, 2026-09-20.
+// Remove this initial value if CEF flushes opacity transitions while hidden.
 const isVisible = useElementVisibility(messageRef, {
-  initialValue: false,
+  initialValue: true,
   scrollTarget,
 })
 
@@ -47,8 +53,8 @@ function getReplyIconStyle(swipe: SwipeableSlotProps) {
     ref="message"
     :class="[
       'chat-message-item relative',
-      'opacity-0 transition-opacity duration-200 ease-out motion-reduce:transition-none',
-      isVisible ? 'chat-message-item-visible opacity-100' : '',
+      'transition-opacity duration-200 ease-out motion-reduce:transition-none',
+      isVisible ? 'chat-message-item-visible opacity-100' : 'opacity-0',
       variant === 'mobile' ? 'pb-1' : 'pb-2',
     ]"
   >

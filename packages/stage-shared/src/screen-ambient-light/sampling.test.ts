@@ -1,0 +1,552 @@
+import type { AmbientLightMap, AmbientLightMapMargin } from './environment'
+
+import { describe, expect, it } from 'vitest'
+
+import {
+  ambientLightDefaults,
+  ambientLightMapSize,
+  averageAmbientLightMap,
+} from './environment'
+import {
+  ambientLightPerceptualLevel,
+  ambientLightSampleFromHex,
+  sampleScreenAmbientLight,
+  smoothAmbientLightEnvironment,
+  uniformAmbientLightEnvironment,
+} from './sampling'
+
+const samplingOptions = ambientLightDefaults.sampling
+/** Window that the positional cases share, at the center of the frame. */
+const centeredWindow = { x: 0.375, y: 0.25, width: 0.25, height: 0.5 }
+
+describe('screen ambient light sampling', () => {
+  it('counts painted, transparent, and accepted pixels in the region it reads', () => {
+    const frame = createFrame(5, 1, [100, 50, 200, 255])
+    setPixel(frame, 1, 0, [100, 50, 200, 0])
+
+    const result = sampleScreenAmbientLight(frame, {
+      // The window covers the first pixel. No mask arrives, so that pixel may
+      // hold the character and cannot be measured.
+      exclude: { x: 0, y: 0, width: 0.2, height: 1 },
+    }, samplingOptions)
+
+    // The sampler reads the window plus 1.4 window widths beside it, which is
+    // three pixels here. The last two pixels of the frame cannot reach the
+    // maps through the blur, so they are not read and not counted.
+    expect(result.diagnostics).toEqual({
+      totalPixelCount: 3,
+      excludedPixelCount: 1,
+      transparentPixelCount: 1,
+      acceptedPixelCount: 1,
+      seeThroughPixelCount: 0,
+    })
+  })
+
+  it('meters the display luminance over the whole frame outside the window', () => {
+    // The window sits over a white patch and the rest of the display is a mid
+    // gray. The maps read the window neighborhood, but the exposure meter has to
+    // read the whole display and leave the window out, or the character would
+    // meter its own pixels.
+    const frame = createFrame(64, 48, [128, 128, 128, 255])
+    fillPixels(frame, 24, 12, 16, 24, [255, 255, 255, 255])
+
+    const result = sampleScreenAmbientLight(frame, { exclude: centeredWindow }, samplingOptions)
+
+    // sRGB 128 is 0.2158 in linear light.
+    expect(result.environment.displayLuminance).toBeCloseTo(0.2158, 3)
+  })
+
+  it('keeps the metered display luminance when no pixel carries color weight', () => {
+    // ROOT CAUSE:
+    //
+    // At a neutral-color weight of 0 a gray desktop gives every pixel weight 0,
+    // so buildEnvironment reports nothing and the fallback was the whole
+    // neutral environment, whose displayLuminance is 1: a dark desktop left
+    // the model fully exposed. The fallback now keeps the metered luminance.
+    const frame = createFrame(64, 48, [64, 64, 64, 255])
+
+    const result = sampleScreenAmbientLight(frame, { exclude: centeredWindow }, { neutralColorWeight: 0 })
+
+    expect(result.diagnostics.acceptedPixelCount).toBeGreaterThan(0)
+    // sRGB 64 is 0.0513 in linear light.
+    expect(result.environment.displayLuminance).toBeCloseTo(0.0513, 3)
+  })
+
+  it('measures the same maps whatever the frame resolution is', () => {
+    // ROOT CAUSE:
+    //
+    // A blur at frame resolution cost 11 ms per capture at 256 x 192. The
+    // measurement now sums the frame onto a grid of about 24 cells per window
+    // height before it blurs, so the same scene at four times the resolution
+    // must give the same maps.
+    const coarse = createFrame(64, 48, [0, 0, 0, 255])
+    fillPixels(coarse, 8, 0, 16, 48, [255, 0, 0, 255])
+    const fine = createFrame(256, 192, [0, 0, 0, 255])
+    fillPixels(fine, 32, 0, 64, 192, [255, 0, 0, 255])
+
+    const region = { exclude: centeredWindow }
+    const fromCoarse = sampleScreenAmbientLight(coarse, region, samplingOptions).environment
+    const fromFine = sampleScreenAmbientLight(fine, region, samplingOptions).environment
+
+    for (const [windowU, windowV] of [[-0.2, 0.5], [0.5, 0.5], [1.2, 0.5], [0.5, -0.3]] as const) {
+      for (const map of ['contact', 'surround'] as const) {
+        const coarseLight = lightAt(fromCoarse[map], fromCoarse.mapMargin, windowU, windowV)
+        const fineLight = lightAt(fromFine[map], fromFine.mapMargin, windowU, windowV)
+        for (let channel = 0; channel < 3; channel += 1)
+          expect(fineLight[channel], `${map} at ${windowU}, ${windowV} channel ${channel}`).toBeCloseTo(coarseLight[channel], 1)
+      }
+    }
+    expect(fromFine.exposure).toBeCloseTo(fromCoarse.exposure, 1)
+    expect(fromFine.behindLuminance).toBeCloseTo(fromCoarse.behindLuminance, 1)
+  })
+
+  it('measures a dark desktop as a low exposure even though it has no color', () => {
+    // ROOT CAUSE:
+    //
+    // Rejecting near-black pixels before the measurement leaves a black screen
+    // with no sample at all, and the model then keeps its previous exposure. A
+    // dark desktop must dim the model, so every visible pixel reaches the maps
+    // and the exposure follows their mean.
+    const frame = createFrame(8, 6, [4, 4, 4, 255])
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: { x: 0.4, y: 0.4, width: 0.2, height: 0.2 },
+    }, samplingOptions)
+
+    expect(result.environment.exposure).toBeLessThan(0.05)
+    expect(averageAmbientLightMap(result.environment.surround)[0]).toBeLessThan(0.01)
+  })
+
+  it('puts the color of each side of the screen in the texels of that side', () => {
+    const frame = blackFrame()
+    // Red against the left edge of the window, nothing on the right.
+    fillPixels(frame, 8, 0, 16, 48, [255, 0, 0, 255])
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: centeredWindow,
+    }, samplingOptions)
+
+    const contact = result.environment.contact
+    const surround = result.environment.surround
+    const margin = result.environment.mapMargin
+    expect(lightAt(contact, margin, -0.2, 0.5)[0]).toBeGreaterThan(0.5)
+    expect(lightAt(contact, margin, 1.2, 0.5)[0]).toBeLessThan(0.01)
+    expect(lightAt(surround, margin, -0.2, 0.5)[0]).toBeGreaterThan(lightAt(surround, margin, 1.2, 0.5)[0] + 0.2)
+  })
+
+  it('keeps the lower half dark when the light beside the window sits above it', () => {
+    // ROOT CAUSE:
+    //
+    // A lookup by direction from the model center gives one color to a whole
+    // side: a red window beside the head painted a sleeve whose own desktop
+    // was black. The maps hold a screen position, so the sleeve reads the
+    // texel next to it.
+    const frame = blackFrame()
+    // Red beside the window, but only above the vertical middle of the window.
+    fillPixels(frame, 8, 0, 16, 24, [255, 0, 0, 255])
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: centeredWindow,
+    }, samplingOptions)
+
+    const contact = result.environment.contact
+    const surround = result.environment.surround
+    const margin = result.environment.mapMargin
+    expect(lightAt(contact, margin, -0.2, 0.1)[0]).toBeGreaterThan(0.5)
+    expect(lightAt(contact, margin, -0.2, 0.9)[0]).toBeLessThan(0.01)
+    // The wide blur still reaches down, but far less than at the lit height.
+    // Measured: 0.87 at the top and 0.23 at the bottom.
+    expect(lightAt(surround, margin, -0.2, 0.9)[0]).toBeLessThan(lightAt(surround, margin, -0.2, 0.1)[0] * 0.5)
+  })
+
+  it('reaches the same distance on every side of the window', () => {
+    // ROOT CAUSE:
+    //
+    // The maps reached half the window's width sideways and half its height
+    // vertically, so a 96 x 192 window gathered 17% more light above than
+    // beside. The reach is now one screen distance carried per axis, and the
+    // same measurement reads 0.962 instead of 1.170.
+    const frame = createFrame(128, 128, [4, 4, 5, 255])
+    const window = { x: 0.40625, y: 0.25, width: 0.1875, height: 0.375 }
+    const environment = sampleScreenAmbientLight(frame, {
+      exclude: window,
+    }, samplingOptions).environment
+
+    const windowWidthPixels = window.width * frame.width
+    const windowHeightPixels = window.height * frame.height
+    expect(windowWidthPixels).not.toBeCloseTo(windowHeightPixels)
+    expect(environment.mapMargin.x * windowWidthPixels)
+      .toBeCloseTo(environment.mapMargin.y * windowHeightPixels, 6)
+  })
+
+  it('moves the map mean little when a light only changes direction', () => {
+    const window = { x: 0.40625, y: 0.25, width: 0.1875, height: 0.375 }
+    const gap = 10
+    const patch = 12
+
+    function meanWithPatchAt(place: 'left' | 'above') {
+      const frame = createFrame(128, 128, [4, 4, 5, 255])
+      const left = Math.round(window.x * 128)
+      const top = Math.round(window.y * 128)
+      const width = Math.round(window.width * 128)
+      const height = Math.round(window.height * 128)
+      if (place === 'left')
+        fillPixels(frame, left - gap - patch, top + height / 2 - patch / 2, patch, patch, [255, 255, 255, 255])
+      else
+        fillPixels(frame, left + width / 2 - patch / 2, top - gap - patch, patch, patch, [255, 255, 255, 255])
+
+      const environment = sampleScreenAmbientLight(frame, {
+        exclude: window,
+      }, samplingOptions).environment
+      const [red, green, blue] = averageAmbientLightMap(environment.surround)
+      return (red + green + blue) / 3
+    }
+
+    const beside = meanWithPatchAt('left')
+    const above = meanWithPatchAt('above')
+
+    // What remains is the shape of the window itself: a tall window has a long
+    // side edge, so light beside it spreads along more of the silhouette than
+    // light above it does. The reach no longer adds to that.
+    expect(beside).toBeGreaterThan(0)
+    expect(above / beside).toBeGreaterThan(0.85)
+    expect(above / beside).toBeLessThan(1.15)
+  })
+
+  it('places the maps around what was drawn rather than around the window', () => {
+    // ROOT CAUSE:
+    //
+    // The maps sat around the AIRI window, and a wide window holding an
+    // upright character is mostly empty: on a 1200 x 400 window the character
+    // covered 5 of 24 texels across. The maps now sit around the bounds of
+    // what the renderer drew.
+    const wideWindow = { x: 0.1, y: 0.4, width: 0.8, height: 0.2 }
+    const drawn = { x: 0.46, y: 0.4, width: 0.08, height: 0.2 }
+
+    function behindLuminanceWith(subject?: typeof drawn) {
+      const frame = createFrame(128, 128, [4, 4, 5, 255])
+      // A bright patch inside the window but well away from what was drawn.
+      fillPixels(frame, 16, 52, 24, 24, [255, 255, 255, 255])
+      // Only the drawn part is painted. The rest of the window is transparent,
+      // so the patch reaches the measurement as the desktop showing through.
+      const painted = new Uint8ClampedArray(128 * 128)
+      fillMask(painted, 128, Math.round(drawn.x * 128), Math.round(drawn.y * 128), Math.round(drawn.width * 128), Math.round(drawn.height * 128), 255)
+      return sampleScreenAmbientLight(frame, {
+        exclude: wideWindow,
+        subject,
+        paintedAlpha: painted,
+      }, samplingOptions).environment.behindLuminance
+    }
+
+    const aroundWindow = behindLuminanceWith()
+    const aroundSubject = behindLuminanceWith(drawn)
+
+    // The patch is behind the window but not behind the character, so reading
+    // the subject reports far less light behind it.
+    expect(aroundWindow).toBeGreaterThan(0)
+    expect(aroundSubject).toBeLessThan(aroundWindow * 0.5)
+  })
+
+  it('falls back to the window when nothing was drawn to measure', () => {
+    const window = { x: 0.3, y: 0.3, width: 0.4, height: 0.4 }
+    const frame = createFrame(64, 64, [40, 60, 90, 255])
+    const withoutSubject = sampleScreenAmbientLight(frame, {
+      exclude: window,
+    }, samplingOptions).environment
+    const withEmptySubject = sampleScreenAmbientLight(frame, {
+      exclude: window,
+      subject: { x: 0.5, y: 0.5, width: 0, height: 0 },
+    }, samplingOptions).environment
+
+    expect(withEmptySubject.mapMargin).toEqual(withoutSubject.mapMargin)
+    expect(withEmptySubject.exposure).toBeCloseTo(withoutSubject.exposure, 6)
+  })
+
+  it('never lets the character reach the light maps', () => {
+    // ROOT CAUSE:
+    //
+    // The capture holds the AIRI window composited over the desktop, so the
+    // window rectangle holds the character too. Averaging the character back
+    // into the light that lights it compounds every frame until the color runs
+    // away. Only pixels the mask reports as unpainted may contribute.
+    const frame = createFrame(32, 32, [10, 10, 12, 255])
+    // A saturated magenta stands in for the character. Nothing else in the
+    // frame is magenta, so any trace of it in a map is feedback.
+    fillPixels(frame, 8, 8, 16, 16, [255, 0, 255, 255])
+    const painted = new Uint8ClampedArray(32 * 32)
+    fillMask(painted, 32, 8, 8, 16, 16, 255)
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+      paintedAlpha: painted,
+    }, samplingOptions)
+
+    expect(result.diagnostics.seeThroughPixelCount).toBe(0)
+    expect(result.diagnostics.excludedPixelCount).toBe(256)
+    expect(largestChannel(result.environment.contact, 0)).toBeLessThan(0.01)
+    expect(largestChannel(result.environment.contact, 2)).toBeLessThan(0.01)
+    expect(largestChannel(result.environment.surround, 0)).toBeLessThan(0.01)
+    // The hole is filled from the desktop around the window, not left at zero.
+    expect(result.environment.behindLuminance).toBeGreaterThan(0)
+    expect(result.environment.behindLuminance).toBeLessThan(0.01)
+  })
+
+  it('measures the desktop that shows through the window', () => {
+    // The maps only see beside the character where the character is painted.
+    // A window hidden behind it lights the character from behind, and the
+    // pixels that carry that light are the ones inside the window rectangle
+    // that AIRI does not paint.
+    const frame = createFrame(32, 32, [10, 10, 12, 255])
+    fillPixels(frame, 8, 8, 16, 16, [40, 200, 90, 255])
+    const painted = new Uint8ClampedArray(32 * 32)
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+      paintedAlpha: painted,
+    }, samplingOptions)
+
+    const behind = lightAt(result.environment.contact, result.environment.mapMargin, 0.5, 0.5)
+    expect(result.diagnostics.seeThroughPixelCount).toBe(256)
+    expect(result.diagnostics.excludedPixelCount).toBe(0)
+    expect(behind[1]).toBeGreaterThan(behind[0])
+    expect(behind[1]).toBeGreaterThan(behind[2])
+    expect(result.environment.behindLuminance).toBeGreaterThan(0.3)
+  })
+
+  it('survives the clone that carries it to the devtools window', () => {
+    // The diagnostics travel over a BroadcastChannel, which copies the snapshot
+    // with the structured clone algorithm. A map that used a plain array or a
+    // class instance would arrive in the devtools window as something the
+    // preview cannot draw.
+    const frame = blackFrame()
+    fillPixels(frame, 8, 0, 16, 48, [255, 0, 0, 255])
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: centeredWindow,
+    }, samplingOptions)
+    const cloned = structuredClone(result.environment)
+
+    expect(cloned.surround.data).toBeInstanceOf(Float32Array)
+    expect(cloned.surround.data).toEqual(result.environment.surround.data)
+    expect(cloned.contact.data).toEqual(result.environment.contact.data)
+    expect(cloned.behindLuminance).toBe(result.environment.behindLuminance)
+  })
+
+  it('returns the neutral environment when the window covers the whole frame', () => {
+    const frame = createFrame(4, 4, [200, 120, 40, 255])
+
+    const result = sampleScreenAmbientLight(frame, {
+      exclude: { x: 0, y: 0, width: 1, height: 1 },
+    }, samplingOptions)
+
+    const [red, green, blue] = averageAmbientLightMap(result.environment.surround)
+    expect(result.environment.exposure).toBe(0.5)
+    expect(result.environment.behindLuminance).toBe(0)
+    expect(red).toBe(green)
+    expect(green).toBe(blue)
+  })
+
+  it('reports a full exposure and a full backlight over a white screen', () => {
+    const white = sampleScreenAmbientLight(createFrame(32, 32, [255, 255, 255, 255]), {
+      exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+      paintedAlpha: new Uint8ClampedArray(32 * 32),
+    }, samplingOptions)
+    const black = sampleScreenAmbientLight(createFrame(32, 32, [0, 0, 0, 255]), {
+      exclude: { x: 0.25, y: 0.25, width: 0.5, height: 0.5 },
+      paintedAlpha: new Uint8ClampedArray(32 * 32),
+    }, samplingOptions)
+
+    expect(white.environment.exposure).toBeCloseTo(1, 2)
+    expect(white.environment.behindLuminance).toBeCloseTo(1, 2)
+    expect(black.environment.exposure).toBe(0)
+    expect(black.environment.behindLuminance).toBe(0)
+  })
+
+  it('uses elapsed time for stable smoothing', () => {
+    const previous = uniformAmbientLightEnvironment({ red: 1, green: 1, blue: 1, luminance: 1 })
+    const next = uniformAmbientLightEnvironment({ red: 0, green: 0, blue: 0, luminance: 0 })
+
+    const oneStep = smoothAmbientLightEnvironment(previous, next, 500, 500)
+    const halfStep = smoothAmbientLightEnvironment(previous, next, 250, 500)
+    const twoSteps = smoothAmbientLightEnvironment(halfStep, next, 250, 500)
+
+    expect(twoSteps.exposure).toBeCloseTo(oneStep.exposure)
+    expect(oneStep.exposure).toBeGreaterThan(0)
+    expect(oneStep.exposure).toBeLessThan(1)
+  })
+
+  it('converges on the measured environment without writing into the previous one', () => {
+    // ROOT CAUSE:
+    //
+    // The filter uploads a map only when the environment object changes. A
+    // smoothing step that wrote into the previous map would change an
+    // environment the renderer already holds, so the upload would never run
+    // again and the GPU maps would drift from the store.
+    const previous = uniformAmbientLightEnvironment({ red: 1, green: 1, blue: 1, luminance: 1 })
+    const next = uniformAmbientLightEnvironment({ red: 0, green: 0, blue: 0, luminance: 0 })
+    const previousData = Float32Array.from(previous.surround.data)
+
+    let current = smoothAmbientLightEnvironment(previous, next, 250, 500)
+    expect(current.surround.data).not.toBe(previous.surround.data)
+    expect(current.surround.data).not.toBe(next.surround.data)
+    expect(previous.surround.data).toEqual(previousData)
+
+    for (let step = 0; step < 40; step += 1)
+      current = smoothAmbientLightEnvironment(current, next, 250, 500)
+
+    expect(current.exposure).toBeCloseTo(next.exposure, 3)
+    expect(current.behindLuminance).toBeCloseTo(0, 3)
+    expect(averageAmbientLightMap(current.contact)[0]).toBeCloseTo(0, 3)
+  })
+
+  it('builds a uniform environment for a forced color', () => {
+    const environment = uniformAmbientLightEnvironment({ red: 0.5, green: 0.25, blue: 0.75, luminance: 0.34 })
+    const [red, green, blue] = averageAmbientLightMap(environment.surround)
+
+    // The sample carries sRGB channels and the maps carry linear light.
+    expect(red).toBeCloseTo(0.2140, 3)
+    expect(green).toBeCloseTo(0.0508, 3)
+    expect(blue).toBeCloseTo(0.5225, 3)
+    expect(averageAmbientLightMap(environment.contact)).toEqual([red, green, blue])
+    expect(environment.behindLuminance).toBe(0.34)
+    expect(environment.exposure).toBeGreaterThan(0.34)
+  })
+
+  it('converts a forced test color without screen capture', () => {
+    const sample = ambientLightSampleFromHex('#8040c0')
+
+    expect(sample).toBeDefined()
+    expect(sample!.red).toBeCloseTo(128 / 255)
+    expect(sample!.green).toBeCloseTo(64 / 255)
+    expect(sample!.blue).toBeCloseTo(192 / 255)
+    expect(ambientLightSampleFromHex('#8040c0ff')).toEqual(sample)
+    expect(ambientLightSampleFromHex('purple')).toBeUndefined()
+  })
+
+  it('stays inside the frame budget of one capture', () => {
+    // One measurement has to stay far below one animation frame at 20 captures
+    // per second. The budget is loose on purpose: it catches a blur whose cost
+    // grows with its radius and passes on a slow machine. An Apple M-series
+    // laptop measures 0.95 ms.
+    const frame = createFrame(128, 96, [90, 110, 140, 255])
+    fillPixels(frame, 0, 0, 40, 96, [220, 40, 40, 255])
+    const painted = new Uint8ClampedArray(128 * 96)
+    fillMask(painted, 128, 46, 25, 36, 46, 255)
+    const region = {
+      exclude: { x: 46 / 128, y: 25 / 96, width: 36 / 128, height: 46 / 96 },
+      paintedAlpha: painted,
+    }
+
+    // One warm-up call lets the engine compile the loops before the timer runs.
+    sampleScreenAmbientLight(frame, region, samplingOptions)
+    const startedAt = performance.now()
+    for (let call = 0; call < 200; call += 1)
+      sampleScreenAmbientLight(frame, region, samplingOptions)
+    const meanMs = (performance.now() - startedAt) / 200
+
+    expect(meanMs).toBeLessThan(4)
+  })
+})
+
+function blackFrame() {
+  return createFrame(64, 48, [0, 0, 0, 255])
+}
+
+/**
+ * Reads a map the way the shader does, at a position given in window
+ * coordinates: 0 is the left or top edge of the AIRI window and 1 is the right
+ * or bottom edge, so -0.2 lies beside the window and 0.5 is its center.
+ */
+function lightAt(
+  map: AmbientLightMap,
+  margin: AmbientLightMapMargin,
+  windowU: number,
+  windowV: number,
+) {
+  const column = texelIndex((windowU + margin.x) / (1 + 2 * margin.x))
+  const row = texelIndex((windowV + margin.y) / (1 + 2 * margin.y))
+  const offset = (row * ambientLightMapSize + column) * 3
+  return [map.data[offset], map.data[offset + 1], map.data[offset + 2]]
+}
+
+function texelIndex(mapCoordinate: number) {
+  return Math.min(
+    ambientLightMapSize - 1,
+    Math.max(0, Math.floor(mapCoordinate * ambientLightMapSize)),
+  )
+}
+
+function largestChannel(map: AmbientLightMap, channel: number) {
+  let largest = 0
+  for (let texel = 0; texel < map.width * map.height; texel += 1)
+    largest = Math.max(largest, map.data[texel * 3 + channel])
+
+  return largest
+}
+
+function createFrame(width: number, height: number, color: [number, number, number, number]) {
+  const data = new Uint8ClampedArray(width * height * 4)
+  for (let index = 0; index < width * height; index += 1)
+    data.set(color, index * 4)
+
+  return { data, width, height }
+}
+
+function setPixel(
+  frame: ReturnType<typeof createFrame>,
+  x: number,
+  y: number,
+  color: [number, number, number, number],
+) {
+  frame.data.set(color, (y * frame.width + x) * 4)
+}
+
+function fillPixels(
+  frame: ReturnType<typeof createFrame>,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  color: [number, number, number, number],
+) {
+  for (let currentY = y; currentY < y + height; currentY += 1) {
+    for (let currentX = x; currentX < x + width; currentX += 1)
+      setPixel(frame, currentX, currentY, color)
+  }
+}
+
+function fillMask(
+  mask: Uint8ClampedArray,
+  frameWidth: number,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  alpha: number,
+) {
+  for (let currentY = y; currentY < y + height; currentY += 1) {
+    for (let currentX = x; currentX < x + width; currentX += 1)
+      mask[currentY * frameWidth + currentX] = alpha
+  }
+}
+
+describe('ambientLightPerceptualLevel', () => {
+  it('puts a linear luminance on the same scale as the measured exposure', () => {
+    // ROOT CAUSE:
+    //
+    // behindLuminance is linear and exposure is perceptual, so comparing one
+    // against the other saw a far smaller change than the viewer: a mid-gray
+    // desktop is 0.2 in linear light and about 0.5 to the eye. Anything tuned
+    // on the exposure scale has to convert first.
+    expect(ambientLightPerceptualLevel(0.2)).toBeCloseTo(0.485, 3)
+    expect(ambientLightPerceptualLevel(0)).toBe(0)
+    // The transfer function lands a hair under 1 in floating point, and the
+    // clamp only guards the ends, so full white is close rather than exact.
+    expect(ambientLightPerceptualLevel(1)).toBeCloseTo(1, 12)
+  })
+
+  it('holds the result inside the reported range', () => {
+    expect(ambientLightPerceptualLevel(-1)).toBe(0)
+    expect(ambientLightPerceptualLevel(4)).toBe(1)
+  })
+})
