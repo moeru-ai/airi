@@ -9,7 +9,7 @@ import { createVoiceActivityPlugin } from './voice-activity-plugin'
 
 it('uses ordered VAD signals to capture, stream transcription, and submit to the accepted session', async () => {
   const source = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ open: () => source.stream }, { historyMs: 360 })
+  const audio = new AudioInput({ live: true, open: () => source.stream }, { historyMs: 360 })
   const received: number[] = []
   const submit = vi.fn(async () => ({ status: 'committed' as const, messageId: 'accepted' }))
   let sessionId = 'alice'
@@ -46,11 +46,11 @@ it('uses ordered VAD signals to capture, stream transcription, and submit to the
 
 it('rejects playback echo and opens the matched character input only after playback fades', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ open: () => frames.stream })
+  const audio = new AudioInput({ live: true, open: () => frames.stream })
   const fading = Promise.withResolvers<{ throughMs: number }>()
   const played = vi.fn()
   const fade = vi.fn(() => fading.promise)
-  const playback = new Playback({ play: () => {
+  const playback = new Playback({ nowMs: () => 0, play: () => {
     played()
     return { done: new Promise<{ throughMs: number }>(() => {}), stop: fade }
   } })

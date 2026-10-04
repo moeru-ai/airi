@@ -9,7 +9,7 @@ import { VoiceMessage } from './voice-message'
 it('retains an explicitly sent preview after failure and retries with the same session and message identity', async () => {
   const source = createPushStream<PcmBlock>()
   const submit = vi.fn<(draft: { messageId: string, sessionId: string, audio: Blob }) => Promise<{ messageId: string }>>()
-  const message = new VoiceMessage('message-1', 'alice', new AudioInput({ open: () => source.stream }), submit)
+  const message = new VoiceMessage('message-1', 'alice', new AudioInput({ live: true, open: () => source.stream }), submit)
   source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 1600 }, sampleRate: 16000, channels: [new Float32Array(1600).fill(0.25)] })
   await expect.poll(() => message.snapshot.phase).toBe('capturing')
   await message.finish()
@@ -38,7 +38,7 @@ it('retains an explicitly sent preview after failure and retries with the same s
 it('cancels a recording that is still waiting for audio without submitting or creating a preview', async () => {
   const released = vi.fn()
   const submit = vi.fn()
-  const message = new VoiceMessage('pending', 'bob', new AudioInput({ open: (signal) => {
+  const message = new VoiceMessage('pending', 'bob', new AudioInput({ live: true, open: (signal) => {
     signal.addEventListener('abort', released)
     return createPushStream<PcmBlock>().stream
   } }), submit)

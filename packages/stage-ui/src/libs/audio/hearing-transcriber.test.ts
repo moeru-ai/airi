@@ -10,7 +10,7 @@ import { createHearingTranscriber } from './hearing-transcriber'
 
 it('streams provider updates before capture ends and preserves the final response after normal finish', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ open: () => frames.stream })
+  const audio = new AudioInput({ live: true, open: () => frames.stream })
   const events = createPushStream<AIRIStreamTranscriptionDelta>()
   const final = Promise.withResolvers<string>()
   let requestSignal: AbortSignal | undefined
@@ -53,7 +53,7 @@ it('releases a late provider stream after the owning input was cancelled', async
 
 it('fails the input when final transcription rejects before its event stream closes', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ open: () => frames.stream })
+  const audio = new AudioInput({ live: true, open: () => frames.stream })
   const final = Promise.withResolvers<string>()
   const released = vi.fn()
   const transcriber = createHearingTranscriber(async () => ({ mode: 'stream', fullStream: new ReadableStream({ cancel: released }), text: final.promise, textStream: new ReadableStream<string>() }))
@@ -72,7 +72,7 @@ it('fails the input when final transcription rejects before its event stream clo
 
 it('retains a sentence correction when another sentence appends to streaming transcription', async () => {
   const frames = createPushStream<PcmBlock>()
-  const audio = new AudioInput({ open: () => frames.stream })
+  const audio = new AudioInput({ live: true, open: () => frames.stream })
   const events = createPushStream<AIRIStreamTranscriptionDelta>()
   const final = Promise.withResolvers<string>()
   const transcriber = createHearingTranscriber(async () => ({ mode: 'stream', fullStream: events.stream, text: final.promise, textStream: new ReadableStream<string>() }))

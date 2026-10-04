@@ -29,7 +29,7 @@ it('records synthesis, playback, and turn spans with the fields that timelines j
   const started = vi.fn()
   const ended = vi.fn()
   const output: SpeechOutput = {
-    playback: new Playback({ play: vi.fn() }),
+    playback: new Playback({ nowMs: () => 0, play: vi.fn() }),
     synthesize: async () => new Blob(['speech']),
     onPlaybackStart: started,
     onPlaybackEnd: ended,
@@ -63,7 +63,7 @@ it('records synthesis, playback, and turn spans with the fields that timelines j
 it('marks synthesis that is still running when the turn ends as canceled', async () => {
   const pending = Promise.withResolvers<Blob | null>()
   const trace = traceSpeechOutput({ sessionId: 'alice', turnId: 'reply' }, {
-    playback: new Playback({ play: vi.fn() }),
+    playback: new Playback({ nowMs: () => 0, play: vi.fn() }),
     synthesize: () => pending.promise,
   }, async () => ({ duration: 0 }))
   if (!('synthesize' in trace.output))

@@ -36,7 +36,10 @@ export class VoiceMessage {
     const encoding = encodeWav(this.recording.stream, { sampleRate: 16000, channels: 1 })
     // Cancellation and capture failure also reject encoding. The done handler reports those outcomes instead.
     void encoding.catch(() => {})
-    void this.recording.started.then(() => this.advance('pending', 'capturing'))
+    void this.recording.started.then((started) => {
+      if (started)
+        this.advance('pending', 'capturing')
+    })
     void this.recording.done.then(async (outcome) => {
       if (outcome.status === 'cancelled')
         return this.advance(this.current.phase, 'cancelled')

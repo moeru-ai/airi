@@ -57,8 +57,9 @@ export const useVoiceStore = defineStore('voice', () => {
     },
     submit: acceptSpeech,
     recordInterruption: async (event) => {
-      const { error, ...playback } = event.playback
-      return chat.receiveInterruption({ ...event, playback: { ...playback, ...(error ? { errorMessage: errorMessageFrom(error) } : {}) } })
+      const { groupId, played, status } = event.playback
+      const errorMessage = event.playback.status === 'failed' ? errorMessageFrom(event.playback.error) : undefined
+      return chat.receiveInterruption({ ...event, playback: { groupId, played, status, ...(errorMessage ? { errorMessage } : {}) } })
     },
     onError: event => report(event.error),
   })
