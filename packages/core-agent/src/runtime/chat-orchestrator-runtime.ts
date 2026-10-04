@@ -146,6 +146,8 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
+  /** Receives each model stream event before the orchestrator stores it. */
+  onStreamEvent?: (event: StreamEvent) => void | Promise<void>
 }
 
 interface QueuedSend {
@@ -917,6 +919,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           })
         },
         onStreamEvent: async (event: StreamEvent) => {
+          await options.onStreamEvent?.(event)
           if (shouldAbort())
             return
 

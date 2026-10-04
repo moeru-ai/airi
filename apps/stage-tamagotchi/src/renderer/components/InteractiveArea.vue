@@ -154,8 +154,9 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 
 async function handleSend() {
   // The draft stays in the composer while the setup callout is shown.
-  if (!pendingImages.value && chatReady.value)
-    await submitInterruptingResponse()
+  if (pendingImages.value || !chatReady.value)
+    return
+  await submitInterruptingResponse()
 }
 
 function sendFromKeyboard() {

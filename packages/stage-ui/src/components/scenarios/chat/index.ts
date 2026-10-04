@@ -1,3 +1,4 @@
+export { default as ChatAcpClientMark } from './components/acp-client-mark.vue'
 export { ChatActionMenu } from './components/action-menu'
 export { default as ChatAssistantItem } from './components/assistant-item.vue'
 export { default as ChatErrorItem } from './components/error-item.vue'

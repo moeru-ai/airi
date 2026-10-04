@@ -90,6 +90,7 @@ const chatReadyRef = computed(() => !!activeProviderRef.value && !!activeModelRe
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
 // The chat session store keeps messages in reactive state, so the mock does too.
 const sessionMessages = reactive<Record<string, any[]>>({})
+const sessionMetas = reactive<Record<string, object>>({})
 let currentGeneration = 1
 
 vi.mock('pinia', async () => {
@@ -176,6 +177,7 @@ vi.mock('../composables/vision/use-vision-inference', () => ({
 vi.mock('./chat/session-store', () => ({
   useChatSessionStore: () => ({
     activeSessionId: activeSessionIdRef,
+    sessionMetas,
     sessionMessages,
     ensureSession: (sessionId: string) => {
       ensureSessionMock(sessionId)
@@ -352,6 +354,9 @@ describe('chat store contract', () => {
 
     for (const key of Object.keys(sessionMessages)) {
       delete sessionMessages[key]
+    }
+    for (const key of Object.keys(sessionMetas)) {
+      delete sessionMetas[key]
     }
 
     sessionMessages['session-1'] = [{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }]

@@ -75,6 +75,7 @@ patchedDependencies:
   tab-election@4.6.2: patches/tab-election@4.6.2.patch
   uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
 catalog:
+  '@agentclientprotocol/sdk': ^1.4.0
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@alint-js/cli': ^0.6.0
   '@alint-js/plugin-js': ^0.6.0

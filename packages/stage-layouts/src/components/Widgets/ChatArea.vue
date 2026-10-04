@@ -81,8 +81,9 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  if (!pendingImages.value)
-    await submitInterruptingResponse()
+  if (pendingImages.value)
+    return
+  await submitInterruptingResponse()
 }
 
 async function handleCancelReply() {

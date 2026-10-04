@@ -257,6 +257,24 @@ describe('createChatOrchestratorRuntime', () => {
     expect(harness.stream).toHaveBeenCalledOnce()
   })
 
+  it('forwards each model stream event to the send listener', async () => {
+    const harness = createHarness()
+    const events: StreamEvent[] = []
+    await harness.runtime.submit('hello', {
+      model: 'model',
+      chatProvider: provider,
+      messageId: 'listener-1',
+      onStreamEvent: (event) => {
+        events.push(event)
+      },
+    }, 'session-1').done
+
+    expect(events).toEqual([
+      { type: 'text-delta', text: 'assistant reply' },
+      { type: 'finish' },
+    ])
+  })
+
   // https://github.com/moeru-ai/airi/issues/2738
   it('runs separate sessions concurrently while preserving each session order', async () => {
     const harness = createHarness()

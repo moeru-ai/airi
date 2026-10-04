@@ -5,6 +5,8 @@ import { BasicButton, Button, GhostButton, ScrollableArea, SwipeActionButton, Sw
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ChatAcpClientMark from './acp-client-mark.vue'
+
 /** A conversation preview prepared by the session owner for either dialog surface. */
 export interface SessionRow {
   meta: ChatSessionMeta
@@ -109,6 +111,7 @@ function deleteDesktopSession(sessionId: string) {
                 <span :class="['block truncate text-sm font-medium']">{{ row.preview }}</span>
                 <span :class="['mt-0.5 flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400']">
                   <span>{{ row.updatedAtLabel }}</span>
+                  <ChatAcpClientMark v-if="row.meta.acpClient" :status="row.meta.acpClient.status" />
                   <span
                     v-if="row.meta.cloudChatId"
                     role="img"
@@ -210,6 +213,7 @@ function deleteDesktopSession(sessionId: string) {
                     <span :class="['flex items-center gap-2 text-xs font-normal text-neutral-500 dark:text-neutral-400', props.compact ? 'mt-0.5' : 'mt-1']">
                       <span>{{ row.updatedAtLabel }}</span>
                       <span v-if="row.isActive && !props.compact" :class="['text-primary-600 dark:text-primary-300']">{{ t('stage.chat.sessions.current') }}</span>
+                      <ChatAcpClientMark v-if="row.meta.acpClient" :status="row.meta.acpClient.status" />
                       <span v-if="row.meta.cloudChatId" role="img" :aria-label="t('stage.chat.sessions.cloud-badge')" :title="t('stage.chat.sessions.cloud-badge')" :class="['i-solar:cloud-check-outline size-4 shrink-0']" />
                     </span>
                   </span>
