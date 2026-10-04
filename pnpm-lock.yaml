@@ -6520,7 +6520,7 @@ importers:
         version: 1.30.0(supports-color@10.2.2)(zod@4.4.3)
       '@moeru/eventa':
         specifier: 'catalog:'
-        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
