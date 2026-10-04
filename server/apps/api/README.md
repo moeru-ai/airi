@@ -300,8 +300,7 @@ The [request tracking ADR](../../docs/ai/adr/2026-09-27-llm-request-tracking.md)
 
 The server registry in `src/schemas/generation-protocol.ts` owns supported protocol IDs and create paths.
 Configuration, upstream routing, and gateway operations use its inferred types.
-Gateway and Langfuse names follow `<protocol>.create`: `chat-completions.create` and `responses.create`.
-This changes the old Chat trace name `chat.completion`; update saved trace filters that use it.
+Gateway operation names follow `<protocol>.create`: `chat-completions.create` and `responses.create`.
 HTTP paths and client protocol values do not change.
 
 Wire adapters live in `src/services/adapters/llm/`. Each adapter owns request headers, serialization, and provider capabilities.
