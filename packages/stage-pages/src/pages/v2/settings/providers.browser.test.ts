@@ -107,4 +107,46 @@ describe('v2 providers catalog availability (Issue #2559)', () => {
     await expect.poll(() => useProviderConfigStore(pinia).getProvider(provider.id)?.displayName, { timeout: 8000 }).toBe('My OpenAI')
     await expect.element(screen.getByText('My OpenAI', { exact: true })).toBeInTheDocument()
   })
+
+  // https://github.com/moeru-ai/airi/pull/2590#discussion_r4175042615
+  // ROOT CAUSE:
+  //
+  // The display-name debounce saved the complete edit draft before credential validation finished.
+  // This let a name change persist invalid credentials with the previous configured status.
+  // We now save the name with the persisted configuration and status.
+  it('keeps edited credentials pending when the provider is renamed before validation', async () => {
+    const provider = {
+      id: 'provider-display-name-validation',
+      definitionId: 'openai-compatible',
+      displayName: 'OpenAI Compatible',
+      config: { apiKey: 'existing-valid-key', baseUrl: 'https://example.com/v1' },
+      status: 'configured',
+      configuredBy: 'user',
+    }
+    localStorage.setItem('settings/providers/configured', JSON.stringify({ [provider.id]: provider }))
+    localStorage.setItem('settings/providers/added', JSON.stringify({ [provider.id]: true }))
+
+    const router = createRouter({
+      history: createMemoryHistory(),
+      routes: [{ path: '/v2/settings/providers/edit/:providerId', component: ProviderEditPage }],
+    })
+    await router.push(`/v2/settings/providers/edit/${provider.id}`)
+
+    const screen = await render(ProviderEditPage, {
+      global: {
+        plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+        directives: { autoAnimate: {}, motion: {} },
+      },
+    })
+    const apiKeyInput = screen.getByRole('textbox', { name: /API key/i })
+    const displayNameInput = screen.getByRole('textbox', { name: /display name/i })
+
+    await apiKeyInput.fill('invalid-edited-key')
+    await displayNameInput.fill('Renamed OpenAI')
+
+    const providerStore = useProviderConfigStore(pinia)
+    await expect.poll(() => providerStore.getProvider(provider.id)?.displayName, { timeout: 1200 }).toBe('Renamed OpenAI')
+    expect(providerStore.getProviderConfig(provider.id)?.apiKey).toBe('existing-valid-key')
+    expect(providerStore.getProvider(provider.id)?.status).toBe('configured')
+  })
 })
