@@ -42,6 +42,8 @@ dialogs:
     loginPrompt: 登录并使用 AIRI 官方提供的服务以获得最佳体验。
     loginAction: 登录
     setupWithoutSigningIn: 配置您自己的 AI 服务来源
+    pricingLink: 价格
+    termsLink: 服务条款
     flux: Flux 电量
     buyFlux: 补充 Flux 电量
     select-model: 选择模型
@@ -953,6 +955,8 @@ pages:
     buy: 充值
     currency: 币种
     description: 充值 Flux
+    terms: 使用条款
+    privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
       success: 谢谢你！你的 Flux 通量已经更新好啦～

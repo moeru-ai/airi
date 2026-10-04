@@ -28,36 +28,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
 
 <template>
   <div flex items-center gap-2>
-    <!-- Non-authenticated: Settings & Sign in -->
-    <!-- NOTICE: The avatar is stored in the localstorage, it will be shown at the first time of the page load, so we do not need the skeleton loading here -->
-    <template v-if="!isAuthenticated">
-      <RouterLink
-        v-if="!compact"
-        border="2 solid neutral-100/60 dark:neutral-800/30"
-        bg="neutral-50/70 dark:neutral-800/70"
-        w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        title="Settings"
-        to="/settings"
-      >
-        <div i-solar:settings-minimalistic-bold-duotone size-5 text="neutral-500 dark:neutral-400" />
-      </RouterLink>
-
-      <button
-        :class="compact ? ['min-h-11 min-w-11 focus-visible:outline-2 focus-visible:outline-primary-500'] : undefined"
-        border="2 solid neutral-100/60 dark:neutral-800/30"
-        bg="neutral-50/70 dark:neutral-800/70"
-        w-fit flex items-center justify-center rounded-xl p-2 backdrop-blur-md
-        title="Sign in"
-        type="button"
-        @click="authStore.needsLogin = true"
-      >
-        <div i-solar:user-bold-duotone />
-      </button>
-    </template>
-
-    <!-- Authenticated: Avatar Dropdown -->
     <DropdownMenu
-      v-else
       align="end"
       :content-class="['w-60']"
       variant="blurry"
@@ -77,15 +48,25 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           ]"
         >
           <Avatar
+            v-if="isAuthenticated"
             :src="userAvatar"
             :class="[
               'h-7 w-7 rounded-full',
               'bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-400',
             ]"
           />
+          <span
+            v-else
+            :class="[
+              'size-7 flex items-center justify-center rounded-full',
+              'bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-300',
+            ]"
+          >
+            <span :class="['i-solar:user-bold-duotone size-4']" aria-hidden="true" />
+          </span>
 
           <span
-            v-if="userName && !compact"
+            v-if="isAuthenticated && userName && !compact"
             :class="[
               'max-w-[100px] hidden truncate text-sm font-medium sm:block',
               'text-neutral-700 dark:text-neutral-200',
@@ -104,82 +85,133 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
         </button>
       </template>
 
-      <div class="px-3 py-2">
-        <p class="text-xs text-neutral-500 dark:text-neutral-400">
-          Signed in as
-        </p>
-        <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
-          {{ userName }}
-        </p>
-        <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
-          <div class="i-solar:battery-charge-bold-duotone text-sm" />
-          <span>{{ formattedCredits }} Flux</span>
+      <template v-if="isAuthenticated">
+        <div class="px-3 py-2">
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            Signed in as
+          </p>
+          <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
+            {{ userName }}
+          </p>
+          <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
+            <div class="i-solar:battery-charge-bold-duotone text-sm" />
+            <span>{{ formattedCredits }} Flux</span>
+          </div>
         </div>
-      </div>
 
-      <DropdownMenuSeparator :class="['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
+        <DropdownMenuSeparator :class="['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
 
-      <DropdownMenuItem as-child>
-        <RouterLink
-          to="/settings/account"
-          :class="[
-            'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
-            'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-            'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-            'transition-colors duration-150 ease-in-out',
-          ]"
-        >
-          <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-          Profile
-        </RouterLink>
-      </DropdownMenuItem>
+        <DropdownMenuItem as-child>
+          <RouterLink
+            to="/settings/account"
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+          >
+            <div class="i-solar:user-id-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+            Profile
+          </RouterLink>
+        </DropdownMenuItem>
 
-      <DropdownMenuItem as-child>
-        <RouterLink
-          to="/settings/flux"
-          :class="[
-            'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
-            'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-            'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-            'transition-colors duration-150 ease-in-out',
-          ]"
-        >
-          <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-          Flux
-        </RouterLink>
-      </DropdownMenuItem>
+        <DropdownMenuItem as-child>
+          <RouterLink
+            to="/settings/flux"
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+          >
+            <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+            Flux
+          </RouterLink>
+        </DropdownMenuItem>
 
-      <DropdownMenuItem as-child>
-        <RouterLink
-          to="/settings"
-          :class="[
-            'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
-            'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
-            'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-            'transition-colors duration-150 ease-in-out',
-          ]"
-        >
-          <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
-          Settings
-        </RouterLink>
-      </DropdownMenuItem>
+        <DropdownMenuItem as-child>
+          <RouterLink
+            to="/settings"
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+          >
+            <div class="i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+            Settings
+          </RouterLink>
+        </DropdownMenuItem>
 
-      <DropdownMenuSeparator :class="['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
+        <DropdownMenuSeparator :class="['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
 
-      <DropdownMenuItem as-child>
-        <button
-          :class="[
-            'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
-            'text-sm leading-none outline-none text-red-600 dark:text-red-400',
-            'data-[highlighted]:bg-red-50 dark:data-[highlighted]:bg-red-900/20',
-            'transition-colors duration-150 ease-in-out',
-          ]"
-          @click="signOut"
-        >
-          <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
-          Sign out
-        </button>
-      </DropdownMenuItem>
+        <DropdownMenuItem as-child>
+          <button
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-red-600 dark:text-red-400',
+              'data-[highlighted]:bg-red-50 dark:data-[highlighted]:bg-red-900/20',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+            @click="signOut"
+          >
+            <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
+            Sign out
+          </button>
+        </DropdownMenuItem>
+      </template>
+
+      <template v-else>
+        <DropdownMenuItem as-child>
+          <button
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+            @click="authStore.requestLogin()"
+          >
+            <span :class="['i-solar:login-3-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500']" aria-hidden="true" />
+            {{ t('stage.mobile-tools.sign-in') }}
+          </button>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator :class="['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']" />
+
+        <DropdownMenuItem as-child>
+          <RouterLink
+            to="/settings/flux"
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+          >
+            <span :class="['i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500']" aria-hidden="true" />
+            {{ t('settings.pages.flux.title') }}
+          </RouterLink>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem as-child>
+          <RouterLink
+            to="/settings"
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+          >
+            <span :class="['i-solar:settings-minimalistic-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500']" aria-hidden="true" />
+            {{ t('settings.title') }}
+          </RouterLink>
+        </DropdownMenuItem>
+      </template>
     </DropdownMenu>
   </div>
 </template>

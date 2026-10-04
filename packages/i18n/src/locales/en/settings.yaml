@@ -50,6 +50,8 @@ dialogs:
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
     setupWithoutSigningIn: Setup with your provider
+    pricingLink: Pricing
+    termsLink: Terms of Service
     flux: Flux
     buyFlux: Charge Flux
     select-model: Choose model
@@ -1008,6 +1010,8 @@ pages:
     buy: Charge
     currency: Currency
     description: Current Flux
+    terms: Terms
+    privacy: Privacy Policy
     packagesError: Failed to load packages. Please try again later.
     checkout:
       success: Payment successful! Your Flux has been topped up.

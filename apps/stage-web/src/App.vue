@@ -183,6 +183,9 @@ function continueWithoutModel() {
 }
 
 function openOnboardingAfterStartup() {
+  if (router.currentRoute.value.meta.onboarding === false)
+    return
+
   if (onboardingStore.needsOnboarding) {
     startupOnboarding.value = true
     onboardingStore.showingSetup = true
