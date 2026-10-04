@@ -7,7 +7,7 @@ import { createI18n } from 'vue-i18n'
 
 import StepWelcome from './step-welcome.vue'
 
-import { AIRI_PRICING_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
+import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
 
 afterEach(() => vi.unstubAllEnvs())
@@ -97,7 +97,7 @@ describe('onboarding public links', () => {
   it('links to public pricing and terms without requiring sign-in', async () => {
     const screen = await renderWelcomeStep(true)
 
-    await expect.element(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', AIRI_PRICING_URL)
+    await expect.element(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', AIRI_FLUX_URL)
     await expect.element(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', AIRI_TERMS_URL)
   })
 })

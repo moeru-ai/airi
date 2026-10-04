@@ -5,11 +5,12 @@ import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shar
 import { FluxPricing } from '@proj-airi/stage-ui/components'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -17,7 +18,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { credits } = storeToRefs(authStore)
+const { credits, isAuthenticated } = storeToRefs(authStore)
 const {
   trackPaywallSeen,
   trackQuotaLimitReached,
@@ -216,10 +217,23 @@ const groupedRows = computed<GroupedRow[]>(() => {
   return rows
 })
 
-onMounted(async () => {
-  const creditsRefresh = authStore.updateCredits()
-  void Promise.allSettled([fetchStats(), fetchAuditHistory()])
+watch(isAuthenticated, (authenticated) => {
+  if (!authenticated) {
+    capacity.value = 0
+    auditRecords.value = []
+    auditOffset.value = 0
+    auditHasMore.value = false
+    return
+  }
 
+  void Promise.allSettled([
+    authStore.updateCredits(),
+    fetchStats(),
+    fetchAuditHistory(),
+  ])
+}, { immediate: true })
+
+onMounted(() => {
   if (route.query.success === 'true') {
     message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
     router.replace({ query: {} })
@@ -228,8 +242,6 @@ onMounted(async () => {
     message.value = { type: 'error', text: t('settings.pages.flux.checkout.canceled') }
     router.replace({ query: {} })
   }
-
-  await creditsRefresh.catch(() => undefined)
 
   if (!fluxPurchaseDisabled) {
     trackPaywallSeen({
@@ -263,7 +275,7 @@ onMounted(async () => {
     </div>
 
     <!-- Battery Card -->
-    <div relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
+    <div v-if="isAuthenticated" relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
       <!-- Background Progress -->
       <div
         class="flux-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
@@ -285,8 +297,23 @@ onMounted(async () => {
 
     <FluxPricing v-if="!fluxPurchaseDisabled" entry-surface="settings_flux" />
 
+    <div
+      v-if="!isAuthenticated"
+      :class="['flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-neutral-500 dark:text-neutral-400']"
+    >
+      <a :href="AIRI_TERMS_URL" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
+        {{ t('settings.pages.pricing.terms') }}
+      </a>
+      <a :href="AIRI_PRIVACY_URL" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
+        {{ t('settings.pages.pricing.privacy') }}
+      </a>
+      <a href="mailto:airi@moeru.ai" :class="['underline-offset-4 hover:underline']">
+        airi@moeru.ai
+      </a>
+    </div>
+
     <!-- Audit History -->
-    <div flex="~ col gap-3">
+    <div v-if="isAuthenticated" flex="~ col gap-3">
       <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
         <h3 text-lg font-semibold>
           {{ t('settings.pages.flux.audit.title') }}
@@ -540,6 +567,7 @@ onMounted(async () => {
 <route lang="yaml">
 meta:
   layout: settings
+  onboarding: false
   titleKey: settings.pages.flux.title
   icon: i-solar:battery-charge-bold-duotone
 </route>

@@ -37,7 +37,6 @@ interface FluxPackage {
 
 const packages = ref<FluxPackage[]>([])
 const selectedCurrency = ref('usd')
-const selectedPriceId = ref<string | null>(null)
 const loading = ref(true)
 const loadingPriceId = ref<string | null>(null)
 const errorMessage = ref<string | null>(null)
@@ -50,10 +49,6 @@ const currencyOptions = computed(() => {
   return Object.keys(firstPackage.currencies)
     .filter(currency => packages.value.every(pkg => currency in pkg.currencies))
     .map(currency => ({ label: currency.toUpperCase(), value: currency }))
-})
-
-const selectedPackage = computed(() => {
-  return packages.value.find(pkg => pkg.stripePriceId === selectedPriceId.value) ?? null
 })
 
 function packagePrice(pkg: FluxPackage): string {
@@ -73,10 +68,8 @@ async function fetchPackages() {
 
     const data = await response.json() as FluxPackage[]
     packages.value = data
-    if (data.length > 0) {
+    if (data.length > 0)
       selectedCurrency.value = data[0].defaultCurrency
-      selectedPriceId.value = data.find(pkg => pkg.recommended)?.stripePriceId ?? data[0].stripePriceId
-    }
   }
   catch {
     errorMessage.value = t('settings.pages.flux.packagesError')
@@ -178,86 +171,53 @@ onMounted(() => {
       />
     </div>
 
-    <div v-else-if="packages.length > 0" :class="['flex flex-col gap-6']">
-      <div
-        role="radiogroup"
-        :aria-label="t('settings.pages.flux.packages.title')"
-        :class="['grid grid-cols-1 gap-3 sm:grid-cols-3']"
-      >
-        <button
-          v-for="pkg in packages"
-          :key="pkg.stripePriceId"
-          type="button"
-          role="radio"
-          :aria-checked="selectedPriceId === pkg.stripePriceId"
-          :class="[
-            'relative min-h-28 overflow-hidden rounded-xl border p-4 text-left',
-            'bg-white transition-[border-color,background-color,box-shadow,transform] duration-200 ease-out',
-            'focus-visible:outline-2 focus-visible:outline-primary-400 focus-visible:outline-offset-2',
-            'active:scale-[0.99] dark:bg-neutral-900',
-            selectedPriceId === pkg.stripePriceId
-              ? 'border-primary-400 bg-primary-50/60 shadow-sm dark:border-primary-500 dark:bg-primary-950/20'
-              : 'border-neutral-200 hover:border-primary-300 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:border-primary-700 dark:hover:bg-neutral-800/70',
-          ]"
-          @click="selectedPriceId = pkg.stripePriceId"
-        >
-          <div
-            v-if="pkg.recommended"
-            :class="[
-              'absolute right-3 top-3 flex items-center gap-1 text-[10px] text-primary-600 font-semibold uppercase dark:text-primary-300',
-            ]"
-          >
-            <span :class="['i-solar:star-fall-bold-duotone size-3']" aria-hidden="true" />
-            {{ t('settings.pages.flux.packages.recommended') }}
-          </div>
-
-          <div :class="['flex flex-col']">
-            <h2 :class="['text-sm text-neutral-600 font-medium dark:text-neutral-300']">
-              {{ pkg.label }}
-            </h2>
-            <p :class="['mt-2 text-2xl text-neutral-900 font-bold tracking-tight tabular-nums dark:text-neutral-50']">
-              {{ packagePrice(pkg) }}
-            </p>
-            <p :class="['mt-1 text-xs text-neutral-500 dark:text-neutral-400']">
-              {{ t('settings.pages.flux.packages.oneTime') }}
-            </p>
-          </div>
-          <span
-            :class="[
-              'absolute bottom-3 right-3 size-5 flex items-center justify-center rounded-full border',
-              selectedPriceId === pkg.stripePriceId
-                ? 'border-primary-500 bg-primary-500 text-white'
-                : 'border-neutral-300 text-transparent dark:border-neutral-700',
-            ]"
-            aria-hidden="true"
-          >
-            <span :class="['i-solar:check-linear size-3.5']" />
-          </span>
-        </button>
-      </div>
-
-      <div
-        v-if="selectedPackage"
+    <div v-else-if="packages.length > 0" :class="['grid grid-cols-1 gap-4 sm:grid-cols-3']">
+      <article
+        v-for="pkg in packages"
+        :key="pkg.stripePriceId"
         :class="[
-          'flex flex-col gap-3 border-t border-neutral-200 pt-5',
-          'sm:flex-row sm:items-center sm:justify-between dark:border-neutral-800',
+          'relative flex min-h-56 flex-col overflow-hidden rounded-2xl border-2 p-6',
+          'bg-white shadow-sm transition-all duration-300 ease-out dark:bg-neutral-900',
+          pkg.recommended
+            ? 'border-primary-400 dark:border-primary-500'
+            : 'border-neutral-200 hover:border-primary-300 hover:bg-neutral-50 dark:border-neutral-800 dark:hover:border-primary-700 dark:hover:bg-neutral-800/70',
         ]"
       >
-        <p :class="['text-sm text-neutral-600 dark:text-neutral-300']">
-          {{ t('settings.pages.flux.packages.selected', { package: selectedPackage.label, price: packagePrice(selectedPackage) }) }}
-        </p>
-        <Button
-          :aria-label="t('settings.pages.flux.packages.packageAction', { action: isAuthenticated ? t('settings.pages.flux.packages.buy') : t('settings.pages.flux.packages.signInToBuy'), package: selectedPackage.label, price: packagePrice(selectedPackage) })"
-          :class="['w-full sm:w-auto sm:min-w-48']"
-          color="primary"
-          variant="primary"
-          :disabled="loadingPriceId !== null"
-          :loading="loadingPriceId === selectedPackage.stripePriceId"
-          @click="handlePackage(selectedPackage)"
+        <div
+          v-if="pkg.recommended"
+          :class="[
+            'absolute right-0 top-0 flex items-center gap-1 rounded-bl-xl px-2.5 py-1',
+            'bg-primary-500 text-[10px] text-white font-bold tracking-wider uppercase shadow-sm',
+          ]"
         >
-          {{ t(isAuthenticated ? 'settings.pages.flux.packages.buySelected' : 'settings.pages.flux.packages.signInToContinue') }}
-        </Button>
-      </div>
+          <span :class="['i-solar:star-fall-bold-duotone size-3']" aria-hidden="true" />
+          {{ t('settings.pages.flux.packages.recommended') }}
+        </div>
+
+        <div :class="['flex flex-1 flex-col']">
+          <h2 :class="['text-sm text-neutral-600 font-medium dark:text-neutral-300']">
+            {{ pkg.label }}
+          </h2>
+          <p :class="['mt-3 text-3xl text-neutral-900 font-bold tracking-tight dark:text-neutral-50']">
+            {{ packagePrice(pkg) }}
+          </p>
+          <p :class="['mt-2 text-sm text-neutral-500 dark:text-neutral-400']">
+            {{ t('settings.pages.flux.packages.oneTime') }}
+          </p>
+
+          <Button
+            :aria-label="t('settings.pages.flux.packages.packageAction', { action: t('settings.pages.flux.packages.buy'), package: pkg.label, price: packagePrice(pkg) })"
+            :class="['mt-6 w-full']"
+            color="primary"
+            variant="primary"
+            :disabled="loadingPriceId !== null"
+            :loading="loadingPriceId === pkg.stripePriceId"
+            @click="handlePackage(pkg)"
+          >
+            {{ t('settings.pages.flux.packages.buy') }}
+          </Button>
+        </div>
+      </article>
     </div>
 
     <p v-else-if="!errorMessage" :class="['py-8 text-center text-sm text-neutral-500 dark:text-neutral-400']">

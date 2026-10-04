@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n'
 
 import FluxPricing from './flux-pricing.vue'
 
+import { useAuthStore } from '../../../stores/auth'
+
 import 'virtual:uno.css'
 
 function createTestI18n() {
@@ -21,12 +23,8 @@ function createTestI18n() {
               packages: {
                 title: 'Flux Packages',
                 buy: 'Buy',
-                buySelected: 'Continue to checkout',
-                signInToBuy: 'Sign in to buy',
-                signInToContinue: 'Sign in to continue',
                 oneTime: 'One-time purchase',
                 recommended: 'Recommended',
-                selected: '{package} selected · {price}',
                 empty: 'No packages are available.',
                 packageAction: '{action} {package} for {price}',
               },
@@ -67,22 +65,21 @@ describe('flux pricing', () => {
       ])
     })
 
+    const pinia = createPinia()
+    const requestLogin = vi.spyOn(useAuthStore(pinia), 'requestLogin').mockResolvedValue()
     const screen = await render(FluxPricing, {
       props: { entrySurface: 'public_pricing' },
-      global: { plugins: [createPinia(), createTestI18n()] },
+      global: { plugins: [pinia, createTestI18n()] },
     })
 
     await expect.element(screen.getByRole('heading', { name: '500 Flux' })).toBeVisible()
     await expect.element(screen.getByText('$5.00', { exact: true })).toBeVisible()
     expect(screen.getByText('One-time purchase', { exact: true }).elements()).toHaveLength(2)
-    await expect.element(screen.getByRole('radio', { name: /2000 Flux/ })).toHaveAttribute('aria-checked', 'true')
-    await expect.element(screen.getByRole('button', { name: 'Sign in to buy 2000 Flux for $12.00' })).toBeVisible()
-    await expect.element(screen.getByText('Sign in to continue', { exact: true })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Buy 500 Flux for $5.00' })).toBeVisible()
+    await expect.element(screen.getByRole('button', { name: 'Buy 2000 Flux for $12.00' })).toBeVisible()
 
-    await screen.getByRole('radio', { name: /500 Flux/ }).click()
+    await screen.getByRole('button', { name: 'Buy 500 Flux for $5.00' }).click()
 
-    await expect.element(screen.getByRole('radio', { name: /500 Flux/ })).toHaveAttribute('aria-checked', 'true')
-    await expect.element(screen.getByRole('button', { name: 'Sign in to buy 500 Flux for $5.00' })).toBeVisible()
-    expect(screen.getByText('Sign in to continue', { exact: true }).elements()).toHaveLength(1)
+    expect(requestLogin).toHaveBeenCalledOnce()
   })
 })

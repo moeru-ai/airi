@@ -978,13 +978,9 @@ pages:
     packages:
       title: Flux 电池包
       buy: 充值
-      buySelected: 继续结账
-      signInToBuy: 登录后购买
-      signInToContinue: 登录后继续
       description: 可以选择购入的 Flux 电池包
       oneTime: 一次性购买
       recommended: 推荐
-      selected: 已选择 {package} · {price}
       empty: 暂无可购买的 Flux 电池包。
       packageAction: '{action}{package}，价格为 {price}'
   pricing:

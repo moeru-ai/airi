@@ -1033,13 +1033,9 @@ pages:
     packages:
       title: Flux Packages
       buy: Charge
-      buySelected: Continue to checkout
-      signInToBuy: Sign in to buy
-      signInToContinue: Sign in to continue
       description: Flux packages to choose from.
       oneTime: One-time purchase
       recommended: Recommended
-      selected: '{package} selected · {price}'
       empty: No Flux packages are available.
       packageAction: '{action} {package} for {price}'
   pricing:
