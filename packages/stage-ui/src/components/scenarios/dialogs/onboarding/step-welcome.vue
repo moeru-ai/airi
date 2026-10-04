@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
+import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
 import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
@@ -113,7 +114,7 @@ function handleLocalSetup() {
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
     </div>
-    <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row', 'm-2']">
+    <div :class="['mx-2 mt-2 flex flex-col gap-3 md:flex-row']">
       <Button
         v-motion="{
           initial: { opacity: 0 },
@@ -139,6 +140,37 @@ function handleLocalSetup() {
         :class="['flex-1']"
         @click="handleLocalSetup"
       />
+    </div>
+    <div
+      v-motion="{
+        initial: { opacity: 0 },
+        enter: { opacity: 1 },
+        duration: 500,
+        delay: 300,
+      }"
+      :class="[
+        'mx-2 mb-1 mt-5 border-t border-neutral-200/70 pt-3',
+        'flex items-center justify-center gap-2',
+        'text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400',
+      ]"
+    >
+      <a
+        :href="AIRI_FLUX_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        :class="['underline-offset-4 transition-colors hover:text-neutral-700 hover:underline dark:hover:text-neutral-200']"
+      >
+        {{ t('settings.dialogs.onboarding.pricingLink') }}
+      </a>
+      <span aria-hidden="true">·</span>
+      <a
+        :href="AIRI_TERMS_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        :class="['underline-offset-4 transition-colors hover:text-neutral-700 hover:underline dark:hover:text-neutral-200']"
+      >
+        {{ t('settings.dialogs.onboarding.termsLink') }}
+      </a>
     </div>
   </div>
 </template>

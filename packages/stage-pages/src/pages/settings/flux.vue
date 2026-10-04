@@ -4,11 +4,12 @@ import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-anal
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
+import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, SelectTab } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -16,7 +17,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
-const { credits } = storeToRefs(authStore)
+const { credits, isAuthenticated } = storeToRefs(authStore)
 const {
   trackCheckoutStarted,
   trackPaywallSeen,
@@ -32,8 +33,12 @@ const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 // the app never receives the success_url redirect that web/mobile use to refresh.
 // Re-pull the FLUX balance whenever the window regains focus; the balance source
 // of truth is the server (credited by the Stripe webhook).
-if (isStageTamagotchi())
-  useEventListener(window, 'focus', () => authStore.updateCredits())
+if (isStageTamagotchi()) {
+  useEventListener(window, 'focus', () => {
+    if (isAuthenticated.value)
+      authStore.updateCredits()
+  })
+}
 
 interface FluxPackage {
   stripePriceId: string
@@ -267,9 +272,34 @@ function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
   message.value = { type, text }
 }
 
-onMounted(async () => {
-  const creditsRefresh = authStore.updateCredits()
-  void Promise.allSettled([fetchStats(), fetchAuditHistory(), ...(fluxPurchaseDisabled ? [] : [fetchPackages()])])
+watch(isAuthenticated, async (authenticated) => {
+  if (!authenticated) {
+    capacity.value = 0
+    auditRecords.value = []
+    auditHasMore.value = false
+    auditOffset.value = 0
+    return
+  }
+
+  await Promise.allSettled([
+    authStore.updateCredits(),
+    fetchStats(),
+    fetchAuditHistory(),
+  ])
+
+  if (!fluxPurchaseDisabled && credits.value <= 0) {
+    trackQuotaLimitReached({
+      limit_type: 'flux',
+      current_usage: credits.value,
+      limit_value: capacity.value > 0 ? capacity.value : undefined,
+      entry: 'pricing',
+    })
+  }
+}, { immediate: true })
+
+onMounted(() => {
+  if (!fluxPurchaseDisabled)
+    void fetchPackages()
 
   if (route.query.success === 'true') {
     showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
@@ -280,12 +310,6 @@ onMounted(async () => {
     router.replace({ query: {} })
   }
 
-  await creditsRefresh.catch(() => undefined)
-
-  // OpenPanel funnel step 1: pricing surface view. Today this is an in-app
-  // settings page (already-authenticated users); when we add a public
-  // pricing landing page the entry-surface label changes but the event stays the
-  // same, so the funnel definition in OpenPanel doesn't need re-wiring.
   if (!fluxPurchaseDisabled) {
     trackPaywallSeen({
       entry_surface: 'settings_flux',
@@ -293,21 +317,10 @@ onMounted(async () => {
       flux_balance_bucket: fluxBalanceBucket(credits.value),
     })
     trackPricingViewed('settings_flux', 'one_time')
-    if (credits.value <= 0) {
-      trackQuotaLimitReached({
-        limit_type: 'flux',
-        current_usage: credits.value,
-        limit_value: capacity.value > 0 ? capacity.value : undefined,
-        entry: 'pricing',
-      })
-    }
   }
 })
 
 async function handleBuy(stripePriceId: string) {
-  loadingPriceId.value = stripePriceId
-  checkoutReturnMessageActive.value = false
-  message.value = null
   // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
   // the Stripe webhook (server-side `payment_completed`); we deliberately
   // don't send a formatted-string price from the SPA so funnels don't get
@@ -321,6 +334,15 @@ async function handleBuy(stripePriceId: string) {
     currency: selectedCurrency.value,
     entry_surface: 'settings_flux',
   })
+
+  if (!isAuthenticated.value) {
+    await authStore.requestLogin()
+    return
+  }
+
+  loadingPriceId.value = stripePriceId
+  checkoutReturnMessageActive.value = false
+  message.value = null
   try {
     const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
     if (!res.ok) {
@@ -369,7 +391,7 @@ async function handleBuy(stripePriceId: string) {
     </div>
 
     <!-- Battery Card -->
-    <div relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
+    <div v-if="isAuthenticated" relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
       <!-- Background Progress -->
       <div
         class="flux-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
@@ -454,7 +476,7 @@ async function handleBuy(stripePriceId: string) {
     </div>
 
     <!-- Audit History -->
-    <div flex="~ col gap-3">
+    <div v-if="isAuthenticated" flex="~ col gap-3">
       <div flex="~ col sm:flex-row sm:items-baseline gap-1 sm:gap-2">
         <h3 text-lg font-semibold>
           {{ t('settings.pages.flux.audit.title') }}
@@ -684,6 +706,18 @@ async function handleBuy(stripePriceId: string) {
         />
       </div>
     </div>
+
+    <div v-if="!isAuthenticated" flex="~ items-center justify-center gap-5" text="xs neutral-500">
+      <a :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer" hover:text-primary-500>
+        {{ t('settings.pages.flux.terms') }}
+      </a>
+      <a :href="AIRI_PRIVACY_URL" target="_blank" rel="noreferrer" hover:text-primary-500>
+        {{ t('settings.pages.flux.privacy') }}
+      </a>
+      <a href="mailto:airi@moeru.ai" hover:text-primary-500>
+        airi@moeru.ai
+      </a>
+    </div>
   </div>
 </template>
 
@@ -708,6 +742,7 @@ async function handleBuy(stripePriceId: string) {
 <route lang="yaml">
 meta:
   layout: settings
+  onboarding: false
   titleKey: settings.pages.flux.title
   icon: i-solar:battery-charge-bold-duotone
 </route>
