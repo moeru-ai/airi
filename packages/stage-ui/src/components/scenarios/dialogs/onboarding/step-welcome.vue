@@ -153,7 +153,7 @@ function handleLocalSetup() {
       :class="[
         'mx-2 mb-1 mt-8 md:mt-10',
         'flex items-center justify-center gap-3',
-        'text-xs text-neutral-400 dark:text-neutral-500',
+        'text-xs text-neutral-500 dark:text-neutral-500',
       ]"
     >
       <a
