@@ -105,9 +105,9 @@ function planName(entitlementId: string | undefined): string {
 
 const quotaPercentage = computed(() => {
   const allowance = currentAllowance.value
-  if (!allowance || allowance.grantedAmount <= 0)
+  if (!allowance || allowance.grantedCredit <= 0)
     return 0
-  return Math.min(100, Math.round((allowance.remainingAmount / allowance.grantedAmount) * 100))
+  return Math.min(100, Math.round((allowance.remainingCredit / allowance.grantedCredit) * 100))
 })
 
 function formatDate(iso: string | null): string {
@@ -217,7 +217,7 @@ async function handleSubscribe(packageId: string) {
             {{ planName(currentSubscription?.entitlementId) }}
           </h2>
           <p v-if="currentAllowance" text="sm neutral-500">
-            {{ t('settings.pages.plan.creditsRemaining', { remaining: formatNumber(currentAllowance.remainingAmount), total: formatNumber(currentAllowance.grantedAmount) }) }}
+            {{ t('settings.pages.plan.creditsRemaining', { remaining: formatNumber(currentAllowance.remainingCredit), total: formatNumber(currentAllowance.grantedCredit) }) }}
           </p>
           <p v-else text="sm neutral-500">
             {{ t('settings.pages.plan.description') }}

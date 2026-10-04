@@ -20,9 +20,9 @@ export interface PlanAllowance {
   entitlementId: string
   periodStart: string
   periodEnd: string | null
-  grantedAmount: number
-  usedAmount: number
-  remainingAmount: number
+  grantedCredit: number
+  usedCredit: number
+  remainingCredit: number
 }
 
 export type PlanBillingPeriod = 'month' | 'year'

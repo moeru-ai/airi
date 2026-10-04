@@ -25,8 +25,8 @@ const starterPacks: ConfigDefinitions['REVENUECAT_FLUX_PACKS'] = {
 }
 
 const starterPlans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] = {
-  rc_go_monthly: { entitlementId: 'airi_go', quotaAmount: 2000 },
-  rc_plus_monthly: { entitlementId: 'airi_plus', quotaAmount: 5000 },
+  rc_go_monthly: { entitlementId: 'airi_go', quotaCredit: 2000 },
+  rc_plus_monthly: { entitlementId: 'airi_plus', quotaCredit: 5000 },
 }
 
 function createPacksConfigKV(
@@ -199,7 +199,7 @@ describe('revenuecat routes', () => {
 
     const status = await subscriptions.getStatus('user-1')
     expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_go', status: 'active' }])
-    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedAmount: 2000, usedAmount: 0 }])
+    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedCredit: 2000, usedCredit: 0 }])
   })
 
   it('keeps access on cancellation until expiry, then revokes on expiration', async () => {

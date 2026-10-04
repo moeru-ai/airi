@@ -126,7 +126,7 @@ describe('shared Flux usage', () => {
 
   it('spends plan Credits before the wallet and skips Flux when the plan covers speech', async () => {
     await db.update(userFlux).set({ flux: 0 }).where(eq(userFlux.userId, 'wallet'))
-    const debitCredits = vi.fn(async (input: { amountMicro: number }) => ({ chargedMicro: input.amountMicro, requestedMicro: input.amountMicro }))
+    const debitCredits = vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: input.microCredit, requestedMicro: input.microCredit }))
     const subscriptions = {
       getStatus: async () => ({ allowances: [{ remainingMicro: 5_000_000 }] }),
       getFallbackPreference: async () => false,
@@ -135,7 +135,7 @@ describe('shared Flux usage', () => {
     const planSpeech = new SpeechBilling(billing, config, null, subscriptions)
     await planSpeech.assertCanAfford('wallet', 1000)
     await planSpeech.settle(tts('plan-tts', 1000))
-    expect(debitCredits).toHaveBeenCalledWith(expect.objectContaining({ amountMicro: 1_000_000 }))
+    expect(debitCredits).toHaveBeenCalledWith(expect.objectContaining({ microCredit: 1_000_000 }))
     expect(await db.select().from(fluxUsage)).toHaveLength(0)
   })
 

@@ -6,7 +6,7 @@ export interface PlanCreditAccount {
   getFallbackPreference: (userId: string) => Promise<boolean>
   debitCredits: (input: {
     userId: string
-    amountMicro: number
+    microCredit: number
     requestId: string
   }) => Promise<{ chargedMicro: number, requestedMicro: number }>
 }
@@ -18,20 +18,20 @@ export interface PlanCreditAccount {
  */
 export async function takePlanCredits(
   subscriptions: PlanCreditAccount | null | undefined,
-  input: { userId: string, requestId: string, amountMicro: number },
+  input: { userId: string, requestId: string, microCredit: number },
 ): Promise<PlanSettlement> {
-  if (!subscriptions || input.amountMicro <= 0)
+  if (!subscriptions || input.microCredit <= 0)
     return 'wallet'
 
   const status = await subscriptions.getStatus(input.userId)
   const remainingMicro = status.allowances.reduce((sum, allowance) => sum + allowance.remainingMicro, 0)
-  if (remainingMicro >= input.amountMicro) {
+  if (remainingMicro >= input.microCredit) {
     const debit = await subscriptions.debitCredits({
       userId: input.userId,
       requestId: input.requestId,
-      amountMicro: input.amountMicro,
+      microCredit: input.microCredit,
     })
-    if (debit.chargedMicro >= input.amountMicro)
+    if (debit.chargedMicro >= input.microCredit)
       return 'taken'
   }
 

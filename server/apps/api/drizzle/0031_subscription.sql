@@ -18,9 +18,9 @@ CREATE TABLE "subscription_allowance" (
 	"entitlement_id" text NOT NULL,
 	"period_start" timestamp NOT NULL,
 	"period_end" timestamp,
-	"granted_amount" integer NOT NULL,
-	"used_amount" integer NOT NULL DEFAULT 0,
-	"unsettled_micro" bigint NOT NULL DEFAULT 0,
+	"granted_credit" integer NOT NULL,
+	"used_credit" integer NOT NULL DEFAULT 0,
+	"unsettled_micro_credit" bigint NOT NULL DEFAULT 0,
 	"event_id" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
@@ -37,7 +37,7 @@ CREATE TABLE "subscription_consumption" (
 	"request_id" text PRIMARY KEY NOT NULL,
 	"user_id" text NOT NULL,
 	"allowance_id" text NOT NULL,
-	"amount_micro" bigint NOT NULL,
+	"micro_credit" bigint NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint

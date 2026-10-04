@@ -31,9 +31,9 @@ export function settleMicroCredits(pool: CreditPool): CreditPool & { chargedCred
 }
 
 /** Adds a micro-Credit fee, then settles whole Credits. */
-export function postMicroCredits(pool: CreditPool, amountMicro: number): CreditPool & { chargedCredits: number } {
+export function postMicroCredits(pool: CreditPool, microCredit: number): CreditPool & { chargedCredits: number } {
   return settleMicroCredits({
     credits: pool.credits,
-    unsettledMicro: pool.unsettledMicro + amountMicro,
+    unsettledMicro: pool.unsettledMicro + microCredit,
   })
 }

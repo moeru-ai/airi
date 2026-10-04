@@ -91,7 +91,7 @@ export function createRevenuecatSubscriptionSync(
         await subscriptions.openPeriod({
           userId: event.appUserId,
           entitlementId,
-          grantedAmount: plan.quotaAmount,
+          grantedCredit: plan.quotaCredit,
           periodStart,
           periodEnd: expiresAt,
           eventKey: `${event.id}:${entitlementId}`,
@@ -116,14 +116,14 @@ export function createRevenuecatSubscriptionSync(
 
     const plans = await configKV.getOptional('REVENUECAT_SUBSCRIPTION_PLANS') ?? {}
     const quotaByEntitlement = new Map(
-      Object.values(plans).map(plan => [plan.entitlementId, plan.quotaAmount]),
+      Object.values(plans).map(plan => [plan.entitlementId, plan.quotaCredit]),
     )
 
     await subscriptions.reconcile(userId, remote.map(item => ({
       entitlementId: item.lookupKey,
       active: true,
       expiresAt: item.expiresAtMs == null ? null : new Date(item.expiresAtMs),
-      quotaAmount: quotaByEntitlement.get(item.lookupKey),
+      quotaCredit: quotaByEntitlement.get(item.lookupKey),
     })))
   }
 

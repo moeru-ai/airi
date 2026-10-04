@@ -51,7 +51,7 @@ describe('subscription service', () => {
     const period = {
       userId: 'user-1',
       entitlementId: 'airi_go',
-      grantedAmount: 2000,
+      grantedCredit: 2000,
       periodStart: new Date(),
       periodEnd: new Date(Date.now() + 1000) as Date | null,
       eventKey: 'event-1:airi_go',
@@ -60,12 +60,12 @@ describe('subscription service', () => {
     expect(await service.openPeriod(period)).toBe(true)
     expect(await service.openPeriod(period)).toBe(false)
 
-    await service.debitCredits({ userId: 'user-1', amountMicro: 500 * MICRO_PER_CREDIT, requestId: 'req-1' })
+    await service.debitCredits({ userId: 'user-1', microCredit: 500 * MICRO_PER_CREDIT, requestId: 'req-1' })
     expect(await service.openPeriod({ ...period, eventKey: 'event-2:airi_go' })).toBe(true)
 
     const status = await service.getStatus('user-1')
     expect(status.allowances).toHaveLength(1)
-    expect(status.allowances).toMatchObject([{ grantedAmount: 2000, usedAmount: 0 }])
+    expect(status.allowances).toMatchObject([{ grantedCredit: 2000, usedCredit: 0 }])
   })
 
   it('spends micro-Credits idempotently and leaves a short period untouched', async () => {
@@ -79,25 +79,25 @@ describe('subscription service', () => {
     await service.openPeriod({
       userId: 'user-1',
       entitlementId: 'airi_go',
-      grantedAmount: 2000,
+      grantedCredit: 2000,
       periodStart: new Date(),
       periodEnd: null,
       eventKey: 'event-1',
     })
 
     const fee = 1_500_000
-    expect(await service.debitCredits({ userId: 'user-1', amountMicro: fee, requestId: 'req-1' }))
+    expect(await service.debitCredits({ userId: 'user-1', microCredit: fee, requestId: 'req-1' }))
       .toEqual({ chargedMicro: fee, requestedMicro: fee })
-    expect(await service.debitCredits({ userId: 'user-1', amountMicro: fee, requestId: 'req-1' }))
+    expect(await service.debitCredits({ userId: 'user-1', microCredit: fee, requestId: 'req-1' }))
       .toEqual({ chargedMicro: fee, requestedMicro: fee })
-    expect(await service.debitCredits({ userId: 'user-1', amountMicro: 5000 * MICRO_PER_CREDIT, requestId: 'req-2' }))
+    expect(await service.debitCredits({ userId: 'user-1', microCredit: 5000 * MICRO_PER_CREDIT, requestId: 'req-2' }))
       .toEqual({ chargedMicro: 0, requestedMicro: 5000 * MICRO_PER_CREDIT })
 
     const status = await service.getStatus('user-1')
     expect(status.allowances).toMatchObject([{
-      grantedAmount: 2000,
-      usedAmount: 1,
-      unsettledMicro: 500_000,
+      grantedCredit: 2000,
+      usedCredit: 1,
+      unsettledMicroCredit: 500_000,
       remainingMicro: 1998 * MICRO_PER_CREDIT + 500_000,
     }])
   })
@@ -113,7 +113,7 @@ describe('subscription service', () => {
     await service.openPeriod({
       userId: 'user-1',
       entitlementId: 'airi_go',
-      grantedAmount: 2000,
+      grantedCredit: 2000,
       periodStart: new Date(),
       periodEnd: null,
       eventKey: 'go',
@@ -141,11 +141,11 @@ describe('subscription service', () => {
     })
 
     await service.reconcile('user-1', [
-      { entitlementId: 'airi_go', active: true, expiresAt: new Date(Date.now() + 1000), quotaAmount: 2000 },
+      { entitlementId: 'airi_go', active: true, expiresAt: new Date(Date.now() + 1000), quotaCredit: 2000 },
     ])
     let status = await service.getStatus('user-1')
     expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_go', status: 'active' }])
-    expect(status.allowances).toMatchObject([{ grantedAmount: 2000 }])
+    expect(status.allowances).toMatchObject([{ grantedCredit: 2000 }])
 
     await service.reconcile('user-1', [], new Date(Date.now() + 2000))
     status = await service.getStatus('user-1', new Date(Date.now() + 2000))

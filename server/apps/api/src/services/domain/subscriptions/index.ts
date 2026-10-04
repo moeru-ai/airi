@@ -10,15 +10,15 @@ import * as schema from '../../../schemas/subscription'
 
 const logger = useLogger('subscriptions')
 
-function allowanceRemainingMicro(row: { grantedAmount: number, usedAmount: number, unsettledMicro: number }): bigint {
+function allowanceRemainingMicro(row: { grantedCredit: number, usedCredit: number, unsettledMicroCredit: number }): bigint {
   return availableMicroCredits({
-    credits: row.grantedAmount - row.usedAmount,
-    unsettledMicro: row.unsettledMicro,
+    credits: row.grantedCredit - row.usedCredit,
+    unsettledMicro: row.unsettledMicroCredit,
   })
 }
 
 function usableAllowanceSql() {
-  return sql`((${schema.subscriptionAllowance.grantedAmount} - ${schema.subscriptionAllowance.usedAmount})::bigint * ${MICRO_PER_CREDIT}) > ${schema.subscriptionAllowance.unsettledMicro}`
+  return sql`((${schema.subscriptionAllowance.grantedCredit} - ${schema.subscriptionAllowance.usedCredit})::bigint * ${MICRO_PER_CREDIT}) > ${schema.subscriptionAllowance.unsettledMicroCredit}`
 }
 
 export interface SubscriptionUpsert {
@@ -34,7 +34,7 @@ export interface SubscriptionUpsert {
 export interface AllowancePeriod {
   userId: string
   entitlementId: string
-  grantedAmount: number
+  grantedCredit: number
   periodStart: Date
   periodEnd?: Date | null
   /** Deduplicates redeliveries of the same grant. Null disables the check. */
@@ -45,8 +45,8 @@ export interface ReconciledEntitlement {
   entitlementId: string
   active: boolean
   expiresAt: Date | null
-  /** Opens a quota period when provided and none is open. */
-  quotaAmount?: number
+  /** Opens a Credit period when provided and none is open. */
+  quotaCredit?: number
 }
 
 /**
@@ -113,9 +113,9 @@ export function createSubscriptionService(db: Database) {
         entitlementId: input.entitlementId,
         periodStart: input.periodStart,
         periodEnd: input.periodEnd,
-        grantedAmount: input.grantedAmount,
-        usedAmount: 0,
-        unsettledMicro: 0,
+        grantedCredit: input.grantedCredit,
+        usedCredit: 0,
+        unsettledMicroCredit: 0,
         eventId: input.eventKey,
       }).onConflictDoNothing()
       return true
@@ -165,7 +165,7 @@ export function createSubscriptionService(db: Database) {
           isNull(schema.subscription.deletedAt),
         ))
 
-        if (item.quotaAmount != null) {
+        if (item.quotaCredit != null) {
           await tx.update(schema.subscriptionAllowance)
             .set({ periodEnd: now, updatedAt: new Date() })
             .where(and(
@@ -181,9 +181,9 @@ export function createSubscriptionService(db: Database) {
             entitlementId: item.entitlementId,
             periodStart: now,
             periodEnd: item.expiresAt,
-            grantedAmount: item.quotaAmount,
-            usedAmount: 0,
-            unsettledMicro: 0,
+            grantedCredit: item.quotaCredit,
+            usedCredit: 0,
+            unsettledMicroCredit: 0,
             eventId: `reconcile:${userId}:${item.entitlementId}:${item.expiresAt?.getTime() ?? 'open'}`,
           }).onConflictDoNothing()
         }
@@ -242,11 +242,11 @@ export function createSubscriptionService(db: Database) {
           entitlementId: row.entitlementId,
           periodStart: row.periodStart.toISOString(),
           periodEnd: row.periodEnd?.toISOString() ?? null,
-          grantedAmount: row.grantedAmount,
-          usedAmount: row.usedAmount,
-          unsettledMicro: row.unsettledMicro,
+          grantedCredit: row.grantedCredit,
+          usedCredit: row.usedCredit,
+          unsettledMicroCredit: row.unsettledMicroCredit,
           remainingMicro,
-          remainingAmount: remainingMicro / MICRO_PER_CREDIT,
+          remainingCredit: remainingMicro / MICRO_PER_CREDIT,
         }
       }),
     }
@@ -259,18 +259,18 @@ export function createSubscriptionService(db: Database) {
    */
   async function debitCredits(input: {
     userId: string
-    amountMicro: number
+    microCredit: number
     requestId: string
   }): Promise<{ chargedMicro: number, requestedMicro: number }> {
     return db.transaction(async (tx) => {
       const [existing] = await tx
-        .select({ amountMicro: schema.subscriptionConsumption.amountMicro })
+        .select({ microCredit: schema.subscriptionConsumption.microCredit })
         .from(schema.subscriptionConsumption)
         .where(eq(schema.subscriptionConsumption.requestId, input.requestId))
         .limit(1)
 
       if (existing)
-        return { chargedMicro: existing.amountMicro, requestedMicro: input.amountMicro }
+        return { chargedMicro: existing.microCredit, requestedMicro: input.microCredit }
 
       const now = new Date()
       const [period] = await tx
@@ -288,30 +288,30 @@ export function createSubscriptionService(db: Database) {
         .for('update')
         .limit(1)
 
-      if (!period || allowanceRemainingMicro(period) < BigInt(input.amountMicro))
-        return { chargedMicro: 0, requestedMicro: input.amountMicro }
+      if (!period || allowanceRemainingMicro(period) < BigInt(input.microCredit))
+        return { chargedMicro: 0, requestedMicro: input.microCredit }
 
       const posted = postMicroCredits({
-        credits: period.grantedAmount - period.usedAmount,
-        unsettledMicro: period.unsettledMicro,
-      }, input.amountMicro)
+        credits: period.grantedCredit - period.usedCredit,
+        unsettledMicro: period.unsettledMicroCredit,
+      }, input.microCredit)
 
       await tx.insert(schema.subscriptionConsumption).values({
         requestId: input.requestId,
         userId: input.userId,
         allowanceId: period.id,
-        amountMicro: input.amountMicro,
+        microCredit: input.microCredit,
       }).onConflictDoNothing()
 
       await tx.update(schema.subscriptionAllowance)
         .set({
-          usedAmount: period.grantedAmount - posted.credits,
-          unsettledMicro: posted.unsettledMicro,
+          usedCredit: period.grantedCredit - posted.credits,
+          unsettledMicroCredit: posted.unsettledMicro,
           updatedAt: new Date(),
         })
         .where(eq(schema.subscriptionAllowance.id, period.id))
 
-      return { chargedMicro: input.amountMicro, requestedMicro: input.amountMicro }
+      return { chargedMicro: input.microCredit, requestedMicro: input.microCredit }
     })
   }
 

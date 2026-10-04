@@ -43,11 +43,11 @@ export const subscriptionAllowance = pgTable('subscription_allowance', {
   entitlementId: text('entitlement_id').notNull(),
   periodStart: timestamp('period_start').notNull(),
   periodEnd: timestamp('period_end'),
-  grantedAmount: integer('granted_amount').notNull(),
+  grantedCredit: integer('granted_credit').notNull(),
   /** Whole Credits already settled out of the grant. */
-  usedAmount: integer('used_amount').notNull().default(0),
+  usedCredit: integer('used_credit').notNull().default(0),
   /** Micro-Credits charged but not yet settled into a whole Credit. */
-  unsettledMicro: bigint('unsettled_micro', { mode: 'number' }).notNull().default(0),
+  unsettledMicroCredit: bigint('unsettled_micro_credit', { mode: 'number' }).notNull().default(0),
   eventId: text('event_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -63,7 +63,7 @@ export const subscriptionConsumption = pgTable('subscription_consumption', {
   requestId: text('request_id').primaryKey(),
   userId: text('user_id').notNull(),
   allowanceId: text('allowance_id').notNull(),
-  amountMicro: bigint('amount_micro', { mode: 'number' }).notNull(),
+  microCredit: bigint('micro_credit', { mode: 'number' }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, table => [
   index('subscription_consumption_user_id_idx').on(table.userId),

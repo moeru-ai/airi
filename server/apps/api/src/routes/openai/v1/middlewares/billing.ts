@@ -107,16 +107,16 @@ export function createOpenAiRouteBilling(deps: {
   async function settleChat(input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>): Promise<number> {
     // Zero-fee and pending requests settle through the wallet path below so
     // usage records keep the upstream reconciliation semantics.
-    const amountMicro = input.amount > 0
+    const microCredit = input.amount > 0
       ? (priceLlmCost(input.costReceipt.usage, input.costReceipt.pricing).costMicroFlux ?? 0)
       : 0
     const settlement = await takePlanCredits(deps.subscriptions, {
       userId: input.userId,
       requestId: input.requestId,
-      amountMicro,
+      microCredit,
     })
     if (settlement === 'taken')
-      return microFluxToFlux(amountMicro)
+      return microFluxToFlux(microCredit)
     if (settlement === 'stopped') {
       deps.revenue?.fluxUnbilled.add(input.amount, {
         [GEN_AI_ATTR_REQUEST_MODEL]: input.model,

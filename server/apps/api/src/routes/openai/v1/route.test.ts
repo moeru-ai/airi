@@ -75,7 +75,7 @@ function createMockSubscriptionService(overrides?: Partial<SubscriptionService>)
   // No plan quota with Flux fallback on: existing debit assertions keep passing.
   return {
     getStatus: vi.fn(async () => ({ subscriptions: [], allowances: [] })),
-    debitCredits: vi.fn(async (input: { amountMicro: number }) => ({ chargedMicro: 0, requestedMicro: input.amountMicro })),
+    debitCredits: vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: 0, requestedMicro: input.microCredit })),
     retireOtherEntitlements: vi.fn(),
     getFallbackPreference: vi.fn(async () => true),
     setFallbackPreference: vi.fn(),
@@ -496,7 +496,7 @@ describe('v1CompletionsRoutes', () => {
           usage: { cost: 0.002, prompt_tokens: 1, completion_tokens: 1 },
         })) as any
       const billingService = createMockBillingService(0)
-      const debitCredits = vi.fn(async (input: { amountMicro: number }) => ({ chargedMicro: input.amountMicro, requestedMicro: input.amountMicro }))
+      const debitCredits = vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: input.microCredit, requestedMicro: input.microCredit }))
       const subscriptions = createMockSubscriptionService({
         getStatus: vi.fn(async () => ({
           subscriptions: [],
@@ -504,11 +504,11 @@ describe('v1CompletionsRoutes', () => {
             entitlementId: 'airi_go',
             periodStart: new Date().toISOString(),
             periodEnd: null,
-            grantedAmount: 2000,
-            usedAmount: 0,
-            unsettledMicro: 0,
+            grantedCredit: 2000,
+            usedCredit: 0,
+            unsettledMicroCredit: 0,
             remainingMicro: 2_000_000_000,
-            remainingAmount: 2000,
+            remainingCredit: 2000,
           }],
         })),
         debitCredits,

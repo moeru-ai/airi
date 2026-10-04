@@ -47,7 +47,7 @@ export class SpeechBilling {
     const settlement = await takePlanCredits(this.subscriptions, {
       userId: input.userId,
       requestId: input.requestId,
-      amountMicro: costMicroFlux,
+      microCredit: costMicroFlux,
     })
     if (settlement === 'taken' || settlement === 'stopped') {
       if (settlement === 'taken')

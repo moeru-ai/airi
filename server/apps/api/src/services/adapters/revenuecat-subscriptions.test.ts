@@ -9,7 +9,7 @@ import { createRevenuecatSubscriptionSync } from './revenuecat-subscriptions'
 function createConfigKV(): ConfigKVService {
   return {
     getOptional: vi.fn(async () => ({
-      rc_go_monthly: { entitlementId: 'airi_go', quotaAmount: 2000 },
+      rc_go_monthly: { entitlementId: 'airi_go', quotaCredit: 2000 },
     })),
     getOrThrow: vi.fn(),
     get: vi.fn(),
@@ -56,7 +56,7 @@ describe('revenuecat subscription sync', () => {
       status: 'active',
     }))
     expect(core.openPeriod).toHaveBeenCalledWith(expect.objectContaining({
-      grantedAmount: 2000,
+      grantedCredit: 2000,
       eventKey: 'event-1:airi_go',
     }))
     expect(core.retireOtherEntitlements).toHaveBeenCalledWith('user-1', 'airi_go')
@@ -80,7 +80,7 @@ describe('revenuecat subscription sync', () => {
     expect(await sync.syncEvent({ ...baseEvent, id: 'event-3', type: 'PRODUCT_CHANGE' }))
       .toEqual({ synced: true })
     expect(core.openPeriod).toHaveBeenCalledWith(expect.objectContaining({
-      grantedAmount: 2000,
+      grantedCredit: 2000,
       eventKey: 'event-3:airi_go',
     }))
     expect(core.retireOtherEntitlements).toHaveBeenCalledWith('user-1', 'airi_go')
@@ -109,7 +109,7 @@ describe('revenuecat subscription sync', () => {
       entitlementId: 'airi_go',
       active: true,
       expiresAt: new Date(1790800000000),
-      quotaAmount: 2000,
+      quotaCredit: 2000,
     }])
 
     const unreachable = createRevenuecatSubscriptionSync(core, createConfigKV(), {
