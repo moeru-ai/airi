@@ -96,7 +96,7 @@ describe('voiceController input', () => {
     await expect.poll(() => independent.mock.calls.length).toBe(1)
     expect(detected).not.toHaveBeenCalled()
     expect(closed).not.toHaveBeenCalled()
-    other.cancel()
+    other.cancel('Test finished')
     await controller.close()
   })
 

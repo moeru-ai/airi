@@ -79,7 +79,7 @@ export class SpeechInputAttempt {
       this.owner.seal(this)
       this.sealedFrame = this.audio?.position?.frame
       this.change({ phase: 'finalizing' })
-      this.detector?.cancel()
+      this.detector?.cancel('Speech input is finalizing')
       void this.capture?.finish()
     }
 
@@ -127,23 +127,23 @@ export class SpeechInputAttempt {
     if (!Number.isFinite(options.windowMs) || options.windowMs <= 0 || !Number.isFinite(options.hopMs) || options.hopMs <= 0)
       throw new Error('Audio window and hop must be finite and positive')
 
-    this.detector?.cancel()
+    this.detector?.cancel('Replaced by a new end detector')
     const completion = Promise.withResolvers<Awaited<Observer['done']>>()
     let observer: Observer | undefined
     let closed = false
     const observationHandle = {
       done: completion.promise,
-      cancel: () => {
+      cancel: (reason: string) => {
         if (closed)
           return
 
         closed = true
-        observer?.cancel()
+        observer?.cancel(reason)
         if (this.detector === observationHandle) {
           this.detector = undefined
           this.endProposal = undefined
         }
-        completion.resolve({ status: 'cancelled' })
+        completion.resolve({ status: 'cancelled', reason })
       },
       start: () => {
         if (closed || observer || !this.audio || !this.accepted || this.current.phase !== 'capturing')
@@ -186,7 +186,7 @@ export class SpeechInputAttempt {
             return
 
           completion.resolve(outcome)
-          observationHandle.cancel()
+          observationHandle.cancel('End detection ended')
           if (outcome.status === 'failed')
             this.settle({ status: 'failed', stage: 'detector', error: outcome.error })
         })
@@ -194,7 +194,7 @@ export class SpeechInputAttempt {
     }
     this.detector = observationHandle
     if (this.current.phase === 'finalizing' || this.current.phase === 'settled')
-      observationHandle.cancel()
+      observationHandle.cancel('Speech input is no longer capturing')
     else
       observationHandle.start()
 
@@ -370,7 +370,7 @@ export class SpeechInputAttempt {
       return
     this.owner.seal(this)
     this.change({ phase: 'settled', outcome })
-    this.detector?.cancel()
+    this.detector?.cancel('Speech input settled')
     if (outcome.status === 'cancelled' || outcome.status === 'failed') {
       this.abort.abort(outcome)
       this.capture?.cancel('Speech input closed')

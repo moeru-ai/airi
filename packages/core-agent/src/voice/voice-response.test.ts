@@ -13,7 +13,7 @@ describe('voiceController output', () => {
     const silence = Promise.withResolvers<{ throughMs: number }>()
     const started = vi.fn()
     const ended = vi.fn()
-    const playback = new Playback({ play: (clip) => {
+    const playback = new Playback({ nowMs: () => 0, play: (clip) => {
       clip.onStart?.()
       return { done: new Promise<{ throughMs: number }>(() => {}), stop: () => silence.promise }
     } })
@@ -34,7 +34,7 @@ describe('voiceController output', () => {
   })
 
   it('reports a finished response as silent when a later input interrupts it', async () => {
-    const playback = new Playback({ play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
+    const playback = new Playback({ nowMs: () => 0, play: () => ({ done: Promise.resolve({ throughMs: 1 }), stop: async () => ({ throughMs: 0 }) }) })
     const controller = new VoiceController({ speech: () => ({ playback, synthesize: async () => new Blob(['speech']) }) })
     const turn = { sessionId: 'alice', turnId: 'finished' }
     const response = controller.openResponse(turn)
@@ -54,7 +54,7 @@ describe('voiceController output', () => {
     const firstAudio = Promise.withResolvers<Blob>()
     const played: string[] = []
     const requested: string[] = []
-    const playback = new Playback({ play: clip => ({
+    const playback = new Playback({ nowMs: () => 0, play: clip => ({
       done: (clip.audio as Blob).text().then((text) => {
         played.push(text)
         return { throughMs: 1 }
@@ -87,7 +87,7 @@ describe('voiceController output', () => {
     const samples: number[] = []
     const captions: string[] = []
     const output = createPushStream<SpeechAudio>()
-    const playback = new Playback({ play: (clip) => {
+    const playback = new Playback({ nowMs: () => 0, play: (clip) => {
       if (!(clip.audio instanceof ReadableStream))
         throw new Error('Expected streaming PCM')
       clip.onStart?.()
@@ -138,7 +138,7 @@ describe('voiceController output', () => {
     const release = keepOpen(audio)
     const playing = Promise.withResolvers<void>()
     const faded = Promise.withResolvers<{ throughMs: number }>()
-    const playback = new Playback({ play: () => {
+    const playback = new Playback({ nowMs: () => 0, play: () => {
       playing.resolve()
       return { done: new Promise<{ throughMs: number }>(() => {}), stop: () => faded.promise }
     } })
@@ -173,7 +173,7 @@ describe('voiceController output', () => {
 
   it('retries a failed interruption record with the original event identity', async () => {
     const recordInterruption = vi.fn().mockResolvedValueOnce({ status: 'failed' }).mockResolvedValue({ status: 'queued' })
-    const playback = new Playback({ play: () => {
+    const playback = new Playback({ nowMs: () => 0, play: () => {
       throw new Error('No audio expected')
     } })
     const controller = new VoiceController({ transcriber: vi.fn(), submit: vi.fn(), speech: () => ({ playback, synthesize: async () => null }), recordInterruption })
@@ -193,7 +193,7 @@ describe('voiceController output', () => {
   it('shows pending input until playback confirms silence and fails admission when fade fails', async () => {
     const faded = Promise.withResolvers<{ throughMs: number }>()
     const playing = Promise.withResolvers<void>()
-    const playback = new Playback({ play: () => {
+    const playback = new Playback({ nowMs: () => 0, play: () => {
       playing.resolve()
       return { done: new Promise<{ throughMs: number }>(() => {}), stop: () => faded.promise }
     } })
@@ -221,6 +221,7 @@ describe('voiceController output', () => {
     const silence = Promise.withResolvers<{ throughMs: number }>()
     const played: string[] = []
     const playback = new Playback({
+      nowMs: () => 0,
       play(clip) {
         void (clip.audio as Blob).text().then(text => played.push(text))
         firstPlayed.resolve()

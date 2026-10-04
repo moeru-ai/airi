@@ -137,17 +137,17 @@ class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
             // A replaced generation ends quietly. Source failure or completion ends the whole observation.
             if (current.signal.aborted)
               return
-            if (outcome.status === 'failed') {
+            if (outcome.status === 'failed')
               this.report('subscription', outcome.error)
+            if (outcome.status !== 'cancelled')
               completion.resolve(outcome)
-            }
             void scope.close()
           })
         }
 
         const observation = { restart: start, cancel: () => void scope.close('Plugin observation cancelled') }
         scope.defer(() => {
-          completion.resolve({ status: 'cancelled' })
+          completion.resolve({ status: 'cancelled', reason: 'Plugin observation closed' })
           this.host.removeAudioObservation(observation)
         })
         if (!scope.signal.aborted) {
@@ -155,7 +155,7 @@ class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
           start()
         }
 
-        return { done: completion.promise, cancel: observation.cancel }
+        return { done: completion.promise, cancel: reason => void scope.close(reason) }
       },
     }
 
@@ -178,7 +178,7 @@ class PluginInstallation implements VoicePluginHandle, InputPluginInstallation {
     this.abort.abort()
     this.host.remove(this)
     for (const detector of this.detectors)
-      detector.cancel()
+      detector.cancel('Plugin disposed')
     this.detectors.clear()
 
     this.disposing = (async () => {

@@ -180,7 +180,7 @@ export class VoiceController {
 
       const silence = record?.silence ?? response?.interrupt(options.cause, fadeMs)
       if (silence) {
-        const result = silence.then(playback => ({ turn, status: playback.status, playback, ...(playback.error ? { error: playback.error } : {}) }))
+        const result = silence.then(playback => ({ turn, status: playback.status, playback, ...(playback.status === 'failed' ? { error: playback.error } : {}) }))
         return { record, result, known: true }
       }
 
