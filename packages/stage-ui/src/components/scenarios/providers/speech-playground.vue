@@ -12,6 +12,11 @@ const props = defineProps<{
   // Input fields
   defaultText?: string
   availableVoices: VoiceInfo[]
+  /**
+   * Selection owned by the caller, so the page can persist it. Omit the prop to
+   * keep the choice local to this preview.
+   */
+  voice?: string
 
   // Provider-specific handlers (provided from parent)
   generateSpeech: (input: string, voice: string, useSSML: boolean) => Promise<ArrayBuffer>
@@ -19,6 +24,10 @@ const props = defineProps<{
   // Current state
   apiKeyConfigured?: boolean
   voicesLoading?: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:voice': [voice: string]
 }>()
 
 const { t } = useI18n()
@@ -31,18 +40,37 @@ const errorMessage = ref('')
 const audioPlayer = ref<HTMLAudioElement | null>(null)
 const useSSML = ref(false)
 const ssmlText = ref('')
-const selectedVoice = ref('')
+const selectedVoice = ref(props.voice ?? '')
 
-// Watch for changes in available voices
+// The catalog decides which entries exist. A selection the catalog no longer
+// offers falls back to the first entry, so a deleted voice cannot leave the
+// preview on an ID the API rejects. A listed selection is kept, which is what
+// makes a saved voice survive a reopen.
 watch(
   () => props.availableVoices,
   (newVoices) => {
-    if (newVoices.length > 0 && !selectedVoice.value) {
-      selectedVoice.value = newVoices[0]?.id || ''
-    }
+    if (newVoices.length === 0)
+      return
+    const current = selectedVoice.value
+    if (current && newVoices.some(voice => voice.id === current))
+      return
+    selectedVoice.value = newVoices[0]?.id || ''
   },
   { immediate: true },
 )
+
+// A bound selection is the caller's state, so it travels in both directions:
+// a page reload restores the preview, and a user pick reaches the page. An
+// unbound playground keeps the selection to itself.
+watch(selectedVoice, (value) => {
+  if (props.voice !== undefined)
+    emit('update:voice', value)
+})
+
+watch(() => props.voice, (value) => {
+  if (value !== undefined && value !== selectedVoice.value)
+    selectedVoice.value = value
+})
 
 // A catalog can hold the same display name for many languages, so the option
 // label carries the locale code. The option slot renders the name and the code

@@ -48,6 +48,18 @@ const modelOptions = [
   { value: 'speech-2.8-turbo', label: 'Speech 2.8 Turbo' },
 ]
 
+// The picked voice lives in the provider config next to the model, and the
+// playground binds to it. That binding is what makes a choice survive
+// reopening the page, which a preview-local selection cannot do.
+const voice = computed({
+  get: () => providers.value[providerId]?.voice as string | undefined || '',
+  set: (value: string) => {
+    if (!providers.value[providerId])
+      return
+    providers.value[providerId].voice = value
+  },
+})
+
 // A stable empty list keeps the computed value stable when the provider has no
 // voice catalog yet. A new array on each read causes extra UI updates.
 const emptyVoices: VoiceInfo[] = []
@@ -75,6 +87,20 @@ async function handleGenerateSpeech(input: string, voiceId: string, _useSSML: bo
       ...defaultVoiceSettings,
     },
   )
+}
+
+/**
+ * Commits the picked voice to the provider config, and mirrors it into the
+ * Speech module when that module already uses this provider. The module owns
+ * the active selection, so a page for another provider must not take it over.
+ */
+async function selectVoice(value: string) {
+  voice.value = value
+  if (speechStore.activeSpeechProvider !== providerId)
+    return
+
+  // An unchanged model keeps the leader from clearing the voice it then sets.
+  await speechStore.selectProviderModel(providerId, speechStore.activeSpeechModel, value)
 }
 
 async function loadVoicesWhenConfigured() {
@@ -121,9 +147,11 @@ watchDebounced([
     <template #playground>
       <SpeechPlayground
         :available-voices="availableVoices"
+        :voice="voice"
         :generate-speech="handleGenerateSpeech"
         :api-key-configured="apiKeyConfigured"
         :default-text="t('settings.pages.providers.provider.minimax-speech.playground.default-text')"
+        @update:voice="selectVoice"
       />
     </template>
   </SpeechProviderSettings>
