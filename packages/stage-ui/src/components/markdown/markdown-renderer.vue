@@ -45,7 +45,7 @@ function processContent() {
     return
   }
 
-  if (/`{3,}/.test(content))
+  if (/`{3,}|~{3,}/.test(content))
     void processRichContent(content, requestId)
 }
 
