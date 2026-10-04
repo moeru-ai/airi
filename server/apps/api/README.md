@@ -154,20 +154,20 @@ are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
 Store all enter through the single RevenueCat webhook; `store` is only a
 field, so new channels need no server changes.
 
-`src/services/domain/subscriptions` owns sync, status reads, quota debit,
+`src/services/domain/subscriptions` owns sync, status reads, Credit debit,
 the Flux-fallback preference (default off), and `deleteAllForUser`. Status
 derives from webhook events: only `EXPIRATION` revokes; `BILLING_ISSUE` and
-`CANCELLATION` keep access until `expires_at`. Each `INITIAL_PURCHASE` or
-`RENEWAL` opens a fresh quota period and forfeits the old remainder, so
-upgrades reset the billing date like Cursor. Debit order in
-`src/routes/openai/v1/middlewares/billing.ts` is plan quota first, then Flux
-only when the user enabled the fallback. Quota debits whole Flux credits,
-so fractional fees round up; quota is touched only when it covers the whole
-request, otherwise the wallet settles the full provider cost. Plan quota never touches `user_flux`;
-it lives in `subscription_allowance` with per-request idempotency rows in
-`subscription_consumption`. Product-to-plan mapping lives in ConfigKV
-`REVENUECAT_SUBSCRIPTION_PLANS`. TTS metering (`SpeechBilling`) stays on the
-wallet: plan quota covers LLM chat only until quota debit moves to micro-Flux.
+`CANCELLATION` keep access until `expires_at`. `INITIAL_PURCHASE`, `RENEWAL`,
+`PRODUCT_CHANGE`, `UNCANCELLATION`, and `SUBSCRIPTION_EXTENDED` open a fresh
+Credit period and forfeit the old remainder. The same events expire every
+other entitlement for that user. One Credit equals one Flux.
+`src/services/domain/billing/credit-posting.ts` settles both pools in
+micro-Credits (1 Credit = 1,000,000 micro-Credits). Chat and speech call
+`takePlanCredits`. The plan pays when its micro-Credits cover the whole fee.
+Otherwise the wallet pays only when Flux fallback is on. Plan Credits never
+touch `user_flux`. They live in `subscription_allowance` with per-request
+rows in `subscription_consumption`. Product-to-plan mapping lives in ConfigKV
+`REVENUECAT_SUBSCRIPTION_PLANS`.
 Lazy reconciliation (`services/adapters/revenuecat-api`, Developer API v2
 `GET /customers/{id}` plus entitlement lookup keys) runs only on explicit
 status reads, never on the billing hot path; it revives missed renewals and

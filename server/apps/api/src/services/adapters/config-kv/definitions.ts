@@ -266,8 +266,7 @@ export const configEntrySchemas = {
     }),
   ), {}),
   // RevenueCat subscription product id → entitlement and per-period quota.
-  // Go grants 2000, Plus grants 5000 plan credits. Unused quota dies with
-  // the billing period.
+  // Unused quota dies with the billing period.
   REVENUECAT_SUBSCRIPTION_PLANS: optional(record(
     pipe(string(), nonEmpty('REVENUECAT_SUBSCRIPTION_PLANS product ids must not be empty')),
     object({

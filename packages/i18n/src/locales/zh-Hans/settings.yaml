@@ -1064,6 +1064,18 @@ pages:
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
     choosePlan: 选择订阅档位
+    period:
+      month: 月付
+      year: 年付
+    perMonth: / 月
+    perYear: / 年
+    goSummary: 解锁包含的对话和语音
+    plusSummary: 解锁更多对话和语音
+    currentPackage: 当前方案
+    upgrade: 升级
+    downgrade: 降级
+    switchToYear: 改为年付
+    switchToMonth: 改为月付
     manageSubscription: 管理订阅（取消与账单）
     fallbackToFlux: 套餐额度用完后使用 Flux
     fallbackToFluxHint: 默认关闭。关闭时额度用完后请求会直接返回额度不足，不会消耗 Flux。

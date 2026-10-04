@@ -2,7 +2,10 @@ import type { InferOutput } from 'valibot'
 
 import { minValue, nonEmpty, number, object, optional, pipe, record, safeInteger, string, unknown } from 'valibot'
 
-export const MICRO_FLUX_PER_FLUX = 1_000_000
+import { availableMicroCredits, MICRO_PER_CREDIT } from './credit-posting'
+
+/** One Flux equals one Credit. Wallet rows keep the Flux column names. */
+export const MICRO_FLUX_PER_FLUX = MICRO_PER_CREDIT
 
 /** Source identity scopes idempotency per wallet. Zero is a confirmed amount and still creates a usage record. */
 export const fluxUsageInputSchema = object({
@@ -18,7 +21,7 @@ export function microFluxToFlux(microFlux: number): number {
   return microFlux / MICRO_FLUX_PER_FLUX
 }
 
-/** Integer balance minus confirmed outstanding fees, in micro-Flux. Admission uses this one formula. */
+/** Integer balance minus confirmed outstanding fees, in micro-Credits. Admission uses this one formula. */
 export function availableMicroFlux(wallet: { flux: number, unsettledMicroFlux: number }): bigint {
-  return BigInt(wallet.flux) * BigInt(MICRO_FLUX_PER_FLUX) - BigInt(wallet.unsettledMicroFlux)
+  return availableMicroCredits({ credits: wallet.flux, unsettledMicro: wallet.unsettledMicroFlux })
 }

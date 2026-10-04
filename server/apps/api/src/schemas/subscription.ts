@@ -1,7 +1,7 @@
 import type { InferSelectModel } from 'drizzle-orm'
 
 import { sql } from 'drizzle-orm'
-import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { bigint, boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -44,7 +44,10 @@ export const subscriptionAllowance = pgTable('subscription_allowance', {
   periodStart: timestamp('period_start').notNull(),
   periodEnd: timestamp('period_end'),
   grantedAmount: integer('granted_amount').notNull(),
+  /** Whole Credits already settled out of the grant. */
   usedAmount: integer('used_amount').notNull().default(0),
+  /** Micro-Credits charged but not yet settled into a whole Credit. */
+  unsettledMicro: bigint('unsettled_micro', { mode: 'number' }).notNull().default(0),
   eventId: text('event_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -55,12 +58,12 @@ export const subscriptionAllowance = pgTable('subscription_allowance', {
   index('subscription_allowance_user_id_idx').on(table.userId),
 ])
 
-/** One row per LLM request charged to plan quota. Guards retries from double-spending. */
+/** One row per request charged to plan Credits. Guards retries from double-spending. */
 export const subscriptionConsumption = pgTable('subscription_consumption', {
   requestId: text('request_id').primaryKey(),
   userId: text('user_id').notNull(),
   allowanceId: text('allowance_id').notNull(),
-  amount: integer('amount').notNull(),
+  amountMicro: bigint('amount_micro', { mode: 'number' }).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, table => [
   index('subscription_consumption_user_id_idx').on(table.userId),

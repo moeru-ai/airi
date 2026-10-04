@@ -25,12 +25,23 @@ export interface PlanAllowance {
   remainingAmount: number
 }
 
+export type PlanBillingPeriod = 'month' | 'year'
+
 export interface PlanPackage {
   packageId: string
   productId: string
   title: string
   formattedPrice: string
   currency: string
+  period: PlanBillingPeriod
+  amountMicros: number
+}
+
+/** Keeps RevenueCat's period unit. A month stays a month. A year stays a year. */
+export function planBillingPeriod(unit: string | null | undefined): PlanBillingPeriod | null {
+  if (unit === 'month' || unit === 'year')
+    return unit
+  return null
 }
 
 interface PlanStatus {
@@ -39,7 +50,10 @@ interface PlanStatus {
   fallbackToFlux: boolean
 }
 
-function toPlanPackage(pkg: Package): PlanPackage {
+function toPlanPackage(pkg: Package): PlanPackage | null {
+  const period = planBillingPeriod(pkg.webBillingProduct.period?.unit)
+  if (!period)
+    return null
   const { formattedPrice, currency } = revenuecatPackagePrice(pkg)
   return {
     packageId: pkg.identifier,
@@ -47,6 +61,8 @@ function toPlanPackage(pkg: Package): PlanPackage {
     title: pkg.webBillingProduct.title,
     formattedPrice,
     currency,
+    period,
+    amountMicros: pkg.webBillingProduct.price.amountMicros,
   }
 }
 
@@ -102,7 +118,10 @@ export function useSubscription(options: {
       const current = offerings.current
       if (!current)
         return
-      packages.value = current.availablePackages.map(toPlanPackage)
+      packages.value = current.availablePackages.flatMap((pkg) => {
+        const planPackage = toPlanPackage(pkg)
+        return planPackage ? [planPackage] : []
+      })
     }
     finally {
       loadingPackages.value = false

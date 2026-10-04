@@ -24,7 +24,8 @@ function createCore(): SubscriptionService {
     openPeriod: vi.fn(async () => true),
     reconcile: vi.fn(async () => undefined),
     getStatus: vi.fn(),
-    consumeQuota: vi.fn(),
+    debitCredits: vi.fn(),
+    retireOtherEntitlements: vi.fn(),
     getFallbackPreference: vi.fn(),
     setFallbackPreference: vi.fn(),
     deleteAllForUser: vi.fn(),
@@ -58,16 +59,31 @@ describe('revenuecat subscription sync', () => {
       grantedAmount: 2000,
       eventKey: 'event-1:airi_go',
     }))
+    expect(core.retireOtherEntitlements).toHaveBeenCalledWith('user-1', 'airi_go')
   })
 
   it('syncs status without a period for informative events', async () => {
     const core = createCore()
     const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
 
-    expect(await sync.syncEvent({ ...baseEvent, id: 'event-2', type: 'PRODUCT_CHANGE' }))
+    expect(await sync.syncEvent({ ...baseEvent, id: 'event-2', type: 'CANCELLATION' }))
       .toEqual({ synced: true })
     expect(core.upsertSubscription).toHaveBeenCalled()
     expect(core.openPeriod).not.toHaveBeenCalled()
+    expect(core.retireOtherEntitlements).not.toHaveBeenCalled()
+  })
+
+  it('opens a period and retires other entitlements on product change', async () => {
+    const core = createCore()
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+
+    expect(await sync.syncEvent({ ...baseEvent, id: 'event-3', type: 'PRODUCT_CHANGE' }))
+      .toEqual({ synced: true })
+    expect(core.openPeriod).toHaveBeenCalledWith(expect.objectContaining({
+      grantedAmount: 2000,
+      eventKey: 'event-3:airi_go',
+    }))
+    expect(core.retireOtherEntitlements).toHaveBeenCalledWith('user-1', 'airi_go')
   })
 
   it('acks unknown products without touching the core', async () => {

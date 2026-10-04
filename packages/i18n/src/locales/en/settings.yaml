@@ -1119,6 +1119,18 @@ pages:
     renewsAt: Renews {date}
     expiresAt: Expires {date}
     choosePlan: Choose a plan
+    period:
+      month: Monthly
+      year: Yearly
+    perMonth: / month
+    perYear: / year
+    goSummary: Unlock included chat and speech
+    plusSummary: Unlock more chat and speech
+    currentPackage: Current plan
+    upgrade: Upgrade
+    downgrade: Downgrade
+    switchToYear: Switch to yearly
+    switchToMonth: Switch to monthly
     manageSubscription: Manage subscription (cancel and billing)
     fallbackToFlux: Use Flux when plan credits run out
     fallbackToFluxHint: Off by default. When off, requests stop with insufficient credits instead of spending Flux.

@@ -1,7 +1,7 @@
 import type { Database } from '../../../../libs/db'
 
 import { eq, sum } from 'drizzle-orm'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
 import { createTestRedis } from '../../../../libs/tests/redis'
@@ -19,6 +19,7 @@ describe('shared Flux usage', () => {
   let billing: ReturnType<typeof createBillingService>
   let llmBilling: ReturnType<typeof createLlmBillingService>
   let speech: SpeechBilling
+  let config: ReturnType<typeof createConfigKVService>
   const pricing = { fluxPerUsd: 1000, multiplier: 1 }
   const llm = (requestId: string, costUsd: number | undefined) => ({
     userId: 'wallet',
@@ -40,7 +41,7 @@ describe('shared Flux usage', () => {
     await db.insert(userFlux).values({ userId: 'wallet', flux: 10 })
     await db.insert(schema.configKV).values({ key: 'FLUX_PER_1K_CHARS_TTS', value: '1' }).onConflictDoUpdate({ target: schema.configKV.key, set: { value: '1' } })
     const redis = createTestRedis()
-    const config = createConfigKVService(createConfigKVStore(db, redis))
+    config = createConfigKVService(createConfigKVStore(db, redis))
     billing = createBillingService(db, redis)
     llmBilling = createLlmBillingService(billing)
     speech = new SpeechBilling(billing, config)
@@ -120,6 +121,42 @@ describe('shared Flux usage', () => {
     await billing.postFluxUsage(input)
     expect(await billing.postFluxUsage(input)).toMatchObject({ replay: true, charged: 0 })
     await expect(billing.postFluxUsage({ ...input, amountMicroFlux: 1 })).rejects.toThrow('Flux source replay')
+    expect(await db.select().from(fluxUsage)).toHaveLength(1)
+  })
+
+  it('spends plan Credits before the wallet and skips Flux when the plan covers speech', async () => {
+    await db.update(userFlux).set({ flux: 0 }).where(eq(userFlux.userId, 'wallet'))
+    const debitCredits = vi.fn(async (input: { amountMicro: number }) => ({ chargedMicro: input.amountMicro, requestedMicro: input.amountMicro }))
+    const subscriptions = {
+      getStatus: async () => ({ allowances: [{ remainingMicro: 5_000_000 }] }),
+      getFallbackPreference: async () => false,
+      debitCredits,
+    }
+    const planSpeech = new SpeechBilling(billing, config, null, subscriptions)
+    await planSpeech.assertCanAfford('wallet', 1000)
+    await planSpeech.settle(tts('plan-tts', 1000))
+    expect(debitCredits).toHaveBeenCalledWith(expect.objectContaining({ amountMicro: 1_000_000 }))
+    expect(await db.select().from(fluxUsage)).toHaveLength(0)
+  })
+
+  it('rejects speech when plan Credits are short and Flux fallback is off', async () => {
+    const subscriptions = {
+      getStatus: async () => ({ allowances: [] }),
+      getFallbackPreference: async () => false,
+      debitCredits: vi.fn(),
+    }
+    const planSpeech = new SpeechBilling(billing, config, null, subscriptions)
+    await expect(planSpeech.assertCanAfford('wallet', 1000)).rejects.toThrow('Insufficient flux')
+  })
+
+  it('posts speech to the wallet when plan Credits are short and Flux fallback is on', async () => {
+    const subscriptions = {
+      getStatus: async () => ({ allowances: [] }),
+      getFallbackPreference: async () => true,
+      debitCredits: vi.fn(),
+    }
+    const planSpeech = new SpeechBilling(billing, config, null, subscriptions)
+    await planSpeech.settle(tts('fallback-tts', 1000))
     expect(await db.select().from(fluxUsage)).toHaveLength(1)
   })
 

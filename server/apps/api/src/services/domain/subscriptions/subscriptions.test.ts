@@ -3,6 +3,7 @@ import type { Database } from '../../../libs/db'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
+import { MICRO_PER_CREDIT } from '../billing/credit-posting'
 import { createSubscriptionService } from './index'
 
 import * as schema from '../../../schemas'
@@ -59,7 +60,7 @@ describe('subscription service', () => {
     expect(await service.openPeriod(period)).toBe(true)
     expect(await service.openPeriod(period)).toBe(false)
 
-    await service.consumeQuota({ userId: 'user-1', amount: 500, requestId: 'req-1' })
+    await service.debitCredits({ userId: 'user-1', amountMicro: 500 * MICRO_PER_CREDIT, requestId: 'req-1' })
     expect(await service.openPeriod({ ...period, eventKey: 'event-2:airi_go' })).toBe(true)
 
     const status = await service.getStatus('user-1')
@@ -67,8 +68,14 @@ describe('subscription service', () => {
     expect(status.allowances).toMatchObject([{ grantedAmount: 2000, usedAmount: 0 }])
   })
 
-  it('spends quota idempotently and partially drains exhausted periods', async () => {
+  it('spends micro-Credits idempotently and leaves a short period untouched', async () => {
     const service = await setup()
+    await service.upsertSubscription({
+      userId: 'user-1',
+      entitlementId: 'airi_go',
+      status: 'active',
+      expiresAt: new Date(Date.now() + 10_000),
+    })
     await service.openPeriod({
       userId: 'user-1',
       entitlementId: 'airi_go',
@@ -78,14 +85,49 @@ describe('subscription service', () => {
       eventKey: 'event-1',
     })
 
-    expect(await service.consumeQuota({ userId: 'user-1', amount: 100, requestId: 'req-1' }))
-      .toEqual({ charged: 100, requested: 100 })
-    expect(await service.consumeQuota({ userId: 'user-1', amount: 100, requestId: 'req-1' }))
-      .toEqual({ charged: 100, requested: 100 })
-    expect(await service.consumeQuota({ userId: 'user-1', amount: 5000, requestId: 'req-2' }))
-      .toEqual({ charged: 1900, requested: 5000 })
+    const fee = 1_500_000
+    expect(await service.debitCredits({ userId: 'user-1', amountMicro: fee, requestId: 'req-1' }))
+      .toEqual({ chargedMicro: fee, requestedMicro: fee })
+    expect(await service.debitCredits({ userId: 'user-1', amountMicro: fee, requestId: 'req-1' }))
+      .toEqual({ chargedMicro: fee, requestedMicro: fee })
+    expect(await service.debitCredits({ userId: 'user-1', amountMicro: 5000 * MICRO_PER_CREDIT, requestId: 'req-2' }))
+      .toEqual({ chargedMicro: 0, requestedMicro: 5000 * MICRO_PER_CREDIT })
 
     const status = await service.getStatus('user-1')
+    expect(status.allowances).toMatchObject([{
+      grantedAmount: 2000,
+      usedAmount: 1,
+      unsettledMicro: 500_000,
+      remainingMicro: 1998 * MICRO_PER_CREDIT + 500_000,
+    }])
+  })
+
+  it('expires other entitlements when a plan replaces them', async () => {
+    const service = await setup()
+    await service.upsertSubscription({
+      userId: 'user-1',
+      entitlementId: 'airi_go',
+      status: 'active',
+      expiresAt: new Date(Date.now() + 10_000),
+    })
+    await service.openPeriod({
+      userId: 'user-1',
+      entitlementId: 'airi_go',
+      grantedAmount: 2000,
+      periodStart: new Date(),
+      periodEnd: null,
+      eventKey: 'go',
+    })
+    await service.upsertSubscription({
+      userId: 'user-1',
+      entitlementId: 'airi_plus',
+      status: 'active',
+      expiresAt: new Date(Date.now() + 10_000),
+    })
+    await service.retireOtherEntitlements('user-1', 'airi_plus')
+
+    const status = await service.getStatus('user-1')
+    expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_plus' }])
     expect(status.allowances).toEqual([])
   })
 

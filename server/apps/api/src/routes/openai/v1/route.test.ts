@@ -75,7 +75,8 @@ function createMockSubscriptionService(overrides?: Partial<SubscriptionService>)
   // No plan quota with Flux fallback on: existing debit assertions keep passing.
   return {
     getStatus: vi.fn(async () => ({ subscriptions: [], allowances: [] })),
-    consumeQuota: vi.fn(async (input: { amount: number }) => ({ charged: 0, requested: input.amount })),
+    debitCredits: vi.fn(async (input: { amountMicro: number }) => ({ chargedMicro: 0, requestedMicro: input.amountMicro })),
+    retireOtherEntitlements: vi.fn(),
     getFallbackPreference: vi.fn(async () => true),
     setFallbackPreference: vi.fn(),
     deleteAllForUser: vi.fn(),
@@ -495,7 +496,7 @@ describe('v1CompletionsRoutes', () => {
           usage: { cost: 0.002, prompt_tokens: 1, completion_tokens: 1 },
         })) as any
       const billingService = createMockBillingService(0)
-      const consumeQuota = vi.fn(async () => ({ charged: 2, requested: 2 }))
+      const debitCredits = vi.fn(async (input: { amountMicro: number }) => ({ chargedMicro: input.amountMicro, requestedMicro: input.amountMicro }))
       const subscriptions = createMockSubscriptionService({
         getStatus: vi.fn(async () => ({
           subscriptions: [],
@@ -505,10 +506,12 @@ describe('v1CompletionsRoutes', () => {
             periodEnd: null,
             grantedAmount: 2000,
             usedAmount: 0,
+            unsettledMicro: 0,
+            remainingMicro: 2_000_000_000,
             remainingAmount: 2000,
           }],
         })),
-        consumeQuota,
+        debitCredits,
         getFallbackPreference: vi.fn(async () => false),
       })
       const app = createTestApp(
@@ -535,7 +538,7 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
       expect(res.status).toBe(200)
-      expect(consumeQuota).toHaveBeenCalled()
+      expect(debitCredits).toHaveBeenCalled()
       expect(billingService.settleLlmCost).not.toHaveBeenCalled()
     })
 

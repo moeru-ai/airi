@@ -2,11 +2,24 @@ import type { Database } from '../../../libs/db'
 import type { SubscriptionStatus } from '../../../schemas/subscription'
 
 import { useLogger } from '@guiiai/logg'
-import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, ne, or, sql } from 'drizzle-orm'
+
+import { availableMicroCredits, MICRO_PER_CREDIT, postMicroCredits } from '../billing/credit-posting'
 
 import * as schema from '../../../schemas/subscription'
 
 const logger = useLogger('subscriptions')
+
+function allowanceRemainingMicro(row: { grantedAmount: number, usedAmount: number, unsettledMicro: number }): bigint {
+  return availableMicroCredits({
+    credits: row.grantedAmount - row.usedAmount,
+    unsettledMicro: row.unsettledMicro,
+  })
+}
+
+function usableAllowanceSql() {
+  return sql`((${schema.subscriptionAllowance.grantedAmount} - ${schema.subscriptionAllowance.usedAmount})::bigint * ${MICRO_PER_CREDIT}) > ${schema.subscriptionAllowance.unsettledMicro}`
+}
 
 export interface SubscriptionUpsert {
   userId: string
@@ -102,6 +115,7 @@ export function createSubscriptionService(db: Database) {
         periodEnd: input.periodEnd,
         grantedAmount: input.grantedAmount,
         usedAmount: 0,
+        unsettledMicro: 0,
         eventId: input.eventKey,
       }).onConflictDoNothing()
       return true
@@ -169,6 +183,7 @@ export function createSubscriptionService(db: Database) {
             periodEnd: item.expiresAt,
             grantedAmount: item.quotaAmount,
             usedAmount: 0,
+            unsettledMicro: 0,
             eventId: `reconcile:${userId}:${item.entitlementId}:${item.expiresAt?.getTime() ?? 'open'}`,
           }).onConflictDoNothing()
         }
@@ -208,7 +223,7 @@ export function createSubscriptionService(db: Database) {
               isNull(schema.subscriptionAllowance.periodEnd),
               gt(schema.subscriptionAllowance.periodEnd, now),
             ),
-            sql`${schema.subscriptionAllowance.usedAmount} < ${schema.subscriptionAllowance.grantedAmount}`,
+            usableAllowanceSql(),
           ))
           .orderBy(asc(schema.subscriptionAllowance.periodEnd))
 
@@ -221,37 +236,41 @@ export function createSubscriptionService(db: Database) {
         status: row.status,
         expiresAt: row.expiresAt?.toISOString() ?? null,
       })),
-      allowances: allowances.map(row => ({
-        entitlementId: row.entitlementId,
-        periodStart: row.periodStart.toISOString(),
-        periodEnd: row.periodEnd?.toISOString() ?? null,
-        grantedAmount: row.grantedAmount,
-        usedAmount: row.usedAmount,
-        remainingAmount: row.grantedAmount - row.usedAmount,
-      })),
+      allowances: allowances.map((row) => {
+        const remainingMicro = Number(allowanceRemainingMicro(row))
+        return {
+          entitlementId: row.entitlementId,
+          periodStart: row.periodStart.toISOString(),
+          periodEnd: row.periodEnd?.toISOString() ?? null,
+          grantedAmount: row.grantedAmount,
+          usedAmount: row.usedAmount,
+          unsettledMicro: row.unsettledMicro,
+          remainingMicro,
+          remainingAmount: remainingMicro / MICRO_PER_CREDIT,
+        }
+      }),
     }
   }
 
   /**
-   * Debits plan quota from the earliest-expiring open period.
-   * Partial debit drains the period; the caller covers the rest
-   * (Flux fallback) or rejects. Retries with the same requestId
-   * replay the original charge.
+   * Debits micro-Credits from the earliest-expiring open period when the
+   * period covers the whole fee. A short period is left untouched.
+   * Retries with the same requestId replay the original charge.
    */
-  async function consumeQuota(input: {
+  async function debitCredits(input: {
     userId: string
-    amount: number
+    amountMicro: number
     requestId: string
-  }): Promise<{ charged: number, requested: number }> {
+  }): Promise<{ chargedMicro: number, requestedMicro: number }> {
     return db.transaction(async (tx) => {
       const [existing] = await tx
-        .select({ amount: schema.subscriptionConsumption.amount })
+        .select({ amountMicro: schema.subscriptionConsumption.amountMicro })
         .from(schema.subscriptionConsumption)
         .where(eq(schema.subscriptionConsumption.requestId, input.requestId))
         .limit(1)
 
       if (existing)
-        return { charged: existing.amount, requested: input.amount }
+        return { chargedMicro: existing.amountMicro, requestedMicro: input.amountMicro }
 
       const now = new Date()
       const [period] = await tx
@@ -263,30 +282,60 @@ export function createSubscriptionService(db: Database) {
             isNull(schema.subscriptionAllowance.periodEnd),
             gt(schema.subscriptionAllowance.periodEnd, now),
           ),
-          sql`${schema.subscriptionAllowance.usedAmount} < ${schema.subscriptionAllowance.grantedAmount}`,
+          usableAllowanceSql(),
         ))
         .orderBy(asc(schema.subscriptionAllowance.periodEnd))
         .for('update')
         .limit(1)
 
-      if (!period)
-        return { charged: 0, requested: input.amount }
+      if (!period || allowanceRemainingMicro(period) < BigInt(input.amountMicro))
+        return { chargedMicro: 0, requestedMicro: input.amountMicro }
 
-      const charged = Math.min(input.amount, period.grantedAmount - period.usedAmount)
+      const posted = postMicroCredits({
+        credits: period.grantedAmount - period.usedAmount,
+        unsettledMicro: period.unsettledMicro,
+      }, input.amountMicro)
 
       await tx.insert(schema.subscriptionConsumption).values({
         requestId: input.requestId,
         userId: input.userId,
         allowanceId: period.id,
-        amount: charged,
+        amountMicro: input.amountMicro,
       }).onConflictDoNothing()
 
       await tx.update(schema.subscriptionAllowance)
-        .set({ usedAmount: period.usedAmount + charged, updatedAt: new Date() })
+        .set({
+          usedAmount: period.grantedAmount - posted.credits,
+          unsettledMicro: posted.unsettledMicro,
+          updatedAt: new Date(),
+        })
         .where(eq(schema.subscriptionAllowance.id, period.id))
 
-      return { charged, requested: input.amount }
+      return { chargedMicro: input.amountMicro, requestedMicro: input.amountMicro }
     })
+  }
+
+  /** Expires every other entitlement and closes its open Credit periods. */
+  async function retireOtherEntitlements(userId: string, keepEntitlementId: string): Promise<void> {
+    const now = new Date()
+    await db.update(schema.subscription)
+      .set({ status: 'expired', updatedAt: now })
+      .where(and(
+        eq(schema.subscription.userId, userId),
+        ne(schema.subscription.entitlementId, keepEntitlementId),
+        isNull(schema.subscription.deletedAt),
+        ne(schema.subscription.status, 'expired'),
+      ))
+    await db.update(schema.subscriptionAllowance)
+      .set({ periodEnd: now, updatedAt: now })
+      .where(and(
+        eq(schema.subscriptionAllowance.userId, userId),
+        ne(schema.subscriptionAllowance.entitlementId, keepEntitlementId),
+        or(
+          isNull(schema.subscriptionAllowance.periodEnd),
+          gt(schema.subscriptionAllowance.periodEnd, now),
+        ),
+      ))
   }
 
   async function getFallbackPreference(userId: string): Promise<boolean> {
@@ -331,7 +380,8 @@ export function createSubscriptionService(db: Database) {
     openPeriod,
     reconcile,
     getStatus,
-    consumeQuota,
+    debitCredits,
+    retireOtherEntitlements,
     getFallbackPreference,
     setFallbackPreference,
     deleteAllForUser,

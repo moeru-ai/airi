@@ -9,7 +9,8 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 
 import { invalidateBalanceCache } from '../flux-cache'
-import { fluxUsageInputSchema, MICRO_FLUX_PER_FLUX } from './flux-posting'
+import { MICRO_PER_CREDIT, settleMicroCredits } from './credit-posting'
+import { fluxUsageInputSchema } from './flux-posting'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -55,10 +56,11 @@ export function createBillingService(
     operationId: string,
     usageId?: string,
   ) {
-    const requested = Math.floor(wallet.unsettledMicroFlux / MICRO_FLUX_PER_FLUX)
-    const charged = Math.min(requested, Math.max(0, wallet.flux))
-    const balance = wallet.flux - charged
-    const unsettledMicroFlux = wallet.unsettledMicroFlux - charged * MICRO_FLUX_PER_FLUX
+    const settled = settleMicroCredits({ credits: wallet.flux, unsettledMicro: wallet.unsettledMicroFlux })
+    const requested = Math.floor(wallet.unsettledMicroFlux / MICRO_PER_CREDIT)
+    const charged = settled.chargedCredits
+    const balance = settled.credits
+    const unsettledMicroFlux = settled.unsettledMicro
     await tx.update(fluxSchema.userFlux).set({ flux: balance, unsettledMicroFlux, updatedAt: new Date() }).where(eq(fluxSchema.userFlux.userId, wallet.userId))
     if (charged > 0) {
       await tx.insert(fluxTxSchema.fluxTransaction).values({

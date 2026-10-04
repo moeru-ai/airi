@@ -37,7 +37,7 @@ export async function ensureRevenuecatConfigured(userId: string) {
 }
 
 export function revenuecatPackagePrice(pkg: Package): { formattedPrice: string, currency: string } {
-  const price = pkg.webBillingProduct.price ?? pkg.webBillingProduct.currentPrice
+  const price = pkg.webBillingProduct.price
   return { formattedPrice: price.formattedPrice, currency: price.currency }
 }
 

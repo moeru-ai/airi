@@ -25,6 +25,7 @@ const PERIOD_OPENING_EVENTS = new Set([
   'RENEWAL',
   'UNCANCELLATION',
   'SUBSCRIPTION_EXTENDED',
+  'PRODUCT_CHANGE',
 ])
 
 /** Webhook types that change status without opening a period. */
@@ -95,6 +96,7 @@ export function createRevenuecatSubscriptionSync(
           periodEnd: expiresAt,
           eventKey: `${event.id}:${entitlementId}`,
         })
+        await subscriptions.retireOtherEntitlements(event.appUserId, entitlementId)
       }
     }
 

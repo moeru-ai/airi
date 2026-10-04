@@ -774,8 +774,8 @@ export async function createApp() {
   })
 
   const speechBilling = injeca.provide('services:speechBilling', {
-    dependsOn: { billingService, configKV, otel },
-    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { billingService, configKV, otel, subscriptionService },
+    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue, dependsOn.subscriptionService),
   })
 
   // Redis coordinates upstream pool capacity across API replicas.

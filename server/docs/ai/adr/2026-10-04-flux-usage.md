@@ -9,7 +9,8 @@ The contract contains no model, turn, attempt, pricing, provider, or pending sta
 `flux_usage` stores one confirmed micro-Flux fee for each source. Rows are append-only.
 `flux_transaction` stores integer balance changes only. Its schema does not change.
 `user_flux.unsettled_micro_flux` stores the shared outstanding pool.
-One Flux equals 1,000,000 micro-Flux.
+One Flux equals one Credit. One Credit equals 1,000,000 micro-Credits.
+`credit-posting.ts` settles the Flux wallet and plan Credits with that scale.
 A service puts its own evidence in `detail`. A new service needs a new `source.type` and no new table.
 
 ## Boundary

@@ -12,6 +12,7 @@ import { safeParse } from 'valibot'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
 import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/billing'
+import { takePlanCredits } from '../../../../services/domain/billing/credit-settlement'
 import { availableMicroFlux, MICRO_FLUX_PER_FLUX, microFluxToFlux } from '../../../../services/domain/billing/flux-posting'
 import { createPaymentRequiredError, createServiceUnavailableError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
@@ -75,8 +76,11 @@ export function createOpenAiRouteBilling(deps: {
     let effectiveMicroFlux = availableMicroFlux(flux)
     if (deps.subscriptions) {
       const planStatus = await deps.subscriptions.getStatus(userId)
-      const planRemaining = planStatus.allowances.reduce((sum, allowance) => sum + allowance.remainingAmount, 0)
-      effectiveMicroFlux += BigInt(planRemaining) * BigInt(MICRO_FLUX_PER_FLUX)
+      const planRemaining = planStatus.allowances.reduce((sum, allowance) => sum + allowance.remainingMicro, 0)
+      const fallbackToFlux = await deps.subscriptions.getFallbackPreference(userId)
+      effectiveMicroFlux = fallbackToFlux
+        ? effectiveMicroFlux + BigInt(planRemaining)
+        : BigInt(planRemaining)
     }
     if (effectiveMicroFlux < BigInt(parsed.output.minimumBalance) * BigInt(MICRO_FLUX_PER_FLUX))
       throw createPaymentRequiredError('Insufficient flux')
@@ -103,38 +107,23 @@ export function createOpenAiRouteBilling(deps: {
   async function settleChat(input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>): Promise<number> {
     // Zero-fee and pending requests settle through the wallet path below so
     // usage records keep the upstream reconciliation semantics.
-    let quotaCharged = 0
-    if (input.amount > 0 && deps.subscriptions) {
-      // Plan quota is spent first in whole Flux credits; fractional fees round
-      // up. The pre-read avoids forfeiting a partial tail: quota is touched
-      // only when it covers the whole request.
-      const quotaAmount = Math.ceil(input.amount)
-      const planStatus = await deps.subscriptions.getStatus(input.userId)
-      const planRemaining = planStatus.allowances.reduce((sum, allowance) => sum + allowance.remainingAmount, 0)
-      if (planRemaining >= quotaAmount) {
-        const plan = await deps.subscriptions.consumeQuota({
-          userId: input.userId,
-          amount: quotaAmount,
-          requestId: input.requestId,
-        })
-        if (plan.charged >= quotaAmount)
-          return input.amount
-        // Concurrent requests may have drained quota between the read and the
-        // debit; fall through to the wallet so the request is still settled.
-        quotaCharged = plan.charged
-      }
-    }
-
-    if (deps.subscriptions) {
-      const fallbackToFlux = await deps.subscriptions.getFallbackPreference(input.userId)
-      if (!fallbackToFlux) {
-        deps.revenue?.fluxUnbilled.add(input.amount - quotaCharged, {
-          [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
-          reason: 'plan_quota_exhausted',
-          stage: input.stage,
-        })
-        return quotaCharged
-      }
+    const amountMicro = input.amount > 0
+      ? (priceLlmCost(input.costReceipt.usage, input.costReceipt.pricing).costMicroFlux ?? 0)
+      : 0
+    const settlement = await takePlanCredits(deps.subscriptions, {
+      userId: input.userId,
+      requestId: input.requestId,
+      amountMicro,
+    })
+    if (settlement === 'taken')
+      return microFluxToFlux(amountMicro)
+    if (settlement === 'stopped') {
+      deps.revenue?.fluxUnbilled.add(input.amount, {
+        [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
+        reason: 'plan_quota_exhausted',
+        stage: input.stage,
+      })
+      return 0
     }
 
     const feeFlux = await debitChatFlux({
