@@ -389,18 +389,26 @@ function isCurrentProviderDraft(config: Record<string, unknown>, displayName: st
     && providerDisplayNameEdit.value.trim() === displayName
 }
 
-function persistProviderDraft(status: ProviderValidationStatus) {
-  if (!providerConfigEdit.value)
-    return
+type ProviderUpdate
+  = { type: 'validated-draft', config: Record<string, unknown>, status: ProviderValidationStatus, displayName: string }
+    | { type: 'display-name', displayName: string }
 
-  const config = { ...providerConfigEdit.value.config }
-  const displayName = providerDisplayNameEdit.value.trim()
+function persistProviderUpdate(update: ProviderUpdate) {
+  const id = providerId.value
   pendingProviderSaveCount++
 
   const save = providerSaveChain.then(async () => {
     try {
-      const remote = await providerStore.updateProviderConfig(providerId.value, config, status, displayName)
-      if (isCurrentProviderDraft(config, displayName))
+      const provider = providerStore.getProvider(id)
+      if (!provider)
+        return
+
+      const next = update.type === 'validated-draft'
+        ? { config: update.config, status: update.status, displayName: update.displayName }
+        : { config: provider.config, status: provider.status, displayName: update.displayName }
+
+      const remote = await providerStore.updateProviderConfig(id, next.config, next.status, next.displayName)
+      if (update.type === 'validated-draft' && isCurrentProviderDraft(next.config, next.displayName))
         syncProviderConfigEdit()
       return remote
     }
@@ -413,7 +421,16 @@ function persistProviderDraft(status: ProviderValidationStatus) {
 }
 
 function commitEditedConfig(status: ProviderValidationStatus) {
-  void persistProviderDraft(status)
+  const draft = providerConfigEdit.value
+  if (!draft)
+    return
+
+  void persistProviderUpdate({
+    type: 'validated-draft',
+    config: { ...draft.config },
+    status,
+    displayName: providerDisplayNameEdit.value.trim(),
+  })
 }
 
 const debouncedDisplayNameSave = useDebounceFn(() => {
@@ -424,7 +441,7 @@ const debouncedDisplayNameSave = useDebounceFn(() => {
   if (providerDisplayNameEdit.value.trim() === savedDisplayName)
     return
 
-  void persistProviderDraft(providerConfig.value.status)
+  void persistProviderUpdate({ type: 'display-name', displayName: providerDisplayNameEdit.value.trim() })
 }, 500)
 
 watch(providerDisplayNameEdit, () => {
