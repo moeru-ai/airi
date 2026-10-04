@@ -109,7 +109,7 @@ Platform acceptance remains open.
 
 The milestone excludes model rendering, assets, packaging, and model-specific media for Live2D, VRM, and MMD.
 Linux notifications remain outside the review.
-[Kirie Platform](https://github.com/moeru-ai/godot-kirie/blob/v0.7.0/packages/platform/README.md#desktop-notifications) lists macOS and Windows notification backends.
+[Kirie Platform](https://github.com/moeru-ai/godot-kirie/blob/v0.8.0/packages/platform/README.md#desktop-notifications) lists macOS and Windows notification backends.
 
 1. Reproduce an in-scope failure before adding a capability.
 2. Use the Godot API or lifecycle that owns the behavior.
@@ -173,12 +173,12 @@ Update acceptance requires download, integrity checks, installation, relaunch, a
 
 ## Dependency baseline
 
-Kirie npm, NuGet, and the Godot addon use 0.7.0.
-Godot and Godot.NET.Sdk use 4.7.2. Godot CEF uses 1.16.1.
-The [0.7.0 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.7.0) supplies official artifacts.
+Kirie npm, NuGet, and the Godot addon use 0.8.0.
+Godot and Godot.NET.Sdk use 4.7.2. Godot CEF uses 2.0.0.
+The [0.8.0 release](https://github.com/moeru-ai/godot-kirie/releases/tag/v0.8.0) supplies official artifacts.
 
-The addon SHA-256 is `d84d5523aac646a0cac337f7410357d0d3da5c59c2831f93214cd80db0be21f2`.
-The installed `addons/kirie/godot_cef.json` supplies the CEF digest.
+The addon SHA-256 is `e5063840514ea85b199e98755accc0b08661ed3b19f39c786cf740bcb51e7a2a`.
+The installed `.godot/kirie/godot-cef.sha256` records the CEF archive digest.
 The macOS artifact passed strict signatures. Windows used D3D12 Forward+ with accelerated OSR.
 
 On 2026-09-29, the NuGet v3 feed omitted both 0.6.5 packages and restore failed with `NU1102`.
@@ -189,7 +189,7 @@ mise x -- dotnet restore tests/StageTamagotchiKirie.Tests/StageTamagotchiKirie.T
 ```
 
 The repository retained its default NuGet source.
-The [0.7.0 addon](https://github.com/moeru-ai/godot-kirie/blob/v0.7.0/packages/kirie/addon/addons/kirie/csharp/KirieClient.cs) supplies the C# client wrapper.
+The [0.8.0 addon](https://github.com/moeru-ai/godot-kirie/blob/v0.8.0/packages/kirie/addon/addons/kirie/csharp/KirieClient.cs) supplies the C# client wrapper.
 Exact Kirie entries bypass `minimumReleaseAge`. Later releases obey the normal [pnpm policy](https://pnpm.io/settings/dependency-resolution).
 
 Acceptance requires coordinated published packages.
