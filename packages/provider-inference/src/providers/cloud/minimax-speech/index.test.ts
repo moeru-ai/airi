@@ -1,3 +1,5 @@
+import type { SpeechProviderWithExtraOptions } from '@xsai-ext/providers/utils'
+
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { providerMinimaxSpeech } from './index'
@@ -141,5 +143,56 @@ describe('providerMinimaxSpeech voice catalog', () => {
       'ttv-voice-2025082011321125-2uEN0X1S',
     ])
     expect(voices[1]!.languages).toEqual([{ code: 'und', title: 'Unknown' }])
+  })
+})
+
+describe('providerMinimaxSpeech synthesis model', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  /** The adapter maps the shared request into MiniMax's own envelope. */
+  async function synthesizeWith(model: string) {
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response('data: [DONE]\n\n', {
+      status: 200,
+      headers: { 'Content-Type': 'text/event-stream' },
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const provider = await providerMinimaxSpeech.createProvider(config) as SpeechProviderWithExtraOptions<string, { model?: string }>
+    const options = provider.speech(model)
+
+    // The store forwards `options` to the shared generator, which sends the
+    // model in the body. The adapter reads it back from there.
+    await options.fetch!(new URL('https://api.minimax.io/v1/audio/speech'), {
+      method: 'POST',
+      body: JSON.stringify({ input: 'hola', voice: 'Spanish_SereneWoman', model: options.model }),
+    })
+
+    return {
+      requested: options.model,
+      sent: JSON.parse(String(fetchMock.mock.calls[0]![1]?.body)) as { model: string },
+    }
+  }
+
+  // ROOT CAUSE:
+  //
+  // The adapter returned a fixed `speech-2.8-hd` and dropped the model argument.
+  // The settings page selector therefore changed nothing: the request always
+  // asked for HD, even when the user chose Turbo.
+  it('synthesizes with the model the caller requested', async () => {
+    const { requested, sent } = await synthesizeWith('speech-2.8-turbo')
+
+    expect(requested).toBe('speech-2.8-turbo')
+    expect(sent.model).toBe('speech-2.8-turbo')
+  })
+
+  // A caller that names no model still needs a valid one, because the request
+  // body is built from `options.model`.
+  it('falls back to the default model when the caller names none', async () => {
+    const { requested, sent } = await synthesizeWith('')
+
+    expect(requested).toBe('speech-2.8-hd')
+    expect(sent.model).toBe('speech-2.8-hd')
   })
 })

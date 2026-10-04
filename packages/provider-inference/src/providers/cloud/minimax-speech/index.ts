@@ -11,6 +11,12 @@ const minimaxSpeechConfigSchema = z.object({
 
 type MinimaxSpeechConfig = z.input<typeof minimaxSpeechConfigSchema>
 
+/**
+ * The synthesis model used when the caller names none. The settings page and
+ * the Speech module both name a model, so this covers a bare provider call.
+ */
+const DEFAULT_SPEECH_MODEL = 'speech-2.8-hd'
+
 /** Locale of a voice that the catalog cannot resolve from its ID. */
 const UNKNOWN_VOICE_LANGUAGE = { code: 'und', title: 'Unknown' }
 
@@ -139,9 +145,11 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
     const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
 
     return {
-      speech: () => ({
+      // The caller owns the model choice. Returning a fixed one made the page
+      // selector ineffective, because the request ignored the chosen model.
+      speech: (model: string) => ({
         baseURL: `${baseUrl}/v1/`,
-        model: 'speech-2.8-hd',
+        model: model || DEFAULT_SPEECH_MODEL,
         fetch: async (_input: RequestInfo | URL, init?: RequestInit) => {
           if (!init?.body || typeof init.body !== 'string')
             throw new Error('Invalid request body')
@@ -154,7 +162,7 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
               'Authorization': `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: body.model || 'speech-2.8-hd',
+              model: body.model || DEFAULT_SPEECH_MODEL,
               text: body.input ?? '',
               stream: true,
               voice_setting: {
