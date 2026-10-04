@@ -958,6 +958,7 @@ pages:
       success: 谢谢你！你的 Flux 通量已经更新好啦～
       canceled: 支付被取消
       error: 哎呀，出错了，请稍后再试
+    pending: '已用未扣：{amount} Flux'
     audit:
       title: 使用记录
       time: 时间
@@ -972,7 +973,8 @@ pages:
       empty: 暂无消耗记录
       loadMore: 更多信息
       delayHint: Flux 电量历史记录是缓慢更新的，可能有延迟
-      ttsRequests: 请求
+      descriptionUsageSettlement: 用量结算
+      groupCount: '{count} 次'
     packages:
       title: Flux 电池包
       buy: 充值

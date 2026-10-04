@@ -92,4 +92,36 @@ describe('fluxTransactionService', () => {
     expect(secondPage.records).toEqual([expect.objectContaining({ id: 'round-1-b', amount: 2 })])
     expect(secondPage.hasMore).toBe(false)
   })
+
+  it('shows a run of consecutive settlements as one row and ends it at any other row', async () => {
+    const at = (second: number) => new Date(`2026-10-03T21:00:${String(second).padStart(2, '0')}Z`)
+    const settlement = (id: string, second: number) => ({ id, userId: 'user-runs', type: 'debit', amount: 1, balanceBefore: 10, balanceAfter: 9, description: 'usage_settlement', createdAt: at(second) })
+    await db.insert(schema.fluxTransaction).values([
+      settlement('s-1', 1),
+      settlement('s-2', 2),
+      { id: 'top-up', userId: 'user-runs', type: 'credit', amount: 100, balanceBefore: 9, balanceAfter: 109, description: 'Top up', createdAt: at(3) },
+      settlement('s-3', 4),
+      settlement('s-4', 5),
+      settlement('s-5', 6),
+    ])
+
+    const first = await service.getHistory('user-runs', 1, 0)
+    const second = await service.getHistory('user-runs', 1, 1)
+    const third = await service.getHistory('user-runs', 1, 2)
+
+    expect(first.records).toEqual([expect.objectContaining({ id: 's-5', amount: 3, count: 3, firstAt: at(4) })])
+    expect(first.hasMore).toBe(true)
+    expect(second.records).toEqual([expect.objectContaining({ id: 'top-up', amount: 100, count: 1 })])
+    expect(third.records).toEqual([expect.objectContaining({ id: 's-2', amount: 2, count: 2, firstAt: at(1) })])
+    expect(third.hasMore).toBe(false)
+  })
+
+  it('keeps settlement runs separate for each user', async () => {
+    await db.insert(schema.fluxTransaction).values([
+      { id: 'other-1', userId: 'user-other', type: 'debit', amount: 1, balanceBefore: 5, balanceAfter: 4, description: 'usage_settlement', createdAt: new Date('2026-10-03T22:00:01Z') },
+      { id: 'other-credit', userId: 'user-other', type: 'credit', amount: 5, balanceBefore: 4, balanceAfter: 9, description: 'Top up', createdAt: new Date('2026-10-03T22:00:02Z') },
+    ])
+    const { records } = await service.getHistory('user-runs', 10, 0)
+    expect(records.find(record => record.id === 's-5')).toMatchObject({ count: 3 })
+  })
 })

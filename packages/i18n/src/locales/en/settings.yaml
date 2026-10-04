@@ -1013,6 +1013,7 @@ pages:
       success: Payment successful! Your Flux has been topped up.
       canceled: Payment was canceled.
       error: Something went wrong. Please try again later.
+    pending: 'Used, not yet deducted: {amount} Flux'
     audit:
       title: Transaction History
       time: Time
@@ -1027,7 +1028,8 @@ pages:
       empty: No transaction records yet.
       loadMore: Load More
       delayHint: Usage records may be delayed by up to 1 minute
-      ttsRequests: requests
+      descriptionUsageSettlement: Usage settlement
+      groupCount: '{count} times'
     packages:
       title: Flux Packages
       buy: Charge

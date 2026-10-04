@@ -21,7 +21,7 @@ function createMockFluxTransactionService(): FluxTransactionService {
     logBatch: vi.fn(async () => undefined),
     getStats: vi.fn(async () => ({ capacity: 100 })),
     getHistory: vi.fn(async (_userId: string, limit: number, offset: number) => ({
-      records: [{ id: 'tx-1', type: 'credit', amount: 5, description: 'Top up', metadata: { source: 'test' }, createdAt: new Date('2026-03-27T10:00:00.000Z') }],
+      records: [{ id: 'tx-1', type: 'credit', amount: 5, count: 1, firstAt: new Date('2026-03-27T10:00:00.000Z'), description: 'Top up', metadata: { source: 'test' }, createdAt: new Date('2026-03-27T10:00:00.000Z') }],
       hasMore: limit === 100 && offset === 0,
     })),
     getUsageHistory: vi.fn(async () => ({
@@ -69,7 +69,7 @@ describe('fluxRoutes', () => {
     expect(response.status).toBe(200)
     expect(transactions.getHistory).toHaveBeenCalledWith('user-1', 100, 0)
     expect(await response.json()).toEqual({
-      records: [{ id: 'tx-1', type: 'credit', amount: 5, description: 'Top up', metadata: { source: 'test' }, createdAt: '2026-03-27T10:00:00.000Z' }],
+      records: [{ id: 'tx-1', type: 'credit', amount: 5, count: 1, firstAt: '2026-03-27T10:00:00.000Z', description: 'Top up', metadata: { source: 'test' }, createdAt: '2026-03-27T10:00:00.000Z' }],
       hasMore: true,
     })
   })

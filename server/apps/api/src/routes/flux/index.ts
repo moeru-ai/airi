@@ -53,6 +53,8 @@ export function createFluxRoutes(
           id: r.id,
           type: r.type,
           amount: r.amount,
+          count: r.count,
+          firstAt: r.firstAt.toISOString(),
           description: r.description,
           metadata: r.metadata,
           createdAt: r.createdAt.toISOString(),

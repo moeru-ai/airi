@@ -46,16 +46,23 @@ export function createFluxTransactionService(db: Database) {
       logger.withFields({ count: entries.length }).log('Transaction batch recorded')
     },
 
+    /**
+     * Pages history by display rows. A speech turn and a run of consecutive pooled settlements are
+     * each one row, so a page never splits them. A run ends at any row that is not a settlement.
+     */
     async getHistory(userId: string, limit: number, offset: number) {
       const metadata = schema.fluxTransaction.metadata
+      const description = schema.fluxTransaction.description
       const turnId = sql`${metadata}->>'turnId'`
       const transactions = db.select({
         ...getTableColumns(schema.fluxTransaction),
-        groupKey: sql`CASE WHEN
-          ${schema.fluxTransaction.type} = 'debit'
-          AND ${schema.fluxTransaction.description} = 'tts_request'
-          AND jsonb_typeof(${metadata}->'turnId') = 'string'
-          THEN jsonb_build_array('tts_round', ${turnId})
+        groupKey: sql`CASE
+          WHEN ${description} = 'usage_settlement'
+            THEN jsonb_build_array('settlement_run', sum(CASE WHEN ${description} = 'usage_settlement' THEN 0 ELSE 1 END) OVER (ORDER BY ${schema.fluxTransaction.createdAt}, ${schema.fluxTransaction.id}))
+          WHEN ${schema.fluxTransaction.type} = 'debit'
+            AND ${description} = 'tts_request'
+            AND jsonb_typeof(${metadata}->'turnId') = 'string'
+            THEN jsonb_build_array('tts_round', ${turnId})
           ELSE jsonb_build_array('transaction', ${schema.fluxTransaction.id})
         END`.as('group_key'),
       })
@@ -66,6 +73,8 @@ export function createFluxTransactionService(db: Database) {
         id: transactions.id,
         type: transactions.type,
         amount: sql`sum(${transactions.amount}) OVER (PARTITION BY ${transactions.groupKey})`.mapWith(Number).as('amount'),
+        count: sql`count(*) OVER (PARTITION BY ${transactions.groupKey})`.mapWith(Number).as('count'),
+        firstAt: sql`min(${transactions.createdAt}) OVER (PARTITION BY ${transactions.groupKey})`.mapWith(transactions.createdAt).as('first_at'),
         description: transactions.description,
         metadata: transactions.metadata,
         createdAt: transactions.createdAt,
@@ -77,6 +86,8 @@ export function createFluxTransactionService(db: Database) {
         id: history.id,
         type: history.type,
         amount: history.amount,
+        count: history.count,
+        firstAt: history.firstAt,
         description: history.description,
         metadata: history.metadata,
         createdAt: history.createdAt,
