@@ -515,3 +515,5 @@ Special thanks to all contributors for their contributions to Project AIRI ‚ù§Ô∏
     <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=moeru-ai/airi&type=Date" />
   </picture>
 </a>
+
+<!-- test first contribution -->
