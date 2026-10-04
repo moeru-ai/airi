@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { StickerEmotion, StickerEntry } from '../../types/sticker'
 
-import { Button, DoubleCheckButton, FieldCheckbox, FieldInput, FieldInputFile, FieldSelect, GhostButton } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldInputFile, FieldSelect, GhostButton } from '@proj-airi/ui'
 import { useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
@@ -17,6 +17,7 @@ const store = useStickersStore()
 const { enabled, frequency, entries, artwork, error } = storeToRefs(store)
 const frequencyOptions = computed(() => [25, 50, 75, 100].map(value => ({ value, label: t(`settings.pages.modules.stickers.frequency-options.${value}`) })))
 const editingId = ref<string | null>(null)
+const deletingId = ref<string | null>(null)
 const name = ref('')
 const emotions = ref<StickerEmotion[]>([])
 const files = ref<File[]>()
@@ -62,6 +63,7 @@ watch(selectedFile, async (file) => {
 })
 
 async function openEditor(entry?: StickerEntry) {
+  deletingId.value = null
   editingId.value = entry?.id ?? 'import'
   name.value = entry ? displayName(entry) : ''
   emotions.value = entry ? [...entry.emotions] : []
@@ -102,6 +104,7 @@ async function save() {
 async function remove(entry: StickerEntry) {
   try {
     await store.remove(entry.id)
+    deletingId.value = null
     if (editingId.value === entry.id)
       editingId.value = null
   }
@@ -167,19 +170,23 @@ async function remove(entry: StickerEntry) {
         <div :class="['flex flex-wrap justify-center gap-1']">
           <span v-for="emotion in entry.emotions" :key="emotion" :class="['rounded-full bg-neutral-200 px-2 py-1 text-xs dark:bg-neutral-800']">{{ t(`settings.pages.modules.stickers.emotion-labels.${emotion}`) }}</span>
         </div>
-        <div :class="['mt-auto flex flex-wrap justify-center gap-2']">
-          <Button size="sm" @click="openEditor(entry)">
-            {{ t('settings.pages.modules.stickers.edit') }}
-          </Button>
-          <DoubleCheckButton size="sm" @confirm="remove(entry)">
-            {{ t('settings.pages.modules.stickers.delete') }}
-            <template #confirm>
-              {{ t('settings.pages.modules.stickers.confirm-delete') }}
-            </template>
-            <template #cancel>
+        <div :class="['mt-auto grid w-full grid-cols-2 gap-2']">
+          <template v-if="deletingId === entry.id">
+            <Button size="sm" block @click="deletingId = null">
               {{ t('settings.pages.modules.stickers.cancel') }}
-            </template>
-          </DoubleCheckButton>
+            </Button>
+            <Button size="sm" block color="red" variant="primary" :aria-label="t('settings.pages.modules.stickers.confirm-delete')" @click="remove(entry)">
+              {{ t('settings.pages.modules.stickers.delete') }}
+            </Button>
+          </template>
+          <template v-else>
+            <Button size="sm" block @click="openEditor(entry)">
+              {{ t('settings.pages.modules.stickers.edit') }}
+            </Button>
+            <Button size="sm" block color="red" variant="primary" @click="deletingId = entry.id">
+              {{ t('settings.pages.modules.stickers.delete') }}
+            </Button>
+          </template>
         </div>
       </li>
     </ul>

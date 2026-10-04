@@ -890,7 +890,7 @@ pages:
       confirm-delete: '确认删除'
       empty: '表情库为空，导入图片来添加表情。'
       history-note: '删除或替换只影响未来回复，已有聊天和已准备好的请求仍保留原图。'
-      saved-image: '历史表情'
+      saved-image: '已保存的表情'
       errors:
         name: '请填写 1–80 个字符的名称。'
         emotions: '请至少选择一种有效的情绪标签。'
