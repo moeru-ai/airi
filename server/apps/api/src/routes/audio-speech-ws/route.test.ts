@@ -179,6 +179,11 @@ function makeFakeDeps(overrides: {
       replay: false,
     })),
   }
+  const genAi = {
+    operationCount: { add: vi.fn() },
+    operationDuration: { record: vi.fn() },
+    firstTokenDuration: { record: vi.fn() },
+  }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
       if (key === 'UNSPEECH_UPSTREAM') {
@@ -202,7 +207,7 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, speechBilling }
+  return { configKV, envelopeCrypto, speechBilling, genAi }
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */
@@ -278,6 +283,15 @@ describe('audio-speech-ws route', () => {
       userId: 'user-123',
       units: 42,
       model: 'volcengine/seed-tts-2.0',
+    })
+
+    // Duration and time to first audio are recorded once, with the start frame's model.
+    expect(deps.genAi.operationCount.add).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.operationDuration.record).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.firstTokenDuration.record).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.operationDuration.record.mock.calls[0][1]).toMatchObject({
+      'gen_ai.request.model': 'volcengine/seed-tts-2.0',
+      'http.response.status_code': 200,
     })
   })
 

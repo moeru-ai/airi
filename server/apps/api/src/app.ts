@@ -235,6 +235,7 @@ export async function buildApp(deps: AppDeps) {
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
     speechBilling: deps.speechBilling,
+    genAi: deps.otel?.genAi,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
