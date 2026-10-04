@@ -102,6 +102,22 @@ describe('audioInput', () => {
     await expect(first).rejects.toThrow('Device unplugged')
     await expect(second).rejects.toThrow('Device unplugged')
   })
+
+  it('errors only the subscriber that stopped reading once its unread audio exceeds the limit', async () => {
+    const mic = pushSource()
+    const input = new AudioInput(mic.source)
+    const stalled = input.subscribe({ maxBufferedMs: 2 })
+    const live = new AbortController()
+    const liveSamples = readAll(input.subscribe({ signal: live.signal }))
+    mic.write(0, [1, 2])
+    mic.write(2, [3])
+    mic.write(3, [4])
+    await expect.poll(() => input.position?.frame).toBe(4)
+    live.abort()
+
+    await expect(readAll(stalled)).rejects.toThrow('Audio subscriber fell behind')
+    expect(await liveSamples).toEqual([1, 2, 3, 4])
+  })
 })
 
 describe('capture', () => {
@@ -115,7 +131,7 @@ describe('capture', () => {
     mic.write(0, [1, 2])
     await first.started
 
-    expect(await first.finish()).toEqual({ status: 'finished', value: undefined, range: { sourceId: 'mic', startFrame: 0, endFrame: 2 } })
+    expect(await first.finish()).toEqual({ status: 'finished', value: { sourceId: 'mic', startFrame: 0, endFrame: 2 } })
     mic.write(2, [3])
     await expect.poll(() => input.position?.frame).toBe(3)
     expect((await second.finish()).status).toBe('finished')
@@ -133,6 +149,24 @@ describe('capture', () => {
     mic.write(4, [2])
 
     expect(await recording.done).toMatchObject({ status: 'failed', error: new Error('Audio source has a gap') })
+  })
+
+  it('reports no start and no interval when it ends before any audio', async () => {
+    const mic = pushSource()
+    const recording = capture(new AudioInput(mic.source))
+
+    expect(await recording.finish()).toEqual({ status: 'finished', value: undefined })
+    expect(await recording.started).toBe(false)
+  })
+
+  it('fails instead of queueing without limit when its stream is not read', async () => {
+    const mic = pushSource()
+    const recording = capture(new AudioInput(mic.source), { maxBufferedMs: 2 })
+    mic.write(0, [1, 2])
+    mic.write(2, [3])
+    mic.write(3, [4])
+
+    expect(await recording.done).toMatchObject({ status: 'failed', error: new Error('Capture reader fell behind') })
   })
 
   it('finishes when the source ends', async () => {
@@ -168,7 +202,7 @@ describe('observe', () => {
     const samples = readAll(onset!.stream)
     expect((await onset!.finish()).status).toBe('finished')
     expect(await samples).toHaveLength(2000 - 24)
-    observer.cancel()
+    observer.cancel('Test finished')
   })
 
   it('keeps the gap flag when latest scheduling replaces the first window after that gap', async () => {
@@ -189,7 +223,7 @@ describe('observe', () => {
 
     await expect.poll(() => calls.length).toBe(2)
     expect(calls).toEqual([{ start: 0, gap: false }, { start: 10, gap: true }])
-    observer.cancel()
+    observer.cancel('Test finished')
   })
 
   it('grows the first detector windows before switching to a sliding window', async () => {
@@ -201,7 +235,7 @@ describe('observe', () => {
     mic.write(0, [1, 2, 3, 4, 5])
 
     await expect.poll(() => windows).toEqual([[1, 2], [1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5]])
-    observer.cancel()
+    observer.cancel('Test finished')
   })
 
   it('publishes no result after cancellation, even when inference ignores abort', async () => {
@@ -211,12 +245,33 @@ describe('observe', () => {
     const observer = observe(new AudioInput(mic.source), { windowMs: 2, hopMs: 2, scheduling: 'ordered' }, () => inFlight.promise, result => results.push(result.value))
     mic.write(0, [0, 0])
     await Promise.resolve()
-    observer.cancel()
+    observer.cancel('Detector disabled')
     inFlight.resolve(1)
 
-    expect(await observer.done).toEqual({ status: 'cancelled' })
+    expect(await observer.done).toEqual({ status: 'cancelled', reason: 'Detector disabled' })
     await Promise.resolve()
     expect(results).toEqual([])
+  })
+})
+
+describe('observe completion', () => {
+  it('finishes after the source ends and the last window has been processed', async () => {
+    const mic = pushSource()
+    const seen: number[] = []
+    const observer = observe(new AudioInput(mic.source), { windowMs: 2, hopMs: 2, scheduling: 'ordered' }, async window => window.range.startFrame, result => seen.push(result.value))
+    mic.write(0, [0, 0, 0, 0])
+    mic.end()
+
+    expect(await observer.done).toEqual({ status: 'finished', value: undefined })
+    expect(seen).toEqual([0, 2])
+  })
+
+  it('fails when ordered windows wait for more audio than the limit', async () => {
+    const mic = pushSource()
+    const observer = observe(new AudioInput(mic.source), { windowMs: 2, hopMs: 2, scheduling: 'ordered', maxBufferedMs: 4 }, () => new Promise(() => {}), () => {})
+    mic.write(0, Array.from<number>({ length: 10 }).fill(0))
+
+    expect(await observer.done).toMatchObject({ status: 'failed', error: new Error('Audio detector fell behind') })
   })
 })
 

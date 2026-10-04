@@ -6,12 +6,15 @@ import { createPushStream } from './stream'
 export interface Capture {
   /** Blocks from the start position until finish, cancellation, or source completion. */
   readonly stream: ReadableStream<PcmBlock>
-  /** Resolves when the first block arrives. It never resolves for a capture that ends before audio starts. */
-  readonly started: Promise<void>
-  /** Settles once. Finished captures report the accepted interval. */
-  readonly done: Promise<Outcome<void>>
+  /** Resolves true when the first block arrives, or false when the capture ends before any audio. */
+  readonly started: Promise<boolean>
+  /**
+   * Settles once. A finished capture reports the accepted interval.
+   * The interval is undefined only when no block arrived and no `from` position fixed its start.
+   */
+  readonly done: Promise<Outcome<AudioRange | undefined>>
   /** Seals accepted audio now and closes `stream`. Other subscribers of the input continue. */
-  finish: () => Promise<Outcome<void>>
+  finish: () => Promise<Outcome<AudioRange | undefined>>
   /** Discards the capture and errors `stream`. */
   cancel: (reason: string) => void
 }
@@ -22,16 +25,29 @@ export interface Capture {
  * `from` replays retained history, so speech that started before detection is included.
  * Source completion finishes the capture. A gap inside the interval fails it, because consumers
  * such as transcription providers treat the stream as continuous audio.
+ * When `stream` has more than `maxBufferedMs` of unread audio, the capture fails instead of growing without limit.
  */
-export function capture(input: AudioInput, options: { from?: Position, signal?: AbortSignal } = {}): Capture {
+export function capture(input: AudioInput, options: {
+  from?: Position
+  signal?: AbortSignal
+  /** @default 60000. Unread audio that `stream` can queue before the capture fails. */
+  maxBufferedMs?: number
+} = {}): Capture {
+  const maxBufferedMs = options.maxBufferedMs ?? 60_000
+  if (!Number.isFinite(maxBufferedMs) || maxBufferedMs <= 0)
+    throw new Error('Capture buffer duration must be finite and positive')
+
   const lifetime = new AbortController()
-  const completion = Promise.withResolvers<Outcome<void>>()
-  const started = Promise.withResolvers<void>()
-  const output = createPushStream<PcmBlock>(reason => settle({ status: 'cancelled', reason: typeof reason === 'string' ? reason : 'Capture output cancelled' }))
+  const completion = Promise.withResolvers<Outcome<AudioRange | undefined>>()
+  const started = Promise.withResolvers<boolean>()
+  const output = createPushStream<PcmBlock>(
+    reason => settle({ status: 'cancelled', reason: typeof reason === 'string' ? reason : 'Capture output cancelled' }),
+    { highWaterMark: maxBufferedMs, size: block => (block.range.endFrame - block.range.startFrame) * 1000 / block.sampleRate },
+  )
   let range: AudioRange | undefined = options.from && { sourceId: options.from.sourceId, startFrame: options.from.frame, endFrame: options.from.frame }
   let settled = false
 
-  function settle(outcome: Outcome<void>) {
+  function settle(outcome: Outcome<AudioRange | undefined>) {
     if (settled)
       return
 
@@ -41,12 +57,12 @@ export function capture(input: AudioInput, options: { from?: Position, signal?: 
       output.close()
     else
       output.error(outcome.status === 'failed' ? outcome.error : new Error(outcome.reason))
+    started.resolve(false)
     completion.resolve(outcome)
   }
 
   function finish() {
-    const accepted = range ?? { sourceId: input.position?.sourceId ?? '', startFrame: input.position?.frame ?? 0, endFrame: input.position?.frame ?? 0 }
-    settle({ status: 'finished', value: undefined, range: accepted })
+    settle({ status: 'finished', value: range })
     return completion.promise
   }
 
@@ -56,6 +72,7 @@ export function capture(input: AudioInput, options: { from?: Position, signal?: 
 
   /** Triggering workflow: input subscription → continuity check → capture output. */
   async function pump() {
+    // This loop drains the subscription eagerly, so the capture output is the only queue to bound.
     const reader = input.subscribe({ from: options.from, signal: lifetime.signal }).getReader()
     try {
       // Settlement aborts the lifetime, which also ends the subscription.
@@ -66,9 +83,11 @@ export function capture(input: AudioInput, options: { from?: Position, signal?: 
 
         if (range && (block.range.sourceId !== range.sourceId || block.range.startFrame !== range.endFrame))
           throw new Error('Audio source has a gap')
+        if ((output.desiredSize() ?? 0) < 0)
+          throw new Error('Capture reader fell behind')
 
         range = { sourceId: block.range.sourceId, startFrame: range?.startFrame ?? block.range.startFrame, endFrame: block.range.endFrame }
-        started.resolve()
+        started.resolve(true)
         output.write(block)
       }
       void finish()

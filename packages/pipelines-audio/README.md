@@ -32,8 +32,9 @@ for await (const event of output)
   showTranscript(event)
 ```
 
-- `subscribe({ from, signal })` returns blocks from now, or first replays retained history from `from`.
-- `capture(input, { from, signal })` adds `started`, `finish()`, `cancel(reason)`, and a gap check.
+- `subscribe({ from, signal, maxBufferedMs })` returns blocks from now, or first replays retained history from `from`.
+- `capture(input, { from, signal, maxBufferedMs })` adds `started`, `finish()`, `cancel(reason)`, and a gap check.
+- `retain(signal)` returns a lease. Its holder calls `hold(position)` to keep history from that position.
 - `observe(input, options, detector, onResult)` runs a detector over windows with `ordered` or `latest` scheduling.
 - `audioWindows(shape)` is the windowing transform alone, for callers that schedule their own work.
 - `createScope(signal)` owns one lifetime: an abort signal, reverse-order cleanups, and child scopes.
@@ -41,8 +42,12 @@ for await (const event of output)
 Observers support sliding windows and growing windows.
 `preRollMs` keeps the history that pending detector windows need, including time spent in inference.
 A sample gap restarts window growth. Frame coordinates never cross source connections.
-There are no framework byte quotas, queue quotas, or mandatory detector deadlines.
-Plugins own their models, retained results, and disposal.
+A live source cannot wait for a slow reader. Each subscription, capture, and `ordered` observer has a `maxBufferedMs` limit, 60 seconds by default.
+When a reader falls behind that limit, only that reader fails. The source and the other readers continue.
+There are no mandatory detector deadlines. Plugins own their models, retained results, and disposal.
+
+Captures and observers settle with `Outcome`: `finished` with a value, `cancelled` with a reason, or `failed` with an error.
+A finished capture reports its interval. An observer finishes when the source ends and its last window is processed.
 
 ## Transcript buffering
 

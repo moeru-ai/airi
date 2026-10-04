@@ -10,7 +10,8 @@ describe('playback', () => {
     } })
     const group = playback.openGroup('voice')
     expect(await group.enqueue({ id: 'clip', audio: new ReadableStream({ cancel: cancelled }) })).toBe('failed')
-    expect((await group.finish()).status).toBe('failed')
+    expect(await group.finish()).toMatchObject({ status: 'failed', error: new Error('Audio device unavailable') })
+    expect(group.label).toBe('voice')
     expect(cancelled).toHaveBeenCalledOnce()
   })
 

@@ -1,4 +1,4 @@
-import type { AudioInput, AudioRange, PcmBlock } from './audio-input'
+import type { AudioInput, AudioRange, Outcome, PcmBlock } from './audio-input'
 
 import { createScope } from './scope'
 
@@ -22,6 +22,8 @@ export interface WindowOptions extends WindowShape {
   readonly signal?: AbortSignal
   /** Retain this interval before each pending window until its inference and result callback complete. */
   readonly preRollMs?: number
+  /** @default 60000. With `ordered` scheduling, the observer fails when its pending windows span more audio than this. */
+  readonly maxBufferedMs?: number
 }
 
 /** Evidence retains source coordinates after asynchronous inference. */
@@ -31,10 +33,13 @@ export interface Observation<T> {
   readonly discontinuity: boolean
 }
 
-/** Cancellation closes publication immediately, even when inference ignores abort. */
+/**
+ * Cancellation closes publication immediately, even when inference ignores abort.
+ * `done` finishes when the source ends and the last window has been processed.
+ */
 export interface Observer {
-  readonly done: Promise<{ status: 'cancelled' } | { status: 'failed', error: Error }>
-  cancel: () => void
+  readonly done: Promise<Outcome>
+  cancel: (reason: string) => void
 }
 
 /** Model implementation and allocation remain the plugin author's responsibility. */
@@ -109,31 +114,36 @@ export function observe<T>(input: AudioInput, options: WindowOptions, detector: 
   validateShape(options)
   if (options.preRollMs !== undefined && (!Number.isFinite(options.preRollMs) || options.preRollMs < 0))
     throw new Error('Pre-roll duration must be finite and nonnegative')
+  const maxBufferedMs = options.maxBufferedMs ?? 60_000
+  if (!Number.isFinite(maxBufferedMs) || maxBufferedMs <= 0)
+    throw new Error('Observer buffer duration must be finite and positive')
 
   const scope = createScope(options.signal)
-  const completion = Promise.withResolvers<Awaited<Observer['done']>>()
+  const completion = Promise.withResolvers<Outcome>()
   const pending: AudioWindow[] = []
   let active: AudioWindow | undefined
   let latestWindow: AudioWindow | undefined
   let running = false
+  let sourceEnded = false
 
-  function settle(outcome: Awaited<Observer['done']>) {
+  function settle(outcome: Outcome) {
     completion.resolve(outcome)
     void scope.close(outcome)
   }
   scope.defer(() => {
     pending.length = 0
-    completion.resolve({ status: 'cancelled' })
+    const reason = scope.signal.reason
+    completion.resolve({ status: 'cancelled', reason: typeof reason === 'string' ? reason : 'Observer closed' })
   })
 
-  if (options.preRollMs !== undefined) {
-    const preRollMs = options.preRollMs
-    // Blocks reach this observer asynchronously. Until its first window exists, keep everything it has not seen.
-    // After that, keep history before the oldest window in flight, or before the latest window when idle.
-    input.retain(() => {
-      const oldest = active ?? pending[0] ?? latestWindow
-      return oldest ? oldest.range.startFrame - Math.round(preRollMs * oldest.sampleRate / 1000) : Number.NEGATIVE_INFINITY
-    }, scope.signal)
+  // Blocks reach this observer asynchronously. Until its first window exists, the lease holds the
+  // connection from its start. After that, it holds history before the oldest window in flight, or
+  // before the latest window when idle.
+  const lease = options.preRollMs === undefined ? undefined : input.retain(scope.signal)
+  function holdPreRoll() {
+    const oldest = active ?? pending[0] ?? latestWindow
+    if (lease && oldest)
+      lease.hold({ sourceId: oldest.range.sourceId, frame: oldest.range.startFrame - Math.round(options.preRollMs! * oldest.sampleRate / 1000) })
   }
 
   async function drain() {
@@ -147,7 +157,11 @@ export function observe<T>(input: AudioInput, options: WindowOptions, detector: 
         const value = await detector(active, scope.signal)
         if (!scope.signal.aborted)
           onResult({ range: active.range, discontinuity: active.discontinuity, value })
+        active = undefined
+        holdPreRoll()
       }
+      if (sourceEnded && !scope.signal.aborted)
+        settle({ status: 'finished', value: undefined })
     }
     catch (cause) {
       settle({ status: 'failed', error: cause instanceof Error ? cause : new Error('Audio detector failed', { cause }) })
@@ -169,15 +183,22 @@ export function observe<T>(input: AudioInput, options: WindowOptions, detector: 
         latestWindow = window
         if (options.scheduling === 'ordered') {
           pending.push(window)
+          // Pending windows overlap, so the backlog is the audio between the oldest pending start and the newest end.
+          const backlogMs = (window.range.endFrame - pending[0].range.startFrame) * 1000 / window.sampleRate
+          if (pending[0].range.sourceId === window.range.sourceId && backlogMs > maxBufferedMs)
+            throw new Error('Audio detector fell behind')
         }
         else {
           // A replaced window can carry the only gap flag that inference has not seen yet.
           const gap = window.discontinuity || pending.some(item => item.discontinuity)
           pending.splice(0, pending.length, gap === window.discontinuity ? window : { ...window, discontinuity: gap })
         }
+        holdPreRoll()
         void drain()
       }
-      settle({ status: 'cancelled' })
+      sourceEnded = true
+      if (!running && !scope.signal.aborted)
+        settle({ status: 'finished', value: undefined })
     }
     catch (cause) {
       settle({ status: 'failed', error: cause instanceof Error ? cause : new Error('Audio source failed', { cause }) })
@@ -187,5 +208,5 @@ export function observe<T>(input: AudioInput, options: WindowOptions, detector: 
   if (!scope.signal.aborted)
     void read()
 
-  return { done: completion.promise, cancel: () => void scope.close('Observer cancelled') }
+  return { done: completion.promise, cancel: reason => void scope.close(reason) }
 }

@@ -22,9 +22,13 @@ export interface PcmBlock {
   readonly channels: readonly Float32Array[]
 }
 
-/** Operational failure resolves completion. Invalid configuration throws before allocation. */
-export type Outcome<T>
-  = { readonly status: 'finished', readonly value: T, readonly range: AudioRange }
+/**
+ * Settlement shared by captures, observers, and their callers.
+ *
+ * Operational failure resolves completion. Invalid configuration throws before allocation.
+ */
+export type Outcome<T = void>
+  = { readonly status: 'finished', readonly value: T }
     | { readonly status: 'cancelled', readonly reason: string }
     | { readonly status: 'failed', readonly error: Error }
 
@@ -41,6 +45,24 @@ export interface AudioInputSource {
 interface Subscriber {
   readonly scope: Scope
   readonly output: ReadableStreamDefaultController<PcmBlock>
+}
+
+/**
+ * Keeps retained history from a position while its signal is active.
+ *
+ * The holder moves the position forward as its work completes. A position from an older connection
+ * adds no requirement. Before the first block of a connection, the lease holds that connection from its start.
+ */
+export interface HistoryLease {
+  hold: (from: Position) => void
+}
+
+interface Lease {
+  from: Position | undefined
+}
+
+function blockMs(block: PcmBlock) {
+  return (block.range.endFrame - block.range.startFrame) * 1000 / block.sampleRate
 }
 
 function sliceBlock(block: PcmBlock, startFrame: number): PcmBlock {
@@ -76,7 +98,7 @@ function isValidBlock(block: PcmBlock, frame: number | undefined) {
 export class AudioInput {
   private connection: Scope | undefined
   private readonly subscribers = new Set<Subscriber>()
-  private readonly retainers = new Set<() => number | undefined>()
+  private readonly leases = new Set<Lease>()
   private readonly history: PcmBlock[] = []
   private current: Position | undefined
   private rate: number | undefined
@@ -103,14 +125,26 @@ export class AudioInput {
    *
    * With `from`, the stream first replays retained history from that position. Missing history errors the stream.
    * Source failure errors every subscriber. Source completion closes them.
+   *
+   * A live source cannot wait for a slow reader. When unread audio exceeds `maxBufferedMs`, only this
+   * subscription errors, so one stalled consumer cannot grow memory without limit or stop the others.
    */
-  subscribe(options: { from?: Position, signal?: AbortSignal } = {}): ReadableStream<PcmBlock> {
+  subscribe(options: {
+    from?: Position
+    signal?: AbortSignal
+    /** @default 60000. Unread audio that this subscription can queue before it errors. */
+    maxBufferedMs?: number
+  } = {}): ReadableStream<PcmBlock> {
+    const maxBufferedMs = options.maxBufferedMs ?? 60_000
+    if (!Number.isFinite(maxBufferedMs) || maxBufferedMs <= 0)
+      throw new Error('Subscription buffer duration must be finite and positive')
+
     const scope = createScope(options.signal)
     let subscriber: Subscriber | undefined
     const stream = new ReadableStream<PcmBlock>({
       start: output => void (subscriber = { scope, output }),
       cancel: reason => scope.close(reason),
-    })
+    }, { highWaterMark: maxBufferedMs, size: blockMs })
     const { from } = options
     const replay = from ? this.historyFrom(from) : []
     if (!replay) {
@@ -137,12 +171,16 @@ export class AudioInput {
     return stream
   }
 
-  /** Keeps history from the returned frame while `signal` is active. Undefined adds no requirement. */
-  retain(frame: () => number | undefined, signal: AbortSignal) {
-    if (signal.aborted)
-      return
-    this.retainers.add(frame)
-    signal.addEventListener('abort', () => this.retainers.delete(frame), { once: true })
+  /** Keeps history for a holder, such as a detector whose result can start a capture before its window. */
+  retain(signal: AbortSignal): HistoryLease {
+    const lease: Lease = { from: this.current }
+    if (!signal.aborted) {
+      this.leases.add(lease)
+      signal.addEventListener('abort', () => this.leases.delete(lease), { once: true })
+    }
+    return { hold: (from) => {
+      lease.from = from
+    } }
   }
 
   /** Ends every subscription and releases the source. Later subscriptions reopen it. */
@@ -223,18 +261,32 @@ export class AudioInput {
     if (!sameSource || block.range.startFrame !== this.current?.frame)
       this.history.length = 0
 
+    // A lease from an older connection, or one taken before any connection, holds this connection from its start.
+    if (!sameSource) {
+      for (const lease of this.leases)
+        lease.from = { sourceId: block.range.sourceId, frame: block.range.startFrame }
+    }
+
     this.current = { sourceId: block.range.sourceId, frame: block.range.endFrame }
     this.rate = block.sampleRate
     this.history.push(block)
-    for (const subscriber of this.subscribers)
+    for (const subscriber of this.subscribers) {
+      if ((subscriber.output.desiredSize ?? 0) < 0) {
+        subscriber.output.error(new Error('Audio subscriber fell behind'))
+        void subscriber.scope.close('Audio subscriber fell behind')
+        continue
+      }
       subscriber.output.enqueue(block)
+    }
     this.trimHistory(block.sampleRate)
   }
 
   private trimHistory(sampleRate: number) {
     let retainedFrom = this.current!.frame - Math.floor((this.options.historyMs ?? 0) * sampleRate / 1000)
-    for (const retainer of this.retainers)
-      retainedFrom = Math.min(retainedFrom, retainer() ?? retainedFrom)
+    for (const lease of this.leases) {
+      if (lease.from?.sourceId === this.current!.sourceId)
+        retainedFrom = Math.min(retainedFrom, lease.from.frame)
+    }
     while (this.history.length && this.history[0].range.endFrame <= retainedFrom)
       this.history.shift()
     if (this.history.length && this.history[0].range.startFrame < retainedFrom)

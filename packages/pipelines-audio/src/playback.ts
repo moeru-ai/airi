@@ -2,13 +2,14 @@ import type { PcmBlock } from './audio-input'
 
 import { nanoid } from 'nanoid/non-secure'
 
-/** Estimated rendered position is not proof of perception or an exact spoken word boundary. */
-export interface PlaybackReceipt {
+/**
+ * The group's output state when it settled, with the rendered position of each clip that started.
+ * Estimated rendered position is not proof of perception or an exact spoken word boundary.
+ */
+export type PlaybackReceipt = {
   readonly groupId: string
-  readonly status: 'silent' | 'failed'
   readonly played: readonly { readonly clipId: string, readonly throughMs: number }[]
-  readonly error?: Error
-}
+} & ({ readonly status: 'silent' } | { readonly status: 'failed', readonly error: Error })
 
 /** Clip cancellation stops only its audio and preserves the containing group's remaining queue. */
 export interface PlaybackClip {
@@ -33,6 +34,8 @@ export interface PlaybackDriver {
 /** Group identity is fresh even when labels match. Finished and stopped groups cannot reopen. */
 export interface PlaybackGroup {
   readonly id: string
+  /** The caller's name for diagnostics, for example a conversation turn. It does not affect playback. */
+  readonly label: string
   enqueue: (clip: PlaybackClip) => Promise<'ended' | 'stopped' | 'failed'>
   finish: () => Promise<PlaybackReceipt>
   stop: (options: { fadeMs: number }) => Promise<PlaybackReceipt>
@@ -64,7 +67,7 @@ class OutputGroup implements PlaybackGroup {
   private stopping = false
   private settled = false
 
-  constructor(private readonly driver: PlaybackDriver) {}
+  constructor(private readonly driver: PlaybackDriver, readonly label: string) {}
 
   enqueue(clip: PlaybackClip) {
     if (this.sealed || clip.signal?.aborted) {
@@ -183,7 +186,8 @@ class OutputGroup implements PlaybackGroup {
     if (this.settled)
       return
     this.settled = true
-    this.completion.resolve({ groupId: this.id, status: error ? 'failed' : 'silent', played: [...this.played].map(([clipId, throughMs]) => ({ clipId, throughMs })), ...(error ? { error } : {}) })
+    const played = [...this.played].map(([clipId, throughMs]) => ({ clipId, throughMs }))
+    this.completion.resolve(error ? { groupId: this.id, played, status: 'failed', error } : { groupId: this.id, played, status: 'silent' })
   }
 }
 
@@ -191,7 +195,7 @@ class OutputGroup implements PlaybackGroup {
 export class Playback implements AudioPlayback {
   constructor(private readonly driver: PlaybackDriver) {}
 
-  openGroup(_label: string): PlaybackGroup {
-    return new OutputGroup(this.driver)
+  openGroup(label: string): PlaybackGroup {
+    return new OutputGroup(this.driver, label)
   }
 }

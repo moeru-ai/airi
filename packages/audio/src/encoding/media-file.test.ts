@@ -42,3 +42,17 @@ it('cancels the input stream when encoding is aborted', async () => {
   await expect(encoding).rejects.toBe('Recording discarded')
   expect(cancelled).toBe('Recording discarded')
 })
+
+it('releases the decoder and errors the stream when the connection aborts before a read', async () => {
+  const wav = await encodeWav(new ReadableStream({
+    start(output) {
+      output.enqueue(stereoBlock(0, 2400))
+      output.close()
+    },
+  }), { sampleRate: 16000, channels: 1 })
+  const connection = new AbortController()
+  const reader = fileSource(wav).open(connection.signal).getReader()
+  connection.abort('Device switched')
+
+  await expect(reader.read()).rejects.toBe('Device switched')
+})

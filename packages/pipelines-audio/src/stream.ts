@@ -4,10 +4,15 @@ export interface StreamController<T> {
   close: () => void
   error: (err: unknown) => void
   isClosed: () => boolean
+  /** Remaining queue capacity under `strategy`. Negative when the reader is behind. Null after an error. */
+  desiredSize: () => number | null
 }
 
-/** The optional cancellation handler owns resources that feed this readable output. */
-export function createPushStream<T>(onCancel?: (reason: unknown) => void): StreamController<T> {
+/**
+ * The optional cancellation handler owns resources that feed this readable output.
+ * `strategy` measures unread values. Writers check `desiredSize` because a push source cannot wait.
+ */
+export function createPushStream<T>(onCancel?: (reason: unknown) => void, strategy?: QueuingStrategy<T>): StreamController<T> {
   let closed = false
   let controller: ReadableStreamDefaultController<T> | null = null
 
@@ -19,7 +24,7 @@ export function createPushStream<T>(onCancel?: (reason: unknown) => void): Strea
       closed = true
       onCancel?.(reason)
     },
-  })
+  }, strategy)
 
   return {
     stream,
@@ -42,6 +47,9 @@ export function createPushStream<T>(onCancel?: (reason: unknown) => void): Strea
     },
     isClosed() {
       return closed
+    },
+    desiredSize() {
+      return controller?.desiredSize ?? null
     },
   }
 }

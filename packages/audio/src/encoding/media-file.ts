@@ -68,6 +68,8 @@ export async function encodeWav(frames: ReadableStream<PcmBlock>, options: WavOp
 /**
  * Decodes an audio file as a source. Each connection decodes from the start with new frame coordinates.
  *
+ * The decoder is released when the file ends, decoding fails, the stream is cancelled, or `signal` aborts.
+ *
  * @example
  * const events = transcriber.transcribe({ audio: fileSource(recording).open(signal), signal })
  */
@@ -78,39 +80,67 @@ export function fileSource(file: Blob): AudioInputSource {
       const sourceId = nanoid()
       let samples: AsyncGenerator<AudioSample> | undefined
       let frame = 0
-      return new ReadableStream<PcmBlock>({
-        async pull(output) {
-          if (!samples) {
-            const track = await input.getPrimaryAudioTrack()
-            if (!track)
-              throw new Error('The file has no audio track')
-            samples = new AudioSampleSink(track).samples()
-          }
-          signal.throwIfAborted()
-          const { done, value: sample } = await samples.next()
-          if (done) {
-            output.close()
-            input.dispose()
-            return
-          }
+      let released = false
 
+      // Abort can arrive while no read is pending, so it cannot rely on the next pull to release the decoder.
+      function release() {
+        if (released)
+          return
+        released = true
+        signal.removeEventListener('abort', abort)
+        void samples?.return(undefined).catch(() => {})
+        input.dispose()
+      }
+      let output: ReadableStreamDefaultController<PcmBlock> | undefined
+      function abort() {
+        output?.error(signal.reason)
+        release()
+      }
+
+      return new ReadableStream<PcmBlock>({
+        start(controller) {
+          output = controller
+          signal.addEventListener('abort', abort, { once: true })
+          if (signal.aborted)
+            abort()
+        },
+        async pull(controller) {
           try {
-            const channels = Array.from({ length: sample.numberOfChannels }, (_, planeIndex) => {
-              const channel = new Float32Array(sample.numberOfFrames)
-              sample.copyTo(channel, { format: 'f32-planar', planeIndex })
-              return channel
-            })
-            output.enqueue({ range: { sourceId, startFrame: frame, endFrame: frame + sample.numberOfFrames }, sampleRate: sample.sampleRate, channels })
-            frame += sample.numberOfFrames
+            if (!samples) {
+              const track = await input.getPrimaryAudioTrack()
+              if (!track)
+                throw new Error('The file has no audio track')
+              samples = new AudioSampleSink(track).samples()
+            }
+            signal.throwIfAborted()
+            const { done, value: sample } = await samples.next()
+            if (released)
+              return
+            if (done) {
+              controller.close()
+              release()
+              return
+            }
+
+            try {
+              const channels = Array.from({ length: sample.numberOfChannels }, (_, planeIndex) => {
+                const channel = new Float32Array(sample.numberOfFrames)
+                sample.copyTo(channel, { format: 'f32-planar', planeIndex })
+                return channel
+              })
+              controller.enqueue({ range: { sourceId, startFrame: frame, endFrame: frame + sample.numberOfFrames }, sampleRate: sample.sampleRate, channels })
+              frame += sample.numberOfFrames
+            }
+            finally {
+              sample.close()
+            }
           }
-          finally {
-            sample.close()
+          catch (error) {
+            release()
+            throw error
           }
         },
-        async cancel() {
-          await samples?.return(undefined)
-          input.dispose()
-        },
+        cancel: release,
       })
     },
   }
