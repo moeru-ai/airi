@@ -81,7 +81,6 @@ export function createSessionState(
   analyticsInput: AudioSpeechSessionAnalytics = {},
 ): AudioSpeechSessionState {
   const requestId = nanoid()
-  const startedAt = Date.now()
   const span = tracer.startSpan('llm.gateway.tts.stream', {
     attributes: {
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech_stream',
@@ -457,19 +456,6 @@ export function createSessionState(
       log.withError(err).withFields({ userId, units, reason }).error('billing settle failed for streaming tts')
       span.recordException(err as Error)
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
-    }
-
-    const durationMs = Date.now() - startedAt
-    try {
-      await opts.requestLogService.logRequest({
-        userId,
-        model: modelLabel,
-        status: 200,
-        durationMs,
-      })
-    }
-    catch (err) {
-      log.withError(err).warn('failed to write request log for streaming tts')
     }
 
     finalize()

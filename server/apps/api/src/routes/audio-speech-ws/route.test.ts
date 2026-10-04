@@ -179,9 +179,6 @@ function makeFakeDeps(overrides: {
       replay: false,
     })),
   }
-  const requestLogService = {
-    logRequest: vi.fn(async () => undefined),
-  }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
       if (key === 'UNSPEECH_UPSTREAM') {
@@ -205,7 +202,7 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, speechBilling, requestLogService }
+  return { configKV, envelopeCrypto, speechBilling }
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */
@@ -281,15 +278,6 @@ describe('audio-speech-ws route', () => {
       userId: 'user-123',
       units: 42,
       model: 'volcengine/seed-tts-2.0',
-    })
-
-    // Request log gets the model label from the start frame, not the
-    // hardcoded fallback.
-    expect(deps.requestLogService.logRequest).toHaveBeenCalledTimes(1)
-    expect((deps.requestLogService.logRequest.mock.calls[0] as any[])[0]).toMatchObject({
-      userId: 'user-123',
-      model: 'volcengine/seed-tts-2.0',
-      status: 200,
     })
   })
 
