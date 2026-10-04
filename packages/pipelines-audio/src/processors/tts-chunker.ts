@@ -84,11 +84,10 @@ export async function* chunkTtsInput(
   while (!current.done) {
     let value = current.value
 
-    if (value.length > 1) {
-      previousValue = value
-      current = await iterator.next()
-      continue
-    }
+    // CRLF is one grapheme cluster. Use LF so Windows line endings match
+    // the hard punctuation set and end the chunk.
+    if (value === '\r\n')
+      value = '\n'
 
     const flush = value === TTS_FLUSH_INSTRUCTION
     const special = value === TTS_SPECIAL_TOKEN

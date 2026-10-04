@@ -5,6 +5,7 @@ import type { ChatButtonState, ChatDraftHandover, ChatWindowMode, ChatWindowPref
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { SettingsWindowManager } from '../settings'
 import type { WidgetsWindowManager } from '../widgets'
 
 import { join, resolve } from 'node:path'
@@ -92,6 +93,7 @@ export interface ChatWindowManager {
  */
 export function setupChatWindowManager(params: {
   getMainWindow: () => BrowserWindow | undefined
+  openSettingsWindow: SettingsWindowManager['openWindow']
   widgetsManager: WidgetsWindowManager
   serverChannel: ServerChannel
   mcpStdioManager: McpStdioManager
@@ -134,6 +136,7 @@ export function setupChatWindowManager(params: {
       serverChannel: params.serverChannel,
       mcpStdioManager: params.mcpStdioManager,
       i18n: params.i18n,
+      openSettingsWindow: params.openSettingsWindow,
     })
 
     defineInvokeHandler(context, electronChatWindowGetPreferences, () => getPreferences())

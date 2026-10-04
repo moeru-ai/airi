@@ -54,7 +54,7 @@ describe('fluxService (DB-backed)', () => {
   it('getFlux should initialize new user with INITIAL_USER_FLUX and populate Redis', async () => {
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(100)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '100', 'EX', 60)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 100, unsettledMicroFlux: 0 }), 'EX', 60)
   })
 
   it('getFlux should write a transaction entry on initialization', async () => {
@@ -83,7 +83,7 @@ describe('fluxService (DB-backed)', () => {
 
     const record = await service.getFlux(testUser.id)
     expect(record.flux).toBe(42)
-    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), '42', 'EX', 60)
+    expect(set).toHaveBeenCalledWith(userFluxRedisKey(testUser.id), JSON.stringify({ flux: 42, unsettledMicroFlux: 0 }), 'EX', 60)
   })
 
   // ROOT CAUSE:
@@ -133,7 +133,7 @@ describe('fluxService (DB-backed)', () => {
     const get = redis.get.bind(redis)
     vi.spyOn(redis, 'get').mockImplementationOnce(async (requestedKey) => {
       const previous = await get(requestedKey)
-      await redis.set(key, '42', 'EX', 60)
+      await redis.set(key, JSON.stringify({ flux: 42, unsettledMicroFlux: 0 }), 'EX', 60)
       return previous
     })
 
