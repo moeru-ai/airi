@@ -6,14 +6,13 @@ import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
+import ChatSticker from './sticker.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
-import { chatStickers } from '../../../../assets/stickers'
 import { MarkdownRenderer } from '../../../markdown'
 import { getChatHistoryItemCopyText } from '../utils'
 import { ChatActionMenu } from './action-menu'
@@ -45,9 +44,6 @@ const emit = defineEmits<{
   (e: 'reply'): void
   (e: 'toolCallRerun', payload: ToolCallRerunRequest): void
 }>()
-
-const { t } = useI18n()
-const stickerArtwork = new Map(chatStickers.map(sticker => [sticker.id as string, sticker.src]))
 
 const resolvedSlices = computed<ChatSlices[]>(() => {
   if (props.message.slices?.length) {
@@ -171,19 +167,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 @tool-call-rerun="emitToolCallRerun(sliceIndex, $event)"
               />
               <template v-else-if="slice.type === 'tool-call-result'" />
-              <template v-else-if="slice.type === 'sticker'">
-                <img
-                  v-if="stickerArtwork.has(slice.stickerId)"
-                  :src="stickerArtwork.get(slice.stickerId)"
-                  :alt="t(`settings.pages.modules.stickers.artwork.${slice.stickerId}`)"
-                  width="160"
-                  height="160"
-                  :class="['size-40 max-w-full self-start object-contain']"
-                >
-                <span v-else :class="['text-sm text-neutral-500 dark:text-neutral-400']">
-                  {{ t('settings.pages.modules.stickers.unavailable') }}
-                </span>
-              </template>
+              <ChatSticker v-else-if="slice.type === 'sticker'" :sticker-id="slice.stickerId" />
               <template v-else-if="slice.type === 'text'">
                 <MarkdownRenderer :content="slice.text" />
               </template>

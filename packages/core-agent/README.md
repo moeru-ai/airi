@@ -67,8 +67,9 @@ Source links remain separate from speech text and survive local history persiste
 
 ## Chat stickers
 
-A host can supply `getStickers` to `createChatOrchestratorRuntime`. Each entry has an `id` and a model-facing `description`.
-The runtime snapshots the catalog for each send and adds its marker instructions to the system prompt.
+A host can supply `stickers` in the send options. Each entry has an `id` and a model-facing `description`. Hosts include image names and emotion tags in that description.
+The queue copies the catalog when the request is submitted, alongside its provider identity and system prompt supplement.
+Concurrent sessions and queued sends retain their own catalog. The runtime adds its marker instructions to that request's system prompt.
 An absent or empty catalog disables sticker output and adds no prompt instructions.
 
 The existing marker parser accepts `<|STICKER id|>` across stream chunks.

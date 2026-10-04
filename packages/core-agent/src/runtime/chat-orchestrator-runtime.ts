@@ -122,6 +122,8 @@ export interface ChatOrchestratorSendOptions {
   supportsVisionInput?: boolean
   /** Request-owned character instructions, captured before waiting in the session queue. */
   systemPromptSupplement?: string
+  /** Eligible catalog for this request. Omission disables stickers. The queue copies entries before waiting. */
+  stickers?: readonly { id: string, description: string }[]
   /** Stable user-message identity. Retries acknowledge the existing message without generating another reply. */
   messageId?: string
   /** Cancellation belongs to this request, including queued work and provider generation. */
@@ -278,8 +280,6 @@ export interface ChatOrchestratorRuntimeDeps {
   getActiveProvider: () => string | undefined
   /** Returns optional prompt text appended to the provider system message for this send. */
   getSystemPromptSupplement?: () => string | undefined
-  /** Host-owned catalog available for this turn. An empty catalog disables stickers. */
-  getStickers?: () => readonly { id: string, description: string }[] | undefined
   /** Runtime context providers ingested immediately before prompt composition. */
   runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
@@ -758,7 +758,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
-      const stickers = deps.getStickers?.()
+      const stickers = options.stickers
       let stickerEmitted = false
 
       const parser = useLlmmarkerParser({
@@ -856,6 +856,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             'You can send one optional sticker per reply with a marker from this catalog.',
             'Use stickers when the user requests one or when a lighthearted response fits. Avoid them in serious conversations.',
             'Keep your text complete. Never invent sticker IDs or image URLs.',
+            'Choose the ID whose name and emotion tags best fit the conversation.',
             ...stickers.map(sticker => `<|STICKER ${sticker.id}|>: ${sticker.description}`),
           ].join('\n')
         : ''
@@ -1228,7 +1229,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     queueFor(sessionId).enqueue({
       providerId: options.providerId ?? deps.getActiveProvider?.() ?? '',
       sendingMessage,
-      options: { ...options, systemPromptSupplement: options.systemPromptSupplement ?? deps.getSystemPromptSupplement?.() },
+      options: {
+        ...options,
+        systemPromptSupplement: options.systemPromptSupplement ?? deps.getSystemPromptSupplement?.(),
+        stickers: options.stickers?.map(({ id, description }) => ({ id, description })),
+      },
       generation,
       sessionId,
       accepted,

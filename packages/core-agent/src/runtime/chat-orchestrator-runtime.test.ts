@@ -17,7 +17,7 @@ const provider: GenerationProvider = {
   generation: model => ({ protocol: 'chat-completions', config: { model, baseURL: 'https://example.com/' } }),
 }
 
-function createHarness(getActiveProvider = () => 'mock-provider', stickers: Array<{ id: string, description: string }> = []) {
+function createHarness(getActiveProvider = () => 'mock-provider') {
   const sessionMessages: Record<string, ChatHistoryItem[]> = {
     'session-1': [
       {
@@ -96,7 +96,6 @@ function createHarness(getActiveProvider = () => 'mock-provider', stickers: Arra
     },
     getActiveSessionId: () => 'session-1',
     getActiveProvider,
-    getStickers: () => stickers,
     getSystemPromptSupplement: () => systemPromptSupplement,
     now: () => nowValue,
     monotonicNow: () => monotonicNowValues.shift() ?? 1000,
@@ -1536,7 +1535,8 @@ it('runs consecutive orchestrator turns through the real Responses adapter', asy
 
 describe('chat stickers', () => {
   it('renders a split marker once without sending it to speech or special hooks', async () => {
-    const harness = createHarness(undefined, [{ id: 'heart', description: 'A red heart' }])
+    const harness = createHarness()
+    const stickers = [{ id: 'heart', description: 'A red heart' }]
     const literals: string[] = []
     const specials: string[] = []
     harness.runtime.hooks.onTokenLiteral(async (text) => {
@@ -1550,7 +1550,7 @@ describe('chat stickers', () => {
       for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|EMOTE happy|>'])
         await options?.onStreamEvent?.({ type: 'text-delta', text })
     })
-    await harness.runtime.ingest('Send a heart', { model: 'test', chatProvider: provider })
+    await harness.runtime.ingest('Send a heart', { model: 'test', chatProvider: provider, stickers })
     const saved = harness.sessionMessages['session-1'].at(-1)
     expect(saved).toMatchObject({
       role: 'assistant',
@@ -1563,7 +1563,8 @@ describe('chat stickers', () => {
   })
 
   it('ignores unknown IDs, model URLs, and an unfinished marker', async () => {
-    const harness = createHarness(undefined, [{ id: 'heart', description: 'A red heart' }])
+    const harness = createHarness()
+    const stickers = [{ id: 'heart', description: 'A red heart' }]
     const specials: string[] = []
     harness.runtime.hooks.onTokenSpecial(async (text) => {
       specials.push(text)
@@ -1571,7 +1572,7 @@ describe('chat stickers', () => {
     harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello<|STICKER missing|><|STICKER https://example.com/image.png|><|STICKER heart' })
     })
-    await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider })
+    await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider, stickers })
     expect(harness.sessionMessages['session-1'].at(-1)).toMatchObject({ slices: [{ type: 'text', text: 'Hello' }] })
     expect(specials).toEqual([])
   })
@@ -1587,12 +1588,13 @@ describe('chat stickers', () => {
   })
 
   it('stores a sticker-only reply and resets the limit for the next turn', async () => {
-    const harness = createHarness(undefined, [{ id: 'heart', description: 'A red heart' }])
+    const harness = createHarness()
+    const stickers = [{ id: 'heart', description: 'A red heart' }]
     harness.stream.mockImplementation(async (_model, _provider, _context, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: '<|STICKER heart|>' })
     })
     for (const text of ['Send a heart', 'Send another'])
-      await harness.runtime.ingest(text, { model: 'test', chatProvider: provider })
+      await harness.runtime.ingest(text, { model: 'test', chatProvider: provider, stickers })
     const replies = harness.sessionMessages['session-1'].filter(message => message.role === 'assistant')
     expect(replies).toHaveLength(2)
     for (const reply of replies)
@@ -1601,24 +1603,90 @@ describe('chat stickers', () => {
 })
 
 it('ignores stickers inside reasoning without consuming the visible reply allowance', async () => {
-  const harness = createHarness(undefined, [{ id: 'heart', description: 'A heart' }, { id: 'dog', description: 'A dog' }])
+  const harness = createHarness()
+  const stickers = [{ id: 'heart', description: 'A heart' }, { id: 'dog', description: 'A dog' }]
   harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
     for (const text of ['<think>Consider ', '<|STICKER heart|>', ' but decline.</think>Hello!', '<|STICKER dog|>'])
       await options?.onStreamEvent?.({ type: 'text-delta', text })
   })
-  await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider })
+  await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider, stickers })
   const reply = harness.sessionMessages['session-1'].at(-1)
   expect(reply?.role === 'assistant' && reply.slices.filter(slice => slice.type === 'sticker')).toEqual([{ type: 'sticker', stickerId: 'dog' }])
 })
 
 it('keeps escaped sticker markers out of the saved speech categorization', async () => {
-  const harness = createHarness(undefined, [{ id: 'heart', description: 'A heart' }])
+  const harness = createHarness()
+  const stickers = [{ id: 'heart', description: 'A heart' }]
   harness.stream.mockImplementationOnce(async (_model, _provider, _context, options) => {
     await options?.onStreamEvent?.({ type: 'text-delta', text: 'Hello!<{\'|\'}STICKER heart{\'|\'}>' })
   })
-  await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider })
+  await harness.runtime.ingest('Hello', { model: 'test', chatProvider: provider, stickers })
   expect(harness.sessionMessages['session-1'].at(-1)).toMatchObject({
     categorization: { speech: 'Hello!' },
     slices: [{ type: 'text', text: 'Hello!' }, { type: 'sticker', stickerId: 'heart' }],
+  })
+})
+
+// https://github.com/moeru-ai/airi/pull/2714#issuecomment-5976485328
+// ROOT CAUSE:
+// Reading a shared catalog at execution time ignored request-owned eligibility and changed queued sends.
+// Copying catalogs at enqueue preserves each request's provider, prompt, and sticker selection.
+it('isolates sticker catalogs, providers, and supplements across concurrent and queued requests (PR #2714)', async () => {
+  let activeProvider = 'provider-a'
+  const harness = createHarness(() => activeProvider)
+  const held = Promise.withResolvers<void>()
+  const started: string[] = []
+  const heart = [{ id: 'heart', description: 'A heart' }]
+  harness.systemPromptSupplement.set('Supplement A')
+  harness.stream.mockImplementation(async (model, _provider, context, options) => {
+    started.push(model)
+    const prompt = JSON.stringify(context)
+    if (model === 'first') {
+      expect(prompt).toContain('Supplement A')
+      expect(prompt).not.toContain('Supplement B')
+      expect(prompt).toContain('<|STICKER heart|>')
+      expect(prompt).not.toContain('<|STICKER dog|>')
+      expect(options?.providerId).toBe('provider-a')
+      await held.promise
+    }
+    else if (model === 'other') {
+      expect(prompt).toContain('Supplement B')
+      expect(prompt).not.toContain('Supplement A')
+      expect(prompt).toContain('<|STICKER dog|>')
+      expect(prompt).not.toContain('<|STICKER heart|>')
+      expect(options?.providerId).toBe('provider-b')
+    }
+    else {
+      expect(prompt).toContain('Queued supplement')
+      expect(prompt).not.toContain('Changed supplement')
+      expect(options?.providerId).toBe('provider-a')
+    }
+    await options?.onStreamEvent?.({ type: 'text-delta', text: 'Reply <|STICKER heart|><|STICKER dog|>' })
+  })
+  const first = harness.runtime.ingest('first', { model: 'first', chatProvider: provider, stickers: heart }, 'session-1')
+  const queued = harness.runtime.ingest('queued', { model: 'queued', chatProvider: provider, systemPromptSupplement: 'Queued supplement', stickers: heart }, 'session-1')
+  heart[0]!.id = 'changed'
+  activeProvider = 'provider-b'
+  harness.systemPromptSupplement.set('Supplement B')
+  const other = harness.runtime.ingest('other', { model: 'other', chatProvider: provider, stickers: [{ id: 'dog', description: 'A dog' }] }, 'session-2')
+  try {
+    await expect.poll(() => started).toContain('other')
+    await other
+    harness.systemPromptSupplement.set('Changed supplement')
+    expect(started).toEqual(['first', 'other'])
+  }
+  finally {
+    held.resolve()
+    await Promise.all([first, queued, other])
+  }
+  const replies = harness.sessionMessages['session-1']!.filter(message => message.role === 'assistant')
+  expect(replies).toHaveLength(2)
+  for (const reply of replies) {
+    expect(reply.slices.filter(slice => slice.type === 'sticker')).toEqual([{ type: 'sticker', stickerId: 'heart' }])
+    expect(reply.categorization?.speech).toBe('Reply ')
+  }
+  expect(harness.sessionMessages['session-2']!.at(-1)).toMatchObject({
+    slices: [{ type: 'text', text: 'Reply ' }, { type: 'sticker', stickerId: 'dog' }],
+    categorization: { speech: 'Reply ' },
   })
 })

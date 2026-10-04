@@ -159,12 +159,32 @@ Streamer mode is off by default.
 ## Chat stickers
 
 Open **Settings → Modules → Stickers**, then enable stickers. This preference is off by default and applies to this device.
-The character can select one bundled image per reply. The model decides when a sticker fits the conversation.
+Select a frequency: 25%, 50%, 75%, or 100%. The default is 50% when enabled.
+The percentage controls reply eligibility. It does not force an image or guarantee an exact observed ratio.
+The model selects one catalog ID from the image names and emotion tags. No separate emotion classifier runs.
+Each prepared or queued request retains its catalog, provider, prompt, and eligibility.
 No extra provider, API request, character card, or memory module is required.
 
-The catalog uses four MIT-licensed Fluent Emoji images. The asset directory records their source and license.
-The shared assistant component displays saved sticker slices in desktop and mobile chat layouts.
+### Manage the library
+
+Import a PNG, JPG, WebP, or GIF image. Files must decode successfully and remain within 2 MB and 4096 × 4096 pixels.
+Preview the image, enter a name with 1–80 characters, and select at least one emotion tag.
+Each image can use several tags. Bundled and imported images use the same catalog format.
+Edit any image's name or tags. Imported images also support replacement.
+Deletion removes the entry from future catalogs. It does not remove images from existing or already prepared replies.
 Unknown saved IDs display a translated placeholder and never become image URLs.
-Existing local history retains its stickers after the preference is disabled.
-Cloud chat sync transfers text only, so sticker slices do not transfer to another device.
-This version does not import custom images or change the speech and tool protocols.
+
+IndexedDB stores metadata and immutable image versions on this device.
+Replacement creates a new image ID. Chat slices retain the ID selected when their request was prepared.
+Deleted entries retain their images. Archived images use storage until the application's site data is cleared.
+Web Locks serialize edits across renderer windows. BroadcastChannel signals refresh the local snapshots without transferring image bytes.
+The toggle and frequency follow existing same-origin storage events. Reset restores these preferences without clearing the library.
+Cloud chat sync transfers text only. Neither imported images nor sticker slices transfer to another device.
+Runtime generation does not require an image service or image-generation model.
+
+### Bundled artwork
+
+The default pack contains twelve generated chibi reactions of AIRI's official blue-haired Live2D character.
+See [artwork provenance](src/assets/stickers/README.md) for references, exact prompts, and inspection notes.
+These are static assets. No runtime image-generation dependency is included.
+The four development-only Fluent Emoji images are removed. No old-ID migration is included.
