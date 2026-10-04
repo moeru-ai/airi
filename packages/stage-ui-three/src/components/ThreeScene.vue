@@ -173,6 +173,7 @@ const {
 } = modelStore
 const {
   sceneMutationLocked,
+  maxFps,
   scenePhase,
   sceneTransactionDepth,
 
@@ -1026,6 +1027,7 @@ defineExpose({
       :camera="camera"
       :antialias="true"
       :dpr="renderScale"
+      :fps-limit="maxFps > 0 ? maxFps : Infinity"
       :tone-mapping="ACESFilmicToneMapping"
       :tone-mapping-exposure="1"
       :clear-alpha="0"

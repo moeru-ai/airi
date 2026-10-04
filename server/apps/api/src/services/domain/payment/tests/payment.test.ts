@@ -1,10 +1,9 @@
 import type { Database } from '../../../../libs/db'
-import type { ConfigKVService } from '../../../adapters/config-kv'
 import type { ClaimReceipt, EvidenceReceipt } from '../types'
 
 import { Environment } from '@apple/app-store-server-library'
 import { eq } from 'drizzle-orm'
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../../../libs/mock-db'
 import { createTestRedis } from '../../../../libs/tests/redis'
@@ -14,16 +13,6 @@ import { createBillingService } from '../../billing/billing-service'
 import { createPaymentService } from '../index'
 
 import * as schema from '../../../../schemas'
-
-function createPacksConfigKV(): ConfigKVService {
-  return {
-    getOptional: vi.fn(async () => null),
-    getOrThrow: vi.fn(),
-    get: vi.fn(),
-    refresh: vi.fn(),
-    invalidateCache: vi.fn(),
-  } as ConfigKVService
-}
 
 describe('payment CORE', () => {
   let db: Database
@@ -41,7 +30,7 @@ describe('payment CORE', () => {
 
   beforeEach(async () => {
     redis = createTestRedis()
-    const billing = createBillingService(db, redis, createPacksConfigKV())
+    const billing = createBillingService(db, redis)
     payment = createPaymentService(db, billing)
 
     await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))
@@ -94,7 +83,7 @@ describe('payment CORE', () => {
     expect(paid?.fluxAmount).toBe(500)
     expect(paid?.processorOrderId).toBe(`cs_test_${order.id}`)
 
-    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBeNull()
   })
 
   it('settle replay returns applied false and does not double credit', async () => {
@@ -289,7 +278,7 @@ describe('payment CORE', () => {
 
     const [flux] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, 'user-pay-1'))
     expect(flux?.flux).toBe(500)
-    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBe('500')
+    expect(await redis.get(userFluxRedisKey('user-pay-1'))).toBeNull()
   })
 
   it('evidence settle replay returns applied false and does not double credit', async () => {
