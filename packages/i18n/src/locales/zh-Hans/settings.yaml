@@ -955,6 +955,8 @@ pages:
     buy: 充值
     currency: 币种
     description: 充值 Flux
+    terms: 使用条款
+    privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
       success: 谢谢你！你的 Flux 通量已经更新好啦～
@@ -979,20 +981,6 @@ pages:
       title: Flux 电池包
       buy: 充值
       description: 可以选择购入的 Flux 电池包
-      oneTime: 一次性购买
-      recommended: 推荐
-      empty: 暂无可购买的 Flux 电池包。
-      packageAction: '{action}{package}，价格为 {price}'
-  pricing:
-    eyebrow: AIRI 托管服务
-    title: Flux 价格
-    description: Flux 用于 AIRI 的托管 AI 功能。选择电池包，为你的 AIRI 账户补充 Flux 电量。
-    oneTimeTitle: 一次性购买
-    oneTimeDescription: Flux 电池包不会自动续费。每个电池包显示的价格就是本次购买的完整价格。
-    accountTitle: 充入你的 AIRI 账户
-    accountDescription: 无需登录即可查看价格。结账前需要登录，以便 AIRI 将购买的 Flux 充入你的账户。
-    terms: 使用条款
-    privacy: 隐私政策
   providers:
     catalog:
       edit:

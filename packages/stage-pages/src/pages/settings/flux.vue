@@ -2,12 +2,11 @@
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
 
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
-import { FluxPricing } from '@proj-airi/stage-ui/components'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button } from '@proj-airi/ui'
+import { Button, SelectTab } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -20,18 +19,50 @@ const router = useRouter()
 const authStore = useAuthStore()
 const { credits, isAuthenticated } = storeToRefs(authStore)
 const {
+  trackCheckoutStarted,
   trackPaywallSeen,
+  trackPlanSelected,
+  trackPricingViewed,
   trackQuotaLimitReached,
+  trackUpgradeClicked,
 } = useAnalytics()
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
-// Desktop checkout opens in the system browser through FluxPricing.
-// Refresh from the server when this window regains focus after payment.
-if (isStageTamagotchi())
-  useEventListener(window, 'focus', () => authStore.updateCredits())
+// On desktop, checkout happens in the external system browser (see handleBuy), so
+// the app never receives the success_url redirect that web/mobile use to refresh.
+// Re-pull the FLUX balance whenever the window regains focus; the balance source
+// of truth is the server (credited by the Stripe webhook).
+if (isStageTamagotchi()) {
+  useEventListener(window, 'focus', () => {
+    if (isAuthenticated.value)
+      authStore.updateCredits()
+  })
+}
 
+interface FluxPackage {
+  stripePriceId: string
+  label: string
+  defaultCurrency: string
+  currencies: Record<string, string>
+  recommended?: boolean
+}
+
+const loadingPriceId = ref<string | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
+const checkoutReturnMessageActive = ref(false)
+const packages = ref<FluxPackage[]>([])
+const selectedCurrency = ref<string>('usd')
+
+const currencyOptions = computed(() => {
+  if (packages.value.length === 0)
+    return []
+  // Currencies supported by all packages
+  const first = Object.keys(packages.value[0].currencies)
+  return first
+    .filter(c => packages.value.every(p => c in p.currencies))
+    .map(c => ({ label: c.toUpperCase(), value: c }))
+})
 
 // NOTICE: Manual interface instead of hono InferResponseType because hono client
 // type instantiation hits TS recursion limits ("excessively deep and possibly infinite").
@@ -217,29 +248,65 @@ const groupedRows = computed<GroupedRow[]>(() => {
   return rows
 })
 
-watch(isAuthenticated, (authenticated) => {
+async function fetchPackages() {
+  try {
+    const res = await client.api.v1.stripe.packages.$get()
+    if (res.ok) {
+      const data = await res.json() as FluxPackage[]
+      packages.value = data
+      if (data.length > 0)
+        selectedCurrency.value = data[0].defaultCurrency
+    }
+  }
+  catch {
+    if (!checkoutReturnMessageActive.value)
+      message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
+  }
+}
+
+/**
+ * Shows a Stripe return banner that background package refreshes must not replace.
+ */
+function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
+  checkoutReturnMessageActive.value = true
+  message.value = { type, text }
+}
+
+watch(isAuthenticated, async (authenticated) => {
   if (!authenticated) {
     capacity.value = 0
     auditRecords.value = []
-    auditOffset.value = 0
     auditHasMore.value = false
+    auditOffset.value = 0
     return
   }
 
-  void Promise.allSettled([
+  await Promise.allSettled([
     authStore.updateCredits(),
     fetchStats(),
     fetchAuditHistory(),
   ])
+
+  if (!fluxPurchaseDisabled && credits.value <= 0) {
+    trackQuotaLimitReached({
+      limit_type: 'flux',
+      current_usage: credits.value,
+      limit_value: capacity.value > 0 ? capacity.value : undefined,
+      entry: 'pricing',
+    })
+  }
 }, { immediate: true })
 
 onMounted(() => {
+  if (!fluxPurchaseDisabled)
+    void fetchPackages()
+
   if (route.query.success === 'true') {
-    message.value = { type: 'success', text: t('settings.pages.flux.checkout.success') }
+    showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
     router.replace({ query: {} })
   }
   else if (route.query.canceled === 'true') {
-    message.value = { type: 'error', text: t('settings.pages.flux.checkout.canceled') }
+    showCheckoutReturnMessage('error', t('settings.pages.flux.checkout.canceled'))
     router.replace({ query: {} })
   }
 
@@ -249,16 +316,65 @@ onMounted(() => {
       reason: 'manual_topup',
       flux_balance_bucket: fluxBalanceBucket(credits.value),
     })
-    if (credits.value <= 0) {
-      trackQuotaLimitReached({
-        limit_type: 'flux',
-        current_usage: credits.value,
-        limit_value: capacity.value > 0 ? capacity.value : undefined,
-        entry: 'pricing',
-      })
-    }
+    trackPricingViewed('settings_flux', 'one_time')
   }
 })
+
+async function handleBuy(stripePriceId: string) {
+  // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
+  // the Stripe webhook (server-side `payment_completed`); we deliberately
+  // don't send a formatted-string price from the SPA so funnels don't get
+  // poisoned by currency-formatting drift.
+  trackUpgradeClicked({
+    source_page: 'settings_flux',
+    current_plan: 'flux',
+    trigger: 'manual_topup',
+  })
+  trackPlanSelected(stripePriceId, {
+    currency: selectedCurrency.value,
+    entry_surface: 'settings_flux',
+  })
+
+  if (!isAuthenticated.value) {
+    await authStore.requestLogin()
+    return
+  }
+
+  loadingPriceId.value = stripePriceId
+  checkoutReturnMessageActive.value = false
+  message.value = null
+  try {
+    const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
+    if (!res.ok) {
+      const data = await res.json() as { error?: string, message?: string }
+      message.value = { type: 'error', text: data.message || t('settings.pages.flux.checkout.error') }
+      return
+    }
+    const data = await res.json()
+    if (data.url) {
+      // Start capture before redirecting to Stripe so fetch keepalive can
+      // finish delivery after the page unloads.
+      trackCheckoutStarted(stripePriceId, {
+        currency: selectedCurrency.value,
+        entry_surface: 'settings_flux',
+      })
+      // Electron renderer runs from file:// and cannot navigate to Stripe in-window
+      // (the settings window would load checkout.stripe.com and never come back).
+      // window.open routes through setWindowOpenHandler -> shell.openExternal, so the
+      // system browser handles payment. Web keeps the in-window redirect.
+      if (isStageTamagotchi())
+        window.open(data.url, '_blank')
+      else
+        window.location.href = data.url
+    }
+  }
+  catch {
+    message.value = { type: 'error', text: t('settings.pages.flux.checkout.error') }
+  }
+  finally {
+    loadingPriceId.value = null
+  }
+}
 </script>
 
 <template>
@@ -295,21 +411,68 @@ onMounted(() => {
       </div>
     </div>
 
-    <FluxPricing v-if="!fluxPurchaseDisabled" entry-surface="settings_flux" />
+    <div v-if="!fluxPurchaseDisabled" flex="~ col gap-4">
+      <!-- Currency selector -->
+      <div v-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
+        <SelectTab
+          v-model="selectedCurrency"
+          :options="currencyOptions"
+          size="sm"
+        />
+      </div>
 
-    <div
-      v-if="!isAuthenticated"
-      :class="['flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-neutral-500 dark:text-neutral-400']"
-    >
-      <a :href="AIRI_TERMS_URL" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
-        {{ t('settings.pages.pricing.terms') }}
-      </a>
-      <a :href="AIRI_PRIVACY_URL" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
-        {{ t('settings.pages.pricing.privacy') }}
-      </a>
-      <a href="mailto:airi@moeru.ai" :class="['underline-offset-4 hover:underline']">
-        airi@moeru.ai
-      </a>
+      <div grid="~ cols-1 sm:cols-3 gap-4">
+        <button
+          v-for="(pkg, index) in packages" :key="pkg.stripePriceId"
+          :disabled="loadingPriceId !== null"
+          :class="[
+            'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
+            'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
+            pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
+            'dark:bg-neutral-900',
+            'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
+            loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
+          ]"
+          @click="handleBuy(pkg.stripePriceId)"
+        >
+          <!-- Recommended Badge -->
+          <div
+            v-if="pkg.recommended"
+            class="absolute right-0 top-0 flex items-center gap-1 rounded-bl-xl bg-primary-500 px-2.5 py-1 text-[10px] text-white font-bold tracking-wider uppercase shadow-sm"
+          >
+            <div class="i-solar:star-fall-bold-duotone size-3" />
+            HOT
+          </div>
+
+          <!-- Loading Overlay -->
+          <div
+            v-if="loadingPriceId === pkg.stripePriceId"
+            class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60"
+          >
+            <div class="i-svg-spinners:90-ring-with-bg size-8 text-primary-500" />
+          </div>
+
+          <div flex="~ col sm:items-center gap-1" relative z-1 w-full>
+            <div text="sm neutral-500 dark:neutral-400" font-medium transition-colors class="group-hover:text-primary-600 dark:group-hover:text-primary-400">
+              {{ pkg.label }}
+            </div>
+            <div flex="~ items-baseline justify-start sm:justify-center gap-1">
+              <span text="2xl neutral-800 dark:neutral-100" font-bold>
+                {{ pkg.currencies[selectedCurrency] ?? pkg.currencies[pkg.defaultCurrency] }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Battery Icons (Mobile Only) -->
+          <div flex="~ items-center gap-1" relative z-1 class="text-primary-200 transition-colors dark:text-primary-800/60 group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700">
+            <div
+              v-for="i in Math.min(index + 1, 3)" :key="i"
+              class="i-solar:battery-charge-bold-duotone size-8 sm:size-10"
+            />
+          </div>
+        </button>
+      </div>
     </div>
 
     <!-- Audit History -->
@@ -542,6 +705,18 @@ onMounted(() => {
           @click="fetchAuditHistory(true)"
         />
       </div>
+    </div>
+
+    <div v-if="!isAuthenticated" flex="~ items-center justify-center gap-5" text="xs neutral-500">
+      <a :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer" hover:text-primary-500>
+        {{ t('settings.pages.flux.terms') }}
+      </a>
+      <a :href="AIRI_PRIVACY_URL" target="_blank" rel="noreferrer" hover:text-primary-500>
+        {{ t('settings.pages.flux.privacy') }}
+      </a>
+      <a href="mailto:airi@moeru.ai" hover:text-primary-500>
+        airi@moeru.ai
+      </a>
     </div>
   </div>
 </template>
