@@ -114,7 +114,7 @@ function handleLocalSetup() {
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
     </div>
-    <div :class="['flex', 'flex-col', 'gap-3', 'md:flex-row', 'm-2']">
+    <div :class="['mx-2 mt-2 flex flex-col gap-3 md:flex-row']">
       <Button
         v-motion="{
           initial: { opacity: 0 },
@@ -148,7 +148,11 @@ function handleLocalSetup() {
         duration: 500,
         delay: 300,
       }"
-      :class="['mb-2 flex items-center justify-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']"
+      :class="[
+        'mx-2 mb-1 mt-5 border-t border-neutral-200/70 pt-3',
+        'flex items-center justify-center gap-2',
+        'text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400',
+      ]"
     >
       <a
         :href="AIRI_PRICING_URL"
