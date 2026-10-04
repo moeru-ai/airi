@@ -164,7 +164,10 @@
 > RAG, 메모리 시스템, 임베디드 데이터베이스, 아이콘, Live2D 유틸리티 등 다양한 프로젝트가 있습니다!
 
 > [!TIP]
-> [Crowdin](https://crowdin.com/project/proj-airi)에 번역 프로젝트가 있습니다. 번역이 부정확하다고 느끼시면 자유롭게 기여해 주세요.
+> [Crowdin](https://crowdin.com/project/proj-airi)에서 AIRI를 번역하거나 `packages/i18n/src/locales/`를 수정하는 Pull Request를 열 수 있습니다. 두 방법은 같은 번역을 업데이트합니다.
+>
+> 영어 원문과 완전히 동일한 번역을 제출하지 마세요. 검토에서 거부됩니다. 번역이 없는 문자열은 영어로 표시됩니다.
+>
 > <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
 
 사이버 생명체(사이버 와이프, 디지털 펫)나 함께 놀고 대화할 수 있는 디지털 동반자를 꿈꿔 본 적이 있으신가요?

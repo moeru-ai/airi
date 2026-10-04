@@ -164,7 +164,10 @@
 > Bao gồm: RAG, hệ thống bộ nhớ, cơ sở dữ liệu nhúng, icon, tiện ích Live2D, và nhiều hơn nữa.
 
 > [!TIP]
-> Chúng tôi có dự án dịch trên [Crowdin](https://crowdin.com/project/proj-airi). Nếu bạn thấy bản dịch chưa chính xác, hãy giúp dịch hoặc chỉnh sửa trên Crowdin.
+> Bạn có thể dịch AIRI trên [Crowdin](https://crowdin.com/project/proj-airi) hoặc mở một pull request thay đổi `packages/i18n/src/locales/`. Cả hai cách đều cập nhật cùng các bản dịch.
+>
+> Không gửi bản dịch giống hệt văn bản tiếng Anh. Bản dịch đó bị từ chối khi xét duyệt. Chuỗi chưa có bản dịch sẽ hiển thị văn bản tiếng Anh.
+>
 > <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
 
 Bạn đã từng mơ về một thực thể số sống động (cyber-waifu, thú cưng ảo) hay một bạn đồng hành kỹ thuật số có thể chơi cùng và trò chuyện với bạn chưa?
