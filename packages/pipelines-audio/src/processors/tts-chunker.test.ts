@@ -133,6 +133,16 @@ describe('tTS Chunker Logic Cleanup', () => {
   describe('chunkTtsInput grapheme preservation', () => {
     // ROOT CAUSE:
     //
+    // CRLF is one grapheme cluster, but the hard punctuation set contains
+    // only separate CR and LF characters. Normalize CRLF before matching
+    // punctuation so Windows line endings end the chunk.
+    // https://github.com/moeru-ai/airi/pull/2414
+    it('treats CRLF as a hard chunk boundary (Issue #2366)', async () => {
+      expect(await collectChunkText('abc\r\ndef')).toEqual(['abc', 'def'])
+    })
+
+    // ROOT CAUSE:
+    //
     // `readGraphemeClusters` returns multi-code-unit grapheme strings.
     // The old `value.length > 1` guard discarded them.
     //
