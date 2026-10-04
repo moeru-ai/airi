@@ -59,36 +59,49 @@ export interface Config<TSchema extends PersistedSchema> {
   get: () => InferOutput<TSchema> | undefined
   update: (newData: InferOutput<TSchema>) => void
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
+  /** Runs scheduled saves and awaits active writes before the owner removes its data directory. */
+  flush: () => Promise<void>
 }
 
+/** Binds a store to its user data file on first use. Stores for the same file share cached state. */
 export function createConfig<TSchema extends PersistedSchema>(
   namespace: string,
   filename: string,
   schema: TSchema,
   options?: CreateConfigOptions<InferOutput<TSchema>>,
 ): Config<TSchema> {
-  const key = `${namespace}:${filename}`
+  // Stores can be declared during module import, before Electron services start.
+  // First use binds the file so delayed saves cannot move to another userData directory.
+  let path: string | undefined
+  const configPath = () => path ??= createConfigPath(namespace, filename)
   const autoHeal = options?.autoHeal ?? Boolean(options?.default)
 
-  const configPath = () => createConfigPath(namespace, filename)
+  const pendingWrites = new Set<Promise<unknown>>()
+
+  const trackWrite = (write: Promise<unknown>) => {
+    pendingWrites.add(write)
+    void write.finally(() => pendingWrites.delete(write))
+  }
 
   const recordDiagnostics = (diagnostics: ConfigDiagnostics<InferOutput<TSchema>>) => {
-    diagnosticsMap.set(key, diagnostics)
+    diagnosticsMap.set(configPath(), diagnostics)
     return diagnostics
   }
 
-  const save = throttle(async () => {
+  const writeConfig = async () => {
     try {
       const path = configPath()
       await ensureConfigDirectory(path)
       const tmpPath = `${path}.${randomUUID()}.tmp`
-      await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
+      await writeFile(tmpPath, JSON.stringify(persistenceMap.get(configPath())))
       await rename(tmpPath, path)
     }
     catch (error) {
       console.error('Failed to save config', error)
     }
-  }, 250)
+  }
+
+  const save = throttle(() => trackWrite(writeConfig()), 250)
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
     try {
@@ -114,7 +127,7 @@ export function createConfig<TSchema extends PersistedSchema>(
         path,
         value: options?.default,
       })
-      persistenceMap.set(key, options?.default)
+      persistenceMap.set(configPath(), options?.default)
       return diagnostics
     }
 
@@ -127,7 +140,7 @@ export function createConfig<TSchema extends PersistedSchema>(
           path,
           value: parsed.value,
         })
-        persistenceMap.set(key, parsed.value)
+        persistenceMap.set(configPath(), parsed.value)
         return diagnostics
       }
 
@@ -140,14 +153,14 @@ export function createConfig<TSchema extends PersistedSchema>(
         value: fallback,
       })
       options?.onValidationFailure?.(diagnostics)
-      persistenceMap.set(key, fallback)
+      persistenceMap.set(configPath(), fallback)
 
       if (autoHeal && fallback !== undefined) {
-        void writeHealingConfig(fallback).then((healed) => {
+        trackWrite(writeHealingConfig(fallback).then((healed) => {
           if (healed) {
-            diagnosticsMap.set(key, { ...diagnostics, healed })
+            diagnosticsMap.set(configPath(), { ...diagnostics, healed })
           }
-        })
+        }))
       }
       return diagnostics
     }
@@ -160,24 +173,28 @@ export function createConfig<TSchema extends PersistedSchema>(
         value: fallback,
       })
       options?.onReadError?.(diagnostics)
-      persistenceMap.set(key, fallback)
+      persistenceMap.set(configPath(), fallback)
       return diagnostics
     }
   }
 
   const update = (newData: InferOutput<TSchema>) => {
-    persistenceMap.set(key, newData)
+    persistenceMap.set(configPath(), newData)
     save()
   }
 
-  const get = () => persistenceMap.get(key) as InferOutput<TSchema> | undefined
+  const get = () => persistenceMap.get(configPath()) as InferOutput<TSchema> | undefined
 
-  const getDiagnostics = () => diagnosticsMap.get(key) as ConfigDiagnostics<InferOutput<TSchema>> | undefined
+  const getDiagnostics = () => diagnosticsMap.get(configPath()) as ConfigDiagnostics<InferOutput<TSchema>> | undefined
 
   return {
     setup,
     get,
     update,
     getDiagnostics,
+    async flush() {
+      save.flush()
+      await Promise.all(pendingWrites)
+    },
   }
 }

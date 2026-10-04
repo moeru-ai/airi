@@ -16,6 +16,9 @@
     "db:push": "pnpm run apply:env -- drizzle-kit push"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "catalog:",
+    "@aws-sdk/client-s3": "catalog:",
+    "@aws-sdk/s3-request-presigner": "catalog:",
     "@dotenvx/dotenvx": "catalog:",
     "@electric-sql/pglite": "catalog:",
     "@electric-sql/pglite-pgvector": "catalog:",
@@ -47,6 +50,7 @@
     "@opentelemetry/semantic-conventions": "catalog:",
     "@proj-airi/auth-shared": "workspace:*",
     "@proj-airi/server-sdk-shared": "workspace:*",
+    "@xsai/shared-stream": "catalog:",
     "drizzle-orm": "catalog:",
     "drizzle-valibot": "catalog:",
     "es-toolkit": "catalog:",
@@ -55,6 +59,7 @@
     "injeca": "catalog:",
     "ioredis": "catalog:",
     "jose": "catalog:",
+    "model-bank": "catalog:",
     "nanoid": "catalog:",
     "ofetch": "catalog:",
     "pg": "catalog:",

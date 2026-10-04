@@ -3,7 +3,6 @@ chat:
     retry: Thử lại
   message:
     character-name:
-      airi: AIRI
       core-system: Hệ thống lõi
       you: Bạn
   reasoning: Đang suy nghĩ
@@ -25,7 +24,6 @@ message: Nói gì đó...
 send-mode:
   title: Gửi key
   enter: Nhập
-  ctrl-enter: Ctrl + Enter
   double-enter: Nhập hai lần
 speech-output:
   mute: Tắt tiếng nói

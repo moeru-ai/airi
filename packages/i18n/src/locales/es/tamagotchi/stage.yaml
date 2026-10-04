@@ -15,11 +15,9 @@ docs:
   'open-settings': Abrir configuración
   'open-chat': Abrir Chat
   'refresh': Actualizar
-  'center-main-window': Move to screen center
+  'center-main-window': Mover al centro de la pantalla
   'open-hearing-controls': Abrir controles de audición
   'drag-to-move-window': Arrastra para mover la ventana
-  'stop-speaking': Detener voz
-  'speaker-idle': Altavoz
   'switch-to-light-mode': Cambiar a modo claro
   'switch-to-dark-mode': Cambiar a modo oscuro
   'pin-on-top': Anclar Arriba
@@ -47,7 +45,6 @@ notice:
     toggle: Puedes desactivarlo pasando el cursor por {controls} y tocando de nuevo el {icon}.
     controls-label: Isla de controles
     icon-label: ícono de ojo tachado
-    value: '0'
     targets: Personaje y UI
     confirm: Entendido
     dont-show-again: No volver a mostrar
@@ -63,22 +60,15 @@ about:
     title: Enlaces
     home: Inicio
     documentation: Documentación
-    github: GitHub
   update:
     lane:
-      label: Update lane
       description: Elija la versión del canal a seguir
-      placeholder: Choose update lane
     channels:
       auto: Automático
       stable: Estable
       alpha: Alfa
-      beta: Beta
-      nightly: Nightly
-      canary: Canary
     status:
       downloading: Descargando actualización...
-      error-prefix: Error
       latest: Actualizado (v{version}).
       downloaded:
         windows: Actualización lista para instalar silenciosamente (v{version}).

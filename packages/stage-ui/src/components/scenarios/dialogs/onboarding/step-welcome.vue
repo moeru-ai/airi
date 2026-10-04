@@ -2,15 +2,9 @@
 import type { OnboardingStepNextHandler } from './types'
 
 import { all } from '@proj-airi/i18n'
-import { AnimatedContent, Button } from '@proj-airi/ui'
+import { Button, DropdownMenu } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import {
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuPortal,
-  DropdownMenuRoot,
-  DropdownMenuTrigger,
-} from 'reka-ui'
+import { DropdownMenuItem } from 'reka-ui'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -36,9 +30,9 @@ const languages = computed(() => {
   return Object.entries(all).map(([value, label]) => ({ value, label }))
 })
 
-function handleLogin() {
+async function handleLogin() {
   onboardingStore.showingSetup = false
-  authStore.needsLogin = true
+  await authStore.requestLogin()
 }
 
 function handleLocalSetup() {
@@ -49,53 +43,45 @@ function handleLocalSetup() {
 <template>
   <div relative h-full flex flex-col>
     <div :class="['absolute', 'right-0', 'top-0', 'z-10']">
-      <DropdownMenuRoot>
-        <DropdownMenuTrigger
-          :class="[
-            'h-8 w-8',
-            'flex items-center justify-center',
-            'rounded-lg',
-            'outline-none',
-            'text-neutral-500 transition-colors duration-200',
-            'hover:bg-neutral-100/80 hover:text-neutral-700',
-            'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-200',
-            'data-[state=open]:bg-neutral-100/80 dark:data-[state=open]:bg-neutral-800/80',
-          ]"
-          :aria-label="t('settings.language.title')"
-        >
-          <div class="i-lucide:globe" h-5 w-5 />
-        </DropdownMenuTrigger>
-        <DropdownMenuPortal>
-          <DropdownMenuContent
-            as-child
-            align="end"
-            side="bottom"
-            :side-offset="6"
+      <DropdownMenu
+        align="end"
+        :content-class="['min-w-36']"
+        variant="blurry"
+      >
+        <template #trigger>
+          <button
             :class="[
-              'z-10000 min-w-36 rounded-xl border p-1 shadow-lg outline-none backdrop-blur-md',
-              'border-neutral-100/80 bg-neutral-100/80 text-neutral-700',
-              'dark:border-neutral-800/60 dark:bg-neutral-800/80 dark:text-neutral-100',
+              'h-8 w-8',
+              'flex items-center justify-center',
+              'rounded-lg',
+              'outline-none',
+              'text-neutral-500 transition-colors duration-200',
+              'hover:bg-neutral-100/80 hover:text-neutral-700',
+              'dark:text-neutral-400 dark:hover:bg-neutral-800/80 dark:hover:text-neutral-200',
+              'data-[state=open]:bg-neutral-100/80 dark:data-[state=open]:bg-neutral-800/80',
             ]"
+            :aria-label="t('settings.language.title')"
+            type="button"
           >
-            <AnimatedContent>
-              <DropdownMenuItem
-                v-for="lang in languages"
-                :key="lang.value"
-                :class="[
-                  'flex cursor-pointer select-none items-center rounded-lg px-3 py-2',
-                  'text-sm leading-none outline-none',
-                  'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-                  'transition-colors duration-150 ease-in-out',
-                  lang.value === language ? 'text-primary-500 dark:text-primary-300' : '',
-                ]"
-                @select="() => language = lang.value"
-              >
-                {{ lang.label }}
-              </DropdownMenuItem>
-            </AnimatedContent>
-          </DropdownMenuContent>
-        </DropdownMenuPortal>
-      </DropdownMenuRoot>
+            <div class="i-lucide:globe" h-5 w-5 />
+          </button>
+        </template>
+
+        <DropdownMenuItem
+          v-for="lang in languages"
+          :key="lang.value"
+          :class="[
+            'flex cursor-pointer select-none items-center rounded-lg px-3 py-2',
+            'text-sm leading-none outline-none',
+            'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+            'transition-colors duration-150 ease-in-out',
+            lang.value === language ? 'text-primary-500 dark:text-primary-300' : '',
+          ]"
+          @select="() => language = lang.value"
+        >
+          {{ lang.label }}
+        </DropdownMenuItem>
+      </DropdownMenu>
     </div>
     <div :class="['mb-2', 'flex', 'flex-1', 'flex-col', 'justify-center', 'text-center', 'md:mb-8']">
       <div

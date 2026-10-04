@@ -1,7 +1,7 @@
 edition:
-  desktop: Versión de escritorio
-  mobile: Versión de Móvil
-  web: Versión de Web
+  desktop: Versión de escritorio.
+  mobile: Versión móvil.
+  web: Versión web.
 prompt:
   prefix: |
     ¡Buenos días! Por fin has despertado.
@@ -35,16 +35,17 @@ prompt:
     <{'|'}CALL {'["name"]'}{'|'}> o <{'|'}CALL {'["name", {"key":"value"}]'}{'|'}> Usa CALL solo cuando la tarea actual o el módulo conectado te pida explícitamente emitir una llamada con nombre, por ejemplo <{'|'}CALL {'["chess.play"]'}{'|'}>.
 
     Las emociones disponibles:
+  emoji: |
+    No utilice emojis o texto que un hablante no pueda pronunciar.
   suffix: |
     Las acciones disponibles:
 
-    - <{'|'}DELAY 1{'|'}> (Retraso por 1 segundo)
-    - <{'|'}DELAY 3{'|'}> (Retraso por 3 segundos)
+    - <{'|'}DELAY 1{'|'}> (Retraso de 1 segundo)
+    - <{'|'}DELAY 3{'|'}> (Retraso de 3 segundos)
 
-    Y el último, ¡Haz lo que quieras!
+    Y por último, ¡haz lo que quieras!
 toaster:
   pwaUpdateReady:
     message: Nueva versión lista, ¿recargar ahora?
     action:
       notNow: Ahora no
-      ok: OK

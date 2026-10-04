@@ -21,13 +21,10 @@ const logger = useLogger('flux-service')
 export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService) {
   return {
     async getFlux(userId: string) {
-      // 1. Try Redis cache
       const cached = await readBalanceCache(redis, userId)
-      if (cached !== null) {
-        return { userId, flux: cached }
-      }
+      if (cached !== null)
+        return { userId, ...cached }
 
-      // 2. Cache miss — load from DB
       let record = await db.query.userFlux.findFirst({
         where: and(
           eq(schema.userFlux.userId, userId),
@@ -73,10 +70,9 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
         logger.withFields({ userId, initialFlux }).log('Initialized new user flux')
       }
 
-      // 3. Populate Redis cache
-      await writeBalanceCache(redis, userId, record.flux)
-
-      return record
+      const snapshot = { flux: record.flux, unsettledMicroFlux: record.unsettledMicroFlux }
+      await writeBalanceCache(redis, userId, snapshot)
+      return { userId, ...snapshot }
     },
 
     /**

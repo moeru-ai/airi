@@ -1,8 +1,48 @@
 // packages/pipelines-audio/src/processors/tts-chunker.test.ts
 
+import type { TtsInputChunk } from './tts-chunker'
+
 import { describe, expect, it } from 'vitest'
 
-import { isProbablyAngleTag, processNarrative } from './tts-chunker'
+import { chunkTtsInput, isProbablyAngleTag, processNarrative } from './tts-chunker'
+
+async function collectChunkText(input: string) {
+  const chunks: string[] = []
+
+  for await (const chunk of chunkTtsInput(input))
+    chunks.push(chunk.text)
+
+  return chunks
+}
+
+async function collectChunks(text: string): Promise<TtsInputChunk[]> {
+  const chunks: TtsInputChunk[] = []
+  for await (const chunk of chunkTtsInput(text))
+    chunks.push(chunk)
+  return chunks
+}
+
+describe('chunkTtsInput boost', () => {
+  // ROOT CAUSE:
+  //
+  // Boost chunks ended at any soft punctuation regardless of length, so "嗯，那就好，" became
+  // "嗯，" plus "那就好，". A TTS request costs the same however short its text, so those
+  // fragments delayed the audio boost exists to bring forward.
+  it('does not yield boost fragments shorter than the minimum word count', async () => {
+    const chunks = await collectChunks('嗯，那就好，听你说没事我心里就踏实了。倒是你，现在都两点了，')
+
+    expect(chunks[0]?.text).not.toBe('嗯，')
+    expect(chunks[0]?.text.startsWith('嗯，那就好，')).toBe(true)
+    for (const chunk of chunks.filter(chunk => chunk.reason === 'boost'))
+      expect(chunk.words).toBeGreaterThanOrEqual(4)
+  })
+
+  it('still yields a long opening clause early at soft punctuation', async () => {
+    const chunks = await collectChunks('I really want to tell you something, and then I will say more.')
+
+    expect(chunks[0]).toMatchObject({ text: 'I really want to tell you something,', reason: 'boost' })
+  })
+})
 
 describe('tTS Chunker Logic Cleanup', () => {
   describe('isProbablyAngleTag Heuristics', () => {
@@ -87,6 +127,43 @@ describe('tTS Chunker Logic Cleanup', () => {
     it('should support non-CJK Unicode letters as tag context', () => {
       expect(isProbablyAngleTag(4, 'café<laugh>')).toBe(true)
       expect(isProbablyAngleTag(6, 'привет<sigh>')).toBe(true)
+    })
+  })
+
+  describe('chunkTtsInput grapheme preservation', () => {
+    // ROOT CAUSE:
+    //
+    // CRLF is one grapheme cluster, but the hard punctuation set contains
+    // only separate CR and LF characters. Normalize CRLF before matching
+    // punctuation so Windows line endings end the chunk.
+    // https://github.com/moeru-ai/airi/pull/2414
+    it('treats CRLF as a hard chunk boundary (Issue #2366)', async () => {
+      expect(await collectChunkText('abc\r\ndef')).toEqual(['abc', 'def'])
+    })
+
+    // ROOT CAUSE:
+    //
+    // `readGraphemeClusters` returns multi-code-unit grapheme strings.
+    // The old `value.length > 1` guard discarded them.
+    //
+    // We fixed this by preserving each returned cluster.
+    // This keeps Thai combining marks intact.
+    //
+    // https://github.com/moeru-ai/airi/issues/2366
+    it('preserves Thai combining clusters while chunking (Issue #2366)', async () => {
+      const input = 'ดึกป่านนี้แล้วยังจะหาเรื่องกินอีกนะคะเนี่ย!'
+
+      const chunks = await collectChunkText(input)
+
+      expect(chunks.join('')).toBe(input)
+    })
+
+    it('preserves emoji grapheme clusters while chunking', async () => {
+      const input = '👩‍💻👍🏽!'
+
+      const chunks = await collectChunkText(input)
+
+      expect(chunks.join('')).toBe(input)
     })
   })
 })

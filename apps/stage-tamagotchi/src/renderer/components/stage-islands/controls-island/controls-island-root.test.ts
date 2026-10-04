@@ -17,7 +17,7 @@ const primaryDisplay = {
 const displays = shallowRef([primaryDisplay])
 const windowBounds = {
   x: shallowRef(1370),
-  y: shallowRef(430),
+  y: shallowRef(100),
   width: shallowRef(450),
   height: shallowRef(600),
 }
@@ -97,7 +97,7 @@ afterEach(() => {
   mountedApps.length = 0
   displays.value = [primaryDisplay]
   windowBounds.x.value = 1370
-  windowBounds.y.value = 430
+  windowBounds.y.value = 100
   windowBounds.width.value = 450
   windowBounds.height.value = 600
   vi.unstubAllGlobals()
@@ -105,19 +105,19 @@ afterEach(() => {
 })
 
 describe('resolveControlsIslandDock', () => {
-  it('places the island in the top-left screen quadrant', () => {
+  it('docks at the top-left screen corner', () => {
     expect(resolve({ x: 100, y: 100, width: 450, height: 600 })).toBe('top-left')
   })
 
-  it('places the island in the top-right screen quadrant', () => {
+  it('docks at the top-right screen corner', () => {
     expect(resolve({ x: 1370, y: 100, width: 450, height: 600 })).toBe('top-right')
   })
 
-  it('places the island in the bottom-left screen quadrant', () => {
+  it('docks at the bottom-left screen corner', () => {
     expect(resolve({ x: 100, y: 430, width: 450, height: 600 })).toBe('bottom-left')
   })
 
-  it('places the island in the bottom-right screen quadrant', () => {
+  it('docks at the bottom-right screen corner', () => {
     expect(resolve({ x: 1370, y: 430, width: 450, height: 600 })).toBe('bottom-right')
   })
 
@@ -173,7 +173,7 @@ describe('controlsIslandRoot', () => {
     const { host } = mountRoot()
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'idle',
     })
 
@@ -186,7 +186,7 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(999)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'idle',
     })
 
@@ -197,14 +197,14 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(149)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'leaving',
     })
 
     await vi.advanceTimersByTimeAsync(1)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-left',
+      dock: 'top-left',
       phase: 'entering',
     })
 
@@ -235,7 +235,7 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(1000)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-right',
+      dock: 'top-right',
       phase: 'idle',
     })
 
@@ -247,14 +247,14 @@ describe('controlsIslandRoot', () => {
     await vi.advanceTimersByTimeAsync(315)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-left',
+      dock: 'top-left',
       phase: 'arriving',
     })
 
     await vi.advanceTimersByTimeAsync(1)
 
     expect(readPlacement(host)).toEqual({
-      dock: 'bottom-left',
+      dock: 'top-left',
       phase: 'idle',
     })
   })
