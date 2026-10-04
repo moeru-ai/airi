@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 
 import onboardingLogo from '../../../../assets/onboarding.avif'
 
+import { AIRI_PRICING_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
 import { useOnboardingStore } from '../../../../stores/onboarding'
 import { useSettingsGeneral } from '../../../../stores/settings'
@@ -139,6 +140,33 @@ function handleLocalSetup() {
         :class="['flex-1']"
         @click="handleLocalSetup"
       />
+    </div>
+    <div
+      v-motion="{
+        initial: { opacity: 0 },
+        enter: { opacity: 1 },
+        duration: 500,
+        delay: 300,
+      }"
+      :class="['mb-2 flex items-center justify-center gap-2 text-xs text-neutral-500 dark:text-neutral-400']"
+    >
+      <a
+        :href="AIRI_PRICING_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        :class="['underline-offset-4 transition-colors hover:text-neutral-700 hover:underline dark:hover:text-neutral-200']"
+      >
+        {{ t('settings.dialogs.onboarding.pricingLink') }}
+      </a>
+      <span aria-hidden="true">·</span>
+      <a
+        :href="AIRI_TERMS_URL"
+        target="_blank"
+        rel="noopener noreferrer"
+        :class="['underline-offset-4 transition-colors hover:text-neutral-700 hover:underline dark:hover:text-neutral-200']"
+      >
+        {{ t('settings.dialogs.onboarding.termsLink') }}
+      </a>
     </div>
   </div>
 </template>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { FluxPricing } from '@proj-airi/stage-ui/components'
+import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -45,10 +46,10 @@ const { t } = useI18n()
     </section>
 
     <footer :class="['mt-12 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-neutral-500 dark:text-neutral-400']">
-      <a href="https://airi.moeru.ai/docs/en/about/terms" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
+      <a :href="AIRI_TERMS_URL" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
         {{ t('settings.pages.pricing.terms') }}
       </a>
-      <a href="https://airi.moeru.ai/docs/en/about/privacy" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
+      <a :href="AIRI_PRIVACY_URL" target="_blank" rel="noopener noreferrer" :class="['underline-offset-4 hover:underline']">
         {{ t('settings.pages.pricing.privacy') }}
       </a>
       <a href="mailto:airi@moeru.ai" :class="['underline-offset-4 hover:underline']">
