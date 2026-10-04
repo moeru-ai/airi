@@ -164,7 +164,10 @@
 > RAG, система памяти, встроенная база данных, иконки, утилиты Live2D и многое другое!
 
 > [!TIP]
-> У нас есть проект переводов на [Crowdin](https://crowdin.com/project/proj-airi). Если заметили неточность, помогите с переводом или исправлением на Crowdin.
+> Вы можете переводить AIRI на [Crowdin](https://crowdin.com/project/proj-airi) или открыть pull request, который изменяет `packages/i18n/src/locales/`. Оба способа обновляют одни и те же переводы.
+>
+> Не отправляйте перевод, совпадающий с английским текстом. Ревью отклонит его. Строка без перевода покажет английский текст.
+>
 > <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
 
 Вы когда-нибудь мечтали о кибер-живом существе (кибер-вайфу, цифровом питомце) или цифровом компаньоне, который мог бы играть с вами и разговаривать?

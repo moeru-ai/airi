@@ -166,7 +166,10 @@
 > RAG, memory system, embedded database, icons, Live2D utilities, and more!
 
 > [!TIP]
-> We have a translation project on [Crowdin](https://crowdin.com/project/proj-airi). If you find any inaccurate translations, feel free to contribute improvements there.
+> You can translate AIRI on [Crowdin](https://crowdin.com/project/proj-airi), or open a pull request that changes `packages/i18n/src/locales/`. Both ways update the same translations.
+>
+> Do not submit a translation that is the same as the English text. Review rejects it. A string without a translation shows the English text.
+>
 > <a href="https://crowdin.com/project/proj-airi" target="_blank" rel="nofollow"><img style="width: 140px; height: 40px;" src="https://badges.crowdin.net/badge/light/crowdin-on-dark.png" srcset="https://badges.crowdin.net/badge/light/crowdin-on-dark.png 1x, https://badges.crowdin.net/badge/light/crowdin-on-dark@2x.png 2x" alt="Crowdin | Agile localization for tech companies" width="140" height="40" /></a>
 
 Have you dreamed about having a cyber living being (cyber waifu, digital pet) or digital companion that could play with and talk to you?
