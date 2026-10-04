@@ -135,41 +135,48 @@ async function persistProviderConfig() {
   if (pendingProviderConfigUpdate)
     return pendingProviderConfigUpdate
 
-  // One drain owns the RPC at a time. New edits accumulate while it waits.
-  // Failed fields return to the queue, with newer local edits taking precedence.
+  // One drain owns the RPC at a time. New edits accumulate while it waits,
+  // and failed fields return to the queue with newer edits taking precedence.
+  //
+  // The drain outlives its queue: an edit whose debounce fires during
+  // validation finds this promise. Each cycle rechecks it, so it is saved.
   pendingProviderConfigUpdate = (async () => {
-    while (pendingPatch) {
-      const patch = pendingPatch
-      pendingPatch = undefined
-      inFlightPatch = patch
+    for (;;) {
+      while (pendingPatch) {
+        const patch = pendingPatch
+        pendingPatch = undefined
+        inFlightPatch = patch
+        try {
+          const saved = await providerStore.patchProviderConfig(props.providerId, patch)
+          if (!saved)
+            throw new Error('The speech provider no longer exists')
+        }
+        catch (error) {
+          pendingPatch = Object.assign({}, patch, pendingPatch)
+          throw error
+        }
+        finally {
+          inFlightPatch = undefined
+        }
+        reconcileSettings()
+      }
+
+      // ROOT CAUSE:
+      //
+      // A provider page wrote credentials without touching the status. It
+      // stayed `unconfigured`, so the module filters dropped a valid provider.
+      //
+      // The user edit is the explicit trigger, so the store keeps no watcher.
+      // Validation caches on the credential hash, so an extra cycle is free.
       try {
-        const saved = await providerStore.patchProviderConfig(props.providerId, patch)
-        if (!saved)
-          throw new Error('The speech provider no longer exists')
+        await providersStore.validateProvider(props.providerId)
       }
       catch (error) {
-        pendingPatch = Object.assign({}, patch, pendingPatch)
-        throw error
+        console.error('Failed to validate speech provider:', errorMessageFrom(error))
       }
-      finally {
-        inFlightPatch = undefined
-      }
-      reconcileSettings()
-    }
 
-    // ROOT CAUSE:
-    //
-    // A provider page wrote credentials without touching the status. The
-    // status stayed `unconfigured`, and the module provider filters dropped
-    // the provider even though the credentials were valid.
-    //
-    // The user edit is the explicit trigger, so the store keeps no background
-    // watcher. The validation cache keeps repeated saves cheap.
-    try {
-      await providersStore.validateProvider(props.providerId)
-    }
-    catch (error) {
-      console.error('Failed to validate speech provider:', errorMessageFrom(error))
+      if (!pendingPatch)
+        break
     }
   })()
   try {
