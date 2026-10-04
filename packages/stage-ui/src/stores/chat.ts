@@ -4,7 +4,7 @@ import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
-import type { ChatHistoryItem, ChatToolReference, StreamingAssistantMessage } from '../types/chat'
+import type { ChatHistoryItem, ChatToolReference } from '../types/chat'
 import type { ToolCallRerunPayload } from './tool-call-rerun'
 
 import { errorMessageFrom } from '@moeru/std'
@@ -12,7 +12,7 @@ import { createChatOrchestratorRuntime, renderConversationPreview } from '@proj-
 import { IOAttributes, IOEvents, IOSpanNames, IOSubsystems } from '@proj-airi/stage-shared'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { shallowRef, toRaw } from 'vue'
+import { computed, shallowRef, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { getConversationAnalyticsSurface } from '../composables'
@@ -55,6 +55,8 @@ interface ForkOptions {
 
 /** A serializable chat request that any application context can send to the leader. */
 export interface ChatSendPayload {
+  /** Stable identity for transport retries and persistence acknowledgment. */
+  messageId?: string
   /** Image attachments for the new user message. */
   attachments?: { type: 'image', data: string, mimeType: string }[]
   /** Original input metadata for chat hooks and telemetry. */
@@ -191,7 +193,7 @@ export const useChatStore = defineStore('chat', () => {
   const consciousnessStore = useConsciousnessStore()
   const chatVision = useChatVision()
   const artistryAutonomousStore = useAutonomousArtistryStore()
-  const { activeModel, activeProvider } = storeToRefs(consciousnessStore)
+  const { activeProvider, activeModel, chatReady } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
@@ -201,9 +203,10 @@ export const useChatStore = defineStore('chat', () => {
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
 
+  const activeTurns = shallowRef<readonly { sessionId: string, turnId: string }[]>([])
   const sending = shallowRef(false)
   const activeSendSessionId = shallowRef<string>()
-  const activeStreamingMessage = shallowRef<StreamingAssistantMessage>()
+  const activeStreamingMessage = computed(() => chatStream.activeTurns.find(turn => turn.sessionId === activeSendSessionId.value)?.message)
   const pendingQueuedSendCount = shallowRef(0)
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
@@ -263,7 +266,8 @@ export const useChatStore = defineStore('chat', () => {
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
     const headers = { ...options?.headers }
-    if (getProviderMode(activeProvider.value) === 'official' && options?.requestCorrelation) {
+
+    if (getProviderMode(options?.providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
       headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
       headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
       headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
@@ -288,6 +292,7 @@ export const useChatStore = defineStore('chat', () => {
       ? replaceToolResultImages(context, STORED_TOOL_IMAGE)
       : context
     const hasImages = context.turns.some(turn => turn.type === 'user' && turn.content.some(part => part.type === 'image'))
+
     if (hasImages) {
       if (chatVision.readsAttachedImages(model)) {
         const { runVisionInference } = useVisionInference()
@@ -338,6 +343,7 @@ export const useChatStore = defineStore('chat', () => {
         }, t('stage.chat.images.no-description'))
       }
     }
+
     options?.abortSignal?.throwIfAborted()
 
     const providerMessages = renderConversationPreview(providerContext)
@@ -386,9 +392,13 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function syncRuntimeState(state: ChatOrchestratorRuntimeState) {
+    if (activeTurns.value.length !== state.activeTurns.length
+      || activeTurns.value.some((turn, index) => turn.sessionId !== state.activeTurns[index].sessionId || turn.turnId !== state.activeTurns[index].turnId)) {
+      activeTurns.value = state.activeTurns.map(({ sessionId, turnId }) => ({ sessionId, turnId }))
+    }
+    chatStream.updateActiveTurns(state.activeTurns)
     sending.value = state.sending
     activeSendSessionId.value = state.activeSendSessionId
-    activeStreamingMessage.value = state.activeStreamingMessage
     pendingQueuedSendCount.value = state.pendingQueuedSendCount
   }
 
@@ -433,6 +443,7 @@ export const useChatStore = defineStore('chat', () => {
       ensureSession: sessionId => chatSession.ensureSession(sessionId),
       getSessionMessages: sessionId => chatSession.getSessionMessages(sessionId).map(message => toRaw(message)),
       appendSessionMessage: (sessionId, message) => chatSession.appendSessionMessage(sessionId, message),
+      commitUserMessage: (sessionId, message) => chatSession.commitUserMessage(sessionId, message),
       getSessionGeneration: sessionId => chatSession.getSessionGeneration(sessionId),
     },
     context: {
@@ -493,8 +504,9 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onAssistantMessageAppended: ({ sessionId, message }) => {
-      if (isCloudSyncableMessage(message) && message.id) {
+    onAssistantMessageAppended: ({ sessionId, message, roundId }) => {
+      const source = chatSession.getSessionMessages(sessionId).find(message => message.role === 'user' && message.id === roundId)
+      if (source && isCloudSyncableMessage(source) && isCloudSyncableMessage(message) && message.id) {
         void chatSession.pushMessageToCloud(sessionId, {
           id: message.id,
           role: 'assistant',
@@ -544,6 +556,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function appendSendError(sessionId: string, error: unknown) {
+    if (error instanceof DOMException && error.name === 'AbortError')
+      return
     if (!chatSession.getSessionMessagesIfLoaded(sessionId))
       return
 
@@ -553,47 +567,95 @@ export const useChatStore = defineStore('chat', () => {
     })
   }
 
-  async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
-    const providerId = activeProvider.value
-    const modelId = activeModel.value
-    if ((!providerId || !modelId) && (providerId !== 'prompt-api'))
-      throw new Error('No active chat provider or model configured')
-
+  /** Freeze request settings before asynchronous provider and session startup. */
+  async function prepareSend(payload: ChatSendPayload, signal: AbortSignal): Promise<ChatOrchestratorSendOptions> {
     if (!await chatSession.loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
-    const messageCount = chatSession.getSessionMessages(payload.sessionId).length
+    signal.throwIfAborted()
+
+    const providerId = activeProvider.value
+    const modelId = activeModel.value
+
+    const temperature = payload.temperature ?? consciousnessStore.activeTemperature
+    const topP = payload.topP ?? consciousnessStore.activeTopP
+    const systemPromptSupplement = llmToolsetPromptsStore.activeToolsetPrompt
+
+    if (!chatReady.value)
+      throw new Error('No active chat provider or model configured')
+
     const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
+    signal.throwIfAborted()
+
     if (!chatProvider)
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
-    await runtime.ingest(payload.text, {
+    return {
+      providerId,
+      signal,
       model: modelId,
       chatProvider,
+      messageId: payload.messageId,
       attachments: payload.attachments,
       input: payload.input,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
-      temperature: payload.temperature ?? consciousnessStore.activeTemperature,
-      topP: payload.topP ?? consciousnessStore.activeTopP,
-      // Resolve this function after the request reaches the per-session queue.
-      // The history then contains tool names from every earlier queued turn.
+      temperature,
+      topP,
+      systemPromptSupplement,
       tools: async () => {
         const references = collectToolReferences(payload.sessionId, payload.tools)
         return llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
       },
-    }, payload.sessionId)
+    }
+  }
 
+  // One request owns preparation and generation. Cancellation cannot miss asynchronous startup.
+  const requests = new Map<string, {
+    sessionId: string
+    abort: AbortController
+    request: ReturnType<typeof runtime.submit>
+  }>()
+
+  function startSend(payload: ChatSendPayload): ReturnType<typeof runtime.submit> {
+    const messageId = payload.messageId ?? nanoid()
+    const key = JSON.stringify([payload.sessionId, messageId])
+    const existing = requests.get(key)
+    if (existing)
+      return existing.request
+
+    const abort = new AbortController()
+    const prepared = prepareSend({ ...payload, messageId }, abort.signal)
+      .then(options => runtime.submit(payload.text, options, payload.sessionId))
+    const request = {
+      accepted: prepared.then(value => value.accepted),
+      done: prepared.then(value => value.done),
+    }
+
+    requests.set(key, { sessionId: payload.sessionId, abort, request })
+    void request.accepted.catch(() => {})
+    void request.done.finally(() => requests.delete(key)).catch(() => {})
+
+    return request
+  }
+
+  async function executeSend(payload: ChatSendPayload): Promise<ChatSendResult> {
+    const messageCount = chatSession.getSessionMessages(payload.sessionId).length
+    await startSend(payload).done
     const completedMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
     if (!completedMessages)
       throw new Error('Chat session was removed before send completed')
 
     return {
-      messages: completedMessages
-        .slice(messageCount)
-        .map(message => structuredClone(toRaw(message))),
+      messages: completedMessages.slice(messageCount).map(message => structuredClone(toRaw(message))),
       sessionId: payload.sessionId,
     }
+  }
+
+  /** Cancels one identified generation through the elected leader. */
+  async function cancelTurn(turn: { sessionId: string, turnId: string }) {
+    requests.get(JSON.stringify([turn.sessionId, turn.turnId]))?.abort.abort(new DOMException('Chat turn cancelled', 'AbortError'))
+    runtime.cancelTurn(turn)
   }
 
   /** Sends one serializable chat request through the elected leader. */
@@ -659,18 +721,18 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /** Clears one session and stops runtime work that still belongs to it. */
-  function cleanup(sessionId: string) {
+  async function cleanup(sessionId: string) {
     failedImageReads.delete(sessionId)
     chatSession.cleanupMessages(sessionId)
     chatContext.resetContexts()
-    runtime.cancelPendingSends(sessionId)
+    await cancelPendingSends(sessionId)
     chatStream.resetStream()
   }
 
   /** Cancels queued work before permanently removing its owning session. */
-  function deleteSession(sessionId: string): Promise<void> {
+  async function deleteSession(sessionId: string): Promise<void> {
     failedImageReads.delete(sessionId)
-    runtime.cancelPendingSends(sessionId)
+    await cancelPendingSends(sessionId)
     return chatSession.deleteSession(sessionId)
   }
 
@@ -693,6 +755,10 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function cancelPendingSends(sessionId?: string) {
+    for (const request of requests.values()) {
+      if (!sessionId || request.sessionId === sessionId)
+        request.abort.abort(new DOMException('Chat turn cancelled', 'AbortError'))
+    }
     runtime.cancelPendingSends(sessionId)
   }
 
@@ -702,6 +768,7 @@ export const useChatStore = defineStore('chat', () => {
 
   return {
     sending,
+    activeTurns,
     activeSendSessionId,
     activeStreamingMessage,
     pendingQueuedSendCount,
@@ -715,6 +782,7 @@ export const useChatStore = defineStore('chat', () => {
     rerunToolCall,
     retry,
     send,
+    cancelTurn,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,
 
@@ -744,7 +812,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    actions: ['cancelTurn', 'cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
     state: true,
   },
 })

@@ -40,16 +40,14 @@ const chatSession = useChatSessionStore()
 const chatStream = useChatStreamStore()
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeTurns } = storeToRefs(chatOrchestrator)
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
-  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
   || isReceivingRemoteStream.value
 ))
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const visibleStreamingMessage = streamingMessage
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 const composer = useChatComposer<ChatImageAttachment>({
@@ -222,13 +220,14 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-useTranscriptions(
+const { receiveTranscription } = useTranscriptions(
   {
     messageInputRef: messageInput,
     sendMessage: handleSend,
     isStageTamagotchi,
   },
 )
+defineExpose({ receiveTranscription })
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const characterVoiceEnabled = computed({
   get: () => !speechMuted.value,
