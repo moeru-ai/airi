@@ -60,7 +60,26 @@ it('fades real playback on the audio clock before confirming silence', async () 
   expect(result.status).toBe('silent')
   expect(context.currentTime).toBeGreaterThanOrEqual(stoppedAt + 0.045)
   expect(result.played[0].throughMs).toBeGreaterThan(0)
+  expect(result.played[0].interval!.endMs).toBeGreaterThanOrEqual(stoppedAt * 1000 + 45)
   expect(await clip).toBe('stopped')
+  await context.close()
+})
+
+it('starts a clip at a later time on the audio clock and reports its rendered interval', async () => {
+  const context = new AudioContext()
+  await context.resume()
+  const playback = new Playback(new BrowserPlayback(context))
+  const group = playback.openGroup('voice')
+  const startAtMs = playback.nowMs() + 200
+  // 4800 frames at 48 kHz is 100 ms of audio.
+  void group.enqueue({ id: 'tone', audio: new Blob([toWav(new Float32Array(4800).fill(0.1).buffer, 48000)]), startAtMs })
+  const receipt = await group.finish()
+  const played = receipt.played[0]
+
+  expect(receipt.status).toBe('silent')
+  expect(played.interval!.startMs).toBeCloseTo(startAtMs, 0)
+  expect(played.interval!.endMs - played.interval!.startMs).toBeCloseTo(100, 0)
+  expect(played.throughMs).toBeCloseTo(100, 0)
   await context.close()
 })
 

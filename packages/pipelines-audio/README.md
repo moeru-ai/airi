@@ -69,6 +69,12 @@ await buffer.dispose()
 `Playback.openGroup()` creates an independent queue. Groups can play concurrently.
 `finish()` drains one group. `stop({ fadeMs })` closes admission, discards queued clips, and waits for actual silence.
 A cancelled clip does not cancel other clips in its group.
+
+The driver owns the audio clock. `playback.nowMs()` reads it.
+A clip can set `startAtMs` on that clock. The group still starts clips in order.
+Each receipt entry reports `throughMs` and the rendered `interval` on the same clock.
+A caller can start the next output relative to that interval, for example 2 seconds after a clip ends.
+A group does not mix clips or schedule lanes against each other.
 Playback knows no chat session, turn, or agent notification contract.
 `Response` in core-agent supplies those conversation boundaries and producer ordering.
 

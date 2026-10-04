@@ -3,12 +3,21 @@ import type { PcmBlock } from './audio-input'
 import { nanoid } from 'nanoid/non-secure'
 
 /**
- * The group's output state when it settled, with the rendered position of each clip that started.
+ * How much of one clip was rendered, and when, on the driver clock.
+ *
+ * A caller aligns later output with `interval`, for example a clip that starts 2 seconds after this one ends.
  * Estimated rendered position is not proof of perception or an exact spoken word boundary.
  */
+export interface PlayedAudio {
+  readonly throughMs: number
+  /** Driver clock milliseconds of the first and last rendered sample. Undefined when no audio was rendered. */
+  readonly interval?: { readonly startMs: number, readonly endMs: number }
+}
+
+/** The group's output state when it settled, with the rendered audio of each clip that started. */
 export type PlaybackReceipt = {
   readonly groupId: string
-  readonly played: readonly { readonly clipId: string, readonly throughMs: number }[]
+  readonly played: readonly ({ readonly clipId: string } & PlayedAudio)[]
 } & ({ readonly status: 'silent' } | { readonly status: 'failed', readonly error: Error })
 
 /** Clip cancellation stops only its audio and preserves the containing group's remaining queue. */
@@ -16,18 +25,25 @@ export interface PlaybackClip {
   readonly id: string
   readonly audio: Blob | ReadableStream<PcmBlock>
   readonly signal?: AbortSignal
+  /**
+   * Earliest driver clock time, in milliseconds, for the first sample. Omission starts when audio is ready.
+   * A group still starts clips in order, so a clip never starts before the previous clip ends.
+   */
+  readonly startAtMs?: number
   /** The driver calls this when the first audio is scheduled for playback. */
   readonly onStart?: () => void
 }
 
 /** Stop resolves only after silence. Driver failure rejects instead of reporting false silence. */
 export interface PlayingAudio {
-  readonly done: Promise<{ throughMs: number }>
-  stop: (options: { fadeMs: number }) => Promise<{ throughMs: number }>
+  readonly done: Promise<PlayedAudio>
+  stop: (options: { fadeMs: number }) => Promise<PlayedAudio>
 }
 
-/** The platform owns decoding, audio-clock fades, and owned node cleanup. */
+/** The platform owns the audio clock, decoding, audio-clock fades, and owned node cleanup. */
 export interface PlaybackDriver {
+  /** Current audio clock time in milliseconds. `startAtMs` and `PlayedAudio.interval` use this clock. */
+  nowMs: () => number
   play: (clip: PlaybackClip) => PlayingAudio
 }
 
@@ -43,6 +59,8 @@ export interface PlaybackGroup {
 
 /** Conversation ownership stays outside this audio-only contract. */
 export interface AudioPlayback {
+  /** Current driver clock time in milliseconds, for callers that compute `startAtMs`. */
+  nowMs: () => number
   openGroup: (label: string) => PlaybackGroup
 }
 
@@ -60,7 +78,7 @@ class OutputGroup implements PlaybackGroup {
   readonly id = nanoid()
   private readonly completion = Promise.withResolvers<PlaybackReceipt>()
   private readonly pending: PendingClip[] = []
-  private readonly played = new Map<string, number>()
+  private readonly played = new Map<string, PlayedAudio>()
   private readonly ids = new Set<string>()
   private active: { entry: PendingClip, audio: PlayingAudio, release: () => void } | undefined
   private sealed = false
@@ -70,6 +88,10 @@ class OutputGroup implements PlaybackGroup {
   constructor(private readonly driver: PlaybackDriver, readonly label: string) {}
 
   enqueue(clip: PlaybackClip) {
+    if (clip.startAtMs !== undefined && !Number.isFinite(clip.startAtMs)) {
+      void releaseClip(clip)
+      throw new Error('Clip start time must be finite')
+    }
     if (this.sealed || clip.signal?.aborted) {
       void releaseClip(clip)
       return Promise.resolve('stopped' as const)
@@ -109,7 +131,7 @@ class OutputGroup implements PlaybackGroup {
     else {
       void Promise.resolve().then(() => active.audio.stop(options)).then((receipt) => {
         active.release()
-        this.played.set(active.entry.clip.id, receipt.throughMs)
+        this.played.set(active.entry.clip.id, receipt)
         active.entry.result.resolve('stopped')
         this.active = undefined
         this.complete()
@@ -137,11 +159,11 @@ class OutputGroup implements PlaybackGroup {
       const active = { entry, audio: this.driver.play(entry.clip), release: () => {} }
       this.active = active
       let cancelled = false
-      const finish = (receipt: { throughMs: number }, status: 'ended' | 'stopped') => {
+      const finish = (receipt: PlayedAudio, status: 'ended' | 'stopped') => {
         active.release()
         if (this.active !== active || this.stopping)
           return
-        this.played.set(active.entry.clip.id, receipt.throughMs)
+        this.played.set(active.entry.clip.id, receipt)
         active.entry.result.resolve(status)
         this.active = undefined
         this.next()
@@ -186,7 +208,7 @@ class OutputGroup implements PlaybackGroup {
     if (this.settled)
       return
     this.settled = true
-    const played = [...this.played].map(([clipId, throughMs]) => ({ clipId, throughMs }))
+    const played = [...this.played].map(([clipId, audio]) => ({ clipId, ...audio }))
     this.completion.resolve(error ? { groupId: this.id, played, status: 'failed', error } : { groupId: this.id, played, status: 'silent' })
   }
 }
@@ -194,6 +216,10 @@ class OutputGroup implements PlaybackGroup {
 /** Keeps group queues independent. It does not interpret speech signals or notify an agent. */
 export class Playback implements AudioPlayback {
   constructor(private readonly driver: PlaybackDriver) {}
+
+  nowMs() {
+    return this.driver.nowMs()
+  }
 
   openGroup(label: string): PlaybackGroup {
     return new OutputGroup(this.driver, label)

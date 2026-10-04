@@ -1,12 +1,21 @@
-import type { PcmBlock, PlayingAudio } from '@proj-airi/pipelines-audio'
+import type { PcmBlock, PlayedAudio, PlayingAudio } from '@proj-airi/pipelines-audio'
 
+/**
+ * One clip on a Web Audio context.
+ *
+ * Blocks are scheduled back to back on the context clock. The rendered interval comes from scheduled
+ * node times, not from JavaScript timers.
+ */
 export class AudioOutput implements PlayingAudio {
-  private readonly completion = Promise.withResolvers<{ throughMs: number }>()
+  private readonly completion = Promise.withResolvers<PlayedAudio>()
   private readonly gain: GainNode
   private readonly nodes = new Map<AudioBufferSourceNode, { start: number, duration: number }>()
   private reader: ReadableStreamDefaultReader<PcmBlock> | undefined
   private nextStart: number
   private throughMs = 0
+  /** Context seconds of the first scheduled sample and of the last rendered sample. */
+  private firstStart: number | undefined
+  private renderedEnd: number | undefined
   private ended = false
   private stopped = false
   private stoppedAt: number | undefined
@@ -14,10 +23,15 @@ export class AudioOutput implements PlayingAudio {
   private started = false
   readonly done = this.completion.promise
 
-  constructor(private readonly context: AudioContext, audio: Blob | ReadableStream<PcmBlock>, destination: AudioNode, private readonly events?: { onStart?: () => void, onSource?: (source: AudioBufferSourceNode) => void }) {
+  constructor(private readonly context: AudioContext, audio: Blob | ReadableStream<PcmBlock>, destination: AudioNode, private readonly options?: {
+    /** Earliest context time, in milliseconds, for the first sample. */
+    startAtMs?: number
+    onStart?: () => void
+    onSource?: (source: AudioBufferSourceNode) => void
+  }) {
     this.gain = context.createGain()
     this.gain.connect(destination)
-    this.nextStart = context.currentTime
+    this.nextStart = Math.max(context.currentTime, (options?.startAtMs ?? 0) / 1000)
     context.addEventListener('statechange', this.contextChanged)
     void this.load(audio).catch(cause => this.finish(cause instanceof Error ? cause : new Error('Audio playback failed', { cause })))
   }
@@ -62,26 +76,31 @@ export class AudioOutput implements PlayingAudio {
     const start = Math.max(this.context.currentTime, this.nextStart)
     this.nextStart = start + buffer.duration
     this.nodes.set(source, { start, duration: buffer.duration })
+    this.firstStart ??= start
     /** Triggering workflow: scheduled source ends → rendered interval → output drain or silence receipt. */
     source.onended = () => {
       const entry = this.nodes.get(source)
       if (!entry)
         return
-      this.throughMs += Math.max(0, Math.min(entry.duration, (this.stoppedAt ?? this.context.currentTime) - entry.start)) * 1000
+      const rendered = Math.max(0, Math.min(entry.duration, (this.stoppedAt ?? this.context.currentTime) - entry.start))
+      this.throughMs += rendered * 1000
+      // A node that a fade stopped before its start rendered nothing and must not extend the interval.
+      if (rendered > 0)
+        this.renderedEnd = Math.max(this.renderedEnd ?? 0, entry.start + rendered)
       this.nodes.delete(source)
       source.disconnect()
       if (!this.nodes.size && (this.ended || this.stopped))
         this.finish()
     }
     source.start(start)
-    this.events?.onSource?.(source)
+    this.options?.onSource?.(source)
     if (!this.started) {
       this.started = true
-      this.events?.onStart?.()
+      this.options?.onStart?.()
     }
   }
 
-  stop(options: { fadeMs: number }): Promise<{ throughMs: number }> {
+  stop(options: { fadeMs: number }): Promise<PlayedAudio> {
     if (this.stopped || this.settled)
       return this.done
     this.stopped = true
@@ -126,7 +145,9 @@ export class AudioOutput implements PlayingAudio {
     this.gain.disconnect()
     if (error)
       this.completion.reject(error)
-    else
+    else if (this.firstStart === undefined || this.renderedEnd === undefined)
       this.completion.resolve({ throughMs: this.throughMs })
+    else
+      this.completion.resolve({ throughMs: this.throughMs, interval: { startMs: this.firstStart * 1000, endMs: this.renderedEnd * 1000 } })
   }
 }

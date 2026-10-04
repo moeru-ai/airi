@@ -55,6 +55,7 @@ const receipt = await group.stop({ fadeMs: 100 })
 ```
 
 The stop receipt follows the audio clock and source completion. It does not rely on a UI timer.
+`BrowserPlayback` uses `audioContext.currentTime` as the playback clock. `startAtMs` and the receipt `interval` are in milliseconds on that clock.
 The caller owns `audioContext` and closes it after its consumers finish.
 
 ## Do not use it for
