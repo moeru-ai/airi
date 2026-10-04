@@ -10,6 +10,7 @@ export interface ArtistrySyncPayload {
 }
 export const ARTISTRY_SYNC_CONFIG_ADDRESS = 'eventa:invoke:electron:artistry:sync-config'
 export const ARTISTRY_GET_CONFIG_ADDRESS = 'eventa:invoke:electron:artistry:get-config'
+export const ARTISTRY_SET_API_KEYS_ADDRESS = 'eventa:invoke:electron:artistry:set-api-keys'
 export const ARTISTRY_TEST_COMFYUI_CONNECTION_ADDRESS = 'eventa:invoke:electron:artistry:test-comfyui-connection'
 
 export const artistrySyncConfig = defineInvokeEventa<void, ArtistrySyncPayload>(ARTISTRY_SYNC_CONFIG_ADDRESS)
@@ -17,6 +18,16 @@ export const artistrySyncConfig = defineInvokeEventa<void, ArtistrySyncPayload>(
 // (notably the API keys, which are no longer persisted in renderer localStorage) from the
 // main-process config on startup, without ever writing secrets back to disk itself.
 export const artistryGetConfig = defineInvokeEventa<ArtistrySyncPayload, void>(ARTISTRY_GET_CONFIG_ADDRESS)
+
+export interface ArtistrySetApiKeysPayload {
+  replicateApiKey?: string
+  nanobananaApiKey?: string
+}
+// Narrow counterpart used only for one-time legacy-localStorage migration (see
+// apps/stage-tamagotchi/src/renderer/stores/settings/artistry-credentials.ts). Unlike
+// artistrySyncConfig, this does not touch the main process's in-memory card-level defaults
+// (model/promptPrefix/options) — a migration run has no business overwriting those.
+export const artistrySetApiKeys = defineInvokeEventa<void, ArtistrySetApiKeysPayload>(ARTISTRY_SET_API_KEYS_ADDRESS)
 
 export interface ArtistryTestComfyUIResult {
   ok: boolean

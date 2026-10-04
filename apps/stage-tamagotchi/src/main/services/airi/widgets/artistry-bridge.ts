@@ -1,5 +1,6 @@
 import type { createContext as createMainEventaContext } from '@moeru/eventa/adapters/electron/main'
 import type { ProvidedBy } from 'injeca'
+import type { InferOutput } from 'valibot'
 
 import type { artistryConfigSchema } from '../../../configs/artistry'
 import type { Config } from '../../../libs/electron/persistence'
@@ -12,7 +13,7 @@ import { createHash } from 'node:crypto'
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
-import { artistryGenerateHeadless, artistryGetConfig, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, artistryGetConfig, artistrySetApiKeys, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
 import { ComfyUIProvider } from './providers/comfyui'
@@ -22,6 +23,18 @@ import { ReplicateProvider } from './providers/replicate'
 const log = useLogg('artistry-bridge').useGlobalConfig()
 const DEFAULT_REMIX_ID = '48250602'
 const DEFAULT_ARTISTRY_PROVIDER = 'none'
+const DEFAULT_ARTISTRY_GLOBALS: InferOutput<typeof artistryConfigSchema>['artistryGlobals'] = {
+  comfyuiServerUrl: 'http://localhost:8188',
+  comfyuiSavedWorkflows: [],
+  comfyuiActiveWorkflow: '',
+  replicateApiKey: '',
+  replicateDefaultModel: 'black-forest-labs/flux-schnell',
+  replicateAspectRatio: '16:9',
+  replicateInferenceSteps: 4,
+  nanobananaApiKey: '',
+  nanobananaModel: 'gemini-3.1-flash-image-preview',
+  nanobananaResolution: '1K',
+}
 
 interface ArtistrySyncSnapshot {
   provider?: string
@@ -470,24 +483,29 @@ export async function setupArtistryBridge(params: {
       }
     })
 
+    // Narrow counterpart to artistrySyncConfig used only for one-time legacy-localStorage
+    // credential migration (apps/stage-tamagotchi/src/renderer/stores/settings/
+    // artistry-credentials.ts). Deliberately does not touch cardDefaults — a migration run
+    // has no business overwriting the in-memory character-level overrides below.
+    defineInvokeHandler(params.context, artistrySetApiKeys, (payload) => {
+      const current = params.artistryConfig.get()
+      params.artistryConfig.update({
+        artistryProvider: current?.artistryProvider ?? DEFAULT_ARTISTRY_PROVIDER,
+        artistryGlobals: {
+          ...(current?.artistryGlobals ?? DEFAULT_ARTISTRY_GLOBALS),
+          ...(payload.replicateApiKey !== undefined && { replicateApiKey: payload.replicateApiKey }),
+          ...(payload.nanobananaApiKey !== undefined && { nanobananaApiKey: payload.nanobananaApiKey }),
+        },
+      })
+    })
+
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
       log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
 
       try {
         params.artistryConfig.update({
           artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
-          artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || {
-            comfyuiServerUrl: 'http://localhost:8188',
-            comfyuiSavedWorkflows: [],
-            comfyuiActiveWorkflow: '',
-            replicateApiKey: '',
-            replicateDefaultModel: 'black-forest-labs/flux-schnell',
-            replicateAspectRatio: '16:9',
-            replicateInferenceSteps: 4,
-            nanobananaApiKey: '',
-            nanobananaModel: 'gemini-3.1-flash-image-preview',
-            nanobananaResolution: '1K',
-          },
+          artistryGlobals: payload.globals || params.artistryConfig.get()?.artistryGlobals || DEFAULT_ARTISTRY_GLOBALS,
         })
       }
       catch (error) {

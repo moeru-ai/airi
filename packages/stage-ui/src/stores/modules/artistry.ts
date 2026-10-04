@@ -1,5 +1,6 @@
 import type {} from 'pinia-plugin-synced'
 
+import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { defineStore } from 'pinia'
@@ -56,13 +57,17 @@ export const useArtistryStore = defineStore('artistry', () => {
   )
 
   // --- Replicate provider settings ---
-  // NOTICE: API keys must never be persisted to localStorage (Chromium's local storage in the
-  // Electron user-data dir is recoverable plaintext). This ref is memory-only — it still
-  // participates in pinia-plugin-synced's cross-window `state: true` sync below, but that
-  // transport is BroadcastChannel-based and never touches disk. The Electron app hydrates/
-  // persists the real value through main-process safeStorage instead (see
-  // apps/stage-tamagotchi/src/renderer/App.vue + src/main/configs/artistry.ts).
-  const replicateApiKey = refManualReset<string>('')
+  // NOTICE: Tamagotchi has a secure alternative (the Electron main process's encrypted
+  // safeStorage, via apps/stage-tamagotchi/src/renderer/stores/settings/artistry-credentials.ts
+  // + src/main/configs/artistry.ts) so this ref stays memory-only there — persisting it to
+  // localStorage (Chromium's local storage in the Electron user-data dir) would be recoverable
+  // plaintext. Web/Capacitor have no such boundary yet, so they keep the original
+  // localStorage-backed persistence: no worse than before this file ever touched the key, and
+  // the same risk every other provider's credential in stores/providers.ts already carries.
+  // (review: https://github.com/moeru-ai/airi/pull/2512#discussion_r4176290527)
+  const replicateApiKey = isStageTamagotchi()
+    ? refManualReset<string>('')
+    : useLocalStorageManualReset<string>('artistry-replicate-api-key', '', persistenceOptions)
   const replicateDefaultModel = useLocalStorageManualReset<string>(
     'artistry-replicate-default-model',
     'black-forest-labs/flux-schnell',
@@ -80,8 +85,11 @@ export const useArtistryStore = defineStore('artistry', () => {
   )
 
   // --- Nano Banana (Google AI Studio) provider settings ---
-  // NOTICE: see replicateApiKey above — memory-only, hydrated/persisted via Electron main process.
-  const nanobananaApiKey = refManualReset<string>('')
+  // NOTICE: see replicateApiKey above — memory-only + main-process-persisted on Tamagotchi,
+  // localStorage-backed on web/Capacitor.
+  const nanobananaApiKey = isStageTamagotchi()
+    ? refManualReset<string>('')
+    : useLocalStorageManualReset<string>('artistry-nanobanana-api-key', '', persistenceOptions)
   const nanobananaModel = useLocalStorageManualReset<string>(
     'artistry-nanobanana-model',
     'gemini-3.1-flash-image-preview',
