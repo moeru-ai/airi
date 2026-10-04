@@ -22,7 +22,7 @@ import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 
 const { isReady } = useDeferredMount()
 const chatOrchestrator = useChatStore()
-const { activeSendSessionId, activeStreamingMessage, sending } = storeToRefs(chatOrchestrator)
+const { activeTurns } = storeToRefs(chatOrchestrator)
 const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
 const { streamingMessage } = storeToRefs(useChatStreamStore())
 const { isReceivingRemoteStream } = storeToRefs(useContextBridgeStore())
@@ -38,14 +38,12 @@ const composer = useChatComposer<ChatImageAttachment>({
   }),
 })
 const { clearReplyForMessage, selectReply } = composer
-const historyMessages = computed(() => messages.value as unknown as ChatHistoryItem[])
+const historyMessages = computed(() => messages.value)
 const isActiveSessionSending = computed(() => (
-  (sending.value && activeSendSessionId.value === activeSessionId.value)
+  (activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
   || isReceivingRemoteStream.value
 ))
-const visibleStreamingMessage = computed(() => activeSendSessionId.value === activeSessionId.value
-  ? activeStreamingMessage.value
-  : streamingMessage.value)
+const visibleStreamingMessage = streamingMessage
 const { trackChatMessageDeleted } = useAnalytics()
 const { rerunToolCall } = useChatToolCallRerun()
 

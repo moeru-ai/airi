@@ -166,23 +166,23 @@ function makeFakeDeps(overrides: {
   decryptedKey?: string
   streamingModels?: Array<{ id: string, name?: string, description?: string }>
 }) {
-  const ttsMeter = {
-    assertCanAfford: vi.fn(async (_userId: string, _newUnits: number, currentBalance: number) => {
-      if (currentBalance <= 0)
+  const speechBilling = {
+    assertCanAfford: vi.fn(async () => {
+      if (overrides.fluxBalance <= 0)
         throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
     }),
-    accumulate: vi.fn(async () => ({
-      fluxDebited: 1,
-      debtAfter: 0,
-      balanceAfter: overrides.fluxBalance - 1,
-      unbilledFlux: 0,
+    settle: vi.fn(async () => ({
+      charged: 1,
+      requested: 1,
+      balance: overrides.fluxBalance - 1,
+      unsettledMicroFlux: 0,
+      replay: false,
     })),
   }
-  const fluxService = {
-    getFlux: vi.fn(async () => ({ flux: overrides.fluxBalance })),
-  }
-  const requestLogService = {
-    logRequest: vi.fn(async () => undefined),
+  const genAi = {
+    operationCount: { add: vi.fn() },
+    operationDuration: { record: vi.fn() },
+    firstTokenDuration: { record: vi.fn() },
   }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
@@ -207,7 +207,7 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, fluxService, ttsMeter, requestLogService }
+  return { configKV, envelopeCrypto, speechBilling, genAi }
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */
@@ -278,21 +278,20 @@ describe('audio-speech-ws route', () => {
     // `units` argument MUST be the upstream-reported text_words, not the
     // sniff-from-text-frame fallback (which would be the input string
     // length of "hello streaming tts" = 19).
-    expect(deps.ttsMeter.accumulate).toHaveBeenCalledTimes(1)
-    expect((deps.ttsMeter.accumulate.mock.calls[0] as any[])[0]).toMatchObject({
+    expect(deps.speechBilling.settle).toHaveBeenCalledTimes(1)
+    expect((deps.speechBilling.settle.mock.calls[0] as any[])[0]).toMatchObject({
       userId: 'user-123',
       units: 42,
-      metadata: { model: 'volcengine/seed-tts-2.0' },
+      model: 'volcengine/seed-tts-2.0',
     })
 
-    // Request log gets the model label from the start frame, not the
-    // hardcoded fallback.
-    expect(deps.requestLogService.logRequest).toHaveBeenCalledTimes(1)
-    expect((deps.requestLogService.logRequest.mock.calls[0] as any[])[0]).toMatchObject({
-      userId: 'user-123',
-      model: 'volcengine/seed-tts-2.0',
-      status: 200,
-      fluxConsumed: 1,
+    // Duration and time to first audio are recorded once, with the start frame's model.
+    expect(deps.genAi.operationCount.add).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.operationDuration.record).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.firstTokenDuration.record).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.operationDuration.record.mock.calls[0][1]).toMatchObject({
+      'gen_ai.request.model': 'volcengine/seed-tts-2.0',
+      'http.response.status_code': 200,
     })
   })
 
@@ -421,8 +420,8 @@ describe('audio-speech-ws route', () => {
     ])
     await new Promise(r => setTimeout(r, 200))
 
-    expect(deps.ttsMeter.accumulate).toHaveBeenCalledTimes(1)
-    expect((deps.ttsMeter.accumulate.mock.calls[0] as any[])[0]).toMatchObject({
+    expect(deps.speechBilling.settle).toHaveBeenCalledTimes(1)
+    expect((deps.speechBilling.settle.mock.calls[0] as any[])[0]).toMatchObject({
       userId: 'user-no-usage',
       units: 10, // "hello" + "world" = 10 chars
     })

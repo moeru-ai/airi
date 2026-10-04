@@ -194,8 +194,29 @@
     {
       "idx": 27,
       "version": "7",
-      "when": 1791019086014,
-      "tag": "0027_kind_chronomancer",
+      "when": 1790597891769,
+      "tag": "0027_llm_cost_settlement",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791058951383,
+      "tag": "0028_flux_usage",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791061543710,
+      "tag": "0029_llm_request_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1791062783238,
+      "tag": "0030_drop_flux_consumed_and_settlement",
       "breakpoints": true
     }
   ]

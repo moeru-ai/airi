@@ -1,4 +1,5 @@
-import { bigint, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
+import { bigint, check, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 
 // NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
 // the user row; a cascade would wipe these soft-delete archive rows.
@@ -6,6 +7,9 @@ import { bigint, pgTable, text, timestamp } from 'drizzle-orm/pg-core'
 export const userFlux = pgTable('user_flux', {
   userId: text('user_id').primaryKey(),
   flux: bigint('flux', { mode: 'number' }).notNull().default(0),
+  unsettledMicroFlux: bigint('unsettled_micro_flux', { mode: 'number' }).notNull().default(0),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
   deletedAt: timestamp('deleted_at'),
-})
+}, table => [
+  check('user_flux_unsettled_nonnegative', sql`${table.unsettledMicroFlux} >= 0`),
+])
