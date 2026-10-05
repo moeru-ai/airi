@@ -12,7 +12,9 @@ Invalid JSON, unknown labels, duplicate labels, and conflicting type labels stop
 
 The category allowlist is in `workflows/copilot-labels.yml`.
 It includes `bug`, `feature`, app areas, environment labels, and scopes.
-Humans manage priorities, questions, information requests, and PR review status.
+Humans manage priorities, questions, and information requests.
+The separate PR review workflow manages the two waiting labels.
+See [Automatic labels](labeling.md) for its transitions and commit criteria.
 The category workflow never adds or removes those labels.
 
 To classify an existing item, run:
