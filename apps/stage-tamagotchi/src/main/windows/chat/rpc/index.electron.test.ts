@@ -9,7 +9,7 @@ import { createContext, defineInvoke } from '@moeru/eventa'
 import { BrowserWindow } from 'electron'
 import { expect, it, vi } from 'vitest'
 
-import { electronOpenMainDevtools } from '../../../../shared/eventa'
+import { electronOpenMainDevtools, electronOpenSettings } from '../../../../shared/eventa'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { setupBaseWindowElectronInvokes } from '../../shared/window'
@@ -43,11 +43,13 @@ it('registers chat invokes on each supplied window context', async () => {
   const secondWindow = new BrowserWindow()
   const firstOpenDevTools = vi.mocked(firstWindow.webContents.openDevTools)
   const secondOpenDevTools = vi.mocked(secondWindow.webContents.openDevTools)
+  const openSettingsWindow = vi.fn()
   const services = {
     widgetsManager: {} as WidgetsWindowManager,
     serverChannel: {} as ServerChannel,
     mcpStdioManager: {} as McpStdioManager,
     i18n: {} as I18n,
+    openSettingsWindow,
   }
 
   await setupChatWindowElectronInvokes({ ...services, context: firstContext, window: firstWindow })
@@ -73,4 +75,10 @@ it('registers chat invokes on each supplied window context', async () => {
   await defineInvoke(secondContext, electronOpenMainDevtools)()
   expect(secondOpenDevTools).toHaveBeenCalledWith({ mode: 'detach' })
   expect(firstOpenDevTools).toHaveBeenCalledTimes(1)
+
+  await defineInvoke(firstContext, electronOpenSettings)({ route: 'system' })
+  expect(openSettingsWindow).toHaveBeenCalledWith('system')
+
+  await defineInvoke(secondContext, electronOpenSettings)({})
+  expect(openSettingsWindow).toHaveBeenLastCalledWith(undefined)
 })
