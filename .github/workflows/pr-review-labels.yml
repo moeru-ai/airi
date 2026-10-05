@@ -47,7 +47,7 @@ jobs:
                   query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
                     repository(owner: $owner, name: $repo) {
                       pullRequest(number: $number) {
-                        state headRefOid
+                        state isDraft headRefOid
                         latestOpinionatedReviews(first: 100, after: $cursor, writersOnly: true) {
                           nodes { state submittedAt commit { oid } }
                           pageInfo { hasNextPage endCursor }
@@ -62,7 +62,7 @@ jobs:
                 cursor = reviews.pageInfo.hasNextPage ? reviews.pageInfo.endCursor : null;
               } while (cursor);
               let desired;
-              if (current.state === 'OPEN') {
+              if (current.state === 'OPEN' && !current.isDraft) {
                 desired = 'pr-review/waiting-maintainer';
                 // The latest active request starts a new author response cycle, even if older requests remain.
                 const request = requests.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];

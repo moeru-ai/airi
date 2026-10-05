@@ -20,11 +20,15 @@ PR review labels identify who must act next:
 
 | State | Label |
 | --- | --- |
-| New open PR, including a draft | `pr-review/waiting-maintainer` |
+| Draft PR | No automatic waiting label |
+| New open PR ready for review | `pr-review/waiting-maintainer` |
 | A maintainer requests changes | `pr-review/waiting-on-author` |
 | A new PR commit changes files after the request | `pr-review/waiting-maintainer` |
 | The maintainer dismisses or replaces the change request with approval | `pr-review/waiting-maintainer` |
 | Closed or merged | No automatic waiting label |
+
+Draft status takes precedence over the review state. Converting a PR to draft removes both automatic waiting labels.
+Marking a draft ready reevaluates active change requests and subsequent file changes. Category and human labels remain unchanged.
 
 A maintainer has repository write access, as defined by GitHub's `latestOpinionatedReviews(writersOnly: true)` filter.
 Reviews from other users do not change the waiting labels.

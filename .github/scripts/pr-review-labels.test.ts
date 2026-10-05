@@ -13,6 +13,7 @@ const changedCommit = { oid: 'changed', committedDate: '2026-10-05T11:00:00Z', p
 
 function api(options: {
   state?: string
+  isDraft?: boolean
   reviews?: typeof request[]
   commits?: typeof changedCommit[]
   compared?: string[]
@@ -43,6 +44,7 @@ function api(options: {
       if (query.includes('latestOpinionatedReviews')) {
         return { repository: { pullRequest: {
           state: options.state ?? 'OPEN',
+          isDraft: options.isDraft ?? false,
           headRefOid: 'head',
           latestOpinionatedReviews: {
             nodes: options.reviews ?? [],
@@ -72,6 +74,24 @@ describe('pR review handoff labels', () => {
     await run(github, context)
     expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-maintainer'] })
     expect(github.rest.issues.removeLabel).not.toHaveBeenCalled()
+  })
+
+  it.each([{ reviews: [] }, { reviews: [request] }])('clears both waiting labels on drafts with reviews %j', async ({ reviews }) => {
+    const github = api({ isDraft: true, reviews, labels: [...managed, 'scope/ui', 'pr-review/hold'] })
+    await run(github, context)
+    expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledTimes(2)
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledWith({ ...context.repo, issue_number: 42, name: managed[0] })
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledWith({ ...context.repo, issue_number: 42, name: managed[1] })
+    expect(github.graphql).toHaveBeenCalledTimes(1)
+    expect(github.rest.repos.compareCommitsWithBasehead).not.toHaveBeenCalled()
+  })
+
+  it('reevaluates active change requests when the current PR becomes ready', async () => {
+    const github = api({ reviews: [request], isDraft: false })
+    await run(github, { ...context, payload: { pull_request: { number: 42, draft: true } } })
+    expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-on-author'] })
+    expect(github.graphql.mock.calls[0][0]).toContain('state isDraft headRefOid')
   })
 
   it('restricts review input to the latest opinionated reviews from maintainers', async () => {
@@ -165,6 +185,7 @@ describe('pR review handoff labels', () => {
     const github = api({ reviews: [request], labels: ['pr-review/waiting-maintainer'] })
     github.graphql.mockResolvedValueOnce({ repository: { pullRequest: {
       state: 'OPEN',
+      isDraft: false,
       headRefOid: 'head',
       latestOpinionatedReviews: {
         nodes: [],
