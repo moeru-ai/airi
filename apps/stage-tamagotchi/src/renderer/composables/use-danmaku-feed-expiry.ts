@@ -1,8 +1,6 @@
 import type { EffectScope, MaybeRefOrGetter } from 'vue'
 
-import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
-import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store'
 import { storeToRefs } from 'pinia'
 import { effectScope, onScopeDispose, shallowRef, toValue, watch } from 'vue'
 
@@ -30,17 +28,12 @@ export function useDanmakuFeedExpiry(danmaku: MaybeRefOrGetter<boolean>, expire:
   function start() {
     scope = effectScope()
     scope.run(() => {
-      const { activeSessionId, messages } = storeToRefs(useChatSessionStore())
-      const { streamingMessage } = storeToRefs(useChatStreamStore())
-      const { activeTurns } = storeToRefs(useChatStore())
+      const { messages } = storeToRefs(useChatSessionStore())
       const { charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
       const { voicing, initialLookupSettled } = useSpeechOutputVoicing()
 
       const feed = useChatFeedExpiry({
         messages,
-        generatingMessageId: () => activeTurns.value.some(turn => turn.sessionId === activeSessionId.value)
-          ? streamingMessage.value?.id
-          : undefined,
         voicing,
         voicingLookupSettled: initialLookupSettled,
         enabled: expire,

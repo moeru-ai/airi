@@ -22,10 +22,8 @@ function readingTimeOf(text: string, charactersPerSecond: number, minimumSeconds
 }
 
 interface ChatFeedExpiryOptions {
-  /** Stored messages of the shown session, in history order. */
+  /** Stored messages of the shown session, in history order. A reply joins them when it is complete. */
   messages: MaybeRefOrGetter<ChatHistoryItem[]>
-  /** Id of the assistant message that is still generating, if any. */
-  generatingMessageId: MaybeRefOrGetter<string | undefined>
   /** `voicing` of the speech output. See `SpeechOutputPlaybackState` in the speech bus. */
   voicing: MaybeRefOrGetter<boolean>
   /**
@@ -48,8 +46,9 @@ interface ChatFeedExpiryOptions {
  * at it never faces a growing wall of text.
  *
  * A message expires after the time to read it at the reader's speed, counted
- * from when it was complete. A reply that speech output voiced expires when the
- * speech ends instead. A new speed applies to every message that still shows.
+ * from when it was complete: `completedAt` of a reply, or `createdAt`. While
+ * speech output voices, the newest reply stays. When the speech ends, that
+ * reply expires instead. A new speed applies to every message that still shows.
  * Messages expire in history order, so the feed only loses its top message,
  * and a short message never leaves a gap above a long one.
  *
@@ -64,19 +63,12 @@ interface ChatFeedExpiryOptions {
 export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
   /** Clock of the last evaluation. A timer moves it to the next deadline. */
   const now = shallowRef(Date.now())
-  /** When a reply that this window saw generating became complete, by message id. */
-  const completedAt = shallowReactive(new Map<string, number>())
-  /** Replies that speech output voiced, by message id, with the time the speech ended. `undefined` while it plays. */
-  const voicedUntil = shallowReactive(new Map<string, number | undefined>())
+  /** When the speech of a reply ended, by message id: the reply that was newest when the speech stopped. */
+  const speechEndedAt = shallowReactive(new Map<string, number>())
   /** When this window first saw a message that has no `createdAt`. */
   const firstSeenAt = shallowReactive(new Map<string | number, number>())
   /** Messages that already left the feed. */
   const expiredKeys = shallowReactive(new Set<string | number>())
-
-  watch(() => toValue(options.generatingMessageId), (generating, previous) => {
-    if (previous && previous !== generating)
-      completedAt.set(previous, Date.now())
-  }, { immediate: true })
 
   // The session store appends messages in place, so the watch looks one level deep.
   watch(() => toValue(options.messages), (messages) => {
@@ -87,28 +79,17 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
     })
   }, { deep: 1, immediate: true })
 
-  watch(() => toValue(options.voicing), (voicing) => {
-    if (!voicing) {
-      for (const [id, until] of voicedUntil) {
-        if (until === undefined)
-          voicedUntil.set(id, Date.now())
-      }
-      return
-    }
-
-    // Speech output plays the newest reply: the one that generates, or else
-    // the last complete one. A reply that already left stays gone.
-    const messages = toValue(options.messages)
-    const voicedId = toValue(options.generatingMessageId) ?? messages.findLast(message => message.role === 'assistant')?.id
-    if (!voicedId)
-      return
-
-    const voicedIndex = messages.findIndex(message => message.id === voicedId)
-    if (voicedIndex !== -1 && expiredKeys.has(getChatHistoryItemKey(messages[voicedIndex], voicedIndex)))
-      return
-
-    voicedUntil.set(voicedId, undefined)
-  }, { immediate: true })
+  /**
+   * The reply that speech output voices: the newest reply. A reply that
+   * generates joins the history only when complete, so until then its speech
+   * holds the reply before it. The history can also arrive after the speech
+   * state, so this follows both.
+   */
+  const newestReplyId = computed(() => toValue(options.messages).findLast(message => message.role === 'assistant')?.id)
+  watch(() => toValue(options.voicing), (voicing, wasVoicing) => {
+    if (wasVoicing && !voicing && newestReplyId.value)
+      speechEndedAt.set(newestReplyId.value, Date.now())
+  })
 
   function deadlineOf(message: ChatHistoryItem, index: number) {
     const key = getChatHistoryItemKey(message, index)
@@ -116,17 +97,16 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
     if (expiredKeys.has(key) || message.role === 'system')
       return Number.NEGATIVE_INFINITY
 
-    if (message.id && message.id === toValue(options.generatingMessageId))
+    if (message.id && message.id === newestReplyId.value && toValue(options.voicing))
       return Number.POSITIVE_INFINITY
 
-    if (message.id && voicedUntil.has(message.id))
-      return voicedUntil.get(message.id) ?? Number.POSITIVE_INFINITY
+    const speechEnded = message.id ? speechEndedAt.get(message.id) : undefined
+    if (speechEnded !== undefined)
+      return speechEnded
 
-    // A reply that this window saw generating counts from its completion. A
-    // message from before, such as one in a session that the user opens,
-    // counts from when it was sent, so it is already gone.
-    const completed = message.id ? completedAt.get(message.id) : undefined
-    const start = completed ?? message.createdAt ?? firstSeenAt.get(key)
+    // A reply counts from when it was complete, and other messages from when
+    // they were sent. Messages of an older session are therefore already gone.
+    const start = message.completedAt ?? message.createdAt ?? firstSeenAt.get(key)
     // A message without `createdAt` waits for the watch above to record when it appeared.
     if (start === undefined)
       return Number.POSITIVE_INFINITY

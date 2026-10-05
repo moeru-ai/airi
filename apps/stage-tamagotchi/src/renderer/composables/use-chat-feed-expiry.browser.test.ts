@@ -9,21 +9,19 @@ const START = new Date('2026-10-05T00:00:00Z').getTime()
 
 function setUp(initial: ChatHistoryItem[], { charactersPerSecond = 5, minimumSeconds = 3, voicingLookupSettled: initiallySettled = true } = {}) {
   const messages = ref(initial)
-  const generatingMessageId = shallowRef<string>()
   const voicing = shallowRef(false)
   const voicingLookupSettled = shallowRef(initiallySettled)
   const enabled = shallowRef(true)
   const scope = effectScope()
   const { expiredBefore } = scope.run(() => useChatFeedExpiry({
     messages,
-    generatingMessageId,
     voicing,
     voicingLookupSettled,
     enabled,
     charactersPerSecond,
     minimumSeconds,
   }))!
-  return { messages, generatingMessageId, voicing, voicingLookupSettled, enabled, expiredBefore, scope }
+  return { messages, voicing, voicingLookupSettled, enabled, expiredBefore, scope }
 }
 
 /** Moves the clock, then lets the watchers react. */
@@ -86,14 +84,16 @@ describe('useChatFeedExpiry', () => {
     expect(expiredBefore.value).toBe(2)
   })
 
+  // ROOT CAUSE:
+  //
+  // A floating window guessed when a reply finished from local stream state,
+  // which only the generating window has. A slow reply without speech counted
+  // from its start, so it left as soon as it arrived.
+  //
+  // We fixed this by reading `completedAt`, which the generating window stores.
   it('counts a reply from when it finished generating', async () => {
-    const { messages, generatingMessageId, expiredBefore } = setUp([])
-    generatingMessageId.value = 'reply-1'
-    messages.value.push({ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START })
-    await wait(10_000)
-    expect(expiredBefore.value).toBe(0)
-
-    generatingMessageId.value = undefined
+    const { messages, expiredBefore } = setUp([])
+    messages.value.push({ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START - 60_000, completedAt: START })
     await wait(2999)
     expect(expiredBefore.value).toBe(0)
 
@@ -102,13 +102,31 @@ describe('useChatFeedExpiry', () => {
   })
 
   it('keeps a spoken reply until its speech ends', async () => {
-    const { messages, generatingMessageId, voicing, expiredBefore } = setUp([])
-    generatingMessageId.value = 'reply-1'
-    messages.value.push({ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START })
+    const { messages, voicing, expiredBefore } = setUp([])
     voicing.value = true
-    await nextTick()
-    generatingMessageId.value = undefined
+    messages.value.push({ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START, completedAt: START })
     await wait(20_000)
+    expect(expiredBefore.value).toBe(0)
+
+    voicing.value = false
+    await wait(0)
+    expect(expiredBefore.value).toBe(1)
+  })
+
+  // ROOT CAUSE:
+  //
+  // The speech state reached a new window before its history. The reply was
+  // matched to speech only when the speech state changed, so the history that
+  // came later saw an old reply and hid it for good.
+  //
+  // We fixed this by holding the newest reply whenever speech output voices.
+  it('keeps a spoken reply when the history arrives after the speech state', async () => {
+    const { messages, voicing, expiredBefore } = setUp([])
+    voicing.value = true
+    await wait(0)
+
+    messages.value = [{ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START - 60_000, completedAt: START - 50_000 }]
+    await wait(0)
     expect(expiredBefore.value).toBe(0)
 
     voicing.value = false
