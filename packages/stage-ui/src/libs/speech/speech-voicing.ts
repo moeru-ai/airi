@@ -6,9 +6,10 @@ interface OpenIntent {
 }
 
 /**
- * Tracks whether speech output voices a reply: an open speech intent already
- * played audio. It stays `true` in the pauses between sentences, and turns
- * `false` when every open intent has closed.
+ * Tracks whether speech output voices a reply: audio of an open speech intent
+ * played, and some intent is still open. It stays `true` in the pauses between
+ * sentences and between intents, and turns `false` when every open intent has
+ * closed.
  *
  * Use when:
  * - Another window must know when a spoken reply ends, such as the danmaku chat.

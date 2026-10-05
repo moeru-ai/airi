@@ -151,9 +151,11 @@ const disposePlaybackStateHandler = defineInvokeHandler(
   speechOutputGetPlaybackState,
   () => ({ speaking: nowSpeaking.value, voicing: speechVoicing.value }),
 )
+// Emitted at once too, so a window that kept the state of a reloaded stage
+// learns that the new stage voices nothing.
 watch([nowSpeaking, speechVoicing], ([speaking, voicing]) => {
   getSpeechBusContext().emit(speechOutputPlaybackStateChangedEvent, { speaking, voicing })
-})
+}, { immediate: true })
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const speechOutputControlStore = useSpeechOutputControlStore()
