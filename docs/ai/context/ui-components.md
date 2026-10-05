@@ -258,6 +258,23 @@ Catches synchronous render/setup errors in descendants via `onErrorCaptured` and
 **Emits**: `error(err, instance, info)`, `retry()`
 **Exposed**: `retry()`, `hasError()`
 
+### DropdownMenu
+
+Shared dropdown-menu surface built on Reka UI. It owns the root, trigger,
+portal, content surface, and `AnimatedContent` lifecycle. Callers own the menu
+items and their business actions.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `align` | `DropdownMenuContentProps['align']?` | `'start'` | Preferred content alignment before collision handling |
+| `contentClass` | `string \| string[]?` | — | Additional classes for the content surface |
+| `disabled` | `boolean?` | `false` | Disables the trigger |
+| `side` | `DropdownMenuContentProps['side']?` | `'bottom'` | Preferred content side before collision handling |
+| `sideOffset` | `number?` | `6` | Offset between the trigger and content |
+| `variant` | `'blurry' \| 'default'?` | `'default'` | Selects a translucent or opaque content surface |
+
+**Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
+
 ### DoubleCheckButton
 
 Two-stage confirmation button — click once to reveal confirm/cancel.

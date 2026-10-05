@@ -50,6 +50,8 @@ dialogs:
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
     setupWithoutSigningIn: Setup with your provider
+    pricingLink: Pricing
+    termsLink: Terms of Service
     flux: Flux
     buyFlux: Charge Flux
     select-model: Choose model
@@ -867,6 +869,32 @@ pages:
     vision:
       description: Vision
       title: Vision
+      tool-images:
+        label: Use the vision model for tool images
+        description: The vision model reads the images that tools return, such as screenshots from Use computer, before your chat model replies. The chat model gets them directly when its provider reports image input. A description has no pixel positions.
+      capture:
+        title: Vision capture cadence
+        description: Tune how often the vision ticker captures a frame.
+        interval:
+          label: Capture interval
+          description: A lower value captures more often and uses more resources.
+      stats:
+        captures: Captures
+        context-updates: Context updates
+        inferences: Image recognition calls
+        inferences-description: Every call to the vision model, chat images included
+        failed-inferences: Failed calls
+        last-inference: Last call
+        error: 'Error:'
+        last-update: Last update {time}
+        since-start: Since the app started
+        never: Never
+      ollama:
+        title: Provider request toggles
+        description: Control provider-specific request flags for vision inference.
+        thinking:
+          label: Thinking (Ollama)
+          description: 'When on, vision requests through Ollama include `think: true`. When off, they include `think: false`.'
     x:
       description: X / Twitter browsing and usage
       title: X / Twitter
@@ -885,6 +913,74 @@ pages:
       access-token-secret-description: Your X / Twitter access token secret
       access-token-secret-placeholder: Enter your X / Twitter access token secret
       configured: X / Twitter is properly configured!
+    stickers:
+      frequency: Sticker frequency
+      frequency-description: Allow stickers in this percentage of replies. The character still decides whether a sticker fits.
+      frequency-options:
+        25: Occasionally (25%)
+        50: Sometimes (50%)
+        75: Often (75%)
+        100: Whenever appropriate (100%)
+      title: Stickers
+      description: Add optional image reactions to chat replies
+      enable: Enable stickers
+      enable-description: Let the character choose one sticker per eligible reply based on its name and emotion tags.
+      local-only: Images stay on this device. Cloud chat sync currently transfers text only.
+      catalog: Available stickers
+      unavailable: Sticker unavailable
+      import: 'Import image'
+      editor: 'Sticker editor'
+      image: 'Image'
+      replace: 'Replace image (optional)'
+      image-limits: 'PNG, JPG, WebP, or GIF. Maximum 2 MB and 4096 × 4096 pixels.'
+      choose-file: 'Choose an image'
+      preview: 'Sticker preview'
+      name: 'Name'
+      name-limit: 'Use 1–80 characters. The model reads this name.'
+      emotions: 'Emotion tags'
+      save: 'Save sticker'
+      cancel: 'Cancel'
+      edit: 'Edit'
+      delete: 'Delete'
+      confirm-delete: 'Confirm delete'
+      empty: 'Your library is empty. Import an image to add a sticker.'
+      history-note: 'Deleting or replacing a sticker affects future replies. Saved and already prepared replies keep their original image.'
+      saved-image: 'Saved sticker'
+      errors:
+        name: 'Enter a name with 1–80 characters.'
+        emotions: 'Choose at least one valid emotion tag.'
+        format: 'Choose a PNG, JPG, WebP, or GIF image.'
+        size: 'Choose an image smaller than 2 MB.'
+        image: 'This image cannot be opened. Choose another file.'
+        dimensions: 'Choose an image no larger than 4096 × 4096 pixels.'
+        missing: 'This sticker was deleted in another window.'
+        storage: 'The sticker library could not be saved or loaded. Try again.'
+      emotion-labels:
+        happy: 'Happy'
+        sad: 'Sad'
+        confused: 'Confused'
+        surprised: 'Surprised'
+        thanks: 'Thanks'
+        celebrate: 'Celebration'
+        angry: 'Angry'
+        tired: 'Tired'
+        affectionate: 'Affection'
+        awkward: 'Awkward'
+        agree: 'Agree'
+        disagree: 'Disagree'
+      artwork:
+        airi-happy: Happy
+        airi-sad: Sad
+        airi-confused: Confused
+        airi-surprised: Surprised
+        airi-thanks: Thank you
+        airi-celebrate: Celebration
+        airi-angry: Angry
+        airi-tired: Tired
+        airi-affectionate: Love
+        airi-awkward: Awkward
+        airi-agree: Yes
+        airi-disagree: No thanks
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
@@ -982,6 +1078,8 @@ pages:
     buy: Charge
     currency: Currency
     description: Current Flux
+    terms: Terms
+    privacy: Privacy Policy
     packagesError: Failed to load packages. Please try again later.
     checkout:
       success: Payment successful! Your Flux has been topped up.
@@ -1080,6 +1178,9 @@ pages:
               title: List Models
             check-supports-chat-completion:
               title: Chat Completion
+          apple-vision:
+            check-availability:
+              title: Availability
           prompt-api:
             check-availability:
               title: Availability
@@ -1192,6 +1293,9 @@ pages:
         model:
           label: Model
           description: Select an available model. Recognition detects one of its supported languages. A change restarts the current session.
+      apple-vision:
+        title: Apple Vision
+        description: On-device image understanding with Apple Foundation Models on macOS 27 or later. No API key is required.
       apple-speech-transcription:
         title: Apple Speech
         description: On-device speech recognition on macOS 26 or later. No API key is required.
@@ -1887,6 +1991,11 @@ theme:
 title: Settings
 voices: Voice
 vrm:
+  fps:
+    title: Frame rate limit
+    description: Limit VRM rendering in the stage and model preview. Lower limits reduce GPU use without changing animation speed.
+    options:
+      unlimited: Unlimited
   change-model:
     from-file: Load from File
     from-file-select: Select

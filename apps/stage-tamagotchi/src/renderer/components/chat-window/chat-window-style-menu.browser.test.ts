@@ -54,6 +54,11 @@ describe('chatWindowStyleMenu', () => {
     const trigger = page.getByRole('button', { name: 'tamagotchi.stage.chat-window.style.title' })
     await expect.element(trigger).toBeEnabled()
     expect(getComputedStyle(trigger.element()).color).toBe(getComputedStyle(reference).color)
+
+    await trigger.click()
+    const menu = page.getByRole('menu')
+    await expect.element(menu).toHaveClass('bg-white')
+    await expect.element(menu).not.toHaveClass('backdrop-blur-md')
   })
 
   it('keeps showing the latest choice when an earlier choice fails after it', async () => {

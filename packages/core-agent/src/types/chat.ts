@@ -20,7 +20,13 @@ export interface ChatSlicesToolCallResult {
   result?: string | CommonContentPart[]
 }
 
-export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
+/** A local catalog ID. Renderers never treat this value as an image URL. */
+export interface ChatSlicesSticker {
+  type: 'sticker'
+  stickerId: string
+}
+
+export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker
 
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
@@ -78,6 +84,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
     description: string
     imageIndex: number
   }>
+  /** ASR results indexed by the audio parts in the original user message. */
+  audioTranscripts?: string[]
   /** Message that this message replies to in the same chat session. */
   replyToMessageId?: string
   /** Tools selected for this message. The runtime rebuilds executors from these names. */
@@ -85,6 +93,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
 }
 
 export interface ChatStreamEventContext {
+  /** Session ownership travels with the event across concurrent turns and renderer transports. */
+  sessionId: string
   /** Stable correlation id shared by every hook emitted for one user turn. */
   turnId: string
   message: ChatHistoryItem

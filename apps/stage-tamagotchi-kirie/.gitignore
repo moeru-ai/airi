@@ -1,0 +1,17 @@
+.DS_Store
+.auv/
+.godot/
+.import/
+.mono/
+node_modules/
+addons/godot_cef/
+addons/kirie/
+src-web/dist/
+dist/
+build/
+bin/
+obj/
+*.apk
+*.aab
+*.aar
+*.xcframework

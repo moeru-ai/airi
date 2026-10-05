@@ -18,11 +18,28 @@ import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingSpeechInputPipeline } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 const paused = ref(false)
+const modelRenderState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const modelRenderError = ref<Error>()
+const startup = useStartupResourcesStore()
+
+watch([modelRenderState, modelRenderError, () => startup.resources.find(resource => resource.id === 'model')?.status], ([state, error, status]) => {
+  if (status !== 'loading')
+    return
+  if (error)
+    startup.fail('model', error)
+  else if (state === 'mounted')
+    startup.complete('model')
+})
+
+function markModelFailed(error: Error) {
+  modelRenderError.value = error
+}
 
 function handleSettingsOpen(open: boolean) {
   paused.value = open
@@ -30,6 +47,7 @@ function handleSettingsOpen(open: boolean) {
 
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobile = breakpoints.smaller('md')
+const mobileInteractiveArea = useTemplateRef<InstanceType<typeof MobileInteractiveArea>>('mobileInteractiveArea')
 const stageViewport = shallowRef({ height: 0, offsetTop: 0 })
 // NOTICE:
 // Why: A fixed Stage follows Safari's input pan and moves Live2D with the keyboard.
@@ -108,6 +126,13 @@ async function sendVoiceInputTextToChat(text: string | undefined) {
   }
 }
 
+function handleVoiceInputText(text: string | undefined) {
+  if (!isMobile.value)
+    return sendVoiceInputTextToChat(text)
+  if (text?.trim())
+    mobileInteractiveArea.value?.receiveTranscription(text)
+}
+
 async function startAudioInteraction(binding: VoiceInputBinding) {
   currentBinding = binding
   if (binding.mode === 'stream') {
@@ -115,7 +140,7 @@ async function startAudioInteraction(binding: VoiceInputBinding) {
       consumerId: transcriptionConsumerId,
       onSentenceEnd: (text) => {
         if (currentBinding === binding)
-          void sendVoiceInputTextToChat(text)
+          void handleVoiceInputText(text)
       },
     })
     if (hearingPipeline.error)
@@ -133,7 +158,7 @@ async function startAudioInteraction(binding: VoiceInputBinding) {
   stopOnStopRecord = onStopRecord(async (recording) => {
     const text = await transcribeForRecording(recording)
     if (currentBinding === binding)
-      await sendVoiceInputTextToChat(text)
+      await handleVoiceInputText(text)
   })
 }
 
@@ -217,10 +242,12 @@ const cursorPosition = computed(() => ({
             <ViewControlSlider />
           </div>
           <WidgetStage
+            v-model:state="modelRenderState"
             h-full w-full
             :cursor-position="cursorPosition"
             :enable-orbit-controls="!isMobile"
             :paused="paused"
+            @error="markModelFailed"
           />
         </div>
         <InteractiveArea v-if="!isMobile" h="85dvh" absolute right-4 flex flex-1 flex-col max-w="500px" min-w="30%" />
@@ -230,6 +257,7 @@ const cursorPosition = computed(() => ({
     <Teleport to="body">
       <MobileInteractiveArea
         v-if="isMobile"
+        ref="mobileInteractiveArea"
         @settings-open="handleSettingsOpen"
         @stage-viewport-change="stageViewport = $event"
       />

@@ -5,7 +5,7 @@ import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { BillingService } from './services/domain/billing/billing-service'
-import type { FluxMeter } from './services/domain/billing/flux-meter'
+import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
@@ -33,6 +33,7 @@ import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
 import { logger as honoLogger } from 'hono/logger'
+import { parseAccept } from 'hono/utils/accept'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 
 import { createDrizzle, migrateDatabase } from './libs/db'
@@ -67,7 +68,8 @@ import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
-import { createFluxMeter } from './services/domain/billing/flux-meter'
+import { createLlmBillingService } from './services/domain/billing/llm-billing'
+import { SpeechBilling } from './services/domain/billing/speech-billing'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
@@ -95,8 +97,9 @@ interface AppDeps {
   paymentService: PaymentService
   appleIapVerifier: AppleIapVerifier | null
   stripe: Stripe | null
+  llmBilling: LlmBillingService
   billingService: BillingService
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
   requestLogService: RequestLogService
   voicePackService: VoicePackService
   productEventService: ProductEventService
@@ -124,6 +127,8 @@ function apiBodyLimit(maxSize: number) {
 
 export async function buildApp(deps: AppDeps) {
   const logger = useLogger('app').useGlobalConfig()
+  const webAppUrl = deps.env.WEB_APP_URL
+  const docsUrl = new URL('/docs', webAppUrl).toString()
 
   const app = new Hono<HonoEnv>()
     .use('*', async (c, next) => {
@@ -229,9 +234,8 @@ export async function buildApp(deps: AppDeps) {
   const audioSpeechWsSetup = createAudioSpeechWsHandlers({
     configKV: deps.configKV,
     envelopeCrypto: deps.envelopeCrypto,
-    fluxService: deps.fluxService,
-    ttsMeter: deps.ttsMeter,
-    requestLogService: deps.requestLogService,
+    speechBilling: deps.speechBilling,
+    genAi: deps.otel?.genAi,
   })
   app.get('/api/v1/audio/speech/ws', upgradeWebSocket(async (c) => {
     const token = c.req.query('token')
@@ -282,10 +286,11 @@ export async function buildApp(deps: AppDeps) {
   const v1Routes = createV1Routes({
     fluxService: deps.fluxService,
     billingService: deps.billingService,
+    llmBilling: deps.llmBilling,
     configKV: deps.configKV,
     requestLogService: deps.requestLogService,
     productEventService: deps.productEventService,
-    ttsMeter: deps.ttsMeter,
+    speechBilling: deps.speechBilling,
     llmRouter: deps.llmRouter,
     providerCatalogService: deps.providerCatalogService,
     voicePackService: deps.voicePackService,
@@ -371,17 +376,19 @@ export async function buildApp(deps: AppDeps) {
       )
     })
 
-    /**
-     * Service identity at the API root. Visitors who land here from a stray
-     * email link, search engine, or copy-pasted URL get a clear pointer to
-     * the actual product UI instead of the framework's default "404 Not Found".
-     */
-    .on('GET', '/', c => c.json({
-      service: 'airi-api',
-      message: 'This is the Project AIRI API server. Visit https://airi.moeru.ai to use the product, or see the docs at https://airi.moeru.ai/docs.',
-      docs: 'https://airi.moeru.ai/docs',
-      ui: 'https://airi.moeru.ai',
-    }))
+    .on('GET', '/', (context) => {
+      context.header('Vary', 'Accept')
+      const accept = context.req.header('Accept')
+      if (accept && parseAccept(accept).some(media => media.type.toLowerCase() === 'text/html' && media.q > 0))
+        return context.redirect(webAppUrl, 302)
+
+      return context.json({
+        service: 'airi-api',
+        message: `This is the Project AIRI API server. Visit ${webAppUrl} to use the product, or see the docs at ${docsUrl}.`,
+        docs: docsUrl,
+        ui: webAppUrl,
+      })
+    })
 
     .route('/internal/auth', createInternalAuthRoutes({
       userDeletionService: deps.userDeletionService,
@@ -456,8 +463,8 @@ export async function buildApp(deps: AppDeps) {
      */
     .notFound(c => c.json({
       error: 'NOT_FOUND',
-      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at https://airi.moeru.ai.`,
-      ui: 'https://airi.moeru.ai',
+      message: `No route matched ${c.req.method} ${new URL(c.req.url).pathname}. This is the airi-api server; the product UI lives at ${webAppUrl}.`,
+      ui: webAppUrl,
     }, 404))
 
   return { app: builtApp, injectWebSocket }
@@ -686,8 +693,13 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, configKV, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.otel?.revenue),
+  })
+
+  const llmBilling = injeca.provide('services:llmBilling', {
+    dependsOn: { billingService, otel },
+    build: ({ dependsOn }) => createLlmBillingService(dependsOn.billingService, dependsOn.otel?.revenue),
   })
 
   const paymentService = injeca.provide('services:payment', {
@@ -717,29 +729,12 @@ export async function createApp() {
     },
   })
 
-  const ttsMeter = injeca.provide('services:ttsMeter', {
-    dependsOn: { redis, billingService, configKV, otel },
-    build: ({ dependsOn }) => createFluxMeter(dependsOn.redis, dependsOn.billingService, {
-      name: 'tts',
-      // Lazy config read: missing FLUX_PER_1K_CHARS_TTS surfaces as a
-      // per-request 503 (via route-level configGuard), not a server boot
-      // failure that would take chat/auth/stripe down with it.
-      resolveRuntime: async () => {
-        const fluxPer1kChars = await dependsOn.configKV.getOrThrow('FLUX_PER_1K_CHARS_TTS')
-        const ttl = await dependsOn.configKV.get('TTS_DEBT_TTL_SECONDS')
-        return {
-          unitsPerFlux: Math.max(1, Math.floor(1000 / fluxPer1kChars)),
-          debtTtlSeconds: ttl,
-        }
-      },
-    }, dependsOn.otel?.revenue),
+  const speechBilling = injeca.provide('services:speechBilling', {
+    dependsOn: { billingService, configKV, otel },
+    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
-  // LLM router (KTD-5 in-process replacement for the knoway sidecar).
-  // LLM_ROUTER_MASTER_KEY is required at env-parse time, so this provider
-  // always builds a real router — the legacy `null` fallback path is gone.
-  // Shared by the TTS router (acquires slots) and the pool watermark gauge
-  // (reads the snapshot). Cluster-wide Redis state — the server is multi-instance.
+  // Redis coordinates upstream pool capacity across API replicas.
   const ttsConcurrencyLedger = injeca.provide('services:ttsConcurrencyLedger', {
     dependsOn: { redis },
     build: ({ dependsOn }) => createConcurrencyLedger(dependsOn.redis),
@@ -772,7 +767,8 @@ export async function createApp() {
     appleIapVerifier,
     stripe,
     billingService,
-    ttsMeter,
+    llmBilling,
+    speechBilling,
     configKV,
     envelopeCrypto,
     redis,
@@ -800,7 +796,8 @@ export async function createApp() {
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
     billingService: resolved.billingService,
-    ttsMeter: resolved.ttsMeter,
+    llmBilling: resolved.llmBilling,
+    speechBilling: resolved.speechBilling,
     requestLogService: resolved.requestLogService,
     productEventService: resolved.productEventService,
     configKV: resolved.configKV,

@@ -1,6 +1,8 @@
 import type { LocaleDetector } from '@intlify/core'
 import type { BrowserWindow, Rectangle } from 'electron'
 
+import type { globalAppConfigSchema } from '../configs/global'
+import type { Config } from '../libs/electron/persistence'
 import type { I18n } from '../libs/i18n'
 import type { ServerChannel } from '../services/airi/channel-server'
 import type { setupBeatSync } from '../windows/beat-sync'
@@ -11,18 +13,22 @@ import type { WidgetsWindowManager } from '../windows/widgets'
 import { env } from 'node:process'
 
 import { is } from '@electron-toolkit/utils'
+import { defineInvokeHandler } from '@moeru/eventa'
+import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { isRendererUnavailable } from '@proj-airi/electron-vueuse/main'
 import { effect } from 'alien-signals'
-import { app, Menu, nativeImage, screen, Tray } from 'electron'
+import { app, ipcMain, Menu, nativeImage, screen, Tray } from 'electron'
 import { debounce, once } from 'es-toolkit'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../resources/icon.png?asset'
 import macOSTrayIcon from '../../../resources/tray-icon-macos.png?asset'
 
+import { electronAppIconGet, electronAppIconSet } from '../../shared/eventa'
 import { findDominantDisplayArea } from '../../shared/utils/electron/display'
 import { onAppBeforeQuit } from '../libs/bootkit/lifecycle'
 import { Animator } from '../windows/shared/animator'
+import { AppIconVisibility } from '../windows/shared/app-icon'
 import { computeResizedBoundsAnchoredToDominantDisplay } from '../windows/shared/display'
 import { toggleWindowShow } from '../windows/shared/window'
 
@@ -107,6 +113,7 @@ export function setupTray(params: {
   inlayWindow: () => Promise<BrowserWindow>
   serverChannel: ServerChannel
   i18n: I18n
+  appConfig: Config<typeof globalAppConfigSchema>
 }): void {
   once(() => {
     const mainWindowAnimator = new Animator(params.mainWindow)
@@ -256,6 +263,14 @@ export function setupTray(params: {
       const locale = params.i18n.locale as (() => string | LocaleDetector<any[]> | undefined)
       locale()
       rebuildContextMenu()
+    })
+
+    const appIcon = new AppIconVisibility(params.appConfig)
+    const { context } = createContext(ipcMain)
+    defineInvokeHandler(context, electronAppIconGet, () => appIcon.hidden)
+    defineInvokeHandler(context, electronAppIconSet, async (payload) => {
+      await appIcon.setHidden(Boolean(payload))
+      return appIcon.hidden
     })
 
     onAppBeforeQuit(() => {

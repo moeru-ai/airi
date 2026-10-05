@@ -39,7 +39,7 @@ import ControlsIslandRoot from '../components/stage-islands/controls-island/cont
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronOpenOnboarding } from '../../shared/eventa'
+import { electronAppIsWayland, electronOpenOnboarding } from '../../shared/eventa'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
@@ -177,6 +177,16 @@ const isTransparentForMouseEvents = computed(() => {
 
 const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
+
+// The controls Island hides while the cursor is away from the window. The edge
+// band counts as the window, because a resize holds the cursor there. On
+// Wayland the cursor signal can stick outside (#2521), so the Island stays.
+const isWayland = ref(true)
+// A failed probe keeps `true`, so the Island stays shown as before this feature.
+useElectronEventaInvoke(electronAppIsWayland)()
+  .then(value => isWayland.value = value)
+  .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
+const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
@@ -325,6 +335,13 @@ function handleFadeOnHoverInteractionChange() {
     const interaction = resolveFadeOnHoverInteraction({
       alwaysOnTop: alwaysOnTop.value,
       cursorInsideWindow: !isOutsideWindow.value,
+      // NOTICE:
+      // On native Wayland the polled cursor position can stick stale (#2521),
+      // and Electron's setIgnoreMouseEvents `forward` flag is unsupported on
+      // Linux. A click-through window there never gets pointer events back,
+      // so the controls menu can never open. Keep the window interactive.
+      // Removal: reliable Wayland cursor reporting or Linux `forward` support.
+      clickThroughAvailable: !isWayland.value,
       enabled: fadeOnHoverEnabled.value,
       transparentForFade: isTransparent.value,
       transparentForPointer: isTransparentForMouseEvents.value,
@@ -337,7 +354,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused],
+  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -871,6 +888,7 @@ const cursorPosition = computed(() => ({
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"
+            :cursor-away="cursorAwayFromWindow"
             :[stageOpaqueAttribute]="true"
             @interaction-change="controlsIslandInteractionActive = $event"
           />

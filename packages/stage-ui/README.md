@@ -2,6 +2,19 @@
 
 Shared core for stage
 
+## Startup progress
+
+`useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
+The apps register the complete resource list before work starts. Their startup flows report each module's result through the store.
+The app roots reset the store before registration. This also stops an old load from updating a new registration after hot reload.
+`StartupOverlay` reads the store and shows splash, progress, or an error with a retry action.
+`useStartupResourceTimeout` fails a resource that stays loading past its deadline. Web and Pocket apply it to character model loading.
+The optional Mods server connects outside the tracked startup work. Its connection does not block onboarding.
+Each app's HTML shows the first splash before Vue mounts. CSS hides it when Vue renders into `#app`.
+The home page reports when its character model is ready or fails. A failed model keeps the overlay visible.
+If the model fails, the user can retry the app or continue without a character.
+The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off
@@ -20,15 +33,24 @@ Previews own their Object URLs. Session changes discard pending image reads.
 Failed sends restore the draft through the shared composer.
 
 Choose a provider and model in **Settings → Modules → Vision** and enable
-**Use the vision model for chat images** for a text-only chat model.
-The vision model describes images before the selected chat model replies.
+**Use the vision model for chat images**. The vision model describes images before
+the selected chat model replies. This flow runs when the chat provider does not
+report image input for the selected model. Most providers do not report it.
 Local history keeps the images. Provider prompts replace images with descriptions,
-including images from earlier turns and retries. Earlier images can require another
-vision request on later turns. Cloud history currently stores only message text.
+including images from earlier turns and retries. Cloud history currently stores only message text.
+A failed read of an image in the current turn fails the send. The leader keeps a
+failed read of an earlier image in memory for its session and vision selection,
+so later turns do not read that image again.
 
-Disable this option to send images directly to a chat model that supports them.
+**Use the vision model for tool images** applies the same flow to images that tools
+return, such as `computer_use_read_image` screenshots and MCP image content. The
+vision model reads each image when the tool runs, and a tool rerun reads it too.
+While the vision model reads tool images, provider prompts replace stored tool
+images with a short note. Stored history keeps the images.
+
+Disable these options to send images directly to a chat model that supports them.
 Without a configured vision model, images also go directly to the chat model.
-Use this flow for chat attachments, not periodic screen capture.
+Use this flow for chat attachments and tool images, not periodic screen capture.
 
 ## Character-card module settings
 
@@ -45,7 +67,8 @@ save cards from watchers: authentication and remote snapshots also trigger them.
 The synchronization leader owns these commands; followers receive snapshots.
 
 Models inherit only within the same provider. Voices also require the same
-model. A different provider without a model stays unconfigured rather than
+model. Selecting a vision provider on the vision page stores the catalog default
+model of that provider on the active card. A different provider without a model stays unconfigured rather than
 receiving an unrelated model id. The editor requires a model for an explicit
 chat or vision provider unless that model can be inherited safely.
 
@@ -132,3 +155,36 @@ microphone failures to chat history.
 The component supports reduced motion. Desktop users can enable Streamer mode in
 General settings to hide these overlays without stopping microphone input or sign-in.
 Streamer mode is off by default.
+
+## Chat stickers
+
+Open **Settings → Modules → Stickers**, then enable stickers. This preference is off by default and applies to this device.
+Select a frequency: 25%, 50%, 75%, or 100%. The default is 50% when enabled.
+The percentage controls reply eligibility. It does not force an image or guarantee an exact observed ratio.
+The model selects one catalog ID from the image names and emotion tags. No separate emotion classifier runs.
+Each prepared or queued request retains its catalog, provider, prompt, and eligibility.
+No extra provider, API request, character card, or memory module is required.
+
+### Manage the library
+
+Import a PNG, JPG, WebP, or GIF image. Files must decode successfully and remain within 2 MB and 4096 × 4096 pixels.
+Preview the image, enter a name with 1–80 characters, and select at least one emotion tag.
+Each image can use several tags. Bundled and imported images use the same catalog format.
+Edit any image's name or tags. Imported images also support replacement.
+Deletion removes the entry from future catalogs. It does not remove images from existing or already prepared replies.
+Unknown saved IDs display a translated placeholder and never become image URLs.
+
+IndexedDB stores metadata and immutable image versions on this device.
+Replacement creates a new image ID. Chat slices retain the ID selected when their request was prepared.
+Deleted entries retain their images. Archived images use storage until the application's site data is cleared.
+Web Locks serialize edits across renderer windows. BroadcastChannel signals refresh the local snapshots without transferring image bytes.
+The toggle and frequency follow existing same-origin storage events. Reset restores these preferences without clearing the library.
+Cloud chat sync transfers text only. Neither imported images nor sticker slices transfer to another device.
+Runtime generation does not require an image service or image-generation model.
+
+### Bundled artwork
+
+The default pack contains twelve generated chibi reactions of AIRI's official blue-haired Live2D character.
+See [artwork provenance](src/assets/stickers/README.md) for references, exact prompts, and inspection notes.
+These are static assets. No runtime image-generation dependency is included.
+The four development-only Fluent Emoji images are removed. No old-ID migration is included.

@@ -56,6 +56,10 @@ jobs:
           cache: true
           install: false
       - run: pnpm install --frozen-lockfile --filter @proj-airi/root --ignore-scripts
+      # Crowdin exports can change YAML quotes without changing translated text.
+      # Format before validation and publication so autofix does not leave an empty PR.
+      - name: Format the exported locales
+        run: pnpm exec moeru-lint --fix packages/i18n/src/locales
       - name: Check the exported locales
         id: check
         run: |

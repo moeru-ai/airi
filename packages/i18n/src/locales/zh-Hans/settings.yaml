@@ -2,7 +2,7 @@ common:
   save: 保存
 animations:
   stage-transitions:
-    title: 是否开启舞台切换动画
+    title: 禁用舞台切换动画
   use-page-specific-transitions:
     description: >-
       某些页面会有自己的过场动画，这将覆盖舞台过场动画
@@ -42,6 +42,8 @@ dialogs:
     loginPrompt: 登录并使用 AIRI 官方提供的服务以获得最佳体验。
     loginAction: 登录
     setupWithoutSigningIn: 配置您自己的 AI 服务来源
+    pricingLink: 价格
+    termsLink: 服务条款
     flux: Flux 电量
     buyFlux: 补充 Flux 电量
     select-model: 选择模型
@@ -815,6 +817,32 @@ pages:
     vision:
       description: 视觉
       title: 视觉
+      tool-images:
+        label: 使用视觉模型理解工具图片
+        description: 工具返回的图片（例如“使用电脑”的截图）会先由视觉模型读取，再由当前聊天模型回复。聊天模型的服务来源声明支持图片输入时，直接交给它。文字描述不包含像素坐标。
+      capture:
+        title: 视觉捕获频率
+        description: 调整视觉定时器捕获画面的频率。
+        interval:
+          label: 捕获间隔
+          description: 数值越小，捕获越频繁，占用的资源也越多。
+      stats:
+        captures: 捕获次数
+        context-updates: 上下文更新
+        inferences: 图像识别调用
+        inferences-description: 视觉模型的每一次调用，包括聊天图片
+        failed-inferences: 失败次数
+        last-inference: 上次调用
+        error: '错误：'
+        last-update: 上次更新 {time}
+        since-start: 自应用启动以来
+        never: 从未
+      ollama:
+        title: 提供商请求开关
+        description: 控制视觉推理请求中提供商特有的参数。
+        thinking:
+          label: 思考（Ollama）
+          description: '开启时，通过 Ollama 发送的视觉请求带有 `think: true`；关闭时带有 `think: false`。'
     x:
       description: X / Twitter 的浏览和使用
       enable: 启用X / Twitter集成
@@ -832,6 +860,74 @@ pages:
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
+    stickers:
+      frequency: 表情包频率
+      frequency-description: 按此比例允许回复发送表情包。角色仍会判断表情是否适合当前对话。
+      frequency-options:
+        25: 偶尔（25%）
+        50: 适中（50%）
+        75: 频繁（75%）
+        100: 适合时都可发送（100%）
+      title: 表情包
+      description: 为聊天回复添加可选的图片表情
+      enable: 启用表情包
+      enable-description: 允许角色根据名称和情绪标签，为适合的回复选择一张表情。
+      local-only: 图片保留在当前设备。云端聊天同步目前仅传输文字。
+      catalog: 可用表情
+      unavailable: 表情不可用
+      import: '导入图片'
+      editor: '表情编辑器'
+      image: '图片'
+      replace: '替换图片（可选）'
+      image-limits: '支持 PNG、JPG、WebP 和 GIF，单张最大 2 MB、4096 × 4096 像素。'
+      choose-file: '选择图片'
+      preview: '表情预览'
+      name: '名称'
+      name-limit: '填写 1–80 个字符，模型会读取这个名称。'
+      emotions: '情绪标签'
+      save: '保存表情'
+      cancel: '取消'
+      edit: '编辑'
+      delete: '删除'
+      confirm-delete: '确认删除'
+      empty: '表情库为空，导入图片来添加表情。'
+      history-note: '删除或替换只影响未来回复，已有聊天和已准备好的请求仍保留原图。'
+      saved-image: '已保存的表情'
+      errors:
+        name: '请填写 1–80 个字符的名称。'
+        emotions: '请至少选择一种有效的情绪标签。'
+        format: '请选择 PNG、JPG、WebP 或 GIF 图片。'
+        size: '请选择不超过 2 MB 的图片。'
+        image: '无法打开这张图片，请选择其他文件。'
+        dimensions: '请选择不超过 4096 × 4096 像素的图片。'
+        missing: '这张表情已在其他窗口中被删除。'
+        storage: '无法读取或保存表情库，请重试。'
+      emotion-labels:
+        happy: '开心'
+        sad: '难过'
+        confused: '疑惑'
+        surprised: '惊讶'
+        thanks: '感谢'
+        celebrate: '庆祝'
+        angry: '生气'
+        tired: '疲惫'
+        affectionate: '喜欢'
+        awkward: '尴尬'
+        agree: '赞同'
+        disagree: '拒绝'
+      artwork:
+        airi-happy: 开心
+        airi-sad: 难过
+        airi-confused: 疑惑
+        airi-surprised: 惊讶
+        airi-thanks: 感谢
+        airi-celebrate: 庆祝
+        airi-angry: 生气
+        airi-tired: 疲惫
+        airi-affectionate: 喜欢
+        airi-awkward: 尴尬
+        airi-agree: 赞同
+        airi-disagree: 拒绝
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
@@ -927,6 +1023,8 @@ pages:
     buy: 充值
     currency: 币种
     description: 充值 Flux
+    terms: 使用条款
+    privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
       success: 谢谢你！你的 Flux 通量已经更新好啦～
@@ -984,6 +1082,7 @@ pages:
                   description: API 密钥用于授权此服务来源的请求
                   placeholder: sk-……
                 base-url:
+                  label: 基础 URL
                   description: >-
                     用于连接远程服务的 baseUrl。通常看起来像是 http://localhost:11434/v1 或 https://example.com/v1。
                   placeholder: 基础 Url……
@@ -1021,6 +1120,9 @@ pages:
               title: 能够列出模型
             check-supports-chat-completion:
               title: 能够处理 Chat Completion（聊天补全）请求
+          apple-vision:
+            check-availability:
+              title: 可用性
           prompt-api:
             check-availability:
               title: 可用性
@@ -1134,6 +1236,9 @@ pages:
         model:
           label: 模型
           description: 选择可用模型，自动识别模型支持的语言。更改后会重新启动当前识别会话。
+      apple-vision:
+        title: Apple 视觉理解
+        description: 使用 macOS 27 或更高版本的设备端 Apple 基础模型理解图片，无需 API 密钥。
       apple-speech-transcription:
         title: Apple 语音识别
         description: 使用 macOS 26 或更高版本的设备端语音识别，无需 API 密钥。
@@ -1663,6 +1768,11 @@ theme:
 title: 设置
 voices: 声线
 vrm:
+  fps:
+    title: 帧率上限
+    description: 限制角色和模型预览的 VRM 渲染帧率。降低上限可减少 GPU 占用，不会改变动作播放速度。
+    options:
+      unlimited: 不限
   change-model:
     from-file: 从文件加载
     from-file-select: 选择

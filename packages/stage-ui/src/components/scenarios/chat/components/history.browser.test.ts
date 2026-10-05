@@ -167,6 +167,41 @@ describe('chat history', () => {
 
   // ROOT CAUSE:
   //
+  // ChatHistoryMessageFrame always applied opacity-0, then added opacity-100
+  // when IntersectionObserver reported visibility. UnoCSS kept both utilities
+  // on the same node. In Kirie CEF software OSR the opacity transition never
+  // flushed, so computed opacity stayed 0 and the conversation looked empty
+  // after a successful send.
+  //
+  // Visible messages now start opaque and never keep both opacity utilities.
+  it('paints on-screen desktop messages without an opacity-0 class', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'Hello from the chat window' }],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-message-item')).not.toBeNull()
+    })
+
+    const item = screen.container.querySelector<HTMLElement>('.chat-message-item')
+    expect(item).not.toBeNull()
+    if (!item)
+      throw new Error('Expected a rendered chat message.')
+
+    expect(item.classList.contains('opacity-0')).toBe(false)
+    expect(item.classList.contains('opacity-100')).toBe(true)
+    expect(getComputedStyle(item).opacity).toBe('1')
+    expect(item.textContent).toContain('Hello from the chat window')
+  })
+
+  // ROOT CAUSE:
+  //
   // The desktop chat needs the styled Reka viewport, but forcing its track to
   // stay mounted leaves an inert scrollbar visible when short content cannot scroll.
   // Reka's automatic visibility must own the track without changing the viewport.
@@ -324,7 +359,9 @@ describe('chat history', () => {
       expect(visibleMessages.length).toBeGreaterThan(0)
       expect(hiddenMessages.length).toBeGreaterThan(0)
       expect(visibleMessages[0].classList.contains('opacity-100')).toBe(true)
+      expect(visibleMessages[0].classList.contains('opacity-0')).toBe(false)
       expect(visibleMessages[0].classList.contains('transition-opacity')).toBe(true)
+      expect(getComputedStyle(visibleMessages[0]).opacity).toBe('1')
       expect(hiddenMessages[0].classList.contains('opacity-0')).toBe(true)
     })
 

@@ -926,6 +926,7 @@ pages:
                   label: Базовый URL
                   description: >-
                     Базовый url, используемый для подключения к удаленному сервису. Часто выглядит как http://localhost:11434/v1 или https://example.com/v1.
+                  placeholder: Базовый URL...
                 download-model:
                   label: Скачать модель
                   description: Скачать модель Chromium Prompt API

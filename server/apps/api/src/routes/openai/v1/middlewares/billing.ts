@@ -1,21 +1,29 @@
 import type { RevenueMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../../services/adapters/config-kv'
+import type { BillingPolicy, CostPricing, CostUsage } from '../../../../services/domain/billing/billing'
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
-import type { FluxMeter } from '../../../../services/domain/billing/flux-meter'
+import type { LlmBillingService } from '../../../../services/domain/billing/llm-billing'
+import type { SpeechBilling } from '../../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../../services/domain/flux'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
 
-import { calculateFluxFromUsage } from '../../../../services/domain/billing/billing'
-import { createPaymentRequiredError } from '../../../../utils/error'
+import { safeParse } from 'valibot'
+
+import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
+import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/billing'
+import { availableMicroFlux, MICRO_FLUX_PER_FLUX, microFluxToFlux } from '../../../../services/domain/billing/flux-posting'
+import { createPaymentRequiredError, createServiceUnavailableError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
 export interface ChatFluxDebitInput extends UsageInfo {
-  billingService: BillingService
+  llmBilling: LlmBillingService
   revenue?: RevenueMetrics | null
   userId: string
   requestId: string
   model: string
   amount: number
+  costReceipt: { provider: string, usage: CostUsage, pricing: CostPricing }
+  pendingReason?: string
   stage: 'streaming' | 'non_streaming'
   logger: {
     withFields: (fields: Record<string, unknown>) => {
@@ -24,75 +32,68 @@ export interface ChatFluxDebitInput extends UsageInfo {
   }
 }
 
-export interface ChatBillingPolicy {
-  fallbackRate: number
-  fluxPer1kTokens?: number
-}
+export type ChatBillingPolicy = BillingPolicy
 
-export interface TtsBillingAuthorization {
-  balance: number
-  inputChars: number
+interface ChatUsagePrice {
+  amount: number
+  costReceipt: ChatFluxDebitInput['costReceipt']
 }
 
 export interface OpenAiRouteBilling {
   authorizeChat: (userId: string) => Promise<ChatBillingPolicy>
-  authorizeTts: (userId: string, inputText: string) => Promise<TtsBillingAuthorization>
-  priceChatUsage: (usage: UsageInfo, policy: ChatBillingPolicy) => number
+  authorizeDispatch: (policy: ChatBillingPolicy, route: { gateway: string, model: string }) => void
+  priceChatUsage: (usage: UsageInfo, policy: ChatBillingPolicy, provider: string) => ChatUsagePrice
   recordChatDebitFailure: (input: {
     amount: number
     model: string
     stage: 'streaming' | 'non_streaming'
   }) => void
-  settleChat: (input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>) => Promise<number>
-  settleTts: (input: {
-    userId: string
-    inputText: string
-    currentBalance: number
-    requestId: string
-    model: string
-  }) => Promise<{ fluxDebited: number }>
+  settleChat: (input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>) => Promise<number>
+
 }
 
 export function createOpenAiRouteBilling(deps: {
+  llmBilling: LlmBillingService
   billingService: BillingService
   configKV: ConfigKVService
   fluxService: FluxService
   revenue?: RevenueMetrics | null
-  ttsMeter: FluxMeter
+  speechBilling: SpeechBilling
 }): OpenAiRouteBilling {
-  // NOTICE: Billing is best-effort — chat flux is debited AFTER the LLM
-  // response is sent. This is a deliberate tradeoff: users get lower latency
-  // and uninterrupted streaming, at the cost of a small revenue leak when
-  // debit fails (e.g. DB timeout). Failed debits are logged at error level by
-  // the settlement call site.
-  //
-  // Pre-flight gates on `balance >= fallbackRate` (not just `> 0`) because
-  // streaming providers that don't echo `usage` cause every billable request
-  // to fall back to `FLUX_PER_REQUEST`. Without this gate, a user sitting on
-  // `0 < balance < fallbackRate` could spawn N parallel requests that each
-  // pass the loose `>0` check, complete the stream, and race on the debit.
   async function authorizeChat(userId: string): Promise<ChatBillingPolicy> {
-    const fallbackRate = await deps.configKV.getOrThrow('FLUX_PER_REQUEST')
-    const fluxPer1kTokens = await deps.configKV.get('FLUX_PER_1K_TOKENS')
-
-    const flux = await deps.fluxService.getFlux(userId)
-    if (flux.flux < fallbackRate) {
+    const costPricing = await deps.configKV.getOptional('LLM_COST_BILLING')
+    const minimumBalance = await deps.configKV.getOrThrow('LLM_MINIMUM_BALANCE')
+    const parsed = safeParse(billingPolicySchema, { minimumBalance, costPricing })
+    if (!parsed.success)
+      throw createServiceUnavailableError('LLM pricing configuration is incomplete', 'LLM_BILLING_UNAVAILABLE')
+    await deps.fluxService.getFlux(userId)
+    const flux = await deps.billingService.getWallet(userId)
+    if (availableMicroFlux(flux) < BigInt(parsed.output.minimumBalance) * BigInt(MICRO_FLUX_PER_FLUX))
       throw createPaymentRequiredError('Insufficient flux')
-    }
-
-    return { fallbackRate, fluxPer1kTokens }
+    return parsed.output
   }
 
-  function priceChatUsage(usage: UsageInfo, policy: ChatBillingPolicy): number {
-    if (policy.fluxPer1kTokens == null)
-      return policy.fallbackRate
-    return calculateFluxFromUsage(usage, policy.fluxPer1kTokens, policy.fallbackRate)
+  function authorizeDispatch(policy: ChatBillingPolicy, route: { gateway: string, model: string }): void {
+    const adapter = resolveProviderCostAdapter(route.gateway)
+    if (!adapter || !Object.hasOwn(policy.costPricing, adapter.provider))
+      throw createServiceUnavailableError('LLM cost adapter or price is missing', 'LLM_BILLING_UNAVAILABLE')
   }
 
-  async function settleChat(input: Omit<ChatFluxDebitInput, 'billingService' | 'revenue'>): Promise<number> {
+  function priceChatUsage(usage: UsageInfo, policy: ChatBillingPolicy, provider: string): ChatUsagePrice {
+    const adapter = resolveProviderCostAdapter(provider)
+    if (!adapter || !Object.hasOwn(policy.costPricing, adapter.provider))
+      throw createServiceUnavailableError('LLM cost adapter or price is missing', 'LLM_BILLING_UNAVAILABLE')
+    const pricing = policy.costPricing[adapter.provider]
+    const costUsage = adapter.extractUsage(usage)
+    const charge = priceLlmCost(costUsage, pricing)
+    const amount = microFluxToFlux(charge.costMicroFlux ?? 0)
+    return { amount, costReceipt: { provider: adapter.provider, usage: costUsage, pricing } }
+  }
+
+  async function settleChat(input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>): Promise<number> {
     return debitChatFlux({
       ...input,
-      billingService: deps.billingService,
+      llmBilling: deps.llmBilling,
       revenue: deps.revenue,
     })
   }
@@ -109,50 +110,21 @@ export function createOpenAiRouteBilling(deps: {
     })
   }
 
-  async function authorizeTts(userId: string, inputText: string): Promise<TtsBillingAuthorization> {
-    const flux = await deps.fluxService.getFlux(userId)
-    if (flux.flux <= 0) {
-      throw createPaymentRequiredError('Insufficient flux')
-    }
-
-    // Pre-flight: refuse before hitting upstream if this segment would push the
-    // user past their balance. Cheap-path requests below the Flux threshold
-    // still pass when the user has at least 1 Flux.
-    await deps.ttsMeter.assertCanAfford(userId, inputText.length, flux.flux)
-    return { balance: flux.flux, inputChars: inputText.length }
-  }
-
-  async function settleTts(input: {
-    userId: string
-    inputText: string
-    currentBalance: number
-    requestId: string
-    model: string
-  }) {
-    return deps.ttsMeter.accumulate({
-      userId: input.userId,
-      units: input.inputText.length,
-      currentBalance: input.currentBalance,
-      requestId: input.requestId,
-      metadata: { model: input.model },
-    })
-  }
-
-  return { authorizeChat, authorizeTts, priceChatUsage, recordChatDebitFailure, settleChat, settleTts }
+  return { authorizeChat, authorizeDispatch, priceChatUsage, recordChatDebitFailure, settleChat }
 }
 
 export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> {
-  const result = await input.billingService.consumeFluxForLLM({
+  const result = await input.llmBilling.settleLlmCost({
+    provider: input.costReceipt.provider,
     userId: input.userId,
-    amount: input.amount,
     requestId: input.requestId,
-    description: 'llm_request',
     model: input.model,
-    promptTokens: input.promptTokens,
-    completionTokens: input.completionTokens,
+    usage: input.costReceipt.usage,
+    pricing: input.costReceipt.pricing,
+    pendingReason: input.pendingReason,
   })
 
-  if (result.charged < result.requested) {
+  if (!result.replay && result.charged < result.requested) {
     input.revenue?.fluxUnbilled.add(result.requested - result.charged, {
       [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
       reason: 'partial_debit_drained',
@@ -169,5 +141,5 @@ export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> 
       : 'Partial debit on non-streaming completion — flux drained to zero')
   }
 
-  return result.charged
+  return result.feeFlux
 }
