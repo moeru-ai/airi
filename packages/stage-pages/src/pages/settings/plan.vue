@@ -189,35 +189,37 @@ async function handleSubscribe(packageId: string) {
 </script>
 
 <template>
-  <div flex="~ col gap-6" p-4>
+  <div :class="['flex flex-col gap-6', 'p-4']">
     <div
       v-if="message"
-      rounded-lg p-3 text-sm
-      :class="message.type === 'success'
-        ? 'bg-green-500/10 text-green-600 dark:text-green-400'
-        : 'bg-red-500/10 text-red-600 dark:text-red-400'"
+      :class="[
+        'rounded-lg p-3 text-sm',
+        message.type === 'success'
+          ? 'bg-green-500/10 text-green-600 dark:text-green-400'
+          : 'bg-red-500/10 text-red-600 dark:text-red-400',
+      ]"
     >
       {{ message.text }}
     </div>
 
     <!-- Current plan card -->
-    <div relative overflow-hidden rounded-2xl bg="neutral-100 dark:neutral-800" p-6 sm:p-8>
+    <div :class="['relative overflow-hidden rounded-2xl', 'bg-neutral-100 p-6 sm:p-8 dark:bg-neutral-800']">
       <div
-        class="plan-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
+        :class="['plan-progress-bar absolute inset-y-0 left-0', 'bg-primary-500/20 dark:bg-primary-400/20']"
       />
-      <div relative z-1 flex="~ items-center justify-start sm:col sm:justify-center gap-4 sm:gap-2" text-left sm:text-center>
-        <div i-solar:star-bold-duotone size-12 shrink-0 text-primary-500 sm:mx-auto sm:size-14 />
-        <div flex="~ col gap-1">
-          <h2 text-3xl font-bold tracking-tight sm:text-4xl>
+      <div :class="['relative z-1 flex items-center justify-start gap-4 text-left', 'sm:flex-col sm:justify-center sm:gap-2 sm:text-center']">
+        <div :class="['i-solar:star-bold-duotone size-12 shrink-0 text-primary-500', 'sm:mx-auto sm:size-14']" />
+        <div :class="['flex flex-col gap-1']">
+          <h2 :class="['text-3xl font-bold tracking-tight', 'sm:text-4xl']">
             {{ planName(currentSubscription?.entitlementId) }}
           </h2>
-          <p v-if="currentAllowance" text="sm neutral-500">
+          <p v-if="currentAllowance" :class="['text-sm text-neutral-500']">
             {{ t('settings.pages.plan.creditsRemaining', { remaining: formatNumber(currentAllowance.remainingCredit), total: formatNumber(currentAllowance.grantedCredit) }) }}
           </p>
-          <p v-else text="sm neutral-500">
+          <p v-else :class="['text-sm text-neutral-500']">
             {{ t('settings.pages.plan.description') }}
           </p>
-          <p v-if="currentSubscription?.expiresAt" text="xs neutral-400">
+          <p v-if="currentSubscription?.expiresAt" :class="['text-xs text-neutral-400']">
             {{ currentSubscription.status === 'cancelled'
               ? t('settings.pages.plan.expiresAt', { date: formatDate(currentSubscription.expiresAt) })
               : t('settings.pages.plan.renewsAt', { date: formatDate(currentSubscription.expiresAt) }) }}
@@ -227,7 +229,7 @@ async function handleSubscribe(packageId: string) {
             :href="plan.managementUrl.value"
             target="_blank"
             rel="noopener"
-            text="xs primary-600 dark:primary-400" underline underline-offset-2
+            :class="['text-xs text-primary-600 underline underline-offset-2', 'dark:text-primary-400']"
           >
             {{ t('settings.pages.plan.manageSubscription') }}
           </a>
@@ -244,23 +246,24 @@ async function handleSubscribe(packageId: string) {
     />
 
     <!-- Packages -->
-    <div v-if="!fluxPurchaseDisabled && visiblePackages.length > 0" flex="~ col gap-4">
-      <div v-if="periodOptions.length > 1" flex="~ justify-center">
+    <div v-if="!fluxPurchaseDisabled && visiblePackages.length > 0" :class="['flex flex-col gap-4']">
+      <div v-if="periodOptions.length > 1" :class="['flex justify-center']">
         <SelectTab
           v-model="billingPeriod"
           :options="periodOptions"
           size="sm"
         />
       </div>
-      <div grid="~ cols-1 sm:cols-2 gap-4">
+      <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
         <button
           v-for="(pkg, index) in visiblePackages" :key="pkg.packageId"
           :disabled="planCardDisabled(pkg)"
           :class="[
-            'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
-            'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
-            'border-neutral-200 dark:border-neutral-800',
-            'dark:bg-neutral-900',
+            'group relative flex flex-row items-center justify-between gap-4 overflow-hidden text-left',
+            'sm:flex-col sm:items-center sm:justify-center sm:gap-2 sm:text-center',
+            'rounded-2xl border-2 bg-white p-6',
+            'border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900',
+            'transition-all duration-300 ease-out',
             'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
             purchasingPackageId !== null && purchasingPackageId !== pkg.packageId ? 'opacity-50 grayscale-50 cursor-not-allowed' : '',
@@ -270,35 +273,35 @@ async function handleSubscribe(packageId: string) {
         >
           <div
             v-if="purchasingPackageId === pkg.packageId"
-            class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60"
+            :class="['absolute inset-0 z-10 flex items-center justify-center', 'bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60']"
           >
-            <div class="i-svg-spinners:90-ring-with-bg size-8 text-primary-500" />
+            <div :class="['i-svg-spinners:90-ring-with-bg size-8 text-primary-500']" />
           </div>
 
-          <div flex="~ col sm:items-center gap-1" relative z-1 w-full>
-            <div text="sm neutral-500 dark:neutral-400" font-medium transition-colors class="group-hover:text-primary-600 dark:group-hover:text-primary-400">
+          <div :class="['relative z-1 w-full flex flex-col gap-1', 'sm:items-center']">
+            <div :class="['text-sm text-neutral-500 font-medium transition-colors', 'dark:text-neutral-400', 'group-hover:text-primary-600 dark:group-hover:text-primary-400']">
               {{ pkg.title }}
             </div>
-            <div text="xs neutral-400">
+            <div :class="['text-xs text-neutral-400']">
               {{ planSummary(pkg) }}
             </div>
-            <div flex="~ items-baseline justify-start sm:justify-center gap-1">
-              <span text="2xl neutral-800 dark:neutral-100" font-bold>
+            <div :class="['flex items-baseline justify-start gap-1', 'sm:justify-center']">
+              <span :class="['text-2xl text-neutral-800 font-bold', 'dark:text-neutral-100']">
                 {{ pkg.formattedPrice }}
               </span>
-              <span text="sm neutral-400">
+              <span :class="['text-sm text-neutral-400']">
                 {{ t(pkg.period === 'year' ? 'settings.pages.plan.perYear' : 'settings.pages.plan.perMonth') }}
               </span>
             </div>
-            <div v-if="actionLabel(pkg)" text="xs primary-600 dark:primary-400" font-medium>
+            <div v-if="actionLabel(pkg)" :class="['text-xs text-primary-600 font-medium', 'dark:text-primary-400']">
               {{ actionLabel(pkg) }}
             </div>
           </div>
 
-          <div flex="~ items-center gap-1" relative z-1 class="text-primary-200 transition-colors dark:text-primary-800/60 group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700">
+          <div :class="['relative z-1 flex items-center gap-1 text-primary-200 transition-colors', 'dark:text-primary-800/60', 'group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700']">
             <div
               v-for="i in Math.min(index + 1, 2)" :key="i"
-              class="i-solar:star-bold-duotone size-8 sm:size-10"
+              :class="['i-solar:star-bold-duotone size-8', 'sm:size-10']"
             />
           </div>
         </button>
