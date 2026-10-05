@@ -175,6 +175,21 @@ describe('useChatFeedExpiry', () => {
     expect(expiredBefore.value).toBe(1)
   })
 
+  it('keeps a hidden reply hidden after a session switch with as many expired messages', async () => {
+    const { messages, voicing, expiredBefore } = setUp([
+      { id: 'reply-a', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START - 60_000 },
+    ])
+    await wait(0)
+    expect(expiredBefore.value).toBe(1)
+
+    messages.value = [{ id: 'reply-b', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START - 60_000 }]
+    await wait(0)
+    voicing.value = true
+    await wait(0)
+
+    expect(expiredBefore.value).toBe(1)
+  })
+
   it('stops its timer with the calling scope', async () => {
     const { scope } = setUp([{ role: 'user', content: 'ok', createdAt: START }])
     scope.stop()

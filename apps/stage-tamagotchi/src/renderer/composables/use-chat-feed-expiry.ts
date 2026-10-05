@@ -150,14 +150,16 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
     return firstShown === -1 ? deadlines.value.length : firstShown
   })
 
-  watch([expiredBefore, () => toValue(options.voicingKnown)], ([count, voicingKnown]) => {
+  // The message list counts too: another session can expire as many messages
+  // as the one before, and its messages still need their lock.
+  watch([expiredBefore, () => toValue(options.voicingKnown), () => toValue(options.messages)], ([count, voicingKnown, messages]) => {
     if (!voicingKnown)
       return
 
-    toValue(options.messages).slice(0, count).forEach((message, index) => {
+    messages.slice(0, count).forEach((message, index) => {
       expiredKeys.add(getChatHistoryItemKey(message, index))
     })
-  })
+  }, { immediate: true })
 
   // One timer at a time wakes the clock at the next deadline. A wake, or any
   // change of the deadlines, reads the clock and sets the timer again.
