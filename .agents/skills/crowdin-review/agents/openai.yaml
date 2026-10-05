@@ -1,0 +1,4 @@
+interface:
+  display_name: "Crowdin Review"
+  short_description: "Review pending Crowdin translations in a batch"
+  default_prompt: "Use $crowdin-review to review the pending Crowdin translations."

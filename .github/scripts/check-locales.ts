@@ -79,7 +79,13 @@ async function loadLocale(root: string, locale: string, issues: LocaleIssue[]): 
   return strings
 }
 
-function placeholders(text: string) {
+/**
+ * Lists the placeholders of a message in sorted order.
+ *
+ * Use when:
+ * - A tool compares a translation with its English source, for example the Crowdin review skill.
+ */
+export function placeholders(text: string) {
   return [...text.matchAll(PLACEHOLDER)].map(match => match[0].replace(/\s+/g, '')).sort()
 }
 

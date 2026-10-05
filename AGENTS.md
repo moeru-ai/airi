@@ -148,6 +148,7 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 | Change UnoCSS, Vue styles, UI components, animations, icons, or color mode | [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md) |
 | Add `synced` to a Pinia store, or change a synced store | [`enforce-rules-for-pinia-synced`](.agents/skills/enforce-rules-for-pinia-synced/SKILL.md) |
 | Write or change a string that users see, or a glossary term | [`packages/i18n/AGENTS.md`](packages/i18n/AGENTS.md) |
+| Review pending Crowdin translations, or find why approved translations did not reach the repository | [`crowdin-review`](.agents/skills/crowdin-review/SKILL.md) |
 | Work under `server/` | [`server/AGENTS.md`](server/AGENTS.md). For `server/apps/api`, also read [`server/apps/api/AGENTS.md`](server/apps/api/AGENTS.md). |
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
 | Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
