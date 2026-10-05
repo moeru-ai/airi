@@ -58,8 +58,9 @@ jobs:
           S3_REGION: ${{ secrets.S3_REGION }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
           VITE_SERVER_URL: 'https://airi-server-dev.up.railway.app'
-          # Public Test Store SDK key. It ships in the client bundle, so it is not a secret.
-          VITE_REVENUECAT_WEB_KEY: 'test_pVyrRFMCCxUtNXeQaUgfXFnPliD'
+          # Public Web Billing sandbox key. It ships in the client bundle.
+          # Use it only for the server-dev build. Production keeps its own key.
+          VITE_REVENUECAT_WEB_KEY: 'rcb_sb_qXsxugxuxUCrbWIUpDDikHCpI'
 
       - name: Wrangler Upload
         id: wrangler-versions-upload
