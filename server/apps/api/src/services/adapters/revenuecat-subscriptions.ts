@@ -38,10 +38,6 @@ const STATUS_BY_EVENT: Record<string, SubscriptionStatus> = {
   EXPIRATION: 'expired',
 }
 
-function toDate(value: number | null | undefined): Date | null {
-  return value == null ? null : new Date(value)
-}
-
 /**
  * Translates RevenueCat webhooks and API state into subscription-core calls.
  * Product-to-plan mapping and event semantics live here; the core stays
@@ -66,8 +62,8 @@ export function createRevenuecatSubscriptionSync(
     if (!plan)
       return { synced: false }
 
-    const expiresAt = toDate(event.expirationAtMs)
-    const periodStart = toDate(event.purchasedAtMs) ?? new Date()
+    const expiresAt = event.expirationAtMs == null ? null : new Date(event.expirationAtMs)
+    const periodStart = event.purchasedAtMs == null ? new Date() : new Date(event.purchasedAtMs)
 
     for (const entitlementId of event.entitlementIds) {
       if (entitlementId !== plan.entitlementId) {

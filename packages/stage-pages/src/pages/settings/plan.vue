@@ -48,10 +48,6 @@ function tierRank(period: PlanBillingPeriod, amountMicros: number): number {
     .length
 }
 
-function switchAction(period: PlanBillingPeriod): PlanAction {
-  return period === 'year' ? 'switchYear' : 'switchMonth'
-}
-
 function planAction(pkg: PlanPackage): PlanAction {
   const current = currentSubscription.value
   if (!current)
@@ -60,14 +56,14 @@ function planAction(pkg: PlanPackage): PlanAction {
     return 'current'
   const currentPackage = plan.packages.value.find(item => item.productId === current.productId)
   if (!currentPackage)
-    return switchAction(pkg.period)
+    return pkg.period === 'year' ? 'switchYear' : 'switchMonth'
   const currentRank = tierRank(currentPackage.period, currentPackage.amountMicros)
   const nextRank = tierRank(pkg.period, pkg.amountMicros)
   if (nextRank > currentRank)
     return 'upgrade'
   if (nextRank < currentRank)
     return 'downgrade'
-  return switchAction(pkg.period)
+  return pkg.period === 'year' ? 'switchYear' : 'switchMonth'
 }
 
 const ACTION_LABEL: Record<Exclude<PlanAction, 'buy'>, string> = {

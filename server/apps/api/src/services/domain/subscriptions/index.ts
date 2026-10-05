@@ -10,13 +10,6 @@ import * as schema from '../../../schemas/subscription'
 
 const logger = useLogger('subscriptions')
 
-function allowanceRemainingMicro(row: { grantedCredit: number, usedCredit: number, unsettledMicroCredit: number }): bigint {
-  return availableMicroCredits({
-    credits: row.grantedCredit - row.usedCredit,
-    unsettledMicro: row.unsettledMicroCredit,
-  })
-}
-
 function usableAllowanceSql() {
   return sql`((${schema.subscriptionAllowance.grantedCredit} - ${schema.subscriptionAllowance.usedCredit})::bigint * ${MICRO_PER_CREDIT}) > ${schema.subscriptionAllowance.unsettledMicroCredit}`
 }
@@ -237,7 +230,10 @@ export function createSubscriptionService(db: Database) {
         expiresAt: row.expiresAt?.toISOString() ?? null,
       })),
       allowances: allowances.map((row) => {
-        const remainingMicro = Number(allowanceRemainingMicro(row))
+        const remainingMicro = Number(availableMicroCredits({
+          credits: row.grantedCredit - row.usedCredit,
+          unsettledMicro: row.unsettledMicroCredit,
+        }))
         return {
           entitlementId: row.entitlementId,
           periodStart: row.periodStart.toISOString(),
@@ -288,8 +284,12 @@ export function createSubscriptionService(db: Database) {
         .for('update')
         .limit(1)
 
-      if (!period || allowanceRemainingMicro(period) < BigInt(input.microCredit))
+      if (!period || availableMicroCredits({
+        credits: period.grantedCredit - period.usedCredit,
+        unsettledMicro: period.unsettledMicroCredit,
+      }) < BigInt(input.microCredit)) {
         return { chargedMicro: 0, requestedMicro: input.microCredit }
+      }
 
       const posted = postMicroCredits({
         credits: period.grantedCredit - period.usedCredit,

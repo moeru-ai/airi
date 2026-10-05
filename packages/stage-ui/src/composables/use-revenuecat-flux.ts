@@ -21,13 +21,6 @@ interface BackendFluxPack {
   fluxAmount: number
 }
 
-type RevenuecatPurchases = Awaited<ReturnType<typeof ensureRevenuecatConfigured>>
-
-async function fluxOffering(purchases: RevenuecatPurchases, currency?: string) {
-  const offerings = await purchases.getOfferings(currency ? { currency } : undefined)
-  return offerings.all[getRevenuecatFluxOfferingId()] ?? offerings.current
-}
-
 function toFluxPackage(pkg: Package, fluxAmount: number): RevenuecatFluxPackage {
   const { formattedPrice, currency } = revenuecatPackagePrice(pkg)
   return {
@@ -69,7 +62,8 @@ export function useRevenuecatFlux(options: {
       const fluxByProduct = new Map(packs.map(pack => [pack.productId, pack.fluxAmount]))
 
       const purchases = await ensureRevenuecatConfigured(options.getUserId())
-      const offering = await fluxOffering(purchases, currency)
+      const offerings = await purchases.getOfferings(currency ? { currency } : undefined)
+      const offering = offerings.all[getRevenuecatFluxOfferingId()] ?? offerings.current
       if (!offering)
         return
 
@@ -87,7 +81,8 @@ export function useRevenuecatFlux(options: {
     purchasingPackageId.value = packageId
     try {
       const purchases = await ensureRevenuecatConfigured(options.getUserId())
-      const offering = await fluxOffering(purchases)
+      const offerings = await purchases.getOfferings()
+      const offering = offerings.all[getRevenuecatFluxOfferingId()] ?? offerings.current
       const rcPackage = offering?.availablePackages.find(pkg => pkg.identifier === packageId)
       if (!rcPackage)
         throw new Error(t('settings.pages.flux.checkout.error'))
