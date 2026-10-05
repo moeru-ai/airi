@@ -30,8 +30,8 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
   const deps: V1RouteDeps = { ...input, llmTracing: input.llmTracing ?? defaultLlmTracing }
   const gateway = createV1Gateway(deps)
     .useHono('*', '*', authGuard)
-    .useHono('openai', '/chat/*', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
-    .useHono('openai', '/responses', configGuard(deps.configKV, ['FLUX_PER_REQUEST'], 'Service is not available yet'))
+    .useHono('openai', '/chat/*', configGuard(deps.configKV, ['LLM_MINIMUM_BALANCE'], 'Service is not available yet'))
+    .useHono('openai', '/responses', configGuard(deps.configKV, ['LLM_MINIMUM_BALANCE'], 'Service is not available yet'))
     .useHono('audio', '/speech', configGuard(deps.configKV, ['FLUX_PER_1K_CHARS_TTS'], 'TTS service is not available yet'))
 
   // OpenAI-compatible surface (mounted at /api/v1/openai). Only routes that
@@ -59,9 +59,10 @@ export function createV1Routes(input: CreateV1RoutesDeps) {
         catch {
           throw createBadRequestError('Invalid Responses JSON body', 'INVALID_RESPONSES_REQUEST')
         }
+        const request = parseResponsesRequest(body)
         return {
           userId: c.get('user')!.id,
-          body: parseResponsesRequest(body),
+          ...request,
           sessionId: c.req.header(AIRI_CHAT_SESSION_ID_HEADER),
           roundId: c.req.header(AIRI_CHAT_ROUND_ID_HEADER),
           appSurface: resolveChatAnalyticsSurface(c.req.header(AIRI_CHAT_APP_SURFACE_HEADER)),

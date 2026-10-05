@@ -34,14 +34,14 @@ describe('official chat provider', () => {
     })
   })
 
-  it('uses Responses when the user selects it', async () => {
+  it('enables native Web Search when the user selects Responses', async () => {
     const provider = await providerOfficialChat.createProvider({ api: 'responses' })
     if (!isGenerationProvider(provider))
       throw new Error('Expected generation')
 
     expect(provider.generation('auto')).toMatchObject({
       protocol: 'responses',
-      webSearch: false,
+      webSearch: true,
       config: { model: 'auto' },
     })
   })

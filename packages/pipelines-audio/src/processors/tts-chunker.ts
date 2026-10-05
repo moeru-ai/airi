@@ -22,8 +22,23 @@ export interface TtsInputChunk {
 }
 
 export interface TtsInputChunkOptions {
+  /**
+   * How many opening chunks may end at soft punctuation instead of waiting for a sentence end.
+   *
+   * This lowers the time to the first audio. A boost chunk still has to reach `minimumWords`:
+   * every TTS request carries a fixed cost that does not shrink with the text, so a two-word
+   * fragment delays the audio it was meant to bring forward.
+   *
+   * @default 2
+   */
   boost?: number
+  /**
+   * Word count a chunk must reach before a boost or a length limit may end it.
+   *
+   * @default 4
+   */
   minimumWords?: number
+  /** @default 12 */
   maximumWords?: number
   stripNarrative?: boolean
   keepNarrativeText?: boolean
@@ -119,11 +134,10 @@ export async function* chunkTtsInput(
   while (!current.done) {
     let value = current.value
 
-    if (value.length > 1) {
-      previousValue = value
-      current = await iterator.next()
-      continue
-    }
+    // CRLF is one grapheme cluster. Use LF so Windows line endings match
+    // the hard punctuation set and end the chunk.
+    if (value === '\r\n')
+      value = '\n'
 
     const flush = value === TTS_FLUSH_INSTRUCTION
     const special = value === TTS_SPECIAL_TOKEN
@@ -224,7 +238,9 @@ export async function* chunkTtsInput(
         chunk = ''
         chunkWordsCount = 0
       }
-      else if (flush || hard || chunkWordsCount > maximumWords || yieldCount < boost) {
+      // A boost chunk ends early at soft punctuation only once it is long enough to be worth its
+      // own TTS request. A shorter opening clause stays in the chunk and joins the next one.
+      else if (flush || hard || chunkWordsCount > maximumWords || (yieldCount < boost && chunkWordsCount >= minimumWords)) {
         const text = chunk.trim()
         yield {
           text,

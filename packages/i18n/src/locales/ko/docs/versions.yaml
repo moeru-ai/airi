@@ -8,7 +8,7 @@ download-buttons:
   stable-use-case-2: 안정적인 경험을 원하는 사용자
   stable-use-case-3: 라이브 스트리밍 및 콘텐츠 제작자
   prerelease-use-case-1: 새로운 기능을 시도하고 싶은 얼리어답터들
-  prerelease-use-case-2: 개발자에게 피드백 테스트 및 제공
+  prerelease-use-case-2: 테스트하고 개발자에게 피드백 제공
   prerelease-use-case-3: 간혹 발생하는 버그에 익숙한 사용자
 releases-list:
   stable: 안정

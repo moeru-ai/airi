@@ -1,4 +1,4 @@
-import { array, object, optional, picklist, string } from 'valibot'
+import { array, boolean, object, optional, picklist, string } from 'valibot'
 
 import { createConfig } from '../libs/electron/persistence'
 
@@ -8,6 +8,7 @@ const shortcutAcceleratorSchema = object({
 })
 
 export const globalAppConfigSchema = object({
+  hideAppIcon: optional(boolean()),
   language: optional(string()),
   spotlightShortcutAccelerator: optional(shortcutAcceleratorSchema),
   updateChannel: optional(picklist(['latest', 'stable', 'alpha', 'beta', 'nightly', 'canary'])),

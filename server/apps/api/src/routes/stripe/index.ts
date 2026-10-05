@@ -1,7 +1,6 @@
 import type Redis from 'ioredis'
 import type Stripe from 'stripe'
 
-import type { Database } from '../../libs/db'
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics, RevenueMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
@@ -19,7 +18,6 @@ import { createStripePriceCatalog, listStripePackages } from './price-catalog'
 
 export function createStripeRoutes(
   payment: PaymentService,
-  db: Database,
   stripe: Stripe | null,
   redis: Redis,
   configKV: ConfigKVService,
@@ -30,7 +28,7 @@ export function createStripeRoutes(
 ) {
   const priceCatalog = stripe ? createStripePriceCatalog(stripe, redis) : null
   const checkout = createCheckoutOperation(payment, stripe, priceCatalog, configKV, env, metrics, productEventService)
-  const webhook = createWebhookOperation(stripe, env.STRIPE_WEBHOOK_SECRET ?? null, payment, db, metrics, productEventService)
+  const webhook = createWebhookOperation(stripe, env.STRIPE_WEBHOOK_SECRET ?? null, payment, metrics, productEventService)
 
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {

@@ -46,7 +46,10 @@ const audioTestAPI = createAudioTestAPI<
           skip: (condition, note) => task.context.skip(Boolean(condition), note),
         })
         await session.runtimePage.reload({ waitUntil: 'domcontentloaded' })
-        await session.runtimePage.locator('[i-solar\\:alt-arrow-up-line-duotone]').first().waitFor({ state: 'visible', timeout: 30_000 })
+        const ready = session.target === 'web'
+          ? session.runtimePage.locator('textarea').first()
+          : session.runtimePage.locator('[i-solar\\:alt-arrow-up-line-duotone]').first()
+        await ready.waitFor({ state: 'visible', timeout: 30_000 })
         await session.runtimePage.bringToFront()
         await session.runtimePage.waitForTimeout(750)
         Object.assign(task.context, { audio: session })

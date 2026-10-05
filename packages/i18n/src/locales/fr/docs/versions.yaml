@@ -11,7 +11,6 @@ download-buttons:
   prerelease-use-case-2: Test et envoi de commentaires aux développeurs
   prerelease-use-case-3: Utilisateurs acceptant d'éventuels bugs occasionnels
 releases-list:
-  stable: Stable
   prerelease: Pré-version
   nightly: Version de développement
   released-on: Publié le

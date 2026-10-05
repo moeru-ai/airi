@@ -87,7 +87,7 @@ export const providerOfficialChat = defineProvider<OfficialChatConfig, typeof OF
           case 'responses':
             return {
               protocol: 'responses',
-              webSearch: false,
+              webSearch: true,
               config: request,
             }
           case 'chat-completions':

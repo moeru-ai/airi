@@ -16,13 +16,13 @@ Tauri は数日前にもまた話題になりました。私たちは3月に最�
 
 ...結局我慢できず、国慶節に完全に Electron に切り替えました
 
-<img src="/en/blog/DevLog-2025.10.20/assets/electron.png" alt="electron.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/electron.avif" alt="electron.avif" />
 
 現在、Electron は元の基盤の上で、Linux のサポート、私たちが Control Island（コントロールアイランド）と呼ぶ機能を追加し、macOS のウィンドウが全画面表示のときでもインターフェース上にオーバーレイできるようになりました。
 
 互換性は非常に良く、とても気に入っています。昨日はついにキャプションオーバーレイも追加され、Neuro-sama のように AI が何を出力したかを確認できる字幕がつきました。
 
-<img src="/en/blog/DevLog-2025.10.20/assets/control-island.png" alt="control-island.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/control-island.avif" alt="control-island.avif" />
 
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Control Island
@@ -52,7 +52,7 @@ Control Island
 
 5月に私たち自身が実装したプロンプトライブラリを共有したことを覚えていますか？RainbowBird の努力と寄付のおかげで、現在 Velin も Moeru AI の一員です。AIRI のほぼすべてのプロンプトは Velin によって駆動されていますが、クロスプラットフォーム機能を心配する必要はありません。Velin は Node.js 環境でも使用できます！
 
-<img src="/en/blog/DevLog-2025.10.20/assets/velin.png" alt="velin.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/velin.avif" alt="velin.avif" />
 
 ## Eventa：イベント駆動型 IPC/RPC
 
@@ -68,12 +68,12 @@ Control Island
 
 合計フォロワー数はすでに 800 人を超えています。これは1年前に私たちが設立したばかりの頃には想像もできなかったことです。皆さん、本当にありがとうございます。
 
-<img src="/en/blog/DevLog-2025.10.20/assets/moeru.png" alt="moeru.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/moeru.avif" alt="moeru.avif" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Moeru AI
 </div>
 
-<img src="/en/blog/DevLog-2025.10.20/assets/project-airi.png" alt="project-airi.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/project-airi.avif" alt="project-airi.avif" />
 <div style="text-align: center; font-size: 0.875rem; color: #666; margin-top: 0.5rem;">
 Project AIRI
 </div>
@@ -86,7 +86,7 @@ Project AIRI
 
 Rust で Python のモデルアーキテクチャに対してほぼ 1:1 で実装しました。他の SOTA TTS モデルに依存して、非常に軽量なローカル TTS 推論エンジンになることを期待しています。
 
-<img src="/en/blog/DevLog-2025.10.20/assets/rust-tts.png" alt="rust-tts.png" />
+<img src="/en/blog/DevLog-2025.10.20/assets/rust-tts.avif" alt="rust-tts.avif" />
 
 ## 最後に
 

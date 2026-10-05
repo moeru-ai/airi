@@ -12,6 +12,18 @@ import { DisplayModelFormat, useDisplayModelsStore } from '../stores/display-mod
 import { exportAiriCardPackage, importAiriCardPackage } from './airi-card-import-export'
 
 describe('airi card package import/export', () => {
+  it('preserves all configured wake pronunciations while excluding local conflict ownership', async () => {
+    setActivePinia(createPinia())
+    const displayModelsStore = useDisplayModelsStore()
+    const card = createCard()
+    card.extensions.airi.modules.displayModelId = undefined
+    card.extensions.airi.wakeWords = [{ text: 'AIRI', modelId: 'kws-vocabulary', pronunciations: [['a', 'ri'], ['ai', 'li']] }]
+    const exported = await exportAiriCardPackage({ card, displayModelsStore })
+    const imported = await importAiriCardPackage({ file: new File([exported], 'voice-card.zip'), displayModelsStore })
+    expect(airiFrom(imported).wakeWords).toEqual(card.extensions.airi.wakeWords)
+    expect(airiFrom(imported)).not.toHaveProperty('pronunciationOwners')
+  })
+
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.unstubAllGlobals()
