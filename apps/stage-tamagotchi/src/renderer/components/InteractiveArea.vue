@@ -285,13 +285,14 @@ function fileFromBase64(attachment: ChatDraftHandover['attachments'][number]) {
 }
 
 /**
- * Captures the unsent composer content for a chat mode switch, which closes
- * this window. An image that is still being read joins the content before it
- * is captured. Returns `undefined` when there is nothing to carry over.
+ * Captures the conversation and the unsent composer content for a chat mode
+ * switch, which closes this window. An image that is still being read joins
+ * the content before it is captured. Returns `undefined` when this window
+ * shows no conversation.
  */
 async function snapshotDraft(): Promise<ChatDraftHandover | undefined> {
   await until(pendingImages).toBe(0)
-  if (!messageInput.value && attachments.value.length === 0 && !replyTarget.value)
+  if (!activeSessionId.value)
     return undefined
 
   const reply = replyTarget.value
@@ -309,18 +310,25 @@ async function snapshotDraft(): Promise<ChatDraftHandover | undefined> {
 }
 
 /**
- * Puts content from another chat window back into the composer, and returns
- * whether it did.
+ * Opens the conversation of another chat window and puts its content back
+ * into the composer. Returns whether it did.
  *
  * A new window receives the synchronized session state after it mounts, so
- * the content waits for its session to become active. Content for another
- * session, or a session that does not arrive, is not restored, and the mode
- * switch keeps the window that still holds it.
+ * this waits until the window has selected a conversation. The window starts
+ * on the conversation saved for the character, which is not always the one the
+ * draft came from. A window that selects nothing in time does not restore, and
+ * the mode switch keeps the window that still holds the content.
  */
 async function restoreDraft(draft: ChatDraftHandover): Promise<boolean> {
-  await until(activeSessionId).toBe(draft.sessionId, { timeout: 5000 })
+  await until(activeSessionId).toMatch(Boolean, { timeout: 5000 })
+  if (!activeSessionId.value)
+    return false
+  if (activeSessionId.value !== draft.sessionId)
+    await chatSession.setActiveSession(draft.sessionId)
   if (activeSessionId.value !== draft.sessionId)
     return false
+  if (!draft.text && draft.attachments.length === 0 && !draft.replyTarget)
+    return true
 
   // The carried content must stay in sight, so a folded composer opens.
   composerFolded.value = false

@@ -4,7 +4,7 @@ import type { ChatFloatingState } from '../../shared/eventa'
 import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useLocalStorage } from '@vueuse/core'
+import { useEventListener, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -103,6 +103,9 @@ interface WindowDelta {
  * moves to the pressed element even when the window lags behind the pointer.
  */
 interface HeldPointer {
+  /** The pressed grip or handle, which holds the pointer capture. */
+  element: HTMLElement
+  pointerId: number
   pressX: number
   pressY: number
   /** Window position when the press started. */
@@ -117,8 +120,11 @@ interface HeldPointer {
 let heldPointer: HeldPointer | undefined
 
 function holdPointer(event: PointerEvent) {
-  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  const element = event.currentTarget as HTMLElement
+  element.setPointerCapture(event.pointerId)
   heldPointer = {
+    element,
+    pointerId: event.pointerId,
     pressX: event.screenX,
     pressY: event.screenY,
     windowX: window.screenX,
@@ -130,17 +136,18 @@ function holdPointer(event: PointerEvent) {
 
 /** Sends the pointer movement since the last step to the main process, which resizes the window. */
 function resizeWithHeldPointer(event: PointerEvent) {
-  if (!heldPointer)
+  const held = pointerStillHeld(event)
+  if (!held)
     return
 
   // Whole pixels only; the rounding remainder carries into the next step.
-  const deltaX = Math.round(event.screenX - heldPointer.pressX) - heldPointer.resizedX
-  const deltaY = Math.round(event.screenY - heldPointer.pressY) - heldPointer.resizedY
+  const deltaX = Math.round(event.screenX - held.pressX) - held.resizedX
+  const deltaY = Math.round(event.screenY - held.pressY) - held.resizedY
   if (deltaX === 0 && deltaY === 0)
     return
 
-  heldPointer.resizedX += deltaX
-  heldPointer.resizedY += deltaY
+  held.resizedX += deltaX
+  held.resizedY += deltaY
   void resizeBy({ deltaX, deltaY })
 }
 
@@ -151,19 +158,40 @@ function resizeWithHeldPointer(event: PointerEvent) {
  * display.
  */
 function moveWithHeldPointer(event: PointerEvent) {
-  if (!heldPointer)
+  const held = pointerStillHeld(event)
+  if (!held)
     return
 
   void moveTo({
-    x: Math.round(heldPointer.windowX + event.screenX - heldPointer.pressX),
-    y: Math.round(heldPointer.windowY + event.screenY - heldPointer.pressY),
+    x: Math.round(held.windowX + event.screenX - held.pressX),
+    y: Math.round(held.windowY + event.screenY - held.pressY),
   })
 }
 
-// Capture ends on release, cancel or removal of the element alike.
+// Capture ends on release, cancel or removal of the element alike. A hold
+// that ends without them gives the capture back here.
 function releasePointer() {
+  if (heldPointer?.element.hasPointerCapture(heldPointer.pointerId))
+    heldPointer.element.releasePointerCapture(heldPointer.pointerId)
   heldPointer = undefined
 }
+
+/**
+ * The held press, or `undefined` once the buttons are up.
+ *
+ * A release can miss this window, for example while another window takes the
+ * pointer. The grip would then stay held, and the mouse moves that reach this
+ * window while the main window is dragged would resize the chat. A move with
+ * no button down ends the hold instead.
+ */
+function pointerStillHeld(event: PointerEvent) {
+  if (heldPointer && event.buttons === 0)
+    releasePointer()
+  return heldPointer
+}
+
+// A window that loses focus has no press left in it.
+useEventListener(window, 'blur', releasePointer)
 
 /** Keyboard step for the resize grip and the drag handle, in screen pixels. */
 const keyboardStep = 16
