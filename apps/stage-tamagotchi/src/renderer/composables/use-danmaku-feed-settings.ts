@@ -11,15 +11,11 @@ export const DEFAULT_MINIMUM_SECONDS = 3
  */
 export function useDanmakuFeedSettings() {
   return {
-    /** Whether the folded feed hides each message after the time to read it. On by default, because the feed is mostly read. */
+    /** On by default, because the feed is mostly read. */
     hideReadMessages: useLocalStorage('chat-window/danmaku/hide-read-messages', true),
-    /**
-     * Reading speed in visible characters per second, which sets how long a
-     * message stays. Every language counts characters the same way, so the
-     * reader sets the speed that suits the language.
-     */
+    /** Visible characters per second. Every language counts characters the same way, so the reader sets the speed. */
     charactersPerSecond: useLocalStorage('chat-window/danmaku/characters-per-second', DEFAULT_CHARACTERS_PER_SECOND),
-    /** Shortest time that a message shows, in seconds, so a message of a few characters stays long enough to notice. */
+    /** Seconds, so a message of a few characters stays long enough to notice. */
     minimumSeconds: useLocalStorage('chat-window/danmaku/minimum-seconds', DEFAULT_MINIMUM_SECONDS),
   }
 }

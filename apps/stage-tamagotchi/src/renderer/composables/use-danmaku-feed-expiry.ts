@@ -1,8 +1,8 @@
-import type { EffectScope, MaybeRefOrGetter } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
 
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { storeToRefs } from 'pinia'
-import { effectScope, onScopeDispose, shallowRef, toValue, watch } from 'vue'
+import { effectScope, shallowRef, toValue, watch } from 'vue'
 
 import { useChatFeedExpiry } from './use-chat-feed-expiry'
 import { useDanmakuFeedSettings } from './use-danmaku-feed-settings'
@@ -17,16 +17,19 @@ import { useSpeechOutputVoicing } from './use-speech-output-voicing'
  * runs only while `danmaku` holds: the speech subscription, the message
  * watches, and the timers start with it and stop without it.
  *
- * @param danmaku Whether the window shows the danmaku style.
  * @param expire Whether read messages hide now, such as while the composer is folded.
  * @returns The index of the first message that shows. It is 0 outside the danmaku style.
  */
 export function useDanmakuFeedExpiry(danmaku: MaybeRefOrGetter<boolean>, expire: MaybeRefOrGetter<boolean>) {
   const expiredBefore = shallowRef(0)
-  let scope: EffectScope | undefined
 
-  function start() {
-    scope = effectScope()
+  // The cleanup stops the scope when the style changes and when the caller's
+  // scope ends, so one run of the work exists at most.
+  watch(() => toValue(danmaku), (active, _previous, onCleanup) => {
+    if (!active)
+      return
+
+    const scope = effectScope()
     scope.run(() => {
       const { messages } = storeToRefs(useChatSessionStore())
       const { charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
@@ -44,20 +47,11 @@ export function useDanmakuFeedExpiry(danmaku: MaybeRefOrGetter<boolean>, expire:
         expiredBefore.value = count
       }, { immediate: true })
     })
-  }
-
-  function stop() {
-    scope?.stop()
-    scope = undefined
-    expiredBefore.value = 0
-  }
-
-  watch(() => toValue(danmaku), (active) => {
-    stop()
-    if (active)
-      start()
+    onCleanup(() => {
+      scope.stop()
+      expiredBefore.value = 0
+    })
   }, { immediate: true })
-  onScopeDispose(stop)
 
   return expiredBefore
 }
