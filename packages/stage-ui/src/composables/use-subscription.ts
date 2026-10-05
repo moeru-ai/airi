@@ -1,6 +1,7 @@
 import type { Package } from '@revenuecat/purchases-js'
 
 import { getRevenuecatWebKey, isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
+import { object, optional, pipe, record, safeParse, string, trim } from 'valibot'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -26,11 +27,53 @@ export type PlanBillingPeriod = 'month' | 'year'
 export interface PlanPackage {
   packageId: string
   productId: string
-  title: string
+  name: string | null
+  benefit: string | null
   formattedPrice: string
   currency: string
   period: PlanBillingPeriod
   amountMicros: number
+}
+
+export interface PlanCatalogCopy {
+  name: string | null
+  benefit: string | null
+}
+
+const planListingSchema = object({
+  name: optional(pipe(string(), trim())),
+  benefit: optional(pipe(string(), trim())),
+})
+
+const planMetadataSchema = object({
+  plans: optional(record(string(), record(string(), planListingSchema))),
+})
+
+const emptyPlanCatalogCopy: PlanCatalogCopy = { name: null, benefit: null }
+
+/**
+ * Reads one product's name and benefit from offering metadata.
+ * The current locale wins. A missing product entry uses the English entry.
+ *
+ * @example
+ * planCatalogCopy(
+ *   { plans: { en: { airi_go_monthly: { benefit: 'Chat and speech' } } } },
+ *   'airi_go_monthly',
+ *   'zh-Hans',
+ * )
+ * // { name: null, benefit: 'Chat and speech' }
+ */
+export function planCatalogCopy(metadata: unknown, productId: string, locale: string): PlanCatalogCopy {
+  const parsed = safeParse(planMetadataSchema, metadata ?? {})
+  if (!parsed.success || !parsed.output.plans)
+    return emptyPlanCatalogCopy
+  const listing = parsed.output.plans[locale]?.[productId] ?? parsed.output.plans.en?.[productId]
+  if (!listing)
+    return emptyPlanCatalogCopy
+  return {
+    name: listing.name || null,
+    benefit: listing.benefit || null,
+  }
 }
 
 /** Keeps RevenueCat's period unit. A month stays a month. A year stays a year. */
@@ -46,15 +89,17 @@ interface PlanStatus {
   fallbackToFlux: boolean
 }
 
-function toPlanPackage(pkg: Package): PlanPackage | null {
+function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPackage | null {
   const period = planBillingPeriod(pkg.webBillingProduct.period?.unit)
   if (!period)
     return null
   const { formattedPrice, currency } = revenuecatPackagePrice(pkg)
+  const copy = planCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
   return {
     packageId: pkg.identifier,
     productId: pkg.webBillingProduct.identifier,
-    title: pkg.webBillingProduct.title,
+    name: copy.name,
+    benefit: copy.benefit,
     formattedPrice,
     currency,
     period,
@@ -63,7 +108,7 @@ function toPlanPackage(pkg: Package): PlanPackage | null {
 }
 
 /**
- * Plan subscriptions (Go / Plus) through RevenueCat Web Billing.
+ * Plan subscriptions through RevenueCat Web Billing.
  * Status and quota usage are read from the backend subscription table;
  * the grant lands through the RevenueCat webhook, so the caller polls
  * status until the new subscription appears.
@@ -72,7 +117,7 @@ export function useSubscription(options: {
   getUserId: () => string
   onChanged: () => Promise<unknown>
 }) {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const enabled = !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null
 
   const status = ref<PlanStatus | null>(null)
@@ -115,7 +160,7 @@ export function useSubscription(options: {
       if (!current)
         return
       packages.value = current.availablePackages.flatMap((pkg) => {
-        const planPackage = toPlanPackage(pkg)
+        const planPackage = toPlanPackage(pkg, current.metadata, locale.value)
         return planPackage ? [planPackage] : []
       })
     }

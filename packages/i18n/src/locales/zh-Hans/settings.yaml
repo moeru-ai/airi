@@ -1069,8 +1069,6 @@ pages:
       year: 年付
     perMonth: / 月
     perYear: / 年
-    goSummary: 对话和语音
-    plusSummary: 更多对话和语音
     currentPackage: 当前方案
     upgrade: 升级
     downgrade: 降级
@@ -1084,9 +1082,6 @@ pages:
       pending: 已收到付款，额度稍后到账。
       canceled: 购买被取消
       error: 哎呀，出错了，请稍后再试
-    plans:
-      airi_go: Go
-      airi_plus: Plus
   providers:
     catalog:
       edit:

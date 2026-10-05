@@ -82,26 +82,18 @@ function actionLabel(pkg: PlanPackage): string {
   return t(ACTION_LABEL[action])
 }
 
-function planSummary(pkg: PlanPackage): string {
-  const visible = visiblePackages.value
-  const top = Math.max(...visible.map(item => item.amountMicros))
-  const higher = visible.length > 1 && visible.filter(item => item.amountMicros === top).length === 1 && pkg.amountMicros === top
-  return t(higher ? 'settings.pages.plan.plusSummary' : 'settings.pages.plan.goSummary')
-}
-
 const currentAllowance = computed(() => plan.status.value?.allowances[0])
 const fallbackToFlux = computed({
   get: () => plan.status.value?.fallbackToFlux ?? false,
   set: value => void savePreference(value),
 })
 
-function planName(entitlementId: string | undefined): string {
-  if (!entitlementId)
+const currentPlanName = computed(() => {
+  const current = currentSubscription.value
+  if (!current)
     return t('settings.pages.plan.noPlan')
-  const key = `settings.pages.plan.plans.${entitlementId}`
-  const resolved = t(key)
-  return resolved === key ? entitlementId : resolved
-}
+  return plan.packages.value.find(item => item.productId === current.productId)?.name ?? ''
+})
 
 const quotaPercentage = computed(() => currentAllowance.value?.remainingPercent ?? 0)
 
@@ -206,8 +198,8 @@ async function handleSubscribe(packageId: string) {
       <div :class="['relative z-1 flex items-center justify-start gap-4 text-left', 'sm:flex-col sm:justify-center sm:gap-2 sm:text-center']">
         <div :class="['i-solar:star-bold-duotone size-12 shrink-0 text-primary-500', 'sm:mx-auto sm:size-14']" />
         <div :class="['flex flex-col gap-1']">
-          <h2 :class="['text-3xl font-bold tracking-tight', 'sm:text-4xl']">
-            {{ planName(currentSubscription?.entitlementId) }}
+          <h2 v-if="currentPlanName" :class="['text-3xl font-bold tracking-tight', 'sm:text-4xl']">
+            {{ currentPlanName }}
           </h2>
           <p v-if="currentAllowance?.remainingPercent != null" :class="['text-sm text-neutral-500']">
             {{ t('settings.pages.plan.creditsRemaining', { percent: currentAllowance.remainingPercent }) }}
@@ -275,11 +267,11 @@ async function handleSubscribe(packageId: string) {
           </div>
 
           <div :class="['relative z-1 w-full flex flex-col gap-1', 'sm:items-center']">
-            <div :class="['text-sm text-neutral-500 font-medium transition-colors', 'dark:text-neutral-400', 'group-hover:text-primary-600 dark:group-hover:text-primary-400']">
-              {{ pkg.title }}
+            <div v-if="pkg.name" :class="['text-sm text-neutral-500 font-medium transition-colors', 'dark:text-neutral-400', 'group-hover:text-primary-600 dark:group-hover:text-primary-400']">
+              {{ pkg.name }}
             </div>
-            <div :class="['text-xs text-neutral-400']">
-              {{ planSummary(pkg) }}
+            <div v-if="pkg.benefit" :class="['text-xs text-neutral-400']">
+              {{ pkg.benefit }}
             </div>
             <div :class="['flex items-baseline justify-start gap-1', 'sm:justify-center']">
               <span :class="['text-2xl text-neutral-800 font-bold', 'dark:text-neutral-100']">

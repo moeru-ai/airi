@@ -1124,8 +1124,6 @@ pages:
       year: Yearly
     perMonth: / month
     perYear: / year
-    goSummary: Chat and speech
-    plusSummary: More chat and speech
     currentPackage: Current plan
     upgrade: Upgrade
     downgrade: Downgrade
@@ -1139,9 +1137,6 @@ pages:
       pending: Payment received. Credits arrive shortly.
       canceled: Purchase was canceled.
       error: Something went wrong. Please try again later.
-    plans:
-      airi_go: Go
-      airi_plus: Plus
   providers:
     catalog:
       edit:
