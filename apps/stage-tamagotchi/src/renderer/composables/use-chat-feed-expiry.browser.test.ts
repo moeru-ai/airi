@@ -7,23 +7,23 @@ import { useChatFeedExpiry } from './use-chat-feed-expiry'
 
 const START = new Date('2026-10-05T00:00:00Z').getTime()
 
-function setUp(initial: ChatHistoryItem[], { charactersPerSecond = 5, minimumSeconds = 3, voicingKnown: initiallyKnown = true } = {}) {
+function setUp(initial: ChatHistoryItem[], { charactersPerSecond = 5, minimumSeconds = 3, voicingLookupSettled: initiallySettled = true } = {}) {
   const messages = ref(initial)
   const generatingMessageId = shallowRef<string>()
   const voicing = shallowRef(false)
-  const voicingKnown = shallowRef(initiallyKnown)
+  const voicingLookupSettled = shallowRef(initiallySettled)
   const enabled = shallowRef(true)
   const scope = effectScope()
   const { expiredBefore } = scope.run(() => useChatFeedExpiry({
     messages,
     generatingMessageId,
     voicing,
-    voicingKnown,
+    voicingLookupSettled,
     enabled,
     charactersPerSecond,
     minimumSeconds,
   }))!
-  return { messages, generatingMessageId, voicing, voicingKnown, enabled, expiredBefore, scope }
+  return { messages, generatingMessageId, voicing, voicingLookupSettled, enabled, expiredBefore, scope }
 }
 
 /** Moves the clock, then lets the watchers react. */
@@ -157,16 +157,16 @@ describe('useChatFeedExpiry', () => {
   // A chat window that reopened while a reply was still spoken saw the reply
   // as old, and hid it for good before it learned that speech was playing.
   //
-  // We fixed this by locking no message until the speech state is known.
+  // We fixed this by locking no message until the first speech lookup settles.
   it('keeps a reply that is still spoken when the window opens', async () => {
     // The session state reaches a new window after it mounts.
-    const { messages, voicing, voicingKnown, expiredBefore } = setUp([], { voicingKnown: false })
+    const { messages, voicing, voicingLookupSettled, expiredBefore } = setUp([], { voicingLookupSettled: false })
     messages.value.push({ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START - 60_000 })
     await wait(0)
     expect(expiredBefore.value).toBe(1)
 
     voicing.value = true
-    voicingKnown.value = true
+    voicingLookupSettled.value = true
     await wait(0)
     expect(expiredBefore.value).toBe(0)
 

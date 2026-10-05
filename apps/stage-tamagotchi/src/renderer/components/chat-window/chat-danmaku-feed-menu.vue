@@ -36,6 +36,10 @@ const sliders = computed(() => [
 <template>
   <PopoverRoot>
     <PopoverTrigger as-child>
+      <!--
+        A plain button, like its neighbors in the header. GhostButton owns a
+        darker text color that a caller cannot override reliably.
+      -->
       <button
         v-bind="$attrs"
         :class="[

@@ -9,21 +9,27 @@ import { onScopeDispose, shallowRef } from 'vue'
  * The first value comes from a request to the output host, and later values
  * from its change events. The subscription ends with the calling scope.
  *
- * @returns `voicing`, and `known`, which turns `true` once the first value
- * arrived or no output host answered. Until then, `voicing` is `false` only
- * because nothing is known yet.
+ * @returns
+ * - `voicing`: the last state that the output host reported. It is `false`
+ *   before the first report.
+ * - `initialLookupSettled`: `true` once the first report arrived, or the
+ *   request failed. When no output host answers within one second, the
+ *   request fails, and `voicing` stays `false` until a change event arrives.
+ *   A consumer that waits for this value accepts that failure policy.
  */
 export function useSpeechOutputVoicing() {
   const voicing = shallowRef(false)
-  const known = shallowRef(false)
+  const initialLookupSettled = shallowRef(false)
   const context = getSpeechBusContext()
+  let reported = false
 
   const stopChanges = context.on(speechOutputPlaybackStateChangedEvent, (event) => {
     if (!event?.body)
       return
 
+    reported = true
     voicing.value = event.body.voicing
-    known.value = true
+    initialLookupSettled.value = true
   })
   onScopeDispose(stopChanges)
 
@@ -31,15 +37,15 @@ export function useSpeechOutputVoicing() {
   getPlaybackState(undefined, { signal: AbortSignal.timeout(1000) })
     .then((state) => {
       // A change event that arrived first is newer than this answer.
-      if (!known.value)
+      if (!reported)
         voicing.value = state.voicing
     })
-    .catch(() => {
-      // No output host answered, so no speech plays that this window can see.
+    .catch((error) => {
+      console.warn('[chat-window] The speech output state was not available:', error)
     })
     .finally(() => {
-      known.value = true
+      initialLookupSettled.value = true
     })
 
-  return { voicing, known }
+  return { voicing, initialLookupSettled }
 }

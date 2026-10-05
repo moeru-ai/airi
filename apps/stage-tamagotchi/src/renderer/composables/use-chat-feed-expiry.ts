@@ -29,11 +29,12 @@ interface ChatFeedExpiryOptions {
   /** `voicing` of the speech output. See `SpeechOutputPlaybackState` in the speech bus. */
   voicing: MaybeRefOrGetter<boolean>
   /**
-   * Whether `voicing` holds the real state. A window that opens while a reply
-   * is spoken learns it only after a round trip, so no message leaves for good
-   * before then.
+   * Whether the first lookup of `voicing` settled, with a report or a failure.
+   * A window that opens while a reply is spoken learns it only after that
+   * lookup, so no message leaves for good before then. After a failed lookup,
+   * messages leave by reading time.
    */
-  voicingKnown: MaybeRefOrGetter<boolean>
+  voicingLookupSettled: MaybeRefOrGetter<boolean>
   /** Whether messages expire. Without it, every message shows. */
   enabled: MaybeRefOrGetter<boolean>
   /** Reading speed that the reader set, in visible characters per second. */
@@ -52,10 +53,10 @@ interface ChatFeedExpiryOptions {
  * Messages expire in history order, so the feed only loses its top message,
  * and a short message never leaves a gap above a long one.
  *
- * State lives as long as the calling scope. Once the speech state is known, a
- * message that expired never returns, even when speech starts again, so a
- * message cannot flicker. Before that, a reply that is still spoken can
- * return, because a new window cannot yet know that it is spoken.
+ * State lives as long as the calling scope. Once the first speech lookup has
+ * settled, a message that expired never returns, even when speech starts
+ * again, so a message cannot flicker. Before that, a reply that is still
+ * spoken can return, because a new window cannot yet know that it is spoken.
  *
  * @returns `expiredBefore`, the index of the first message that still shows,
  * for the `expiredBefore` prop of `ChatHistory`. It is 0 while disabled.
@@ -152,8 +153,8 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
 
   // The message list counts too: another session can expire as many messages
   // as the one before, and its messages still need their lock.
-  watch([expiredBefore, () => toValue(options.voicingKnown), () => toValue(options.messages)], ([count, voicingKnown, messages]) => {
-    if (!voicingKnown)
+  watch([expiredBefore, () => toValue(options.voicingLookupSettled), () => toValue(options.messages)], ([count, voicingLookupSettled, messages]) => {
+    if (!voicingLookupSettled)
       return
 
     messages.slice(0, count).forEach((message, index) => {

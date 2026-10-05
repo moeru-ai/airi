@@ -24,6 +24,7 @@ import {
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
+import { useDanmakuFeedExpiry } from '../composables/use-danmaku-feed-expiry'
 import { useDanmakuFeedSettings } from '../composables/use-danmaku-feed-settings'
 import { useControlsIslandStore } from '../stores/controls-island'
 
@@ -77,13 +78,14 @@ const cursorOverHistory = computed(() =>
 // cursor is over the feed, like notifications, and while the composer is
 // unfolded, so the history stays in reach. A passive feed fades out under
 // the cursor instead, so there the cursor does not bring them back.
-const { hideReadMessages, charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
+const { hideReadMessages } = useDanmakuFeedSettings()
 const expireMessages = computed(() => {
   if (!danmaku.value || !composerFolded.value || !hideReadMessages.value)
     return false
 
   return passiveFeed.value || !cursorOverHistory.value
 })
+const expiredBefore = useDanmakuFeedExpiry(danmaku, expireMessages)
 const { hitTest } = useChatFloatingClickThrough({
   pinned: () => state.value.pinned,
   passiveArea: () => passiveFeed.value ? interactiveArea.value?.historyLayer : undefined,
@@ -294,9 +296,7 @@ function moveByKeyboard(delta: WindowDelta) {
             floating
             :composer-foldable="danmaku"
             :passive="passiveFeed"
-            :expire-messages="expireMessages"
-            :reading-speed="charactersPerSecond"
-            :minimum-show-seconds="minimumSeconds"
+            :expired-before="expiredBefore"
           />
         </div>
       </div>
