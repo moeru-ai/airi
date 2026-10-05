@@ -3,7 +3,7 @@ import { nullable, object, optional, parse, record, string, unknown } from 'vali
 export interface ProviderReplicaRow {
   id: string
   definitionId: string
-  displayName?: string
+  displayName?: string | null
   config: Record<string, unknown>
   updatedAt: string
   deletedAt: string | null
@@ -31,7 +31,7 @@ export interface InferenceServiceProvidersRemoteClient {
           $put: (params: {
             json: {
               definitionId: string
-              displayName?: string
+              displayName?: string | null
               config: Record<string, unknown>
             }
             param: { id: string }
@@ -66,7 +66,7 @@ function asReplicaRow(value: unknown): ProviderReplicaRow {
   return {
     id: item.instanceId,
     definitionId: item.definitionId,
-    displayName: item.displayName ?? undefined,
+    displayName: item.displayName,
     config: item.config,
     updatedAt: item.updatedAt,
     deletedAt: item.deletedAt ?? null,
@@ -77,7 +77,7 @@ export interface InferenceServiceProvidersService {
   listRemote: (client: InferenceServiceProvidersRemoteClient) => Promise<ProviderReplicaRow[]>
   upsertRemote: (
     client: InferenceServiceProvidersRemoteClient,
-    provider: { id: string, definitionId: string, displayName?: string, config: Record<string, unknown> },
+    provider: { id: string, definitionId: string, displayName?: string | null, config: Record<string, unknown> },
   ) => Promise<ProviderReplicaRow>
   deleteRemote: (
     client: InferenceServiceProvidersRemoteClient,
@@ -97,7 +97,7 @@ export function createInferenceServiceProvidersService(): InferenceServiceProvid
 
   async function upsertRemote(
     client: InferenceServiceProvidersRemoteClient,
-    provider: { id: string, definitionId: string, displayName?: string, config: Record<string, unknown> },
+    provider: { id: string, definitionId: string, displayName?: string | null, config: Record<string, unknown> },
   ): Promise<ProviderReplicaRow> {
     const res = await client.api.v1.providers[':id'].$put({
       param: { id: provider.id },

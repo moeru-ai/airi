@@ -3,7 +3,7 @@ import type { ProviderReplicaRow } from '../../services/inference-service-provid
 export interface ProviderSyncRow {
   id: string
   definitionId: string
-  displayName?: string
+  displayName?: string | null
   config: Record<string, unknown>
   replicaUpdatedAt?: string
 }

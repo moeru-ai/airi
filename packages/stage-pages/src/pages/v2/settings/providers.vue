@@ -56,6 +56,13 @@ function handleAdd(providerId: string) {
 function handleClick(providerId: string) {
   router.push(`/v2/settings/providers/edit/${providerId}`)
 }
+
+function getProviderDisplayName(provider: { definitionId: string, displayName?: string | null }) {
+  const definition = getDefinedProvider(provider.definitionId)
+  return resolveProviderDisplayName(provider, definition
+    ? { name: definition.nameLocalize({ t }) || definition.name }
+    : undefined)
+}
 </script>
 
 <template>
@@ -136,7 +143,7 @@ function handleClick(providerId: string) {
                     <div class="relative w-4">
                       <div :class="[getDefinedProvider(providerEntry[1].definitionId)?.iconColor || getDefinedProvider(providerEntry[1].definitionId)?.icon, 'absolute left-50% top-50% -translate-x-1/2 -translate-y-1/2']" />
                     </div>
-                    <div>{{ resolveProviderDisplayName(providerEntry[1], getDefinedProvider(providerEntry[1].definitionId)) }}</div>
+                    <div>{{ getProviderDisplayName(providerEntry[1]) }}</div>
                   </div>
                 </div>
               </div>

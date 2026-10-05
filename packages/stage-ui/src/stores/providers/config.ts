@@ -120,7 +120,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   // Uploaded fields only. status and replicaUpdatedAt stay local; a successful
   // push writes replicaUpdatedAt and must not look like a new local edit.
-  function replicaBody(row: { definitionId: string, displayName?: string, config: Record<string, unknown> }) {
+  function replicaBody(row: { definitionId: string, displayName?: string | null, config: Record<string, unknown> }) {
     return { definitionId: row.definitionId, displayName: row.displayName, config: row.config }
   }
 
@@ -511,7 +511,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     schedulePush()
   }
 
-  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus, displayName?: string) {
+  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus, displayName?: string | null) {
     const provider = providers.value[providerId]
     if (!provider)
       return
