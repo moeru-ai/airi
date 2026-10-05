@@ -31,12 +31,11 @@ async function request(method, path, { params = {}, body } = {}) {
   const url = new URL(`${API}${path}`)
   for (const [key, value] of Object.entries(params))
     url.searchParams.set(key, String(value))
+  const init = { method, headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } }
+  if (body !== undefined)
+    init.body = JSON.stringify(body)
   for (let attempt = 0; ; attempt++) {
-    const response = await fetch(url, {
-      method,
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: body && JSON.stringify(body),
-    })
+    const response = await fetch(url, init)
     if (response.status === 429 && attempt < 5) {
       await new Promise(resolve => setTimeout(resolve, 2000 * (attempt + 1)))
       continue
