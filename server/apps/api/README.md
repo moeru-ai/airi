@@ -156,11 +156,14 @@ field, so new channels need no server changes.
 
 `src/services/domain/subscriptions` owns sync, status reads, Credit debit,
 the Flux-fallback preference (default off), and `deleteAllForUser`. Status
-derives from webhook events: only `EXPIRATION` revokes; `BILLING_ISSUE` and
-`CANCELLATION` keep access until `expires_at`. `INITIAL_PURCHASE`, `RENEWAL`,
-`PRODUCT_CHANGE`, `UNCANCELLATION`, and `SUBSCRIPTION_EXTENDED` open a fresh
-Credit period and forfeit the old remainder. The same events expire every
-other entitlement for that user. One Credit equals one Flux.
+comes from webhook events. Only `EXPIRATION` revokes access. `BILLING_ISSUE`
+and `CANCELLATION` keep access until `expires_at`. `INITIAL_PURCHASE`,
+`RENEWAL`, and `PRODUCT_CHANGE` open a fresh Credit period and forfeit the
+old remainder. Those events also expire every other entitlement for that
+user. `UNCANCELLATION` sets the subscription back to active and leaves the
+Credit period in place. `SUBSCRIPTION_EXTENDED` moves the open Credit period
+end to the new expiration and does not grant Credits. One Credit equals one
+Flux.
 `src/services/domain/billing/credit-posting.ts` settles both pools in
 micro-Credits (1 Credit = 1,000,000 micro-Credits). Chat and speech call
 `takePlanCredits`. The plan pays when its micro-Credits cover the whole fee.

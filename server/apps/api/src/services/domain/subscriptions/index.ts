@@ -2,7 +2,7 @@ import type { Database } from '../../../libs/db'
 import type { SubscriptionStatus } from '../../../schemas/subscription'
 
 import { useLogger } from '@guiiai/logg'
-import { and, asc, eq, gt, isNull, ne, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, lt, ne, or, sql } from 'drizzle-orm'
 
 import { availableMicroCredits, MICRO_PER_CREDIT, postMicroCredits } from '../billing/credit-posting'
 
@@ -315,6 +315,27 @@ export function createSubscriptionService(db: Database) {
     })
   }
 
+  /**
+   * Moves an open Credit period end later.
+   * A closed period stays closed.
+   * An earlier date does not shorten the period.
+   */
+  async function extendPeriod(input: {
+    userId: string
+    entitlementId: string
+    periodEnd: Date
+  }): Promise<void> {
+    const now = new Date()
+    await db.update(schema.subscriptionAllowance)
+      .set({ periodEnd: input.periodEnd, updatedAt: now })
+      .where(and(
+        eq(schema.subscriptionAllowance.userId, input.userId),
+        eq(schema.subscriptionAllowance.entitlementId, input.entitlementId),
+        gt(schema.subscriptionAllowance.periodEnd, now),
+        lt(schema.subscriptionAllowance.periodEnd, input.periodEnd),
+      ))
+  }
+
   /** Expires every other entitlement and closes its open Credit periods. */
   async function retireOtherEntitlements(userId: string, keepEntitlementId: string): Promise<void> {
     const now = new Date()
@@ -381,6 +402,7 @@ export function createSubscriptionService(db: Database) {
     reconcile,
     getStatus,
     debitCredits,
+    extendPeriod,
     retireOtherEntitlements,
     getFallbackPreference,
     setFallbackPreference,

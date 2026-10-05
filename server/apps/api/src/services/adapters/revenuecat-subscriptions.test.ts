@@ -25,6 +25,7 @@ function createCore(): SubscriptionService {
     reconcile: vi.fn(async () => undefined),
     getStatus: vi.fn(),
     debitCredits: vi.fn(),
+    extendPeriod: vi.fn(),
     retireOtherEntitlements: vi.fn(),
     getFallbackPreference: vi.fn(),
     setFallbackPreference: vi.fn(),
@@ -84,6 +85,55 @@ describe('revenuecat subscription sync', () => {
       eventKey: 'event-3:airi_go',
     }))
     expect(core.retireOtherEntitlements).toHaveBeenCalledWith('user-1', 'airi_go')
+  })
+
+  it('syncs uncancellation without a new period', async () => {
+    const core = createCore()
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+
+    expect(await sync.syncEvent({ ...baseEvent, id: 'event-4', type: 'UNCANCELLATION' }))
+      .toEqual({ synced: true })
+    expect(core.upsertSubscription).toHaveBeenCalledWith(expect.objectContaining({
+      status: 'active',
+    }))
+    expect(core.openPeriod).not.toHaveBeenCalled()
+    expect(core.extendPeriod).not.toHaveBeenCalled()
+    expect(core.retireOtherEntitlements).not.toHaveBeenCalled()
+  })
+
+  it('extends the open period without a new grant', async () => {
+    const core = createCore()
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const expirationAtMs = Date.now() + 14 * 24 * 60 * 60 * 1000
+
+    expect(await sync.syncEvent({
+      ...baseEvent,
+      id: 'event-5',
+      type: 'SUBSCRIPTION_EXTENDED',
+      expirationAtMs,
+    })).toEqual({ synced: true })
+    expect(core.extendPeriod).toHaveBeenCalledWith({
+      userId: 'user-1',
+      entitlementId: 'airi_go',
+      periodEnd: new Date(expirationAtMs),
+    })
+    expect(core.openPeriod).not.toHaveBeenCalled()
+    expect(core.retireOtherEntitlements).not.toHaveBeenCalled()
+  })
+
+  it('skips an extension that has no expiration', async () => {
+    const core = createCore()
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+
+    expect(await sync.syncEvent({
+      ...baseEvent,
+      id: 'event-6',
+      type: 'SUBSCRIPTION_EXTENDED',
+      expirationAtMs: null,
+    })).toEqual({ synced: true })
+    expect(core.upsertSubscription).toHaveBeenCalled()
+    expect(core.extendPeriod).not.toHaveBeenCalled()
+    expect(core.openPeriod).not.toHaveBeenCalled()
   })
 
   it('acks unknown products without touching the core', async () => {

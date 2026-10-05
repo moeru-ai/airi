@@ -1,6 +1,6 @@
 import type { Database } from '../../../libs/db'
 
-import { beforeAll, describe, expect, it } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
 import { MICRO_PER_CREDIT } from '../billing/credit-posting'
@@ -100,6 +100,97 @@ describe('subscription service', () => {
       unsettledMicroCredit: 500_000,
       remainingMicro: 1998 * MICRO_PER_CREDIT + 500_000,
     }])
+  })
+
+  it('extends an open period and keeps the remainder spendable', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-01T00:00:00.000Z'))
+    try {
+      const service = await setup()
+      const periodEnd = new Date('2026-10-15T00:00:00.000Z')
+      const laterEnd = new Date('2026-10-29T00:00:00.000Z')
+      await service.upsertSubscription({
+        userId: 'user-1',
+        entitlementId: 'airi_go',
+        status: 'active',
+        expiresAt: laterEnd,
+      })
+      await service.openPeriod({
+        userId: 'user-1',
+        entitlementId: 'airi_go',
+        grantedCredit: 2000,
+        periodStart: new Date('2026-10-01T00:00:00.000Z'),
+        periodEnd,
+        eventKey: 'event-1',
+      })
+      await service.debitCredits({
+        userId: 'user-1',
+        microCredit: 500 * MICRO_PER_CREDIT,
+        requestId: 'req-1',
+      })
+      await service.extendPeriod({
+        userId: 'user-1',
+        entitlementId: 'airi_go',
+        periodEnd: laterEnd,
+      })
+
+      const status = await service.getStatus('user-1')
+      expect(status.allowances).toMatchObject([{
+        grantedCredit: 2000,
+        usedCredit: 500,
+        periodEnd: laterEnd.toISOString(),
+      }])
+
+      vi.setSystemTime(new Date('2026-10-16T00:00:00.000Z'))
+      expect(await service.debitCredits({
+        userId: 'user-1',
+        microCredit: 100 * MICRO_PER_CREDIT,
+        requestId: 'req-2',
+      })).toEqual({
+        chargedMicro: 100 * MICRO_PER_CREDIT,
+        requestedMicro: 100 * MICRO_PER_CREDIT,
+      })
+
+      await service.extendPeriod({
+        userId: 'user-1',
+        entitlementId: 'airi_go',
+        periodEnd,
+      })
+      const unchanged = await service.getStatus('user-1')
+      expect(unchanged.allowances).toMatchObject([{ periodEnd: laterEnd.toISOString() }])
+    }
+    finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('leaves a closed period closed', async () => {
+    const service = await setup()
+    const periodEnd = new Date(Date.now() - 1000)
+    await service.upsertSubscription({
+      userId: 'user-1',
+      entitlementId: 'airi_go',
+      status: 'active',
+      expiresAt: new Date(Date.now() + 10_000),
+    })
+    await service.openPeriod({
+      userId: 'user-1',
+      entitlementId: 'airi_go',
+      grantedCredit: 2000,
+      periodStart: new Date(Date.now() - 10_000),
+      periodEnd,
+      eventKey: 'closed',
+    })
+    await service.extendPeriod({
+      userId: 'user-1',
+      entitlementId: 'airi_go',
+      periodEnd: new Date(Date.now() + 10_000),
+    })
+
+    const status = await service.getStatus('user-1')
+    expect(status.allowances).toEqual([])
+    const [row] = await db.select().from(schema.subscriptionAllowance)
+    expect(row?.periodEnd).toEqual(periodEnd)
   })
 
   it('expires other entitlements when a plan replaces them', async () => {

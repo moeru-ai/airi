@@ -11,8 +11,10 @@ Chat and speech call `takePlanCredits`.
 The plan pays a fee only when its micro-Credits cover the whole amount.
 Otherwise the Flux wallet pays only when the user turned fallback on.
 
-`PRODUCT_CHANGE` opens a new Credit period and forfeits the old remainder.
-`INITIAL_PURCHASE`, `RENEWAL`, `PRODUCT_CHANGE`, `UNCANCELLATION`, and `SUBSCRIPTION_EXTENDED` expire every other entitlement for that user.
+`INITIAL_PURCHASE`, `RENEWAL`, and `PRODUCT_CHANGE` open a new Credit period and forfeit the old remainder.
+Those events expire every other entitlement for that user.
+`UNCANCELLATION` keeps the current Credit period.
+`SUBSCRIPTION_EXTENDED` moves the open period end later and keeps the remainder.
 
 The web purchase SDK cannot replace a subscription in the app.
 A subscriber opens the management URL to change plans.

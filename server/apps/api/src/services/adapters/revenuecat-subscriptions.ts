@@ -23,8 +23,6 @@ export interface RevenuecatSyncEvent {
 const PERIOD_OPENING_EVENTS = new Set([
   'INITIAL_PURCHASE',
   'RENEWAL',
-  'UNCANCELLATION',
-  'SUBSCRIPTION_EXTENDED',
   'PRODUCT_CHANGE',
 ])
 
@@ -97,6 +95,13 @@ export function createRevenuecatSubscriptionSync(
           eventKey: `${event.id}:${entitlementId}`,
         })
         await subscriptions.retireOtherEntitlements(event.appUserId, entitlementId)
+      }
+      else if (event.type === 'SUBSCRIPTION_EXTENDED' && expiresAt) {
+        await subscriptions.extendPeriod({
+          userId: event.appUserId,
+          entitlementId,
+          periodEnd: expiresAt,
+        })
       }
     }
 
