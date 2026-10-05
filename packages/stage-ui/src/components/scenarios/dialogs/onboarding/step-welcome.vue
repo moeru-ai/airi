@@ -138,7 +138,7 @@ function handleLocalSetup() {
         }"
         variant="secondary"
         :outline="false"
-        :class="['bg-transparent! text-neutral-600 dark:text-neutral-300']"
+        :class="['bg-transparent! text-neutral-600 dark:bg-neutral-700/60! dark:text-neutral-200']"
         :label="t('settings.dialogs.onboarding.setupWithoutSigningIn')"
         @click="handleLocalSetup"
       />
