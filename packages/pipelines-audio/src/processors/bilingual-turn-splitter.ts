@@ -14,6 +14,10 @@
  *
  * The parser protects ordinary bracket uses:
  *
+ * - A bracket that does not follow a sentence-ending punctuation mark passes
+ *   through as spoken text, so code subscripts such as `arr[index]` and
+ *   leading notes stay intact. The bilingual prompt requires every
+ *   translation to follow a punctuated spoken sentence.
  * - Markdown links `[text](url)` pass through as spoken text.
  * - Numeric citations such as `[1]` pass through as spoken text.
  * - Nested or unclosed brackets pass through as spoken text.
@@ -87,6 +91,51 @@ export interface BilingualTurnSplitter {
 }
 
 /**
+ * Projects a complete UST turn to its spoken-only text, dropping every
+ * bracketed translation. The state machine is a char-pure function, so one
+ * whole-text pass equals the streaming projection of the same text. Use when
+ * persisting or replaying the turn after streaming finished.
+ */
+export function projectSpokenText(rawText: string): string {
+  const splitter = createBilingualTurnSplitter()
+  let spoken = ''
+  for (const event of [...splitter.consume(rawText), ...splitter.end()]) {
+    if (event.kind === 'spoken')
+      spoken += event.text
+  }
+  return spoken
+}
+
+/**
+ * Sentence-ending marks that can directly precede a translation bracket.
+ * Matches the sentence boundary the bilingual prompt requires before each
+ * bracket; a bracket after any other character is ordinary content.
+ */
+const sentenceEndingPunctuations = new Set('.。!?！？…⋯')
+
+/** Closing quotes and brackets allowed between the sentence mark and `[`. */
+const trailingSentenceChars = /[\s"'“”‘’「」)）]*$/
+
+/**
+ * A translation bracket can open only right after a punctuated spoken
+ * sentence. Code subscripts (`arr[index]`), leading notes, and expressions
+ * mid-sentence never satisfy this.
+ */
+function spokenRunEndsSentence(spokenRun: string): boolean {
+  const last = spokenRun.replace(trailingSentenceChars, '').at(-1)
+  return last !== undefined && sentenceEndingPunctuations.has(last)
+}
+
+/**
+ * Bracket content that never holds a translation: nested brackets (matrix
+ * data, nested citations), numeric citations, and empty brackets. Shared by
+ * the look-ahead resolution and the end-of-stream resolution.
+ */
+function isOrdinaryBracketInner(inner: string): boolean {
+  return inner.includes('[') || inner.includes(']') || /^\d*$/.test(inner)
+}
+
+/**
  * Creates the streaming splitter for one turn.
  *
  * It is stateless regarding languages: the prompt names the pair of
@@ -104,15 +153,28 @@ export function createBilingualTurnSplitter(): BilingualTurnSplitter {
   let bracketText = ''
   let bracketDepth = 0
   let pairId = 0
+  /**
+   * Spoken text since the last translation pair. The next `[` becomes a
+   * translation candidate only when this run ends in sentence punctuation.
+   */
+  let spokenRun = ''
 
   function emitSpoken(events: BilingualTurnEvent[], text: string) {
     if (!text)
       return
+    spokenRun += text
     const last = events.at(-1)
     if (last?.kind === 'spoken')
       last.text += text
     else
       events.push({ kind: 'spoken', text })
+  }
+
+  /** Publishes one translation and starts the next spoken run. */
+  function emitTranslation(events: BilingualTurnEvent[], text: string) {
+    events.push({ kind: 'translation', pairId, text })
+    pairId += 1
+    spokenRun = ''
   }
 
   /**
@@ -140,11 +202,7 @@ export function createBilingualTurnSplitter(): BilingualTurnSplitter {
 
     // Nested brackets (matrix data, nested citations) never hold a
     // translation. Citations [1], [12] and empty brackets stay spoken too.
-    const staysSpoken = inner.includes('[')
-      || inner.includes(']')
-      || /^\d*$/.test(inner)
-
-    if (staysSpoken) {
+    if (isOrdinaryBracketInner(inner)) {
       emitSpoken(events, `[${inner}]`)
       emitSpoken(events, nextChar)
       return
@@ -153,10 +211,9 @@ export function createBilingualTurnSplitter(): BilingualTurnSplitter {
     // Translation bracket. Spoken bytes already emitted carry this pairId;
     // publish the translation, then the next spoken run opens a new pair.
     if (inner.trim())
-      events.push({ kind: 'translation', pairId, text: inner })
+      emitTranslation(events, inner)
     else
       emitSpoken(events, '[]')
-    pairId += 1
 
     emitSpoken(events, nextChar)
   }
@@ -167,9 +224,17 @@ export function createBilingualTurnSplitter(): BilingualTurnSplitter {
     for (const char of chunk) {
       if (mode === 'normal') {
         if (char === '[') {
-          mode = 'bracket'
-          bracketText = ''
-          bracketDepth = 1
+          // Only a bracket right after a punctuated spoken sentence can be a
+          // translation. Anything else (subscripts, leading notes) is spoken
+          // byte for byte and never enters bracket state.
+          if (spokenRunEndsSentence(spokenRun)) {
+            mode = 'bracket'
+            bracketText = ''
+            bracketDepth = 1
+          }
+          else {
+            emitSpoken(events, char)
+          }
         }
         else {
           emitSpoken(events, char)
@@ -213,15 +278,16 @@ export function createBilingualTurnSplitter(): BilingualTurnSplitter {
       bracketText = ''
     }
     else if (mode === 'closed') {
-      // No look-ahead character arrived. Numeric content is a citation and
-      // stays spoken; anything else is the final translation block.
+      // No look-ahead character arrived. Apply the same content
+      // classification as the look-ahead branch, so a final nested
+      // expression such as `[[1,2],[3,4]]` stays spoken at EOF too.
       const inner = bracketText
       mode = 'normal'
       bracketText = ''
-      if (/^\d*$/.test(inner))
+      if (isOrdinaryBracketInner(inner))
         emitSpoken(events, `[${inner}]`)
       else if (inner.trim())
-        events.push({ kind: 'translation', pairId, text: inner })
+        emitTranslation(events, inner)
       else
         emitSpoken(events, '[]')
     }

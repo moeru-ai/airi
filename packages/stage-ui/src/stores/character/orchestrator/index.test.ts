@@ -119,13 +119,16 @@ describe('store character-orchestrator', () => {
     // The orchestrator only runs reactions in a renderer that mounts
     // Stage; pretend this test window is that renderer. Some tests drive
     // the real character store, so provide a complete no-op session.
-    disposeSpeechHost = registerStageSpeechSessionOpener((): StageTtsSession => ({
-      intentId: 'test-intent',
-      appendText: () => {},
-      appendSpecial: () => {},
-      finishInput: () => {},
-      end: () => {},
-      cancel: () => {},
+    disposeSpeechHost = registerStageSpeechSessionOpener(() => ({
+      buffered: false,
+      session: {
+        intentId: 'test-intent',
+        appendText: () => {},
+        appendSpecial: () => {},
+        finishInput: () => {},
+        end: () => {},
+        cancel: () => {},
+      } satisfies StageTtsSession,
     }))
 
     sendSparkCommandMock.mockReset()

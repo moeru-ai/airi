@@ -542,6 +542,7 @@ pages:
         label: 译文字幕1
         same_language_disabled: 该语言已选为口语语言
       voice_warning: 当前选择的语音可能不支持该口语语言，请到语音设置中确认音色。
+      buffered_speech_warning: 当前流式语音（Seed-TTS 2.0 / ICL 2.0）不支持翻译字幕：该协议只在合成阶段提供句子时机，没有播放偏移。朗读和口语字幕正常。需要翻译字幕请改用 REST 语音或 Seed-TTS 1.0。
     beat_sync:
       description: 随音源节拍律动
       title: 同步音律

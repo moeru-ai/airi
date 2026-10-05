@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { Alert } from '@proj-airi/stage-ui/components'
+import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '@proj-airi/stage-ui/libs/providers/providers/official'
+import { isBufferedStreamingResourceId, resolveStreamingSessionModel } from '@proj-airi/stage-ui/libs/speech/streaming-buffer'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { bilingualLanguageOptions, useSettingsBilingualSubtitles } from '@proj-airi/stage-ui/stores/settings/bilingual-subtitles'
 import { FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -11,7 +14,8 @@ const { t } = useI18n()
 const bilingualStore = useSettingsBilingualSubtitles()
 const { enabled, spokenLanguage, translationLanguage } = storeToRefs(bilingualStore)
 const speechStore = useSpeechStore()
-const { activeSpeechVoice } = storeToRefs(speechStore)
+const { activeSpeechVoice, activeSpeechModel } = storeToRefs(speechStore)
+const providersStore = useProviderStore()
 
 const selectClass = [
   'w-full px-3 py-2',
@@ -35,6 +39,21 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
     const code = language.code.toLowerCase()
     return code === spoken || code.startsWith(`${spoken}-`)
   })
+})
+
+// Buffered streaming models (Seed-TTS 2.0 / ICL 2.0) expose sentence timing
+// during synthesis with no playback offsets, so translation captions cannot
+// follow the voice. Resolve the model exactly like the speech session does.
+const bufferedSpeechCaptionsUnsupported = computed(() => {
+  if (!enabled.value)
+    return false
+  const model = resolveStreamingSessionModel(
+    activeSpeechModel.value as string | undefined,
+    providersStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID),
+  )
+  if (!model)
+    return false
+  return isBufferedStreamingResourceId(model.split('/', 2)[1] ?? '')
 })
 </script>
 
@@ -97,6 +116,16 @@ const voiceMayNotSupportSpokenLanguage = computed(() => {
             </option>
           </select>
         </label>
+
+        <Alert
+          v-if="bufferedSpeechCaptionsUnsupported"
+          type="warning"
+          icon="i-solar:info-circle-line-duotone"
+        >
+          <template #title>
+            {{ t('settings.pages.modules.bilingual_subtitles.buffered_speech_warning') }}
+          </template>
+        </Alert>
 
         <Alert
           v-if="voiceMayNotSupportSpokenLanguage"

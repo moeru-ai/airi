@@ -120,12 +120,6 @@ export interface StreamingSessionHooks {
   onError?: (err: Error) => void
   /** Called once when the ws terminates (success or error follows). */
   onDone?: () => void
-  /**
-   * Called at each upstream sentence boundary in arrival order. Used to
-   * advance sentence-aligned captions in buffered mode, where only one
-   * audio item exists for the whole session.
-   */
-  onSentenceBoundary?: (text: string) => void
 }
 
 export interface CreateStreamingSessionOptions<TAudio = AudioBuffer> {
@@ -192,8 +186,8 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
         text: text ?? '',
         special: null,
         // Non-buffered streaming emits one item per server sentence, so each
-        // item ends a sentence. The buffered session emits one item for the
-        // whole turn and aligns via onSentenceBoundary instead.
+        // item ends a sentence. The buffered session emits one unflagged
+        // item for the whole turn; its captions stay hidden.
         sentenceBoundary: !snapshot.bufferEntireSession,
         audio: audio as unknown as TAudio,
         createdAt: Date.now(),
@@ -201,9 +195,6 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
     },
     onError: (err) => {
       hooks?.onError?.(err)
-    },
-    onSentenceBoundary: (text) => {
-      hooks?.onSentenceBoundary?.(text)
     },
     onDone: () => {
       terminated = true

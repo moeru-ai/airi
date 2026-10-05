@@ -2,7 +2,7 @@ import type { BilingualTurnEvent, BilingualTurnSplitter } from '@proj-airi/pipel
 
 import type { StageTtsSession } from '../../libs/speech/tts-session'
 
-import { createBilingualTurnSplitter, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
+import { createBilingualTurnSplitter, projectSpokenText, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
@@ -33,20 +33,11 @@ interface StreamingReactionState {
   /** Caption bus turn id, same value as the speech session turnId. */
   turnId: string
   translationLanguage: string | undefined
+  /** Whole-session buffered TTS: translation captions cannot align and stay hidden. */
+  captionsUnsupported: boolean
 }
 
 const MAX_REACTIONS = 200
-
-/** Returns the spoken projection of raw UST text, dropping bracket translations. */
-function spokenProjection(rawText: string): string {
-  const splitter = createBilingualTurnSplitter()
-  let spoken = ''
-  for (const event of [...splitter.consume(rawText), ...splitter.end()]) {
-    if (event.kind === 'spoken')
-      spoken += event.text
-  }
-  return spoken
-}
 
 export const useCharacterStore = defineStore('character', () => {
   const { activeCard, systemPrompt } = storeToRefs(useAiriCardStore())
@@ -76,7 +67,10 @@ export const useCharacterStore = defineStore('character', () => {
         if (event.text)
           void state.parser.consume(event.text)
       }
-      else {
+      else if (!state.captionsUnsupported) {
+        // The flush marker keeps REST segmentation aligned one item per
+        // pair. A buffered WebSocket session filters the marker and cannot
+        // align captions anyway, so it gets neither.
         void state.parser.consume(TTS_FLUSH_INSTRUCTION)
         bilingualCaptionBus.ingestTranslation(state.turnId, {
           language: state.translationLanguage as string,
@@ -102,15 +96,16 @@ export const useCharacterStore = defineStore('character', () => {
 
       // The orchestrator only delivers events to windows that mount Stage,
       // so this session always exists. The guard covers direct callers.
-      const session = openStageSpeechSession({
+      const opened = openStageSpeechSession({
         turnId,
         flushBoundaries: Boolean(snapshot),
         priority: 'high',
         behavior: 'interrupt',
         ownerId: ownerId.value,
       })
-      if (!session)
+      if (!opened)
         return
+      const { session, buffered: captionsUnsupported } = opened
 
       const parser = useLlmmarkerParser({
         onLiteral: (literal) => {
@@ -129,6 +124,7 @@ export const useCharacterStore = defineStore('character', () => {
         splitter: snapshot ? createBilingualTurnSplitter() : undefined,
         turnId,
         translationLanguage: snapshot?.translationLanguage,
+        captionsUnsupported,
       }
       streamingReactions.value.set(sparkEventId, state)
     }
@@ -153,7 +149,7 @@ export const useCharacterStore = defineStore('character', () => {
     // Only bilingual text carries UST brackets to strip. In an ordinary
     // response brackets are ordinary content (e.g. `arr[index]`) and the
     // raw plugin text must be persisted unchanged.
-    const message = state.splitter ? spokenProjection(fullText) : fullText
+    const message = state.splitter ? projectSpokenText(fullText) : fullText
     recordSparkNotifyReaction(sparkEventId, message, { metadata: options?.metadata })
 
     // Close the parser first so every queued fragment (including the last

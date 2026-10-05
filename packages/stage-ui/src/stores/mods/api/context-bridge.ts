@@ -809,10 +809,10 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           await contextChannel?.emitStream({ type: 'token-literal', literal, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenTranslation(async (translation, context) => {
-          if (isProcessingRemoteStream)
+          if (remoteContexts.has(context))
             return
 
-          await contextChannel?.emitStream({ type: 'token-translation', translation, sessionId: chatOrchestrator.activeSendSessionId ?? chatSession.activeSessionId, context: structuredClone(normalizeContextSnapshot(context)) })
+          await contextChannel?.emitStream({ type: 'token-translation', translation, sessionId: context.sessionId, context: structuredClone(normalizeContextSnapshot(context)) })
         }),
         chatOrchestrator.onTokenSpecial(async (special, context) => {
           if (remoteContexts.has(context))
@@ -921,16 +921,11 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
               break
             case 'token-translation':
               // Subtitle-only event: it never touches the chat stream. Gate
-              // it with the same session, active-window, and generation
-              // guards as token-special, so a stale mirrored turn cannot
-              // populate captions in a window that shows another session.
-              if (!remoteStreamGuard.value || event.sessionId !== remoteStreamGuard.value.sessionId)
-                return
-              if (remoteStreamGuard.value.sessionId !== chatSession.activeSessionId)
-                return
-              if (chatSession.getSessionGenerationValue(remoteStreamGuard.value.sessionId) !== remoteStreamGuard.value.generation)
-                return
-              await chatOrchestrator.emitTokenTranslationHooks(event.translation, event.context)
+              // it with the same current-turn check as token-special, so a
+              // stale mirrored turn cannot populate captions in a window
+              // that shows another session.
+              if (current && !guard.completed)
+                await chatOrchestrator.emitTokenTranslationHooks(event.translation, event.context)
               break
             case 'token-special':
               if (current && !guard.completed)

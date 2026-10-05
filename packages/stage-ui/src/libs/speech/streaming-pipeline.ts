@@ -25,16 +25,6 @@ export interface StreamingTtsPipelineEvents {
    */
   onSentence?: (sentence: StreamingPipelineSentence) => void
   /**
-   * Fires at each upstream sentence boundary (`sentence.end` or `subtitle`)
-   * in arrival order.
-   *
-   * Buffered TTS 2.0 emits one audio item for the whole session, so its
-   * audio callbacks cannot drive per-sentence UI. Boundary events arrive
-   * in step with the audio chunks and are the deterministic signal for
-   * advancing sentence-aligned captions.
-   */
-  onSentenceBoundary?: (text: string) => void
-  /**
    * Surfaced for any post-upgrade failure (server `error` event, ws close
    * without `session.finished`, decode failure). Consumers should treat the
    * session as terminated after this fires.
@@ -311,15 +301,12 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
         break
       }
       case 'sentence.end': {
-        // `sentence.end` is the single per-sentence boundary in every mode:
-        // it arrives in band with the audio chunks, so captions anchored to
-        // it stay in order. Buffered mode keeps the audio accumulated and
-        // only uses this as the boundary signal.
-        const text = readSentenceText(evt.payload) ?? pendingSentenceTexts.shift() ?? ''
-        if (text)
-          options.onSentenceBoundary?.(text)
+        // Buffered mode keeps all audio accumulated for the single
+        // session.finished flush; its sentence events carry no offsets and
+        // cannot drive per-sentence UI. Other modes cut one item here.
         if (bufferEntireSession)
           break
+        const text = readSentenceText(evt.payload) ?? pendingSentenceTexts.shift() ?? ''
         // Fire-and-forget into the serialized chain. We do NOT await here;
         // awaiting from the message handler does not block sibling handlers
         // (they run concurrently via `void handleControlFrame`), so an

@@ -41,10 +41,11 @@ import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSe
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
+import { isBufferedStreamingResourceId, resolveStreamingSessionModel } from '../../libs/speech/streaming-buffer'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
 import { useBilingualCaptionBus } from '../../services/bilingual-captions'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
-import { registerStageSpeechSessionOpener } from '../../services/stage-speech-session-host'
+import { clearBufferedSpeechTurn, isBufferedSpeechTurn, markBufferedSpeechTurn, registerStageSpeechSessionOpener } from '../../services/stage-speech-session-host'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -620,7 +621,10 @@ useIOTraceBridge(speechPipeline)
 void speechRuntimeStore.registerHost(speechPipeline)
 // Lets spark reactions and other non-chat speakers open the same
 // transport-aware session (bidirectional-ws or segmenter) as chat.
-const disposeStageSpeechSessionOpener = registerStageSpeechSessionOpener(createStageSpeechSession)
+const disposeStageSpeechSessionOpener = registerStageSpeechSessionOpener((options) => {
+  const session = createStageSpeechSession(options)
+  return session ? { session, buffered: isBufferedSpeechTurn(options.turnId) } : undefined
+})
 
 speechPipeline.on('onSpecial', (segment) => {
   if (segment.special) {
@@ -675,12 +679,11 @@ bindSpeakingStateToPlaybackManager(playbackManager, {
       // BroadcastChannel may be closed - don't break playback
     }
 
-    // Reveal the translation when its sentence ends, so the translated
-    // line and the spoken line stay aligned. Only the boundary item (the
-    // last piece of a sentence) advances the queue; word-limit pieces of a
-    // long sentence do not. The buffered WebSocket session emits one item
-    // for the whole turn without the flag and advances through
-    // `onSentenceBoundary` instead.
+    // Reveal the translation at its sentence end so both lines stay aligned.
+    // Only the boundary item (the last piece of a sentence) advances the
+    // queue. Word-limit pieces of a long sentence do not. A buffered
+    // WebSocket session emits one unflagged item and drops translation
+    // captions for the turn instead.
     if (item.sentenceBoundary) {
       bilingualCaptionBus.routePlaybackItem({
         turnId: item.turnId,
@@ -785,14 +788,12 @@ function setupAnalyser() {
 // decision point. See `packages/stage-ui/src/libs/speech/tts-session.ts`.
 let currentSession: StageTtsSession | null = null
 
-// Live bidirectional-ws sessions for every speaker (chat replies, spark
-// reactions). The streaming adapter bypasses speechPipeline and owns its
-// upstream WebSocket alone: `stopAll` purges scheduled items but cannot
-// close the socket, and `schedule()` keeps accepting sentences a
-// still-open socket delivers. `currentSession` only references chat, so
-// these sessions are cancelled through cancelLiveStreamingSessions on
-// stop, mute, interrupt/replace, and unmount. Each removes itself on
-// terminal onDone/onError.
+// Live bidirectional-ws sessions for chat replies and spark reactions.
+// The adapter bypasses speechPipeline and owns its WebSocket alone:
+// stopAll purges items but cannot close the socket, and schedule() keeps
+// accepting sentences. currentSession covers chat only, so cancel these
+// through cancelLiveStreamingSessions on stop, mute, interrupt, and
+// unmount. They untrack on onDone/onError.
 const liveStreamingSessions = new Set<StageTtsSession>()
 
 // Closes upstream WebSockets of every live streaming session (chat and
@@ -816,18 +817,9 @@ function stopSpeechOutput(reason: string) {
 }
 
 /**
- * Resolves the official streaming TTS model for the current Stage session.
+ * Builds the streaming session snapshot for one turn, or null when the turn
+ * must use the REST segmenter adapter.
  */
-function resolveStreamingSessionModel(): string | null {
-  const activeModel = activeSpeechModel.value as string | undefined
-  const sessionModel = activeModel?.includes('/')
-    ? activeModel
-    : providersStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
-  if (!sessionModel?.includes('/'))
-    return null
-  return sessionModel
-}
-
 function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null {
   if (speechMuted.value)
     return null
@@ -841,20 +833,17 @@ function buildStreamingSnapshot(turnId: string): StreamingSessionSnapshot | null
   const voiceId = activeSpeechVoice.value?.id
   if (!voiceId)
     return null
-  // Resolve the concrete streaming model id. The active speech model is only
-  // valid here when it carries the `<backend>/<api_resource_id>` shape the ws
-  // upstream expects — the HTTP TTS `auto` alias (and an empty selection after
-  // a provider switch) must NOT reach the bridge, so fall back to the
-  // server-curated default instead of a hardcoded id. Returns null (segmenter
-  // fallback) when neither resolves, rather than guessing a resource id.
-  const sessionModel = resolveStreamingSessionModel()
+  const sessionModel = resolveStreamingSessionModel(
+    activeSpeechModel.value as string | undefined,
+    providersStore.getDefaultModelForProvider(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID),
+  )
   if (!sessionModel)
     return null
   const apiResourceId = sessionModel.split('/', 2)[1]
   // TTS 2.0 / ICL 2.0 ship subtitles asynchronously relative to audio
   // (per the wire spec), so chunk-on-sentence-end would drop frames.
   // Buffer the entire session and decode at session.finished instead.
-  const bufferEntireSession = apiResourceId.startsWith('seed-tts-2.0') || apiResourceId.startsWith('seed-icl-2.0')
+  const bufferEntireSession = isBufferedStreamingResourceId(apiResourceId)
   return {
     model: sessionModel,
     voice: voiceId,
@@ -907,6 +896,7 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
   }
   // Terminal hooks fire asynchronously, after `session` is assigned.
   const untrackSession = () => {
+    clearBufferedSpeechTurn(turnId)
     if (session)
       liveStreamingSessions.delete(session)
   }
@@ -943,15 +933,6 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
         untrackSession()
         clearIfActive()
       },
-      onSentenceBoundary: () => {
-        // Only buffered TTS (one audio item for the whole session) uses
-        // upstream boundary events. Non-buffered streaming emits one item
-        // per sentence, whose playback start drives the queue. Advancing
-        // here too would double-count.
-        if (!streamingSnapshot?.bufferEntireSession)
-          return
-        bilingualCaptionBus.advancePlayback(turnId)
-      },
       onDone: () => {
         // Stream closed, but scheduled audio may still be playing. The
         // playback intent-drained event performs the final flush once audio
@@ -965,8 +946,14 @@ function createStageSpeechSession(options: StageSpeechSessionOptions): StageTtsS
   // translation captions align on the bidirectional-ws transport too.
   // Segmenter items already carry the turnId and this mapping is simply
   // unused for them.
-  if (session.intentId.startsWith('stream-'))
+  if (session.intentId.startsWith('stream-')) {
     liveStreamingSessions.add(session)
+    // Mark only a real buffered streaming session. A missing audio context
+    // makes the factory fall back to the REST segmenter above, which keeps
+    // captions; its hooks never clear a marker.
+    if (streamingSnapshot?.bufferEntireSession)
+      markBufferedSpeechTurn(turnId)
+  }
   bilingualCaptionBus.mapIntentToTurn(session.intentId, turnId)
   return session
 }
@@ -1026,6 +1013,11 @@ chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
 chatHookCleanups.push(onTokenTranslation(async (translation, context) => {
   if (context.turnId !== activeSpeechTurnId)
     return
+  // Buffered streams reveal translations during synthesis, before audio
+  // exists, so captions cannot follow playback. Skip them instead of
+  // showing a wrong line; the settings page warns about this protocol.
+  if (isBufferedSpeechTurn(context.turnId))
+    return
   bilingualCaptionBus.ingestTranslation(context.turnId, translation)
 }))
 
@@ -1053,18 +1045,13 @@ chatHookCleanups.push(onAssistantResponseEnd(async () => {
   const turnId = activeSpeechTurnId
   if (turnId && !activeTurnSpeechEnabled)
     bilingualCaptionBus.flushTurn(turnId)
-  // No timed translation dump here: translations for pairs playback never
-  // reaches are flushed when the utterance actually finishes — the playback
-  // manager's intent-drained event, speechPipeline onTurnEnd, or the
-  // streaming session's onDone hook. A timer at text-end would reveal every
-  // remaining translation while long replies are still speaking.
-  // Streaming sessions null-out via the onDone hook; segmenter sessions
-  // stay around until the next `onBeforeMessageComposed` cancels them
-  // (the segmenter pipeline's IntentHandle.end is idempotent and
-  // ResourceMessages still arrive after end() — clearing here would
-  // race with the pipeline's own cleanup). Keep the ref pointing at
-  // the just-ended session; it costs nothing and the next message
-  // replaces it.
+  // No timed dump: unreached pairs flush when playback finishes
+  // (intent-drained, speechPipeline onTurnEnd, streaming onDone). A
+  // text-end timer would reveal everything while a long reply still
+  // speaks. Keep the ended segmenter session: end() is idempotent and
+  // ResourceMessages arrive late, so clearing races pipeline cleanup.
+  // The next message replaces it.
+
   // const res = await embed({
   //   ...transformersProvider.embed('Xenova/nomic-embed-text-v1'),
   //   input: message,

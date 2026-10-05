@@ -9,7 +9,7 @@ import type { AssistantTurn, Conversation, Turn } from '../messages/types'
 import type { ChatHistoryItem, ChatSlices, ChatStreamEventContext, ChatToolReference, ContextMessage, StreamingAssistantMessage } from '../types/chat'
 import type { LlmUsage, StreamEvent, StreamOptions } from '../types/llm'
 
-import { createBilingualTurnSplitter, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
+import { createBilingualTurnSplitter, projectSpokenText, TTS_FLUSH_INSTRUCTION } from '@proj-airi/pipelines-audio'
 import { createQueue } from '@proj-airi/stream-kit'
 
 import { chatMessagesToTurns } from '../messages/chat-completions'
@@ -466,6 +466,35 @@ async function waitForProvider(work: Promise<unknown>, signal: AbortSignal) {
   }
   finally {
     signal.removeEventListener('abort', abort)
+  }
+}
+
+/**
+ * Projects a completed generated turn to spoken-only text for persisted
+ * history. buildContext replays generationTranscript verbatim on the next
+ * request, so an unprojected bilingual turn leaks every bracket translation
+ * back to the provider and keeps feeding the model UST examples after the
+ * feature is turned off. Only text segments are projected. Refusals, tool
+ * segments, tool invocations, model calls, and provider continuation stay
+ * intact for protocol replay.
+ */
+function projectTurnToSpoken(turn: AssistantTurn): AssistantTurn {
+  return {
+    ...turn,
+    rounds: turn.rounds.map(round => ({
+      ...round,
+      content: round.content.map((segment) => {
+        if (segment.type !== 'text')
+          return segment
+        const spoken = projectSpokenText(segment.text)
+        if (spoken === segment.text)
+          return segment
+        // Projection shifts every character offset, so the old citation spans
+        // no longer point at the cited range. Rebuild without them instead of
+        // replaying misaligned citations.
+        return { type: 'text', text: spoken }
+      }),
+    })),
   }
 }
 
@@ -1152,7 +1181,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       generationCompleted = true
-      buildingMessage.generationTranscript = generatedTurn
+      // Bilingual turns keep bracket translations inside the portable
+      // transcript; strip them before the message reaches stored history so
+      // the next provider request replays spoken text only.
+      buildingMessage.generationTranscript = bilingualSnapshot && generatedTurn
+        ? projectTurnToSpoken(generatedTurn)
+        : generatedTurn
       try {
         deps.onAssistantResponseRendered?.({
           ...correlation,
