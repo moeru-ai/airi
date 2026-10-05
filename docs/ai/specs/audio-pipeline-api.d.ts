@@ -108,18 +108,25 @@ export interface TurnRef {
   readonly turnId: string
 }
 
-/** Playback position estimates rendered audio. It does not prove perception or an exact spoken word boundary. */
+/** Rendered audio of one clip. It does not prove perception or an exact spoken word boundary. */
+export interface PlayedAudio {
+  readonly throughMs: number
+  /** Driver clock milliseconds of the first and last rendered sample. Undefined when no audio was rendered. */
+  readonly interval?: { readonly startMs: number, readonly endMs: number }
+}
+
 export interface PlaybackReceipt {
   readonly groupId: string
   readonly status: 'silent' | 'failed'
-  readonly played: readonly { clipId: string, throughMs: number }[]
+  readonly played: readonly ({ readonly clipId: string } & PlayedAudio)[]
   readonly error?: Error
 }
 
 /** One response owns one group. A stopped or finished group never reopens. */
 export interface PlaybackGroup {
   readonly id: string
-  enqueue: (clip: { id: string, audio: Blob | ReadableStream<PcmBlock> }) => Promise<'ended' | 'stopped' | 'failed'>
+  /** `startAtMs` is the earliest start on the driver clock. Clips in one group still start in order. */
+  enqueue: (clip: { id: string, audio: Blob | ReadableStream<PcmBlock>, startAtMs?: number }) => Promise<'ended' | 'stopped' | 'failed'>
   /** Seals enqueue and drains accepted clips. */
   finish: () => Promise<PlaybackReceipt>
   /** Seals enqueue synchronously, drops queued clips, and fades active clips on the audio clock. */
@@ -127,6 +134,8 @@ export interface PlaybackGroup {
 }
 
 export interface AudioPlayback {
+  /** The driver's audio clock in milliseconds. Browser playback uses `AudioContext.currentTime`. */
+  nowMs: () => number
   /** The returned handle has a fresh internal generation, even when labels match. */
   openGroup: (label: string) => PlaybackGroup
 }

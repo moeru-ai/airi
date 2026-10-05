@@ -245,6 +245,12 @@ Fade uses the audio clock. A suspended context must stop sources and clear sched
 Resume must not resurrect stopped audio. Host loss produces a failed receipt, not a successful silence claim.
 Playback receipts estimate rendered audio. They do not prove what the person heard or exactly which word completed.
 
+The playback driver owns the audio clock. `AudioPlayback.nowMs()` reads it.
+A clip can set `startAtMs` on that clock. A group still starts its clips in order.
+Each receipt entry reports `throughMs` and the rendered `interval` on the same clock.
+A caller can start later output relative to that interval, for example 2 seconds after a clip ends.
+Lanes, anchors, and late-producer policies are proposed in [the playback clock ADR](../adr/2026-10-05-schedule-playback-on-the-driver-clock.md).
+
 ## Resources and errors
 
 Audio adapters own stream backpressure, transport buffers, and media cleanup.
