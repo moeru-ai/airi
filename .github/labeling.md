@@ -33,6 +33,7 @@ Marking a draft ready reevaluates active change requests and subsequent file cha
 A maintainer has repository write access, as defined by GitHub's `latestOpinionatedReviews(writersOnly: true)` filter.
 Reviews from other users do not change the waiting labels.
 The newest active maintainer change request starts the author response cycle.
+If its reviewed commit is unavailable, the workflow preserves that PR's labels and continues with the remaining PRs.
 A later maintainer change request starts another cycle.
 Comments do not replace a change request.
 

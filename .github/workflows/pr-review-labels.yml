@@ -68,7 +68,10 @@ jobs:
                 const request = requests.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
                 if (request) {
                   desired = 'pr-review/waiting-on-author';
-                  if (!request.commit) throw new Error('The change request has no reviewed commit');
+                  if (!request.commit) {
+                    console.warn(`PR #${pull.number} has no reviewed commit. Leaving labels unchanged.`);
+                    continue;
+                  }
                   const commits = [];
                   let commitCursor = null;
                   do {
