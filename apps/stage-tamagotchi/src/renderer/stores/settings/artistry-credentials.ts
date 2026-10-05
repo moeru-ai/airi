@@ -37,6 +37,15 @@ export const useArtistryCredentialsStore = defineStore('tamagotchi-artistry-cred
   async function hydrateAndMigrateCredentials() {
     try {
       const config = await getArtistryConfig()
+      if (config?.replicateApiKeyUnavailable || config?.nanobananaApiKeyUnavailable) {
+        // NOTICE: the keychain was unavailable while main tried to decrypt a non-empty
+        // stored key. Treat this exactly like a failed hydration (falls into the catch
+        // below) rather than accepting the empty-string placeholder as real -- otherwise
+        // the push watcher's first run would re-sync that empty value and permanently
+        // erase the ciphertext. (review: PR #2512 discussion r4179494678)
+        throw new Error('Secure storage is currently unavailable; cannot safely hydrate Artistry API keys')
+      }
+
       const mainGlobals = config?.globals ?? {}
       const mainReplicateKey = mainGlobals.replicateApiKey ?? ''
       const mainNanobananaKey = mainGlobals.nanobananaApiKey ?? ''

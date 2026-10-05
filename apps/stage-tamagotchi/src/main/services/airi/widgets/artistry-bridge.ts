@@ -1,8 +1,9 @@
 import type { createContext as createMainEventaContext } from '@moeru/eventa/adapters/electron/main'
+import type { ArtistryGetConfigResult, ArtistrySetApiKeysPayload } from '@proj-airi/stage-shared'
 import type { ProvidedBy } from 'injeca'
 import type { InferOutput } from 'valibot'
 
-import type { artistryConfigSchema } from '../../../configs/artistry'
+import type { ArtistryConfig, artistryConfigSchema } from '../../../configs/artistry'
 import type { Config } from '../../../libs/electron/persistence'
 import type { WidgetsWindowManager } from '../../../windows/widgets'
 import type { ArtistryProvider, ArtistryRequest } from './providers/base'
@@ -16,6 +17,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { artistryGenerateHeadless, artistryGetConfig, artistrySetApiKeys, artistrySyncConfig, artistryTestComfyUIConnection, errorMessageFromValue } from '@proj-airi/stage-shared'
 import { injeca } from 'injeca'
 
+import { isApiKeyUnavailable } from '../../../configs/artistry'
 import { ComfyUIProvider } from './providers/comfyui'
 import { NanoBananaProvider } from './providers/nanobanana'
 import { ReplicateProvider } from './providers/replicate'
@@ -462,10 +464,49 @@ async function handleArtistryTrigger(params: {
   }
 }
 
+// get() alone can't tell a genuinely empty key apart from one whose ciphertext exists but
+// can't currently be decrypted (e.g. OS keychain unavailable) — getEncrypted() +
+// isApiKeyUnavailable() recover that distinction for the renderer, which must not treat
+// "unavailable" the same as "empty" (see artistry-credentials.ts's hydration gate).
+// (review: PR #2512 discussion r4179494678)
+export function resolveArtistryGetConfigResult(artistryConfig: ArtistryConfig): ArtistryGetConfigResult {
+  const current = artistryConfig.get()
+  const encrypted = artistryConfig.getEncrypted()
+  return {
+    provider: current?.artistryProvider ?? DEFAULT_ARTISTRY_PROVIDER,
+    globals: current?.artistryGlobals ?? {},
+    replicateApiKeyUnavailable: isApiKeyUnavailable(encrypted?.artistryGlobals?.replicateApiKey ?? ''),
+    nanobananaApiKeyUnavailable: isApiKeyUnavailable(encrypted?.artistryGlobals?.nanobananaApiKey ?? ''),
+  }
+}
+
+// Narrow counterpart to artistrySyncConfig used only for one-time legacy-localStorage
+// credential migration (apps/stage-tamagotchi/src/renderer/stores/settings/
+// artistry-credentials.ts). Deliberately does not touch cardDefaults — a migration run has
+// no business overwriting the in-memory character-level overrides the sync handler below
+// manages.
+export async function persistArtistryApiKeys(artistryConfig: ArtistryConfig, payload: ArtistrySetApiKeysPayload): Promise<void> {
+  const current = artistryConfig.get()
+  artistryConfig.update({
+    artistryProvider: current?.artistryProvider ?? DEFAULT_ARTISTRY_PROVIDER,
+    artistryGlobals: {
+      ...(current?.artistryGlobals ?? DEFAULT_ARTISTRY_GLOBALS),
+      ...(payload.replicateApiKey !== undefined && { replicateApiKey: payload.replicateApiKey }),
+      ...(payload.nanobananaApiKey !== undefined && { nanobananaApiKey: payload.nanobananaApiKey }),
+    },
+  })
+  // NOTICE: await a durable write before resolving -- the renderer's migration flow only
+  // clears the legacy plaintext localStorage copy after this invoke resolves successfully.
+  // update() alone only schedules a throttled, error-swallowing save (see persistence.ts);
+  // flush() performs an immediate write and surfaces real failures.
+  // (review: PR #2512 discussion r4179494683)
+  await artistryConfig.flush()
+}
+
 export async function setupArtistryBridge(params: {
   widgetsManager: WidgetsWindowManager
   context?: ReturnType<typeof createMainEventaContext>['context']
-  artistryConfig: Config<typeof artistryConfigSchema>
+  artistryConfig: ArtistryConfig
 }) {
   log.log('🚀 Initializing Artistry bridge (Spawn + Update Interceptor + Headless Handler)...')
 
@@ -475,29 +516,9 @@ export async function setupArtistryBridge(params: {
       return await generateHeadless(payload)
     })
 
-    defineInvokeHandler(params.context, artistryGetConfig, () => {
-      const current = params.artistryConfig.get()
-      return {
-        provider: current?.artistryProvider ?? DEFAULT_ARTISTRY_PROVIDER,
-        globals: current?.artistryGlobals ?? {},
-      }
-    })
+    defineInvokeHandler(params.context, artistryGetConfig, () => resolveArtistryGetConfigResult(params.artistryConfig))
 
-    // Narrow counterpart to artistrySyncConfig used only for one-time legacy-localStorage
-    // credential migration (apps/stage-tamagotchi/src/renderer/stores/settings/
-    // artistry-credentials.ts). Deliberately does not touch cardDefaults — a migration run
-    // has no business overwriting the in-memory character-level overrides below.
-    defineInvokeHandler(params.context, artistrySetApiKeys, (payload) => {
-      const current = params.artistryConfig.get()
-      params.artistryConfig.update({
-        artistryProvider: current?.artistryProvider ?? DEFAULT_ARTISTRY_PROVIDER,
-        artistryGlobals: {
-          ...(current?.artistryGlobals ?? DEFAULT_ARTISTRY_GLOBALS),
-          ...(payload.replicateApiKey !== undefined && { replicateApiKey: payload.replicateApiKey }),
-          ...(payload.nanobananaApiKey !== undefined && { nanobananaApiKey: payload.nanobananaApiKey }),
-        },
-      })
-    })
+    defineInvokeHandler(params.context, artistrySetApiKeys, payload => persistArtistryApiKeys(params.artistryConfig, payload))
 
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
       log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)

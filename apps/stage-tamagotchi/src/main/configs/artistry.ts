@@ -1,3 +1,7 @@
+import type { InferOutput } from 'valibot'
+
+import type { Config } from '../libs/electron/persistence'
+
 import { Buffer } from 'node:buffer'
 
 import { safeStorage } from 'electron'
@@ -46,6 +50,12 @@ function decryptApiKey(value: string): string {
     // IPC handler) that must keep working even when the keychain backend is unavailable.
     // Returning the undecryptable ciphertext as-is would hand callers a bogus "key" string;
     // treating it as absent is the safe, non-crashing choice.
+    //
+    // This does mean a caller cannot tell "really empty" apart from "unavailable right now"
+    // from this return value alone. isApiKeyUnavailable() below exists for the one caller
+    // (the artistryGetConfig IPC handler) that must make that distinction, since re-syncing
+    // this placeholder as if it were a real empty value would permanently erase the
+    // ciphertext still sitting on disk. (review: PR #2512 discussion r4179494678)
     console.warn('Secure storage unavailable; treating stored artistry API key as unset')
     return ''
   }
@@ -58,7 +68,21 @@ function decryptApiKey(value: string): string {
   }
 }
 
-export function createArtistryConfig() {
+// A non-empty stored (encrypted or legacy-plaintext) value that currently can't be decrypted
+// is categorically different from an empty value: the former still holds real ciphertext and
+// must never be treated as, or re-synced as, a deletion. Takes the *raw* stored value (as
+// returned by ArtistryConfig['getEncrypted'], before decryptApiKey's unset-on-unavailable
+// fallback) so it can see past that fallback. (review: PR #2512 discussion r4179494678)
+export function isApiKeyUnavailable(rawValue: string): boolean {
+  return !!rawValue && !safeStorage.isEncryptionAvailable()
+}
+
+export type ArtistryConfig = Config<typeof artistryConfigSchema> & {
+  /** Returns the stored value as-is (still encrypted, or legacy plaintext), without decryptApiKey's unset-on-unavailable fallback. Pairs with isApiKeyUnavailable() above. */
+  getEncrypted: () => InferOutput<typeof artistryConfigSchema> | undefined
+}
+
+export function createArtistryConfig(): ArtistryConfig {
   const config = createConfig('artistry', 'options.json', artistryConfigSchema)
   config.setup()
 
@@ -88,5 +112,5 @@ export function createArtistryConfig() {
     },
   })
 
-  return config
+  return { ...config, getEncrypted: rawGet }
 }

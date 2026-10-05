@@ -177,4 +177,40 @@ describe('createArtistryConfig', () => {
     expect(() => config.get()).not.toThrow()
     expect(config.get()?.artistryGlobals?.replicateApiKey).toBe('')
   })
+
+  // ROOT CAUSE:
+  //
+  // get() alone can't tell a genuinely empty key apart from one whose ciphertext exists but
+  // currently can't be decrypted -- both read back as ''. A caller that round-trips get()'s
+  // output back through update() (as the renderer's hydrate-then-push flow does) can't tell
+  // it just captured a placeholder, and would persist that '' over the real ciphertext,
+  // destroying it even after the keychain becomes available again.
+  //
+  // https://github.com/moeru-ai/airi/pull/2512#discussion_r4179494678
+  //
+  // We fixed this by exposing getEncrypted() (the raw, pre-decryption stored value) alongside
+  // isApiKeyUnavailable(), so a caller that needs to make this distinction (the
+  // artistryGetConfig bridge handler) can, without having to change what get() itself returns
+  // for every other caller.
+  it('exposes the real ciphertext via getEncrypted() even when get() reports the key as unset', async () => {
+    const { setEncryptionAvailable } = mockElectronEnvironment()
+    const { createArtistryConfig, isApiKeyUnavailable } = await import('./artistry')
+
+    const config = createArtistryConfig()
+    config.setup()
+    config.update(artistryPayload({ replicateApiKey: REAL_REPLICATE_KEY }))
+
+    setEncryptionAvailable(false)
+
+    expect(config.get()?.artistryGlobals?.replicateApiKey).toBe('')
+    const encryptedReplicateApiKey = config.getEncrypted()?.artistryGlobals?.replicateApiKey ?? ''
+    expect(encryptedReplicateApiKey).not.toBe('')
+    expect(encryptedReplicateApiKey).not.toBe(REAL_REPLICATE_KEY)
+    expect(isApiKeyUnavailable(encryptedReplicateApiKey)).toBe(true)
+
+    // An actually-empty key (never set) must not be flagged as "unavailable" just because
+    // the keychain happens to be down -- there's no ciphertext at risk of being destroyed.
+    const encryptedNanobananaApiKey = config.getEncrypted()?.artistryGlobals?.nanobananaApiKey ?? ''
+    expect(isApiKeyUnavailable(encryptedNanobananaApiKey)).toBe(false)
+  })
 })

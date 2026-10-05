@@ -153,6 +153,43 @@ describe('useArtistryCredentialsStore', async () => {
     expect(invokeMocks.syncConfig).not.toHaveBeenCalled()
   })
 
+  // ROOT CAUSE:
+  //
+  // decryptApiKey degrades an undecryptable (keychain unavailable) stored key to '' rather
+  // than throwing, so getConfig's response can't be told apart from "really empty" by its
+  // globals alone. hydrateAndMigrateCredentials used to accept that '' as a successful
+  // hydration, flip credentialsHydrated to true, and let the immediate push watcher re-sync
+  // the empty value through artistrySyncConfig -- permanently erasing the real ciphertext,
+  // since encryptApiKey('') never checks the keychain before persisting an empty string.
+  //
+  // https://github.com/moeru-ai/airi/pull/2512#discussion_r4179494678
+  //
+  // We fixed this by having main's getConfig response flag *Unavailable fields, and treating
+  // either flag exactly like a failed hydration here -- credentialsHydrated stays false, so
+  // the push watcher never fires and the ciphertext is left untouched until a later restart
+  // finds the keychain available again.
+  it('never re-syncs an unavailable credential as an empty value', async () => {
+    invokeMocks.getConfig.mockImplementation(async () => ({
+      provider: 'none',
+      globals: { replicateApiKey: '', nanobananaApiKey: '' },
+      replicateApiKeyUnavailable: true,
+    }))
+
+    const store = useArtistryCredentialsStore()
+
+    await vi.waitFor(() => {
+      expect(invokeMocks.getConfig).toHaveBeenCalled()
+    })
+    await nextTick()
+    expect(store.credentialsHydrated).toBe(false)
+
+    useArtistryStore().activeProvider = 'replicate'
+    await nextTick()
+
+    expect(invokeMocks.syncConfig).not.toHaveBeenCalled()
+    expect(invokeMocks.setApiKeys).not.toHaveBeenCalled()
+  })
+
   it('treats main as authoritative over a stale legacy key and still clears it', async () => {
     legacyStorageRefs.replicate.value = 'stale-legacy-value'
     invokeMocks.getConfig.mockImplementation(async () => ({ provider: 'none', globals: { replicateApiKey: 'main-encrypted-value', nanobananaApiKey: '' } }))

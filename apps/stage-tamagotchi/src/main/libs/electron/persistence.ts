@@ -59,6 +59,14 @@ export interface Config<TSchema extends PersistedSchema> {
   get: () => InferOutput<TSchema> | undefined
   update: (newData: InferOutput<TSchema>) => void
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
+  /**
+   * Writes the current in-memory state to disk immediately, bypassing the throttled,
+   * error-swallowing `save()` that `update()` schedules. Resolves only once the write+rename
+   * actually completed, and rejects with the real error instead of only logging it. Callers
+   * that must durably confirm a write before taking an irreversible follow-up action (e.g.
+   * deleting the only other copy of a value) should await this instead of `update()` alone.
+   */
+  flush: () => Promise<void>
 }
 
 export function createConfig<TSchema extends PersistedSchema>(
@@ -77,18 +85,26 @@ export function createConfig<TSchema extends PersistedSchema>(
     return diagnostics
   }
 
+  const writeConfigToDisk = async () => {
+    const path = configPath()
+    await ensureConfigDirectory(path)
+    const tmpPath = `${path}.${randomUUID()}.tmp`
+    await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
+    await rename(tmpPath, path)
+  }
+
   const save = throttle(async () => {
     try {
-      const path = configPath()
-      await ensureConfigDirectory(path)
-      const tmpPath = `${path}.${randomUUID()}.tmp`
-      await writeFile(tmpPath, JSON.stringify(persistenceMap.get(key)))
-      await rename(tmpPath, path)
+      await writeConfigToDisk()
     }
     catch (error) {
       console.error('Failed to save config', error)
     }
   }, 250)
+
+  // Writes the current (already-merged) persistenceMap state, so it's correct regardless of
+  // any still-pending throttled save() from an earlier update() call racing with this one.
+  const flush = () => writeConfigToDisk()
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
     try {
@@ -179,5 +195,6 @@ export function createConfig<TSchema extends PersistedSchema>(
     get,
     update,
     getDiagnostics,
+    flush,
   }
 }
