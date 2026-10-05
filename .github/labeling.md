@@ -46,5 +46,8 @@ The label workflow reads current GitHub API data. It never checks out PR code or
 Fork workflow approval requirements can delay review events. The hourly run also handles these PRs.
 Manual hold, deployment, and merge labels remain outside review automation.
 
-The existing Sync Labels workflow creates category labels from `labels.yml`.
+The existing Sync Labels workflow creates labels and updates their descriptions and colors from `labels.yml`.
+It preserves repository labels absent from the manifest because `prune` is false.
+Restored testing, decision, agent, and `pr-review/waiting-on-maintainer` labels remain under human control.
+The automatic handoff uses `pr-review/waiting-maintainer` and `pr-review/waiting-on-author`.
 The review workflow also creates missing waiting labels.
