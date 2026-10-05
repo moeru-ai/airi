@@ -156,6 +156,20 @@
 > brew install --cask airi
 > ```
 
+> [!TIP]
+> You can run the desktop version with Nix:
+>
+> ```shell
+> nix run github:moeru-ai/airi
+> ```
+>
+> On NixOS, use the FHS shell defined in `flake.nix`:
+>
+> ```shell
+> nix develop .#fhs
+> pnpm dev:tamagotchi
+> ```
+
 > [!WARNING]
 > **Attention:** We **do not** have any officially minted cryptocurrency or token associated with this project. Please check the information and proceed with caution.
 
@@ -271,79 +285,37 @@ Capable of
 
 ## Development
 
-> For detailed instructions to develop this project, follow [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
+> For detailed development instructions, see [CONTRIBUTING.md](./.github/CONTRIBUTING.md).
 
-> [!NOTE]
-> By default, `pnpm dev` will start the development server for the Stage Web (browser version). If you would
-> like to try developing the desktop version, please make sure you read [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
-> to setup the environment correctly.
+Install the pinned tools and project dependencies:
 
 ```shell
-pnpm i
-pnpm dev
+mise install
+mise exec -- pnpm install
 ```
 
-### Stage Web (Browser Version at [airi.moeru.ai](https://airi.moeru.ai))
+### Stage Web (Browser version at [airi.moeru.ai](https://airi.moeru.ai))
 
 ```shell
 pnpm dev
 ```
 
-### Stage Tamagotchi (Desktop Version)
+### Stage Tamagotchi (Desktop version)
 
 ```shell
 pnpm dev:tamagotchi
 ```
 
-A Nix package for Tamagotchi is included. To run airi with Nix, first make sure to enable flakes, then run:
-
-```shell
-nix run github:moeru-ai/airi
-```
-
-#### NixOS
-
-Electron requires shared libraries that aren't in standard paths on NixOS. Use the FHS shell defined in `flake.nix`:
-
-```shell
-nix develop .#fhs
-pnpm dev:tamagotchi
-```
-
-### Stage Pocket (Mobile Version)
-
-Start the development server for the capacitor:
+### Stage Pocket (Mobile version)
 
 ```shell
 pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
-# Or
-CAPACITOR_DEVICE_ID_IOS="<DEVICE_ID_OR_SIMULATOR_NAME>" pnpm dev:pocket:ios
 ```
 
-Quote the target: simulator names such as `iPhone 16 Pro` contain spaces.
-
-You can see the list of available devices and simulators by running `pnpm -F @proj-airi/stage-pocket exec cap run ios --list`. `@capacitor/cli` is declared in `apps/stage-pocket`, so `cap` does not resolve from the repository root.
-
-If you need to connect server channel on pocket in wireless mode, you need to start tamagotchi as root:
-
-```shell
-sudo pnpm dev:tamagotchi
-```
-
-Then enable secure websocket in tamagotchi `settings/connections`.
-
-### Documentation Site
+### Documentation site
 
 ```shell
 pnpm dev:docs
-```
-
-### Publish
-
-Run `bumpp` to update the monorepo version:
-
-```shell
-npx bumpp --no-commit --no-tag
 ```
 
 ## Support of LLM API Providers (powered by [xsai](https://github.com/moeru-ai/xsai))

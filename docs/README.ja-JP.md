@@ -154,6 +154,13 @@
 > brew install --cask airi
 > ```
 
+> [!TIP]
+> Nix でデスクトップ版を実行できます：
+>
+> ```shell
+> nix run github:moeru-ai/airi
+> ```
+
 > [!WARNING]
 > **ご注意：** 当プロジェクトでは、公式の暗号通貨やトークン等は**一切発行しておりません**。誤情報などにご注意ください。
 
@@ -269,82 +276,37 @@
 
 ## 開発
 
-> このプロジェクトの詳細な開発手順については、[CONTRIBUTING.md](../.github/CONTRIBUTING.md)を参照してください
+> このプロジェクトの詳細な開発手順については、[CONTRIBUTING.md](../.github/CONTRIBUTING.md)を参照してください。
 
-> [!NOTE]
-> デフォルトで `pnpm dev` は Stage Web（ブラウザ版）の開発サーバーを起動します。デスクトップ版を試す場合は、まず [CONTRIBUTING.md](../.github/CONTRIBUTING.md) を読み、環境を正しくセットアップしてください。
+固定バージョンのツールとプロジェクトの依存関係をインストールします：
 
 ```shell
-pnpm i
+mise install
+mise exec -- pnpm install
+```
+
+### ブラウザ版（[airi.moeru.ai](https://airi.moeru.ai)）
+
+```shell
 pnpm dev
 ```
 
-### ステージウェブ（ブラウザ版）
-
-```shell
-pnpm dev
-```
-
-### ステージたまごっち（デスクトップアプリ）
+### デスクトップ版
 
 ```shell
 pnpm dev:tamagotchi
 ```
 
-たまごっち用の Nix パッケージも用意しています。flakes を有効化した上で、次のように実行できます：
+### モバイル版
 
 ```shell
-nix run github:moeru-ai/airi
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
 ```
-
-### Stage Pocket（モバイル版）
-
-Capacitor Web 版の開発サーバーを起動します：
-
-```shell
-pnpm dev:pocket
-```
-
-上記コマンドの出力から IP アドレスを確認してください：
-
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-Xcode プロジェクトを開きます：
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-Xcode が開いたら、"Run" ボタンをクリックして iPhone 上でアプリを実行できます。
-
-ワイヤレスモードで Pocket のサーバーチャンネルへ接続する必要がある場合は、Tamagotchi を root 権限で起動してください：
-
-```shell
-sudo pnpm dev:tamagotchi
-```
-
-その後、Tamagotchi の `settings/connections` で secure websocket を有効にしてください。
 
 ### ドキュメントサイト
 
 ```shell
 pnpm dev:docs
-```
-
-### リリース
-
-`bumpp` を実行してモノレポのバージョンを更新してください：
-
-```shell
-npx bumpp --no-commit --no-tag
 ```
 
 ## サポートされているLLM APIプロバイダー（[xsai](https://github.com/moeru-ai/xsai)によって提供）

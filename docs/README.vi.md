@@ -154,6 +154,13 @@
 > brew install --cask airi
 > ```
 
+> [!TIP]
+> Bạn có thể chạy phiên bản desktop bằng Nix:
+>
+> ```shell
+> nix run github:moeru-ai/airi
+> ```
+
 > [!WARNING]
 > **Chú ý:** Chúng tôi **không** phát hành bất kỳ loại tiền điện tử hay token chính thức nào liên quan đến dự án này. Hãy kiểm tra kỹ thông tin trước khi tham gia.
 
@@ -269,82 +276,37 @@ Khả năng:
 
 ## Phát Triển
 
-> Để xem hướng dẫn chi tiết phát triển, tham khảo [CONTRIBUTING.md](../.github/CONTRIBUTING.md)
+> Để xem hướng dẫn chi tiết phát triển, tham khảo [CONTRIBUTING.md](../.github/CONTRIBUTING.md).
 
-> [!NOTE]
-> Mặc định, `pnpm dev` sẽ khởi chạy server cho Stage Web (phiên bản trình duyệt). Nếu muốn phát triển bản desktop, hãy đọc [CONTRIBUTING.md](../.github/CONTRIBUTING.md) để cấu hình đúng môi trường.
+Cài đặt các công cụ đúng phiên bản và các gói phụ thuộc của dự án:
 
 ```shell
-pnpm i
+mise install
+mise exec -- pnpm install
+```
+
+### Phiên bản web ([airi.moeru.ai](https://airi.moeru.ai))
+
+```shell
 pnpm dev
 ```
 
-### Stage Web (Bản web tại [airi.moeru.ai](https://airi.moeru.ai))
-
-```shell
-pnpm dev
-```
-
-### Stage Tamagotchi (phiên bản máy tính)
+### Phiên bản desktop
 
 ```shell
 pnpm dev:tamagotchi
 ```
 
-Gói Nix dành cho Tamagotchi được bao gồm. Để chạy airi với Nix, trước tiên hãy đảm bảo bạn đã bật flakes, sau đó chạy:
+### Phiên bản di động
 
 ```shell
-nix run github:moeru-ai/airi
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
 ```
-
-### Stage Pocket (phiên bản di động)
-
-Khởi chạy server phát triển cho phiên bản web Capacitor:
-
-```shell
-pnpm dev:pocket
-```
-
-Kiểm tra địa chỉ IP trong output của lệnh trên:
-
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-Mở project Xcode:
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-Sau đó Xcode sẽ mở, và bạn có thể bấm nút "Run" để chạy app trên iPhone.
-
-Nếu cần kết nối server channel trên Pocket ở chế độ không dây, bạn cần khởi chạy Tamagotchi với quyền root:
-
-```shell
-sudo pnpm dev:tamagotchi
-```
-
-Sau đó bật secure websocket trong `settings/connections` của Tamagotchi.
 
 ### Trang tài liệu
 
 ```shell
 pnpm dev:docs
-```
-
-### Xuất bản
-
-Chạy `bumpp` để cập nhật phiên bản monorepo:
-
-```shell
-npx bumpp --no-commit --no-tag
 ```
 
 ## Các LLM API hỗ trợ (cung cấp bởi [xsai](https://github.com/moeru-ai/xsai))
