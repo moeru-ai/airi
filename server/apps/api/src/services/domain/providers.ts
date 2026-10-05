@@ -1,35 +1,22 @@
+import type { InferOutput } from 'valibot'
+
 import type { Database } from '../../libs/db'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 import { useLogger } from '@guiiai/logg'
 import { createNotFoundError } from '@proj-airi/http-error-shared'
 import { and, eq, isNull } from 'drizzle-orm'
+import { parse, record, string, unknown } from 'valibot'
 
 import * as schema from '../../schemas/providers'
+import { providerConfigDtoSchema, upsertProviderConfigSchema } from './providers-schema'
 
 const logger = useLogger('providers')
 
 const CONFIG_MODEL_NAME = 'user-provider-configs'
 
-interface ProviderConfigDto {
-  id: string
-  instanceId: string
-  ownerId: string
-  definitionId: string
-  displayName?: string | null
-  config: Record<string, unknown>
-  createdAt: string
-  updatedAt: string
-  deletedAt: string | null
-}
-
-interface UpsertProviderConfigInput {
-  instanceId: string
-  ownerId: string
-  definitionId: string
-  displayName?: string | null
-  config: Record<string, unknown>
-}
+type ProviderConfigDto = InferOutput<typeof providerConfigDtoSchema>
+type UpsertProviderConfigInput = InferOutput<typeof upsertProviderConfigSchema>
 
 /** Returns the envelope AAD that binds one provider config ciphertext to its row. */
 export function providerConfigAad(ownerId: string, instanceId: string) {
@@ -46,11 +33,11 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
 
   function decryptConfig(ownerId: string, instanceId: string, ciphertext: string): Record<string, unknown> {
     const plaintext = envelopeCrypto.decryptKey(ciphertext, providerConfigAad(ownerId, instanceId)).toString('utf8')
-    return JSON.parse(plaintext) as Record<string, unknown>
+    return parse(record(string(), unknown()), JSON.parse(plaintext))
   }
 
   function toDto(row: schema.UserProviderConfig): ProviderConfigDto {
-    return {
+    return parse(providerConfigDtoSchema, {
       id: row.id,
       instanceId: row.instanceId,
       ownerId: row.ownerId,
@@ -60,7 +47,7 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       deletedAt: row.deletedAt?.toISOString() ?? null,
-    }
+    })
   }
 
   async function findOwnedRow(instanceId: string, ownerId: string) {
@@ -80,6 +67,10 @@ export function createProviderService(db: Database, envelopeCrypto: EnvelopeCryp
       return rows.map(row => toDto(row))
     },
 
+    /**
+     * Triggering workflow:
+     * Provider PUT route -> account-bound metadata/config -> encrypted stable-instance upsert -> replica response.
+     */
     async upsert(input: UpsertProviderConfigInput): Promise<ProviderConfigDto> {
       const now = new Date()
       const ciphertext = encryptConfig(input.ownerId, input.instanceId, input.config)

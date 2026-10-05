@@ -246,6 +246,13 @@
       "when": 1794211010996,
       "tag": "0034_llm_request_log_created_index",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795152733645,
+      "tag": "0035_add_provider_display_name",
+      "breakpoints": true
     }
   ]
 }
