@@ -32,7 +32,10 @@ import JournalToolCallBlock from './chat-tool-renderers/journal-tool-call-block.
 import ChatViewportLayout from './chat-viewport-layout.vue'
 
 import { electronOpenSettings } from '../../shared/eventa'
+import { useChatFeedExpiry } from '../composables/use-chat-feed-expiry'
+import { DEFAULT_CHARACTERS_PER_SECOND, DEFAULT_MINIMUM_SECONDS } from '../composables/use-danmaku-feed-settings'
 import { useHearingInputChannel } from '../composables/use-hearing-input-channel'
+import { useSpeechOutputVoicing } from '../composables/use-speech-output-voicing'
 import { artistryToolReferences, computerUseToolReferences, widgetToolReferences } from '../stores/tools'
 
 const props = withDefaults(defineProps<{
@@ -56,10 +59,31 @@ const props = withDefaults(defineProps<{
    * newest message.
    */
   passive?: boolean
+  /**
+   * `true` hides each message after the time to read it, and a spoken reply
+   * when its speech ends. Hidden messages stay in the session. `false` shows
+   * all of them again.
+   */
+  expireMessages?: boolean
+  /**
+   * Reading speed for `expireMessages`, in visible characters per second.
+   *
+   * @default DEFAULT_CHARACTERS_PER_SECOND
+   */
+  readingSpeed?: number
+  /**
+   * Shortest time that a message shows for `expireMessages`, in seconds.
+   *
+   * @default DEFAULT_MINIMUM_SECONDS
+   */
+  minimumShowSeconds?: number
 }>(), {
   floating: false,
   composerFoldable: false,
   passive: false,
+  expireMessages: false,
+  readingSpeed: DEFAULT_CHARACTERS_PER_SECOND,
+  minimumShowSeconds: DEFAULT_MINIMUM_SECONDS,
 })
 
 /** Whether a foldable composer is folded away. */
@@ -212,6 +236,16 @@ const historyMessages = computed(() => messages.value)
 const assistantLabel = computed(() => activeCard.value?.name?.trim() || undefined)
 const isActiveSessionSending = computed(() => activeTurns.value.some(turn => turn.sessionId === activeSessionId.value))
 const visibleStreamingMessage = streamingMessage
+const speechOutput = useSpeechOutputVoicing()
+const { expiredBefore } = useChatFeedExpiry({
+  messages: historyMessages,
+  generatingMessageId: () => isActiveSessionSending.value ? streamingMessage.value?.id : undefined,
+  voicing: speechOutput.voicing,
+  voicingKnown: speechOutput.known,
+  enabled: () => props.expireMessages,
+  charactersPerSecond: () => props.readingSpeed,
+  minimumSeconds: () => props.minimumShowSeconds,
+})
 
 async function handleDeleteMessage(payload: { message: ChatHistoryItem, index: number }) {
   const { index, message } = payload
@@ -379,6 +413,7 @@ defineExpose({
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :expired-before="expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"

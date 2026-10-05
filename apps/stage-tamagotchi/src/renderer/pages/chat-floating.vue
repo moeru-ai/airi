@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import type { ChatFloatingState } from '../../shared/eventa'
 
-import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { getElectronEventaContext, useElectronEventaInvoke, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useLocalStorage } from '@vueuse/core'
+import { useElementBounding, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ChatDanmakuFeedMenu from '../components/chat-window/chat-danmaku-feed-menu.vue'
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../components/InteractiveArea.vue'
@@ -23,6 +24,7 @@ import {
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
+import { useDanmakuFeedSettings } from '../composables/use-danmaku-feed-settings'
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
@@ -63,6 +65,25 @@ const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', tr
 // composer tab stay in control, and an unfolded composer pauses all of this.
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const passiveFeed = computed(() => danmaku.value && fadeOnHoverEnabled.value && composerFolded.value)
+// The cursor comes from the main process, because a click-through window
+// gets no mouse events. It is over the feed when it is inside the history.
+const { x: cursorX, y: cursorY } = useElectronRelativeMouse()
+const historyBounds = useElementBounding(() => interactiveArea.value?.historyLayer)
+const cursorOverHistory = computed(() =>
+  cursorX.value >= historyBounds.left.value && cursorX.value < historyBounds.right.value
+  && cursorY.value >= historyBounds.top.value && cursorY.value < historyBounds.bottom.value,
+)
+// The folded danmaku feed hides read messages. They come back while the
+// cursor is over the feed, like notifications, and while the composer is
+// unfolded, so the history stays in reach. A passive feed fades out under
+// the cursor instead, so there the cursor does not bring them back.
+const { hideReadMessages, charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
+const expireMessages = computed(() => {
+  if (!danmaku.value || !composerFolded.value || !hideReadMessages.value)
+    return false
+
+  return passiveFeed.value || !cursorOverHistory.value
+})
 const { hitTest } = useChatFloatingClickThrough({
   pinned: () => state.value.pinned,
   passiveArea: () => passiveFeed.value ? interactiveArea.value?.historyLayer : undefined,
@@ -245,6 +266,7 @@ function moveByKeyboard(delta: WindowDelta) {
               <span class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
             </button>
             <ChatSpeechMuteButton :class="['shrink-0 rounded-full!']" />
+            <ChatDanmakuFeedMenu v-if="danmaku" :class="['shrink-0 rounded-full!']" />
             <ChatWindowStyleMenu :class="['shrink-0 rounded-full!']" />
           </div>
 
@@ -272,6 +294,9 @@ function moveByKeyboard(delta: WindowDelta) {
             floating
             :composer-foldable="danmaku"
             :passive="passiveFeed"
+            :expire-messages="expireMessages"
+            :reading-speed="charactersPerSecond"
+            :minimum-show-seconds="minimumSeconds"
           />
         </div>
       </div>

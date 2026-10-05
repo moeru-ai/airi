@@ -40,8 +40,9 @@ import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSe
 import { getDefinedProvider } from '../../libs/providers/providers'
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../../libs/providers/providers/official'
 import { bindSpeakingStateToPlaybackManager } from '../../libs/speech/playback-speaking-state'
+import { SpeechVoicingTracker } from '../../libs/speech/speech-voicing'
 import { createStageTtsSession } from '../../libs/speech/tts-session'
-import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
+import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -143,11 +144,16 @@ const {
   spineRenderScale,
 } = storeToRefs(settingsStore)
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
+/** `voicing` of `SpeechOutputPlaybackState` in the speech bus. The speech pipeline listeners below keep it. */
+const speechVoicing = shallowRef(false)
 const disposePlaybackStateHandler = defineInvokeHandler(
   getSpeechBusContext(),
   speechOutputGetPlaybackState,
-  () => ({ speaking: nowSpeaking.value }),
+  () => ({ speaking: nowSpeaking.value, voicing: speechVoicing.value }),
 )
+watch([nowSpeaking, speechVoicing], ([speaking, voicing]) => {
+  getSpeechBusContext().emit(speechOutputPlaybackStateChangedEvent, { speaking, voicing })
+})
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const speechOutputControlStore = useSpeechOutputControlStore()
@@ -622,6 +628,19 @@ function resetSpeakingState() {
   mouthOpenSize.value = 0
 }
 
+// Segmenter intents reach the tracker through the speech pipeline. Streaming
+// sessions bypass it, so `openTtsSession` reports them.
+const voicingTracker = new SpeechVoicingTracker((voicing) => {
+  speechVoicing.value = voicing
+})
+speechPipeline.on('onIntentStart', intentId => voicingTracker.openIntent(intentId))
+speechPipeline.on('onIntentEnd', intentId => voicingTracker.closeIntent(intentId))
+speechPipeline.on('onIntentCancel', ({ intentId }) => voicingTracker.closeIntent(intentId))
+playbackManager.onStart(({ item }) => voicingTracker.audioStarted(item.intentId))
+playbackManager.onEnd(({ item }) => voicingTracker.audioSettled(item.intentId))
+playbackManager.onInterrupt(({ item }) => voicingTracker.audioSettled(item.intentId))
+playbackManager.onReject(({ item }) => voicingTracker.audioSettled(item.intentId))
+
 bindSpeakingStateToPlaybackManager(playbackManager, {
   setSpeaking: (speaking) => {
     if (!speaking)
@@ -820,11 +839,19 @@ function openTtsSession(turnId: string): StageTtsSession {
     if (session && currentSession === session && session.intentId.startsWith('stream-'))
       currentSession = null
   }
-  session = createStageTtsSession<AudioBuffer>({
+  const created = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
     streaming: () => buildStreamingSnapshot(turnId),
     audioContext,
-    playbackManager,
+    // Only the streaming adapter schedules through this. The segmenter
+    // adapter plays through the speech pipeline, which reports itself.
+    playbackManager: {
+      schedule: (item) => {
+        voicingTracker.streamingAudioScheduled(item.intentId)
+        playbackManager.schedule(item)
+      },
+      stopByIntent: playbackManager.stopByIntent,
+    },
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
       turnId,
@@ -847,9 +874,19 @@ function openTtsSession(turnId: string): StageTtsSession {
       },
       onDone: () => {
         clearIfActive()
+        voicingTracker.streamingInputDone(created.intentId)
       },
     },
   })
+  session = {
+    ...created,
+    cancel: (reason) => {
+      created.cancel(reason)
+      // Stopping playback drops queued audio without an event, so the
+      // canceled intent closes here instead of waiting for that audio.
+      voicingTracker.closeIntent(created.intentId)
+    },
+  }
   return session
 }
 
