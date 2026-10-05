@@ -18,7 +18,7 @@ import {
   ProviderSettingsLayout,
   ProviderValidationDetailsDialog,
 } from '@proj-airi/stage-ui/components'
-import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, resolveProviderDisplayName, validateProvider } from '@proj-airi/stage-ui/libs'
+import { getDefinedProvider, getSchemaDefault, getValidatorsOfProvider, validateProvider } from '@proj-airi/stage-ui/libs'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { Button, Callout, FieldCheckbox, FieldCombobox, FieldInput, FieldKeyValues, GhostButton } from '@proj-airi/ui'
 import { computedAsync, useCloned, useDebounceFn } from '@vueuse/core'
@@ -38,18 +38,26 @@ const emptyProviderConfigValues = Object.freeze({})
 const providerId = computed(() => route.params.providerId as string)
 const providerConfig = computed(() => providerStore.getProvider(providerId.value) ?? emptyProviderConfig)
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
+const providerDefinitionDisplayName = computed(() => providerDefinition.value?.nameLocalize({ t }) || providerDefinition.value?.name || providerConfig.value.definitionId)
 
 // NOTICE: useCloned handles deep cloning and state isolation for the draft.
 // It provides a 'cloned' ref that we use for editing without affecting the original store state.
 const { cloned: providerConfigEdit, sync: syncProviderConfigEdit } = useCloned(providerConfig, { manual: true })
 const providerDisplayNameEdit = computed({
-  get: () => providerConfigEdit.value?.displayName ?? providerDefinition.value?.name ?? providerConfigEdit.value?.definitionId ?? '',
+  get: () => providerConfigEdit.value?.displayName ?? providerDefinitionDisplayName.value,
   set: (displayName: string) => {
     if (providerConfigEdit.value)
       providerConfigEdit.value.displayName = displayName
   },
 })
-const providerDisplayName = computed(() => resolveProviderDisplayName(providerConfigEdit.value ?? providerConfig.value, providerDefinition.value))
+const providerDisplayName = computed(() => providerConfigEdit.value?.displayName?.trim() || providerDefinitionDisplayName.value)
+
+function getCustomProviderDisplayName(displayName: string = providerDisplayNameEdit.value): string | null {
+  const normalizedDisplayName = displayName.trim()
+  return normalizedDisplayName && normalizedDisplayName !== providerDefinitionDisplayName.value
+    ? normalizedDisplayName
+    : null
+}
 
 const isProviderSchemaLoading = ref(false)
 const providerSchemaError = ref<string | undefined>()
@@ -108,7 +116,7 @@ watch(providerConfig, (newVal, oldVal) => {
 const isEdited = computed(() => {
   const currentConfig = providerConfigEdit.value?.config ?? emptyProviderConfigValues
   const savedConfig = providerConfig.value?.config ?? emptyProviderConfigValues
-  return providerDisplayNameEdit.value.trim() !== resolveProviderDisplayName(providerConfig.value, providerDefinition.value)
+  return getCustomProviderDisplayName() !== getCustomProviderDisplayName(providerConfig.value.displayName ?? providerDefinitionDisplayName.value)
     || JSON.stringify(currentConfig) !== JSON.stringify(savedConfig)
 })
 
@@ -385,14 +393,14 @@ function syncValidationSteps() {
   validationSteps.value = [...validationSteps.value]
 }
 
-function isCurrentProviderDraft(config: Record<string, unknown>, displayName: string) {
+function isCurrentProviderDraft(config: Record<string, unknown>, displayName?: string | null) {
   return JSON.stringify(providerConfigEdit.value?.config ?? emptyProviderConfigValues) === JSON.stringify(config)
-    && providerDisplayNameEdit.value.trim() === displayName
+    && getCustomProviderDisplayName() === displayName
 }
 
 type ProviderUpdate
-  = { type: 'validated-draft', config: Record<string, unknown>, status: ProviderValidationStatus, displayName: string }
-    | { type: 'display-name', displayName: string }
+  = { type: 'validated-draft', config: Record<string, unknown>, status: ProviderValidationStatus, displayName: string | null }
+    | { type: 'display-name', displayName: string | null }
 
 function persistProviderUpdate(update: ProviderUpdate) {
   const id = providerId.value
@@ -430,7 +438,7 @@ function commitEditedConfig(status: ProviderValidationStatus) {
     type: 'validated-draft',
     config: { ...draft.config },
     status,
-    displayName: providerDisplayNameEdit.value.trim(),
+    displayName: getCustomProviderDisplayName(),
   })
 }
 
@@ -438,11 +446,11 @@ const debouncedDisplayNameSave = useDebounceFn(() => {
   if (!providerConfigEdit.value || !providerConfig.value)
     return
 
-  const savedDisplayName = providerConfig.value.displayName?.trim() || resolveProviderDisplayName(providerConfig.value, providerDefinition.value)
+  const savedDisplayName = providerConfig.value.displayName?.trim() || providerDefinitionDisplayName.value
   if (providerDisplayNameEdit.value.trim() === savedDisplayName)
     return
 
-  void persistProviderUpdate({ type: 'display-name', displayName: providerDisplayNameEdit.value.trim() })
+  void persistProviderUpdate({ type: 'display-name', displayName: getCustomProviderDisplayName() })
 }, 500)
 
 watch(providerDisplayNameEdit, () => {
@@ -575,7 +583,7 @@ function handleDeleteProvider() {
                 v-model="providerDisplayNameEdit"
                 :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.display-name.label')"
                 :description="t('settings.pages.providers.catalog.edit.config.common.fields.field.display-name.description')"
-                :placeholder="providerDefinition?.name || providerId"
+                :placeholder="providerDefinitionDisplayName || providerId"
               />
               <div v-for="field in basicFields" :key="field.key">
                 <ProviderApiKeyInput

@@ -104,7 +104,7 @@ export interface InferenceServiceProvider {
   /** Provider definition id from the built-in provider registry. */
   definitionId: string
   /** User-facing name for this provider instance. */
-  displayName?: string
+  displayName?: string | null
   /** Provider-specific configuration values. */
   config: Record<string, unknown>
   /** Current validation state for this provider configuration. */

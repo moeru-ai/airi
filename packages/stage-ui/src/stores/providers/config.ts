@@ -87,7 +87,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     providers.value[providerId] = {
       id: providerId,
       definitionId,
-      displayName: definition.name,
       config,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
@@ -109,7 +108,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
 
   // Uploaded fields only. status and replicaUpdatedAt stay local; a successful
   // push writes replicaUpdatedAt and must not look like a new local edit.
-  function replicaBody(row: { definitionId: string, displayName?: string, config: Record<string, unknown> }) {
+  function replicaBody(row: { definitionId: string, displayName?: string | null, config: Record<string, unknown> }) {
     return {
       definitionId: row.definitionId,
       ...(row.displayName !== undefined ? { displayName: row.displayName } : {}),
@@ -227,7 +226,6 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     const provider: StoredProvider = {
       id: providerId,
       definitionId,
-      displayName: definition.name,
       config,
       status: 'unconfigured',
       configuredBy: definition.configuredBy ?? 'user',
@@ -498,7 +496,7 @@ export const useProviderConfigStore = defineStore('provider-config', () => {
     schedulePush()
   }
 
-  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus, displayName?: string) {
+  async function updateProviderConfig(providerId: string, config: Record<string, unknown>, status: ProviderValidationStatus, displayName?: string | null) {
     const provider = providers.value[providerId]
     if (!provider)
       return

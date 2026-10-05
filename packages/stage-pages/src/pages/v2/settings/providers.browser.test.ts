@@ -1,4 +1,5 @@
 import en from '@proj-airi/i18n/locales/en'
+import zhHans from '@proj-airi/i18n/locales/zh-Hans'
 
 import { PiniaColada } from '@pinia/colada'
 import { registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
@@ -78,11 +79,10 @@ describe('v2 providers catalog availability (Issue #2559)', () => {
     await expect.poll(async () => (await menu.getByText('OpenAI', { exact: true }).all()).length, { timeout: 8000 }).toBeGreaterThan(0)
   })
 
-  it('saves a custom provider display name from the edit page', async () => {
+  it('localizes the default provider name until the user sets a custom name', async () => {
     const provider = {
       id: 'provider-display-name',
       definitionId: 'openai-compatible',
-      displayName: 'OpenAI Compatible',
       config: { baseUrl: 'https://example.com/v1' },
       status: 'configured',
       configuredBy: 'user',
@@ -98,14 +98,21 @@ describe('v2 providers catalog availability (Issue #2559)', () => {
 
     const screen = await render(ProviderEditPage, {
       global: {
-        plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'en', messages: { en } })],
+        plugins: [pinia, PiniaColada, router, createI18n({ legacy: false, locale: 'zh-Hans', fallbackLocale: 'en', messages: { en, 'zh-Hans': zhHans } })],
         directives: { autoAnimate: {}, motion: {} },
       },
     })
-    await screen.getByRole('textbox').first().fill('My OpenAI')
+    const providerStore = useProviderConfigStore(pinia)
+    const displayNameInput = screen.getByRole('textbox', { name: /display name/i })
 
-    await expect.poll(() => useProviderConfigStore(pinia).getProvider(provider.id)?.displayName, { timeout: 8000 }).toBe('My OpenAI')
-    await expect.element(screen.getByText('My OpenAI', { exact: true })).toBeInTheDocument()
+    await expect.element(displayNameInput).toHaveValue('OpenAI 兼容 API')
+    await expect.element(screen.getByRole('heading', { name: 'OpenAI 兼容 API' })).toBeInTheDocument()
+    expect(providerStore.getProvider(provider.id)?.displayName).toBeUndefined()
+
+    await displayNameInput.fill('My OpenAI')
+
+    await expect.poll(() => providerStore.getProvider(provider.id)?.displayName, { timeout: 8000 }).toBe('My OpenAI')
+    await expect.element(screen.getByRole('heading', { name: 'My OpenAI' })).toBeInTheDocument()
   })
 
   // https://github.com/moeru-ai/airi/pull/2590#discussion_r4175042615

@@ -343,6 +343,14 @@ describe('provider config store', () => {
     expect(mocks.service.deleteRemote).not.toHaveBeenCalled()
   })
 
+  it('does not save the provider definition name as a custom display name', () => {
+    const store = installStore()
+
+    const provider = store.ensureProvider('new-provider', 'openai-compatible')
+
+    expect(provider.displayName).toBeUndefined()
+  })
+
   it('wipes local providers without tombstoning the cloud replica', async () => {
     // ROOT CAUSE:
     //
