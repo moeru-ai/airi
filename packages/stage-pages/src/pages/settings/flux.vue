@@ -6,7 +6,7 @@ import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, SelectTab } from '@proj-airi/ui'
+import { Button, SelectTab, Skeleton } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -52,6 +52,7 @@ const loadingPriceId = ref<string | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const checkoutReturnMessageActive = ref(false)
 const packages = ref<FluxPackage[]>([])
+const packagesLoading = ref(!fluxPurchaseDisabled)
 const selectedCurrency = ref<string>('usd')
 
 const currencyOptions = computed(() => {
@@ -262,6 +263,9 @@ async function fetchPackages() {
     if (!checkoutReturnMessageActive.value)
       message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
   }
+  finally {
+    packagesLoading.value = false
+  }
 }
 
 /**
@@ -335,15 +339,15 @@ async function handleBuy(stripePriceId: string) {
     entry_surface: 'settings_flux',
   })
 
-  if (!isAuthenticated.value) {
-    await authStore.requestLogin()
-    return
-  }
-
   loadingPriceId.value = stripePriceId
   checkoutReturnMessageActive.value = false
   message.value = null
   try {
+    if (!isAuthenticated.value) {
+      await authStore.requestLogin()
+      return
+    }
+
     const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
     if (!res.ok) {
       const data = await res.json() as { error?: string, message?: string }
@@ -378,7 +382,7 @@ async function handleBuy(stripePriceId: string) {
 </script>
 
 <template>
-  <div flex="~ col gap-6" p-4>
+  <div flex="~ col gap-6" min-h-full p-4>
     <!-- Message banner -->
     <div
       v-if="message"
@@ -413,7 +417,8 @@ async function handleBuy(stripePriceId: string) {
 
     <div v-if="!fluxPurchaseDisabled" flex="~ col gap-4">
       <!-- Currency selector -->
-      <div v-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
+      <Skeleton v-if="packagesLoading" h-9 w-40 rounded-lg />
+      <div v-else-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
         <SelectTab
           v-model="selectedCurrency"
           :options="currencyOptions"
@@ -421,7 +426,20 @@ async function handleBuy(stripePriceId: string) {
         />
       </div>
 
-      <div grid="~ cols-1 sm:cols-3 gap-4">
+      <div grid="~ cols-1 sm:cols-3 gap-4" :aria-busy="packagesLoading">
+        <template v-if="packagesLoading">
+          <div
+            v-for="i in 3" :key="i"
+            flex="~ row sm:col items-center justify-between sm:justify-center gap-4 sm:gap-3"
+            border="2 neutral-200 dark:neutral-800" rounded-2xl bg-white p-6 dark:bg-neutral-900
+          >
+            <div flex="~ col sm:items-center gap-2" w-full>
+              <Skeleton h-4 w-20 rounded-md />
+              <Skeleton h-8 w-28 rounded-md />
+            </div>
+            <Skeleton h-8 w-16 rounded-lg sm:hidden />
+          </div>
+        </template>
         <button
           v-for="(pkg, index) in packages" :key="pkg.stripePriceId"
           :disabled="loadingPriceId !== null"
@@ -430,7 +448,7 @@ async function handleBuy(stripePriceId: string) {
             'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
             pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
             'dark:bg-neutral-900',
-            'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
+            'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500 active:translate-y-0 active:scale-[0.99]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
             loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
           ]"
@@ -707,7 +725,7 @@ async function handleBuy(stripePriceId: string) {
       </div>
     </div>
 
-    <div v-if="!isAuthenticated" flex="~ items-center justify-center gap-5" text="xs neutral-500">
+    <div v-if="!isAuthenticated" flex="~ wrap items-center justify-center gap-x-5 gap-y-2" mt-auto pb-2 pt-6 text="xs neutral-500">
       <a :href="AIRI_TERMS_URL" target="_blank" rel="noreferrer" hover:text-primary-500>
         {{ t('settings.pages.flux.terms') }}
       </a>
