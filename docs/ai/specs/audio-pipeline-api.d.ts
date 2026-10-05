@@ -25,11 +25,16 @@ export interface AudioWindow extends PcmBlock {
 
 /**
  * A microphone, a borrowed MediaStream, or a decoded file.
- * Each open call is one connection. Aborting its signal releases what that call opened.
+ * Each open call is one connection with a new sourceId. Aborting its signal releases what that call opened.
  * Open starts permission work synchronously, so a click handler can start a microphone.
  */
-export interface AudioInputSource {
+export interface AudioSource {
   open: (signal: AbortSignal) => ReadableStream<PcmBlock>
+}
+
+/** A source that produces audio in real time and cannot wait for its reader. A file is not live. */
+export interface LiveAudioSource extends AudioSource {
+  readonly live: true
 }
 
 /** Operational failures resolve done. Invalid options throw before resources are allocated. */
@@ -76,16 +81,16 @@ export interface Observer {
 export type Detector<T> = (window: AudioWindow, signal: AbortSignal) => Promise<T>
 
 /**
- * Shares one source. The first subscriber opens it and the last one to leave closes it.
+ * Shares one live source. The first subscriber opens it and the last one to leave closes it.
  * Each subscription ends with its own signal, so no consumer releases a lease.
  */
 export declare class AudioInput {
-  constructor(source: AudioInputSource, options?: {
+  constructor(source: LiveAudioSource, options?: {
     /** @default 0. The caller selects pre-roll history retention. */
     historyMs?: number
   })
 
-  /** Undefined until the current connection delivers a block. */
+  /** Undefined until the current connection delivers a block, and after it closes. */
   readonly position: Position | undefined
   readonly sampleRate: number | undefined
   /** With `from`, the stream first replays retained history. Missing history errors the stream. */

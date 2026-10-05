@@ -15,7 +15,7 @@ Consumers need this document and those declarations. They do not need runtime in
 
 The application owns one `AudioInput` for the selected device. It also provides `VoiceController` and `AudioPlayback` instances.
 Vue components receive these instances. They do not create contexts, providers, or encoders.
-The input wraps an `AudioInputSource`, for example `microphoneSource(constraints)`. The source handles permission and tracks.
+The input wraps a `LiveAudioSource`, for example `microphoneSource(constraints)`. The source handles permission and tracks.
 Every consumer subscribes with its own abort signal. The first subscriber opens the microphone, and the last one to leave closes it.
 Voice attachments, transcription, and detectors use the same input.
 
@@ -36,7 +36,12 @@ For live delivery, pass `recording.stream` downstream immediately. When the acce
 Do not await the downstream transcript before ending capture. A provider can wait for end-of-stream before returning text.
 Every transcription provider receives PCM. A provider adapter that needs a file encodes the stream with `encodeWav`.
 An adapter that needs tracks, such as Web Speech, creates them with `toMediaStream`.
-A stored recording is also a source. `fileSource(blob)` decodes it, so it enters transcription through the same path.
+A stored recording is also a source, but not a live source. `fileSource(blob)` decodes it into the same PCM stream.
+Each consumer opens its own file stream, and its reader sets the decode speed. `AudioInput` does not accept a file.
+
+```ts
+const events = transcriber.transcribe({ audio: fileSource(recording).open(signal), signal })
+```
 
 ## Who owns each operation
 
