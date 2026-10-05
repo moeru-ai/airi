@@ -5,8 +5,8 @@ import type { RevenuecatFluxPackage } from '@proj-airi/stage-ui/composables/use-
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useRevenuecatFlux } from '@proj-airi/stage-ui/composables/use-revenuecat-flux'
+import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, Skeleton } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
@@ -85,7 +85,6 @@ function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
   return '10000_plus'
 }
 
-/** Display amount with sign: debit is negative, credit/initial are positive */
 function displayAmount(record: AuditRecord): string {
   const signed = record.type === 'debit' ? -record.amount : record.amount
   const formatted = formatNumber(Math.abs(signed))
@@ -96,9 +95,7 @@ function isPositive(record: AuditRecord): boolean {
   return record.type !== 'debit'
 }
 
-// Lookup table avoids a chained ternary in the template (banned by CLAUDE.md
-// naming/style rules). Unknown types fall back to typeInitial so older
-// records without an explicit mapping still render something.
+// Unknown types fall back to typeInitial.
 const TYPE_LABEL_KEY: Record<string, string> = {
   debit: 'settings.pages.flux.audit.typeConsumption',
   credit: 'settings.pages.flux.audit.typeAddition',
@@ -201,7 +198,6 @@ const groupedRows = computed<GroupedRow[]>(() => {
   while (i < records.length) {
     const record = records[i]
     if (record.type === 'debit' && record.description?.startsWith('tts:')) {
-      // Collect consecutive TTS records with the same description
       const group: AuditRecord[] = [record]
       while (i + 1 < records.length
         && records[i + 1].type === 'debit'

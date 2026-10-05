@@ -51,18 +51,7 @@ const planMetadataSchema = object({
 
 const emptyPlanCatalogCopy: PlanCatalogCopy = { name: null, benefit: null }
 
-/**
- * Reads one product's name and benefit from offering metadata.
- * The current locale wins. A missing product entry uses the English entry.
- *
- * @example
- * planCatalogCopy(
- *   { plans: { en: { airi_go_monthly: { benefit: 'Chat and speech' } } } },
- *   'airi_go_monthly',
- *   'zh-Hans',
- * )
- * // { name: null, benefit: 'Chat and speech' }
- */
+/** Reads one product's name and benefit from offering metadata with English fallback. */
 export function planCatalogCopy(metadata: unknown, productId: string, locale: string): PlanCatalogCopy {
   const parsed = safeParse(planMetadataSchema, metadata ?? {})
   if (!parsed.success || !parsed.output.plans)
@@ -76,7 +65,7 @@ export function planCatalogCopy(metadata: unknown, productId: string, locale: st
   }
 }
 
-/** Keeps RevenueCat's period unit. A month stays a month. A year stays a year. */
+/** Keeps the RevenueCat period unit. */
 export function planBillingPeriod(unit: string | null | undefined): PlanBillingPeriod | null {
   if (unit === 'month' || unit === 'year')
     return unit
@@ -107,12 +96,7 @@ function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPac
   }
 }
 
-/**
- * Plan subscriptions through RevenueCat Web Billing.
- * Status and quota usage are read from the backend subscription table;
- * the grant lands through the RevenueCat webhook, so the caller polls
- * status until the new subscription appears.
- */
+/** Plan subscriptions through RevenueCat Web Billing. The grant lands through the webhook, so the caller polls status. */
 export function useSubscription(options: {
   getUserId: () => string
   onChanged: () => Promise<unknown>

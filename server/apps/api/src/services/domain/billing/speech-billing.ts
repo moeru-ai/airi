@@ -33,7 +33,7 @@ export class SpeechBilling {
       ? await this.subscriptions.getFallbackPreference(userId)
       : true
     const wallet = await this.billing.getWallet(userId)
-    const walletCovers = wallet.flux > 0 && availableMicroFlux(wallet) >= BigInt(cost)
+    const walletCovers = availableMicroFlux(wallet) >= BigInt(cost)
     if (fallbackToFlux && walletCovers)
       return
     this.metrics?.ttsPreflightRejections.add(1, { meter: 'tts', reason: 'insufficient_balance' })
@@ -52,7 +52,14 @@ export class SpeechBilling {
     if (settlement === 'taken' || settlement === 'stopped') {
       if (settlement === 'taken')
         this.metrics?.ttsChars.add(input.units, { meter: 'tts', model: input.model })
-      return { charged: 0, requested: 0, replay: false, costMicroFlux, feeFlux: settlement === 'taken' ? microFluxToFlux(costMicroFlux) : 0, unsettledMicroFlux: 0 }
+      return {
+        charged: 0,
+        requested: 0,
+        replay: false,
+        costMicroFlux,
+        feeFlux: settlement === 'taken' ? microFluxToFlux(costMicroFlux) : 0,
+        unsettledMicroFlux: 0,
+      }
     }
     const result = await this.billing.postFluxUsage({
       userId: input.userId,

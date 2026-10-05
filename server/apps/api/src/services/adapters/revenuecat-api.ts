@@ -127,8 +127,6 @@ export function createRevenuecatApiClient(config: RevenuecatApiConfig, fetchFn: 
       if (!parsed.success)
         return null
       const items = parsed.output.active_entitlements?.items ?? []
-      if (items.length === 0)
-        return []
 
       const byId = await lookupKeysById()
       if (!byId)

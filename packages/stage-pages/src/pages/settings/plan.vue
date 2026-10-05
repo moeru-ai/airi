@@ -19,7 +19,6 @@ const plan = useSubscription({
 })
 
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
-const purchasingPackageId = ref<string | null>(null)
 const preferenceSaving = ref(false)
 const billingPeriod = ref<PlanBillingPeriod>('month')
 
@@ -49,6 +48,10 @@ function tierRank(period: PlanBillingPeriod, amountMicros: number): number {
     .length
 }
 
+function switchAction(period: PlanBillingPeriod): PlanAction {
+  return period === 'year' ? 'switchYear' : 'switchMonth'
+}
+
 function planAction(pkg: PlanPackage): PlanAction {
   const current = currentSubscription.value
   if (!current)
@@ -57,14 +60,14 @@ function planAction(pkg: PlanPackage): PlanAction {
     return 'current'
   const currentPackage = plan.packages.value.find(item => item.productId === current.productId)
   if (!currentPackage)
-    return pkg.period === 'year' ? 'switchYear' : 'switchMonth'
+    return switchAction(pkg.period)
   const currentRank = tierRank(currentPackage.period, currentPackage.amountMicros)
   const nextRank = tierRank(pkg.period, pkg.amountMicros)
   if (nextRank > currentRank)
     return 'upgrade'
   if (nextRank < currentRank)
     return 'downgrade'
-  return pkg.period === 'year' ? 'switchYear' : 'switchMonth'
+  return switchAction(pkg.period)
 }
 
 const ACTION_LABEL: Record<Exclude<PlanAction, 'buy'>, string> = {
@@ -132,7 +135,7 @@ async function savePreference(value: boolean) {
 }
 
 function planCardDisabled(pkg: PlanPackage): boolean {
-  if (purchasingPackageId.value !== null)
+  if (plan.purchasingPackageId.value !== null)
     return true
   const action = planAction(pkg)
   return action === 'current' || (action !== 'buy' && !plan.managementUrl.value)
@@ -152,7 +155,6 @@ function handlePlan(pkg: PlanPackage) {
 }
 
 async function handleSubscribe(packageId: string) {
-  purchasingPackageId.value = packageId
   message.value = null
   try {
     const outcome = await plan.purchasePlan(packageId)
@@ -169,9 +171,6 @@ async function handleSubscribe(packageId: string) {
   }
   catch {
     message.value = { type: 'error', text: t('settings.pages.plan.checkout.error') }
-  }
-  finally {
-    purchasingPackageId.value = null
   }
 }
 </script>
@@ -254,13 +253,13 @@ async function handleSubscribe(packageId: string) {
             'transition-all duration-300 ease-out',
             'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-            purchasingPackageId !== null && purchasingPackageId !== pkg.packageId ? 'opacity-50 grayscale-50 cursor-not-allowed' : '',
+            plan.purchasingPackageId.value !== null && plan.purchasingPackageId.value !== pkg.packageId ? 'opacity-50 grayscale-50 cursor-not-allowed' : '',
             planCardDisabled(pkg) ? 'cursor-not-allowed' : 'cursor-pointer',
           ]"
           @click="handlePlan(pkg)"
         >
           <div
-            v-if="purchasingPackageId === pkg.packageId"
+            v-if="plan.purchasingPackageId.value === pkg.packageId"
             :class="['absolute inset-0 z-10 flex items-center justify-center', 'bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60']"
           >
             <div :class="['i-svg-spinners:90-ring-with-bg size-8 text-primary-500']" />

@@ -68,10 +68,7 @@ function verifySignature(
   const expectedBytes = Buffer.from(expectedSignature)
   if (computedBytes.length !== expectedBytes.length)
     return false
-  if (!timingSafeEqual(computedBytes, expectedBytes))
-    return false
-
-  return Math.abs(nowSeconds - Number(timestamp)) <= 300
+  return timingSafeEqual(computedBytes, expectedBytes) && Math.abs(nowSeconds - Number(timestamp)) <= 300
 }
 
 /**

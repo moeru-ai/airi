@@ -21,6 +21,13 @@ interface BackendFluxPack {
   fluxAmount: number
 }
 
+type RevenuecatPurchases = Awaited<ReturnType<typeof ensureRevenuecatConfigured>>
+
+async function fluxOffering(purchases: RevenuecatPurchases, currency?: string) {
+  const offerings = await purchases.getOfferings(currency ? { currency } : undefined)
+  return offerings.all[getRevenuecatFluxOfferingId()] ?? offerings.current
+}
+
 function toFluxPackage(pkg: Package, fluxAmount: number): RevenuecatFluxPackage {
   const { formattedPrice, currency } = revenuecatPackagePrice(pkg)
   return {
@@ -33,13 +40,7 @@ function toFluxPackage(pkg: Package, fluxAmount: number): RevenuecatFluxPackage 
   }
 }
 
-/**
- * RevenueCat Web Billing checkout for Flux packs.
- * Package prices come from the `flux_packs` offering; Flux amounts come
- * from the backend `/revenuecat/packages` map so the grant source of truth
- * stays server-side. After a successful purchase the Flux credit lands via
- * webhook, so the caller polls its balance until it moves.
- */
+/** RevenueCat Web Billing checkout for Flux packs. The credit lands through the webhook, so the caller polls balance. */
 export function useRevenuecatFlux(options: {
   getUserId: () => string
   onPaid: () => Promise<unknown>
@@ -68,8 +69,7 @@ export function useRevenuecatFlux(options: {
       const fluxByProduct = new Map(packs.map(pack => [pack.productId, pack.fluxAmount]))
 
       const purchases = await ensureRevenuecatConfigured(options.getUserId())
-      const offerings = await purchases.getOfferings(currency ? { currency } : undefined)
-      const offering = offerings.all[getRevenuecatFluxOfferingId()] ?? offerings.current
+      const offering = await fluxOffering(purchases, currency)
       if (!offering)
         return
 
@@ -84,15 +84,10 @@ export function useRevenuecatFlux(options: {
   }
 
   async function purchaseFluxPackage(packageId: string): Promise<'credited' | 'pending' | 'cancelled'> {
-    const target = packages.value.find(pkg => pkg.packageId === packageId)
-    if (!target)
-      throw new Error(t('settings.pages.flux.checkout.error'))
-
     purchasingPackageId.value = packageId
     try {
       const purchases = await ensureRevenuecatConfigured(options.getUserId())
-      const offerings = await purchases.getOfferings()
-      const offering = offerings.all[getRevenuecatFluxOfferingId()] ?? offerings.current
+      const offering = await fluxOffering(purchases)
       const rcPackage = offering?.availablePackages.find(pkg => pkg.identifier === packageId)
       if (!rcPackage)
         throw new Error(t('settings.pages.flux.checkout.error'))
