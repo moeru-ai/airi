@@ -510,12 +510,8 @@ describe('chat history', () => {
     expect(expiredItem?.classList.contains('opacity-100')).toBe(true)
   })
 
-  // ROOT CAUSE:
-  //
-  // A reader scrolled the danmaku feed up while the read messages showed.
-  // They then hid in place, and the feed stayed on them, so it showed empty space.
-  //
-  // We fixed this by returning to the tail when more messages hide.
+  // Hidden messages keep their space, so a feed that stayed scrolled up to
+  // them would show only empty space.
   it('returns to the newest message when more messages hide', async () => {
     const messages: ChatHistoryItem[] = Array.from({ length: 60 }, (_, index) => ({
       id: `user-${index}`,
@@ -548,7 +544,10 @@ describe('chat history', () => {
     history.dispatchEvent(new WheelEvent('wheel', { deltaY: -1000 }))
     history.scrollTop = 0
     history.dispatchEvent(new Event('scroll'))
-    await new Promise(resolve => setTimeout(resolve, 200))
+    // The list aligns to the tail in an animation frame, so two frames show
+    // that the reader's position holds.
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
     expect(history.scrollTop).toBe(0)
 
     await screen.rerender({ expiredBefore: 55 })
