@@ -1,5 +1,5 @@
 ---
-name: crowdin-review
+name: enforce-rules-for-i18n
 description: Review pending AIRI translations on Crowdin in a batch, then sync them into the repository. Use when Crowdin has translations that wait for approval, when translations have not reached the repository for days, or when the user pastes output of pending-review.mjs.
 ---
 
@@ -31,7 +31,7 @@ The scripts read and write their files in the current directory. Run them from a
 1. **Check (person runs).** This step is read-only.
 
    ```bash
-   node <repo>/.agents/skills/crowdin-review/scripts/pending-review.mjs
+   node <repo>/.agents/skills/enforce-rules-for-i18n/scripts/pending-review.mjs
    ```
 
    It prints a table for each language. It writes `crowdin-pending-review.json` with all pending translations. It writes `crowdin-pending-review.md` with the flagged ones only: placeholder mismatch, same as English, and bad whitespace.
@@ -52,7 +52,7 @@ The scripts read and write their files in the current directory. Run them from a
 3. **Dry run (person runs).**
 
    ```bash
-   node <repo>/.agents/skills/crowdin-review/scripts/apply-review.mjs
+   node <repo>/.agents/skills/enforce-rules-for-i18n/scripts/apply-review.mjs
    ```
 
    The output must end with `All matched.` If one entry does not match, the script stops and changes nothing.
@@ -60,7 +60,7 @@ The scripts read and write their files in the current directory. Run them from a
 4. **Apply (person runs).**
 
    ```bash
-   node <repo>/.agents/skills/crowdin-review/scripts/apply-review.mjs --approve --delete-rejected
+   node <repo>/.agents/skills/enforce-rules-for-i18n/scripts/apply-review.mjs --approve --delete-rejected
    ```
 
    Before it deletes, the script writes a backup to `crowdin-rejected-backup-<timestamp>.json`.

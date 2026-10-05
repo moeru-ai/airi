@@ -4,7 +4,7 @@
 // Output goes to the current directory. The placeholder rule comes from
 // .github/scripts/check-locales.ts, so the script needs Node.js type stripping.
 //
-// Usage: CROWDIN_PERSONAL_TOKEN=... node <repo>/.agents/skills/crowdin-review/scripts/pending-review.mjs
+// Usage: CROWDIN_PERSONAL_TOKEN=... node <repo>/.agents/skills/enforce-rules-for-i18n/scripts/pending-review.mjs
 // Output: crowdin-pending-review.json (all pending) and crowdin-pending-review.md (flagged only).
 
 import process from 'node:process'

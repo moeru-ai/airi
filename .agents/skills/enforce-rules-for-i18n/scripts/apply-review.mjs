@@ -7,7 +7,7 @@
 // backs them up to a timestamped crowdin-rejected-backup-*.json in the current directory.
 // Both flags can be used together. Any unmatched entry stops the run before a change.
 //
-// Usage: CROWDIN_PERSONAL_TOKEN=... node <repo>/.agents/skills/crowdin-review/scripts/apply-review.mjs [--approve] [--delete-rejected]
+// Usage: CROWDIN_PERSONAL_TOKEN=... node <repo>/.agents/skills/enforce-rules-for-i18n/scripts/apply-review.mjs [--approve] [--delete-rejected]
 
 import process from 'node:process'
 
