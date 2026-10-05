@@ -114,18 +114,18 @@ function handleLocalSetup() {
         {{ t('settings.dialogs.onboarding.description') }}
       </p>
     </div>
-    <div :class="['mx-2 mt-2 flex flex-col gap-3 md:flex-row']">
+    <div :class="['mx-2 flex flex-col items-stretch gap-2']">
       <Button
         v-motion="{
-          initial: { opacity: 0 },
-          enter: { opacity: 1 },
+          initial: { opacity: 0, y: 8 },
+          enter: { opacity: 1, y: 0 },
           duration: 500,
           delay: 200,
         }"
         color="primary"
-        variant="secondary"
+        variant="primary"
+        size="lg"
         :label="t('settings.dialogs.onboarding.loginAction')"
-        :class="['flex-1']"
         @click="handleLogin"
       />
       <Button
@@ -136,12 +136,14 @@ function handleLocalSetup() {
           duration: 500,
           delay: 250,
         }"
+        variant="secondary"
+        :outline="false"
+        :class="['bg-transparent! text-neutral-600 dark:bg-neutral-700/60! dark:text-neutral-200']"
         :label="t('settings.dialogs.onboarding.setupWithoutSigningIn')"
-        :class="['flex-1']"
         @click="handleLocalSetup"
       />
     </div>
-    <div
+    <nav
       v-motion="{
         initial: { opacity: 0 },
         enter: { opacity: 1 },
@@ -149,9 +151,9 @@ function handleLocalSetup() {
         delay: 300,
       }"
       :class="[
-        'mx-2 mb-1 mt-5 border-t border-neutral-200/70 pt-3',
-        'flex items-center justify-center gap-2',
-        'text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400',
+        'mx-2 mb-1 mt-8 md:mt-10',
+        'flex items-center justify-center gap-3',
+        'text-xs text-neutral-500 dark:text-neutral-500',
       ]"
     >
       <a
@@ -162,7 +164,7 @@ function handleLocalSetup() {
       >
         {{ t('settings.dialogs.onboarding.pricingLink') }}
       </a>
-      <span aria-hidden="true">·</span>
+      <span aria-hidden="true" :class="['size-0.5 rounded-full bg-current']" />
       <a
         :href="AIRI_TERMS_URL"
         target="_blank"
@@ -171,6 +173,6 @@ function handleLocalSetup() {
       >
         {{ t('settings.dialogs.onboarding.termsLink') }}
       </a>
-    </div>
+    </nav>
   </div>
 </template>
