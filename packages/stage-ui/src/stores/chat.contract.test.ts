@@ -156,6 +156,11 @@ vi.mock('./chat/context-store', () => ({
   }),
 }))
 
+// IndexedDB is a browser boundary. Browser tests exercise the real sticker repository.
+vi.mock('../database/repos/stickers.repo', () => ({
+  stickersRepo: { read: async () => ({ records: [], images: [] }) },
+}))
+
 vi.mock('./modules/vision', () => ({
   useVisionStore: () => ({
     get configured() {

@@ -42,6 +42,8 @@ dialogs:
     loginPrompt: 登录并使用 AIRI 官方提供的服务以获得最佳体验。
     loginAction: 登录
     setupWithoutSigningIn: 配置您自己的 AI 服务来源
+    pricingLink: 价格
+    termsLink: 服务条款
     flux: Flux 电量
     buyFlux: 补充 Flux 电量
     select-model: 选择模型
@@ -871,6 +873,74 @@ pages:
       access-token-secret-description: 您的X / Twitter访问令牌密文
       access-token-secret-placeholder: 输入您的X / Twitter访问令牌密文
       configured: X / Twitter已正确配置！
+    stickers:
+      frequency: 表情包频率
+      frequency-description: 按此比例允许回复发送表情包。角色仍会判断表情是否适合当前对话。
+      frequency-options:
+        25: 偶尔（25%）
+        50: 适中（50%）
+        75: 频繁（75%）
+        100: 适合时都可发送（100%）
+      title: 表情包
+      description: 为聊天回复添加可选的图片表情
+      enable: 启用表情包
+      enable-description: 允许角色根据名称和情绪标签，为适合的回复选择一张表情。
+      local-only: 图片保留在当前设备。云端聊天同步目前仅传输文字。
+      catalog: 可用表情
+      unavailable: 表情不可用
+      import: '导入图片'
+      editor: '表情编辑器'
+      image: '图片'
+      replace: '替换图片（可选）'
+      image-limits: '支持 PNG、JPG、WebP 和 GIF，单张最大 2 MB、4096 × 4096 像素。'
+      choose-file: '选择图片'
+      preview: '表情预览'
+      name: '名称'
+      name-limit: '填写 1–80 个字符，模型会读取这个名称。'
+      emotions: '情绪标签'
+      save: '保存表情'
+      cancel: '取消'
+      edit: '编辑'
+      delete: '删除'
+      confirm-delete: '确认删除'
+      empty: '表情库为空，导入图片来添加表情。'
+      history-note: '删除或替换只影响未来回复，已有聊天和已准备好的请求仍保留原图。'
+      saved-image: '已保存的表情'
+      errors:
+        name: '请填写 1–80 个字符的名称。'
+        emotions: '请至少选择一种有效的情绪标签。'
+        format: '请选择 PNG、JPG、WebP 或 GIF 图片。'
+        size: '请选择不超过 2 MB 的图片。'
+        image: '无法打开这张图片，请选择其他文件。'
+        dimensions: '请选择不超过 4096 × 4096 像素的图片。'
+        missing: '这张表情已在其他窗口中被删除。'
+        storage: '无法读取或保存表情库，请重试。'
+      emotion-labels:
+        happy: '开心'
+        sad: '难过'
+        confused: '疑惑'
+        surprised: '惊讶'
+        thanks: '感谢'
+        celebrate: '庆祝'
+        angry: '生气'
+        tired: '疲惫'
+        affectionate: '喜欢'
+        awkward: '尴尬'
+        agree: '赞同'
+        disagree: '拒绝'
+      artwork:
+        airi-happy: 开心
+        airi-sad: 难过
+        airi-confused: 疑惑
+        airi-surprised: 惊讶
+        airi-thanks: 感谢
+        airi-celebrate: 庆祝
+        airi-angry: 生气
+        airi-tired: 疲惫
+        airi-affectionate: 喜欢
+        airi-awkward: 尴尬
+        airi-agree: 赞同
+        airi-disagree: 拒绝
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
@@ -966,6 +1036,8 @@ pages:
     buy: 充值
     currency: 币种
     description: 充值 Flux
+    terms: 使用条款
+    privacy: 隐私政策
     packagesError: 暂时无法获取可用的 Flux 电量包。可以之后再试试吗？
     checkout:
       success: 谢谢你！你的 Flux 通量已经更新好啦～
@@ -1155,6 +1227,19 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
+      minimax-speech:
+        description: minimax.io
+        errors:
+          provider-initialization-failed: 初始化 MiniMax 语音提供程序失败。
+        fields:
+          field:
+            model:
+              description: 选择用于生成语音的 MiniMax 文本转语音模型。
+              label: 模型
+              placeholder: 选择一个 MiniMax 模型...
+        playground:
+          default-text: 您好！这是 MiniMax 语音合成测试。
+        title: MiniMax Speech
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:

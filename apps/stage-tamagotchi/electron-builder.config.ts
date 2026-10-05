@@ -80,6 +80,10 @@ export default {
     // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
     // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
     '!**/node_modules/electron{,/**}',
+    // These large fonts remain available to web, mobile, and story builds.
+    // The desktop renderer uses system CJK fallback fonts instead.
+    '!**/node_modules/@proj-airi/font-cjkfonts-allseto{,/**}',
+    '!**/node_modules/@proj-airi/font-xiaolai{,/**}',
     // Workspace hoisting exposes build tools to electron-builder's file walk.
     // The packaged app has no runtime import of these tools.
     '!**/node_modules/@rolldown{,/**}',
