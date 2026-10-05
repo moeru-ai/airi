@@ -10,7 +10,7 @@ This skill reviews the translations that wait for approval on the AIRI Crowdin p
 ## Requirements
 
 - Node.js 24 or later, and `pnpm install` in this repository. The check script imports the placeholder rule from `.github/scripts/check-locales.ts`.
-- A Crowdin personal access token with proofreader or manager access to the AIRI project. Create it in Crowdin: Account Settings → API → Personal Access Tokens.
+- A Crowdin personal access token with proofreader or manager access to the AIRI project. Create it in Crowdin: Account Settings > API > Personal Access Tokens.
 - The project id defaults to `816610`, the id in `crowdin.yml` of `moeru-ai/airi`. To use another project, set `CROWDIN_PROJECT_ID`.
 
 ## Token rules
@@ -98,7 +98,7 @@ The report to the person has three parts: the counts, a table of rejected transl
 
 - "Same translation as <other key>, whose English has no word in common" is a heuristic. It checks only strings that changed against `main`. After the pull request merges, the warning does not come back. Do not add an allowlist.
 - Synonyms cause false positives, for example "Settings" and "Configuration". If the older key on `main` has the wrong translation, fix that key on Crowdin.
-- A new quote, for example `error: '错误：'`, comes from Crowdin. It copies the quotes of the English source string. The value does not change.
+- New quotes around a translation come from Crowdin. When the English source string has quotes, for example `error: 'Error:'`, Crowdin adds quotes to the translation too. The value does not change.
 
 ## Fixing one approved translation
 
