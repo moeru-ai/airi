@@ -5,6 +5,7 @@ import type { Config } from '../libs/electron/persistence'
 import { Buffer } from 'node:buffer'
 
 import { safeStorage } from 'electron'
+import { isLinux } from 'std-env'
 import { any, array, number, object, optional, string } from 'valibot'
 
 import { createConfig } from '../libs/electron/persistence'
@@ -32,49 +33,103 @@ export const artistryConfigSchema = object({
 // Fail closed on save: silently falling back to plaintext when safeStorage is
 // unavailable would defeat this fix entirely on hosts without a keychain backend.
 // config.update() (below) must reject the whole write rather than persist plaintext.
+
+const LINUX_SECURE_STORAGE_BACKENDS = new Set<ReturnType<typeof safeStorage.getSelectedStorageBackend>>([
+  'gnome_libsecret',
+  'kwallet',
+  'kwallet5',
+  'kwallet6',
+])
+
+// isEncryptionAvailable() alone doesn't guarantee an OS keychain actually protects the
+// ciphertext: on Linux, when no secret service (gnome-keyring/kwallet) is found, Electron
+// falls back to a 'basic_text' backend that encrypts with a hardcoded password baked into
+// the binary, recoverable without any user secret. 'unknown' (returned before the app's
+// 'ready' event) is equally untrustworthy -- we simply don't know yet. Windows/macOS always
+// have a real OS-backed keychain, so isEncryptionAvailable() alone is sufficient there.
+// Source: https://www.electronjs.org/docs/latest/api/safe-storage#synchronous-api
+// (review: PR #2512 discussion r4180458796)
+function isSecureStorageAvailable(): boolean {
+  if (!safeStorage.isEncryptionAvailable())
+    return false
+  if (!isLinux)
+    return true
+  return LINUX_SECURE_STORAGE_BACKENDS.has(safeStorage.getSelectedStorageBackend())
+}
+
+// Tags our own ciphertext so a later read never has to guess whether a stored value is
+// legacy pre-encryption plaintext or ciphertext that failed to decrypt -- see decryptApiKey's
+// NOTICE below for why that distinction can't be made reliably any other way.
+export const ENCRYPTED_VALUE_PREFIX = 'enc:v1:'
+
 function encryptApiKey(value: string): string {
   if (!value)
     return value
-  if (!safeStorage.isEncryptionAvailable())
+  if (!isSecureStorageAvailable())
     throw new Error('Secure storage is unavailable; refusing to persist artistry API key in plaintext')
-  return safeStorage.encryptString(value).toString('base64')
+  return ENCRYPTED_VALUE_PREFIX + safeStorage.encryptString(value).toString('base64')
 }
 
-function decryptApiKey(value: string): string {
+interface DecryptedApiKey {
+  value: string
+  /**
+   * True when a non-empty stored value exists but couldn't be decrypted right now (keychain
+   * unavailable, or ciphertext that fails to decrypt even though the keychain is available --
+   * e.g. restored on a different machine/OS user, corruption, a rotated keychain key).
+   * Categorically different from a genuinely empty key: the ciphertext is still intact on
+   * disk and must never be treated as, or re-synced as, a deletion.
+   */
+  unavailable: boolean
+}
+
+function decryptApiKey(value: string): DecryptedApiKey {
   if (!value)
-    return value
-  if (!safeStorage.isEncryptionAvailable()) {
+    return { value: '', unavailable: false }
+
+  if (!value.startsWith(ENCRYPTED_VALUE_PREFIX)) {
+    // No marker: genuine pre-encryption plaintext, written before this app version ever
+    // encrypted this field. Not ciphertext, so there's nothing to fail at -- return as-is;
+    // the next successful save re-persists it encrypted.
+    return { value, unavailable: false }
+  }
+
+  if (!isSecureStorageAvailable()) {
     // NOTICE:
     // Fail closed on read too, but to "unset" rather than throwing: config.get() is called
     // from many places (image generation, "is provider configured" checks, the get-config
     // IPC handler) that must keep working even when the keychain backend is unavailable.
     // Returning the undecryptable ciphertext as-is would hand callers a bogus "key" string;
-    // treating it as absent is the safe, non-crashing choice.
-    //
-    // This does mean a caller cannot tell "really empty" apart from "unavailable right now"
-    // from this return value alone. isApiKeyUnavailable() below exists for the one caller
-    // (the artistryGetConfig IPC handler) that must make that distinction, since re-syncing
-    // this placeholder as if it were a real empty value would permanently erase the
-    // ciphertext still sitting on disk. (review: PR #2512 discussion r4179494678)
+    // treating it as absent is the safe, non-crashing choice. isApiKeyUnavailable() below
+    // exists for the one caller (the artistryGetConfig IPC handler) that must distinguish
+    // this from a real empty value, since re-syncing this placeholder as if it were real
+    // would permanently erase the ciphertext still sitting on disk.
+    // (review: PR #2512 discussion r4179494678)
     console.warn('Secure storage unavailable; treating stored artistry API key as unset')
-    return ''
+    return { value: '', unavailable: true }
   }
+
   try {
-    return safeStorage.decryptString(Buffer.from(value, 'base64'))
+    const ciphertext = value.slice(ENCRYPTED_VALUE_PREFIX.length)
+    return { value: safeStorage.decryptString(Buffer.from(ciphertext, 'base64')), unavailable: false }
   }
   catch {
-    // Value predates encryption support (legacy plaintext) or is not decryptable here.
-    return value
+    // NOTICE:
+    // The ENCRYPTED_VALUE_PREFIX marker confirms this is our own ciphertext, not legacy
+    // plaintext -- so a decrypt failure here (keychain available, but decryptString itself
+    // throws) must not fall back to returning the raw bytes. Those bytes are base64
+    // ciphertext, not a usable key: handing them out as "the key" would let a caller re-sync
+    // them through encryptApiKey, double-encrypting and permanently destroying the original
+    // value. Report unavailable instead, matching the keychain-unavailable branch above.
+    // (review: PR #2512 discussion r4180458798)
+    console.warn('Stored artistry API key ciphertext could not be decrypted; treating as unavailable')
+    return { value: '', unavailable: true }
   }
 }
 
-// A non-empty stored (encrypted or legacy-plaintext) value that currently can't be decrypted
-// is categorically different from an empty value: the former still holds real ciphertext and
-// must never be treated as, or re-synced as, a deletion. Takes the *raw* stored value (as
-// returned by ArtistryConfig['getEncrypted'], before decryptApiKey's unset-on-unavailable
-// fallback) so it can see past that fallback. (review: PR #2512 discussion r4179494678)
+// Thin delegate so callers that only need the yes/no answer (the artistryGetConfig IPC
+// handler) can't disagree with what decryptApiKey itself actually determines.
 export function isApiKeyUnavailable(rawValue: string): boolean {
-  return !!rawValue && !safeStorage.isEncryptionAvailable()
+  return decryptApiKey(rawValue).unavailable
 }
 
 export type ArtistryConfig = Config<typeof artistryConfigSchema> & {
@@ -97,8 +152,8 @@ export function createArtistryConfig(): ArtistryConfig {
       ...value,
       artistryGlobals: {
         ...value.artistryGlobals,
-        replicateApiKey: decryptApiKey(value.artistryGlobals.replicateApiKey),
-        nanobananaApiKey: decryptApiKey(value.artistryGlobals.nanobananaApiKey),
+        replicateApiKey: decryptApiKey(value.artistryGlobals.replicateApiKey).value,
+        nanobananaApiKey: decryptApiKey(value.artistryGlobals.nanobananaApiKey).value,
       },
     }
   }

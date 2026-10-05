@@ -1,6 +1,10 @@
 import type { ArtistryConfig } from '../../../configs/artistry'
 
+import { Buffer } from 'node:buffer'
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { ENCRYPTED_VALUE_PREFIX } from '../../../configs/artistry'
 
 function fakeArtistryConfig(overrides: Partial<ArtistryConfig> = {}): ArtistryConfig {
   return {
@@ -45,8 +49,10 @@ describe('resolveArtistryGetConfigResult', () => {
       })),
       getEncrypted: vi.fn(() => ({
         artistryProvider: 'replicate',
-        // ...but the raw stored value still holds real ciphertext.
-        artistryGlobals: { replicateApiKey: 'encrypted:sk-still-there', nanobananaApiKey: '' } as any,
+        // ...but the raw stored value still holds real ciphertext (marked with the prefix
+        // encryptApiKey tags its output with, so decryptApiKey recognizes it as ciphertext
+        // rather than legacy plaintext).
+        artistryGlobals: { replicateApiKey: `${ENCRYPTED_VALUE_PREFIX}sk-still-there`, nanobananaApiKey: '' } as any,
       })),
     })
 
@@ -60,7 +66,18 @@ describe('resolveArtistryGetConfigResult', () => {
 
   it('does not flag a key as unavailable when the keychain can decrypt it normally', async () => {
     vi.doMock('electron', () => ({
-      safeStorage: { isEncryptionAvailable: () => true },
+      safeStorage: {
+        isEncryptionAvailable: () => true,
+        // NOTICE: a real OS keychain is unavailable in CI, so this stub round-trips through a
+        // tagged string instead of real crypto -- it only needs to prove the decrypt path is
+        // actually invoked and succeeds, not exercise safeStorage's own encryption.
+        decryptString: (buffer: Buffer) => {
+          const text = buffer.toString('utf-8')
+          if (!text.startsWith('encrypted:'))
+            throw new Error('Ciphertext was not produced by the mocked safeStorage.encryptString')
+          return text.slice('encrypted:'.length)
+        },
+      },
     }))
     const { resolveArtistryGetConfigResult } = await import('./artistry-bridge')
 
@@ -71,7 +88,7 @@ describe('resolveArtistryGetConfigResult', () => {
       })),
       getEncrypted: vi.fn(() => ({
         artistryProvider: 'replicate',
-        artistryGlobals: { replicateApiKey: 'encrypted:sk-decrypted', nanobananaApiKey: '' } as any,
+        artistryGlobals: { replicateApiKey: `${ENCRYPTED_VALUE_PREFIX}${Buffer.from('encrypted:sk-decrypted', 'utf-8').toString('base64')}`, nanobananaApiKey: '' } as any,
       })),
     })
 

@@ -24,20 +24,29 @@ describe('createArtistryConfig', () => {
 
   function mockElectronEnvironment() {
     let encryptionAvailable = true
+    let decryptionThrows = false
+    let isLinux = false
+    let storageBackend: ReturnType<typeof import('electron').safeStorage.getSelectedStorageBackend> = 'gnome_libsecret'
     const writeFileMock = vi.fn(async (_path: string, data: string) => data)
     const renameMock = vi.fn(async () => {})
     const existsSyncMock = vi.fn(() => false)
     const readFileSyncMock = vi.fn(() => '')
 
+    vi.doMock('std-env', () => ({
+      get isLinux() { return isLinux },
+    }))
     vi.doMock('electron', () => ({
       app: { getPath: vi.fn(() => '/tmp/airi-user-data') },
       safeStorage: {
         isEncryptionAvailable: () => encryptionAvailable,
+        getSelectedStorageBackend: () => storageBackend,
         // NOTICE: a real OS keychain is unavailable in CI, so this stub round-trips through a
         // tagged string instead of real crypto — it only needs to prove the encrypt/decrypt
         // boundary is actually invoked, not exercise safeStorage's own encryption.
         encryptString: (value: string) => Buffer.from(`encrypted:${value}`, 'utf-8'),
         decryptString: (buffer: Buffer) => {
+          if (decryptionThrows)
+            throw new Error('Simulated decrypt failure (corrupted ciphertext, wrong machine/OS user, or rotated keychain key)')
           const text = buffer.toString('utf-8')
           if (!text.startsWith('encrypted:'))
             throw new Error('Ciphertext was not produced by the mocked safeStorage.encryptString')
@@ -63,6 +72,9 @@ describe('createArtistryConfig', () => {
 
     return {
       setEncryptionAvailable: (value: boolean) => { encryptionAvailable = value },
+      setDecryptionThrows: (value: boolean) => { decryptionThrows = value },
+      setIsLinux: (value: boolean) => { isLinux = value },
+      setStorageBackend: (value: typeof storageBackend) => { storageBackend = value },
       writeFileMock,
       renameMock,
       existsSyncMock,
@@ -212,5 +224,121 @@ describe('createArtistryConfig', () => {
     // the keychain happens to be down -- there's no ciphertext at risk of being destroyed.
     const encryptedNanobananaApiKey = config.getEncrypted()?.artistryGlobals?.nanobananaApiKey ?? ''
     expect(isApiKeyUnavailable(encryptedNanobananaApiKey)).toBe(false)
+  })
+
+  // ROOT CAUSE:
+  //
+  // isEncryptionAvailable() returning true does not mean an OS keychain actually protects the
+  // ciphertext. On Linux, when no secret service (gnome-keyring/kwallet) is found, Electron
+  // falls back to a 'basic_text' backend that encrypts with a hardcoded password baked into
+  // the binary -- recoverable by anyone, no user secret needed. The prior code accepted that
+  // backend and persisted "encrypted" credentials under it as if real protection succeeded.
+  //
+  // https://github.com/moeru-ai/airi/pull/2512#discussion_r4180458796
+  // Source: https://www.electronjs.org/docs/latest/api/safe-storage#synchronous-api
+  //
+  // We fixed this by checking safeStorage.getSelectedStorageBackend() on Linux and rejecting
+  // anything other than the known OS-keychain-backed backends.
+  it('rejects the Linux basic_text backend exactly like encryption being unavailable', async () => {
+    const { setIsLinux, setStorageBackend, writeFileMock, renameMock } = mockElectronEnvironment()
+    setIsLinux(true)
+    setStorageBackend('basic_text')
+    const { createArtistryConfig } = await import('./artistry')
+
+    const config = createArtistryConfig()
+    config.setup()
+
+    expect(() => config.update(artistryPayload({ replicateApiKey: REAL_REPLICATE_KEY }))).toThrow(/secure storage is unavailable/i)
+    expect(writeFileMock).not.toHaveBeenCalled()
+    expect(renameMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unrecognized ("unknown") Linux backend the same way', async () => {
+    const { setIsLinux, setStorageBackend } = mockElectronEnvironment()
+    setIsLinux(true)
+    setStorageBackend('unknown')
+    const { createArtistryConfig } = await import('./artistry')
+
+    const config = createArtistryConfig()
+    config.setup()
+
+    expect(() => config.update(artistryPayload({ replicateApiKey: REAL_REPLICATE_KEY }))).toThrow(/secure storage is unavailable/i)
+  })
+
+  it.each(['gnome_libsecret', 'kwallet', 'kwallet5', 'kwallet6'] as const)('accepts the Linux %s backend', async (backend) => {
+    const { setIsLinux, setStorageBackend } = mockElectronEnvironment()
+    setIsLinux(true)
+    setStorageBackend(backend)
+    const { createArtistryConfig } = await import('./artistry')
+
+    const config = createArtistryConfig()
+    config.setup()
+
+    expect(() => config.update(artistryPayload({ replicateApiKey: REAL_REPLICATE_KEY }))).not.toThrow()
+  })
+
+  it('does not check the storage backend at all on non-Linux platforms', async () => {
+    const { setIsLinux, setStorageBackend } = mockElectronEnvironment()
+    setIsLinux(false)
+    setStorageBackend('basic_text') // would be rejected on Linux; irrelevant on macOS/Windows
+    const { createArtistryConfig } = await import('./artistry')
+
+    const config = createArtistryConfig()
+    config.setup()
+
+    expect(() => config.update(artistryPayload({ replicateApiKey: REAL_REPLICATE_KEY }))).not.toThrow()
+  })
+
+  // ROOT CAUSE:
+  //
+  // The decrypt catch block assumed any decryptString() failure meant the stored value was
+  // legacy pre-encryption plaintext, and returned the raw bytes as-is. But when
+  // isEncryptionAvailable() is true and decryptString() throws anyway (ciphertext restored on
+  // a different machine/OS user, corruption, a rotated keychain key), those raw bytes are
+  // actually base64 ciphertext, not a usable key. Handing them out let the renderer "hydrate"
+  // successfully and re-sync them through encryptApiKey, double-encrypting and permanently
+  // destroying the original value.
+  //
+  // https://github.com/moeru-ai/airi/pull/2512#discussion_r4180458798
+  //
+  // We fixed this by tagging our own ciphertext with ENCRYPTED_VALUE_PREFIX so a decrypt
+  // failure on a tagged value is unambiguous: it's never legacy plaintext, so it's reported
+  // as unavailable instead of being returned as a bogus "key".
+  it('reports a decrypt exception as unavailable instead of returning the ciphertext as plaintext', async () => {
+    const { setDecryptionThrows } = mockElectronEnvironment()
+    const { createArtistryConfig, isApiKeyUnavailable } = await import('./artistry')
+
+    const config = createArtistryConfig()
+    config.setup()
+    config.update(artistryPayload({ replicateApiKey: REAL_REPLICATE_KEY }))
+    expect(config.get()?.artistryGlobals?.replicateApiKey).toBe(REAL_REPLICATE_KEY)
+
+    // isEncryptionAvailable() stays true -- only decryptString() itself now fails.
+    setDecryptionThrows(true)
+
+    expect(config.get()?.artistryGlobals?.replicateApiKey).toBe('')
+    const encryptedReplicateApiKey = config.getEncrypted()?.artistryGlobals?.replicateApiKey ?? ''
+    expect(isApiKeyUnavailable(encryptedReplicateApiKey)).toBe(true)
+  })
+
+  it('treats a value without the encrypted-value marker as genuine legacy plaintext regardless of keychain state', async () => {
+    const { existsSyncMock, readFileSyncMock, setEncryptionAvailable } = mockElectronEnvironment()
+    // Simulate a config file written before this app version ever encrypted this field: no
+    // ENCRYPTED_VALUE_PREFIX marker, just the raw plaintext key already on disk.
+    existsSyncMock.mockReturnValue(true)
+    readFileSyncMock.mockReturnValue(JSON.stringify(artistryPayload({ replicateApiKey: 'sk-pre-encryption-plaintext' })))
+    const { createArtistryConfig, isApiKeyUnavailable } = await import('./artistry')
+
+    const config = createArtistryConfig()
+    config.setup()
+
+    expect(config.get()?.artistryGlobals?.replicateApiKey).toBe('sk-pre-encryption-plaintext')
+    expect(isApiKeyUnavailable(config.getEncrypted()?.artistryGlobals?.replicateApiKey ?? '')).toBe(false)
+
+    // Even with the keychain unavailable, a value without the marker is never ciphertext, so
+    // there's nothing to fail at -- it must still round-trip as plaintext, not "unavailable".
+    setEncryptionAvailable(false)
+    expect(config.get()?.artistryGlobals?.replicateApiKey).toBe('sk-pre-encryption-plaintext')
+    expect(isApiKeyUnavailable(config.getEncrypted()?.artistryGlobals?.replicateApiKey ?? '')).toBe(false)
   })
 })
