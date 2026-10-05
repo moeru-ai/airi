@@ -78,19 +78,85 @@ interface MinimaxVoiceEntry {
 }
 
 /**
+ * Every MiniMax endpoint reports its own outcome in this envelope, and it does
+ * so with HTTP 200. A rejected key and a rejected request therefore look like a
+ * successful empty result to anything that reads only the status code. The
+ * payload is the only place the outcome appears.
+ */
+interface MinimaxBaseResponse {
+  base_resp?: {
+    status_code?: number
+    status_msg?: string
+  }
+}
+
+/** The only status code MiniMax uses for a successful call. */
+const MINIMAX_STATUS_OK = 0
+
+/** One `data:` event of the synthesis stream. */
+interface MinimaxStreamEvent extends MinimaxBaseResponse {
+  data?: {
+    audio?: string
+    status?: number
+  }
+}
+
+/**
+ * The API message for an outcome other than success, or an empty string when
+ * the call succeeded. An absent status means the endpoint reported no outcome,
+ * which is not a refusal.
+ */
+function minimaxRefusal(payload: MinimaxBaseResponse, fallbackMessage: string): string {
+  const statusCode = payload.base_resp?.status_code
+  if (statusCode === undefined || statusCode === MINIMAX_STATUS_OK)
+    return ''
+
+  return payload.base_resp?.status_msg || fallbackMessage
+}
+
+/** The API message from a failed HTTP response, when its body carries one. */
+async function readMinimaxRefusal(response: Response, fallbackMessage: string): Promise<string> {
+  let payload: MinimaxBaseResponse
+  try {
+    payload = await response.json() as MinimaxBaseResponse
+  }
+  catch {
+    return fallbackMessage
+  }
+
+  return minimaxRefusal(payload, fallbackMessage) || fallbackMessage
+}
+
+/**
+ * How the account answered a voice catalog request. A refusal and an
+ * unreachable API stay apart, because only a refusal says anything about the
+ * credentials.
+ */
+type VoiceCatalogOutcome
+  = | { kind: 'ok', voices: VoiceInfo[] }
+    | { kind: 'rejected', reason: string }
+    | { kind: 'unreachable' }
+
+interface MinimaxVoiceCatalog extends MinimaxBaseResponse {
+  system_voice?: MinimaxVoiceEntry[]
+  voice_cloning?: MinimaxVoiceEntry[]
+  voice_generation?: MinimaxVoiceEntry[]
+}
+
+/**
  * Reads the account voice catalog from `POST /v1/get_voice`. The account holds
  * every system voice, plus cloned and generated voices.
- * Returns an empty list when the API key is missing or the call fails.
  */
-async function fetchMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceInfo[]> {
+async function requestMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceCatalogOutcome> {
   const apiKey = config.apiKey?.trim()
   if (!apiKey)
-    return []
+    return { kind: 'rejected', reason: 'API key is required.' }
 
   const baseUrl = (config.baseUrl || 'https://api.minimax.io').replace(/\/$/, '')
 
+  let response: Response
   try {
-    const response = await fetch(`${baseUrl}/v1/get_voice`, {
+    response = await fetch(`${baseUrl}/v1/get_voice`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -98,23 +164,37 @@ async function fetchMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceInf
       },
       body: JSON.stringify({ voice_type: 'all' }),
     })
+  }
+  // Only the call itself is guarded. A refusal must reach the caller, because a
+  // refused key and an unreachable API are different answers.
+  catch {
+    return { kind: 'unreachable' }
+  }
 
-    if (!response.ok)
-      return []
+  if (!response.ok)
+    return { kind: 'rejected', reason: await readMinimaxRefusal(response, `MiniMax voice catalog request failed: ${response.status} ${response.statusText}`) }
 
-    const payload = await response.json() as {
-      system_voice?: MinimaxVoiceEntry[]
-      voice_cloning?: MinimaxVoiceEntry[]
-      voice_generation?: MinimaxVoiceEntry[]
-    }
+  let payload: MinimaxVoiceCatalog
+  try {
+    payload = await response.json() as MinimaxVoiceCatalog
+  }
+  catch {
+    return { kind: 'unreachable' }
+  }
 
-    const entries = [
-      ...(payload.system_voice ?? []),
-      ...(payload.voice_cloning ?? []),
-      ...(payload.voice_generation ?? []),
-    ]
+  const refusal = minimaxRefusal(payload, 'MiniMax rejected the voice catalog request.')
+  if (refusal)
+    return { kind: 'rejected', reason: refusal }
 
-    return entries
+  const entries = [
+    ...(payload.system_voice ?? []),
+    ...(payload.voice_cloning ?? []),
+    ...(payload.voice_generation ?? []),
+  ]
+
+  return {
+    kind: 'ok',
+    voices: entries
       .filter(entry => !!entry.voice_id)
       .map(entry => ({
         id: entry.voice_id as string,
@@ -122,12 +202,21 @@ async function fetchMinimaxVoices(config: MinimaxSpeechConfig): Promise<VoiceInf
         provider: 'minimax-speech',
         description: entry.description?.join(' '),
         languages: [resolveVoiceLanguage(entry.voice_id as string)],
-      }))
+      })),
   }
-  // The built-in voices keep the page usable when the account call fails.
-  catch {
-    return []
-  }
+}
+
+/**
+ * Reports why the account refused these credentials, or an empty string when it
+ * accepted them.
+ *
+ * A supplied key is not an authenticated one, and an unreachable API is not a
+ * refusal. Only the payload tells the two apart, so this is the check that
+ * separates "the user typed something" from "the account works".
+ */
+async function probeMinimaxCredentials(config: MinimaxSpeechConfig): Promise<string> {
+  const outcome = await requestMinimaxVoices(config)
+  return outcome.kind === 'rejected' ? outcome.reason : ''
 }
 
 export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minimax-speech'>({
@@ -180,8 +269,14 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
             }),
           })
 
-          if (!response.ok || !response.body)
-            throw new Error(`MiniMax TTS request failed: ${response.status} ${response.statusText}`)
+          if (!response.ok || !response.body) {
+            throw new Error(await readMinimaxRefusal(response, `MiniMax TTS request failed: ${response.status} ${response.statusText}`))
+          }
+
+          // A JSON body on a 200 is the refusal shape, and it carries the reason.
+          // An event stream would state the same outcome per event instead.
+          if ((response.headers.get('content-type') ?? '').includes('application/json'))
+            throw new Error(await readMinimaxRefusal(response, 'MiniMax rejected the synthesis request.'))
 
           // MiniMax streams SSE events that contain hex-encoded audio chunks.
           const reader = response.body.getReader()
@@ -205,18 +300,28 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
               if (!json || json === '[DONE]')
                 continue
 
+              let event: MinimaxStreamEvent
               try {
-                const event = JSON.parse(json) as { data?: { audio?: string, status?: number } }
-                // Status 2 is the final summary. Its audio duplicates prior chunks.
-                if (event.data?.audio && event.data.status !== 2) {
-                  const bytes = new Uint8Array(event.data.audio.length / 2)
-                  for (let index = 0; index < event.data.audio.length; index += 2)
-                    bytes[index / 2] = Number.parseInt(event.data.audio.slice(index, index + 2), 16)
-                  audioChunks.push(bytes)
-                }
+                event = JSON.parse(json) as MinimaxStreamEvent
               }
               catch {
                 // A malformed SSE event does not invalidate earlier audio chunks.
+                continue
+              }
+
+              // The HTTP status is already 200 by the time the stream opens, so
+              // each event carries the outcome on its own. A refusal here must
+              // not reach the player as silence.
+              const refusal = minimaxRefusal(event, 'MiniMax rejected the synthesis request.')
+              if (refusal)
+                throw new Error(refusal)
+
+              // Status 2 is the final summary. Its audio duplicates prior chunks.
+              if (event.data?.audio && event.data.status !== 2) {
+                const bytes = new Uint8Array(event.data.audio.length / 2)
+                for (let index = 0; index < event.data.audio.length; index += 2)
+                  bytes[index / 2] = Number.parseInt(event.data.audio.slice(index, index + 2), 16)
+                audioChunks.push(bytes)
               }
             }
           }
@@ -227,6 +332,12 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
             combined.set(chunk, offset)
             offset += chunk.length
           }
+
+          // A stream can end with no audio at all. Returning that as a success
+          // presents an empty player with no error, which reads as a working
+          // provider and hides the reason the request produced nothing.
+          if (combined.byteLength === 0)
+            throw new Error('MiniMax returned no audio for this request.')
 
           return new Response(combined.buffer, {
             status: 200,
@@ -243,12 +354,23 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
         id: 'minimax-speech:check-config',
         name: t('settings.pages.providers.catalog.edit.validators.openai-compatible.check-config.title'),
         validator: async (config) => {
-          const valid = Boolean(config.apiKey?.trim())
+          const errors: Array<{ error: unknown }> = []
+
+          if (!config.apiKey?.trim()) {
+            errors.push({ error: new Error('API key is required.') })
+          }
+          else {
+            // A nonempty key is a supplied key, not an authenticated one.
+            const refusal = await probeMinimaxCredentials(config)
+            if (refusal)
+              errors.push({ error: new Error(refusal) })
+          }
+
           return {
-            errors: valid ? [] : [{ error: new Error('API key is required.') }],
-            reason: valid ? '' : 'API key is required.',
+            errors,
+            reason: errors.map(item => (item.error as Error).message).join(', '),
             reasonKey: '',
-            valid,
+            valid: errors.length === 0,
           }
         },
       }),
@@ -261,8 +383,18 @@ export const providerMinimaxSpeech = defineProvider<MinimaxSpeechConfig, 'minima
     ],
     voiceCatalogConfig: () => ({}),
     listVoices: async (config) => {
-      const voices = await fetchMinimaxVoices(config)
-      return voices.length > 0 ? voices : builtinMinimaxVoices
+      const outcome = await requestMinimaxVoices(config)
+
+      // A refusal must not become a populated selector. The built-in list would
+      // read as a working account and hide the rejected key.
+      if (outcome.kind === 'rejected')
+        throw new Error(outcome.reason)
+
+      if (outcome.kind === 'unreachable')
+        return builtinMinimaxVoices
+
+      // An account with no voices yet still needs entries to choose from.
+      return outcome.voices.length > 0 ? outcome.voices : builtinMinimaxVoices
     },
   },
 })
