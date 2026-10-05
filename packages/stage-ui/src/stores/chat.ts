@@ -41,6 +41,7 @@ import { useContextObservabilityStore } from './devtools/context-observability'
 import { useAiriCardStore } from './modules/airi-card'
 import { useAutonomousArtistryStore } from './modules/artistry-autonomous'
 import { useConsciousnessStore } from './modules/consciousness'
+import { useStickersStore } from './modules/stickers'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
 import { executeToolCallRerun } from './tool-call-rerun'
@@ -197,6 +198,7 @@ export const useChatStore = defineStore('chat', () => {
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
   const cardStore = useAiriCardStore()
+  const stickersStore = useStickersStore()
   const contextObservability = useContextObservabilityStore()
   const { activeSessionId } = storeToRefs(chatSession)
   const { streamingMessage } = storeToRefs(chatStream)
@@ -523,12 +525,50 @@ export const useChatStore = defineStore('chat', () => {
     },
   })
 
+  // One request owns preparation and generation. Cancellation cannot miss asynchronous startup.
+  const requests = new Map<string, {
+    sessionId: string
+    abort: AbortController
+    request: ReturnType<typeof runtime.submit>
+  }>()
+
   async function ingest(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
-    return runtime.ingest(sendingMessage, options, targetSessionId)
+    const sessionId = targetSessionId ?? activeSessionId.value
+    const generation = chatSession.getSessionGeneration(sessionId)
+    const messageId = options.messageId ?? nanoid()
+    const key = JSON.stringify([sessionId, messageId])
+    const existing = requests.get(key)
+    if (existing)
+      return existing.request.done
+
+    const abort = new AbortController()
+    const captured = {
+      ...options,
+      messageId,
+      providerId: options.providerId ?? activeProvider.value,
+      systemPromptSupplement: options.systemPromptSupplement ?? llmToolsetPromptsStore.activeToolsetPrompt,
+      signal: options.signal ? AbortSignal.any([options.signal, abort.signal]) : abort.signal,
+    }
+    const prepared = (async () => {
+      captured.signal.throwIfAborted()
+      const stickers = captured.stickers ?? await stickersStore.selectCatalogForReply()
+      captured.signal.throwIfAborted()
+      if (chatSession.getSessionGeneration(sessionId) !== generation)
+        throw new DOMException('Chat session changed during preparation', 'AbortError')
+      return runtime.submit(sendingMessage, { ...captured, stickers }, sessionId)
+    })()
+    const request = {
+      accepted: prepared.then(value => value.accepted),
+      done: prepared.then(value => value.done),
+    }
+    requests.set(key, { sessionId, abort, request })
+    void request.accepted.catch(() => {})
+    void request.done.finally(() => requests.delete(key)).catch(() => {})
+    return request.done
   }
 
   function requiresToolSelection(name: string) {
@@ -577,9 +617,11 @@ export const useChatStore = defineStore('chat', () => {
     const temperature = payload.temperature ?? consciousnessStore.activeTemperature
     const topP = payload.topP ?? consciousnessStore.activeTopP
     const systemPromptSupplement = llmToolsetPromptsStore.activeToolsetPrompt
-
     if (!chatReady.value)
       throw new Error('No active chat provider or model configured')
+
+    const stickers = await stickersStore.selectCatalogForReply()
+    signal.throwIfAborted()
 
     const chatProvider = await consciousnessStore.getChatProviderInstance(providerId)
     signal.throwIfAborted()
@@ -600,19 +642,13 @@ export const useChatStore = defineStore('chat', () => {
       temperature,
       topP,
       systemPromptSupplement,
+      stickers,
       tools: async () => {
         const references = collectToolReferences(payload.sessionId, payload.tools)
         return llmToolsStore.getToolsByNames(...references.map(tool => tool.name))
       },
     }
   }
-
-  // One request owns preparation and generation. Cancellation cannot miss asynchronous startup.
-  const requests = new Map<string, {
-    sessionId: string
-    abort: AbortController
-    request: ReturnType<typeof runtime.submit>
-  }>()
 
   function startSend(payload: ChatSendPayload): ReturnType<typeof runtime.submit> {
     const messageId = payload.messageId ?? nanoid()
