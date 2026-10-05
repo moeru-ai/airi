@@ -248,9 +248,7 @@ export interface ExtensionHostServiceInternal extends ExtensionHostService {
    * - Disposal may be called after partial startup or after prior plugin failures
    *
    * Returns:
-   * - New operations are rejected once disposal starts
-   * - Admitted operations finish before configuration flush and resource cleanup
-   * - Repeated disposal awaits the same cleanup result
+   * - A promise that resolves after all cleanup attempts finish
    *
    * Failures:
    * - Rejects with the remaining failure or an AggregateError after all cleanup attempts finish
@@ -290,17 +288,6 @@ export async function setupExtensionHostServiceInternal(
     runtime: 'electron',
   })
   const activationMutex = new Mutex()
-  // Admitted operations share the activation lock, including registry refresh and
-  // configuration writes. Shutdown rejects new work, drains admitted operations,
-  // then flushes the configuration once; repeated disposal shares its completion.
-  let disposal: Promise<void> | undefined
-
-  function runHostOperation<T>(operation: () => Promise<T>): Promise<T> {
-    if (disposal)
-      return Promise.reject(new Error('Extension Host is shutting down.'))
-    return activationMutex.runExclusive(operation)
-  }
-
   let systemEnabled = true
   log.withFields({ extensionsRoot }).log('loading extension manifests')
   builtInKitRuntime.registerHostKits(host)
@@ -645,7 +632,7 @@ export async function setupExtensionHostServiceInternal(
     isLoaded: extensionId => managedSessions.isLoaded(extensionId),
     resolveWatchPaths: resolveAutoReloadWatchPaths,
     reload: async (extensionId) => {
-      await runHostOperation(async () => {
+      await activationMutex.runExclusive(async () => {
         await refreshManifests()
         const plan = planActivation(getLoadedExtensionIds(), [extensionId])
         await executeActivationPlan(plan, { cacheBustKey: `auto-reload-${Date.now()}` })
@@ -668,7 +655,7 @@ export async function setupExtensionHostServiceInternal(
     return report
   }
 
-  await runHostOperation(async () => {
+  await activationMutex.runExclusive(async () => {
     await refreshManifests()
     try {
       await loadEnabledExtensions()
@@ -687,45 +674,37 @@ export async function setupExtensionHostServiceInternal(
     tools: builtInKitRuntime.tools,
     manifests: extensionRegistry.listManifests(),
     async prepareDirectoryImport(sourcePath, securityScopedBookmark) {
-      return await runHostOperation(async () => {
-        await refreshManifests()
-        return await directoryImporter.prepare(sourcePath, securityScopedBookmark)
-      })
+      await refreshManifests()
+      return await directoryImporter.prepare(sourcePath, securityScopedBookmark)
     },
     async commitDirectoryImport(planId) {
-      return await runHostOperation(async () => {
-        await refreshManifests()
-        const imported = await directoryImporter.commit(planId)
-        extensionRegistry.recordCommittedEntry(imported)
+      await refreshManifests()
+      const imported = await directoryImporter.commit(planId)
+      extensionRegistry.recordCommittedEntry(imported)
 
-        const config = getConfig()
-        extensionConfig.update({
-          enabled: config.enabled.filter(extensionId => extensionId !== imported.manifest.id),
-          autoReload: config.autoReload.filter(extensionId => extensionId !== imported.manifest.id),
-          known: {
-            ...config.known,
-            [imported.manifest.id]: { path: imported.path },
-          },
-        })
-
-        autoReloadFeature.sync()
-        return listSnapshot()
+      const config = getConfig()
+      extensionConfig.update({
+        enabled: config.enabled.filter(extensionId => extensionId !== imported.manifest.id),
+        autoReload: config.autoReload.filter(extensionId => extensionId !== imported.manifest.id),
+        known: {
+          ...config.known,
+          [imported.manifest.id]: { path: imported.path },
+        },
       })
+
+      autoReloadFeature.sync()
+      return listSnapshot()
     },
     cancelDirectoryImport(planId) {
-      if (disposal)
-        throw new Error('Extension Host is shutting down.')
       directoryImporter.cancel(planId)
     },
     async list() {
-      return await runHostOperation(async () => {
-        await refreshManifests()
-        autoReloadFeature.sync()
-        return listSnapshot()
-      })
+      await refreshManifests()
+      autoReloadFeature.sync()
+      return listSnapshot()
     },
     async setEnabled(payload) {
-      return await runHostOperation(async () => {
+      return await activationMutex.runExclusive(async () => {
         await refreshManifests()
 
         const config = getConfig()
@@ -760,29 +739,27 @@ export async function setupExtensionHostServiceInternal(
       })
     },
     async setAutoReload(payload) {
-      return await runHostOperation(async () => {
-        await refreshManifests()
+      await refreshManifests()
 
-        const config = getConfig()
-        const autoReload = new Set(config.autoReload)
-        if (payload.enabled) {
-          autoReload.add(payload.extensionId)
-        }
-        else {
-          autoReload.delete(payload.extensionId)
-        }
+      const config = getConfig()
+      const autoReload = new Set(config.autoReload)
+      if (payload.enabled) {
+        autoReload.add(payload.extensionId)
+      }
+      else {
+        autoReload.delete(payload.extensionId)
+      }
 
-        extensionConfig.update({
-          ...config,
-          autoReload: [...autoReload],
-        })
-
-        autoReloadFeature.sync()
-        return listSnapshot()
+      extensionConfig.update({
+        ...config,
+        autoReload: [...autoReload],
       })
+
+      autoReloadFeature.sync()
+      return listSnapshot()
     },
     async loadEnabled() {
-      return await runHostOperation(async () => {
+      return await activationMutex.runExclusive(async () => {
         await refreshManifests()
         await loadEnabledExtensions()
         autoReloadFeature.sync()
@@ -790,7 +767,7 @@ export async function setupExtensionHostServiceInternal(
       })
     },
     async load(extensionId) {
-      return await runHostOperation(async () => {
+      return await activationMutex.runExclusive(async () => {
         await refreshManifests()
         const plan = planActivation([...getLoadedExtensionIds(), extensionId])
         await executeActivationPlan(plan, { rejectOnFailure: true })
@@ -799,7 +776,7 @@ export async function setupExtensionHostServiceInternal(
       })
     },
     async unload(extensionId) {
-      return await runHostOperation(async () => {
+      return await activationMutex.runExclusive(async () => {
         await refreshManifests()
         const proposedLoadedExtensionIds = getLoadedExtensionIds()
           .filter(loadedExtensionId => loadedExtensionId !== extensionId)
@@ -810,7 +787,7 @@ export async function setupExtensionHostServiceInternal(
       })
     },
     async setSystemEnabled(enabled) {
-      return await runHostOperation(async () => {
+      return await activationMutex.runExclusive(async () => {
         await refreshManifests()
         const plan = planActivation(getConfig().enabled, [], enabled)
         systemEnabled = enabled
@@ -820,7 +797,7 @@ export async function setupExtensionHostServiceInternal(
       })
     },
     async inspect() {
-      return await runHostOperation(async () => {
+      return await activationMutex.runExclusive(async () => {
         await refreshManifests()
         autoReloadFeature.sync()
         return await inspectSnapshot()
@@ -830,10 +807,7 @@ export async function setupExtensionHostServiceInternal(
       return extensionAssetService.getBaseUrl() ?? ''
     },
     async dispose() {
-      if (disposal)
-        return await disposal
-
-      disposal = activationMutex.runExclusive(async () => {
+      await activationMutex.runExclusive(async () => {
         const cleanupFailures: unknown[] = []
         const managedManifests = managedSessions.snapshot().ownedManifests
         const shutdownResult = planExtensionActivation({
@@ -878,8 +852,6 @@ export async function setupExtensionHostServiceInternal(
           cleanupFailures.push(error)
         }
 
-        await extensionConfig.flush()
-
         moduleAssetSessionCache.clear()
         try {
           await extensionAssetService.revokeAll()
@@ -901,7 +873,6 @@ export async function setupExtensionHostServiceInternal(
           throw new AggregateError(cleanupFailures, 'Extension Host disposal failed.')
         }
       })
-      await disposal
     },
   }
 }
