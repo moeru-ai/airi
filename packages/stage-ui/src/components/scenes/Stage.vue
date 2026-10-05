@@ -628,8 +628,8 @@ function resetSpeakingState() {
   mouthOpenSize.value = 0
 }
 
-// Segmenter intents reach the tracker through the speech pipeline. Streaming
-// sessions bypass it, so `openTtsSession` reports them.
+// Segmenter intents reach the tracker through the speech pipeline. A
+// streaming session bypasses it and reports itself through its adapter.
 const voicingTracker = new SpeechVoicingTracker((voicing) => {
   speechVoicing.value = voicing
 })
@@ -839,19 +839,12 @@ function openTtsSession(turnId: string): StageTtsSession {
     if (session && currentSession === session && session.intentId.startsWith('stream-'))
       currentSession = null
   }
-  const created = createStageTtsSession<AudioBuffer>({
+  session = createStageTtsSession<AudioBuffer>({
     transport: resolveSpeechTransport(activeSpeechProvider.value),
     streaming: () => buildStreamingSnapshot(turnId),
     audioContext,
-    // Only the streaming adapter schedules through this. The segmenter
-    // adapter plays through the speech pipeline, which reports itself.
-    playbackManager: {
-      schedule: (item) => {
-        voicingTracker.streamingAudioScheduled(item.intentId)
-        playbackManager.schedule(item)
-      },
-      stopByIntent: playbackManager.stopByIntent,
-    },
+    playbackManager,
+    voicing: voicingTracker,
     openIntent: opts => speechRuntimeStore.openIntent(opts),
     intentOptions: () => ({
       turnId,
@@ -874,19 +867,9 @@ function openTtsSession(turnId: string): StageTtsSession {
       },
       onDone: () => {
         clearIfActive()
-        voicingTracker.streamingInputDone(created.intentId)
       },
     },
   })
-  session = {
-    ...created,
-    cancel: (reason) => {
-      created.cancel(reason)
-      // Stopping playback drops queued audio without an event, so the
-      // canceled intent closes here instead of waiting for that audio.
-      voicingTracker.closeIntent(created.intentId)
-    },
-  }
   return session
 }
 

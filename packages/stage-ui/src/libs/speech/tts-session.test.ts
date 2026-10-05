@@ -4,6 +4,7 @@ import type { PlaybackManagerSubset, StreamingSessionSnapshot } from './tts-sess
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { SpeechVoicingTracker } from './speech-voicing'
 import { createStageTtsSession, createStreamingTtsSession } from './tts-session'
 
 // Lightweight IntentHandle stub. We do not import the real one from
@@ -296,6 +297,51 @@ describe('createStreamingTtsSession (adapter)', () => {
     expect(playback.cancellations).toEqual([
       { intentId: 'stream-late', reason: 'post-done-cancel' },
     ])
+  })
+
+  it('reports its speech until it is done and its audio has settled', () => {
+    const onVoicingChange = vi.fn()
+    const voicing = new SpeechVoicingTracker(onVoicingChange)
+    const pipe = makePipelineStub()
+    createStreamingTtsSession({
+      intentId: 'stream-voiced',
+      snapshot: makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: makePlaybackManagerStub(),
+      voicing,
+      pipelineFactory: pipe.factory as any,
+    })
+
+    pipe.options.onSentence({ index: 0, text: 'first', audio: {} as AudioBuffer })
+    voicing.audioStarted('stream-voiced')
+    expect(onVoicingChange).toHaveBeenLastCalledWith(true)
+
+    pipe.options.onDone()
+    expect(onVoicingChange).toHaveBeenCalledTimes(1)
+
+    voicing.audioSettled('stream-voiced')
+    expect(onVoicingChange).toHaveBeenLastCalledWith(false)
+  })
+
+  it('ends its speech at once when canceled with queued audio', () => {
+    const onVoicingChange = vi.fn()
+    const voicing = new SpeechVoicingTracker(onVoicingChange)
+    const pipe = makePipelineStub()
+    const session = createStreamingTtsSession({
+      intentId: 'stream-canceled',
+      snapshot: makeStreamingSnapshot(),
+      audioContext: dummyAudioContext,
+      playbackManager: makePlaybackManagerStub(),
+      voicing,
+      pipelineFactory: pipe.factory as any,
+    })
+
+    pipe.options.onSentence({ index: 0, text: 'first', audio: {} as AudioBuffer })
+    pipe.options.onSentence({ index: 1, text: 'second', audio: {} as AudioBuffer })
+    voicing.audioStarted('stream-canceled')
+    session.cancel('muted')
+
+    expect(onVoicingChange).toHaveBeenLastCalledWith(false)
   })
 
   it('onSentence is dropped after pipeline terminated', () => {

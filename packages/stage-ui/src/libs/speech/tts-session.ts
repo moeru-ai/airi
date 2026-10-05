@@ -1,5 +1,6 @@
 import type { IntentHandle, IntentOptions, PlaybackItem } from '@proj-airi/pipelines-audio'
 
+import type { SpeechVoicingTracker } from './speech-voicing'
 import type { StreamingTtsPipelineOptions } from './streaming-pipeline'
 
 import { createStreamingTtsPipeline } from './streaming-pipeline'
@@ -122,6 +123,12 @@ export interface CreateStreamingSessionOptions<TAudio = AudioBuffer> {
   playbackManager: PlaybackManagerSubset<TAudio>
   hooks?: StreamingSessionHooks
   /**
+   * Receives the lifecycle of this session's speech. The session bypasses
+   * the speech pipeline, which reports a segmenter intent instead, so it
+   * reports its own scheduled audio, its end, and its cancellation.
+   */
+  voicing?: SpeechVoicingTracker
+  /**
    * Optional override for the underlying pipeline factory. Tests inject a
    * stub here; production wires the real `createStreamingTtsPipeline`.
    *
@@ -151,7 +158,7 @@ export interface CreateStreamingSessionOptions<TAudio = AudioBuffer> {
 export function createStreamingTtsSession<TAudio = AudioBuffer>(
   options: CreateStreamingSessionOptions<TAudio>,
 ): StageTtsSession {
-  const { intentId, snapshot, audioContext, playbackManager, hooks } = options
+  const { intentId, snapshot, audioContext, playbackManager, hooks, voicing } = options
   const pipelineFactory = options.pipelineFactory ?? createStreamingTtsPipeline
 
   let sequence = 0
@@ -168,6 +175,7 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
     onSentence: ({ index, text, audio }) => {
       if (terminated)
         return
+      voicing?.streamingAudioScheduled(intentId)
       playbackManager.schedule({
         id: `${intentId}-${index}`,
         streamId: intentId,
@@ -187,11 +195,15 @@ export function createStreamingTtsSession<TAudio = AudioBuffer>(
     },
     onDone: () => {
       terminated = true
+      voicing?.streamingInputDone(intentId)
       hooks?.onDone?.()
     },
   })
 
   function cancel(reason?: string) {
+    // Stopping playback drops queued audio without an event, so that audio
+    // never settles. The canceled intent closes here instead.
+    voicing?.closeIntent(intentId)
     if (terminated) {
       // Pipeline already closed itself; still drain any playback items it
       // managed to queue before terminating.
@@ -266,6 +278,8 @@ export interface StageTtsSessionContext<TAudio = AudioBuffer> {
   intentOptions: () => IntentOptions
   /** Lifecycle hooks shared by both paths. */
   hooks?: StreamingSessionHooks
+  /** Speech lifecycle for the streaming path. The segmenter path reports through the speech pipeline. */
+  voicing?: SpeechVoicingTracker
 }
 
 /**
@@ -314,6 +328,7 @@ export function createStageTtsSession<TAudio = AudioBuffer>(
     audioContext: ctx.audioContext!,
     playbackManager: ctx.playbackManager,
     hooks: ctx.hooks,
+    voicing: ctx.voicing,
   })
 }
 
