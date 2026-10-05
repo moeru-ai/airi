@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { client } from '@proj-airi/stage-ui/composables/api'
+import { planRemainingPercent } from '@proj-airi/stage-ui/composables/use-subscription'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, DropdownMenu } from '@proj-airi/ui'
@@ -7,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from 'reka-ui'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -24,6 +26,31 @@ const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
+const planRemaining = ref<number | null>(null)
+let summaryRequest = 0
+
+async function refreshAccountSummary() {
+  if (!isAuthenticated.value)
+    return
+  const request = ++summaryRequest
+  void authStore.updateCredits()
+  try {
+    const res = await client.api.v1.subscriptions.status.$get()
+    if (request !== summaryRequest || !isAuthenticated.value || !res.ok)
+      return
+    const status = await res.json()
+    planRemaining.value = planRemainingPercent(status.allowances[0])
+  }
+  catch {
+    // A failed read keeps the last percent. The next open tries again.
+  }
+}
+
+watch(isAuthenticated, (authenticated) => {
+  summaryRequest += 1
+  if (!authenticated)
+    planRemaining.value = null
+})
 </script>
 
 <template>
@@ -46,6 +73,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
             'data-[state=open]:ring-2 data-[state=open]:ring-primary-500/20',
             'transition-colors duration-200 ease-in-out',
           ]"
+          @click="refreshAccountSummary"
         >
           <Avatar
             v-if="isAuthenticated"
@@ -93,7 +121,15 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           <p class="truncate text-sm text-neutral-900 font-medium dark:text-white">
             {{ userName }}
           </p>
-          <div class="mt-1 flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
+          <div class="mt-1 flex flex-col gap-1">
+            <div
+              v-if="planRemaining != null"
+              class="flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400"
+            >
+              <div class="i-solar:star-bold-duotone text-sm" />
+              <span>{{ planRemaining }}%</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-xs text-primary-600 font-medium dark:text-primary-400">
             <div class="i-solar:battery-charge-bold-duotone text-sm" />
             <span>{{ formattedCredits }} Flux</span>
           </div>
@@ -128,6 +164,21 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
           >
             <div class="i-solar:battery-charge-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
             Flux
+          </RouterLink>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem as-child>
+          <RouterLink
+            to="/settings/plan"
+            :class="[
+              'group w-full flex cursor-pointer select-none items-center gap-3 rounded-lg px-3 py-2',
+              'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
+              'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
+              'transition-colors duration-150 ease-in-out',
+            ]"
+          >
+            <div class="i-solar:star-bold-duotone text-lg text-neutral-400 transition group-hover:text-primary-500" />
+            {{ t('settings.pages.plan.title') }}
           </RouterLink>
         </DropdownMenuItem>
 

@@ -44,6 +44,25 @@ export function planBillingPeriod(unit: string | null | undefined): PlanBillingP
   return null
 }
 
+/**
+ * Remaining plan credits as a percent of the grant.
+ * Returns null when there is no grant, so a header can hide the percent instead of showing 0%.
+ *
+ * @example
+ * planRemainingPercent({ grantedCredit: 2000, remainingCredit: 1440 })
+ * // => 72
+ *
+ * planRemainingPercent(undefined)
+ * // => null
+ */
+export function planRemainingPercent(
+  allowance: Pick<PlanAllowance, 'grantedCredit' | 'remainingCredit'> | null | undefined,
+): number | null {
+  if (allowance == null || allowance.grantedCredit <= 0)
+    return null
+  return Math.min(100, Math.round((allowance.remainingCredit / allowance.grantedCredit) * 100))
+}
+
 interface PlanStatus {
   subscriptions: PlanSubscription[]
   allowances: PlanAllowance[]

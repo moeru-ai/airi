@@ -2,7 +2,7 @@
 import type { PlanBillingPeriod, PlanPackage } from '@proj-airi/stage-ui/composables/use-subscription'
 
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
-import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
+import { planRemainingPercent, useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { FieldCheckbox, SelectTab } from '@proj-airi/ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -103,12 +103,7 @@ function planName(entitlementId: string | undefined): string {
   return resolved === key ? entitlementId : resolved
 }
 
-const quotaPercentage = computed(() => {
-  const allowance = currentAllowance.value
-  if (!allowance || allowance.grantedCredit <= 0)
-    return 0
-  return Math.min(100, Math.round((allowance.remainingCredit / allowance.grantedCredit) * 100))
-})
+const quotaPercentage = computed(() => planRemainingPercent(currentAllowance.value) ?? 0)
 
 function formatDate(iso: string | null): string {
   if (!iso)
@@ -211,7 +206,7 @@ async function handleSubscribe(packageId: string) {
         class="plan-progress-bar absolute inset-y-0 left-0 bg-primary-500/20 dark:bg-primary-400/20"
       />
       <div relative z-1 flex="~ items-center justify-start sm:col sm:justify-center gap-4 sm:gap-2" text-left sm:text-center>
-        <div i-solar:crown-bold-duotone size-12 shrink-0 text-primary-500 sm:mx-auto sm:size-14 />
+        <div i-solar:star-bold-duotone size-12 shrink-0 text-primary-500 sm:mx-auto sm:size-14 />
         <div flex="~ col gap-1">
           <h2 text-3xl font-bold tracking-tight sm:text-4xl>
             {{ planName(currentSubscription?.entitlementId) }}
@@ -303,7 +298,7 @@ async function handleSubscribe(packageId: string) {
           <div flex="~ items-center gap-1" relative z-1 class="text-primary-200 transition-colors dark:text-primary-800/60 group-hover:text-primary-300 sm:hidden dark:group-hover:text-primary-700">
             <div
               v-for="i in Math.min(index + 1, 2)" :key="i"
-              class="i-solar:crown-bold-duotone size-8 sm:size-10"
+              class="i-solar:star-bold-duotone size-8 sm:size-10"
             />
           </div>
         </button>
@@ -334,5 +329,5 @@ async function handleSubscribe(packageId: string) {
 meta:
   layout: settings
   titleKey: settings.pages.plan.title
-  icon: i-solar:crown-bold-duotone
+  icon: i-solar:star-bold-duotone
 </route>

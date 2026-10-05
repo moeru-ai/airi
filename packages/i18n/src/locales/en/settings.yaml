@@ -1108,7 +1108,7 @@ pages:
       description: Flux packages to choose from.
   plan:
     title: Plan
-    description: Current plan and plan credits
+    description: Plan credits
     statusError: Failed to load plan status. Please try again later.
     packagesError: Failed to load plans. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
@@ -1124,16 +1124,16 @@ pages:
       year: Yearly
     perMonth: / month
     perYear: / year
-    goSummary: Unlock included chat and speech
-    plusSummary: Unlock more chat and speech
+    goSummary: Chat and speech
+    plusSummary: More chat and speech
     currentPackage: Current plan
     upgrade: Upgrade
     downgrade: Downgrade
     switchToYear: Switch to yearly
     switchToMonth: Switch to monthly
-    manageSubscription: Manage subscription (cancel and billing)
-    fallbackToFlux: Use Flux when plan credits run out
-    fallbackToFluxHint: Off by default. When off, requests stop with insufficient credits instead of spending Flux.
+    manageSubscription: Manage subscription
+    fallbackToFlux: Use Flux after credits
+    fallbackToFluxHint: 'Off: stop when credits run out.'
     checkout:
       success: Subscription active! Your plan credits are ready.
       pending: Payment received. Credits arrive shortly.
