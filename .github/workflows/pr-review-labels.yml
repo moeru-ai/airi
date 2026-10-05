@@ -1,0 +1,124 @@
+name: PR Review Labels
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed, review_requested, review_request_removed]
+  workflow_run:
+    workflows: [PR Review Event]
+    types: [completed]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pr-review-labels
+  cancel-in-progress: false
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const managed = ['pr-review/waiting-maintainer', 'pr-review/waiting-on-author'];
+            const repo = context.repo;
+            const repositoryLabels = await github.paginate(github.rest.issues.listLabelsForRepo, { ...repo, per_page: 100 });
+            for (const name of managed) {
+              if (!repositoryLabels.some(label => label.name === name)) {
+                await github.rest.issues.createLabel({ ...repo, name, color: 'c2e0e0' });
+              }
+            }
+            // Review event jobs have no write token on forks. Read current API data after their completion.
+            const pulls = context.payload.pull_request
+              ? [context.payload.pull_request]
+              : await github.paginate(github.rest.pulls.list, { ...repo, state: 'open', per_page: 100 });
+            for (const pull of pulls) {
+              let current;
+              let cursor = null;
+              const requests = [];
+              do {
+                const { repository } = await github.graphql(`
+                  query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) {
+                        state headRefOid
+                        latestOpinionatedReviews(first: 100, after: $cursor, writersOnly: true) {
+                          nodes { state submittedAt commit { oid } }
+                          pageInfo { hasNextPage endCursor }
+                        }
+                      }
+                    }
+                  }
+                `, { ...repo, number: pull.number, cursor });
+                current = repository.pullRequest;
+                const reviews = current.latestOpinionatedReviews;
+                requests.push(...reviews.nodes.filter(review => review.state === 'CHANGES_REQUESTED'));
+                cursor = reviews.pageInfo.hasNextPage ? reviews.pageInfo.endCursor : null;
+              } while (cursor);
+              let desired;
+              if (current.state === 'OPEN') {
+                desired = 'pr-review/waiting-maintainer';
+                // The latest active request starts a new author response cycle, even if older requests remain.
+                const request = requests.sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+                if (request) {
+                  desired = 'pr-review/waiting-on-author';
+                  if (!request.commit) throw new Error('The change request has no reviewed commit');
+                  const commits = [];
+                  let commitCursor = null;
+                  do {
+                    const { repository } = await github.graphql(`
+                      query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+                        repository(owner: $owner, name: $repo) {
+                          pullRequest(number: $number) {
+                            commits(first: 100, after: $cursor) {
+                              nodes { commit { oid committedDate parents { totalCount } } }
+                              pageInfo { hasNextPage endCursor }
+                            }
+                          }
+                        }
+                      }
+                    `, { ...repo, number: pull.number, cursor: commitCursor });
+                    const connection = repository.pullRequest.commits;
+                    commits.push(...connection.nodes.map(node => node.commit));
+                    commitCursor = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null;
+                  } while (commitCursor);
+                  const candidates = new Set(commits.filter(commit =>
+                    commit.parents.totalCount === 1 && Date.parse(commit.committedDate) > Date.parse(request.submittedAt)
+                  ).map(commit => commit.oid));
+                  let page = 1;
+                  let more;
+                  do {
+                    const { data } = await github.rest.repos.compareCommitsWithBasehead({
+                      ...repo, basehead: `${request.commit.oid}...${current.headRefOid}`, per_page: 100, page,
+                    });
+                    // Intersect with PR commits so that updates inherited from the base branch do not count.
+                    for (const commit of data.commits) {
+                      if (!candidates.has(commit.sha)) continue;
+                      const { data: detail } = await github.rest.repos.getCommit({ ...repo, ref: commit.sha, per_page: 1 });
+                      // ponytail: File changes trigger review. Maintainers decide whether the update resolves their feedback.
+                      if (detail.files.length > 0) {
+                        desired = 'pr-review/waiting-maintainer';
+                        break;
+                      }
+                    }
+                    more = page * 100 < data.total_commits;
+                    page += 1;
+                  } while (more && desired === 'pr-review/waiting-on-author');
+                }
+              }
+              const labels = await github.paginate(github.rest.issues.listLabelsOnIssue, { ...repo, issue_number: pull.number, per_page: 100 });
+              if (desired && !labels.some(label => label.name === desired)) {
+                await github.rest.issues.addLabels({ ...repo, issue_number: pull.number, labels: [desired] });
+              }
+              for (const label of labels) {
+                if (managed.includes(label.name) && label.name !== desired) {
+                  await github.rest.issues.removeLabel({ ...repo, issue_number: pull.number, name: label.name });
+                }
+              }
+            }
