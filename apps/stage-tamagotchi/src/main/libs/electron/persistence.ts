@@ -61,6 +61,15 @@ export interface Config<TSchema extends PersistedSchema> {
   getDiagnostics: () => ConfigDiagnostics<InferOutput<TSchema>> | undefined
   /** Runs scheduled saves and awaits active writes before the owner removes its data directory. */
   flush: () => Promise<void>
+  /**
+   * Writes the current in-memory state to disk immediately, bypassing the throttle. Resolves
+   * only once the write+rename actually completed, and rejects with the real error instead of
+   * only logging it -- unlike `flush()`, which waits for already-scheduled/tracked writes but
+   * never rejects. Callers that must durably confirm a write succeeded before an irreversible
+   * follow-up action (e.g. deleting the only other copy of a value elsewhere) should await
+   * this instead of `update()`/`flush()` alone.
+   */
+  writeDurable: () => Promise<void>
 }
 
 /** Binds a store to its user data file on first use. Stores for the same file share cached state. */
@@ -88,13 +97,33 @@ export function createConfig<TSchema extends PersistedSchema>(
     return diagnostics
   }
 
+  const writeConfigToDisk = async () => {
+    const path = configPath()
+    await ensureConfigDirectory(path)
+    const tmpPath = `${path}.${randomUUID()}.tmp`
+    await writeFile(tmpPath, JSON.stringify(persistenceMap.get(configPath())))
+    await rename(tmpPath, path)
+  }
+
+  // Serializes every write to this config's file -- without this, writeConfigToDisk()'s own
+  // read-current-state -> write-tmp -> rename-to-final sequence has no ordering against a
+  // concurrent call, so two in-flight writes can finish out of order and the later rename can
+  // overwrite a newer value with a stale one (e.g. a slow throttled save finishing after a
+  // writeDurable() call already "confirmed" the newer state on disk).
+  // (review: PR #2512 discussion r4180458802)
+  let writeChain: Promise<unknown> = Promise.resolve()
+  const enqueueWrite = <T>(write: () => Promise<T>): Promise<T> => {
+    const scheduled = writeChain.then(write, write) // run next regardless of the previous outcome
+    // writeChain itself must never be left as a dangling rejected promise (same hazard
+    // already handled for trackWrite/pendingWrites below) -- the real outcome of this write
+    // is still delivered to this function's own caller via `scheduled`.
+    writeChain = scheduled.catch(() => {})
+    return scheduled
+  }
+
   const writeConfig = async () => {
     try {
-      const path = configPath()
-      await ensureConfigDirectory(path)
-      const tmpPath = `${path}.${randomUUID()}.tmp`
-      await writeFile(tmpPath, JSON.stringify(persistenceMap.get(configPath())))
-      await rename(tmpPath, path)
+      await enqueueWrite(writeConfigToDisk)
     }
     catch (error) {
       console.error('Failed to save config', error)
@@ -102,6 +131,22 @@ export function createConfig<TSchema extends PersistedSchema>(
   }
 
   const save = throttle(() => trackWrite(writeConfig()), 250)
+
+  // Writes the current (already-merged) persistenceMap state immediately, bypassing the
+  // throttle, and lets the real error propagate to this function's own caller instead of
+  // swallowing it like writeConfig() does. Still serialized via enqueueWrite() against any
+  // in-flight throttled save, so a durable "yes, it's on disk" acknowledgement can't be
+  // rolled back by a slower write that started earlier.
+  //
+  // flush() (used elsewhere for shutdown ordering) must keep its "never rejects" contract --
+  // other callers rely on that. So the copy handed to trackWrite() is a non-rejecting shadow
+  // (write.catch(() => {})): flush() still waits for this write to settle before resolving,
+  // it just doesn't adopt a failure here as its own.
+  const writeDurable = () => {
+    const write = enqueueWrite(writeConfigToDisk)
+    trackWrite(write.catch(() => {}))
+    return write
+  }
 
   const writeHealingConfig = async (value: InferOutput<TSchema>) => {
     try {
@@ -196,5 +241,6 @@ export function createConfig<TSchema extends PersistedSchema>(
       save.flush()
       await Promise.all(pendingWrites)
     },
+    writeDurable,
   }
 }

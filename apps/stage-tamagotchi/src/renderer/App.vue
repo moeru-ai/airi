@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import type { ArtistrySyncPayload } from '@proj-airi/stage-shared'
-
 import { defineInvokeHandler } from '@moeru/eventa'
 import { useElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
-import { artistrySyncConfig } from '@proj-airi/stage-shared'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
@@ -17,7 +14,6 @@ import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
@@ -28,7 +24,6 @@ import { listProvidersForPluginHost, shouldPublishPluginHostCapabilities } from 
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { useTheme } from '@proj-airi/ui'
-import { isEqual } from 'es-toolkit'
 import { storeToRefs } from 'pinia'
 import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView, useRoute, useRouter } from 'vue-router'
@@ -66,6 +61,7 @@ import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-ca
 import { initializeIOTraceRecordingBridge } from './bridges/io-trace-recording'
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
+import { useArtistryCredentialsStore } from './stores/settings/artistry-credentials'
 import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
@@ -135,7 +131,7 @@ function createFullStageRuntime() {
   const pluginHostInspectorStore = usePluginHostInspectorStore()
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
   const settingsAudioDeviceStore = useSettingsAudioDevice()
-  const artistryStore = useArtistryStore()
+  useArtistryCredentialsStore()
   useConsciousnessStore()
   useHearingStore()
   useSpeechStore()
@@ -163,7 +159,6 @@ function createFullStageRuntime() {
     stopLoggedOutSetup ??= authStore.onLogout(removeAuthenticationProviderConfiguration)
   }
 
-  const { activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions } = storeToRefs(artistryStore)
   const getServerChannelConfig = useElectronEventaInvoke(electronGetServerChannelConfig)
   const listPlugins = useElectronEventaInvoke(electronPluginList)
   const preparePluginDirectoryImport = useElectronEventaInvoke(electronPluginPrepareDirectoryImport)
@@ -177,7 +172,6 @@ function createFullStageRuntime() {
   const inspectPluginHost = useElectronEventaInvoke(electronPluginInspect)
   const reportPluginCapability = useElectronEventaInvoke(electronPluginUpdateCapability)
   const getGodotStageStatus = useElectronEventaInvoke(electronGodotStageGetStatus)
-  const syncArtistryConfig = useElectronEventaInvoke(artistrySyncConfig)
   const usesGodotStage = initialRoutePath === '/' || initialRoutePath.startsWith('/settings')
   const isWidgetsWindow = initialRoutePath === '/widgets'
 
@@ -231,26 +225,9 @@ function createFullStageRuntime() {
     inspect: () => inspectPluginHost(),
   })
 
-  let lastSyncedArtistryConfig: ArtistrySyncPayload | undefined
-  watch([activeProvider, artistryGlobals, activeModel, defaultPromptPrefix, providerOptions], () => {
-    if (!activeProvider.value)
-      return
-
-    const config = JSON.parse(JSON.stringify({
-      provider: activeProvider.value,
-      globals: artistryGlobals.value,
-      model: activeModel.value,
-      promptPrefix: defaultPromptPrefix.value,
-      options: providerOptions.value,
-    })) as ArtistrySyncPayload
-    if (isEqual(config, lastSyncedArtistryConfig))
-      return
-
-    // Pinia synchronization applies cloned snapshots in every renderer. Keep
-    // this IPC bridge edge-triggered so equal snapshots do not repeat IO.
-    lastSyncedArtistryConfig = config
-    void syncArtistryConfig(config)
-  }, { deep: true, immediate: true })
+  // artistryCredentialsStore (instantiated above) owns hydrating/migrating/persisting the
+  // Artistry API keys through the Electron main process's encrypted store; nothing else in
+  // this file needs to drive that lifecycle directly (see stores/settings/artistry-credentials.ts).
 
   context.value.on(electronGodotStageStatusChanged, (event) => {
     if (!event.body) {

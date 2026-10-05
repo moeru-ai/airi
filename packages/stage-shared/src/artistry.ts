@@ -9,9 +9,35 @@ export interface ArtistrySyncPayload {
   options?: Record<string, any>
 }
 export const ARTISTRY_SYNC_CONFIG_ADDRESS = 'eventa:invoke:electron:artistry:sync-config'
+export const ARTISTRY_GET_CONFIG_ADDRESS = 'eventa:invoke:electron:artistry:get-config'
+export const ARTISTRY_SET_API_KEYS_ADDRESS = 'eventa:invoke:electron:artistry:set-api-keys'
 export const ARTISTRY_TEST_COMFYUI_CONNECTION_ADDRESS = 'eventa:invoke:electron:artistry:test-comfyui-connection'
 
 export const artistrySyncConfig = defineInvokeEventa<void, ArtistrySyncPayload>(ARTISTRY_SYNC_CONFIG_ADDRESS)
+
+export interface ArtistryGetConfigResult extends ArtistrySyncPayload {
+  // True when the corresponding key has non-empty ciphertext on disk that main could not
+  // decrypt right now (e.g. OS keychain unavailable) -- distinct from the key genuinely
+  // being unset. The renderer must not treat this the same as an empty value, or a
+  // subsequent sync would overwrite the still-intact ciphertext with real emptiness.
+  // (review: PR #2512 discussion r4179494678)
+  replicateApiKeyUnavailable?: boolean
+  nanobananaApiKeyUnavailable?: boolean
+}
+// Symmetric "pull" counterpart to artistrySyncConfig: lets the renderer rehydrate state
+// (notably the API keys, which are no longer persisted in renderer localStorage) from the
+// main-process config on startup, without ever writing secrets back to disk itself.
+export const artistryGetConfig = defineInvokeEventa<ArtistryGetConfigResult, void>(ARTISTRY_GET_CONFIG_ADDRESS)
+
+export interface ArtistrySetApiKeysPayload {
+  replicateApiKey?: string
+  nanobananaApiKey?: string
+}
+// Narrow counterpart used only for one-time legacy-localStorage migration (see
+// apps/stage-tamagotchi/src/renderer/stores/settings/artistry-credentials.ts). Unlike
+// artistrySyncConfig, this does not touch the main process's in-memory card-level defaults
+// (model/promptPrefix/options) — a migration run has no business overwriting those.
+export const artistrySetApiKeys = defineInvokeEventa<void, ArtistrySetApiKeysPayload>(ARTISTRY_SET_API_KEYS_ADDRESS)
 
 export interface ArtistryTestComfyUIResult {
   ok: boolean

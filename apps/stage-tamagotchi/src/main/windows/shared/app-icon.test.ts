@@ -29,6 +29,7 @@ function createAppConfig(initial?: InferOutput<typeof globalAppConfigSchema>): C
     update: (next) => { value = next },
     getDiagnostics: () => undefined,
     flush: async () => {},
+    writeDurable: async () => {},
   }
 }
 

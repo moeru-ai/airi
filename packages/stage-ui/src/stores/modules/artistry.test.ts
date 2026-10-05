@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { useArtistryStore } from './artistry'
@@ -73,5 +73,70 @@ describe('artistry store', () => {
 
     expect(mutationCount).toBe(mutationCountAfterSnapshot)
     stopSubscription()
+  })
+})
+
+// ROOT CAUSE:
+//
+// A prior fix made replicateApiKey/nanobananaApiKey unconditionally memory-only
+// (refManualReset) to stop a localStorage plaintext leak on Tamagotchi. But this store is
+// shared by stage-web and stage-pocket too (apps/stage-web/src/App.vue:50,
+// apps/stage-pocket/src/App.vue:45 both call useArtistryStore() directly), and neither has
+// Tamagotchi's main-process secure-storage alternative. Going unconditionally memory-only
+// silently broke credential persistence on every runtime except Tamagotchi.
+//
+// https://github.com/moeru-ai/airi/pull/2512#discussion_r4176290527
+//
+// We fixed this by branching on isStageTamagotchi(): web/Capacitor keep the original
+// localStorage-backed refs; only Tamagotchi (which has the secure alternative) goes
+// memory-only.
+describe('artistry store API key persistence by runtime', () => {
+  beforeEach(() => {
+    vi.resetModules()
+    vi.clearAllMocks()
+    vi.restoreAllMocks()
+  })
+
+  async function loadArtistryStoreWithRuntimeMock(isTamagotchi: boolean) {
+    const localStorageKeys: string[] = []
+
+    vi.doMock('@proj-airi/stage-shared', async () => {
+      const actual = await vi.importActual<typeof import('@proj-airi/stage-shared')>('@proj-airi/stage-shared')
+      return { ...actual, isStageTamagotchi: () => isTamagotchi }
+    })
+    vi.doMock('@vueuse/core', async () => {
+      const actual = await vi.importActual<typeof import('@vueuse/core')>('@vueuse/core')
+      // NOTICE: useLocalStorage's overloads are keyed to the literal initialValue type, which
+      // doesn't resolve through a generic forwarding wrapper. The real implementation is still
+      // called unchanged below; only its argument types are widened for this spy wrapper.
+      const untypedUseLocalStorage = actual.useLocalStorage as unknown as (key: string, initialValue: unknown, options?: unknown) => unknown
+      return {
+        ...actual,
+        useLocalStorage: (key: string, initialValue: unknown, options?: unknown) => {
+          localStorageKeys.push(key)
+          return untypedUseLocalStorage(key, initialValue, options)
+        },
+      }
+    })
+
+    const { createPinia: createDynamicPinia, setActivePinia: setDynamicActivePinia } = await import('pinia')
+    setDynamicActivePinia(createDynamicPinia())
+    const { useArtistryStore: useDynamicArtistryStore } = await import('./artistry')
+
+    return { store: useDynamicArtistryStore(), localStorageKeys }
+  }
+
+  it('persists API keys through useLocalStorage on non-Tamagotchi runtimes', async () => {
+    const { localStorageKeys } = await loadArtistryStoreWithRuntimeMock(false)
+
+    expect(localStorageKeys).toContain('artistry-replicate-api-key')
+    expect(localStorageKeys).toContain('artistry-nanobanana-api-key')
+  })
+
+  it('keeps API keys memory-only (never backed by useLocalStorage) on Tamagotchi', async () => {
+    const { localStorageKeys } = await loadArtistryStoreWithRuntimeMock(true)
+
+    expect(localStorageKeys).not.toContain('artistry-replicate-api-key')
+    expect(localStorageKeys).not.toContain('artistry-nanobanana-api-key')
   })
 })
