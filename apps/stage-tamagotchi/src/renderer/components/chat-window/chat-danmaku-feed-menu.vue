@@ -4,7 +4,7 @@ import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
+import { danmakuFeedTiming, useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
 
 // The root is the popover, which renders no element, so a class from the
 // parent goes to the trigger button.
@@ -19,16 +19,16 @@ const sliders = computed(() => [
     label: t('tamagotchi.stage.chat-window.danmaku-feed.reading-speed'),
     value: t('tamagotchi.stage.chat-window.danmaku-feed.reading-speed-value', { count: charactersPerSecond.value }),
     model: charactersPerSecond,
-    min: 2,
-    max: 20,
+    min: danmakuFeedTiming.charactersPerSecond.min,
+    max: danmakuFeedTiming.charactersPerSecond.max,
   },
   {
     id: 'minimum-time',
     label: t('tamagotchi.stage.chat-window.danmaku-feed.minimum-time'),
     value: t('tamagotchi.stage.chat-window.danmaku-feed.minimum-time-value', { count: minimumSeconds.value }),
     model: minimumSeconds,
-    min: 1,
-    max: 30,
+    min: danmakuFeedTiming.minimumSeconds.min,
+    max: danmakuFeedTiming.minimumSeconds.max,
   },
 ])
 </script>

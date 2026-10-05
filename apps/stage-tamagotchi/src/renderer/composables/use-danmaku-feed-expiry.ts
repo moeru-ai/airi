@@ -2,7 +2,7 @@ import type { MaybeRefOrGetter } from 'vue'
 
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { storeToRefs } from 'pinia'
-import { effectScope, shallowRef, toValue, watch } from 'vue'
+import { computed, effectScope, shallowRef, toValue, watch } from 'vue'
 
 import { useChatFeedExpiry } from './use-chat-feed-expiry'
 import { useDanmakuFeedSettings } from './use-danmaku-feed-settings'
@@ -14,28 +14,29 @@ import { useSpeechOutputVoicing } from './use-speech-output-voicing'
  *
  * The danmaku chat window owns this, not the chat component, so other chat
  * surfaces never follow the speech output or count reading time. The work
- * runs only while `danmaku` holds: the speech subscription, the message
- * watches, and the timers start with it and stop without it.
+ * runs only in the danmaku style with read messages hidden: the speech
+ * subscription, the message watches, and the timers start and stop with it.
  *
+ * @param danmaku Whether the chat shows the danmaku style.
  * @param expire Whether read messages hide now, such as while the composer is folded.
- * @returns The index of the first message that shows. It is 0 outside the danmaku style.
+ * @returns The index of the first message that shows. It is 0 while the work does not run.
  */
 export function useDanmakuFeedExpiry(danmaku: MaybeRefOrGetter<boolean>, expire: MaybeRefOrGetter<boolean>) {
-  const expiredBefore = shallowRef(0)
+  const { hideReadMessages, charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
+  const feed = shallowRef<ReturnType<typeof useChatFeedExpiry>>()
 
-  // The cleanup stops the scope when the style changes and when the caller's
+  // The cleanup stops the scope when the work stops and when the caller's
   // scope ends, so one run of the work exists at most.
-  watch(() => toValue(danmaku), (active, _previous, onCleanup) => {
+  watch(() => toValue(danmaku) && hideReadMessages.value, (active, _previous, onCleanup) => {
     if (!active)
       return
 
     const scope = effectScope()
-    scope.run(() => {
+    feed.value = scope.run(() => {
       const { messages } = storeToRefs(useChatSessionStore())
-      const { charactersPerSecond, minimumSeconds } = useDanmakuFeedSettings()
       const { voicing, initialLookupSettled } = useSpeechOutputVoicing()
 
-      const feed = useChatFeedExpiry({
+      return useChatFeedExpiry({
         messages,
         voicing,
         voicingLookupSettled: initialLookupSettled,
@@ -43,15 +44,12 @@ export function useDanmakuFeedExpiry(danmaku: MaybeRefOrGetter<boolean>, expire:
         charactersPerSecond,
         minimumSeconds,
       })
-      watch(feed.expiredBefore, (count) => {
-        expiredBefore.value = count
-      }, { immediate: true })
     })
     onCleanup(() => {
       scope.stop()
-      expiredBefore.value = 0
+      feed.value = undefined
     })
   }, { immediate: true })
 
-  return expiredBefore
+  return computed(() => feed.value?.expiredBefore.value ?? 0)
 }

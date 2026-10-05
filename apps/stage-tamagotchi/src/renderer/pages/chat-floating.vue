@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { ChatFloatingState } from '../../shared/eventa'
 
-import { getElectronEventaContext, useElectronEventaInvoke, useElectronRelativeMouse } from '@proj-airi/electron-vueuse'
+import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { useElementBounding, useLocalStorage } from '@vueuse/core'
+import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,7 +25,6 @@ import {
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
 import { useDanmakuFeedExpiry } from '../composables/use-danmaku-feed-expiry'
-import { useDanmakuFeedSettings } from '../composables/use-danmaku-feed-settings'
 import { useControlsIslandStore } from '../stores/controls-island'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
@@ -67,24 +66,13 @@ const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', tr
 const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
 const passiveFeed = computed(() => danmaku.value && fadeOnHoverEnabled.value && composerFolded.value)
 // The cursor comes from the main process, because a click-through window
-// gets no mouse events. It is over the feed when it is inside the history.
-const { x: cursorX, y: cursorY } = useElectronRelativeMouse()
-const historyBounds = useElementBounding(() => interactiveArea.value?.historyLayer)
-const cursorOverHistory = computed(() =>
-  cursorX.value >= historyBounds.left.value && cursorX.value < historyBounds.right.value
-  && cursorY.value >= historyBounds.top.value && cursorY.value < historyBounds.bottom.value,
-)
+// gets no mouse events.
+const { isOutside: cursorOutsideHistory } = useElectronMouseInElement(computed(() => interactiveArea.value?.historyLayer))
 // The folded danmaku feed hides read messages. They come back while the
 // cursor is over the feed, like notifications, and while the composer is
 // unfolded, so the history stays in reach. A passive feed fades out under
 // the cursor instead, so there the cursor does not bring them back.
-const { hideReadMessages } = useDanmakuFeedSettings()
-const expireMessages = computed(() => {
-  if (!danmaku.value || !composerFolded.value || !hideReadMessages.value)
-    return false
-
-  return passiveFeed.value || !cursorOverHistory.value
-})
+const expireMessages = computed(() => composerFolded.value && (passiveFeed.value || cursorOutsideHistory.value))
 const expiredBefore = useDanmakuFeedExpiry(danmaku, expireMessages)
 const { hitTest } = useChatFloatingClickThrough({
   pinned: () => state.value.pinned,

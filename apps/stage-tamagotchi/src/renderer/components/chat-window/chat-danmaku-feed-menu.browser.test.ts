@@ -5,6 +5,8 @@ import { createI18n } from 'vue-i18n'
 
 import ChatDanmakuFeedMenu from './chat-danmaku-feed-menu.vue'
 
+import { useDanmakuFeedSettings } from '../../composables/use-danmaku-feed-settings'
+
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
 
@@ -18,16 +20,13 @@ async function renderMenu() {
 
 describe('chatDanmakuFeedMenu', () => {
   beforeEach(() => {
-    localStorage.removeItem('chat-window/danmaku/hide-read-messages')
+    // The settings are one shared copy, so each test starts from the default.
+    useDanmakuFeedSettings().hideReadMessages.value = true
   })
 
   it('rests the trigger in the secondary icon color of the title bar', async () => {
-    // ROOT CAUSE:
-    //
-    // A review moved the trigger to GhostButton, whose own text color is
-    // darker. The hourglass then stood out from its gray neighbors.
-    //
-    // The trigger is a plain button that owns its color, like the others.
+    // The header buttons are plain buttons in this gray. GhostButton owns a
+    // darker text color, which would make the hourglass stand out.
     const trigger = await renderMenu()
     const reference = document.createElement('div')
     reference.className = 'text-neutral-400'
@@ -45,6 +44,6 @@ describe('chatDanmakuFeedMenu', () => {
 
     await page.getByRole('switch').click()
 
-    expect(page.getByRole('slider').all()).toHaveLength(0)
+    await expect.element(page.getByRole('slider').first()).not.toBeInTheDocument()
   })
 })
