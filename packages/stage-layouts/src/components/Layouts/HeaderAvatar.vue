@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { client } from '@proj-airi/stage-ui/composables/api'
-import { planRemainingPercent } from '@proj-airi/stage-ui/composables/use-subscription'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, DropdownMenu } from '@proj-airi/ui'
@@ -39,7 +38,7 @@ async function refreshAccountSummary() {
     if (request !== summaryRequest || !isAuthenticated.value || !res.ok)
       return
     const status = await res.json()
-    planRemaining.value = planRemainingPercent(status.allowances[0])
+    planRemaining.value = status.allowances[0]?.remainingPercent ?? null
   }
   catch {
     // A failed read keeps the last percent. The next open tries again.

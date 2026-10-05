@@ -1060,7 +1060,7 @@ pages:
     currentPlan: 当前订阅
     noPlan: 暂无生效中的订阅
     planCredits: 套餐额度
-    creditsRemaining: 剩余 {remaining} / 共 {total}
+    creditsRemaining: 剩余 {percent}%
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
     choosePlan: 选择订阅档位

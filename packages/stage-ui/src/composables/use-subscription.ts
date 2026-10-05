@@ -18,11 +18,7 @@ export interface PlanSubscription {
 
 export interface PlanAllowance {
   entitlementId: string
-  periodStart: string
-  periodEnd: string | null
-  grantedCredit: number
-  usedCredit: number
-  remainingCredit: number
+  remainingPercent: number | null
 }
 
 export type PlanBillingPeriod = 'month' | 'year'
@@ -42,25 +38,6 @@ export function planBillingPeriod(unit: string | null | undefined): PlanBillingP
   if (unit === 'month' || unit === 'year')
     return unit
   return null
-}
-
-/**
- * Remaining plan credits as a percent of the grant.
- * Returns null when there is no grant, so a header can hide the percent instead of showing 0%.
- *
- * @example
- * planRemainingPercent({ grantedCredit: 2000, remainingCredit: 1440 })
- * // => 72
- *
- * planRemainingPercent(undefined)
- * // => null
- */
-export function planRemainingPercent(
-  allowance: Pick<PlanAllowance, 'grantedCredit' | 'remainingCredit'> | null | undefined,
-): number | null {
-  if (allowance == null || allowance.grantedCredit <= 0)
-    return null
-  return Math.min(100, Math.round((allowance.remainingCredit / allowance.grantedCredit) * 100))
 }
 
 interface PlanStatus {

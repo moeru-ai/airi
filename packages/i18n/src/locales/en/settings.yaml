@@ -1115,7 +1115,7 @@ pages:
     currentPlan: Current plan
     noPlan: No active plan
     planCredits: Plan credits
-    creditsRemaining: '{remaining} of {total} left'
+    creditsRemaining: '{percent}% left'
     renewsAt: Renews {date}
     expiresAt: Expires {date}
     choosePlan: Choose a plan

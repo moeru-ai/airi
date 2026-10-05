@@ -2,7 +2,7 @@
 import type { PlanBillingPeriod, PlanPackage } from '@proj-airi/stage-ui/composables/use-subscription'
 
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
-import { planRemainingPercent, useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
+import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { FieldCheckbox, SelectTab } from '@proj-airi/ui'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -103,16 +103,12 @@ function planName(entitlementId: string | undefined): string {
   return resolved === key ? entitlementId : resolved
 }
 
-const quotaPercentage = computed(() => planRemainingPercent(currentAllowance.value) ?? 0)
+const quotaPercentage = computed(() => currentAllowance.value?.remainingPercent ?? 0)
 
 function formatDate(iso: string | null): string {
   if (!iso)
     return ''
   return new Date(iso).toLocaleString()
-}
-
-function formatNumber(num: number): string {
-  return new Intl.NumberFormat().format(num)
 }
 
 onMounted(async () => {
@@ -213,8 +209,8 @@ async function handleSubscribe(packageId: string) {
           <h2 :class="['text-3xl font-bold tracking-tight', 'sm:text-4xl']">
             {{ planName(currentSubscription?.entitlementId) }}
           </h2>
-          <p v-if="currentAllowance" :class="['text-sm text-neutral-500']">
-            {{ t('settings.pages.plan.creditsRemaining', { remaining: formatNumber(currentAllowance.remainingCredit), total: formatNumber(currentAllowance.grantedCredit) }) }}
+          <p v-if="currentAllowance?.remainingPercent != null" :class="['text-sm text-neutral-500']">
+            {{ t('settings.pages.plan.creditsRemaining', { percent: currentAllowance.remainingPercent }) }}
           </p>
           <p v-else :class="['text-sm text-neutral-500']">
             {{ t('settings.pages.plan.description') }}

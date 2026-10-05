@@ -13,8 +13,18 @@ const PreferenceBodySchema = object({
 })
 
 /**
- * Subscription status, plan quota usage, and the Flux-fallback preference.
- * Access state mirrors the synced RevenueCat entitlement rows.
+ * Remaining share of one grant, as a whole percent.
+ * A zero grant has no share, so the caller hides the percent.
+ */
+export function allowanceRemainingPercent(grantedCredit: number, remainingCredit: number): number | null {
+  if (grantedCredit <= 0)
+    return null
+  return Math.min(100, Math.round((remainingCredit / grantedCredit) * 100))
+}
+
+/**
+ * Subscription status and the Flux-fallback preference.
+ * Allowances expose a percent only. Credit counts stay on the ledger for billing.
  */
 export function createSubscriptionRoutes(
   subscriptions: SubscriptionService,
@@ -27,7 +37,11 @@ export function createSubscriptionRoutes(
       await subscriptionSync?.reconcile(userId).catch(() => undefined)
       const status = await subscriptions.getStatus(userId)
       return c.json({
-        ...status,
+        subscriptions: status.subscriptions,
+        allowances: status.allowances.map(allowance => ({
+          entitlementId: allowance.entitlementId,
+          remainingPercent: allowanceRemainingPercent(allowance.grantedCredit, allowance.remainingCredit),
+        })),
         fallbackToFlux: await subscriptions.getFallbackPreference(userId),
       })
     })

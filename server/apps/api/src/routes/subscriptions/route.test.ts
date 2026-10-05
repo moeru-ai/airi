@@ -7,9 +7,10 @@ import { Hono } from 'hono'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
+import { MICRO_PER_CREDIT } from '../../services/domain/billing/credit-posting'
 import { createSubscriptionService } from '../../services/domain/subscriptions'
 import { ApiError } from '../../utils/error'
-import { createSubscriptionRoutes } from './index'
+import { allowanceRemainingPercent, createSubscriptionRoutes } from './index'
 
 import * as schema from '../../schemas'
 
@@ -47,6 +48,18 @@ function createTestApp(subscriptions: SubscriptionService, sync: RevenuecatSubsc
   app.route('/api/v1/subscriptions', routes)
   return app
 }
+
+describe('allowanceRemainingPercent', () => {
+  it('returns null when the grant is empty', () => {
+    expect(allowanceRemainingPercent(0, 0)).toBeNull()
+  })
+
+  it('rounds the remaining share and caps it at 100', () => {
+    expect(allowanceRemainingPercent(2000, 1440)).toBe(72)
+    expect(allowanceRemainingPercent(2000, 0)).toBe(0)
+    expect(allowanceRemainingPercent(2000, 2500)).toBe(100)
+  })
+})
 
 describe('subscription routes', () => {
   let db: Database
@@ -118,5 +131,52 @@ describe('subscription routes', () => {
     expect(await res.json()).toMatchObject({
       subscriptions: [{ entitlementId: 'airi_go' }],
     })
+  })
+
+  it('returns the remaining percent and omits credit counts', async () => {
+    await db.delete(schema.subscriptionConsumption)
+    await db.delete(schema.subscriptionAllowance)
+    await db.delete(schema.subscription)
+    await db.delete(schema.userBillingPreference)
+    const core = createSubscriptionService(db)
+    const periodEnd = new Date(Date.now() + 60_000)
+    await core.upsertSubscription({
+      userId: testUser.id,
+      entitlementId: 'airi_go',
+      status: 'active',
+      expiresAt: periodEnd,
+    })
+    await core.openPeriod({
+      userId: testUser.id,
+      entitlementId: 'airi_go',
+      grantedCredit: 2000,
+      periodStart: new Date(),
+      periodEnd,
+      eventKey: 'event-percent',
+    })
+    await core.debitCredits({
+      userId: testUser.id,
+      microCredit: 560 * MICRO_PER_CREDIT,
+      requestId: 'req-percent',
+    })
+    const app = createTestApp(core)
+
+    const res = await app.fetch(
+      new Request('http://localhost/api/v1/subscriptions/status'),
+      { user: testUser } as never,
+    )
+    const body = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(body).toMatchObject({
+      allowances: [{ entitlementId: 'airi_go', remainingPercent: 72 }],
+    })
+    expect(body).not.toHaveProperty('allowances.0.grantedCredit')
+    expect(body).not.toHaveProperty('allowances.0.usedCredit')
+    expect(body).not.toHaveProperty('allowances.0.remainingCredit')
+    expect(body).not.toHaveProperty('allowances.0.remainingMicro')
+    expect(body).not.toHaveProperty('allowances.0.unsettledMicroCredit')
+    expect(body).not.toHaveProperty('allowances.0.periodStart')
+    expect(body).not.toHaveProperty('allowances.0.periodEnd')
   })
 })

@@ -18,6 +18,10 @@ The web purchase SDK cannot replace a subscription in the app.
 A subscriber opens the management URL to change plans.
 The webhook applies the new Credits after the store changes the product.
 
+`GET /status` returns `remainingPercent` for each allowance.
+The response omits Credit counts.
+Billing still reads the ledger inside the server.
+
 ## Scope
 
 Replace integer plan debits with micro-Credit debits.
@@ -69,6 +73,7 @@ server/apps/api/
   src/services/domain/subscriptions/index.ts
   src/services/adapters/revenuecat-subscriptions.ts
   src/routes/openai/v1/middlewares/billing.ts
+  src/routes/subscriptions/index.ts
 ```
 
 ## Test plan
@@ -77,3 +82,4 @@ Run the subscription service tests.
 Run the RevenueCat subscription sync tests.
 Run the Flux usage tests, including speech that plan Credits cover.
 Run the OpenAI route test that spends plan Credits before the wallet.
+Run the subscription route test that returns `remainingPercent` and omits Credit counts.
