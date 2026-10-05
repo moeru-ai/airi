@@ -84,13 +84,8 @@ describe('useChatFeedExpiry', () => {
     expect(expiredBefore.value).toBe(2)
   })
 
-  // ROOT CAUSE:
-  //
-  // A floating window guessed when a reply finished from local stream state,
-  // which only the generating window has. A slow reply without speech counted
-  // from its start, so it left as soon as it arrived.
-  //
-  // We fixed this by reading `completedAt`, which the generating window stores.
+  // Only the generating window streams the reply, so a slow reply counts from
+  // the `completedAt` that it stores, not from its start.
   it('counts a reply from when it finished generating', async () => {
     const { messages, expiredBefore } = setUp([])
     messages.value.push({ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START - 60_000, completedAt: START })
@@ -113,13 +108,22 @@ describe('useChatFeedExpiry', () => {
     expect(expiredBefore.value).toBe(1)
   })
 
-  // ROOT CAUSE:
-  //
-  // The speech state reached a new window before its history. The reply was
-  // matched to speech only when the speech state changed, so the history that
-  // came later saw an old reply and hid it for good.
-  //
-  // We fixed this by holding the newest reply whenever speech output voices.
+  it('shows a reply that joins the history just before its speech ends for the minimum time', async () => {
+    // A reply from another window joins the history only when complete.
+    const { messages, voicing, expiredBefore } = setUp([])
+    voicing.value = true
+    messages.value.push({ id: 'reply-1', role: 'assistant', content: 'ok', slices: [], tool_results: [], createdAt: START - 20_000, completedAt: START })
+    await wait(500)
+
+    voicing.value = false
+    await wait(0)
+    expect(expiredBefore.value).toBe(0)
+
+    await wait(2500)
+    expect(expiredBefore.value).toBe(1)
+  })
+
+  // A new window can learn the speech state before its history.
   it('keeps a spoken reply when the history arrives after the speech state', async () => {
     const { messages, voicing, expiredBefore } = setUp([])
     voicing.value = true
@@ -142,6 +146,18 @@ describe('useChatFeedExpiry', () => {
     await wait(0)
 
     expect(expiredBefore.value).toBe(2)
+  })
+
+  it('treats a message stored without a creation time as read', async () => {
+    const { expiredBefore } = setUp([
+      { role: 'user', content: 'hello', createdAt: START - 60_000 },
+      { role: 'error', content: 'Provider failed' },
+      { role: 'user', content: 'again', createdAt: START - 50_000 },
+      { id: 'reply-1', role: 'assistant', content: 'hi', slices: [], tool_results: [], createdAt: START - 49_000 },
+    ])
+    await wait(0)
+
+    expect(expiredBefore.value).toBe(4)
   })
 
   it('shows every message while disabled, and hides the read ones again when enabled', async () => {
@@ -170,12 +186,8 @@ describe('useChatFeedExpiry', () => {
     expect(expiredBefore.value).toBe(1)
   })
 
-  // ROOT CAUSE:
-  //
-  // A chat window that reopened while a reply was still spoken saw the reply
-  // as old, and hid it for good before it learned that speech was playing.
-  //
-  // We fixed this by locking no message until the first speech lookup settles.
+  // A window that opens while a reply is spoken learns it only after its first
+  // speech lookup, so no message leaves for good before then.
   it('keeps a reply that is still spoken when the window opens', async () => {
     // The session state reaches a new window after it mounts.
     const { messages, voicing, voicingLookupSettled, expiredBefore } = setUp([], { voicingLookupSettled: false })

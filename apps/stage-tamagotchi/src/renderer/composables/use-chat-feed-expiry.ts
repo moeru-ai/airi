@@ -1,7 +1,7 @@
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 import type { MaybeRefOrGetter } from 'vue'
 
-import { getChatHistoryItemCopyText, getChatHistoryItemKey } from '@proj-airi/stage-ui/components/scenarios/chat/utils'
+import { getChatHistoryItemCopyText } from '@proj-airi/stage-ui/components/scenarios/chat/utils'
 import { computed, onScopeDispose, shallowReactive, shallowRef, toValue, watch } from 'vue'
 
 const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
@@ -48,7 +48,9 @@ interface ChatFeedExpiryOptions {
  * A message expires after the time to read it at the reader's speed, counted
  * from when it was complete: `completedAt` of a reply, or `createdAt`. While
  * speech output voices, the newest reply stays. When the speech ends, that
- * reply expires instead. A new speed applies to every message that still shows.
+ * reply expires instead, but not before it showed for the shortest time. A
+ * message without `createdAt` was stored long ago, so it is already read. A
+ * new speed applies to every message that still shows.
  * Messages expire in history order, so the feed only loses its top message,
  * and a short message never leaves a gap above a long one.
  *
@@ -65,19 +67,11 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
   const now = shallowRef(Date.now())
   /** When the speech of a reply ended, by message id: the reply that was newest when the speech stopped. */
   const speechEndedAt = shallowReactive(new Map<string, number>())
-  /** When this window first saw a message that has no `createdAt`. */
-  const firstSeenAt = shallowReactive(new Map<string | number, number>())
-  /** Messages that already left the feed. */
-  const expiredKeys = shallowReactive(new Set<string | number>())
-
-  // The session store appends messages in place, so the watch looks one level deep.
-  watch(() => toValue(options.messages), (messages) => {
-    messages.forEach((message, index) => {
-      const key = getChatHistoryItemKey(message, index)
-      if (message.createdAt == null && !firstSeenAt.has(key))
-        firstSeenAt.set(key, Date.now())
-    })
-  }, { deep: 1, immediate: true })
+  /**
+   * Ids of the messages that already left the feed. A message without an id
+   * has a fixed deadline, so it cannot return and needs no entry.
+   */
+  const expiredIds = shallowReactive(new Set<string>())
 
   /**
    * The reply that speech output voices: the newest reply. A reply that
@@ -91,25 +85,25 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
       speechEndedAt.set(newestReplyId.value, Date.now())
   })
 
-  function deadlineOf(message: ChatHistoryItem, index: number) {
-    const key = getChatHistoryItemKey(message, index)
+  function deadlineOf(message: ChatHistoryItem) {
     // The history never shows a system message.
-    if (expiredKeys.has(key) || message.role === 'system')
+    if ((message.id && expiredIds.has(message.id)) || message.role === 'system')
       return Number.NEGATIVE_INFINITY
 
     if (message.id && message.id === newestReplyId.value && toValue(options.voicing))
       return Number.POSITIVE_INFINITY
 
-    const speechEnded = message.id ? speechEndedAt.get(message.id) : undefined
-    if (speechEnded !== undefined)
-      return speechEnded
-
     // A reply counts from when it was complete, and other messages from when
     // they were sent. Messages of an older session are therefore already gone.
-    const start = message.completedAt ?? message.createdAt ?? firstSeenAt.get(key)
-    // A message without `createdAt` waits for the watch above to record when it appeared.
+    const start = message.completedAt ?? message.createdAt
     if (start === undefined)
-      return Number.POSITIVE_INFINITY
+      return Number.NEGATIVE_INFINITY
+
+    // A reply that another window generated joins the history only when it is
+    // complete, which can be just before its speech ends.
+    const speechEnded = message.id ? speechEndedAt.get(message.id) : undefined
+    if (speechEnded !== undefined)
+      return Math.max(speechEnded, start + toValue(options.minimumSeconds) * 1000)
 
     return start + readingTimeOf(getChatHistoryItemCopyText(message), toValue(options.charactersPerSecond), toValue(options.minimumSeconds))
   }
@@ -117,8 +111,8 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
   /** Deadlines in history order. Each is at least the one before it, so messages leave from the top. */
   const deadlines = computed(() => {
     let latest = Number.NEGATIVE_INFINITY
-    return toValue(options.messages).map((message, index) => {
-      latest = Math.max(latest, deadlineOf(message, index))
+    return toValue(options.messages).map((message) => {
+      latest = Math.max(latest, deadlineOf(message))
       return latest
     })
   })
@@ -137,9 +131,10 @@ export function useChatFeedExpiry(options: ChatFeedExpiryOptions) {
     if (!voicingLookupSettled)
       return
 
-    messages.slice(0, count).forEach((message, index) => {
-      expiredKeys.add(getChatHistoryItemKey(message, index))
-    })
+    for (const message of messages.slice(0, count)) {
+      if (message.id)
+        expiredIds.add(message.id)
+    }
   }, { immediate: true })
 
   // One timer at a time wakes the clock at the next deadline. A wake, or any
