@@ -12,15 +12,21 @@
 
 ## Audio sources
 
-A source is an `AudioInputSource`. Its `open(signal)` call returns a PCM stream. Aborting the signal releases the connection.
+A source is an `AudioSource`. Its `open(signal)` call returns a PCM stream. Aborting the signal releases the connection.
 
-| Source | Module | Owner of the tracks or data |
-| --- | --- | --- |
-| `microphoneSource(constraints, options)` | `@proj-airi/audio/browser` | The source. It stops the tracks and closes its AudioContext. |
-| `mediaStreamSource(stream, context)` | `@proj-airi/audio/browser` | The caller. The source disconnects only its own nodes. |
-| `fileSource(blob)` | `@proj-airi/audio/encoding` | The caller. Mediabunny decodes the file for each connection. |
+| Source | Module | Live | Owner of the tracks or data |
+| --- | --- | --- | --- |
+| `microphoneSource(constraints, options)` | `@proj-airi/audio/browser` | Yes | The source. It stops the tracks and closes its AudioContext. |
+| `mediaStreamSource(stream, context)` | `@proj-airi/audio/browser` | Yes | The caller. The source disconnects only its own nodes. |
+| `fileSource(blob)` | `@proj-airi/audio/encoding` | No | The caller. Mediabunny decodes the file for each connection. |
 
-Wrap a source in an `AudioInput` to share it. Each consumer subscribes with its own signal.
+A live source cannot wait for its readers. Wrap a live source in an `AudioInput` to share it. Each consumer subscribes with its own signal.
+
+A file is not live. Its reader sets the decode speed. Each consumer opens its own stream:
+
+```ts
+const events = transcriber.transcribe({ audio: fileSource(recording).open(signal), signal })
+```
 
 ```ts
 import { microphoneSource } from '@proj-airi/audio/browser'

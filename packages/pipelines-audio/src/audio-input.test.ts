@@ -1,16 +1,21 @@
-import type { AudioInputSource, PcmBlock } from './index'
+import type { LiveAudioSource, PcmBlock } from './index'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { AudioInput, capture, createPushStream, createScope, observe } from './index'
 
-/** A test source whose connections the test drives by hand. Each open call starts a new connection. */
-function pushSource(sourceId = 'mic') {
-  const connections: { stream: ReturnType<typeof createPushStream<PcmBlock>>, signal: AbortSignal }[] = []
-  const source: AudioInputSource = {
+/**
+ * A live test source whose connections the test drives by hand. Each open call starts a new connection.
+ * Each connection has a new id, as the source contract requires. The first one keeps `sourceId`, so assertions stay short.
+ */
+function pushSource(sourceId = 'mic', options: { reuseId?: boolean } = {}) {
+  const connections: { stream: ReturnType<typeof createPushStream<PcmBlock>>, signal: AbortSignal, id: string }[] = []
+  const source: LiveAudioSource = {
+    live: true,
     open: vi.fn((signal: AbortSignal) => {
       const stream = createPushStream<PcmBlock>()
-      connections.push({ stream, signal })
+      const id = connections.length && !options.reuseId ? `${sourceId}-${connections.length + 1}` : sourceId
+      connections.push({ stream, signal, id })
       return stream.stream
     }),
   }
@@ -19,7 +24,7 @@ function pushSource(sourceId = 'mic') {
     source,
     connections,
     write(startFrame: number, samples: number[], sampleRate = 1000) {
-      latest().stream.write({ range: { sourceId, startFrame, endFrame: startFrame + samples.length }, sampleRate, channels: [new Float32Array(samples)] })
+      latest().stream.write({ range: { sourceId: latest().id, startFrame, endFrame: startFrame + samples.length }, sampleRate, channels: [new Float32Array(samples)] })
     },
     end: () => latest().stream.close(),
     fail: (error: Error) => latest().stream.error(error),
@@ -90,6 +95,45 @@ describe('audioInput', () => {
     await expect.poll(() => input.position?.frame).toBe(1)
     expect(mic.source.open).toHaveBeenCalledTimes(2)
     second.abort()
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2769#discussion_r4179013487
+  // ROOT CAUSE:
+  //
+  // History, position, and sample rate were AudioInput fields, shared by all connections.
+  // A newer connection skipped the reset, so the old position and history stayed.
+  //
+  // We fixed this with one Connection object for each open call.
+  it('keeps no state of a closing connection when a subscriber arrives before its cleanup', async () => {
+    const mic = pushSource()
+    const input = new AudioInput(mic.source, { historyMs: 1000 })
+    const first = new AbortController()
+    const firstReader = input.subscribe({ signal: first.signal }).getReader()
+    mic.write(0, [1, 2])
+    await firstReader.read()
+    const old = input.position!
+    first.abort()
+    const second = input.subscribe().getReader()
+
+    expect(input.position).toBeUndefined()
+    await expect(readAll(input.subscribe({ from: old }))).rejects.toThrow('Audio history is unavailable')
+    mic.write(0, [3])
+    expect((await second.read()).value).toMatchObject({ range: { sourceId: 'mic-2', startFrame: 0, endFrame: 1 } })
+    expect(input.position).toEqual({ sourceId: 'mic-2', frame: 1 })
+  })
+
+  it('fails the subscribers when a source reuses the id of its previous connection', async () => {
+    const mic = pushSource('mic', { reuseId: true })
+    const input = new AudioInput(mic.source)
+    const first = new AbortController()
+    const firstReader = input.subscribe({ signal: first.signal }).getReader()
+    mic.write(0, [1])
+    await firstReader.read()
+    first.abort()
+    const second = readAll(input.subscribe())
+    mic.write(0, [2])
+
+    await expect(second).rejects.toThrow('Audio source reused the id of its previous connection')
   })
 
   it('errors every subscriber when the source fails', async () => {

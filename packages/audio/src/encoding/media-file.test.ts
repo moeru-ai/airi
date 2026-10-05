@@ -1,6 +1,6 @@
-import type { PcmBlock } from '@proj-airi/pipelines-audio'
+import type { AudioInput, PcmBlock } from '@proj-airi/pipelines-audio'
 
-import { expect, it } from 'vitest'
+import { expect, expectTypeOf, it } from 'vitest'
 
 import { encodeWav, fileSource } from './media-file'
 
@@ -55,4 +55,9 @@ it('releases the decoder and errors the stream when the connection aborts before
   connection.abort('Device switched')
 
   await expect(reader.read()).rejects.toBe('Device switched')
+})
+
+// https://github.com/moeru-ai/airi/pull/2769#discussion_r4180881988
+it('cannot be shared through AudioInput, because its reader sets the decode speed', () => {
+  expectTypeOf(fileSource).returns.not.toExtend<ConstructorParameters<typeof AudioInput>[0]>()
 })

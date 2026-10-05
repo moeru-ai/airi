@@ -17,7 +17,8 @@ Shared audio-pipeline orchestration for AIRI. The package owns input sharing, ca
 
 ## Input, capture, and observation
 
-`AudioInput` shares one `AudioInputSource`. The first subscriber opens the source, and the last one to leave closes it.
+`AudioInput` shares one `LiveAudioSource`, for example a microphone. The first subscriber opens the source, and the last one to leave closes it.
+A live source cannot wait for its readers. A file is an `AudioSource` but not a live source. Each consumer of a file opens its own stream, and that stream keeps native backpressure.
 Each subscription, capture, and observer ends with its own abort signal. There is no lease to release.
 
 ```ts

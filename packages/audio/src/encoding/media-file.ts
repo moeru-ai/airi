@@ -1,4 +1,4 @@
-import type { AudioInputSource, PcmBlock } from '@proj-airi/pipelines-audio'
+import type { AudioSource, PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { ALL_FORMATS, AudioSample, AudioSampleSink, AudioSampleSource, BlobSource, BufferTarget, Input, Output, WavOutputFormat } from 'mediabunny'
 import { nanoid } from 'nanoid/non-secure'
@@ -68,12 +68,14 @@ export async function encodeWav(frames: ReadableStream<PcmBlock>, options: WavOp
 /**
  * Decodes an audio file as a source. Each connection decodes from the start with new frame coordinates.
  *
+ * A file is not live. Its reader sets the decode speed, so each consumer opens its own stream.
+ *
  * The decoder is released when the file ends, decoding fails, the stream is cancelled, or `signal` aborts.
  *
  * @example
  * const events = transcriber.transcribe({ audio: fileSource(recording).open(signal), signal })
  */
-export function fileSource(file: Blob): AudioInputSource {
+export function fileSource(file: Blob): AudioSource {
   return {
     open(signal) {
       const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })

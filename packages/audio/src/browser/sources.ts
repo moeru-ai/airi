@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import type { AudioInputSource, PcmBlock, Scope, StreamController } from '@proj-airi/pipelines-audio'
+import type { LiveAudioSource, PcmBlock, Scope, StreamController } from '@proj-airi/pipelines-audio'
 
 import { createPushStream, createScope } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid/non-secure'
@@ -71,14 +71,15 @@ function openConnection(signal: AbortSignal, connect: (scope: Scope, output: Str
 }
 
 /** A borrowed MediaStream as a source. Tracks stay with their owner. */
-export function mediaStreamSource(stream: MediaStream, context: AudioContext): AudioInputSource {
+export function mediaStreamSource(stream: MediaStream, context: AudioContext): LiveAudioSource {
   return {
+    live: true,
     open: signal => openConnection(signal, (scope, output) => pipeMediaStream(context, stream, scope, output)),
   }
 }
 
 /** A microphone source whose current connection is observable for echo policy and device labels. */
-export interface MicrophoneSource extends AudioInputSource {
+export interface MicrophoneSource extends LiveAudioSource {
   /** Tracks of the open connection. Undefined before permission and after the connection closes. */
   readonly stream: MediaStream | undefined
   readonly echoCancellation: boolean
@@ -98,6 +99,7 @@ export function microphoneSource(constraints: MediaStreamConstraints, options: {
   let current: MediaStream | undefined
 
   return {
+    live: true,
     get stream() {
       return current
     },
