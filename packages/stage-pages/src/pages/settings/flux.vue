@@ -1,20 +1,21 @@
 <script setup lang="ts">
 import type { FluxBalanceBucket } from '@proj-airi/stage-ui/composables/use-analytics'
-import type { RevenuecatFluxPackage } from '@proj-airi/stage-ui/composables/use-revenuecat-flux'
 
 import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shared'
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
-import { useRevenuecatFlux } from '@proj-airi/stage-ui/composables/use-revenuecat-flux'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { Button, Skeleton } from '@proj-airi/ui'
+import { Button, SelectTab, Skeleton } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 const { credits, isAuthenticated } = storeToRefs(authStore)
 const {
@@ -28,17 +29,10 @@ const {
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
-// RevenueCat Web Billing replaces the Stripe redirect checkout on web.
-// Prices come from the `flux_packs` offering, Flux amounts from the backend
-// pack map, and the grant lands through the RevenueCat webhook.
-const revenuecat = useRevenuecatFlux({
-  getUserId: () => authStore.user?.id ?? '',
-  onPaid: () => Promise.allSettled([authStore.updateCredits(), fetchAuditHistory()]),
-  getBalance: () => credits.value,
-})
-
-// Webhook credits the balance server-side, so re-pull it whenever the
-// window regains focus; the balance source of truth is the server.
+// On desktop, checkout happens in the external system browser (see handleBuy), so
+// the app never receives the success_url redirect that web/mobile use to refresh.
+// Re-pull the FLUX balance whenever the window regains focus; the balance source
+// of truth is the server (credited by the Stripe webhook).
 if (isStageTamagotchi()) {
   useEventListener(window, 'focus', () => {
     if (isAuthenticated.value)
@@ -46,11 +40,30 @@ if (isStageTamagotchi()) {
   })
 }
 
-const loadingPackKey = ref<string | null>(null)
+interface FluxPackage {
+  stripePriceId: string
+  label: string
+  defaultCurrency: string
+  currencies: Record<string, string>
+  recommended?: boolean
+}
+
+const loadingPriceId = ref<string | null>(null)
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const checkoutReturnMessageActive = ref(false)
-const packages = ref<RevenuecatFluxPackage[]>([])
+const packages = ref<FluxPackage[]>([])
 const packagesLoading = ref(!fluxPurchaseDisabled)
+const selectedCurrency = ref<string>('usd')
+
+const currencyOptions = computed(() => {
+  if (packages.value.length === 0)
+    return []
+  // Currencies supported by all packages
+  const first = Object.keys(packages.value[0].currencies)
+  return first
+    .filter(c => packages.value.every(p => c in p.currencies))
+    .map(c => ({ label: c.toUpperCase(), value: c }))
+})
 
 // NOTICE: Manual interface instead of hono InferResponseType because hono client
 // type instantiation hits TS recursion limits ("excessively deep and possibly infinite").
@@ -85,6 +98,7 @@ function fluxBalanceBucket(balance: number | undefined): FluxBalanceBucket {
   return '10000_plus'
 }
 
+/** Display amount with sign: debit is negative, credit/initial are positive */
 function displayAmount(record: AuditRecord): string {
   const signed = record.type === 'debit' ? -record.amount : record.amount
   const formatted = formatNumber(Math.abs(signed))
@@ -95,7 +109,9 @@ function isPositive(record: AuditRecord): boolean {
   return record.type !== 'debit'
 }
 
-// Unknown types fall back to typeInitial.
+// Lookup table avoids a chained ternary in the template (banned by CLAUDE.md
+// naming/style rules). Unknown types fall back to typeInitial so older
+// records without an explicit mapping still render something.
 const TYPE_LABEL_KEY: Record<string, string> = {
   debit: 'settings.pages.flux.audit.typeConsumption',
   credit: 'settings.pages.flux.audit.typeAddition',
@@ -198,6 +214,7 @@ const groupedRows = computed<GroupedRow[]>(() => {
   while (i < records.length) {
     const record = records[i]
     if (record.type === 'debit' && record.description?.startsWith('tts:')) {
+      // Collect consecutive TTS records with the same description
       const group: AuditRecord[] = [record]
       while (i + 1 < records.length
         && records[i + 1].type === 'debit'
@@ -233,16 +250,14 @@ const groupedRows = computed<GroupedRow[]>(() => {
 })
 
 async function fetchPackages() {
-  packages.value = []
-  if (fluxPurchaseDisabled)
-    return
-  if (revenuecat.missingKey.value) {
-    message.value = { type: 'error', text: t('settings.pages.flux.packagesError') }
-    return
-  }
   try {
-    await revenuecat.fetchPackages()
-    packages.value = revenuecat.packages.value
+    const res = await client.api.v1.stripe.packages.$get()
+    if (res.ok) {
+      const data = await res.json() as FluxPackage[]
+      packages.value = data
+      if (data.length > 0)
+        selectedCurrency.value = data[0].defaultCurrency
+    }
   }
   catch {
     if (!checkoutReturnMessageActive.value)
@@ -254,7 +269,7 @@ async function fetchPackages() {
 }
 
 /**
- * Shows a purchase result banner that background package refreshes must not replace.
+ * Shows a Stripe return banner that background package refreshes must not replace.
  */
 function showCheckoutReturnMessage(type: 'success' | 'error', text: string) {
   checkoutReturnMessageActive.value = true
@@ -290,6 +305,15 @@ onMounted(() => {
   if (!fluxPurchaseDisabled)
     void fetchPackages()
 
+  if (route.query.success === 'true') {
+    showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
+    router.replace({ query: {} })
+  }
+  else if (route.query.canceled === 'true') {
+    showCheckoutReturnMessage('error', t('settings.pages.flux.checkout.canceled'))
+    router.replace({ query: {} })
+  }
+
   if (!fluxPurchaseDisabled) {
     trackPaywallSeen({
       entry_surface: 'settings_flux',
@@ -300,21 +324,22 @@ onMounted(() => {
   }
 })
 
-async function handleBuy(packageId: string) {
-  const target = packages.value.find(pkg => pkg.packageId === packageId)
-  // OpenPanel funnel step 2: user picked a plan. Formatted prices never
-  // leave the SPA so funnels don't get poisoned by currency-formatting drift.
+async function handleBuy(stripePriceId: string) {
+  // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
+  // the Stripe webhook (server-side `payment_completed`); we deliberately
+  // don't send a formatted-string price from the SPA so funnels don't get
+  // poisoned by currency-formatting drift.
   trackUpgradeClicked({
     source_page: 'settings_flux',
     current_plan: 'flux',
     trigger: 'manual_topup',
   })
-  trackPlanSelected(packageId, {
-    currency: target?.currency ?? 'unknown',
+  trackPlanSelected(stripePriceId, {
+    currency: selectedCurrency.value,
     entry_surface: 'settings_flux',
   })
 
-  loadingPackKey.value = packageId
+  loadingPriceId.value = stripePriceId
   checkoutReturnMessageActive.value = false
   message.value = null
   try {
@@ -323,23 +348,35 @@ async function handleBuy(packageId: string) {
       return
     }
 
-    const outcome = await revenuecat.purchaseFluxPackage(packageId)
-    if (outcome === 'cancelled') {
-      message.value = { type: 'error', text: t('settings.pages.flux.checkout.canceled') }
+    const res = await client.api.v1.stripe.checkout.$post({ json: { stripePriceId, currency: selectedCurrency.value } })
+    if (!res.ok) {
+      const data = await res.json() as { error?: string, message?: string }
+      message.value = { type: 'error', text: data.message || t('settings.pages.flux.checkout.error') }
       return
     }
-    trackCheckoutStarted(packageId, {
-      currency: target?.currency ?? 'unknown',
-      entry_surface: 'settings_flux',
-    })
-    showCheckoutReturnMessage('success', t('settings.pages.flux.checkout.success'))
-    await fetchAuditHistory()
+    const data = await res.json()
+    if (data.url) {
+      // Start capture before redirecting to Stripe so fetch keepalive can
+      // finish delivery after the page unloads.
+      trackCheckoutStarted(stripePriceId, {
+        currency: selectedCurrency.value,
+        entry_surface: 'settings_flux',
+      })
+      // Electron renderer runs from file:// and cannot navigate to Stripe in-window
+      // (the settings window would load checkout.stripe.com and never come back).
+      // window.open routes through setWindowOpenHandler -> shell.openExternal, so the
+      // system browser handles payment. Web keeps the in-window redirect.
+      if (isStageTamagotchi())
+        window.open(data.url, '_blank')
+      else
+        window.location.href = data.url
+    }
   }
   catch {
     message.value = { type: 'error', text: t('settings.pages.flux.checkout.error') }
   }
   finally {
-    loadingPackKey.value = null
+    loadingPriceId.value = null
   }
 }
 </script>
@@ -379,6 +416,16 @@ async function handleBuy(packageId: string) {
     </div>
 
     <div v-if="!fluxPurchaseDisabled" flex="~ col gap-4">
+      <!-- Currency selector -->
+      <Skeleton v-if="packagesLoading" h-9 w-40 rounded-lg />
+      <div v-else-if="currencyOptions.length > 1" flex="~ justify-start sm:justify-end">
+        <SelectTab
+          v-model="selectedCurrency"
+          :options="currencyOptions"
+          size="sm"
+        />
+      </div>
+
       <div grid="~ cols-1 sm:cols-3 gap-4" :aria-busy="packagesLoading">
         <template v-if="packagesLoading">
           <div
@@ -394,22 +441,31 @@ async function handleBuy(packageId: string) {
           </div>
         </template>
         <button
-          v-for="(pkg, index) in packages" :key="pkg.packageId"
-          :disabled="loadingPackKey !== null"
+          v-for="(pkg, index) in packages" :key="pkg.stripePriceId"
+          :disabled="loadingPriceId !== null"
           :class="[
             'group relative flex flex-row sm:flex-col items-center justify-between sm:justify-center overflow-hidden text-left sm:text-center gap-4 sm:gap-2',
             'rounded-2xl border-2 bg-white p-6 transition-all duration-300 ease-out',
-            'border-neutral-200 dark:border-neutral-800',
+            pkg.recommended ? 'border-primary-400 dark:border-primary-500 shadow-sm' : 'border-neutral-200 dark:border-neutral-800',
             'dark:bg-neutral-900',
             'hover:-translate-y-1 hover:border-primary-400 hover:shadow-md dark:hover:border-primary-500 active:translate-y-0 active:scale-[0.99]',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500',
-            loadingPackKey !== null && loadingPackKey !== pkg.packageId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
+            loadingPriceId !== null && loadingPriceId !== pkg.stripePriceId ? 'opacity-50 grayscale-50 cursor-not-allowed' : 'cursor-pointer',
           ]"
-          @click="handleBuy(pkg.packageId)"
+          @click="handleBuy(pkg.stripePriceId)"
         >
+          <!-- Recommended Badge -->
+          <div
+            v-if="pkg.recommended"
+            class="absolute right-0 top-0 flex items-center gap-1 rounded-bl-xl bg-primary-500 px-2.5 py-1 text-[10px] text-white font-bold tracking-wider uppercase shadow-sm"
+          >
+            <div class="i-solar:star-fall-bold-duotone size-3" />
+            HOT
+          </div>
+
           <!-- Loading Overlay -->
           <div
-            v-if="loadingPackKey === pkg.packageId"
+            v-if="loadingPriceId === pkg.stripePriceId"
             class="absolute inset-0 z-10 flex items-center justify-center bg-white/60 backdrop-blur-sm dark:bg-neutral-900/60"
           >
             <div class="i-svg-spinners:90-ring-with-bg size-8 text-primary-500" />
@@ -417,14 +473,11 @@ async function handleBuy(packageId: string) {
 
           <div flex="~ col sm:items-center gap-1" relative z-1 w-full>
             <div text="sm neutral-500 dark:neutral-400" font-medium transition-colors class="group-hover:text-primary-600 dark:group-hover:text-primary-400">
-              {{ pkg.title }}
-            </div>
-            <div text="xs neutral-400">
-              +{{ formatNumber(pkg.fluxAmount) }} Flux
+              {{ pkg.label }}
             </div>
             <div flex="~ items-baseline justify-start sm:justify-center gap-1">
               <span text="2xl neutral-800 dark:neutral-100" font-bold>
-                {{ pkg.formattedPrice }}
+                {{ pkg.currencies[selectedCurrency] ?? pkg.currencies[pkg.defaultCurrency] }}
               </span>
             </div>
           </div>
