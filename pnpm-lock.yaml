@@ -423,9 +423,6 @@ catalogs:
     '@proj-airi/unplugin-fetch':
       specifier: ^0.2.3
       version: 0.2.3
-    '@proj-airi/unplugin-live2d-sdk':
-      specifier: ^0.1.7
-      version: 0.1.7
     '@radix-ui/colors':
       specifier: ^3.0.0
       version: 3.0.0
@@ -1270,6 +1267,7 @@ catalogs:
       version: 0.1.16
 
 overrides:
+  '@proj-airi/unplugin-live2d-sdk': file:./proj-airi-unplugin-live2d-sdk-0.1.7.tgz
   '@types/hast': ^3.0.5
   array-flatten: npm:@nolyfill/array-flatten@^1.0.44
   axios: npm:feaxios@^0.0.23
@@ -1813,8 +1811,8 @@ importers:
         specifier: 'catalog:'
         version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: 'catalog:'
-        version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       '@proj-airi/vite-plugin-sherpaw':
         specifier: workspace:^
         version: link:../../packages/vite-plugin-sherpaw
@@ -2318,8 +2316,8 @@ importers:
         specifier: 'catalog:'
         version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: 'catalog:'
-        version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       '@proj-airi/vite-plugin-sherpaw':
         specifier: workspace:^
         version: link:../../packages/vite-plugin-sherpaw
@@ -2854,8 +2852,8 @@ importers:
         specifier: 'catalog:'
         version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: 'catalog:'
-        version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.100
@@ -3245,8 +3243,8 @@ importers:
         specifier: 'catalog:'
         version: 0.2.3(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
       '@proj-airi/unplugin-live2d-sdk':
-        specifier: 'catalog:'
-        version: 0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       '@proj-airi/vite-plugin-sherpaw':
         specifier: workspace:^
         version: link:../../packages/vite-plugin-sherpaw
@@ -5388,6 +5386,9 @@ importers:
       '@proj-airi/stream-kit':
         specifier: workspace:*
         version: link:../stream-kit
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       '@types/audioworklet':
         specifier: 'catalog:'
         version: 0.0.100
@@ -5551,6 +5552,9 @@ importers:
         specifier: 'catalog:'
         version: 4.4.3
     devDependencies:
+      '@proj-airi/unplugin-live2d-sdk':
+        specifier: file:../../proj-airi-unplugin-live2d-sdk-0.1.7.tgz
+        version: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
       '@types/culori':
         specifier: 'catalog:'
         version: 4.0.1
@@ -11426,8 +11430,9 @@ packages:
     peerDependencies:
       vite: '>= 7'
 
-  '@proj-airi/unplugin-live2d-sdk@0.1.7':
-    resolution: {integrity: sha512-F+yvVx6GLyOxrylnMYVngjFtBbIJp56/4Cl5V6MZzfihu4gRXVRpw6D7xM1B/6vvd3mzyKGV0T/t6DbmEOagng==}
+  '@proj-airi/unplugin-live2d-sdk@file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz':
+    resolution: {integrity: sha512-nZnBiOhr4OHWwwRMO3MLrRhBKt6krfoeB/Iwm79MTZrOGWNkQuZHYGuCwu8tFhIx5ZrmV8dm5MdBD3tVimqsjQ==, tarball: file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz}
+    version: 0.1.7
 
   '@protobufjs/aspromise@1.1.2':
     resolution: {integrity: sha512-j+gKExEuLmKwvz3OgROXtrJ2UG2x8Ch2YZUxahh+s1F2HZ+wAceUNLkvy6zKCPVRkU++ZWQrdxsUeQXmcg4uoQ==}
@@ -26015,7 +26020,7 @@ snapshots:
       ofetch: 1.5.1
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)
 
-  '@proj-airi/unplugin-live2d-sdk@0.1.7(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)':
+  '@proj-airi/unplugin-live2d-sdk@file:proj-airi-unplugin-live2d-sdk-0.1.7.tgz(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)':
     dependencies:
       ofetch: 1.5.1
       vite: 8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.0(supports-color@10.2.2))(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0)

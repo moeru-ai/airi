@@ -1,7 +1,6 @@
-import process from 'node:process'
+import process, { env } from 'node:process'
 
 import { join, resolve } from 'node:path'
-import { env } from 'node:process'
 
 import VueI18n from '@intlify/unplugin-vue-i18n/vite'
 import templateCompilerOptions from '@tresjs/core/template-compiler-options'

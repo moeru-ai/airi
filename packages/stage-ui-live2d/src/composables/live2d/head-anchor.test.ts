@@ -1,6 +1,6 @@
 import type { Live2DHeadSource } from './head-anchor'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { createLive2DHeadTracker } from './head-anchor'
 
@@ -68,6 +68,40 @@ function riggedModel(options: RiggedModelOptions): Live2DHeadSource & { updates:
 
       return { x: offset, y: index * 10, width: 8, height: 8 }
     },
+  }
+}
+
+interface Cubism2ModelOptions {
+  drawables: number
+  hitAreas?: Record<string, { index: number }>
+}
+
+/**
+ * A Cubism 2 model as the generation adapter leaves it.
+ *
+ * Its core answers only the by-id accessors the adapter adds over
+ * `getParamFloat`/`setParamFloat`. There is no drawable count, no parameter
+ * index and no parameter range, so the rig-inference pass has nothing to work
+ * with and the hit area is the only head a model of this generation can state.
+ *
+ * @example
+ * cubism2Model({ drawables: 4, hitAreas: { head: { index: 1 } } })
+ */
+function cubism2Model(options: Cubism2ModelOptions): Live2DHeadSource & {
+  setParameterValueById: ReturnType<typeof vi.fn>
+} {
+  const values = new Map<string, number>()
+  const setParameterValueById = vi.fn((id: string, value: number) => void values.set(id, value))
+
+  return {
+    setParameterValueById,
+    hitAreas: options.hitAreas ?? {},
+    coreModel: {
+      update: () => {},
+      getParameterValueById: (id: string) => values.get(id) ?? 0,
+      setParameterValueById,
+    },
+    getDrawableBounds: (index: number) => ({ x: 0, y: index * 10, width: 8, height: 8 }),
   }
 }
 
@@ -163,5 +197,43 @@ describe('live2D head tracker', () => {
     tracker.reset()
 
     expect(tracker.bounds(riggedModel({ drawables: 3, head: [], angleParameters: [] }))).toBeUndefined()
+  })
+
+  it('takes the declared head area of a model whose rig it cannot probe', () => {
+    // Cubism 2 states its head the same way Cubism 4 does, and that path asks
+    // the core for nothing, so the anchor works on both generations.
+    const model = cubism2Model({ drawables: 4, hitAreas: { head: { index: 2 } } })
+
+    expect(createLive2DHeadTracker().bounds(model)).toEqual({ x: 0, y: 20, width: 8, height: 8 })
+    expect(model.setParameterValueById).not.toHaveBeenCalled()
+  })
+
+  it('reports no head for a model whose rig it cannot probe', () => {
+    // ROOT CAUSE:
+    //
+    // The inference pass called the rig accessors unconditionally:
+    //
+    //   const count = core.getDrawableCount()
+    //
+    // A Cubism 2 core has none of them, so the presence bubble's anchor read
+    // threw a TypeError instead of reporting no head.
+    //
+    // We fixed this by resolving a rig probe first.
+    const model = cubism2Model({ drawables: 4 })
+
+    expect(() => createLive2DHeadTracker().bounds(model)).not.toThrow()
+    expect(createLive2DHeadTracker().bounds(model)).toBeUndefined()
+    // Nothing was posed, so the core created no synthetic parameter: Cubism 2
+    // adds one for any id it is asked to write.
+    expect(model.setParameterValueById).not.toHaveBeenCalled()
+  })
+
+  it('infers from the rig again after a Cubism 2 model is replaced', () => {
+    const tracker = createLive2DHeadTracker()
+    expect(tracker.bounds(cubism2Model({ drawables: 3 }))).toBeUndefined()
+
+    tracker.reset()
+
+    expect(tracker.bounds(riggedModel({ drawables: 3, head: [1] }))).toEqual({ x: 0, y: 10, width: 8, height: 8 })
   })
 })
