@@ -1157,7 +1157,7 @@ describe('chat store contract', () => {
     expect(sessionMessages['session-1']?.slice(-3)).toMatchObject([
       { role: 'user', content: 'show partial output' },
       { role: 'assistant', interrupted: true, content: 'partial ' },
-      { role: 'error', content: 'stream interrupted' },
+      { role: 'error', content: 'stream interrupted', id: expect.any(String), createdAt: expect.any(Number) },
     ])
 
     llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
