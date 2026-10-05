@@ -1,13 +1,11 @@
 import type { AudioRange, AudioWindow, Observer, WindowOptions } from '@proj-airi/pipelines-audio'
 
-import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence, SpeechInputAttemptOutcome } from './speech-input-types'
-import type { SpeechSelection, SpeechSnapshot } from './speech-snapshot'
-import type { TranscriptEdit, WriteResult } from './transcript'
-import type { TurnRef } from './turn'
-import type { BeginSpeechInput, Interruption } from './voice-contracts'
-
-export type { SpeakerEvidence, SpeechSelection, SpeechSnapshot } from './speech-snapshot'
-export type { TranscriptEdit, WriteResult } from './transcript'
+import type { BeginSpeechInput, SpeechInputAttemptOutcome } from '../input/attempt-types'
+import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence } from '../input/end-detection'
+import type { SpeechSelection, SpeechSnapshot } from '../input/snapshot'
+import type { TranscriptEdit, WriteResult } from '../input/transcript'
+import type { Interruption } from '../interruption'
+import type { TurnRef } from '../turn'
 
 /** Keys belong to the current plugin and input. Values remain in-process references. Publishers replace values to signal changes. */
 export interface ContextWriter {

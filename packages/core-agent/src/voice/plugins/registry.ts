@@ -1,10 +1,12 @@
 import type { AudioInput, Observer, Scope } from '@proj-airi/pipelines-audio'
 
-import type { SpeechInput } from './speech-input'
-import type { SpeechInputAttempt } from './speech-input-attempt'
-import type { TurnRef } from './turn'
-import type { BeginSpeechInput, Interruption } from './voice-contracts'
-import type { InputPluginInstallation, PluginInput } from './voice-input-plugins'
+import type { SpeechInputAttempt } from '../input/attempt'
+import type { BeginSpeechInput } from '../input/attempt-types'
+import type { SpeechInput } from '../input/speech-input'
+import type { Interruption } from '../interruption'
+import type { TurnRef } from '../turn'
+import type { InputPluginInstallation, PluginInput } from './input-plugins'
+import type { Cleanup } from './task-lifetime'
 import type {
   SpeechInputControl,
   VoicePlugin,
@@ -13,17 +15,14 @@ import type {
   VoicePluginHandle,
   VoicePluginScope,
   VoicePluginSettings,
-} from './voice-plugin-types'
+} from './types'
 
 import { createScope, observe } from '@proj-airi/pipelines-audio'
 
-import { errorFromCause } from '../utils/error'
-import { InputPlugins } from './voice-input-plugins'
-import { TaskLifetime } from './voice-plugin-task'
+import { errorFromCause } from '../../utils/error'
+import { InputPlugins } from './input-plugins'
+import { TaskLifetime } from './task-lifetime'
 
-export type { VoicePluginSettings } from './voice-plugin-types'
-
-type Cleanup = () => void | Promise<void>
 interface VoicePluginHost {
   activeInput: () => SpeechInputAttempt | undefined
   audio: () => AudioInput | undefined

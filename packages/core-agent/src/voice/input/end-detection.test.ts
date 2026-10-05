@@ -1,12 +1,12 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
-import type { TranscriptionEvent } from '../index'
+import type { TranscriptionEvent } from '../../index'
 
 import { AudioInput, createPushStream } from '@proj-airi/pipelines-audio'
 import { describe, expect, it, vi } from 'vitest'
 
-import { VoiceController } from '../index'
-import { keepOpen, pcmSource } from '../testing/audio'
+import { VoiceController } from '../../index'
+import { keepOpen, pcmSource } from '../../testing/audio'
 
 describe('voiceController end detection', () => {
   it('accepts onset activity when capture includes earlier padding', async () => {

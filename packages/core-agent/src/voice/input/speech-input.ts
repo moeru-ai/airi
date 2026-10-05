@@ -1,5 +1,5 @@
-import type { TranscriptionEvent } from './transcript'
-import type { SpeakerEvidence, SpeechSelection, SpeechSnapshot, WriteResult } from './voice-plugin-types'
+import type { SpeakerEvidence, SpeechSelection, SpeechSnapshot } from './snapshot'
+import type { TranscriptionEvent, WriteResult } from './transcript'
 
 import { Transcript } from './transcript'
 

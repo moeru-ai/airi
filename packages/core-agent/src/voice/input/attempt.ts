@@ -1,15 +1,17 @@
 import type { AudioInput, AudioRange, Capture, Observer, Position } from '@proj-airi/pipelines-audio'
 
-import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence, SpeechInputAttemptOutcome, SpeechInputAttemptState } from './speech-input-types'
+import type { Interruption } from '../interruption'
+import type { SpeechSubscription } from '../plugins/types'
+import type { TurnRef } from '../turn'
+import type { BeginSpeechInput, SpeechInputAttemptOutcome, SpeechInputAttemptState } from './attempt-types'
+import type { EndDetectionOptions, EndDetector, SpeechActivityEvidence } from './end-detection'
+import type { SpeechInputPorts, StreamingTranscriber } from './submission'
 import type { TranscriptionEvent } from './transcript'
-import type { TurnRef } from './turn'
-import type { BeginSpeechInput, Interruption, StreamingTranscriber, VoiceControllerOptions } from './voice-contracts'
-import type { SpeechSubscription } from './voice-plugin-types'
 
 import { capture, observe } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid/non-secure'
 
-import { errorFromCause } from '../utils/error'
+import { errorFromCause } from '../../utils/error'
 import { SpeechInput } from './speech-input'
 
 interface InputPluginLifetime {
@@ -22,12 +24,10 @@ export interface SpeechInputAttemptOwner {
   audio: () => AudioInput | undefined
   interrupt: (options: { turns: readonly TurnRef[], cause: string }) => Interruption
   createPlugins: (input: SpeechInput) => InputPluginLifetime
-  options: Pick<VoiceControllerOptions, 'transcriber' | 'submit' | 'conversationContext'>
+  options: SpeechInputPorts
   seal: (attempt: SpeechInputAttempt) => void
   reportError: (stage: string, error: unknown) => void
 }
-
-export type { SpeechInputAttemptOutcome, SpeechInputAttemptState, TurnEvidence } from './speech-input-types'
 
 /** Owns one admission, capture, provider request, and submission. Normal end never aborts the provider. */
 export class SpeechInputAttempt {

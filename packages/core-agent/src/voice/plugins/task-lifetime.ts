@@ -1,8 +1,11 @@
-import type { SpeechSubscription } from './voice-plugin-types'
+import type { SpeechSubscription } from './types'
 
-import { errorFromCause } from '../utils/error'
+import { errorFromCause } from '../../utils/error'
 
-type Settlement = Awaited<SpeechSubscription['done']>
+/** Settlement shared by plugin subscriptions, lifecycle tasks, and input plugin scopes. */
+export type Settlement = Awaited<SpeechSubscription['done']>
+
+export type Cleanup = () => void | Promise<void>
 
 /** One callback owns its timeout, cancellation signal, and settlement. */
 export class TaskLifetime {

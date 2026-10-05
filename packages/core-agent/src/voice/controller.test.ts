@@ -1,6 +1,6 @@
 import type { PcmBlock } from '@proj-airi/pipelines-audio'
 
-import type { AudioPluginTask, TranscriptionEvent, VoicePluginControls, WriteResult } from '../index'
+import type { AudioPluginTask, TranscriptionEnd, TranscriptionEvent, VoicePluginControls, WriteResult } from '../index'
 
 import { AudioInput, capture, createPushStream, observe } from '@proj-airi/pipelines-audio'
 import { describe, expect, it, vi } from 'vitest'
@@ -138,7 +138,7 @@ describe('voiceController input', () => {
     const source = createPushStream<PcmBlock>()
     const audio = new AudioInput(pcmSource(source.stream))
     const output = createPushStream<TranscriptionEvent>()
-    const result = Promise.withResolvers<import('./voice-plugin-types').TranscriptionEnd>()
+    const result = Promise.withResolvers<TranscriptionEnd>()
     const waiting = Promise.withResolvers<void>()
     const errors = vi.fn()
     let fail: ((error: Error) => void) | undefined
@@ -168,7 +168,7 @@ describe('voiceController input', () => {
     const source = createPushStream<PcmBlock>()
     const audio = new AudioInput(pcmSource(source.stream))
     const output = createPushStream<TranscriptionEvent>()
-    const result = Promise.withResolvers<import('./voice-plugin-types').TranscriptionEnd>()
+    const result = Promise.withResolvers<TranscriptionEnd>()
     const errors = vi.fn()
     const controller = new VoiceController({ audio, transcriber: () => ({ transcribe: () => output.stream }), submit: vi.fn() })
     controller.use({ name: 'memory', setup(plugin) {

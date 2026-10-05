@@ -1,21 +1,34 @@
 import type { AudioInput, AudioRange, PlaybackReceipt } from '@proj-airi/pipelines-audio'
 
-import type { SpeechInputAttemptOwner } from './speech-input-attempt'
+import type { SpeechInputAttemptOwner } from './input/attempt'
+import type { BeginSpeechInput } from './input/attempt-types'
+import type { SpeakerEvidence } from './input/snapshot'
+import type { SpeechInputPorts } from './input/submission'
+import type { TranscriptEdit, WriteResult } from './input/transcript'
+import type { Interruption, VoiceInterruptionEvent } from './interruption'
+import type { SpeechOutput } from './output/response'
+import type { VoicePlugin, VoicePluginHandle, VoicePluginSettings } from './plugins/types'
 import type { TurnRef } from './turn'
-import type { BeginSpeechInput, Interruption, VoiceControllerOptions } from './voice-contracts'
-import type { SpeakerEvidence, TranscriptEdit, VoicePlugin, VoicePluginHandle, WriteResult } from './voice-plugin-types'
-import type { VoicePluginSettings } from './voice-plugins'
 
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause } from '../utils/error'
-import { VoiceResponse } from './response'
-import { SpeechInputAttempt } from './speech-input-attempt'
+import { SpeechInputAttempt } from './input/attempt'
+import { VoiceResponse } from './output/response'
+import { VoicePlugins } from './plugins/registry'
 import { turnKey } from './turn'
-import { VoicePlugins } from './voice-plugins'
 
-export type { TurnRef } from './turn'
-export type { BeginSpeechInput, Interruption, SpeechSubmission, StreamingTranscriber, VoiceControllerOptions, VoiceInterruptionEvent } from './voice-contracts'
+/** Only external source, provider, and persistence boundaries are injected. */
+export interface VoiceControllerOptions extends SpeechInputPorts {
+  readonly onError?: (event: { stage: string, error: Error }) => void
+  /** Shared input. Attempts and plugins subscribe to it. The controller never closes it. */
+  readonly audio?: AudioInput
+  readonly speech?: (turn: TurnRef) => SpeechOutput
+  /** Persistence retries must reuse eventId. This is an agent control event, not a chat message. */
+  readonly recordInterruption?: (event: VoiceInterruptionEvent) => Promise<{ status: 'acknowledged' | 'queued' | 'failed' }>
+  /** @default 100. Playback uses its audio clock to apply this fade. */
+  readonly fadeMs?: number
+}
 
 interface TurnInterruption {
   readonly eventId: string

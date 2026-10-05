@@ -1,12 +1,12 @@
 import type { TtsRequest } from '@proj-airi/pipelines-audio'
 
-import type { SpeechAudio } from '../index'
+import type { SpeechAudio, StreamingTranscriber, TranscriptionEvent } from '../../index'
 
 import { AudioInput, createPushStream, Playback } from '@proj-airi/pipelines-audio'
 import { describe, expect, it, vi } from 'vitest'
 
-import { VoiceController } from '../index'
-import { keepOpen, pcmSource } from '../testing/audio'
+import { VoiceController } from '../../index'
+import { keepOpen, pcmSource } from '../../testing/audio'
 
 describe('voiceController output', () => {
   it('ends the speaking indicator only after cancelled audio becomes silent', async () => {
@@ -143,8 +143,8 @@ describe('voiceController output', () => {
       return { done: new Promise<{ throughMs: number }>(() => {}), stop: () => faded.promise }
     } })
     const samples: number[] = []
-    const output = createPushStream<import('./transcript').TranscriptionEvent>()
-    const transcribe = vi.fn<import('./voice-controller').StreamingTranscriber['transcribe']>((request) => {
+    const output = createPushStream<TranscriptionEvent>()
+    const transcribe = vi.fn<StreamingTranscriber['transcribe']>((request) => {
       const stream = request.audio
       void (async () => {
         for await (const block of stream) samples.push(...block.channels[0])

@@ -84,6 +84,19 @@ The implemented coordinator is `VoiceController`. It composes audio primitives w
 Use it for conversation lifecycles. Use pipelines-audio directly for an independent recording attachment.
 Browser resources stay in audio adapters. Character selection and persistence stay in application adapters.
 
+```text
+src/voice/
+├── index.ts         # The public voice API. Import from the package root, not from these files.
+├── controller.ts    # VoiceController and its options
+├── interruption.ts  # Interruption receipts and the durable interruption event
+├── turn.ts          # TurnRef and turnKey
+├── input/           # One speech input: admission, capture, transcript, end detection, submission
+├── output/          # VoiceResponse and ordered SpeechStream producers
+└── plugins/         # Trusted plugin types, installation, input scopes, and task lifetimes
+```
+
+`input/` and `output/` do not import `controller.ts`. `plugins/` reads input types but never the controller.
+
 ```ts
 const voice = new VoiceController({
   audio,

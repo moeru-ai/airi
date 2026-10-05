@@ -1,9 +1,9 @@
-import type { SpeechInput } from './speech-input'
+import type { SpeechSelection, SpeechSnapshot } from '../input/snapshot'
+import type { SpeechInput } from '../input/speech-input'
+import type { Cleanup, Settlement } from './task-lifetime'
 import type {
   SpeechInputScope,
   SpeechLifecycleTask,
-  SpeechSelection,
-  SpeechSnapshot,
   SpeechSubscription,
   SpeechTask,
   SpeechView,
@@ -13,13 +13,11 @@ import type {
   VoicePluginError,
   VoicePluginScope,
   VoicePluginSettings,
-} from './voice-plugin-types'
+} from './types'
 
-import { errorFromCause } from '../utils/error'
-import { TaskLifetime } from './voice-plugin-task'
+import { errorFromCause } from '../../utils/error'
+import { TaskLifetime } from './task-lifetime'
 
-type Settlement = Awaited<SpeechSubscription['done']>
-type Cleanup = () => void | Promise<void>
 type Registration
   = { kind: 'subscribe', settings: Parameters<SpeechInputScope['subscribe']>[0], run: (ctx: SpeechTask) => Promise<void> }
     | { kind: 'task', settings: Parameters<SpeechInputScope['task']>[0], run: (ctx: SpeechLifecycleTask) => Promise<void> }

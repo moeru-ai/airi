@@ -1,11 +1,11 @@
 import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
 
-import type { TurnRef } from './turn'
+import type { TurnRef } from '../turn'
 
 import { createPushStream, createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { nanoid } from 'nanoid/non-secure'
 
-import { errorFromCause, errorMessageFromValue } from '../utils/error'
+import { errorFromCause, errorMessageFromValue } from '../../utils/error'
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
