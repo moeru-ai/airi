@@ -3,11 +3,12 @@ import type Stripe from 'stripe'
 
 import { useLogger } from '@guiiai/logg'
 
+import { formatPrice } from '../../utils/format-price'
 import { redisKeyFrom } from '../../utils/redis-keys'
 
 const logger = useLogger('stripe')
 
-const PRICES_CACHE_KEY = redisKeyFrom('cache', 'stripe', 'prices')
+const PRICES_CACHE_KEY = redisKeyFrom('stripe', 'prices')
 const PRICES_CACHE_TTL_SEC = 5 * 60
 
 interface CachedCurrencyOption {
@@ -29,19 +30,14 @@ export interface StripePriceCatalog {
   findActivePrice: (productId: string, stripePriceId: string) => Promise<CachedPrice | null>
 }
 
-/**
- * Creates a Stripe price catalog backed by Redis.
- *
- * Use when:
- * - Listing public Flux packages.
- * - Validating checkout price ids before creating Stripe sessions.
- *
- * Expects:
- * - A configured Stripe client and Redis connection.
- *
- * Returns:
- * - Cached active prices for a single configured product.
- */
+export interface StripePackage {
+  stripePriceId: string
+  label: string
+  defaultCurrency: string
+  currencies: Record<string, string>
+  recommended: boolean
+}
+
 export function createStripePriceCatalog(stripe: Stripe, redis: Redis): StripePriceCatalog {
   return {
     async getActivePrices(productId: string): Promise<CachedPrice[]> {
@@ -73,13 +69,11 @@ export function createStripePriceCatalog(stripe: Stripe, redis: Redis): StripePr
     },
 
     async findActivePrice(productId: string, stripePriceId: string): Promise<CachedPrice | null> {
-      // Validate against cached prices first, fall back to direct Stripe API.
       const cachedPrices = await this.getActivePrices(productId)
       const cached = cachedPrices.find(p => p.id === stripePriceId)
       if (cached)
         return cached
 
-      // Cache miss — price may have just been created.
       let fetched: Stripe.Price
       try {
         fetched = await stripe.prices.retrieve(stripePriceId)
@@ -92,11 +86,29 @@ export function createStripePriceCatalog(stripe: Stripe, redis: Redis): StripePr
       if (!fetched.active || fetchedProductId !== productId)
         return null
 
-      // Invalidate cache so all instances pick up the new price.
       await redis.del(PRICES_CACHE_KEY)
       return toCachedPrice(fetched)
     },
   }
+}
+
+export async function listStripePackages(catalog: StripePriceCatalog, productId: string): Promise<StripePackage[]> {
+  const prices = await catalog.getActivePrices(productId)
+  return prices.map((price) => {
+    const currencies: Record<string, string> = {
+      [price.currency]: formatPrice(price.unitAmount, price.currency),
+    }
+    for (const [currency, option] of Object.entries(price.currencyOptions))
+      currencies[currency] = formatPrice(option.unitAmount, currency)
+
+    return {
+      stripePriceId: price.id,
+      label: `${price.metadata.fluxAmount ?? '?'} Flux`,
+      defaultCurrency: price.currency,
+      currencies,
+      recommended: price.metadata.recommended === 'true',
+    }
+  })
 }
 
 function toCachedPrice(price: Stripe.Price): CachedPrice {
@@ -108,33 +120,7 @@ function toCachedPrice(price: Stripe.Price): CachedPrice {
     active: price.active,
     metadata: price.metadata,
     currencyOptions: Object.fromEntries(
-      Object.entries(price.currency_options ?? {}).map(([cur, opt]) => [cur, { unitAmount: opt.unit_amount }]),
+      Object.entries(price.currency_options ?? {}).map(([currency, option]) => [currency, { unitAmount: option.unit_amount }]),
     ),
-  }
-}
-
-/**
- * Format Stripe smallest-unit amount into a human-readable price string.
- *
- * Before:
- * - `300, "usd"`
- * - `500, "jpy"`
- *
- * After:
- * - `"$3.00"`
- * - `"¥500"`
- */
-export function formatPrice(unitAmount: number | null, currency: string): string {
-  if (unitAmount == null)
-    return currency.toUpperCase()
-
-  try {
-    const formatter = new Intl.NumberFormat('en-US', { style: 'currency', currency })
-    const fractionDigits = formatter.resolvedOptions().minimumFractionDigits ?? 2
-    const amount = unitAmount / (10 ** fractionDigits)
-    return formatter.format(amount)
-  }
-  catch {
-    return `${unitAmount / 100} ${currency.toUpperCase()}`
   }
 }

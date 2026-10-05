@@ -1,19 +1,18 @@
 chat:
   actions:
-    retry: Retry
+    retry: 再試行
   message:
     character-name:
-      airi: AIRI
       core-system: コアシステム
       you: あなた
   reasoning: 推論
   sessions:
-    title: Conversations
+    title: 会話
     new: + New
-    empty: No conversations yet
-    cloud-badge: Synced to cloud
-    new-chat-fallback: New chat
-    delete: Delete conversation
+    empty: 会話はまだありません
+    cloud-badge: クラウドに同期しました
+    new-chat-fallback: 新しいチャット
+    delete: 会話を削除
 render-error:
   title: '{renderer} でこのモデルを描画できませんでした'
   description: モデルは選択されていますが、ステージに表示できませんでした。
@@ -24,8 +23,6 @@ render-error:
 message: 何か話しかけてみましょう…
 send-mode:
   title: キーを送信
-  enter: Enter
-  ctrl-enter: Ctrl + Enter
   double-enter: Enter二回
 speech-output:
   mute: 音声をミュート
@@ -67,7 +64,6 @@ promo-banner:
       fallbackLabel: 月の贈り物
       title: 7日間のログイン
       eventName: スターダストやアバターフレーム、ローンチ特典を受け取るにはログインしてください。
-      date: 03/28 - 04/10
       reward: 最大120スターダスト
       cta: サインイン
     build:
@@ -75,7 +71,6 @@ promo-banner:
       fallbackLabel: ビルドボーナス
       title: 補給箱ボーナス
       eventName: ビルド作業を完了してボーナスバウチャーを獲得し、資材を2倍にしよう。
-      date: 03/30 - 04/12
       reward: 供給券5枚＋アップグレード用資材
       cta: タスクを表示
     spring:
@@ -83,7 +78,6 @@ promo-banner:
       fallbackLabel: 春の抽選会
       title: カプセルカーニバル
       eventName: 春の抽選会に参加して、バブルやチャーム、テーマ家具を解放しよう。
-      date: 04/01 - 04/18
       reward: 初回半額＋レアチャーム付き
       cta: 今すぐ抽選
     coupon:
@@ -91,7 +85,6 @@ promo-banner:
       fallbackLabel: クーポン
       title: チャージクーポン
       eventName: チャットでのやり取りを完了して、拡張パックやボイスパック用のクーポンを獲得しましょう。
-      date: 04/02 - 04/20
       reward: 30のご利用で6お得 / 68のご利用で15お得
       cta: クーポンを受け取る
     home:
@@ -99,8 +92,7 @@ promo-banner:
       fallbackLabel: 部屋のテーマ
       title: 春のテーマアップデート
       eventName: 窓・机・ナイトランプのテーマをアンロックして、部屋を刷新しましょう。
-      date: 04/05 - 04/22
-      reward: Free Theme Draw Ticket on Sign-in
+      reward: ログイン時の無料テーマ抽選チケット
       cta: テーマを表示
 waiting: 待機中
 websocket-status:

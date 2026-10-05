@@ -17,6 +17,12 @@ import { useChatSessionStore } from '../../../../stores/chat/session-store'
 import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { useConsciousnessStore } from '../../../../stores/modules/consciousness'
 
+const props = withDefaults(defineProps<{
+  desktopMode?: 'dialog' | 'popover'
+}>(), {
+  desktopMode: 'dialog',
+})
+
 const showDialog = defineModel({ type: Boolean, default: false, required: false })
 
 const { isDesktop } = useBreakpoints()
@@ -172,6 +178,7 @@ watch(showDialog, async (open) => {
     :rows="rows"
     :is-desktop="isDesktop"
     :is-creating-session="isCreatingSession"
+    :desktop-mode="props.desktopMode"
     @new-session="startNewSession"
     @select-session="selectSession"
     @delete-session="chat.deleteSession"

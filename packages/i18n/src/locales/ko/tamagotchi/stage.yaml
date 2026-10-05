@@ -15,11 +15,8 @@ docs:
   'open-settings': 설정 열기
   'open-chat': 채팅 열기
   'refresh': 새로고침
-  'center-main-window': Move to screen center
   'open-hearing-controls': 듣기 제어 열기
   'drag-to-move-window': 드레그하여 창 이동
-  'stop-speaking': 말하기 중지
-  'speaker-idle': 스피커
   'switch-to-light-mode': 라이트 모드로 전환
   'switch-to-dark-mode': 다크 모드로 전환
   'pin-on-top': 맨 위에 고정
@@ -32,13 +29,6 @@ docs:
   'logging-in': 로그인 중...
   'account': 계정
   'logout': 로그아웃
-widgets:
-  close: Close widget
-  empty:
-    title: No widget active
-    description: Widgets will appear here when a tool or plugin spawns one.
-  loading: Loading widget…
-  waiting: Waiting for widget data for "{id}"…
 notice:
   'fade-on-hover':
     title: 호버 시 페이드
@@ -47,7 +37,6 @@ notice:
     toggle: '{controls}에서 마우스를 누른 후 {icon}을 다시 클릭하여 끌 수 있습니다.'
     controls-label: 제어 섬
     icon-label: eye-slash 아이콘
-    value: '0'
     targets: 캐릭터 및 UI
     confirm: 확인
     dont-show-again: 다시 표시하지 않기
@@ -90,7 +79,6 @@ about:
       check-for-updates: 업데이트 확인하기
       checking: 확인 중...
       latest-version: 최신 버전
-      disabled-dev: Updates disabled in Dev
       managed-by-store: 업데이트는 앱 스토어에서 관리됩니다
       retry-check: 다시 확인하기
       restart-silent: 재 시작 후 조용히 업데이트하기
@@ -99,4 +87,3 @@ about:
     dialog:
       title: 업데이트 사용 가능
       description: 새로운 버전 (v{version})이 이용 가능해요.
-      no-release-notes-markdown: _No release notes provided._

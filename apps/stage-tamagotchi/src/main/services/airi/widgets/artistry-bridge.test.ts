@@ -9,6 +9,7 @@ function fakeArtistryConfig(overrides: Partial<ArtistryConfig> = {}): ArtistryCo
     update: vi.fn(),
     getDiagnostics: vi.fn(() => undefined),
     flush: vi.fn(async () => {}),
+    writeDurable: vi.fn(async () => {}),
     getEncrypted: vi.fn(() => undefined),
     ...overrides,
   }
@@ -99,19 +100,20 @@ describe('persistArtistryApiKeys', () => {
   //
   // https://github.com/moeru-ai/airi/pull/2512#discussion_r4179494683
   //
-  // We fixed this by awaiting flush() (an immediate, non-throttled write that surfaces real
-  // failures) before resolving.
-  it('awaits a durable flush before resolving', async () => {
+  // We fixed this by awaiting writeDurable() (an immediate, non-throttled write that surfaces
+  // real failures) before resolving. flush() isn't suitable here: it's a separate primitive
+  // (added for shutdown-ordering) that awaits already-scheduled writes but never rejects.
+  it('awaits a durable write before resolving', async () => {
     vi.doMock('electron', () => ({
       safeStorage: { isEncryptionAvailable: () => true },
     }))
     const { persistArtistryApiKeys } = await import('./artistry-bridge')
 
-    let resolveFlush: (() => void) | undefined
-    const flush = vi.fn(() => new Promise<void>((resolve) => {
-      resolveFlush = resolve
+    let resolveWrite: (() => void) | undefined
+    const writeDurable = vi.fn(() => new Promise<void>((resolve) => {
+      resolveWrite = resolve
     }))
-    const config = fakeArtistryConfig({ flush })
+    const config = fakeArtistryConfig({ writeDurable })
 
     let resolved = false
     const persistPromise = persistArtistryApiKeys(config, { replicateApiKey: 'sk-migrated' }).then(() => {
@@ -119,30 +121,30 @@ describe('persistArtistryApiKeys', () => {
     })
 
     await vi.waitFor(() => {
-      expect(flush).toHaveBeenCalled()
+      expect(writeDurable).toHaveBeenCalled()
     })
     expect(resolved).toBe(false)
 
-    resolveFlush?.()
+    resolveWrite?.()
     await persistPromise
 
     expect(resolved).toBe(true)
   })
 
-  it('propagates a flush rejection instead of resolving successfully', async () => {
+  it('propagates a writeDurable rejection instead of resolving successfully', async () => {
     vi.doMock('electron', () => ({
       safeStorage: { isEncryptionAvailable: () => true },
     }))
     const { persistArtistryApiKeys } = await import('./artistry-bridge')
 
-    const flushError = new Error('disk full')
+    const writeError = new Error('disk full')
     const config = fakeArtistryConfig({
-      flush: vi.fn(async () => {
-        throw flushError
+      writeDurable: vi.fn(async () => {
+        throw writeError
       }),
     })
 
-    await expect(persistArtistryApiKeys(config, { replicateApiKey: 'sk-migrated' })).rejects.toThrow(flushError)
+    await expect(persistArtistryApiKeys(config, { replicateApiKey: 'sk-migrated' })).rejects.toThrow(writeError)
   })
 
   it('merges only the provided keys into the existing globals, leaving the rest untouched', async () => {

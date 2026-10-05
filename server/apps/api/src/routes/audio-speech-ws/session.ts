@@ -1,7 +1,6 @@
 import type { WSContext } from 'hono/ws'
 import type { RawData } from 'ws'
 
-import type { FluxService } from '../../services/domain/flux'
 import type { AudioSpeechWsHandlersOptions } from './types'
 
 import { Buffer } from 'node:buffer'
@@ -19,6 +18,7 @@ import {
   AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID,
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
+  AIRI_ATTR_GEN_AI_STREAM,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../utils/observability'
 import { bufferToString, readUsageChars, toBufferLike } from './protocol'
@@ -59,6 +59,7 @@ export interface AudioSpeechSessionAnalytics {
   trigger?: StreamingTtsTrigger
   source?: StreamingTtsSource
   voiceType?: StreamingTtsVoiceType
+  turnId?: string
 }
 
 /**
@@ -78,10 +79,11 @@ export interface AudioSpeechSessionAnalytics {
 export function createSessionState(
   userId: string,
   opts: AudioSpeechWsHandlersOptions,
-  _analyticsInput: AudioSpeechSessionAnalytics = {},
+  analyticsInput: AudioSpeechSessionAnalytics = {},
 ): AudioSpeechSessionState {
   const requestId = nanoid()
   const startedAt = Date.now()
+  let firstAudioAt: number | null = null
   const span = tracer.startSpan('llm.gateway.tts.stream', {
     attributes: {
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech_stream',
@@ -133,8 +135,7 @@ export function createSessionState(
     // Pre-flight balance check: refuse before dialing if the user cannot
     // afford the worst-case session.
     try {
-      const flux = await opts.fluxService.getFlux(userId)
-      await opts.ttsMeter.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE, flux.flux)
+      await opts.speechBilling.assertCanAfford(userId, STREAMING_PREFLIGHT_CHARS_ESTIMATE)
     }
     catch (err) {
       log.withError(err).withFields({ userId }).warn('pre-flight rejected streaming tts')
@@ -312,6 +313,7 @@ export function createSessionState(
     if (!clientWs)
       return
     if (isBinary) {
+      firstAudioAt ??= Date.now()
       // Audio binary frames pass through verbatim.
       try {
         clientWs.send(toBufferLike(data))
@@ -440,53 +442,41 @@ export function createSessionState(
     billed = true
     span.setAttribute(GEN_AI_ATTR_REQUEST_MODEL, modelLabel)
 
-    let flux: Awaited<ReturnType<FluxService['getFlux']>>
-    try {
-      flux = await opts.fluxService.getFlux(userId)
-    }
-    catch (err) {
-      log.withError(err).withFields({ userId }).warn('flux read failed at session end')
-      finalize()
-      return
-    }
-
     let fluxConsumed = 0
     try {
       const result = await otelContext.with(trace.setSpan(otelContext.active(), span), () =>
-        opts.ttsMeter.accumulate({
+        opts.speechBilling.settle({
           userId,
           units,
-          currentBalance: flux.flux,
           requestId,
-          metadata: { model: modelLabel },
+          model: modelLabel,
+          turnId: analyticsInput.turnId,
         }))
-      fluxConsumed = result.fluxDebited
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
     }
     catch (err) {
-      // Billing failure is surfaced but does not retroactively reject the
-      // already-delivered audio — the user got the audio, the meter retains
-      // the debt for the next request to settle (per FluxMeter rollback path).
-      log.withError(err).withFields({ userId, units, reason }).error('billing accumulate failed for streaming tts')
+      // Billing failure is surfaced but does not retroactively reject the already-delivered audio.
+      log.withError(err).withFields({ userId, units, reason }).error('billing settle failed for streaming tts')
       span.recordException(err as Error)
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
     }
 
-    const durationMs = Date.now() - startedAt
-    try {
-      await opts.requestLogService.logRequest({
-        userId,
-        model: modelLabel,
-        status: 200,
-        durationMs,
-        fluxConsumed,
-      })
-    }
-    catch (err) {
-      log.withError(err).warn('failed to write request log for streaming tts')
-    }
-
+    recordMetrics()
     finalize()
+  }
+
+  function recordMetrics() {
+    const attrs = {
+      [GEN_AI_ATTR_REQUEST_MODEL]: modelLabel,
+      [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'tts',
+      [AIRI_ATTR_GEN_AI_STREAM]: true,
+      'http.response.status_code': 200,
+    }
+    opts.genAi?.operationCount.add(1, attrs)
+    opts.genAi?.operationDuration.record((Date.now() - startedAt) / 1000, attrs)
+    if (firstAudioAt != null)
+      opts.genAi?.firstTokenDuration.record((firstAudioAt - startedAt) / 1000, attrs)
   }
 
   function finalize() {

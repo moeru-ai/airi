@@ -1,11 +1,12 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
 import type { Session, User } from 'better-auth'
 
+import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
+import { inferenceServiceProvidersService } from '../../services/inference-service-providers'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
 import { useProviderStore } from './provider'
@@ -49,6 +50,30 @@ function createAuthenticatedState(): { session: Session, token: string, user: Us
     updatedAt: new Date('2026-01-01T00:00:00.000Z'),
   }
   return { session, token: 'restored-access-token', user }
+}
+
+function stubOpenAiReplica(config: Record<string, unknown>) {
+  const listRemote = vi.spyOn(inferenceServiceProvidersService, 'listRemote').mockResolvedValue([{
+    id: 'openai',
+    definitionId: 'openai',
+    config,
+    updatedAt: '2026-01-02T00:00:00.000Z',
+    deletedAt: null,
+  }])
+  const upsertRemote = vi.spyOn(inferenceServiceProvidersService, 'upsertRemote').mockImplementation(async (_client, provider) => ({
+    id: provider.id,
+    definitionId: provider.definitionId,
+    config: provider.config,
+    updatedAt: '2026-01-02T00:00:00.000Z',
+    deletedAt: null,
+  }))
+  const deleteRemote = vi.spyOn(inferenceServiceProvidersService, 'deleteRemote').mockResolvedValue()
+  useAuthStore().$patch(createAuthenticatedState())
+  return () => {
+    listRemote.mockRestore()
+    upsertRemote.mockRestore()
+    deleteRemote.mockRestore()
+  }
 }
 
 describe('provider store synchronization boundary', () => {
@@ -153,6 +178,28 @@ describe('provider store synchronization boundary', () => {
     })
   })
 
+  it('uses the current interface language when Sherpaw is first configured', async () => {
+    let storedLanguage = 'en'
+    vi.stubGlobal('localStorage', { getItem: () => storedLanguage })
+
+    try {
+      const store = useProviderStore()
+      const configStore = useProviderConfigStore()
+
+      await store.initializeProvider('speech-noop')
+      storedLanguage = 'zh-Hans'
+      await store.initializeProvider('sherpaw-transcription')
+
+      expect(configStore.getProviderConfig('sherpaw-transcription')).toMatchObject({
+        model: 'paraformer-zh-en',
+        modelLanguageFilter: 'zh',
+      })
+    }
+    finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   // ROOT CAUSE:
   //
   // Module pages treated every credential-free provider as available before
@@ -226,15 +273,119 @@ describe('provider store synchronization boundary', () => {
       baseUrl: 'https://api.openai.com/v1/',
     })
 
-    const baseProvider = await store.getProviderInstance<ChatProvider>('openai')
+    const baseProvider = await store.getProviderInstance('openai')
     const reasoningDisabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'disabled' })
     const reasoningEnabledProvider = await store.getChatProviderInstance('openai', { reasoning: 'enabled' })
 
     expect(reasoningDisabledProvider).not.toBe(baseProvider)
     expect(reasoningEnabledProvider).not.toBe(baseProvider)
-    expect(reasoningDisabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'none' })
-    expect(reasoningEnabledProvider.chat('any-model')).toMatchObject({ reasoningEffort: 'medium' })
-    expect(baseProvider.chat('any-model')).not.toHaveProperty('reasoningEffort')
+    // Use a catalog model that supports both efforts; unknown models omit reasoning fields.
+    expect(reasoningDisabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'none' } })
+    expect(reasoningEnabledProvider.generation('gpt-5.1').config).toMatchObject({ reasoning: { effort: 'medium', summary: 'auto' } })
+    expect(reasoningDisabledProvider.generation('any-model').config).not.toHaveProperty('reasoning')
+    expect(reasoningEnabledProvider.generation('any-model').config).not.toHaveProperty('reasoning')
+    if (!isGenerationProvider(baseProvider))
+      throw new Error('Expected generation provider')
+    expect(baseProvider.generation('gpt-5.1').config).not.toHaveProperty('reasoning')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3948440504
+  it('drops a cached provider instance only when replica credentials change', async () => {
+    // ROOT CAUSE:
+    //
+    // Login merge replaced the persisted OpenAI key and left providerInstanceCache
+    // holding a client built from the previous key. Later chat returned that
+    // client until reload.
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    const openaiConfig = {
+      apiKey: 'sk-old',
+      baseUrl: 'https://api.openai.com/v1/',
+    }
+    configStore.ensureProvider('openai', 'openai', openaiConfig)
+    const first = await store.getProviderInstance('openai')
+    let restore = stubOpenAiReplica({ ...openaiConfig })
+
+    try {
+      await configStore.syncProviders()
+      expect(await store.getProviderInstance('openai')).toBe(first)
+
+      restore()
+      restore = stubOpenAiReplica({
+        apiKey: 'sk-new',
+        baseUrl: 'https://api.openai.com/v1/',
+      })
+      await configStore.syncProviders()
+
+      const second = await store.getProviderInstance('openai')
+      expect(second).not.toBe(first)
+      expect(configStore.providers.openai?.config).toEqual({
+        apiKey: 'sk-new',
+        baseUrl: 'https://api.openai.com/v1/',
+      })
+    }
+    finally {
+      restore()
+    }
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999470560
+  it('drops a cached instance when replicated credentials change without a local sync', async () => {
+    // ROOT CAUSE:
+    //
+    // onAfterSync ran only inside the leader-routed syncProviders action.
+    // The chat window is follower-only. It received the new key in the
+    // replicated snapshot and kept the old client in providerInstanceCache.
+    //
+    // Each renderer now watches replicated credentials and drops its own cache.
+    const store = useProviderStore()
+    const configStore = useProviderConfigStore()
+    configStore.ensureProvider('openai', 'openai', {
+      apiKey: 'sk-old',
+      baseUrl: 'https://api.openai.com/v1/',
+    })
+    const first = await store.getProviderInstance('openai')
+
+    configStore.providers.openai = {
+      ...configStore.providers.openai!,
+      config: {
+        apiKey: 'sk-new',
+        baseUrl: 'https://api.openai.com/v1/',
+      },
+    }
+
+    const second = await store.getProviderInstance('openai')
+    expect(second).not.toBe(first)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2471#discussion_r3999454891
+  it('adopts a remote addProvider instance on a fresh device', async () => {
+    // ROOT CAUSE:
+    //
+    // onRemoteWorking validated row.id. addProvider ids are nanoids, so a
+    // fresh device threw and merge skipped the row (broken × none).
+    //
+    // The working check now uses row.definitionId.
+    const configStore = useProviderConfigStore()
+    useProviderStore()
+    const instanceId = 'added-speech-1'
+    const config = { apiKey: 'sk-speech', baseUrl: 'https://api.example.com/v1/' }
+    const restore = stubOpenAiReplica(config)
+    vi.mocked(inferenceServiceProvidersService.listRemote).mockResolvedValue([{
+      id: instanceId,
+      definitionId: 'openai-compatible-audio-speech',
+      config,
+      updatedAt: '2026-01-02T00:00:00.000Z',
+      deletedAt: null,
+    }])
+
+    try {
+      await configStore.syncProviders()
+      expect(configStore.providers[instanceId]?.config).toEqual(config)
+    }
+    finally {
+      restore()
+    }
   })
 
   // ROOT CAUSE:

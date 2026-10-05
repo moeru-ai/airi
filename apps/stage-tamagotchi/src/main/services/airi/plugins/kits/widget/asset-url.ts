@@ -1,4 +1,5 @@
-import type { PluginHostModuleSummary } from '../../../../../../shared/eventa/plugin/host'
+import type { PluginHostModuleSummary } from '@proj-airi/stage-shared/plugin-host'
+
 import type { ManifestEntry } from '../../types'
 
 import { isPlainObject } from 'es-toolkit'
@@ -144,7 +145,7 @@ export function rewriteWidgetModuleAssetUrl(
 
   return options.createAssetSession({
     extensionId: module.ownerExtensionId,
-    version: entry.version,
+    version: entry.manifest.version,
     sessionId: module.ownerSessionId,
     routeAssetPath: widgetAssetRoute.routeAssetPath,
     sessionPathPrefix: widgetAssetRoute.sessionPathPrefix,

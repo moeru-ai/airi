@@ -498,9 +498,11 @@ export async function persistArtistryApiKeys(artistryConfig: ArtistryConfig, pay
   // NOTICE: await a durable write before resolving -- the renderer's migration flow only
   // clears the legacy plaintext localStorage copy after this invoke resolves successfully.
   // update() alone only schedules a throttled, error-swallowing save (see persistence.ts);
-  // flush() performs an immediate write and surfaces real failures.
+  // writeDurable() performs an immediate write and surfaces real failures. (flush() is a
+  // different primitive: it awaits already-scheduled/tracked writes for shutdown ordering,
+  // but never rejects, so it can't give this caller the pass/fail signal it needs.)
   // (review: PR #2512 discussion r4179494683)
-  await artistryConfig.flush()
+  await artistryConfig.writeDurable()
 }
 
 export async function setupArtistryBridge(params: {

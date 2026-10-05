@@ -76,4 +76,20 @@ describe('fluxTransactionService', () => {
         .toBeGreaterThanOrEqual(new Date(records[i].createdAt).getTime())
     }
   })
+
+  it('groups one turn before pagination', async () => {
+    await db.insert(schema.fluxTransaction).values([
+      { id: 'round-1-a', userId: 'user-history', type: 'debit', amount: 1, balanceBefore: 3, balanceAfter: 2, description: 'tts_request', metadata: { turnId: 'round-1' }, createdAt: new Date('2026-09-18T01:00:00Z') },
+      { id: 'round-1-b', userId: 'user-history', type: 'debit', amount: 1, balanceBefore: 2, balanceAfter: 1, description: 'tts_request', metadata: { turnId: 'round-1' }, createdAt: new Date('2026-09-18T01:00:01Z') },
+      { id: 'round-2', userId: 'user-history', type: 'debit', amount: 1, balanceBefore: 1, balanceAfter: 0, description: 'tts_request', metadata: { turnId: 'round-2' }, createdAt: new Date('2026-09-18T01:00:02Z') },
+    ])
+
+    const firstPage = await service.getHistory('user-history', 1, 0)
+    const secondPage = await service.getHistory('user-history', 1, 1)
+
+    expect(firstPage.records).toEqual([expect.objectContaining({ id: 'round-2', amount: 1 })])
+    expect(firstPage.hasMore).toBe(true)
+    expect(secondPage.records).toEqual([expect.objectContaining({ id: 'round-1-b', amount: 2 })])
+    expect(secondPage.hasMore).toBe(false)
+  })
 })

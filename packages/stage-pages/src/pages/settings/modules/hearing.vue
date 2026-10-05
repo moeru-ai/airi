@@ -54,8 +54,8 @@ const {
 } = storeToRefs(hearingSpeechInputPipeline)
 const hearingPlaygroundTranscriptionConsumerId = 'hearing-playground'
 
-// This page owns one monitoring session. Setup can restart it after device or Provider changes,
-// and stop releases the recorder, Provider consumer, media stream, and analyzer in that order.
+// This page owns one monitoring session. Stop closes the microphone and analyzer first,
+// then cancels the recorder and transcription Provider.
 let volumeSpeechEndTimer: ReturnType<typeof setTimeout> | undefined
 
 const error = shallowRef('')
@@ -207,14 +207,13 @@ async function stopAudioMonitoring(disposeProviderId = activeTranscriptionProvid
     volumeSpeechEndTimer = undefined
   }
 
+  stopAnalyzer()
+  if (stream.value)
+    stopStream()
+
   await stopVoiceInputSession({ flushActiveRecording: false })
   removeStreamingTranscriptionConsumer(hearingPlaygroundTranscriptionConsumerId)
   await stopStreamingTranscription(true, disposeProviderId)
-  if (stream.value) { // Stop media stream
-    stopStream()
-  }
-
-  stopAnalyzer()
 }
 
 // Monitoring toggle
@@ -223,8 +222,13 @@ async function toggleMonitoring() {
     isMonitoring.value = await setupAudioMonitoring()
   }
   else {
-    await stopAudioMonitoring()
     isMonitoring.value = false
+    try {
+      await stopAudioMonitoring()
+    }
+    catch (cause) {
+      error.value = errorMessageFrom(cause) ?? t('settings.pages.modules.hearing.sections.section.playground.transcription-failed')
+    }
   }
 }
 

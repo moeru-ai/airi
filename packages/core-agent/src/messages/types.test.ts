@@ -1,6 +1,7 @@
+import type { StreamEvent } from '../types/llm'
+import type { ProjectionEntry } from './turns'
 import type {
   HistoryItem,
-  Message,
   RawMessage,
   SegmentDomainEvent,
   SegmentHistoryBlock,
@@ -12,7 +13,7 @@ import type {
   SegmentText,
 } from './types'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, expectTypeOf, it } from 'vitest'
 
 describe('message types', () => {
   it('supports structured history blocks and provider-ready raw messages', () => {
@@ -92,7 +93,7 @@ describe('message types', () => {
       },
     ]
 
-    const structuredMessage: Message = {
+    const structuredMessage: ProjectionEntry = {
       id: 'msg-1',
       role: 'event',
       source: 'plugin:airi-plugin-game-chess',
@@ -123,4 +124,18 @@ describe('message types', () => {
     expect(rawMessage.role).toBe('user')
     expect(rawMessage.content).toBe('continue')
   })
+})
+
+it('rejects invalid role, content, and event combinations at compile time', () => {
+  expectTypeOf<StreamEvent>().not.toBeAny()
+  expectTypeOf<ProjectionEntry>().not.toBeAny()
+  // @ts-expect-error Users cannot invoke tools.
+  const user: ProjectionEntry = { id: 'u', role: 'user', segments: [{ type: 'tool-call', callId: 'c', name: 'f', arguments: '{}' }] }
+  // @ts-expect-error A file must have a source.
+  const file: ProjectionEntry = { id: 'u', role: 'user', segments: [{ type: 'file' }] }
+  // @ts-expect-error Tool messages require correlated results.
+  const tool: ProjectionEntry = { id: 't', role: 'tool', segments: [{ type: 'text', text: 'result' }] }
+  // @ts-expect-error Events must belong to the declared union.
+  const event: StreamEvent = { type: 'made-up-event' }
+  void [user, file, tool, event]
 })

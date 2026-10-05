@@ -1,6 +1,8 @@
 import type { ContextUpdate, MetadataEventSource, WebSocketEventInputs } from '@proj-airi/server-shared/types'
 import type { AssistantMessage, CommonContentPart, CompletionToolCall, Message, SystemMessage, ToolMessage, UserMessage } from '@xsai/shared-chat'
 
+import type { AssistantTurn } from '../messages/types'
+
 export interface ChatSlicesText {
   type: 'text'
   text: string
@@ -18,9 +20,20 @@ export interface ChatSlicesToolCallResult {
   result?: string | CommonContentPart[]
 }
 
-export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
+/** A local catalog ID. Renderers never treat this value as an image URL. */
+export interface ChatSlicesSticker {
+  type: 'sticker'
+  stickerId: string
+}
+
+export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker
 
 export interface ChatAssistantMessage extends AssistantMessage {
+  /** True when transport failure ended this locally preserved response before completion. */
+  interrupted?: true
+  /** Sources returned by the provider, separate from text consumed by speech. */
+  citations?: import('../messages/types').Citation[]
+  search?: { id: string, status: 'in_progress' | 'searching' | 'completed' | 'failed' }
   slices: ChatSlices[]
   tool_results: {
     id: string
@@ -35,6 +48,8 @@ export interface ChatAssistantMessage extends AssistantMessage {
    * protocol order for the next provider request.
    */
   providerTranscript?: Message[]
+  /** Portable turn history and adapter-owned continuation data. */
+  generationTranscript?: AssistantTurn
   categorization?: {
     speech: string
     reasoning: string
@@ -64,6 +79,13 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   context?: ContextMessage
   createdAt?: number
   id?: string
+  /** Vision output stored by image order so later turns can reuse it without copying the image URL. */
+  imageDescriptions?: Array<{
+    description: string
+    imageIndex: number
+  }>
+  /** ASR results indexed by the audio parts in the original user message. */
+  audioTranscripts?: string[]
   /** Message that this message replies to in the same chat session. */
   replyToMessageId?: string
   /** Tools selected for this message. The runtime rebuilds executors from these names. */
@@ -71,6 +93,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
 }
 
 export interface ChatStreamEventContext {
+  /** Session ownership travels with the event across concurrent turns and renderer transports. */
+  sessionId: string
   /** Stable correlation id shared by every hook emitted for one user turn. */
   turnId: string
   message: ChatHistoryItem

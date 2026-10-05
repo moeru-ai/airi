@@ -80,7 +80,30 @@ export default {
     // `node_modules/electron/dist/Electron.app` makes electron-builder deep-sign it and
     // fails on non-code resources (for example `locale.pak`) with timestamp/signing errors.
     '!**/node_modules/electron{,/**}',
+    // These large fonts remain available to web, mobile, and story builds.
+    // The desktop renderer uses system CJK fallback fonts instead.
+    '!**/node_modules/@proj-airi/font-cjkfonts-allseto{,/**}',
+    '!**/node_modules/@proj-airi/font-xiaolai{,/**}',
+    // Workspace hoisting exposes build tools to electron-builder's file walk.
+    // The packaged app has no runtime import of these tools.
+    '!**/node_modules/@rolldown{,/**}',
+    '!**/node_modules/rolldown{,/**}',
+    '!**/node_modules/lightningcss{,/**}',
+    '!**/node_modules/lightningcss-*{,/**}',
+    '!**/node_modules/fsevents{,/**}',
+    // Transformers runs inside browser workers in the desktop app. Sharp is its
+    // Node-only image backend and has no packaged main-process consumer.
+    '!**/node_modules/sharp{,/**}',
+    '!**/node_modules/@img/sharp-*{,/**}',
+    // uiohook-napi loads the selected prebuild. Its bundled libuiohook C source is
+    // only used to build that binary and does not participate in runtime loading.
+    '!**/node_modules/uiohook-napi/libuiohook{,/**}',
     '!**/.vscode/*',
+    // The renderer uses the browser ONNX backend. The node package and its
+    // platform binaries are not loaded by the packaged renderer.
+    '!**/node_modules/onnxruntime-node{,/**}',
+    // Vite bundles the browser runtime and its WASM assets into `out/renderer`.
+    '!**/node_modules/onnxruntime-web{,/**}',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',
     '!**/node_modules/**/{.turbo,test,src,__tests__,tests,example,examples}',
@@ -96,6 +119,7 @@ export default {
   asar: true,
   asarUnpack: [
     '**/*.node',
+    '**/node_modules/@auv-js/cli-*/bin/**',
   ],
   extraResources: [
     {
@@ -135,6 +159,7 @@ export default {
     runAfterFinish: true,
   },
   mac: {
+    entitlements: 'build/entitlements.mac.plist',
     entitlementsInherit: 'build/entitlements.mac.plist',
     // NOTICE: Same channel rule as Windows. Keep `${arch}` here so generated metadata resolves
     // to architecture-specific update feeds on macOS (for example: `latest-x64-mac.yml`, `latest-arm64-mac.yml`).
@@ -207,6 +232,7 @@ export default {
       channel: 'latest-${arch}',
     },
     extendInfo: {
+      NSAppleEventsUsageDescription: 'AIRI uses Automation to control apps for computer-use tasks.',
       NSMicrophoneUsageDescription: 'AIRI requires microphone access for voice interaction',
       NSSpeechRecognitionUsageDescription: 'AIRI uses Apple Speech to transcribe voice interactions on this device',
       NSCameraUsageDescription: 'AIRI requires camera access for vision understanding',

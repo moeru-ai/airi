@@ -120,14 +120,17 @@ describe('createConfig', () => {
   // throttled and swallows write errors into console.error instead of rejecting. A caller
   // that needs to know a write actually landed on disk before taking an irreversible
   // follow-up action (e.g. deleting the only other copy of a value elsewhere) had no way to
-  // wait for, or detect the failure of, the real write.
+  // wait for, or detect the failure of, the real write. (flush() -- added separately for
+  // shutdown-ordering purposes -- doesn't help here either: it awaits already-scheduled
+  // writes, but those still swallow their own errors, so Promise.all(pendingWrites) never
+  // rejects.)
   //
   // https://github.com/moeru-ai/airi/pull/2512#discussion_r4179494683
   //
-  // We fixed this by adding flush(), which performs its own immediate (unthrottled) write of
-  // the current state and returns a promise that resolves only once the write+rename
-  // completed, or rejects with the real error.
-  it('flush() resolves only after the write and rename actually complete', async () => {
+  // We fixed this by adding writeDurable(), which performs its own immediate (unthrottled)
+  // write of the current state and returns a promise that resolves only once the
+  // write+rename completed, or rejects with the real error.
+  it('writeDurable() resolves only after the write and rename actually complete', async () => {
     const appMock = { getPath: vi.fn(() => '/tmp/airi-user-data') }
     let resolveWrite: (() => void) | undefined
     const writeFileMock = vi.fn(() => new Promise<void>((resolve) => {
@@ -151,30 +154,30 @@ describe('createConfig', () => {
     const schema = object({ value: number() })
     // NOTICE: setup() with a "missing" config file just sets persistenceMap synchronously
     // (no save() call) -- deliberately not calling update() here too, so the only write in
-    // flight is the one flush() itself triggers below (update()'s own throttled save() would
-    // otherwise race writeFileMock's single resolver against flush()'s).
-    const config = createConfig('windows-widgets', 'flush-config.json', schema, { default: { value: 0 } })
+    // flight is the one writeDurable() itself triggers below (update()'s own throttled
+    // save() would otherwise race writeFileMock's single resolver against writeDurable()'s).
+    const config = createConfig('windows-widgets', 'write-durable-config.json', schema, { default: { value: 0 } })
     config.setup()
 
-    let flushResolved = false
-    const flushPromise = config.flush().then(() => {
-      flushResolved = true
+    let writeDurableResolved = false
+    const writeDurablePromise = config.writeDurable().then(() => {
+      writeDurableResolved = true
     })
 
     await vi.waitFor(() => {
       expect(writeFileMock).toHaveBeenCalled()
     })
-    expect(flushResolved).toBe(false)
+    expect(writeDurableResolved).toBe(false)
     expect(renameMock).not.toHaveBeenCalled()
 
     resolveWrite?.()
-    await flushPromise
+    await writeDurablePromise
 
-    expect(flushResolved).toBe(true)
+    expect(writeDurableResolved).toBe(true)
     expect(renameMock).toHaveBeenCalledTimes(1)
   })
 
-  it('flush() rejects when the write fails, instead of only logging it', async () => {
+  it('writeDurable() rejects when the write fails, instead of only logging it', async () => {
     const appMock = { getPath: vi.fn(() => '/tmp/airi-user-data') }
     const writeError = new Error('ENOSPC: no space left on device')
 
@@ -194,9 +197,52 @@ describe('createConfig', () => {
 
     const { createConfig } = await import('./persistence')
     const schema = object({ value: number() })
-    const config = createConfig('windows-widgets', 'flush-failure-config.json', schema, { default: { value: 0 } })
+    const config = createConfig('windows-widgets', 'write-durable-failure-config.json', schema, { default: { value: 0 } })
     config.setup()
 
-    await expect(config.flush()).rejects.toThrow(writeError)
+    await expect(config.writeDurable()).rejects.toThrow(writeError)
+  })
+
+  // ROOT CAUSE:
+  //
+  // writeDurable() tracks its write in the same pendingWrites set flush() awaits, so flush()
+  // (called elsewhere for shutdown ordering) waits for an in-flight durable write instead of
+  // racing past it. Tracking the real (rejecting) promise directly caused two problems: an
+  // unhandled rejection on trackWrite()'s own internal cleanup chain, and flush() itself
+  // adopting the failure -- breaking its documented "never rejects" contract that other
+  // callers rely on.
+  //
+  // We fixed this by tracking a non-rejecting shadow (write.catch(() => {})) instead, so
+  // flush() still waits for the write to settle but never adopts its failure.
+  it('flush() still waits for a failing writeDurable(), but does not reject because of it', async () => {
+    const appMock = { getPath: vi.fn(() => '/tmp/airi-user-data') }
+    const writeError = new Error('ENOSPC: no space left on device')
+
+    vi.doMock('electron', () => ({ app: appMock }))
+    vi.doMock('es-toolkit', () => ({
+      throttle: (handler: (...args: unknown[]) => unknown) => {
+        const throttled = (...args: unknown[]) => handler(...args)
+        throttled.flush = () => {}
+        return throttled
+      },
+    }))
+    vi.doMock('node:fs', () => ({ existsSync: () => false, readFileSync: () => '' }))
+    vi.doMock('node:fs/promises', () => ({
+      copyFile: vi.fn(async () => {}),
+      mkdir: vi.fn(async () => {}),
+      rename: vi.fn(async () => {}),
+      writeFile: vi.fn(async () => {
+        throw writeError
+      }),
+    }))
+
+    const { createConfig } = await import('./persistence')
+    const schema = object({ value: number() })
+    const config = createConfig('windows-widgets', 'flush-durable-interaction-config.json', schema, { default: { value: 0 } })
+    config.setup()
+
+    const writeDurablePromise = config.writeDurable()
+    await expect(config.flush()).resolves.toBeUndefined()
+    await expect(writeDurablePromise).rejects.toThrow(writeError)
   })
 })

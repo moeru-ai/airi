@@ -1,4 +1,5 @@
-import type { Message, RawMessage } from './types'
+import type { ProjectionEntry } from './turns'
+import type { RawMessage } from './types'
 
 import { describe, expect, it } from 'vitest'
 
@@ -6,7 +7,7 @@ import { renderProviderChatMessages } from './render-provider-chat'
 
 describe('renderProviderChatMessages', () => {
   it('renders structured event messages into raw provider chat messages', () => {
-    const entries: Array<Message | RawMessage> = [
+    const entries: Array<ProjectionEntry | RawMessage> = [
       {
         role: 'system',
         content: 'system prompt',

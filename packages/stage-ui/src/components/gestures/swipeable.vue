@@ -54,6 +54,9 @@ const slotProps = computed<SwipeableSlotProps>(() => ({
 }))
 
 let returnAnimation: ReturnType<typeof animate> | undefined
+// Touch travel stays pending while tap feedback and swipe movement overlap. Once
+// an axis is clear, its intent remains locked until touchend or touchcancel.
+let touchIntent: 'pending' | 'horizontal' | 'vertical' = 'pending'
 let wheelDistance = 0
 let wheelIntent: 'pending' | 'horizontal' | 'vertical' = 'pending'
 let wheelSessionActive = false
@@ -76,16 +79,11 @@ function mapGestureDistance(distance: number) {
   return resistanceLength * -Math.expm1(-distance / resistanceLength)
 }
 
-function setGestureDistance(distance: number) {
+function setVisualDistance(distance: number) {
   const positiveDistance = Math.max(0, distance)
   const visibleDistance = mapGestureDistance(positiveDistance)
   const direction = props.direction === 'left' ? -1 : 1
   pendingPositionX = direction * visibleDistance
-
-  const crossed = positiveDistance >= props.threshold
-  if (crossed && !thresholdCrossed.value)
-    emit('thresholdEnter')
-  thresholdCrossed.value = crossed
 
   if (positionFrame !== undefined)
     return
@@ -94,6 +92,16 @@ function setGestureDistance(distance: number) {
     position.x = pendingPositionX
     positionFrame = undefined
   })
+}
+
+function setGestureDistance(distance: number) {
+  const positiveDistance = Math.max(0, distance)
+  setVisualDistance(positiveDistance)
+
+  const crossed = positiveDistance >= props.threshold
+  if (crossed && !thresholdCrossed.value)
+    emit('thresholdEnter')
+  thresholdCrossed.value = crossed
 }
 
 function animatePositionToRest() {
@@ -126,22 +134,41 @@ function beginTouchSwipe() {
   if (!props.enabled || props.input !== 'touch')
     return
 
-  returnAnimation?.cancel()
+  touchIntent = 'pending'
 }
 
 function updateTouchSwipe() {
   if (!props.enabled || props.input !== 'touch')
     return
 
+  if (touchIntent === 'vertical')
+    return
+
   const deltaX = touchDistanceX.value
   const deltaY = Math.abs(touchDistanceY.value)
   const distance = directedDistance(deltaX)
-  if (Math.max(Math.abs(deltaX), deltaY) < props.startDistance)
-    return
+  const absoluteDeltaX = Math.abs(deltaX)
 
-  if (distance <= 0 || deltaY >= distance) {
-    setGestureDistance(0)
-    return
+  if (touchIntent === 'pending') {
+    // Keep the message under the finger while the nested press animation is
+    // still active. startDistance decides intent; it is not a visual dead zone.
+    returnAnimation?.cancel()
+    setVisualDistance(distance)
+
+    if (Math.max(absoluteDeltaX, deltaY) < props.startDistance)
+      return
+
+    if (deltaY >= absoluteDeltaX) {
+      touchIntent = 'vertical'
+      animatePositionToRest()
+      return
+    }
+
+    if (distance <= 0)
+      return
+
+    touchIntent = 'horizontal'
+    active.value = true
   }
 
   returnAnimation?.cancel()
@@ -153,7 +180,11 @@ function finishTouchSwipe(event: TouchEvent) {
   if (props.input !== 'touch')
     return
 
-  const shouldCommit = event.type === 'touchend' && props.enabled && thresholdCrossed.value
+  const shouldCommit = event.type === 'touchend'
+    && touchIntent === 'horizontal'
+    && props.enabled
+    && thresholdCrossed.value
+  touchIntent = 'pending'
   resetPosition()
   if (shouldCommit)
     emit('commit')
@@ -175,6 +206,7 @@ function finishWheelSwipe() {
 }
 
 function cancelGesture() {
+  touchIntent = 'pending'
   wheelIntent = 'pending'
   wheelSessionActive = false
   wheelDistance = 0

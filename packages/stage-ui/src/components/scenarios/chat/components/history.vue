@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { VirtualizerHandle } from 'virtua/vue'
 
+import type { ChatToolCallRerunEvent, ToolCallRerunRequest } from '../../../../stores/tool-call-rerun'
 import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
@@ -35,11 +36,33 @@ const props = withDefaults(defineProps<{
   /** Space that a floating composer covers at the end of the scroll viewport. */
   tailInset?: number
   variant?: 'desktop' | 'mobile'
+  /**
+   * How the bubbles paint their backgrounds. `opaque` is for hosts with
+   * nothing behind the history, such as a transparent window over the
+   * desktop, where translucent bubbles take the contrast of whatever is under
+   * them.
+   */
+  surface?: 'translucent' | 'opaque'
+  /**
+   * When the scrollbar shows: while scrolling, or also while the pointer is
+   * over the history. A host that passes clicks through the empty history
+   * uses `hover`, so a scrollbar the wheel cannot reveal still appears.
+   */
+  scrollbar?: 'scroll' | 'hover'
+  /**
+   * `true` when the host shows the history as a feed that nobody scrolls or
+   * reads by hand. The history then returns to the newest message, because
+   * nobody can scroll it back.
+   */
+  passive?: boolean
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   sending: false,
   tailInset: 0,
   variant: 'desktop',
+  surface: 'translucent',
+  scrollbar: 'scroll',
+  passive: false,
   toolCallRenderers: () => ({}),
 })
 
@@ -48,7 +71,7 @@ const emit = defineEmits<{
   (e: 'deleteMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
   (e: 'replyMessage', payload: ChatHistoryReplyPayload): void
   (e: 'retryMessage', payload: { message: ChatHistoryItem, index: number, key: string | number }): void
-  (e: 'toolCallRerun', payload: { message: ChatHistoryItem, index: number, key: string | number, toolCallId: string, toolName: string, args: string }): void
+  (e: 'toolCallRerun', payload: ChatToolCallRerunEvent): void
 }>()
 
 /** Keeps about two mobile viewports ready so fast flicks do not expose an unmounted gap. */
@@ -102,6 +125,16 @@ const renderMessages = computed<ChatHistoryItem[]>(() => {
 
   return [...props.messages, streaming.value]
 })
+function canRetryMessageAt(index: number) {
+  const precedingMessage = renderMessages.value[index - 1]
+  if (precedingMessage?.role === 'user')
+    return true
+
+  if (precedingMessage?.role === 'assistant' && precedingMessage.interrupted)
+    return renderMessages.value[index - 2]?.role === 'user'
+
+  return false
+}
 const messagesById = computed(() => new Map(
   renderMessages.value.flatMap(message => message.id ? [[message.id, message] as const] : []),
 ))
@@ -120,6 +153,7 @@ useChatHistoryScroll({
   getKey: getChatHistoryItemKey,
   scrollToIndex,
   tailInset,
+  passive: computed(() => props.passive),
 })
 useChatHistoryTopFade({
   container: chatHistoryRef,
@@ -174,10 +208,14 @@ function getReplyTarget(message: ChatHistoryItem): ChatHistoryReplyPayload | und
   }
 }
 
+/**
+ * Triggering workflow: ChatAssistantItem `toolCallRerun` -> emitToolCallRerun
+ * -> the parent runtime's tool rerun handler, with this message location.
+ */
 function emitToolCallRerun(
   message: ChatHistoryItem,
   index: number,
-  payload: { toolCallId: string, toolName: string, args: string },
+  payload: ToolCallRerunRequest,
 ) {
   emit('toolCallRerun', {
     message,
@@ -193,6 +231,7 @@ function emitToolCallRerun(
     ref="scroll-container"
     v-bind="$attrs"
     :variant="variant"
+    :scrollbar="scrollbar"
   >
     <Virtualizer
       ref="virtualizer"
@@ -214,10 +253,11 @@ function emitToolCallRerun(
             :message="message"
             :label="labels.error"
             :retry-label="labels.retry"
-            :can-retry="renderMessages[index - 1]?.role === 'user'"
+            :can-retry="canRetryMessageAt(index)"
             :show-placeholder="sending && index === renderMessages.length - 1"
             :scroll-container="chatHistoryRef"
             :variant="variant"
+            :surface="surface"
             @copy="emitCopyMessage(message, index)"
             @retry="emitRetryMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
@@ -231,6 +271,7 @@ function emitToolCallRerun(
             :show-placeholder="shouldShowPlaceholder(message) && showStreamingPlaceholder"
             :scroll-container="chatHistoryRef"
             :variant="variant"
+            :surface="surface"
             :tool-call-renderers="toolCallRenderers"
             @copy="emitCopyMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
@@ -245,6 +286,7 @@ function emitToolCallRerun(
             :can-reply="canReplyToMessage(message)"
             :scroll-container="chatHistoryRef"
             :variant="variant"
+            :surface="surface"
             @copy="emitCopyMessage(message, index)"
             @delete="emitDeleteMessage(message, index)"
             @reply="emitReplyMessage(message)"

@@ -1,11 +1,16 @@
 import en from '@proj-airi/i18n/locales/en'
 
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
 import StepWelcome from './step-welcome.vue'
+
+import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
+import { useAuthStore } from '../../../../stores/auth'
+
+afterEach(() => vi.unstubAllEnvs())
 
 /** Creates the production English localization surface used by onboarding stores. */
 function createTestI18n() {
@@ -64,5 +69,35 @@ describe('steam onboarding provider restrictions', () => {
     await renderWelcomeStep(true)
 
     expect(document.body.textContent).toContain('Setup with your provider')
+  })
+})
+
+describe('desktop onboarding sign-in', () => {
+  it('requests login through the auth store', async () => {
+    vi.stubEnv('RUNTIME_ENVIRONMENT', 'electron')
+    const pinia = createPinia()
+    const screen = await render(StepWelcome, {
+      props: {
+        customProviderSetupEnabled: true,
+        onNext: vi.fn(),
+      },
+      global: {
+        directives: { motion: {} },
+        plugins: [pinia, createTestI18n()],
+      },
+    })
+
+    await screen.getByRole('button', { name: 'Sign in' }).click()
+
+    await expect.poll(() => useAuthStore(pinia).needsLogin).toBe(true)
+  })
+})
+
+describe('onboarding public links', () => {
+  it('links to public pricing and terms without requiring sign-in', async () => {
+    const screen = await renderWelcomeStep(true)
+
+    await expect.element(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', AIRI_FLUX_URL)
+    await expect.element(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', AIRI_TERMS_URL)
   })
 })

@@ -7,6 +7,8 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createApp, ref } from 'vue'
 
+import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
+
 const useTestAuthStore = defineStore('auth', () => {
   const userId = ref('local')
   const token = ref<string | null>(null)
@@ -125,6 +127,64 @@ afterEach(() => {
 })
 
 describe('chat session synchronization', () => {
+  it('acknowledges a follower submission after storage and deduplicates its retry', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
+    const leaderStore = useChatSessionStore()
+    await leaderStore.initialize()
+    const follower = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(follower.pinia)
+    const followerStore = useChatSessionStore()
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await followerStore.initialize()
+    const sessionId = followerStore.activeSessionId
+    const stored = Promise.withResolvers<void>()
+    const saving = vi.mocked(chatSessionsRepo.saveSession).mockImplementationOnce(async () => stored.promise)
+    const priorWrites = saving.mock.calls.length
+    const message = { id: 'retried-submission', role: 'user' as const, content: 'Retried message' }
+    let acknowledged = false
+    const request = followerStore.commitUserMessage(sessionId, message).then((receipt) => {
+      acknowledged = true
+      return receipt
+    })
+    try {
+      await vi.waitFor(() => expect(saving.mock.calls.length).toBe(priorWrites + 1))
+      expect(acknowledged).toBe(false)
+    }
+    finally {
+      stored.resolve()
+    }
+    expect(await request).toEqual({ status: 'inserted', messageId: 'retried-submission' })
+    expect(await followerStore.commitUserMessage(sessionId, message)).toEqual({ status: 'existing', messageId: 'retried-submission' })
+    expect(leaderStore.getSessionMessages(sessionId).filter(item => item.id === message.id)).toHaveLength(1)
+    await vi.waitFor(() => expect(followerStore.getSessionMessages(sessionId).filter(item => item.id === message.id)).toHaveLength(1))
+  })
+
+  it('rejects a storage receipt when its session is deleted during persistence', async () => {
+    const context = createSyncedContext(`chat-session:${crypto.randomUUID()}`, 'leader-only')
+    await vi.waitFor(() => expect(context.runtime.isLeader()).toBe(true))
+    setActivePinia(context.pinia)
+    const store = useChatSessionStore()
+    await store.initialize()
+    const sessionId = store.activeSessionId
+    const entered = Promise.withResolvers<void>()
+    const stored = Promise.withResolvers<void>()
+    vi.mocked(chatSessionsRepo.saveSession).mockImplementationOnce(async () => {
+      entered.resolve()
+      await stored.promise
+    })
+    const committing = store.commitUserMessage(sessionId, { id: 'removed-input', role: 'user', content: 'Hello' })
+    const rejected = expect(committing).rejects.toThrow('Chat session changed before message persistence completed')
+    await entered.promise
+    const deleting = store.deleteSession(sessionId)
+    stored.resolve()
+    await rejected
+    await deleting
+    expect(store.sessionMetas[sessionId]).toBeUndefined()
+  })
+
   it('initializes a follower through the canonical session action', async () => {
     // ROOT CAUSE:
     //
@@ -154,6 +214,44 @@ describe('chat session synchronization', () => {
     expect(followerChatStore.activeSessionId).toBe(leaderChatStore.index?.characters.default?.activeSessionId)
     expect(followerChatStore.sessionMetas[followerChatStore.activeSessionId]).toBeDefined()
     expect(Object.keys(leaderChatStore.index?.characters.default?.sessions ?? {})).toHaveLength(1)
+  })
+
+  // https://github.com/moeru-ai/airi/issues/2595
+  it('keeps a new conversation selected after its first synchronized message for Issue #2595', async () => {
+    // ROOT CAUSE:
+    //
+    // The leader creates the session while the caller selects it locally.
+    // The first message then synchronizes a new index ref. An index watcher
+    // treated that data update as navigation and restored the old session.
+    // Shared index updates no longer control window-local navigation.
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leaderContext = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
+
+    setActivePinia(leaderContext.pinia)
+    const leaderChatStore = useChatSessionStore()
+    await leaderChatStore.initialize()
+    const previousSessionId = leaderChatStore.activeSessionId
+
+    const followerContext = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(followerContext.pinia)
+    const followerChatStore = useChatSessionStore()
+    await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
+    await followerChatStore.initialize()
+
+    const newSessionId = await followerChatStore.createSession('default', { setActive: false })
+    await followerChatStore.setActiveSession(newSessionId)
+    followerChatStore.appendSessionMessage(newSessionId, {
+      id: 'first-user-message',
+      role: 'user',
+      content: 'Hello',
+    })
+
+    await vi.waitFor(() => expect(leaderChatStore.sessionMessages[newSessionId]).toHaveLength(2))
+    await vi.waitFor(() => expect(followerChatStore.sessionMessages[newSessionId]).toHaveLength(2))
+
+    expect(previousSessionId).not.toBe(newSessionId)
+    expect(followerChatStore.activeSessionId).toBe(newSessionId)
   })
 
   it('keeps the leader chat snapshot when new followers receive the auth identity', async () => {

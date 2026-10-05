@@ -2,7 +2,7 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -10,6 +10,12 @@ import { createI18n } from 'vue-i18n'
 import ChatHistory from './history.vue'
 
 import { getChatHistoryItemKey } from '../utils'
+
+const triggerHaptic = vi.fn()
+
+vi.mock('web-haptics/vue', () => ({
+  useWebHaptics: () => ({ trigger: triggerHaptic }),
+}))
 
 function createEnglishI18n() {
   return createI18n({
@@ -98,10 +104,15 @@ function dispatchTouchPointer(element: EventTarget, type: 'pointerdown' | 'point
   }))
 }
 
-function dispatchTouchEvent(element: HTMLElement, type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel', clientX: number) {
+function dispatchTouchEvent(
+  element: HTMLElement,
+  type: 'touchstart' | 'touchmove' | 'touchend' | 'touchcancel',
+  clientX: number,
+  clientY = 60,
+) {
   const touch = new Touch({
     clientX,
-    clientY: 60,
+    clientY,
     identifier: 1,
     target: element,
   })
@@ -117,6 +128,10 @@ function dispatchTouchEvent(element: HTMLElement, type: 'touchstart' | 'touchmov
 }
 
 describe('chat history', () => {
+  beforeEach(() => {
+    triggerHaptic.mockClear()
+  })
+
   it('renders a stored reply relation inside the message bubble', async () => {
     const screen = await render(ChatHistory, {
       props: {
@@ -148,6 +163,41 @@ describe('chat history', () => {
       expect(replyBubble?.textContent).toContain('Replying to AIRI')
       expect(replyBubble?.textContent).toContain('Earlier answer')
     })
+  })
+
+  // ROOT CAUSE:
+  //
+  // ChatHistoryMessageFrame always applied opacity-0, then added opacity-100
+  // when IntersectionObserver reported visibility. UnoCSS kept both utilities
+  // on the same node. In Kirie CEF software OSR the opacity transition never
+  // flushed, so computed opacity stayed 0 and the conversation looked empty
+  // after a successful send.
+  //
+  // Visible messages now start opaque and never keep both opacity utilities.
+  it('paints on-screen desktop messages without an opacity-0 class', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'Hello from the chat window' }],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-message-item')).not.toBeNull()
+    })
+
+    const item = screen.container.querySelector<HTMLElement>('.chat-message-item')
+    expect(item).not.toBeNull()
+    if (!item)
+      throw new Error('Expected a rendered chat message.')
+
+    expect(item.classList.contains('opacity-0')).toBe(false)
+    expect(item.classList.contains('opacity-100')).toBe(true)
+    expect(getComputedStyle(item).opacity).toBe('1')
+    expect(item.textContent).toContain('Hello from the chat window')
   })
 
   // ROOT CAUSE:
@@ -309,7 +359,9 @@ describe('chat history', () => {
       expect(visibleMessages.length).toBeGreaterThan(0)
       expect(hiddenMessages.length).toBeGreaterThan(0)
       expect(visibleMessages[0].classList.contains('opacity-100')).toBe(true)
+      expect(visibleMessages[0].classList.contains('opacity-0')).toBe(false)
       expect(visibleMessages[0].classList.contains('transition-opacity')).toBe(true)
+      expect(getComputedStyle(visibleMessages[0]).opacity).toBe('1')
       expect(hiddenMessages[0].classList.contains('opacity-0')).toBe(true)
     })
 
@@ -414,6 +466,99 @@ describe('chat history', () => {
         key: getChatHistoryItemKey(messages[1], 1),
       },
     ]])
+  })
+
+  it('keeps short error formatting', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'error', content: '**Retry this request**' }],
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.querySelector('strong')?.textContent).toBe('Retry this request'))
+    expect(screen.container.querySelector('button[aria-expanded]')).toBeNull()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A provider can place a full response body inside one chat error message.
+  // The error item rendered that body immediately and filled the mobile Stage.
+  // Keep a short summary visible and reveal the complete message on request.
+  it('keeps a long provider error compact until the user opens its details', async () => {
+    const responseBody = JSON.stringify({ error: { message: 'Invalid schema for configure_wake_words', metadata: 'x'.repeat(1200) } })
+    const content = `Remote sent 400 response: ${responseBody}`
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'user', content: 'Set a wake word' }, { role: 'error', content }],
+        variant: 'mobile',
+        style: 'height: 480px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.textContent).toContain('Remote sent 400 response'))
+    expect(screen.container.textContent).toContain('Remote sent 400 response')
+    expect(screen.container.textContent).not.toContain('Invalid schema for configure_wake_words')
+
+    const disclosure = screen.getByRole('button', { name: 'Show details' })
+    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false')
+    await disclosure.click()
+    await expect.element(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true')
+
+    expect(screen.container.textContent).toContain('Invalid schema for configure_wake_words')
+    expect(screen.container.querySelector('pre')?.textContent).toBe(content)
+  })
+
+  it('emits retry-message for an error after partial assistant output', async () => {
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'hello' },
+      { role: 'assistant', interrupted: true, content: 'partial reply', slices: [{ type: 'text', text: 'partial reply' }], tool_results: [] },
+      { role: 'error', content: 'Stream interrupted' },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await screen.getByRole('button', { name: 'Retry' }).click()
+
+    expect(screen.emitted('retryMessage')).toEqual([[
+      {
+        message: messages[2],
+        index: 2,
+        key: getChatHistoryItemKey(messages[2], 2),
+      },
+    ]])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Searching backward from every error crossed a completed assistant turn.
+  // A provider setup error could therefore offer Retry for an older prompt and
+  // delete its valid response. Only an adjacent interrupted turn is retriable.
+  it('does not retry an error across a completed assistant response', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [
+          { role: 'user', content: 'hello' },
+          { role: 'assistant', content: 'complete reply', slices: [{ type: 'text', text: 'complete reply' }], tool_results: [] },
+          { role: 'error', content: 'Provider configuration failed' },
+        ],
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    expect(screen.container.textContent).not.toContain('Retry')
   })
 
   it('does not render the retry button when the error is not preceded by a user message', async () => {
@@ -677,6 +822,7 @@ describe('chat history', () => {
   //
   // The resistance curve maps each raw position. Reverse input moves the message
   // immediately, and the release position still decides commit.
+  // https://github.com/moeru-ai/airi/pull/2617
   it('lets a desktop pan move back before release', async () => {
     const message: ChatHistoryItem = {
       id: 'desktop-momentum-return-target',
@@ -701,26 +847,49 @@ describe('chat history', () => {
     if (!swipeRoot || !swipeSurface)
       throw new Error('Expected a desktop message swipe surface.')
 
-    dispatchHorizontalPan(swipeRoot, 100)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
+    // ROOT CAUSE:
+    // A real frame plus an 80 ms wait can exceed the recognizer's 100 ms idle
+    // deadline on CI. Control the idle clock while browser frames remain real.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      dispatchHorizontalPan(swipeRoot, 100)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 100), 3)
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const reversedOffset = getExpectedLeftSwipeOffset(swipeRoot, 70)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 80))
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
-    expect(screen.emitted('replyMessage')).toBeUndefined()
+      vi.advanceTimersByTime(80)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(reversedOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
 
-    dispatchHorizontalPan(swipeRoot, -30)
-    await new Promise(resolve => requestAnimationFrame(resolve))
-    const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
-    expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      dispatchHorizontalPan(swipeRoot, -30)
+      await new Promise(resolve => requestAnimationFrame(resolve))
+      const releaseOffset = getExpectedLeftSwipeOffset(swipeRoot, 40)
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
 
-    await new Promise(resolve => setTimeout(resolve, 120))
-    expect(getTranslateX(swipeSurface)).not.toBeCloseTo(releaseOffset, 3)
+      // The last reverse event resets the idle deadline and cancels the reply.
+      vi.advanceTimersByTime(99)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('true')
+      expect(getTranslateX(swipeSurface)).toBeCloseTo(releaseOffset, 3)
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+
+      vi.advanceTimersByTime(1)
+      await nextTick()
+      expect(swipeSurface.dataset.swipeActive).toBe('false')
+      expect(screen.emitted('replyMessage')).toBeUndefined()
+    }
+    finally {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    }
+
+    await vi.waitFor(() => {
+      expect(getTranslateX(swipeSurface)).toBe(0)
+    })
     expect(screen.emitted('replyMessage')).toBeUndefined()
   })
 
@@ -1111,6 +1280,147 @@ describe('chat history', () => {
     })
   })
 
+  // ROOT CAUSE:
+  //
+  // The touch recognizer discarded movement below its intent threshold. It also
+  // compared horizontal and vertical travel again on every move. A message first
+  // jumped to the threshold, then snapped to rest when a confirmed swipe returned
+  // through the small vertical drift accumulated earlier in the gesture.
+  //
+  // The message now follows directed touch travel before intent is confirmed. Once
+  // horizontal intent is confirmed, that decision lasts until the touch ends.
+  it('keeps a mobile message attached to the finger before and after the intent threshold', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'continuous-touch-target', role: 'user', content: 'Follow my finger' }],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeRoot = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeRoot || !swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 96, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 4), 3)
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 70)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(swipeSurface.dataset.swipeActive).toBe('true')
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 92, 70)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 8), 3)
+    expect(swipeSurface.dataset.swipeActive).toBe('true')
+
+    dispatchTouchEvent(swipeSurface, 'touchcancel', 92, 70)
+  })
+
+  // ROOT CAUSE:
+  //
+  // Pending touch movement updated both the visual offset and threshold state.
+  // A diagonal vertical scroll could therefore trigger reply haptics before the
+  // recognizer locked the gesture to the vertical axis.
+  //
+  // Pending movement now updates only the visual offset. Threshold effects start
+  // after the recognizer confirms horizontal intent.
+  it('does not trigger reply haptics for a diagonal mobile scroll', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'diagonal-scroll-target', role: 'user', content: 'Scroll target' }],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 130)
+
+    expect(triggerHaptic).not.toHaveBeenCalled()
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+
+    dispatchTouchEvent(swipeSurface, 'touchend', 40, 130)
+    expect(screen.emitted('replyMessage')).toBeUndefined()
+  })
+
+  // ROOT CAUSE:
+  //
+  // An initial horizontal move opposite the reply direction locked the touch as
+  // vertical. Later movement in the reply direction was then ignored.
+  //
+  // Opposite horizontal movement now stays pending, so the same touch can reverse
+  // direction and establish horizontal reply intent.
+  it('allows a mobile touch to reverse from the opposite horizontal direction', async () => {
+    const message: ChatHistoryItem = {
+      id: 'reversing-touch-target',
+      role: 'user',
+      content: 'Reverse target',
+    }
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [message],
+        variant: 'mobile',
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('[data-swipeable-surface]')).not.toBeNull()
+    })
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!swipeSurface)
+      throw new Error('Expected a mobile message swipe surface.')
+
+    dispatchTouchEvent(swipeSurface, 'touchstart', 100, 60)
+    dispatchTouchEvent(swipeSurface, 'touchmove', 96, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+    expect(getTranslateX(swipeSurface)).toBeLessThan(0)
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 112, 61)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(triggerHaptic).not.toHaveBeenCalled()
+    expect(swipeSurface.dataset.swipeActive).toBe('false')
+    expect(getTranslateX(swipeSurface)).toBe(0)
+
+    dispatchTouchEvent(swipeSurface, 'touchmove', 40, 62)
+    dispatchTouchEvent(swipeSurface, 'touchend', 40, 62)
+
+    expect(triggerHaptic).toHaveBeenCalledExactlyOnceWith('medium')
+    expect(screen.emitted('replyMessage')).toEqual([[
+      {
+        message,
+        label: 'You',
+      },
+    ]])
+  })
+
   // https://github.com/moeru-ai/airi/pull/2489
   // ROOT CAUSE:
   //
@@ -1291,7 +1601,7 @@ describe('chat history', () => {
     expect(screen.container.querySelector('.i-solar\\:reply-bold-duotone')).toBeNull()
   })
 
-  it('cancels mobile press feedback when a swipe starts', async () => {
+  it('blends mobile press feedback into a swipe', async () => {
     const screen = await render(ChatHistory, {
       props: {
         messages: [{ id: 'press-target', role: 'user', content: 'Press target' }],
@@ -1307,20 +1617,34 @@ describe('chat history', () => {
       expect(screen.container.querySelector('[data-pressing]')).not.toBeNull()
     })
     const trigger = screen.container.querySelector<HTMLElement>('[data-pressing]')
-    if (!trigger)
+    const swipeRoot = screen.container.querySelector<HTMLElement>('[data-swipeable]')
+    const swipeSurface = screen.container.querySelector<HTMLElement>('[data-swipeable-surface]')
+    if (!trigger || !swipeRoot || !swipeSurface)
       throw new Error('Expected a chat action menu trigger.')
 
     dispatchTouchPointer(trigger, 'pointerdown', 100)
+    dispatchTouchEvent(trigger, 'touchstart', 100)
     await vi.waitFor(() => {
       expect(trigger.dataset.pressing).toBe('true')
     })
 
-    // The swipe surface captures a confirmed horizontal gesture after this
-    // movement. Press feedback observes the same travel at window level.
+    dispatchTouchPointer(window, 'pointermove', 96)
+    dispatchTouchEvent(trigger, 'touchmove', 96)
+    await new Promise(resolve => requestAnimationFrame(resolve))
+
+    expect(trigger.dataset.pressing).toBe('true')
+    expect(getTranslateX(swipeSurface)).toBeCloseTo(getExpectedLeftSwipeOffset(swipeRoot, 4), 3)
+
+    // Press feedback releases after this movement while the same touch stream
+    // continues to drive the surrounding swipe surface.
     dispatchTouchPointer(window, 'pointermove', 80)
+    dispatchTouchEvent(trigger, 'touchmove', 80)
     await vi.waitFor(() => {
       expect(trigger.dataset.pressing).toBe('false')
+      expect(swipeSurface.dataset.swipeActive).toBe('true')
     })
+
+    dispatchTouchEvent(trigger, 'touchcancel', 80)
   })
 
   it('does not apply mobile press feedback to a desktop message', async () => {
@@ -1344,6 +1668,36 @@ describe('chat history', () => {
     dispatchTouchPointer(trigger, 'pointerdown', 100)
 
     expect(trigger.dataset.pressing).toBe('false')
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2477
+  it('keeps repeated tool call ids separate when rendering and rerunning (PR #2477)', async () => {
+    // ROOT CAUSE:
+    // A call-id lookup displayed the latest result for every matching invocation.
+    // The rerun event also lost the selected round. Each block needs its own identity.
+    const message: ChatHistoryItem = {
+      role: 'assistant',
+      content: '',
+      slices: [0, 1].map(index => ({ type: 'tool-call', toolCall: { toolCallId: 'same', toolCallType: 'function', toolName: 'weather', args: JSON.stringify({ index }) } })),
+      tool_results: [{ id: 'same', result: 'First result' }, { id: 'same', result: 'Second result' }],
+      generationTranscript: {
+        type: 'assistant',
+        id: 'turn',
+        status: 'completed',
+        rounds: [0, 1].map(index => ({
+          id: `round-${index}`,
+          content: [],
+          projectionIssues: [],
+          toolInvocations: [{ id: `invocation-${index}`, callId: 'same', name: 'weather', arguments: JSON.stringify({ index }), execution: { status: 'succeeded', output: [{ type: 'text', text: index === 0 ? 'First result' : 'Second result' }] } }],
+        })),
+      },
+    }
+    const screen = await render(ChatHistory, {
+      props: { messages: [message], style: 'height: 480px; width: 480px; overflow-y: auto;' },
+      global: { plugins: [createEnglishI18n()] },
+    })
+    await screen.getByLabelText('Re-run tool call').nth(1).click()
+    expect(screen.emitted('toolCallRerun')).toEqual([[expect.objectContaining({ invocationId: 'invocation-1', toolCallId: 'same' })]])
   })
 
   it('emits tool-call-rerun with message context when a tool call rerun button is clicked', async () => {

@@ -36,7 +36,7 @@ describe('ark chat provider definitions', () => {
     expect(parsedConfig.baseUrl).toBe('https://ark.cn-beijing.volces.com/api/coding/v3')
 
     const providerInstance = await provider!.createProvider(parsedConfig)
-    if (!('chat' in providerInstance))
+    if (!('chat' in providerInstance) || !providerInstance.chat)
       throw new Error('Volcengine coding plan provider must support chat')
     const chatConfig = providerInstance.chat('volcengine-coding-plan/doubao-seed-2.1-turbo')
     expect(chatConfig.model).toBe('doubao-seed-2.1-turbo')

@@ -4,7 +4,7 @@ import { useElectronEventaContext, useElectronEventaInvoke, useElectronMouseInEl
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
-import { refDebounced, useIntervalFn, useMousePressed } from '@vueuse/core'
+import { refDebounced, useFocusWithin, useIntervalFn, useMouseInElement, useMousePressed } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, reactive, ref, useId, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -13,17 +13,17 @@ import StatusIsland from '../status-island/index.vue'
 import ControlButtonTooltip from './control-button-tooltip.vue'
 import ControlButton from './control-button.vue'
 import ControlsIslandAuthButton from './controls-island-auth-button.vue'
+import ControlsIslandChatButton from './controls-island-chat-button.vue'
 import ControlsIslandFadeOnHover from './controls-island-fade-on-hover.vue'
 import ControlsIslandHearingConfig from './controls-island-hearing-config.vue'
 import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
-import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
+import ControlsIslandSpeechMute from './controls-island-speech-mute.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
 import {
   electron,
   electronAppQuit,
   electronCenterMainWindow,
-  electronOpenChat,
   electronOpenSettings,
   electronStartDraggingWindow,
   electronWindowSetAlwaysOnTop,
@@ -35,6 +35,16 @@ interface Emits {
   /** Reports whether an active interaction must delay placement changes. */
   interactionChange: [active: boolean]
 }
+
+const props = withDefaults(defineProps<{
+  /**
+   * The cursor is away from the stage window, so the Island hides. The stage
+   * page owns the cursor signals and decides this.
+   */
+  cursorAway?: boolean
+}>(), {
+  cursorAway: false,
+})
 
 const emit = defineEmits<Emits>()
 
@@ -49,7 +59,6 @@ const context = useElectronEventaContext()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
 const openSettings = useElectronEventaInvoke(electronOpenSettings)
-const openChat = useElectronEventaInvoke(electronOpenChat)
 const isLinux = useElectronEventaInvoke(electron.app.isLinux)
 const quitApp = useElectronEventaInvoke(electronAppQuit)
 const setAlwaysOnTop = useElectronEventaInvoke(electronWindowSetAlwaysOnTop)
@@ -60,6 +69,7 @@ const expanded = ref(false)
 // animation ends, then isolate the same menu for natural-size measurement.
 const panelPresent = ref(false)
 const islandElement = useTemplateRef<HTMLElement>('island')
+const profileCreationActive = ref(false)
 const islandScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('islandScrollArea')
 const islandViewport = computed(() => islandScrollArea.value?.viewport)
 const islandContent = useTemplateRef<HTMLElement>('islandContent')
@@ -96,16 +106,36 @@ function setOverlay(key: string, active: boolean) {
   blockingOverlays.delete(key)
 }
 
+// NOTICE: On native Wayland, `isOutsideByCursor` can get permanently stuck
+// because it is driven by Electron's screen.getCursorScreenPoint(), which
+// Chromium's Ozone/Wayland backend cannot query reliably the way X11 does.
+// Source: https://github.com/moeru-ai/airi/issues/2521 (CachyOS + KDE
+// Plasma, Flatpak). OR it with the DOM-based `isOutsideByDom`
+// (useMouseInElement), which self-corrects on every pointermove and needs
+// no OS-level cursor query, so a broken cursor signal cannot force a false
+// collapse. The stage reads this paired result for click-through hit
+// testing, where DOM events may not reach the renderer at all.
+// Removal condition: once Ozone/Wayland reports the absolute
+// cursor position reliably upstream, or the click-through hit-testing no
+// longer depends on this composable.
+const { isOutside: isOutsideByCursor } = useElectronMouseInElement(islandElement)
+const { isOutside: isOutsideByDom } = useMouseInElement(islandElement)
+const isOutside = computed(() => isOutsideByCursor.value && isOutsideByDom.value)
+const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
+
+// A user who works in the menu, in a dialog, or with the keyboard keeps the
+// Island after the cursor leaves the window.
+const { focused: islandFocused } = useFocusWithin(islandElement)
+const concealed = computed(() => props.cursorAway && !expanded.value && !isBlocked.value && !islandFocused.value)
+
 // The stage page observes this element for cursor hit testing.
 defineExpose({
   get element() { return islandElement.value },
+  get isOutside() { return isOutside.value },
   get overlayActive() { return blockingOverlays.size > 0 || pressed.value },
   get hearingDialogOpen() { return blockingOverlays.has('hearing') },
   set hearingDialogOpen(v: boolean) { setOverlay('hearing', v) },
 })
-
-const { isOutside } = useElectronMouseInElement(islandElement)
-const isOutsideAfter2seconds = refDebounced(isOutside, 1500)
 
 watch(isOutsideAfter2seconds, (outside) => {
   if (outside && expanded.value && !isBlocked.value) {
@@ -117,6 +147,7 @@ watch(expanded, (isExpanded) => {
   if (isExpanded)
     panelPresent.value = true
   if (!isExpanded) {
+    profileCreationActive.value = false
     if (menuContent.value?.contains(document.activeElement) || blockingOverlays.size > 0)
       mainControlsElement.value?.querySelector<HTMLButtonElement>('[aria-controls]')?.focus()
     profileOpen.value = false
@@ -185,7 +216,8 @@ const islandMotionClasses = computed(() => {
       ? 'transition-none'
       : 'transition-[opacity,transform] duration-200 ease-out',
     motionPhase.value === 'idle' ? '' : 'will-change-[opacity,transform] pointer-events-none',
-    isHidden ? 'opacity-0 scale-95' : 'opacity-100 scale-100',
+    isHidden ? 'scale-95' : 'scale-100',
+    isHidden || concealed.value ? 'opacity-0' : 'opacity-100',
     isHidden && isLeft.value ? '-translate-x-3' : '',
     isHidden && !isLeft.value ? 'translate-x-3' : '',
     isHidden && isTop.value ? '-translate-y-2' : '',
@@ -263,7 +295,7 @@ function resetMainWindowPosition() {
             data-testid="controls-menu"
             orientation="both"
             :style="panelStyle"
-            :class="['w-max shrink-0', panelPositionClasses]"
+            :class="['w-max shrink-0 rounded-2xl', panelPositionClasses]"
             viewport-class="overscroll-contain"
           >
             <div
@@ -300,7 +332,12 @@ function resetMainWindowPosition() {
                   </ControlButtonTooltip>
 
                   <ControlButtonTooltip disable-hoverable-content>
-                    <ControlsIslandProfilePicker v-model:open="profileOpen" :active="expanded" @interaction-change="setOverlay('profile-picker', $event)">
+                    <ControlsIslandProfilePicker
+                      v-model:open="profileOpen"
+                      v-model:creating="profileCreationActive"
+                      :active="expanded"
+                      @interaction-change="setOverlay('profile-picker', $event)"
+                    >
                       <template #default="{ toggle }">
                         <ControlButton
                           v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"
@@ -438,19 +475,7 @@ function resetMainWindowPosition() {
             :icon-class="adjustStyleClasses.icon"
           />
 
-          <ControlButtonTooltip side="inward">
-            <ControlButton
-              v-track-button="{ name: 'controls_island_action', action: 'toggle_chat' }"
-              :button-style="adjustStyleClasses.button"
-              :aria-label="t('tamagotchi.stage.controls-island.open-chat')"
-              @click="() => openChat()"
-            >
-              <div i-solar:chat-line-line-duotone :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-            </ControlButton>
-            <template #tooltip>
-              {{ t('tamagotchi.stage.controls-island.open-chat') }}
-            </template>
-          </ControlButtonTooltip>
+          <ControlsIslandChatButton :button-style="adjustStyleClasses.button" :icon-class="adjustStyleClasses.icon" />
 
           <ControlButtonTooltip side="inward">
             <ControlsIslandHearingConfig :show="blockingOverlays.has('hearing')" @update:show="setOverlay('hearing', $event)">
@@ -468,7 +493,7 @@ function resetMainWindowPosition() {
             </template>
           </ControlButtonTooltip>
 
-          <ControlsIslandStopSpeaking
+          <ControlsIslandSpeechMute
             :button-style="adjustStyleClasses.button"
             :icon-class="adjustStyleClasses.icon"
           />
