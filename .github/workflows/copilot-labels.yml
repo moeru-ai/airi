@@ -1,3 +1,10 @@
+# This workflow replaces pr-triage.md (the agentic prompt and configuration)
+# and pr-triage.lock.yml (the generated GitHub Actions workflow).
+# The agentic workflow returned model_not_supported, while direct Copilot
+# requests succeeded with the same token.
+# This file contains the classification prompt, direct CLI call, label validation,
+# and label application. pr-triage-dispatch.yml now calls this workflow.
+# The old files were deleted to remove the failed workflow from GitHub Actions.
 name: Copilot Category Labels
 on:
   workflow_dispatch:
