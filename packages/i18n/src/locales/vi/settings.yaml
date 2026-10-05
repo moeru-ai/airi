@@ -199,6 +199,7 @@ pages:
     notLoggedIn: Đăng nhập để xem tài khoản và truy cập tất cả tính năng
     login: Đăng nhập
     logout: Đăng xuất
+    signOutFailed: 'Đăng xuất thất bại. Phiên của bạn vẫn được giữ; vui lòng thử lại.'
     fluxBalance: Số dư Flux
     viewFluxDetails: Xem chi tiết
     signedInAs: Đăng nhập với

@@ -154,6 +154,7 @@ pages:
     notLoggedIn: 登入以檢視您的帳戶並使用所有功能
     login: 登入
     logout: 登出
+    signOutFailed: '登出失敗。已保留目前的工作階段，請重試。'
     fluxBalance: Flux 餘額
     viewFluxDetails: 檢視詳細資料
     signedInAs: 登入身分

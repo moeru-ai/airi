@@ -201,6 +201,7 @@ pages:
     notLoggedIn: ログインしてアカウントを表示し、すべての機能にアクセスします
     login: ログイン
     logout: ログアウト
+    signOutFailed: 'サインアウトに失敗しました。セッションは保持されました。もう一度お試しください。'
     fluxBalance: Flux 残高
     viewFluxDetails: 詳細を見る
     signedInAs: 'ログイン中:'

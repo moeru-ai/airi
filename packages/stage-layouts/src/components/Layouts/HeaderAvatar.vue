@@ -10,6 +10,7 @@ import {
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
+import { toast } from 'vue-sonner'
 
 defineProps<{
   /** Shows only the account control on the mobile Stage. @default false */
@@ -24,6 +25,16 @@ const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
+
+async function handleSignOut() {
+  try {
+    await signOut()
+  }
+  catch (error) {
+    console.error('[auth] sign-out failed; local state retained', error)
+    toast.error(t('settings.pages.account.signOutFailed'))
+  }
+}
 </script>
 
 <template>
@@ -156,7 +167,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
               'data-[highlighted]:bg-red-50 dark:data-[highlighted]:bg-red-900/20',
               'transition-colors duration-150 ease-in-out',
             ]"
-            @click="signOut"
+            @click="handleSignOut"
           >
             <div class="i-solar:logout-3-bold-duotone text-lg transition group-hover:text-red-600 dark:group-hover:text-red-400" />
             Sign out

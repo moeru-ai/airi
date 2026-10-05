@@ -63,6 +63,17 @@ export async function listSessions() {
   return await useAuthStore().listSessions()
 }
 
+/**
+ * Signs out through the active auth store.
+ *
+ * Rejects when the server sign-out cannot be confirmed, and leaves the stored
+ * identity, credentials and pending refresh work in place so the caller can
+ * surface the failure and retry. Callers that ignore the rejection risk
+ * presenting a logged-out surface while the server session is still live, so
+ * handle the rejection and keep the user where they are.
+ *
+ * Use when: the user asks to sign out from web, desktop or any shared layout.
+ */
 export async function signOut() {
   await useAuthStore().signOut()
 }

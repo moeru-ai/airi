@@ -233,6 +233,7 @@ pages:
     notLoggedIn: Войдите, чтобы просмотреть аккаунт и получить доступ ко всем функциям
     login: Войти
     logout: Выйти
+    signOutFailed: 'Не удалось выйти. Сеанс сохранён; попробуйте снова.'
     fluxBalance: Баланс Flux
     viewFluxDetails: Подробнее
     signedInAs: Вы вошли как

@@ -283,6 +283,7 @@ pages:
     notLoggedIn: Sign in to view your account and access all features
     login: Sign in
     logout: Sign out
+    signOutFailed: 'Sign out failed. Your session was kept; please try again.'
     fluxBalance: Flux Balance
     viewFluxDetails: View details
     signedInAs: Signed in as
