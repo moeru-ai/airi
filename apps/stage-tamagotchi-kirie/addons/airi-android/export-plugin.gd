@@ -533,6 +533,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
             webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
             webView.getSettings().setSupportMultipleWindows(true);
+            webView.getSettings().setDisplayZoomControls(false);
+            webView.getSettings().setBuiltInZoomControls(false);
             webView.requestFocusFromTouch();
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
