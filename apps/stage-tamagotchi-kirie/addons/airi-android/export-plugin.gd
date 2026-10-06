@@ -1129,8 +1129,16 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         activity.runOnUiThread(() -> {
             try {
                 activity.startActivity(new Intent(Intent.ACTION_VIEW, uri));
-            } catch (ActivityNotFoundException error) {
+            } catch (RuntimeException error) {
                 Log.e("AiriAndroid", "No browser can open the authorization URL", error);
+                try {
+                    sendEventaError(request, new JSONObject()
+                        .put("code", "BROWSER_UNAVAILABLE")
+                        .put("message", "No browser can open the authentication URL."));
+                } catch (JSONException jsonError) {
+                    Log.e("AiriAndroid", "Cannot create authorization error", jsonError);
+                }
+                return;
             }
             sendEventaResponse(request, JSONObject.NULL);
         });
@@ -1202,6 +1210,23 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             request.replyProxy.postMessage(envelope.toString());
         } catch (JSONException error) {
             Log.e("AiriAndroid", "Cannot send Eventa response", error);
+        }
+    }
+
+    private void sendEventaError(PendingEventaRequest request, Object error) {
+        try {
+            String responseEvent = request.event.replace("-send", "-receive-error")
+                + "-" + request.invokeId;
+            JSONObject body = new JSONObject()
+                .put("invokeId", request.invokeId)
+                .put("content", new JSONObject().put("error", error));
+            JSONObject payload = new JSONObject().put("body", body);
+            JSONObject envelope = new JSONObject()
+                .put("type", responseEvent)
+                .put("payload", payload);
+            request.replyProxy.postMessage(envelope.toString());
+        } catch (JSONException jsonError) {
+            Log.e("AiriAndroid", "Cannot send Eventa error", jsonError);
         }
     }
 
