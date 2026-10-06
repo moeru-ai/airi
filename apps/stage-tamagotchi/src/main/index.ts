@@ -386,7 +386,7 @@ app.whenReady().then(async () => {
     },
   })
 
-  injeca.start().catch(err => console.error(err))
+  injeca.start().catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
   openDebugger()
