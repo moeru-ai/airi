@@ -92,6 +92,20 @@ The native scenarios cover ZIP, JSON, VRM, VMD, duplicates, case, whitespace, em
 They also cover omitted unmapped extensions, empty MIME extras, and the extension-only failure.
 Full-app acceptance also requires selection, cancellation, and import of real files through Android's document provider.
 
+## File chooser callback lifecycle
+
+Kirie retains one mutable file chooser callback, as Capacitor 8.5.0 retains one mutable activity-result listener.
+A later chooser replaces the callback without resolving the earlier callback.
+The selected callback remains after a result, a launch failure, and host destruction.
+An activity recreation creates a new host without the old callback, so the returning result is lost.
+Kirie does not send a cancellation result during destruction.
+These behaviors include Capacitor's existing callback loss and retention bugs.
+
+The runtime scenarios start overlapping choosers, return repeated results, fail an intent launch, and recreate the activity during selection.
+The active callback receives each delivered result until another chooser replaces it.
+The superseded callback receives no value.
+After recreation, neither the old page nor the new page receives the pending chooser result.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.

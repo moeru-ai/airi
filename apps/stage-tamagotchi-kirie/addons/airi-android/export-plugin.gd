@@ -288,17 +288,12 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         pendingPermissionRequests.clear();
         pendingBarcodeScan = null;
         pendingNotificationSchedule = null;
-        if (pendingFileChooser != null) {
-            pendingFileChooser.onReceiveValue(null);
-            pendingFileChooser = null;
-        }
     }
 
     @Override
     public void onMainActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == FILE_CHOOSER_REQUEST && pendingFileChooser != null) {
             ValueCallback<Uri[]> callback = pendingFileChooser;
-            pendingFileChooser = null;
             Uri[] result;
             if (resultCode == Activity.RESULT_OK
                 && data != null
@@ -615,15 +610,11 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                     ValueCallback<Uri[]> callback,
                     FileChooserParams parameters
                 ) {
-                    if (pendingFileChooser != null) {
-                        pendingFileChooser.onReceiveValue(null);
-                    }
                     pendingFileChooser = callback;
                     Intent intent = createFileChooserIntent(parameters);
                     try {
                         activity.startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     } catch (ActivityNotFoundException error) {
-                        pendingFileChooser = null;
                         callback.onReceiveValue(null);
                     }
                     return true;
