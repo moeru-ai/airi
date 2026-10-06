@@ -54,3 +54,41 @@ The JVM fixture compiles unchanged production methods with external Android boun
 Its missing-browser assertion fails before the fix and passes after it.
 The real Eventa channel fixture also fails before Error reconstruction and passes after it.
 Run `python3 tests/android-host-parity/run-fixtures.py authentication --json-jar "$JSON_JAR"` from Kirie.
+
+## WebSocket failure without a message
+
+Pocket's `OkHttpHostWebSocketSessionFactory.onFailure()` uses a fallback for the error event and passes `Throwable.message` to Close.
+`HostWebSocketBridge.kt` omits a null close reason when it creates JSON.
+Kirie previously reused its error fallback as the close reason. The shared renderer forwards that reason to close listeners.
+
+Kirie now passes the original Throwable message to the close payload. JSON omits null values.
+Empty messages, available HTTP response codes, event order, and session cleanup remain unchanged.
+The null-message JVM assertion fails before the fix. All six callback cases pass after it.
+Run `python3 tests/android-host-parity/run-fixtures.py websocket --json-jar "$JSON_JAR"` from Kirie.
+
+## Candidate decisions
+
+All five requested candidates are confirmed by source and failing fixtures. No candidate is rejected.
+Both notification candidates remain outside this change.
+These fixtures supply no emulator or visual parity result. Permission grants remain excluded from the default route replay.
+The historical Pocket bugs remain untouched, including missing routes, denied-permission paths, and nullable WebSocket close reasons.
+
+## Verification
+
+| Command | Result |
+| --- | --- |
+| `pnpm -F @proj-airi/stage-pocket exec vitest run --config vitest.config.ts` | Passed 14 tests. Each confirmed gap has a failing pre-fix fixture. |
+| `pnpm -F @proj-airi/stage-pocket typecheck` | Passed. |
+| `pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| JVM fixture `authentication` with Pocket's cached JSON test JAR | Passed four cases. |
+| JVM fixture `websocket` with the same JSON test JAR | Passed six cases. |
+| Existing native parity fixture `compileDebugJavaWithJavac --offline --no-daemon --max-workers=1 -Dorg.gradle.vfs.watch=false` | Passed complete embedded-plugin Java compilation. No APK assembly ran. |
+| Kirie Vitest `--project node` with a temporary `server.watch=null` configuration | Passed 10 files and 32 tests. |
+| `pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Node tests passed. The browser project failed to bind `::1` with `EPERM`. |
+| Focused `pnpm exec moeru-lint` for changed TypeScript, Vue, tests, and documents | Passed. |
+| `pnpm lint` | Failed with 4,808 errors and 682 warnings on generated native outputs and existing repository warnings. |
+| `git diff --check` | Passed. |
+
+No emulator test or full Vite/Godot Android build ran during this source-only task.
+The interrupted predecessor replay supplies no claimed parity result.
+No recording or Git ignore file changed. Device verification remains follow-up work.

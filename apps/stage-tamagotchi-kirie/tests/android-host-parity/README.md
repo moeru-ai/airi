@@ -19,3 +19,13 @@ Existing string errors from notification scheduling retain their envelope shape.
 
 The generated Java files exist only in a temporary directory.
 The `.gdignore` marker excludes these fixture sources from Godot assets.
+
+```sh
+python3 run-fixtures.py websocket --json-jar "$JSON_JAR"
+```
+
+WebSocket expectations come from Pocket's `OkHttpHostWebSocketSessionFactory.kt` and `HostWebSocketBridge.kt`.
+The fixture executes Kirie's unchanged `onFailure`, `createEvent`, and `addEventValue` methods.
+A null Throwable message gives the error event its fallback text and omits the close reason.
+Empty messages remain empty. An available HTTP response supplies the close code.
+All cases retain error-before-close ordering and remove the opened session.
