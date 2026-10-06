@@ -304,6 +304,8 @@ describe('provider store synchronization boundary', () => {
     }
     configStore.ensureProvider('openai', 'openai', openaiConfig)
     const first = await store.getProviderInstance('openai')
+    // Replica reconciliation validates credentials through the external provider API.
+    const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ data: [{ id: 'test-model' }] }))
     let restore = stubOpenAiReplica({ ...openaiConfig })
 
     try {
@@ -326,6 +328,7 @@ describe('provider store synchronization boundary', () => {
     }
     finally {
       restore()
+      fetch.mockRestore()
     }
   })
 
