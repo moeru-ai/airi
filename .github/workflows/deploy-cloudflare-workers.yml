@@ -71,6 +71,7 @@ jobs:
           S3_REGION: ${{ secrets.S3_REGION }}
           VITE_ENABLE_ANALYTICS: 'true'
           VITE_SERVER_URL: 'https://api.airi.build'
+          VITE_REVENUECAT_WEB_KEY: ${{ vars.VITE_REVENUECAT_WEB_KEY }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
 
       - uses: cloudflare/wrangler-action@v4
