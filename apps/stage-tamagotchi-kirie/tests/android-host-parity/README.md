@@ -29,3 +29,24 @@ The fixture executes Kirie's unchanged `onFailure`, `createEvent`, and `addEvent
 A null Throwable message gives the error event its fallback text and omits the close reason.
 Empty messages remain empty. An available HTTP response supplies the close code.
 All cases retain error-before-close ordering and remove the opened session.
+
+## Native dialog theme
+
+From the repository root, run the fixture with Godot 4.7.2:
+
+```sh
+python3 apps/stage-tamagotchi-kirie/tests/android-host-parity/run-theme-fixture.py --godot /path/to/godot
+```
+
+The fixture runs the unchanged production `configure_launch_resources` and `write_build_file` methods in a temporary Godot project.
+It reads tracked sources and `fixtures/godot-themes.xml`. It never reads the application's ignored Android build directory.
+No Android export, Gradle build, or emulator is required.
+
+The XML fixture contains the complete generated item set for the current Android export preset.
+Its three default main items and four splash items follow Godot 4.7.2's [`_fix_themes_xml`](https://github.com/godotengine/godot/blob/4.7.2-stable/platform/android/export/export_plugin.cpp#L1019).
+The test compares all custom main items against the tracked `export_presets.cfg`.
+If the preset or Godot's generated defaults change, update the fixture.
+
+Both cases run the production rewrite twice. The second case adds another generated item.
+Reversing only the target parent must restore every input byte, including an unrelated theme with the same original parent.
+The test also checks every `AiriAppMainTheme` and `AiriAppSplashTheme` item.

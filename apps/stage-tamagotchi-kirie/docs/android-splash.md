@@ -24,6 +24,8 @@ An explicit `android:windowSplashScreenAnimatedIcon` changes Android's icon sizi
 The copied adaptive icon keeps stage-pocket's white background and foreground image in both modes.
 
 Kirie switches the application and activity to `AiriAppMainTheme` during `onCreate`, as Capacitor switches both to `AppTheme.NoActionBar`.
+The generated `GodotAppMainTheme` inherits `Theme.AppCompat.DayNight.NoActionBar`, as Pocket's `AppTheme.NoActionBar` does.
+The plugin changes only that parent. Every generated window, system-bar, and splash item remains intact.
 The main theme clears `android:background`. Its window background uses the existing AIRI day/night surface color.
 Kirie does not install an AndroidX splash or retain it until the Godot main loop starts.
 Android removes the starting window when the application draws, with no extra application timer or keep-on-screen condition.

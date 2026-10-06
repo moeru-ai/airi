@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<style name="GodotAppMainTheme" parent="@android:style/Theme.DeviceDefault.NoActionBar">
+		<item name="android:windowSwipeToDismiss">false</item>
+		<item name="android:windowIsTranslucent">false</item>
+		<item name="android:windowBackground">#000000</item>
+		<item name="android:isLightTheme">@bool/airi_is_light_theme</item>
+		<item name="android:navigationBarColor">@color/airi_system_bar_color</item>
+		<item name="android:statusBarColor">@color/airi_system_bar_color</item>
+		<item name="android:windowLightNavigationBar">@bool/airi_is_light_theme</item>
+		<item name="android:windowLightStatusBar">@bool/airi_is_light_theme</item>
+	</style>
+	<style name="GodotAppSplashTheme" parent="Theme.SplashScreen">
+		<item name="android:windowSplashScreenBackground">@mipmap/icon_background</item>
+		<item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+		<item name="postSplashScreenTheme">@style/GodotAppMainTheme</item>
+		<item name="android:windowIsTranslucent">false</item>
+	</style>
+</resources>
