@@ -34,6 +34,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -42,7 +43,9 @@ import android.view.Window;
 import android.view.WindowInsetsController;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
 import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
@@ -358,6 +361,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
 
             browserWebView = webView;
+            webView.getSettings().setSupportMultipleWindows(true);
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
                 public boolean onShowFileChooser(
@@ -381,6 +385,43 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                     }
                     return true;
                 }
+
+                @Override
+                public boolean onCreateWindow(
+                    WebView source,
+                    boolean isDialog,
+                    boolean isUserGesture,
+                    Message resultMessage
+                ) {
+                    WebView popup = new WebView(activity);
+                    popup.setWebViewClient(new WebViewClient() {
+                        @Override
+                        public boolean shouldOverrideUrlLoading(
+                            WebView view,
+                            WebResourceRequest request
+                        ) {
+                            boolean handled = openExternalBrowser(activity, request.getUrl());
+                            if (handled) {
+                                view.destroy();
+                            }
+                            return handled;
+                        }
+
+                        @Override
+                        public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                            boolean handled = openExternalBrowser(activity, Uri.parse(url));
+                            if (handled) {
+                                view.destroy();
+                            }
+                            return handled;
+                        }
+                    });
+                    WebView.WebViewTransport transport
+                        = (WebView.WebViewTransport) resultMessage.obj;
+                    transport.setWebView(popup);
+                    resultMessage.sendToTarget();
+                    return true;
+                }
             });
             WebViewCompat.addWebMessageListener(
                 webView,
@@ -396,6 +437,20 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             );
             webView.reload();
         });
+    }
+
+    private boolean openExternalBrowser(Activity activity, Uri uri) {
+        String scheme = uri.getScheme();
+        if (!("http".equals(scheme) || "https".equals(scheme))) {
+            return false;
+        }
+
+        try {
+            activity.startActivity(new Intent(Intent.ACTION_VIEW, uri));
+        } catch (ActivityNotFoundException error) {
+            Log.e("AiriAndroid", "No browser can open the external URL", error);
+        }
+        return true;
     }
 
     private WebView findWebView(View view) {
