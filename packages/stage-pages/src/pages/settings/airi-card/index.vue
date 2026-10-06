@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { Alert } from '@proj-airi/stage-ui/components'
 import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { InputFileCard } from '@proj-airi/ui'
+import { Button, InputFileCard } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -16,11 +17,14 @@ import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
-const { t } = useI18n()
+import { formatRelativeTime } from './composables/relative-time'
+
+const { t, locale } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
-const { cards, activeCardId } = storeToRefs(cardStore)
+const { cards, activeCardId, cardSyncStates, cloudSyncEnabled } = storeToRefs(cardStore)
+const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const route = useRoute()
 const router = useRouter()
@@ -202,6 +206,69 @@ function getVersionNumber(id: string) {
   return card?.version || '1.0.0'
 }
 
+// Recently deleted cards
+interface DeletedCard {
+  id: string
+  name: string
+  deletedAt: string
+}
+
+const showDeletedPanel = ref(false)
+const deletedCardsList = ref<DeletedCard[]>([])
+const isLoadingDeleted = ref(false)
+const deletedLoadFailed = ref(false)
+const restoringDeletedId = ref<string | null>(null)
+
+// The server keeps the content of a deleted card for 30 days.
+const DELETED_CARD_RETENTION_DAYS = 30
+
+function formatDeletedRelative(deletedAt: string) {
+  return formatRelativeTime(deletedAt, locale.value)
+}
+
+function restorableDays(deletedAt: string) {
+  const elapsed = Math.floor((Date.now() - new Date(deletedAt).getTime()) / (24 * 60 * 60 * 1000))
+  return Math.max(0, DELETED_CARD_RETENTION_DAYS - elapsed)
+}
+
+async function loadDeletedCards() {
+  isLoadingDeleted.value = true
+  deletedLoadFailed.value = false
+  try {
+    deletedCardsList.value = await cardStore.deletedCards()
+  }
+  catch (error) {
+    console.error('Error loading recently deleted cards:', error)
+    deletedLoadFailed.value = true
+  }
+  finally {
+    isLoadingDeleted.value = false
+  }
+}
+
+async function toggleDeletedPanel() {
+  showDeletedPanel.value = !showDeletedPanel.value
+  if (showDeletedPanel.value)
+    await loadDeletedCards()
+}
+
+async function handleRestoreDeletedCard(card: DeletedCard) {
+  restoringDeletedId.value = card.id
+  try {
+    const restored = await cardStore.restoreDeletedCard(card.id)
+    toast(t(restored ? 'settings.pages.card.sync.deleted.restore_success' : 'settings.pages.card.sync.deleted.restore_failed', { name: card.name }))
+    if (restored)
+      await loadDeletedCards()
+  }
+  catch (error) {
+    console.error('Error restoring a deleted card:', error)
+    toast(t('settings.pages.card.sync.deleted.restore_failed', { name: card.name }))
+  }
+  finally {
+    restoringDeletedId.value = null
+  }
+}
+
 // Card module short name
 function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   const card = cards.value.get(id)
@@ -223,6 +290,90 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
 <template>
   <div rounded-xl p-4 flex="~ col gap-4">
+    <!-- Disclosure: signed-in users upload their cards -->
+    <div
+      v-if="isAuthenticated && cloudSyncEnabled"
+      :class="[
+        'flex flex-col gap-3 rounded-xl px-4 py-3',
+        'border border-primary-200/60 dark:border-primary-800/40',
+        'bg-primary-50/50 dark:bg-primary-950/30',
+      ]"
+    >
+      <div :class="['flex flex-row flex-wrap items-center justify-between gap-2']">
+        <p :class="['flex items-center gap-2 text-sm', 'text-neutral-600 dark:text-neutral-300']">
+          <span i-solar:cloud-check-outline :class="['shrink-0', 'text-primary-500 dark:text-primary-400']" />
+          {{ t('settings.pages.card.sync.notice') }}
+        </p>
+        <button
+          type="button"
+          :class="[
+            'flex flex-row shrink-0 items-center gap-1 text-sm',
+            'text-primary-600 dark:text-primary-400',
+            'hover:underline',
+          ]"
+          @click="toggleDeletedPanel"
+        >
+          <div i-solar:trash-bin-minimalistic-linear />
+          {{ t('settings.pages.card.sync.deleted.title') }}
+          <div :class="showDeletedPanel ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear'" />
+        </button>
+      </div>
+
+      <div
+        v-if="showDeletedPanel"
+        :class="[
+          'flex flex-col gap-2 rounded-lg p-3',
+          'bg-white/60 dark:bg-black/30',
+          'border border-neutral-200/50 dark:border-neutral-700/30',
+        ]"
+      >
+        <div v-if="isLoadingDeleted" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.pages.card.sync.deleted.loading') }}
+        </div>
+        <div v-else-if="deletedLoadFailed" class="py-4 text-center text-sm text-red-500 dark:text-red-400">
+          {{ t('settings.pages.card.sync.deleted.load_failed') }}
+        </div>
+        <div v-else-if="deletedCardsList.length === 0" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.pages.card.sync.deleted.empty') }}
+        </div>
+        <div
+          v-for="card in deletedCardsList"
+          :key="card.id"
+          :class="[
+            'flex flex-row items-center justify-between gap-3 rounded-lg p-3',
+            'bg-white dark:bg-neutral-900',
+            'border border-neutral-200/50 dark:border-neutral-700/30',
+          ]"
+        >
+          <div :class="['flex min-w-0 flex-col gap-0.5']">
+            <span :class="['truncate text-sm font-medium']">{{ card.name }}</span>
+            <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']" :title="new Date(card.deletedAt).toLocaleString(locale)">
+              {{ t('settings.pages.card.sync.deleted.deleted_when', { when: formatDeletedRelative(card.deletedAt) }) }}
+              ·
+              {{ t('settings.pages.card.sync.deleted.days_left', { days: restorableDays(card.deletedAt) }) }}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            shrink-0
+            icon="i-solar:restart-line-duotone"
+            :label="t('settings.pages.card.sync.deleted.restore')"
+            :disabled="restoringDeletedId === card.id"
+            @click="handleRestoreDeletedCard(card)"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Disclosure: a signed-in user who has not turned cloud sync on -->
+    <p v-else-if="isAuthenticated" flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
+      <span i-solar:cloud-cross-outline shrink-0 />
+      {{ t('settings.pages.card.sync.off_notice') }}
+      <RouterLink to="/settings/system/experimental" class="text-primary-600 dark:text-primary-400 hover:underline">
+        {{ t('settings.pages.card.sync.off_notice_link') }}
+      </RouterLink>
+    </p>
+
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>
       <!-- Search bar -->
@@ -305,6 +456,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           :version="getVersionNumber(item.id)"
           :consciousness-model="getModuleShortName(item.id, 'consciousness')"
           :voice-model="getModuleShortName(item.id, 'voice')"
+          :sync-state="cardSyncStates[item.id]"
           @select="handleSelectCard(item.id)"
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"

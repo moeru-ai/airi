@@ -69,3 +69,4 @@ export type {
   StreamFromOptions,
   StreamOptions,
 } from './types/llm'
+export * from './voice'
