@@ -4,6 +4,7 @@ import type { AppliedLocalChanges, LocalDocumentChanges } from './synchronize'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import { DocumentSyncRequestError } from './client'
 import { synchronize } from './synchronize'
 
 const emptyState: SyncState = { documents: {} }
@@ -132,6 +133,52 @@ describe('synchronize', () => {
     })
 
     expect(list.mock.calls.length).toBeGreaterThan(1)
+  })
+
+  // The server refuses one document, for example when the account is over its limit.
+  // The documents after it must still reach the server.
+  it('goes on with the other documents when the server refuses one', async () => {
+    const { client, push } = createClient({ documents: [] })
+    const accepted = push.getMockImplementation()!
+    push.mockImplementation(async (documentId, fields) => {
+      if (documentId === 'big')
+        throw new DocumentSyncRequestError(413, 'Payload Too Large')
+      return accepted(documentId, fields)
+    })
+    let state = emptyState
+
+    const result = await synchronize({
+      client,
+      state,
+      isCurrent: () => true,
+      saveState: async (saved) => { state = saved },
+      readLocal: () => ({ big: { '/name': 'Big' }, luna: { '/name': 'Luna' } }),
+      applyLocal: async () => appliedNothing,
+    })
+
+    expect(result.refused).toEqual(['big'])
+    expect(push).toHaveBeenCalledTimes(2)
+    expect(result.state.documents.luna).toBeDefined()
+    expect(result.state.documents.big).toBeUndefined()
+    expect(state).toEqual(result.state)
+  })
+
+  it.each([
+    ['a network failure', new Error('network')],
+    ['a server failure', new DocumentSyncRequestError(500, 'Internal Server Error')],
+    ['an expired login', new DocumentSyncRequestError(401, 'Unauthorized')],
+  ])('stops the run on %s and keeps the sync state for the next run', async (_, error) => {
+    const { client, push } = createClient({ documents: [] })
+    push.mockRejectedValue(error)
+
+    await expect(synchronize({
+      client,
+      state: emptyState,
+      isCurrent: () => true,
+      saveState: async () => {},
+      readLocal: () => ({ luna: { '/name': 'Luna' } }),
+      applyLocal: async () => appliedNothing,
+    })).rejects.toBe(error)
   })
 
   // Sign-out or an account change while the run waits for storage. The request

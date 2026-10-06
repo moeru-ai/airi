@@ -65,6 +65,8 @@ The selected card is not synchronized. Each device keeps its own selection.
 The `default` card is built in. Each device creates it in its own language, so a part that equals the built-in card never leaves the device. The device lays the received parts over its own built-in card.
 The service accepts a field when its key is a JSON Pointer. For the keys that the client reads without a further check, such as `/name`, `/tags`, and `/extensions/airi/wakeWords`, the value must also have the expected type. A value of another type would make the card fail on every device. Other keys accept any JSON, because cards from other applications carry their own extensions.
 A device that cannot read a card keeps the cards that it can read and does not delete the server copy of the unreadable card.
+An account can store 200 cards and 16 MiB of field values. A deleted card does not count. The limits come from the size of a card, which is a few kilobytes. A card with a large lorebook can reach a few hundred kilobytes.
+The card list shows the cloud state of each card: synced, waiting to upload, or refused by the server. A signed-in user also sees one line that tells that the cards sync to the account. A user without an account sees neither.
 
 ## Scope
 
@@ -74,6 +76,13 @@ A device that cannot read a card keeps the cards that it can read and does not d
 - A client module that compares, merges, and sends documents for any route of this shape.
 - The client runs after sign-in, after a card change, and when a window becomes visible. The `airi-card` store owns the runs, as the provider and chat stores own theirs. The synchronization leader executes one run at a time.
 - Before each request, a run checks that the account has not changed. A request reads the token when it starts, so an account change would otherwise send the documents of the old account to the new account.
+
+## Known limits
+
+- A field value is plain JSON. A card from another application can carry any content in `extensions`, and the client uploads it so that an imported card keeps its extensions on every device. The client does not filter it. A user must not put a secret in a card.
+- The account deletion removes the content in one transaction. A push that is already in flight can write content back before the account is gone. The handlers of other services have the same order, so this design keeps it.
+- A removed field leaves no row, so its revision is zero again. A device with a field revision of zero has never seen the field, and its new value is a new field. A device that has seen the field sends the old revision, and the server reports a conflict. No sequence of requests lets a device overwrite a revision that it has seen.
+- The server has no rate limit for these routes, and the list is not paginated.
 
 ## Non-goals
 
@@ -100,6 +109,8 @@ The character card routes are the reference.
 
 A push to a deleted document restores the document when the store accepts a field.
 A push that changes nothing is valid, so a client can send a push again after a lost response.
+A store with limits answers 413 with the code `STORAGE_LIMIT_EXCEEDED` when a push makes the account grow past a limit, and it writes nothing of that push. A push that does not grow the account always passes, so an account over its limit can still delete and shrink. The check runs under a lock for the account, so two requests cannot both take the last free slot.
+A client treats 400 and 413 for one document as a refusal of that document. The run goes on with the other documents, and the next run sends the refused document again. Other failures stop the run.
 A value must not be `null`. A missing field row represents an absent value.
 
 ## Module graph

@@ -63,6 +63,15 @@ describe('characterCardService', () => {
     expect(await db.select().from(schema.characterCards)).toEqual([])
   })
 
+  it('rejects the 201st card of an account and leaves the others', async () => {
+    const service = createCharacterCardService(db)
+    // One insert for 200 cards. The limit check is the behavior under test, not 200 pushes.
+    await db.insert(schema.characterCards).values(Array.from({ length: 200 }, (_, index) => ({ ownerId: 'owner', documentId: `card-${index}`, revision: 1 })))
+
+    await expect(service.push('owner', 'one-more', [{ key: '/name', baseRevision: 0, value: 'Luna' }])).rejects.toMatchObject({ statusCode: 413 })
+    await expect(service.push('other', 'first', [{ key: '/name', baseRevision: 0, value: 'Luna' }])).resolves.toMatchObject({ conflicts: [] })
+  })
+
   it('accepts the removal of a known field', async () => {
     const service = createCharacterCardService(db)
     await service.push('owner', 'card', [{ key: '/tags', baseRevision: 0, value: ['calm'] }, { key: '/name', baseRevision: 0, value: 'Luna' }])

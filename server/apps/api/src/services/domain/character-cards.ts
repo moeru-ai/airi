@@ -70,9 +70,16 @@ function assertCardFields(fields: PushedField[]) {
     throw createBadRequestError('Invalid card field', 'INVALID_REQUEST', invalid)
 }
 
+/**
+ * A card is a few kilobytes. A card with a large lorebook can reach a few
+ * hundred kilobytes. These limits leave room for heavy use and bound the
+ * storage of one account.
+ */
+const CARD_LIMITS = { maxDocuments: 200, maxBytes: 16 * 1024 * 1024 }
+
 /** Stores the character cards that a user synchronizes between devices. */
 export function createCharacterCardService(db: Database) {
-  return createFieldSyncStore(db, { documents: characterCards, fields: characterCardFields }, { validate: assertCardFields })
+  return createFieldSyncStore(db, { documents: characterCards, fields: characterCardFields }, { validate: assertCardFields, limits: CARD_LIMITS })
 }
 
 export type CharacterCardService = ReturnType<typeof createCharacterCardService>

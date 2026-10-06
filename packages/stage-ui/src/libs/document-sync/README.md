@@ -14,6 +14,7 @@ Synchronizes small documents of one user between devices. It resolves conflicts 
 
 - One user owns the documents and edits them on more than one device.
 - The documents are small. Each run reads all documents of the feature.
+- You set limits for the account (`limits` of `createFieldSyncStore`). A feature that stores more than a few megabytes for one account needs another design.
 
 ## When not to use it
 
@@ -28,7 +29,7 @@ Each feature owns its tables and its routes. The server and the client share onl
 Server, in `server/apps/api`:
 
 1. Declare two tables in the schema file of the feature, and generate the migration. Copy `server/apps/api/src/schemas/character-cards.ts` as the template. The tables need the columns of `FieldSyncTables` in `services/domain/field-sync/tables.ts`. The compiler rejects a table that misses one.
-2. Create the service with `createFieldSyncStore(db, { documents, fields }, { validate })`. Put every rule about the content in `validate`.
+2. Create the service with `createFieldSyncStore(db, { documents, fields }, { validate, limits })`. Put every rule about the content in `validate`.
 3. Write the routes of the feature. Call `list`, `push`, and `remove`, and parse the requests with `parseDocumentId`, `parsePushRequest`, and `parseDeleteRevision`.
 
 Client, in `packages/stage-ui`:
@@ -61,6 +62,7 @@ For a required value, store it in a field, or in another table that has the key 
 - `applyLocal` must write the local documents before it awaits anything. The run compares and writes in one task.
 - A field value must not be `null`. Omit the field.
 - Run one synchronization at a time for each feature and account.
+- `synchronize` returns the documents that the server refused with 400 or 413. Show the user that these documents stay on the device. The run does not stop for them.
 - `applyLocal` returns the ids of the documents that it could not apply, for example because the content is invalid. The run then keeps their sync state. Without it, the next run reads the missing document as a deletion and deletes the server copy.
 - A document that every device creates with the same id, such as the built-in character card, sends only its edits. `readLocal` leaves out the parts that equal the built-in content, and `applyLocal` adds them back. The built-in content can depend on the language of the device, so it must not leave the device.
 

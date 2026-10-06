@@ -1,6 +1,6 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
-import type { DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
+import type { DocumentFields, DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
@@ -9,10 +9,11 @@ import localeMessages from '@proj-airi/i18n/locales'
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers, useDocumentVisibility, watchDebounced } from '@vueuse/core'
+import { isEqual } from 'es-toolkit'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { array, looseObject, object, parse, safeParse, string } from 'valibot'
-import { computed, toRaw, watch } from 'vue'
+import { computed, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
@@ -20,7 +21,7 @@ import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts
 import { documentSyncRepo } from '../../database/repos/document-sync.repo'
 import { authedFetch } from '../../libs/auth-fetch'
 import { joinCard, splitCard } from '../../libs/character-card-sync'
-import { createDocumentSyncClient, synchronize } from '../../libs/document-sync'
+import { createDocumentSyncClient, syncedValues, synchronize } from '../../libs/document-sync'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
@@ -36,6 +37,12 @@ import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
 
 export type { AiriCard, AiriExtension } from '../../types/airiCard'
+
+/**
+ * Where a card stands with the account. `refused` means that the server does
+ * not accept the card, for example because the account is over its storage limit.
+ */
+export type CardSyncState = 'synced' | 'pending' | 'refused'
 
 /** The route of the server that stores the cards. */
 const CARDS_PATH = '/api/v1/character-cards'
@@ -542,6 +549,31 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return [...new Set([current.description, ...builtInDescriptions])].map(description => ({ ...current, description }))
   })
 
+  // The leader writes these after each run. Every window reads them to show the cloud state of a card.
+  /** The parts that the server accepted, by card id. */
+  const syncedCardFields = ref<Record<string, DocumentFields>>({})
+  /** The cards that the server refused in the last run. */
+  const refusedCardIds = ref<string[]>([])
+
+  /**
+   * The cloud state of each card. It is empty without an account, because
+   * nothing leaves the device then. Before the first run ends, every card with
+   * content to send is `pending`.
+   */
+  const cardSyncStates = computed(() => {
+    const states: Record<string, CardSyncState> = {}
+    if (userId.value === 'local')
+      return states
+
+    for (const [id, card] of cards.value) {
+      if (refusedCardIds.value.includes(id))
+        states[id] = 'refused'
+      else
+        states[id] = isEqual(splitCard(toRaw(card), id === 'default' ? builtInVariants.value : []), syncedCardFields.value[id] ?? {}) ? 'synced' : 'pending'
+    }
+    return states
+  })
+
   /**
    * Applies the card changes of one synchronization run to this renderer.
    *
@@ -596,6 +628,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   let syncClient: DocumentSyncClient | undefined
+  /** The account that `syncedCardFields` belongs to. Only the leader sets it. */
+  let syncedOwnerId: string | undefined
   let activeSynchronization: Promise<void> | undefined
   let hasQueuedSynchronization = false
 
@@ -640,7 +674,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
-    await synchronize({
+    // The cloud state of the earlier account does not describe this account.
+    if (syncedOwnerId !== ownerId) {
+      syncedOwnerId = ownerId
+      syncedCardFields.value = {}
+      refusedCardIds.value = []
+    }
+
+    const { state, refused } = await synchronize({
       client: syncClient,
       state: await documentSyncRepo.getState(SYNC_STATE_NAME, ownerId) ?? { documents: {} },
       // The new account starts its own run from the `userId` watcher.
@@ -657,6 +698,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
         return { rejected }
       },
     })
+
+    if (userId.value !== ownerId)
+      return
+    syncedCardFields.value = syncedValues(state)
+    refusedCardIds.value = refused
+    if (refused.length > 0)
+      console.warn('[character-card-sync] The server refused these cards. They stay on this device:', refused)
   }
 
   async function requestCardSynchronization() {
@@ -801,6 +849,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeCard,
     activeCardId,
     builtInCard,
+    // A setup store replicates only the refs that it returns, so these two must be part of the result.
+    syncedCardFields,
+    refusedCardIds,
+    cardSyncStates,
     applySynchronizedCards,
     synchronizeCards,
     addCard,

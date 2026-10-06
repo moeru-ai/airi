@@ -1,6 +1,7 @@
 import type { DocumentSyncClient } from './client'
 import type { ConflictCopy, DocumentFields, SyncState } from './reconcile'
 
+import { DocumentSyncRequestError } from './client'
 import { applyPushResult, reconcile } from './reconcile'
 
 /**
@@ -30,6 +31,22 @@ export interface AppliedLocalChanges {
   rejected: string[]
 }
 
+export interface SynchronizeResult {
+  /** The sync state at the end of the run. It holds what the server accepted. */
+  state: SyncState
+  /**
+   * The documents that the server refused, for example because the account is
+   * over its storage limit. Their content stays on this device, and the run
+   * goes on with the other documents. The next run sends them again.
+   */
+  refused: string[]
+}
+
+/** A 400 or 413 answer means that the server refuses this content. Other failures can pass, so the run stops and the next run tries again. */
+function isRefusal(error: unknown) {
+  return error instanceof DocumentSyncRequestError && (error.status === 400 || error.status === 413)
+}
+
 export interface SynchronizeOptions {
   client: DocumentSyncClient
   /** The sync state of the account at the start of the run. */
@@ -57,19 +74,21 @@ export interface SynchronizeOptions {
  * the local changes. The function throws on a network error. The saved sync
  * state stays valid, so the next run sends the same changes again.
  */
-export async function synchronize(options: SynchronizeOptions) {
+export async function synchronize(options: SynchronizeOptions): Promise<SynchronizeResult> {
   const { client, isCurrent } = options
   let state = options.state
+  const refused = new Set<string>()
+  const outcome = (): SynchronizeResult => ({ state, refused: [...refused] })
 
   // A request reads the token when it starts, so every request needs its own
   // check. A sign-out or an account change during an earlier await would
   // otherwise send the documents of the old account to the new account.
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     if (!isCurrent())
-      return
+      return outcome()
     const remote = await client.list()
     if (!isCurrent())
-      return
+      return outcome()
 
     // No `await` between `readLocal` and the document write in `applyLocal`. A
     // local edit in between would be overwritten by the planned content.
@@ -95,10 +114,19 @@ export async function synchronize(options: SynchronizeOptions) {
 
     for (const push of plan.pushes) {
       if (!isCurrent())
-        return
-      const result = await client.push(push.documentId, push.fields)
+        return outcome()
+      let result
+      try {
+        result = await client.push(push.documentId, push.fields)
+      }
+      catch (error) {
+        if (!isRefusal(error))
+          throw error
+        refused.add(push.documentId)
+        continue
+      }
       if (!isCurrent())
-        return
+        return outcome()
       state = applyPushResult(state, push, result)
       // The state keeps an older document revision when the document has a field from another device
       // that this run has not merged. Another round reads that field.
@@ -109,10 +137,10 @@ export async function synchronize(options: SynchronizeOptions) {
 
     for (const { documentId, revision } of plan.deletions) {
       if (!isCurrent())
-        return
+        return outcome()
       const deleted = await client.remove(documentId, revision)
       if (!isCurrent())
-        return
+        return outcome()
       if (deleted) {
         const { [documentId]: _deleted, ...remaining } = state.documents
         state = { documents: remaining }
@@ -123,6 +151,8 @@ export async function synchronize(options: SynchronizeOptions) {
 
     await options.saveState(state)
     if (!needsAnotherRound)
-      return
+      return outcome()
   }
+
+  return outcome()
 }

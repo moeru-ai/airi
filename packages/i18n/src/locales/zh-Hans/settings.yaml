@@ -347,6 +347,11 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
   card:
     sync:
+      notice: 登录后，你的角色卡会同步到账号。当前选中的角色只保留在这台设备。
+      state:
+        synced: 已同步到账号
+        pending: 等待上传
+        refused: 未上传。账号里没有空间再存角色卡，这张卡只保留在这台设备。
       conflict_copy_name: '{name}（冲突副本）'
       conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
     activate: 激活

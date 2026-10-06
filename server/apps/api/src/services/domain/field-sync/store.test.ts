@@ -192,6 +192,63 @@ describe('fieldSyncStore', () => {
     expect(row).toMatchObject({ contentHash: 'abc', sizeBytes: 12, revision: 3 })
   })
 
+  describe('limits', () => {
+    const pushTo = (limited: FieldSyncStore, documentId: string, value: unknown, ownerId = 'owner') =>
+      limited.push(ownerId, documentId, [{ key: '/value', baseRevision: 0, value }])
+
+    it('rejects a push that adds a document past the limit and writes nothing', async () => {
+      const limited = createFieldSyncStore(db, { documents, fields }, { limits: { maxDocuments: 2, maxBytes: 1000 } })
+      await pushTo(limited, 'a', 'x')
+      await pushTo(limited, 'b', 'x')
+
+      await expect(pushTo(limited, 'c', 'x')).rejects.toMatchObject({ statusCode: 413, errorCode: 'STORAGE_LIMIT_EXCEEDED' })
+
+      expect((await limited.list('owner')).documents.map(document => document.id)).toEqual(['a', 'b'])
+    })
+
+    it('does not count a deleted document, and counts the account of one owner only', async () => {
+      const limited = createFieldSyncStore(db, { documents, fields }, { limits: { maxDocuments: 1, maxBytes: 1000 } })
+      await pushTo(limited, 'a', 'x')
+      await limited.remove('owner', 'a', 1)
+
+      await pushTo(limited, 'b', 'x')
+      await pushTo(limited, 'a', 'x', 'other')
+
+      await expect(pushTo(limited, 'c', 'x')).rejects.toMatchObject({ statusCode: 413 })
+    })
+
+    it('rejects a push that grows the stored bytes past the limit', async () => {
+      const limited = createFieldSyncStore(db, { documents, fields }, { limits: { maxDocuments: 10, maxBytes: 100 } })
+      await pushTo(limited, 'a', 'x'.repeat(60))
+
+      await expect(pushTo(limited, 'b', 'y'.repeat(60))).rejects.toMatchObject({ statusCode: 413 })
+      await expect(limited.push('owner', 'a', [{ key: '/value', baseRevision: 1, value: 'z'.repeat(120) }])).rejects.toMatchObject({ statusCode: 413 })
+
+      expect((await limited.list('owner')).documents).toHaveLength(1)
+      expect((await limited.list('owner')).documents[0].fields[0].value).toBe('x'.repeat(60))
+    })
+
+    // An account can be over a limit after the limit was lowered. It must still be able to shrink.
+    it('lets an account over its limit delete and shrink', async () => {
+      const roomy = createFieldSyncStore(db, { documents, fields }, { limits: { maxDocuments: 10, maxBytes: 1000 } })
+      await pushTo(roomy, 'a', 'x'.repeat(200))
+      await pushTo(roomy, 'b', 'x')
+      const strict = createFieldSyncStore(db, { documents, fields }, { limits: { maxDocuments: 1, maxBytes: 100 } })
+
+      await expect(pushTo(strict, 'c', 'x')).rejects.toMatchObject({ statusCode: 413 })
+      await strict.push('owner', 'a', [{ key: '/value', baseRevision: 1, value: 'small' }])
+      await strict.remove('owner', 'b', 1)
+
+      expect((await strict.list('owner')).documents.find(document => document.id === 'a')?.fields[0].value).toBe('small')
+    })
+
+    it('does not check a store without limits', async () => {
+      await push([{ key: '/value', baseRevision: 0, value: 'x'.repeat(10_000) }])
+
+      expect(await list()).toHaveLength(1)
+    })
+  })
+
   it('removes the content of a deleted account', async () => {
     await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
     await push([{ key: '/name', baseRevision: 0, value: 'Kept' }], 'other')

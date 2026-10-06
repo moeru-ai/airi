@@ -75,6 +75,11 @@ function valuesOf(document: SyncedDocument): DocumentFields {
   return Object.fromEntries(Object.entries(document.fields).map(([key, field]) => [key, field.value]))
 }
 
+/** The parts that the server last accepted, by document id. */
+export function syncedValues(state: SyncState): Record<string, DocumentFields> {
+  return Object.fromEntries(Object.entries(state.documents).map(([documentId, document]) => [documentId, valuesOf(document)]))
+}
+
 function pushAll(documentId: string, local: DocumentFields): DocumentPush {
   return { documentId, fields: Object.entries(local).map(([key, value]) => ({ key, baseRevision: 0, value })) }
 }

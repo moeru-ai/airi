@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Alert } from '@proj-airi/stage-ui/components'
 import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { InputFileCard } from '@proj-airi/ui'
@@ -20,7 +21,8 @@ const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
-const { cards, activeCardId } = storeToRefs(cardStore)
+const { cards, activeCardId, cardSyncStates } = storeToRefs(cardStore)
+const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const route = useRoute()
 const router = useRouter()
@@ -223,6 +225,12 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
 <template>
   <div rounded-xl p-4 flex="~ col gap-4">
+    <!-- Disclosure: signed-in users upload their cards -->
+    <p v-if="isAuthenticated" flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
+      <span i-solar:cloud-check-outline shrink-0 />
+      {{ t('settings.pages.card.sync.notice') }}
+    </p>
+
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>
       <!-- Search bar -->
@@ -305,6 +313,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           :version="getVersionNumber(item.id)"
           :consciousness-model="getModuleShortName(item.id, 'consciousness')"
           :voice-model="getModuleShortName(item.id, 'voice')"
+          :sync-state="cardSyncStates[item.id]"
           @select="handleSelectCard(item.id)"
           @activate="activateCard(item.id)"
           @delete="confirmDelete(item.id)"

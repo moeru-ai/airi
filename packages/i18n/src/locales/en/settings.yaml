@@ -373,6 +373,11 @@ pages:
           fallback: Could not start deletion. Try again later.
   card:
     sync:
+      notice: When you are signed in, your character cards sync to your account. The selected character stays on this device.
+      state:
+        synced: Synced to your account
+        pending: Waiting to upload
+        refused: Not uploaded. Your account has no room for more cards, so this card stays on this device.
       conflict_copy_name: '{name} (conflict copy)'
       conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
     activate: Activate

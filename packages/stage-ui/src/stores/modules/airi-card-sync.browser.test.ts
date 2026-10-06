@@ -39,6 +39,8 @@ interface ServerDocument {
 function createFakeCardServer() {
   const documents = new Map<string, ServerDocument>()
   const requests = { list: 0, push: 0 }
+  /** The cards that the server refuses, as it does when the account has no room left. */
+  const refusing = new Set<string>()
 
   function toWire() {
     return {
@@ -57,6 +59,8 @@ function createFakeCardServer() {
 
     if (init?.method === 'PUT') {
       requests.push += 1
+      if (refusing.has(id))
+        return new Response(null, { status: 413, statusText: 'Payload Too Large' })
       const { fields } = JSON.parse(String(init.body)) as { fields: Array<{ key: string, value: unknown }> }
       const document = documents.get(id) ?? { revision: 0, fields: new Map() }
       document.revision += 1
@@ -73,6 +77,7 @@ function createFakeCardServer() {
   return {
     documents,
     requests,
+    refusing,
     fetchCards,
     /** Stores a card as another device would. */
     seed(id: string, fields: Record<string, unknown>) {
@@ -187,6 +192,43 @@ describe('card synchronization across windows', () => {
     // replaceState is the plugin's follower-to-leader proposal RPC. A received
     // snapshot must not call it, even when the follower watches the cards.
     expect(traffic.mock.calls.filter(([message]) => JSON.stringify(message).includes('replaceState'))).toHaveLength(0)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('shows the cloud state of each card in every window', async () => {
+    const { leader, follower } = await createWindows()
+    expect(follower.cards.cardSyncStates).toEqual({})
+    signIn(leader.auth, accountId())
+    await expect.poll(() => follower.auth.userId).toBe(leader.auth.userId)
+
+    const cardId = await follower.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await expect.poll(() => follower.cards.cardSyncStates[cardId]).toBe('pending')
+    await expect.poll(() => follower.cards.cardSyncStates[cardId], { timeout: 8000 }).toBe('synced')
+    // The built-in card has no edit, so it has nothing to send.
+    expect(follower.cards.cardSyncStates.default).toBe('synced')
+
+    await follower.cards.updateCard(cardId, { ...follower.cards.cards.get(cardId)!, name: 'Nova' })
+    await expect.poll(() => follower.cards.cardSyncStates[cardId]).toBe('pending')
+    await expect.poll(() => follower.cards.cardSyncStates[cardId], { timeout: 8000 }).toBe('synced')
+  })
+
+  // The server answers 413 for a card when the account is full. The card must
+  // not hold back the cards after it, and the window must tell the user.
+  it('marks a card that the server refuses and still sends the other cards', async () => {
+    const { leader, follower, onError } = await createWindows()
+    signIn(leader.auth, accountId())
+    await expect.poll(() => follower.auth.userId).toBe(leader.auth.userId)
+    const refusedId = await leader.cards.addCard({ name: 'Too much', version: '1.0.0' }, 'scratch')
+    const acceptedId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    server.refusing.add(refusedId)
+
+    await leader.cards.synchronizeCards()
+
+    await expect.poll(() => follower.cards.cardSyncStates[refusedId]).toBe('refused')
+    expect(follower.cards.cardSyncStates[acceptedId]).toBe('synced')
+    expect(server.documents.has(acceptedId)).toBe(true)
+    expect(server.documents.has(refusedId)).toBe(false)
+    expect(follower.cards.cards.get(refusedId)?.name).toBe('Too much')
     expect(onError).not.toHaveBeenCalled()
   })
 

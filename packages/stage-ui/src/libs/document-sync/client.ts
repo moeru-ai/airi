@@ -30,6 +30,14 @@ export type PushField
   = | { key: string, baseRevision: number, value: unknown }
     | { key: string, baseRevision: number, removed: true }
 
+/** The server answered with a status that the client does not accept for the request. */
+export class DocumentSyncRequestError extends Error {
+  constructor(readonly status: number, statusText: string) {
+    super(`HTTP ${status}: ${statusText}`)
+    this.name = 'DocumentSyncRequestError'
+  }
+}
+
 export interface CreateDocumentSyncClientOptions {
   /** Base server URL, for example `https://api.airi.build`. */
   serverUrl: string
@@ -70,7 +78,7 @@ export function createDocumentSyncClient(options: CreateDocumentSyncClientOption
 
     const response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(requestTimeoutMs) })
     if (!response.ok && !expectedStatuses.includes(response.status))
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      throw new DocumentSyncRequestError(response.status, response.statusText)
     return response
   }
 
