@@ -42,6 +42,11 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
       && providerModels.value.find(model => model.id === activeModel.value)?.reasoning?.mandatory === true
   })
 
+  const activeModelUsesProviderReasoningDefault = computed(() => {
+    return isOpenRouterProvider(activeProvider.value)
+      && !providerModels.value.some(model => model.id === activeModel.value)
+  })
+
   const isLoadingActiveProviderModels = computed(() => {
     return providersStore.isLoadingModels[activeProvider.value] || false
   })
@@ -126,7 +131,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     const selectedModel = providerModels.value.find(model => model.id === activeModel.value)
     const useProviderReasoningDefault = provider === activeProvider.value
       && isOpenRouterProvider(provider)
-      && (!selectedModel || selectedModel.reasoning?.mandatory === true)
+      && (activeModelUsesProviderReasoningDefault.value || selectedModel?.reasoning?.mandatory === true)
 
     // OpenRouter applies the model default when reasoning is mandatory or unknown.
     if (useProviderReasoningDefault) {
@@ -174,6 +179,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     supportsModelListing,
     providerModels,
     activeModelRequiresReasoning,
+    activeModelUsesProviderReasoningDefault,
     isLoadingActiveProviderModels,
     activeProviderModelError,
     filteredModels,
