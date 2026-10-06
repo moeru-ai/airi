@@ -39,6 +39,7 @@ const ANDROID_PLUGIN_SOURCE = """package ai.moeru.airi.kirie;
 
 import android.app.Activity;
 import android.app.AlarmManager;
+import android.app.AlertDialog;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -65,6 +66,7 @@ import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
+import android.webkit.JsResult;
 import android.webkit.MimeTypeMap;
 import android.webkit.PermissionRequest;
 import android.webkit.SslErrorHandler;
@@ -484,6 +486,34 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
             webView.getSettings().setSupportMultipleWindows(true);
             webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public boolean onJsAlert(
+                    WebView source,
+                    String url,
+                    String message,
+                    JsResult result
+                ) {
+                    if (activity.isFinishing()) {
+                        return true;
+                    }
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(source.getContext());
+                    builder
+                        .setMessage(message)
+                        .setPositiveButton("OK", (dialog, buttonIndex) -> {
+                            dialog.dismiss();
+                            result.confirm();
+                        })
+                        .setOnCancelListener(dialog -> {
+                            dialog.dismiss();
+                            result.cancel();
+                        });
+
+                    AlertDialog dialog = builder.create();
+                    dialog.show();
+                    return true;
+                }
+
                 @Override
                 public void onPermissionRequest(final PermissionRequest request) {
                     List<String> permissionList = new ArrayList<>();

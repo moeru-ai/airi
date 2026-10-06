@@ -13,6 +13,17 @@ Kirie copies Capacitor 8.5.0's WebSettings values before it reloads the renderer
 | Media playback user gesture | Not required |
 | Automatic JavaScript windows | Enabled |
 
+## JavaScript dialog callbacks
+
+Kirie copies Capacitor 8.5.0's native dialog callbacks.
+
+| Dialog | Callback behavior |
+| --- | --- |
+| Alert | OK confirms. Back or outside dismissal cancels. |
+
+If the Activity finishes, Capacitor returns `true` and does not resolve the JavaScript result.
+Kirie preserves this behavior.
+
 ## External navigation
 
 Capacitor 8.5.0 supplies the reference through `BridgeWebViewClient.shouldOverrideUrlLoading` and `Bridge.launchIntent`.
