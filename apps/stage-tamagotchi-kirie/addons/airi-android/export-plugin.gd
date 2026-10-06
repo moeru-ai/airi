@@ -17,8 +17,14 @@ const NIGHT_RESOURCES = """<?xml version="1.0" encoding="utf-8"?>
 const ANDROID_PLUGIN_SOURCE = """package ai.moeru.airi.kirie;
 
 import android.app.Activity;
+import android.app.AlarmManager;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.ComponentCallbacks;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -37,6 +43,7 @@ import android.webkit.WebView;
 import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
+import androidx.core.app.NotificationCompat;
 
 import com.outsystems.plugins.barcode.controller.OSBARCController;
 import com.outsystems.plugins.barcode.model.OSBARCScanParameters;
@@ -68,6 +75,14 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         "eventa:invoke:airi:android:permission:open-settings-send";
     private static final String SCAN_BARCODE_EVENT =
         "eventa:invoke:airi:android:barcode:scan-send";
+    private static final String SCHEDULE_NOTIFICATION_EVENT =
+        "eventa:invoke:airi:android:notification:schedule-send";
+    private static final String NOTIFICATION_ACTION =
+        "ai.moeru.airi.kirie.action.SHOW_NOTIFICATION";
+    private static final String NOTIFICATION_CHANNEL_ID = "default";
+    private static final String NOTIFICATION_EXTRA_BODY = "body";
+    private static final String NOTIFICATION_EXTRA_ID = "id";
+    private static final String NOTIFICATION_EXTRA_TITLE = "title";
     private static final String NOTIFICATIONS = "notifications";
     private static final String MICROPHONE = "microphone";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
@@ -85,6 +100,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private final Map<String, PendingEventaRequest> pendingPermissionRequests =
         new HashMap<>();
     private PendingEventaRequest pendingBarcodeScan;
+    private PendingNotificationSchedule pendingNotificationSchedule;
 
     public AiriAndroidPlugin(Godot godot) {
         super(godot);
@@ -129,6 +145,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         browserWebView = null;
         pendingPermissionRequests.clear();
         pendingBarcodeScan = null;
+        pendingNotificationSchedule = null;
     }
 
     @Override
@@ -193,6 +210,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     @Override
     public void onMainResume() {
         applySystemBarStyle(getActivity());
+        resumePendingNotificationSchedule();
     }
 
     @Override
@@ -345,6 +363,16 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 );
                 return;
             }
+            if (SCHEDULE_NOTIFICATION_EVENT.equals(event)) {
+                scheduleNotification(
+                    new PendingEventaRequest(event, invokeId, replyProxy),
+                    content.getInt("id"),
+                    content.getString("title"),
+                    content.getString("body"),
+                    content.getLong("at")
+                );
+                return;
+            }
 
             String permission = content.getString("permission");
 
@@ -408,6 +436,83 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         activity.runOnUiThread(() -> barcodeController.scanCode(activity, parameters));
     }
 
+    private void scheduleNotification(
+        PendingEventaRequest request,
+        int id,
+        String title,
+        String body,
+        long at
+    ) {
+        Activity activity = getActivity();
+        if (activity == null) {
+            return;
+        }
+
+        PendingNotificationSchedule schedule = new PendingNotificationSchedule(
+            request,
+            id,
+            title,
+            body,
+            at
+        );
+        AlarmManager alarmManager = activity.getSystemService(AlarmManager.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            && !alarmManager.canScheduleExactAlarms()) {
+            pendingNotificationSchedule = schedule;
+            activity.runOnUiThread(() -> activity.startActivity(
+                new Intent(
+                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    Uri.parse("package:" + activity.getPackageName())
+                )
+            ));
+            return;
+        }
+
+        scheduleNotificationAlarm(activity, alarmManager, schedule);
+        sendEventaResponse(request, JSONObject.NULL);
+    }
+
+    private void resumePendingNotificationSchedule() {
+        Activity activity = getActivity();
+        PendingNotificationSchedule schedule = pendingNotificationSchedule;
+        if (activity == null || schedule == null) {
+            return;
+        }
+
+        AlarmManager alarmManager = activity.getSystemService(AlarmManager.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            && !alarmManager.canScheduleExactAlarms()) {
+            return;
+        }
+
+        pendingNotificationSchedule = null;
+        scheduleNotificationAlarm(activity, alarmManager, schedule);
+        sendEventaResponse(schedule.request, JSONObject.NULL);
+    }
+
+    private void scheduleNotificationAlarm(
+        Context context,
+        AlarmManager alarmManager,
+        PendingNotificationSchedule schedule
+    ) {
+        Intent intent = new Intent(context, NotificationReceiver.class)
+            .setAction(NOTIFICATION_ACTION)
+            .putExtra(NOTIFICATION_EXTRA_ID, schedule.id)
+            .putExtra(NOTIFICATION_EXTRA_TITLE, schedule.title)
+            .putExtra(NOTIFICATION_EXTRA_BODY, schedule.body);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            context,
+            schedule.id,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        alarmManager.setExactAndAllowWhileIdle(
+            AlarmManager.RTC_WAKEUP,
+            schedule.at,
+            pendingIntent
+        );
+    }
+
     private void sendEventaResponse(PendingEventaRequest request, Object content) {
         try {
             String responseEvent = request.event.replace("-send", "-receive")
@@ -449,6 +554,68 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             this.event = event;
             this.invokeId = invokeId;
             this.replyProxy = replyProxy;
+        }
+    }
+
+    private static final class PendingNotificationSchedule {
+        private final PendingEventaRequest request;
+        private final int id;
+        private final String title;
+        private final String body;
+        private final long at;
+
+        private PendingNotificationSchedule(
+            PendingEventaRequest request,
+            int id,
+            String title,
+            String body,
+            long at
+        ) {
+            this.request = request;
+            this.id = id;
+            this.title = title;
+            this.body = body;
+            this.at = at;
+        }
+    }
+
+    public static final class NotificationReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!NOTIFICATION_ACTION.equals(intent.getAction())) {
+                return;
+            }
+
+            int id = intent.getIntExtra(NOTIFICATION_EXTRA_ID, 0);
+            NotificationManager manager = context.getSystemService(NotificationManager.class);
+            NotificationChannel channel = new NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "Default",
+                NotificationManager.IMPORTANCE_DEFAULT
+            );
+            channel.setDescription("hasDescription");
+            manager.createNotificationChannel(channel);
+
+            Intent launchIntent = context.getPackageManager()
+                .getLaunchIntentForPackage(context.getPackageName());
+            PendingIntent contentIntent = PendingIntent.getActivity(
+                context,
+                id,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
+            NotificationCompat.Builder notification = new NotificationCompat.Builder(
+                context,
+                NOTIFICATION_CHANNEL_ID
+            )
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle(intent.getStringExtra(NOTIFICATION_EXTRA_TITLE))
+                .setContentText(intent.getStringExtra(NOTIFICATION_EXTRA_BODY))
+                .setContentIntent(contentIntent)
+                .setAutoCancel(true)
+                .setOnlyAlertOnce(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT);
+            manager.notify(id, notification.build());
         }
     }
 
@@ -545,6 +712,14 @@ func _get_android_manifest_application_element_contents(_platform: EditorExportP
         <meta-data
             android:name="org.godotengine.plugin.v2.AiriAndroid"
             android:value="ai.moeru.airi.kirie.AiriAndroidPlugin" />
+        <receiver
+            android:name="ai.moeru.airi.kirie.AiriAndroidPlugin$NotificationReceiver"
+            android:exported="false" />
+"""
+
+func _get_android_manifest_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
+	return """
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 """
 
 func write_build_file(relative_path: String, content: String) -> void:
