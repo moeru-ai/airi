@@ -13,6 +13,7 @@ import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
 import { useSpeechStore } from '../stores/modules/speech'
+import { useStickersStore } from '../stores/modules/stickers'
 import { useTwitterStore } from '../stores/modules/twitter'
 import { useVisionStore } from '../stores/modules/vision'
 import { useWebSearchStore } from '../stores/modules/web-search'
@@ -35,6 +36,7 @@ export function useModulesList() {
   // Initialize stores
   const consciousnessStore = useConsciousnessStore()
   const speechStore = useSpeechStore()
+  const stickersStore = useStickersStore()
   const hearingStore = useHearingStore()
   const visionStore = useVisionStore()
   const discordStore = useDiscordStore()
@@ -83,6 +85,15 @@ export function useModulesList() {
       icon: 'i-solar:eye-closed-bold-duotone',
       to: '/settings/modules/vision',
       configured: visionStore.configured,
+      category: 'essential',
+    },
+    {
+      id: 'stickers',
+      name: t('settings.pages.modules.stickers.title'),
+      description: t('settings.pages.modules.stickers.description'),
+      icon: 'i-solar:sticker-smile-circle-bold-duotone',
+      to: '/settings/modules/stickers',
+      configured: stickersStore.enabled,
       category: 'essential',
     },
     {

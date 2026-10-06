@@ -50,6 +50,8 @@ dialogs:
     loginPrompt: Sign in to use the official AIRI provider for the best experience.
     loginAction: Sign in
     setupWithoutSigningIn: Setup with your provider
+    pricingLink: Pricing
+    termsLink: Terms of Service
     flux: Flux
     buyFlux: Charge Flux
     select-model: Choose model
@@ -911,6 +913,74 @@ pages:
       access-token-secret-description: Your X / Twitter access token secret
       access-token-secret-placeholder: Enter your X / Twitter access token secret
       configured: X / Twitter is properly configured!
+    stickers:
+      frequency: Sticker frequency
+      frequency-description: Allow stickers in this percentage of replies. The character still decides whether a sticker fits.
+      frequency-options:
+        25: Occasionally (25%)
+        50: Sometimes (50%)
+        75: Often (75%)
+        100: Whenever appropriate (100%)
+      title: Stickers
+      description: Add optional image reactions to chat replies
+      enable: Enable stickers
+      enable-description: Let the character choose one sticker per eligible reply based on its name and emotion tags.
+      local-only: Images stay on this device. Cloud chat sync currently transfers text only.
+      catalog: Available stickers
+      unavailable: Sticker unavailable
+      import: 'Import image'
+      editor: 'Sticker editor'
+      image: 'Image'
+      replace: 'Replace image (optional)'
+      image-limits: 'PNG, JPG, WebP, or GIF. Maximum 2 MB and 4096 × 4096 pixels.'
+      choose-file: 'Choose an image'
+      preview: 'Sticker preview'
+      name: 'Name'
+      name-limit: 'Use 1–80 characters. The model reads this name.'
+      emotions: 'Emotion tags'
+      save: 'Save sticker'
+      cancel: 'Cancel'
+      edit: 'Edit'
+      delete: 'Delete'
+      confirm-delete: 'Confirm delete'
+      empty: 'Your library is empty. Import an image to add a sticker.'
+      history-note: 'Deleting or replacing a sticker affects future replies. Saved and already prepared replies keep their original image.'
+      saved-image: 'Saved sticker'
+      errors:
+        name: 'Enter a name with 1–80 characters.'
+        emotions: 'Choose at least one valid emotion tag.'
+        format: 'Choose a PNG, JPG, WebP, or GIF image.'
+        size: 'Choose an image smaller than 2 MB.'
+        image: 'This image cannot be opened. Choose another file.'
+        dimensions: 'Choose an image no larger than 4096 × 4096 pixels.'
+        missing: 'This sticker was deleted in another window.'
+        storage: 'The sticker library could not be saved or loaded. Try again.'
+      emotion-labels:
+        happy: 'Happy'
+        sad: 'Sad'
+        confused: 'Confused'
+        surprised: 'Surprised'
+        thanks: 'Thanks'
+        celebrate: 'Celebration'
+        angry: 'Angry'
+        tired: 'Tired'
+        affectionate: 'Affection'
+        awkward: 'Awkward'
+        agree: 'Agree'
+        disagree: 'Disagree'
+      artwork:
+        airi-happy: Happy
+        airi-sad: Sad
+        airi-confused: Confused
+        airi-surprised: Surprised
+        airi-thanks: Thank you
+        airi-celebrate: Celebration
+        airi-angry: Angry
+        airi-tired: Tired
+        airi-affectionate: Love
+        airi-awkward: Awkward
+        airi-agree: Yes
+        airi-disagree: No thanks
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
@@ -1008,6 +1078,8 @@ pages:
     buy: Charge
     currency: Currency
     description: Current Flux
+    terms: Terms
+    privacy: Privacy Policy
     packagesError: Failed to load packages. Please try again later.
     checkout:
       success: Payment successful! Your Flux has been topped up.
@@ -1522,6 +1594,16 @@ pages:
         title: MiniMax Global
       minimax-speech:
         description: minimax.io
+        errors:
+          provider-initialization-failed: Failed to initialize the MiniMax speech provider.
+        fields:
+          field:
+            model:
+              description: Select the MiniMax TTS model to use for speech generation.
+              label: Model
+              placeholder: Select a MiniMax model...
+        playground:
+          default-text: Hello! This is a test of MiniMax speech synthesis.
         title: MiniMax Speech
       mimo:
         description: api.xiaomimimo.com
@@ -1693,6 +1775,20 @@ pages:
         title: QR scan failed
         failed: Failed to scan or connect with the QR code.
   system:
+    experimental:
+      refresh: Refresh policies
+      title: Experimental Features
+      description: Try features in development and manage your choices.
+      notice: Experimental features can change or be removed. Your choices apply to this device.
+      empty-title: No experiments available
+      load-error: Cloud features are unavailable. Local features remain available.
+      retry: Retry
+      reset: Use default
+      sources:
+        default: App default
+        local: Your device choice
+        global: Available to signed-in accounts
+        account: Available to your account
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme

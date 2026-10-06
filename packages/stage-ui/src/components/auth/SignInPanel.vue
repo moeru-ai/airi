@@ -7,6 +7,8 @@ import { computed } from 'vue'
 
 import Alert from '../misc/alert.vue'
 
+import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '../../constants/public-links'
+
 const props = withDefaults(defineProps<{
   title?: string
   subtitle?: string
@@ -23,9 +25,6 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{
   select: [provider: OAuthProvider]
 }>()
-
-const termsHref = 'https://airi.moeru.ai/docs/en/about/terms'
-const privacyHref = 'https://airi.moeru.ai/docs/en/about/privacy'
 
 const hasProviders = computed(() => props.providers.length > 0)
 
@@ -113,11 +112,11 @@ function handleSelect(provider: OAuthProvider) {
 
       <footer :class="['text-xs leading-5 text-neutral-500 dark:text-neutral-400']">
         By continuing, you agree to our
-        <a :href="termsHref" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
+        <a :href="AIRI_TERMS_URL" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
           Terms
         </a>
         and
-        <a :href="privacyHref" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
+        <a :href="AIRI_PRIVACY_URL" :class="['font-medium text-neutral-700 underline-offset-4 hover:underline dark:text-neutral-200']">
           Privacy Policy
         </a>
         .

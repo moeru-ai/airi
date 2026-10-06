@@ -2,6 +2,30 @@
 
 Shared core for stage
 
+## Experimental features
+
+Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
+Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.
+Cloud decides whether each granted Cloud flag allows account opt-in or uses direct control. Client registrations do not duplicate this mode.
+`cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They start disabled and retain choices per account on this device.
+`cloud-controlled` flags follow Cloud grants directly and never expose a switch.
+Missing Cloud grants disable Cloud features. Refresh failures and account changes clear grants, not local choices.
+`useCloudFetch()` in `composables/cloud.ts` shares the Cloud origin and authenticated fetch boundary. The store reads `GET /v1/feature-flags`.
+Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
+Keep authorization checks on the server.
+
+## Message times
+
+Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
+Timestamps use stored message times, the interface locale, and the device timezone. Messages without valid timestamps have no separator.
+Today's separators show only the time. Yesterday and the day before use relative labels.
+Older separators show the month and day. Dates outside the current year also show the year.
+Click a separator to toggle its full date and time. Relative labels refresh every minute while the history is open.
+`date-fns` handles calendar comparisons and localized formatting through `intlFormat` and `intlFormatDistance`.
+The session list displays and sorts by the latest valid user or assistant message timestamp.
+Sessions without dated conversation messages use their creation time. Loading messages updates the list from the stored history.
+Saving or synchronizing a session does not change its displayed activity time unless its messages change.
+
 ## Startup progress
 
 `useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
@@ -155,3 +179,36 @@ microphone failures to chat history.
 The component supports reduced motion. Desktop users can enable Streamer mode in
 General settings to hide these overlays without stopping microphone input or sign-in.
 Streamer mode is off by default.
+
+## Chat stickers
+
+Open **Settings → Modules → Stickers**, then enable stickers. This preference is off by default and applies to this device.
+Select a frequency: 25%, 50%, 75%, or 100%. The default is 50% when enabled.
+The percentage controls reply eligibility. It does not force an image or guarantee an exact observed ratio.
+The model selects one catalog ID from the image names and emotion tags. No separate emotion classifier runs.
+Each prepared or queued request retains its catalog, provider, prompt, and eligibility.
+No extra provider, API request, character card, or memory module is required.
+
+### Manage the library
+
+Import a PNG, JPG, WebP, or GIF image. Files must decode successfully and remain within 2 MB and 4096 × 4096 pixels.
+Preview the image, enter a name with 1–80 characters, and select at least one emotion tag.
+Each image can use several tags. Bundled and imported images use the same catalog format.
+Edit any image's name or tags. Imported images also support replacement.
+Deletion removes the entry from future catalogs. It does not remove images from existing or already prepared replies.
+Unknown saved IDs display a translated placeholder and never become image URLs.
+
+IndexedDB stores metadata and immutable image versions on this device.
+Replacement creates a new image ID. Chat slices retain the ID selected when their request was prepared.
+Deleted entries retain their images. Archived images use storage until the application's site data is cleared.
+Web Locks serialize edits across renderer windows. BroadcastChannel signals refresh the local snapshots without transferring image bytes.
+The toggle and frequency follow existing same-origin storage events. Reset restores these preferences without clearing the library.
+Cloud chat sync transfers text only. Neither imported images nor sticker slices transfer to another device.
+Runtime generation does not require an image service or image-generation model.
+
+### Bundled artwork
+
+The default pack contains twelve generated chibi reactions of AIRI's official blue-haired Live2D character.
+See [artwork provenance](src/assets/stickers/README.md) for references, exact prompts, and inspection notes.
+These are static assets. No runtime image-generation dependency is included.
+The four development-only Fluent Emoji images are removed. No old-ID migration is included.

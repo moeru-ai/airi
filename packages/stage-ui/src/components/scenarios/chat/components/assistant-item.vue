@@ -10,6 +10,7 @@ import { computed } from 'vue'
 import ChatReplyQuote from './reply-quote.vue'
 import ResponseCitations from './response-citations.vue'
 import ChatResponsePart from './response-part.vue'
+import ChatSticker from './sticker.vue'
 import ChatToolCallBlock from './tool-call-block.vue'
 
 import { MarkdownRenderer } from '../../../markdown'
@@ -166,6 +167,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
                 @tool-call-rerun="emitToolCallRerun(sliceIndex, $event)"
               />
               <template v-else-if="slice.type === 'tool-call-result'" />
+              <ChatSticker v-else-if="slice.type === 'sticker'" :sticker-id="slice.stickerId" />
               <template v-else-if="slice.type === 'text'">
                 <MarkdownRenderer :content="slice.text" />
               </template>

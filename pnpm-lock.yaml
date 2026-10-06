@@ -28,11 +28,11 @@ catalogs:
       specifier: ^0.18.5
       version: 0.18.5
     '@auv-js/cli':
-      specifier: 0.0.16
-      version: 0.0.16
+      specifier: 0.0.28
+      version: 0.0.28
     '@auv-js/sdk':
-      specifier: 0.0.16
-      version: 0.0.16
+      specifier: 0.0.28
+      version: 0.0.28
     '@aws-sdk/client-s3':
       specifier: ^3.1135.0
       version: 3.1139.0
@@ -1889,10 +1889,10 @@ importers:
     dependencies:
       '@auv-js/cli':
         specifier: 'catalog:'
-        version: 0.0.16
+        version: 0.0.28
       '@auv-js/sdk':
         specifier: 'catalog:'
-        version: 0.0.16
+        version: 0.0.28
       '@date-fns/utc':
         specifier: 'catalog:'
         version: 2.1.1
@@ -4049,6 +4049,15 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/pipelines-audio':
+        specifier: workspace:*
+        version: link:../pipelines-audio
+      mediabunny:
+        specifier: 'catalog:'
+        version: 1.55.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
     devDependencies:
       '@types/audioworklet':
         specifier: 'catalog:'
@@ -4406,6 +4415,9 @@ importers:
       clustr:
         specifier: 'catalog:'
         version: 1.0.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
 
   packages/plugin-protocol:
     dependencies:
@@ -6733,47 +6745,53 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@auv-js/api-client@0.0.16':
-    resolution: {integrity: sha512-02uUXhJLgolpYeFP5Y0FPoFBCt8ZxRH0HcSIj9Ac3aXfHNJdXFWxDtiWhtVIcviW8oEPyMWJkqCl5/f3IUFB2w==}
+  '@auv-js/api-client@0.0.28':
+    resolution: {integrity: sha512-dM/41Bymh9AeK+ePORUF+IJ9d1U2eguOO1ywyFYmAsDdLZqm2/C6mAkiqNFXj3UKYuNo2eL8z+pQNrmS3BSoFg==}
 
-  '@auv-js/cli-darwin-arm64@0.0.16':
-    resolution: {integrity: sha512-hBHOxWzZjsrPukczXxAWc65LR+tZcE2oEpJVI7yBSqOQtVHNomHWStXGT/ezArxWfPSmNi7qOqlvL3VTsp87Hw==}
+  '@auv-js/cli-darwin-arm64@0.0.28':
+    resolution: {integrity: sha512-mgwnJuzHeAX3KfQSrcR0sniZBCRmXU/FSoBH6dF5jTm+uzeRY37EPJY7YwxvZXsS6TAHLDIjA9JpAzKN1HzRKQ==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@auv-js/cli-darwin-x64@0.0.16':
-    resolution: {integrity: sha512-JMGECPuQqVTq4eHPN4MWUWQuLt5jueiZR+apMvzYabc+MmZ4GxZQYFwgqQdi221izI9DaeePMVYr80K4ievJzA==}
+  '@auv-js/cli-darwin-x64@0.0.28':
+    resolution: {integrity: sha512-3ZSziSCV2AZF/F1hUauu7fYVlChQ96+4oHgp/fv7OZobAq+/EiAQqyrbatvYE4O27NcjamiNDdMq6SBdcJCvOw==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.16':
-    resolution: {integrity: sha512-7IWFqrt3kXZacoToP/fCV7ExTSXwaJYi3C3lVZmBK6AybpNo/urtdRmzCRUim76K1B3Bysrjkjqvjp0+SXZ2VQ==}
+  '@auv-js/cli-linux-arm64-gnu@0.0.28':
+    resolution: {integrity: sha512-x4WVMjqysLyqFZlBfSQI7d5pWBeiY48twodcYaBa49c8xagzfSs1adrJfXqYDW6hptPhtooKRsdFU3HbLsrkgQ==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-linux-x64-gnu@0.0.16':
-    resolution: {integrity: sha512-IO0WDFMbW2su0FWQGSjkcZ7lVBS0iJmgGUpqULmpa3EKC9iunaCa14DaTOVGXpBnlonxmf0LHylVF1eoJE33qA==}
+  '@auv-js/cli-linux-x64-gnu@0.0.28':
+    resolution: {integrity: sha512-rvKrKQ+C/K/JetZef8WroXsC3ZZThv96Szjye/w15+vvJVPujNOcoGeiRc112MrJ6PktKsxbJQXC+B4krZkFWQ==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-win32-x64-msvc@0.0.16':
-    resolution: {integrity: sha512-o+WaLSTLTamEYkOnhmy9kOS9yxp5j7HqoZexBucoyN4SlteKxJ+ICeX/Zn0CxjJH87qYZbB1XPmkayGcIbZdrw==}
+  '@auv-js/cli-win32-arm64-msvc@0.0.28':
+    resolution: {integrity: sha512-R9Nu9TUT2heshiDWbaDOZiuXs/H4yd0RQdatuX/uKSsTnEhgPfKmdYj7hpGqtJf6b52pENbdvUs8ZlOyV5rRJQ==}
+    engines: {node: '>=20.19.0'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@auv-js/cli-win32-x64-msvc@0.0.28':
+    resolution: {integrity: sha512-AwVXaJBqfqidq8VWdQNXfmvkhXDKu4ZwmljBG4y4KxD74zHWVGRPDO3ANRE72HBZuU0sSEP3a8LDUCSo5Ycz2w==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [win32]
 
-  '@auv-js/cli@0.0.16':
-    resolution: {integrity: sha512-150MGYEsLLayQkFjGGGDD3F9tJZxE080Mp1z9vPYnd7AOlnJrCtIFpDKgQ6Wnzv+cjiDpE5KAdzPJg3DwaJT9A==}
+  '@auv-js/cli@0.0.28':
+    resolution: {integrity: sha512-ZgLD6e0ruwjaxObls1yldzYFiyiXnwrv5Uoo2vOi6nnycxcHGcYa6C/3Paq9R+48QnDzH1HaLZMXbrPLbFRfLA==}
     hasBin: true
 
-  '@auv-js/sdk@0.0.16':
-    resolution: {integrity: sha512-0pm+8Y1N2dNtApHQJZvglJatBtVUew8lfkaIqYNHCluwIq+wAtfcsryrwnqxtXluZYcAgiBNmmD9+uHuWB5XGg==}
+  '@auv-js/sdk@0.0.28':
+    resolution: {integrity: sha512-Moknh7kgfTH5eaLqbny1X5u4oDxvJrxhRwQHhaUARo1a6FrdWbwsG821VbXPcYlyUJWD+7XItchdt7o0Rqu0Rw==}
 
   '@aws-sdk/checksums@3.1001.1':
     resolution: {integrity: sha512-x12Q17KYlJAd3nKf8LV5LV0vt8sh8/6YfQLGPtrGnQf/tW4jqxPGq5GPpuVitpQYM3eUR4XB7CbxZf751NMbLw==}
@@ -21264,34 +21282,40 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@auv-js/api-client@0.0.16': {}
+  '@auv-js/api-client@0.0.28': {}
 
-  '@auv-js/cli-darwin-arm64@0.0.16':
+  '@auv-js/cli-darwin-arm64@0.0.28':
     optional: true
 
-  '@auv-js/cli-darwin-x64@0.0.16':
+  '@auv-js/cli-darwin-x64@0.0.28':
     optional: true
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.16':
+  '@auv-js/cli-linux-arm64-gnu@0.0.28':
     optional: true
 
-  '@auv-js/cli-linux-x64-gnu@0.0.16':
+  '@auv-js/cli-linux-x64-gnu@0.0.28':
     optional: true
 
-  '@auv-js/cli-win32-x64-msvc@0.0.16':
+  '@auv-js/cli-win32-arm64-msvc@0.0.28':
     optional: true
 
-  '@auv-js/cli@0.0.16':
-    optionalDependencies:
-      '@auv-js/cli-darwin-arm64': 0.0.16
-      '@auv-js/cli-darwin-x64': 0.0.16
-      '@auv-js/cli-linux-arm64-gnu': 0.0.16
-      '@auv-js/cli-linux-x64-gnu': 0.0.16
-      '@auv-js/cli-win32-x64-msvc': 0.0.16
+  '@auv-js/cli-win32-x64-msvc@0.0.28':
+    optional: true
 
-  '@auv-js/sdk@0.0.16':
+  '@auv-js/cli@0.0.28':
     dependencies:
-      '@auv-js/api-client': 0.0.16
+      std-env: 4.2.0
+    optionalDependencies:
+      '@auv-js/cli-darwin-arm64': 0.0.28
+      '@auv-js/cli-darwin-x64': 0.0.28
+      '@auv-js/cli-linux-arm64-gnu': 0.0.28
+      '@auv-js/cli-linux-x64-gnu': 0.0.28
+      '@auv-js/cli-win32-arm64-msvc': 0.0.28
+      '@auv-js/cli-win32-x64-msvc': 0.0.28
+
+  '@auv-js/sdk@0.0.28':
+    dependencies:
+      '@auv-js/api-client': 0.0.28
       '@bufbuild/protobuf': 2.13.0
       '@grpc/grpc-js': 1.14.4
       '@moeru/std': 0.1.0-beta.20
