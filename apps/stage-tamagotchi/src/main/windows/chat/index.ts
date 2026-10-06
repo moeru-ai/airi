@@ -4,7 +4,7 @@ import type { InferOutput } from 'valibot'
 import type { ChatButtonState, ChatDraftHandover, ChatWindowMode, ChatWindowPreferences } from '../../../shared/eventa'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
-import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { McpManager } from '../../services/airi/mcp-servers'
 import type { SettingsWindowManager } from '../settings'
 import type { WidgetsWindowManager } from '../widgets'
 
@@ -96,7 +96,7 @@ export function setupChatWindowManager(params: {
   openSettingsWindow: SettingsWindowManager['openWindow']
   widgetsManager: WidgetsWindowManager
   serverChannel: ServerChannel
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   i18n: I18n
 }): ChatWindowManager {
   const {
@@ -134,7 +134,7 @@ export function setupChatWindowManager(params: {
       window,
       widgetsManager: params.widgetsManager,
       serverChannel: params.serverChannel,
-      mcpStdioManager: params.mcpStdioManager,
+      mcpManager: params.mcpManager,
       i18n: params.i18n,
       openSettingsWindow: params.openSettingsWindow,
     })

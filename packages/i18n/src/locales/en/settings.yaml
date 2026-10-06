@@ -1086,6 +1086,7 @@ pages:
         restart: Restart MCP
         add-server: Add server
         add-env: Add var
+        add-header: Add header
         remove: Remove
         test: Test
         edit-json: Edit JSON
@@ -1101,6 +1102,20 @@ pages:
           label: Identifier
           description: Unique name; becomes the key in mcp.json.
           placeholder: e.g. filesystem
+        transport:
+          label: Type
+          description: How AIRI reaches this server.
+          stdio: Local process
+          http: Remote URL
+        url:
+          label: URL
+          description: Streamable HTTP endpoint of the server.
+          placeholder: e.g. https://example.com/api/mcp
+        headers:
+          label: Headers
+          description: Headers sent with every request, such as an authorization token.
+          key-placeholder: Authorization
+          value-placeholder: Bearer token
         command:
           label: Command
           description: Executable spawned over stdio.
@@ -1126,7 +1141,7 @@ pages:
         placeholder: Paste mcp.json here…
       test:
         title: Test connection
-        description: We'll spawn the server briefly to check the command works and see what tools it exposes.
+        description: AIRI connects briefly to the server and lists the tools it exposes.
         pick-server-label: Server
         no-servers: Nothing to test yet
         no-server-selected: Pick a server first.
@@ -1140,6 +1155,8 @@ pages:
         empty-identifier: Server # {index} is missing an identifier.
         duplicate-identifier: Identifier "{name}" is used more than once — names need to be unique.
         empty-command: '"{name}" is missing a command.'
+        empty-url: '"{name}" is missing a URL.'
+        invalid-url: '"{name}" needs an absolute http or https URL.'
         invalid-shape: That doesn't look like a valid mcp.json — the root needs an "mcpServers" field.
       messages:
         opened: Opened {path} in your file manager

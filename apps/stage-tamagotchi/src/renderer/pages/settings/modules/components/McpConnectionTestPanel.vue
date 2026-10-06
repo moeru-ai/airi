@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ElectronMcpStdioTestResult } from '../../../../../shared/eventa'
+import type { ElectronMcpTestResult } from '../../../../../shared/eventa'
 
 import { Button, Callout, FieldSelect } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
@@ -11,7 +11,7 @@ interface TestOption {
 
 const props = defineProps<{
   options: TestOption[]
-  result?: ElectronMcpStdioTestResult
+  result?: ElectronMcpTestResult
   running: boolean
 }>()
 

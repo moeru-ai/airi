@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type {
-  ElectronMcpStdioConfigFile,
-  ElectronMcpStdioRuntimeStatus,
-  ElectronMcpStdioTestResult,
+  ElectronMcpConfigFile,
+  ElectronMcpRuntimeStatus,
+  ElectronMcpTestResult,
 } from '../../../../shared/eventa'
 import type { ServerForm } from './mcp-config'
 
@@ -32,8 +32,9 @@ import {
   createServerForm,
   findServerIdentifierByRowId,
   loadServerForms,
-  previewServerCommand,
+  previewServerTarget,
   syncJsonDraftFromServers,
+  validateServerForm,
 } from './mcp-config'
 
 const { t } = useI18n()
@@ -48,7 +49,7 @@ const invokeWriteConfigText = useElectronEventaInvoke(electronMcpWriteConfigText
 const invokeTestServer = useElectronEventaInvoke(electronMcpTestServer)
 
 const servers = ref<ServerForm[]>([])
-const runtime = ref<ElectronMcpStdioRuntimeStatus>()
+const runtime = ref<ElectronMcpRuntimeStatus>()
 const infoMessage = ref('')
 const errorMessage = ref('')
 const isBusy = ref(false)
@@ -64,13 +65,13 @@ const expandedIds = ref<Set<string>>(new Set())
 
 const testRowId = ref('')
 const testRunning = ref(false)
-const testResult = ref<ElectronMcpStdioTestResult>()
+const testResult = ref<ElectronMcpTestResult>()
 
 function buildConfig() {
   return buildConfigFile(servers.value, tn)
 }
 
-function applyLoadedConfig(config: ElectronMcpStdioConfigFile) {
+function applyLoadedConfig(config: ElectronMcpConfigFile) {
   const selectedIdentifier = findServerIdentifierByRowId(servers.value, testRowId.value)
   const loaded = loadServerForms(config, { selectedIdentifier })
   servers.value = loaded.servers
@@ -126,8 +127,8 @@ function badgeClass(state: 'running' | 'stopped' | 'error' | undefined) {
   return RUNTIME_BADGE[state ?? 'stopped']
 }
 
-function commandPreview(s: ServerForm) {
-  return previewServerCommand(s)
+function targetPreview(s: ServerForm) {
+  return previewServerTarget(s)
 }
 
 const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
@@ -303,8 +304,9 @@ async function runConnectionTest() {
     testResult.value = { ok: false, error: tn('test.server-disabled', { name: target.identifier || '?' }), durationMs: 0 }
     return
   }
-  if (!target.command.trim()) {
-    testResult.value = { ok: false, error: tn('errors.empty-command', { name: target.identifier || '?' }), durationMs: 0 }
+  const invalid = validateServerForm(target, tn)
+  if (invalid) {
+    testResult.value = { ok: false, error: invalid, durationMs: 0 }
     return
   }
   testRunning.value = true
@@ -423,7 +425,7 @@ onMounted(async () => {
               </span>
             </div>
             <div class="truncate text-xs text-neutral-500 font-mono dark:text-neutral-400">
-              {{ commandPreview(server) || '-' }}
+              {{ targetPreview(server) || '-' }}
             </div>
           </div>
 
@@ -506,7 +508,7 @@ onMounted(async () => {
             <span class="text-xs tracking-wide uppercase opacity-80">{{ s.state }}</span>
           </div>
           <div class="break-all text-xs font-mono opacity-80">
-            {{ s.command }} {{ s.args.join(' ') }}
+            {{ s.transport === 'stdio' ? `${s.command} ${s.args.join(' ')}`.trim() : s.url }}
           </div>
           <div v-if="s.lastError" class="break-all text-xs">
             {{ s.lastError }}

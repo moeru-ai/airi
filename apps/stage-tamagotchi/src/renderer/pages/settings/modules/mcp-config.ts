@@ -1,18 +1,38 @@
 import type {
-  ElectronMcpStdioConfigFile,
+  ElectronMcpConfigFile,
+  ElectronMcpHttpServerConfig,
+  ElectronMcpServerConfig,
   ElectronMcpStdioServerConfig,
 } from '../../../../shared/eventa'
 
+import { isHttpServerConfig, isHttpUrl } from '../../../../shared/mcp-config'
+
 type TranslateMcpMessage = (key: string, params?: Record<string, unknown>) => string
 
-/** Editable MCP server form state used by the settings page. */
+/** Transport that one editable server row describes. */
+export type ServerTransport = 'stdio' | 'http'
+
+interface KeyValueEntry {
+  key: string
+  value: string
+}
+
+/**
+ * Editable MCP server form state used by the settings page.
+ *
+ * Both transport shapes stay in the row while the user edits it. Switching the
+ * transport back and forth therefore keeps what was typed on each side.
+ */
 export interface ServerForm {
   rowId: string
   identifier: string
+  transport: ServerTransport
   command: string
   argsText: string
-  envEntries: { key: string, value: string }[]
+  envEntries: KeyValueEntry[]
   cwd: string
+  url: string
+  headerEntries: KeyValueEntry[]
   enabled: boolean
 }
 
@@ -31,7 +51,7 @@ function splitArgsText(argsText: string) {
   return argsText.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
 }
 
-function envToObject(entries: { key: string, value: string }[]) {
+function entriesToObject(entries: KeyValueEntry[]) {
   const out: Record<string, string> = {}
   for (const { key, value } of entries) {
     const normalizedKey = key.trim()
@@ -41,15 +61,22 @@ function envToObject(entries: { key: string, value: string }[]) {
   return out
 }
 
+function objectToEntries(values: Record<string, string> | undefined): KeyValueEntry[] {
+  return Object.entries(values ?? {}).map(([key, value]) => ({ key, value }))
+}
+
 /** Creates a blank MCP server row for new entries. */
 export function createServerForm(): ServerForm {
   return {
     rowId: makeRowId(),
     identifier: '',
+    transport: 'stdio',
     command: '',
     argsText: '',
     envEntries: [],
     cwd: '',
+    url: '',
+    headerEntries: [],
     enabled: true,
   }
 }
@@ -60,7 +87,22 @@ export function findServerIdentifierByRowId(servers: ServerForm[], rowId: string
 }
 
 /** Converts one editable server row into persisted MCP server config. */
-export function buildServerConfig(server: ServerForm): ElectronMcpStdioServerConfig {
+export function buildServerConfig(server: ServerForm): ElectronMcpServerConfig {
+  if (server.transport === 'http') {
+    const config: ElectronMcpHttpServerConfig = {
+      url: server.url.trim(),
+    }
+
+    const headers = entriesToObject(server.headerEntries)
+    if (Object.keys(headers).length)
+      config.headers = headers
+
+    if (!server.enabled)
+      config.enabled = false
+
+    return config
+  }
+
   const config: ElectronMcpStdioServerConfig = {
     command: server.command.trim(),
   }
@@ -69,7 +111,7 @@ export function buildServerConfig(server: ServerForm): ElectronMcpStdioServerCon
   if (args.length)
     config.args = args
 
-  const env = envToObject(server.envEntries)
+  const env = entriesToObject(server.envEntries)
   if (Object.keys(env).length)
     config.env = env
 
@@ -82,12 +124,49 @@ export function buildServerConfig(server: ServerForm): ElectronMcpStdioServerCon
   return config
 }
 
+/**
+ * Reports why one row cannot be saved or tested yet.
+ *
+ * Before:
+ * - A remote row with an empty or non-HTTP URL only fails once the main process
+ *   rejects the config file
+ *
+ * After:
+ * - The form reports the problem while the user is still editing
+ *
+ * Use when:
+ * - Building the persisted config, and before a connection test
+ *
+ * Expects:
+ * - `translateMessage` resolves the settings page messages
+ *
+ * Returns:
+ * - A message to show, or `undefined` when the row is complete
+ */
+export function validateServerForm(server: ServerForm, translateMessage: TranslateMcpMessage): string | undefined {
+  const name = server.identifier.trim() || '?'
+
+  if (server.transport === 'http') {
+    const url = server.url.trim()
+    if (!url)
+      return translateMessage('errors.empty-url', { name })
+    if (!isHttpUrl(url))
+      return translateMessage('errors.invalid-url', { name })
+    return undefined
+  }
+
+  if (!server.command.trim())
+    return translateMessage('errors.empty-command', { name })
+
+  return undefined
+}
+
 /** Builds the persisted MCP config file from editable rows. */
 export function buildConfigFile(
   servers: ServerForm[],
   translateMessage: TranslateMcpMessage,
-): ElectronMcpStdioConfigFile {
-  const config: ElectronMcpStdioConfigFile = { mcpServers: {} }
+): ElectronMcpConfigFile {
+  const config: ElectronMcpConfigFile = { mcpServers: {} }
   const seenIdentifiers = new Set<string>()
 
   for (const [index, server] of servers.entries()) {
@@ -98,8 +177,9 @@ export function buildConfigFile(
     if (seenIdentifiers.has(identifier))
       throw new Error(translateMessage('errors.duplicate-identifier', { name: identifier }))
 
-    if (!server.command.trim())
-      throw new Error(translateMessage('errors.empty-command', { name: identifier }))
+    const invalid = validateServerForm(server, translateMessage)
+    if (invalid)
+      throw new Error(invalid)
 
     seenIdentifiers.add(identifier)
     config.mcpServers[identifier] = buildServerConfig(server)
@@ -131,18 +211,40 @@ export function syncJsonDraftFromServers(
 
 /** Loads editable rows from persisted MCP config. */
 export function loadServerForms(
-  config: ElectronMcpStdioConfigFile,
+  config: ElectronMcpConfigFile,
   options: { selectedIdentifier?: string } = {},
 ): LoadedServerForms {
-  const servers = Object.entries(config.mcpServers ?? {}).map(([identifier, server]) => ({
-    rowId: makeRowId(),
-    identifier,
-    command: server.command,
-    argsText: (server.args ?? []).join('\n'),
-    envEntries: Object.entries(server.env ?? {}).map(([key, value]) => ({ key, value })),
-    cwd: server.cwd ?? '',
-    enabled: server.enabled !== false,
-  }))
+  const servers = Object.entries(config.mcpServers ?? {}).map(([identifier, server]): ServerForm => {
+    const common = {
+      rowId: makeRowId(),
+      identifier,
+      command: '',
+      argsText: '',
+      envEntries: [],
+      cwd: '',
+      url: '',
+      headerEntries: [],
+      enabled: server.enabled !== false,
+    }
+
+    if (isHttpServerConfig(server)) {
+      return {
+        ...common,
+        transport: 'http',
+        url: server.url,
+        headerEntries: objectToEntries(server.headers),
+      }
+    }
+
+    return {
+      ...common,
+      transport: 'stdio',
+      command: server.command,
+      argsText: (server.args ?? []).join('\n'),
+      envEntries: objectToEntries(server.env),
+      cwd: server.cwd ?? '',
+    }
+  })
 
   const selectedRowId = options.selectedIdentifier
     ? (servers.find(server => server.identifier === options.selectedIdentifier)?.rowId ?? servers[0]?.rowId ?? '')
@@ -155,7 +257,10 @@ export function loadServerForms(
   }
 }
 
-/** Previews the command line assembled from one server row. */
-export function previewServerCommand(server: ServerForm) {
-  return [server.command, ...splitArgsText(server.argsText)].join(' ')
+/** Previews the command line or endpoint assembled from one server row. */
+export function previewServerTarget(server: ServerForm) {
+  if (server.transport === 'http')
+    return server.url.trim()
+
+  return [server.command, ...splitArgsText(server.argsText)].join(' ').trim()
 }
