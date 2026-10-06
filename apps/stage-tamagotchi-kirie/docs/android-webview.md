@@ -109,6 +109,13 @@ After recreation, neither the old page nor the new page receives the pending cho
 A `RESULT_OK` callback with a null intent throws `NullPointerException`, as Capacitor 8.5.0 does.
 Cancellation and other result codes pass the nullable intent to `FileChooserParams.parseResult`.
 
+## Notification alarms
+
+Kirie copies Capacitor Local Notifications 8.3.1 for the notification page's default one-time schedule.
+It uses an exact non-wakeup alarm when Android permits exact alarms.
+Without that permission, it uses a non-exact non-wakeup alarm and keeps the renderer visible.
+The Send Notification click does not open Android's alarm settings.
+
 ## Android backup persistence
 
 Kirie enables Android application backup in every build variant, matching stage-pocket's manifest.
