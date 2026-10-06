@@ -100,6 +100,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.FileProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
@@ -424,8 +425,15 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return;
         }
 
-        boolean granted = grantResults.length > 0
+        boolean runtimePermissionGranted = grantResults.length > 0
             && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        boolean granted = NOTIFICATIONS.equals(permission)
+            ? checkPermission(permission)
+            : runtimePermissionGranted;
+        completePermissionRequest(permission, granted);
+    }
+
+    private void completePermissionRequest(String permission, boolean granted) {
         emitSignal(PERMISSION_RESULT, permission, granted);
         PendingEventaRequest pending = pendingPermissionRequests.remove(permission);
         if (pending != null) {
@@ -473,9 +481,12 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return false;
         }
 
-        if (NOTIFICATIONS.equals(permission)
-            && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            return true;
+        if (NOTIFICATIONS.equals(permission)) {
+            return notificationPermissionGranted(
+                Build.VERSION.SDK_INT,
+                activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS),
+                NotificationManagerCompat.from(activity).areNotificationsEnabled()
+            );
         }
 
         String androidPermission = androidPermission(permission);
@@ -503,8 +514,28 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 return;
             }
 
+            if (NOTIFICATIONS.equals(permission)
+                && (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+                    || activity.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                        == PackageManager.PERMISSION_GRANTED)) {
+                completePermissionRequest(permission, false);
+                return;
+            }
+
             activity.requestPermissions(new String[] { androidPermission }, requestCode);
         });
+    }
+
+    private static boolean notificationPermissionGranted(
+        int sdkInt,
+        int runtimePermission,
+        boolean notificationsEnabled
+    ) {
+        if (!notificationsEnabled) {
+            return false;
+        }
+        return sdkInt < Build.VERSION_CODES.TIRAMISU
+            || runtimePermission == PackageManager.PERMISSION_GRANTED;
     }
 
     @UsedByGodot

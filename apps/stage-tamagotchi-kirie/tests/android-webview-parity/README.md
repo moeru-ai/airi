@@ -43,3 +43,4 @@ Unlike the callback fixtures, this scenario does not supply a pre-created WebVie
 
 The notification action fixture checks Pocket's installed Local Notifications source contract.
 It verifies launch-intent extras, the Eventa callback body, and one-shot storage cleanup after a tap.
+The permission fixture checks the global notification switch across the Android 13 runtime-permission boundary.

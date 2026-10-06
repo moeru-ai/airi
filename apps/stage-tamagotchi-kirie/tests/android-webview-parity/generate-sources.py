@@ -22,6 +22,13 @@ for notification_contract in (
     'notificationStorage.deleteNotification(notificationId.toString())',
 ):
     assert notification_contract in notification_manager
+notification_plugin = (
+    local_notifications
+    / 'android/src/main/kotlin/com/capacitorjs/plugins/localnotifications/LocalNotificationsPlugin.kt'
+).read_text()
+assert 'NotificationManagerCompat.from(context).areNotificationsEnabled()' in notification_manager
+assert 'permissionsResultJSON.put("display", getNotificationPermissionText())' in notification_plugin
+assert 'if (manager.areNotificationsEnabled()) "granted" else "denied"' in notification_plugin
 
 def write(relative, text):
     destination = out / relative
