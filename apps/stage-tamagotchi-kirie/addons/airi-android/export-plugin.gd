@@ -462,6 +462,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             hostWebSocketBridge = new HostWebSocketBridge(webView);
             webView.addJavascriptInterface(hostWebSocketBridge, "AiriHostBridge");
             webView.getSettings().setGeolocationEnabled(true);
+            webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
             webView.getSettings().setSupportMultipleWindows(true);
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
