@@ -80,7 +80,7 @@ The card list shows the cloud state of each card: synced, waiting to upload, or 
 ## Known limits
 
 - A field value is plain JSON. A card from another application can carry any content in `extensions`, and the client uploads it so that an imported card keeps its extensions on every device. The client does not filter it. A user must not put a secret in a card.
-- The account deletion removes the content in one transaction. A push that is already in flight can write content back before the account is gone. The handlers of other services have the same order, so this design keeps it.
+- The account deletion removes the content in one transaction. The store has no deletion gate, so a push that is already in flight can write content back before the account is gone. A gate needs a flag that every write checks and that the account deletion sets. That is a separate change.
 - A removed field leaves no row, so its revision is zero again. A device with a field revision of zero has never seen the field, and its new value is a new field. A device that has seen the field sends the old revision, and the server reports a conflict. No sequence of requests lets a device overwrite a revision that it has seen.
 - The server has no rate limit for these routes, and the list is not paginated.
 
