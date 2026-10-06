@@ -10,7 +10,6 @@ import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
 import { useCloudFetch } from '../composables/cloud'
 import { featureFlagPreferencesSchema, featureFlagResponseSchema, featureFlags, resolveFeatureFlag } from '../libs/feature-flags'
-import { captureFeatureFlagEvent } from '../libs/product-signals/events/feature-flags'
 import { useAuthStore } from './auth'
 
 /** Owns device preferences and a non-persisted policy snapshot for the current account. */
@@ -26,7 +25,6 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
   const policies = shallowRef<InferOutput<typeof featureFlagResponseSchema>['flags']>([])
   const loading = shallowRef(false)
   const error = shallowRef<string>()
-  const exposures = new Set<string>()
   let requestVersion = 0
   let request: AbortController | undefined
 
@@ -58,20 +56,15 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
     else
       next[storageKey] = value
     preferences.value = next
-    captureFeatureFlagEvent('feature_flag_changed', key, decision(feature), value ?? null)
   }
 
-  /** Call at the feature entry point, not during settings rendering. Unknown features stay disabled. */
+  /** Unknown features stay disabled. */
   function isEnabled(key: string): boolean {
     const feature = featureFlags.find(feature => feature.key === key)
     if (!feature)
       return false
 
-    const resolved = decision(feature)
-    const exposure = `${key}:${resolved.enabled}:${resolved.source}`
-    if (!exposures.has(exposure) && captureFeatureFlagEvent('feature_flag_exposed', key, resolved))
-      exposures.add(exposure)
-    return resolved.enabled
+    return decision(feature).enabled
   }
 
   async function refresh() {
@@ -105,7 +98,6 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
     requestVersion++
     request?.abort()
     policies.value = []
-    exposures.clear()
     error.value = undefined
   }, { flush: 'sync' })
 

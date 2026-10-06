@@ -4,14 +4,14 @@ Shared core for stage
 
 ## Experimental features
 
-Register flags in `libs/feature-flags.ts`. Call `useFeatureFlagsStore().isEnabled(key)` at the feature entry point to record exposure.
+Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
 `local` flags expose device switches without Cloud access.
 `cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They start disabled and retain choices per account on this device.
 `cloud-controlled` flags follow Cloud grants directly and never expose a switch.
 Missing Cloud grants disable Cloud features. Refresh failures and account changes clear grants, not local choices.
 `useCloudFetch()` in `composables/cloud.ts` shares the Cloud origin and authenticated fetch boundary. The store reads `GET /v1/feature-flags`.
 Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
-For each new feature, assess its flag, exposure event, success metric, and removal condition. Keep authorization checks on the server.
+Keep authorization checks on the server.
 
 ## Startup progress
 
