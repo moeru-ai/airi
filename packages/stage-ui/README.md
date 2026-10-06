@@ -2,6 +2,18 @@
 
 Shared core for stage
 
+## Message times
+
+Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
+Timestamps use stored message times, the interface locale, and the device timezone. Messages without valid timestamps have no separator.
+Today's separators show only the time. Yesterday and the day before use relative labels.
+Older separators show the month and day. Dates outside the current year also show the year.
+Click a separator to toggle its full date and time. Relative labels refresh every minute while the history is open.
+`date-fns` handles calendar comparisons and localized formatting through `intlFormat` and `intlFormatDistance`.
+The session list displays and sorts by the latest valid user or assistant message timestamp.
+Sessions without dated conversation messages use their creation time. Loading messages updates the list from the stored history.
+Saving or synchronizing a session does not change its displayed activity time unless its messages change.
+
 ## Startup progress
 
 `useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
