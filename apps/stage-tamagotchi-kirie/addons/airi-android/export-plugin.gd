@@ -31,6 +31,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
@@ -80,6 +81,12 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         "eventa:invoke:airi:android:barcode:scan-send";
     private static final String SCHEDULE_NOTIFICATION_EVENT =
         "eventa:invoke:airi:android:notification:schedule-send";
+    private static final String OPEN_AUTHORIZATION_EVENT =
+        "eventa:invoke:airi:android:authentication:open-send";
+    private static final String CONSUME_PENDING_URL_OPEN_EVENT =
+        "eventa:invoke:airi:android:app:url-open:consume-send";
+    private static final String URL_OPEN_EVENT =
+        "eventa:event:airi:android:app:url-open";
     private static final String NOTIFICATION_ACTION =
         "ai.moeru.airi.kirie.action.SHOW_NOTIFICATION";
     private static final String NOTIFICATION_CHANNEL_ID = "default";
@@ -97,6 +104,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private static final int LIGHT_SYSTEM_BARS =
         WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
             | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+    private static AiriAndroidPlugin activePlugin;
+    private static String pendingUrlOpen;
     private ComponentCallbacks configurationCallbacks;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
@@ -106,6 +115,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private PendingEventaRequest pendingBarcodeScan;
     private PendingNotificationSchedule pendingNotificationSchedule;
     private ValueCallback<Uri[]> pendingFileChooser;
+    private JavaScriptReplyProxy eventaReplyProxy;
 
     public AiriAndroidPlugin(Godot godot) {
         super(godot);
@@ -123,6 +133,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
     @Override
     public View onMainCreate(Activity activity) {
+        activePlugin = this;
         configurationCallbacks = new ComponentCallbacks() {
             @Override
             public void onConfigurationChanged(Configuration configuration) {
@@ -136,6 +147,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         activity.registerComponentCallbacks(configurationCallbacks);
         applySystemBarStyle(activity);
         installBrowserChannel(activity, 100);
+        dispatchPendingUrlOpen();
         return null;
     }
 
@@ -147,7 +159,11 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             configurationCallbacks = null;
         }
         mainHandler.removeCallbacksAndMessages(null);
+        if (activePlugin == this) {
+            activePlugin = null;
+        }
         browserWebView = null;
+        eventaReplyProxy = null;
         pendingPermissionRequests.clear();
         pendingBarcodeScan = null;
         pendingNotificationSchedule = null;
@@ -239,6 +255,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     public void onMainResume() {
         applySystemBarStyle(getActivity());
         resumePendingNotificationSchedule();
+        dispatchPendingUrlOpen();
     }
 
     @Override
@@ -400,6 +417,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     }
 
     private void handleEventaMessage(String message, JavaScriptReplyProxy replyProxy) {
+        eventaReplyProxy = replyProxy;
         try {
             JSONObject envelope = new JSONObject(message);
             JSONObject payload = envelope.getJSONObject("payload");
@@ -422,6 +440,26 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                     content.getString("title"),
                     content.getString("body"),
                     content.getLong("at")
+                );
+                return;
+            }
+            if (OPEN_AUTHORIZATION_EVENT.equals(event)) {
+                openAuthorization(
+                    content.getString("url"),
+                    new PendingEventaRequest(event, invokeId, replyProxy)
+                );
+                return;
+            }
+            if (CONSUME_PENDING_URL_OPEN_EVENT.equals(event)) {
+                String url = pendingUrlOpen;
+                pendingUrlOpen = null;
+                JSONObject response = new JSONObject();
+                if (url != null) {
+                    response.put("url", url);
+                }
+                sendEventaResponse(
+                    new PendingEventaRequest(event, invokeId, replyProxy),
+                    response
                 );
                 return;
             }
@@ -460,6 +498,54 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
         } catch (JSONException error) {
             Log.e("AiriAndroid", "Cannot handle Eventa message", error);
+        }
+    }
+
+    private void openAuthorization(String url, PendingEventaRequest request) {
+        Activity activity = getActivity();
+        Uri uri = Uri.parse(url);
+        if (activity == null
+            || uri.getScheme() == null
+            || !("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))) {
+            Log.e("AiriAndroid", "Cannot open an invalid authorization URL");
+            sendEventaResponse(request, JSONObject.NULL);
+            return;
+        }
+
+        activity.runOnUiThread(() -> {
+            try {
+                activity.startActivity(new Intent(Intent.ACTION_VIEW, uri));
+            } catch (ActivityNotFoundException error) {
+                Log.e("AiriAndroid", "No browser can open the authorization URL", error);
+            }
+            sendEventaResponse(request, JSONObject.NULL);
+        });
+    }
+
+    private static void receiveUrlOpen(String url) {
+        pendingUrlOpen = url;
+        if (activePlugin != null) {
+            activePlugin.dispatchPendingUrlOpen();
+        }
+    }
+
+    private void dispatchPendingUrlOpen() {
+        String url = pendingUrlOpen;
+        JavaScriptReplyProxy replyProxy = eventaReplyProxy;
+        if (url == null || replyProxy == null) {
+            return;
+        }
+
+        try {
+            JSONObject payload = new JSONObject()
+                .put("body", new JSONObject().put("url", url));
+            JSONObject envelope = new JSONObject()
+                .put("type", URL_OPEN_EVENT)
+                .put("payload", payload);
+            replyProxy.postMessage(envelope.toString());
+            pendingUrlOpen = null;
+        } catch (JSONException error) {
+            Log.e("AiriAndroid", "Cannot send URL open event", error);
         }
     }
 
@@ -631,6 +717,35 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
     }
 
+    public static final class DeepLinkActivity extends Activity {
+        @Override
+        protected void onCreate(Bundle savedInstanceState) {
+            super.onCreate(savedInstanceState);
+            forwardUrl(getIntent());
+        }
+
+        @Override
+        protected void onNewIntent(Intent intent) {
+            super.onNewIntent(intent);
+            forwardUrl(intent);
+        }
+
+        private void forwardUrl(Intent sourceIntent) {
+            String url = sourceIntent.getDataString();
+            if (url != null) {
+                receiveUrlOpen(url);
+            }
+
+            Intent launchIntent = getPackageManager()
+                .getLaunchIntentForPackage(getPackageName());
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                startActivity(launchIntent);
+            }
+            finish();
+        }
+    }
+
     public static final class NotificationReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -767,6 +882,20 @@ func _get_android_manifest_application_element_contents(_platform: EditorExportP
         <receiver
             android:name="ai.moeru.airi.kirie.AiriAndroidPlugin$NotificationReceiver"
             android:exported="false" />
+        <activity
+            android:name="ai.moeru.airi.kirie.AiriAndroidPlugin$DeepLinkActivity"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="ai.moeru.airi-pocket"
+                    android:host="links" />
+            </intent-filter>
+        </activity>
 """
 
 func _get_android_manifest_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:

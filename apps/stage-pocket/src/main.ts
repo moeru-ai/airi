@@ -24,6 +24,8 @@ import App from './App.vue'
 
 import { installDeepLinks } from './modules/deep-links'
 import { i18n } from './modules/i18n'
+import { openKirieAndroidAuthorization } from './modules/kirie-android-authentication'
+import { isKirieAndroid } from './modules/kirie-android-eventa'
 import { WebAuthentication } from './modules/web-authentication'
 
 import '@proj-airi/font-cjkfonts-allseto/index.css'
@@ -55,6 +57,15 @@ if (Capacitor.isNativePlatform()) {
       callbackScheme: 'ai.moeru.airi-pocket',
       url: url.toString(),
     })
+  })
+}
+else if (isKirieAndroid) {
+  registerAuthorizationHandler(async ({ authorizationUrl, provider }) => {
+    const url = new URL(authorizationUrl)
+    if (provider)
+      url.searchParams.set('provider', provider)
+
+    await openKirieAndroidAuthorization(url.toString())
   })
 }
 else {
