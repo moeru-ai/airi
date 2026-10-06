@@ -44,6 +44,7 @@ import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
+import android.webkit.MimeTypeMap;
 import android.webkit.PermissionRequest;
 import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
@@ -494,10 +495,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                         pendingFileChooser.onReceiveValue(null);
                     }
                     pendingFileChooser = callback;
-                    Intent intent = parameters.createIntent();
-                    if (parameters.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
-                        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
-                    }
+                    Intent intent = createFileChooserIntent(parameters);
                     try {
                         activity.startActivityForResult(intent, FILE_CHOOSER_REQUEST);
                     } catch (ActivityNotFoundException error) {
@@ -603,6 +601,39 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             browserInsetsPaddingRight,
             bottom
         );
+    }
+
+    private Intent createFileChooserIntent(WebChromeClient.FileChooserParams parameters) {
+        Intent intent = parameters.createIntent();
+        if (parameters.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE) {
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        }
+        if (parameters.getAcceptTypes().length > 1 || intent.getType().startsWith(".")) {
+            String[] validTypes = getValidTypes(parameters.getAcceptTypes());
+            intent.putExtra(Intent.EXTRA_MIME_TYPES, validTypes);
+            if (intent.getType().startsWith(".")) {
+                intent.setType(validTypes[0]);
+            }
+        }
+        return intent;
+    }
+
+    private String[] getValidTypes(String[] currentTypes) {
+        List<String> validTypes = new ArrayList<>();
+        MimeTypeMap mtm = MimeTypeMap.getSingleton();
+        for (String mime : currentTypes) {
+            if (mime.startsWith(".")) {
+                String extension = mime.substring(1);
+                String extensionMime = mtm.getMimeTypeFromExtension(extension);
+                if (extensionMime != null && !validTypes.contains(extensionMime)) {
+                    validTypes.add(extensionMime);
+                }
+            } else if (!validTypes.contains(mime)) {
+                validTypes.add(mime);
+            }
+        }
+        Object[] validObj = validTypes.toArray();
+        return Arrays.copyOf(validObj, validObj.length, String[].class);
     }
 
     private void installExternalNavigation(Activity activity, WebView webView) {
