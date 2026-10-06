@@ -155,3 +155,9 @@ microphone failures to chat history.
 The component supports reduced motion. Desktop users can enable Streamer mode in
 General settings to hide these overlays without stopping microphone input or sign-in.
 Streamer mode is off by default.
+
+## Official chat
+
+The official chat provider defaults to Responses API. Saved Chat Completions selections remain active.
+If a request reports an unsupported protocol before output, the runtime retries once with Chat Completions.
+The provider remembers unsupported models until its instance is recreated. Authentication errors and interrupted streams do not trigger this switch.

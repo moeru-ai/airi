@@ -20,16 +20,16 @@ interface OfficialSpeechOptions {
 }
 
 describe('official chat provider', () => {
-  it('defaults new and existing empty configurations to Chat Completions', async () => {
+  it('defaults new and existing empty configurations to Responses', async () => {
     const schema = await providerOfficialChat.createProviderConfig({ t: key => key })
-    expect(z.parse(schema, {})).toEqual({ api: 'chat-completions' })
+    expect(z.parse(schema, {})).toEqual({ api: 'responses' })
 
     const provider = await providerOfficialChat.createProvider({})
     if (!isGenerationProvider(provider))
       throw new Error('Expected generation')
 
     expect(provider.generation('auto')).toMatchObject({
-      protocol: 'chat-completions',
+      protocol: 'responses',
       config: { model: 'auto' },
     })
   })
@@ -54,10 +54,29 @@ describe('official chat provider', () => {
     expect(schema.shape.api.meta()).toMatchObject({
       type: 'select',
       options: [
-        { label: 'Chat Completions', value: 'chat-completions' },
         { label: 'Responses API', value: 'responses' },
+        { label: 'Chat Completions', value: 'chat-completions' },
       ],
     })
+  })
+
+  it('remembers rejected models within the provider instance', async () => {
+    const provider = await providerOfficialChat.createProvider({})
+    if (!isGenerationProvider(provider))
+      throw new Error('Expected generation')
+    const request = provider.generation('auto')
+    if (request.protocol !== 'responses')
+      throw new Error('Expected Responses')
+    request.onUnsupported?.()
+    expect(provider.generation('auto').protocol).toBe('chat-completions')
+    expect(provider.generation('another-model').protocol).toBe('responses')
+  })
+
+  it('preserves an explicit Chat Completions selection', async () => {
+    const provider = await providerOfficialChat.createProvider({ api: 'chat-completions' })
+    if (!isGenerationProvider(provider))
+      throw new Error('Expected generation')
+    expect(provider.generation('auto').protocol).toBe('chat-completions')
   })
 })
 
