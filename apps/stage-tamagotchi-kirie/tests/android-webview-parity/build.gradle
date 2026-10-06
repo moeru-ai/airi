@@ -1,0 +1,52 @@
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath 'com.android.tools.build:gradle:8.13.2' }
+}
+apply plugin: 'com.android.application'
+
+def appRoot = file('../..')
+def generated = layout.buildDirectory.dir('generated/parity')
+tasks.register('generateParitySources', Exec) {
+    commandLine 'python3', file('generate-sources.py'), generated.get().asFile
+    inputs.file(new File(appRoot, 'addons/airi-android/export-plugin.gd'))
+    inputs.dir(new File(appRoot, '../stage-pocket/node_modules/@capacitor/android'))
+    outputs.dir(generated)
+}
+android {
+    namespace 'com.godot.game'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'ai.moeru.airi.websurfaces'
+        minSdk 26
+        targetSdk 36
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+    }
+    sourceSets.main.java.srcDir generated
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+tasks.named('preBuild').configure { dependsOn 'generateParitySources' }
+dependencies {
+    implementation files(new File(appRoot, 'android/build/libs/debug/godot-lib.template_debug.aar'))
+    implementation files(new File(appRoot, 'addons/kirie/libraries/android/Kirie-release.aar'))
+    implementation 'androidx.webkit:webkit:1.16.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.21'
+    implementation 'androidx.fragment:fragment:1.8.6'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+    implementation 'io.ionic.libs:ionbarcode-android:2.1.1@aar'
+    implementation 'androidx.appcompat:appcompat:1.7.1'
+    implementation 'androidx.activity:activity-ktx:1.10.1'
+    implementation 'com.google.zxing:core:3.5.3'
+    implementation 'com.google.mlkit:barcode-scanning:17.3.0'
+    implementation 'androidx.camera:camera-camera2:1.5.1'
+    implementation 'androidx.camera:camera-lifecycle:1.5.1'
+    implementation 'androidx.camera:camera-view:1.5.1'
+    implementation 'androidx.activity:activity-compose:1.10.1'
+    implementation 'androidx.compose.material3:material3:1.4.0'
+    implementation 'androidx.compose.material3:material3-window-size-class:1.4.0'
+    androidTestImplementation 'androidx.test.ext:junit:1.3.0'
+    androidTestImplementation 'androidx.test:runner:1.7.0'
+}
