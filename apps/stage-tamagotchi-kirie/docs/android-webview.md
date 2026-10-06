@@ -113,8 +113,8 @@ Cancellation and other result codes pass the nullable intent to `FileChooserPara
 
 Kirie copies Capacitor Local Notifications 8.3.1 for the notification page's default one-time schedule.
 It uses an exact non-wakeup alarm when Android permits exact alarms.
-Without that permission, it uses a non-exact non-wakeup alarm and keeps the renderer visible.
-The Send Notification click does not open Android's alarm settings.
+Without that permission, the Send Notification click opens Android's alarm settings.
+When the user returns, it uses an exact alarm if granted and a non-exact alarm otherwise.
 
 ## Android backup persistence
 

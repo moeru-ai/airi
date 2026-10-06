@@ -198,8 +198,10 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private final Map<String, PendingEventaRequest> pendingPermissionRequests =
         new HashMap<>();
     private PendingEventaRequest pendingBarcodeScan;
+    private PendingNotificationSchedule pendingNotificationSchedule;
     private ValueCallback<Uri[]> pendingFileChooser;
     private JavaScriptReplyProxy eventaReplyProxy;
+    private ActivityResultLauncher<Intent> exactAlarmLauncher;
     private ActivityResultLauncher<String[]> permissionLauncher;
     // Keep one listener, including after completion, to match Capacitor 8.5.0.
     private PermissionListener permissionListener;
@@ -220,6 +222,10 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
     @Override
     public View onMainCreate(Activity activity) {
+        exactAlarmLauncher = ((ComponentActivity) activity).registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> completePendingNotificationSchedule()
+        );
         permissionLauncher = ((ComponentActivity) activity).registerForActivityResult(
             new ActivityResultContracts.RequestMultiplePermissions(),
             isGranted -> {
@@ -318,6 +324,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         eventaReplyProxy = null;
         pendingPermissionRequests.clear();
         pendingBarcodeScan = null;
+        pendingNotificationSchedule = null;
     }
 
     @Override
@@ -1040,8 +1047,45 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
 
         AlarmManager alarmManager = activity.getSystemService(AlarmManager.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            && !alarmManager.canScheduleExactAlarms()) {
+            pendingNotificationSchedule = new PendingNotificationSchedule(
+                request,
+                id,
+                title,
+                body,
+                at
+            );
+            activity.runOnUiThread(() -> exactAlarmLauncher.launch(
+                new Intent(
+                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    Uri.parse("package:" + activity.getPackageName())
+                )
+            ));
+            return;
+        }
+
         scheduleNotificationAlarm(activity, alarmManager, id, title, body, at);
         sendEventaResponse(request, JSONObject.NULL);
+    }
+
+    private void completePendingNotificationSchedule() {
+        Activity activity = getActivity();
+        PendingNotificationSchedule schedule = pendingNotificationSchedule;
+        if (activity == null || schedule == null) {
+            return;
+        }
+
+        pendingNotificationSchedule = null;
+        scheduleNotificationAlarm(
+            activity,
+            activity.getSystemService(AlarmManager.class),
+            schedule.id,
+            schedule.title,
+            schedule.body,
+            schedule.at
+        );
+        sendEventaResponse(schedule.request, JSONObject.NULL);
     }
 
     private void scheduleNotificationAlarm(
@@ -1112,6 +1156,28 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             this.event = event;
             this.invokeId = invokeId;
             this.replyProxy = replyProxy;
+        }
+    }
+
+    private static final class PendingNotificationSchedule {
+        private final PendingEventaRequest request;
+        private final int id;
+        private final String title;
+        private final String body;
+        private final long at;
+
+        private PendingNotificationSchedule(
+            PendingEventaRequest request,
+            int id,
+            String title,
+            String body,
+            long at
+        ) {
+            this.request = request;
+            this.id = id;
+            this.title = title;
+            this.body = body;
+            this.at = at;
         }
     }
 
