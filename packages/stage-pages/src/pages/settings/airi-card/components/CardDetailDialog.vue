@@ -10,7 +10,7 @@ import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button, Select } from '@proj-airi/ui'
+import { Button, GhostButton, Select } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import {
   DialogContent,
@@ -24,6 +24,9 @@ import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
 import DeleteCardDialog from './DeleteCardDialog.vue'
+import RestoreVersionDialog from './RestoreVersionDialog.vue'
+
+import { formatRelativeTime } from '../composables/relative-time'
 
 interface Props {
   modelValue: boolean
@@ -36,7 +39,7 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
 }>()
 
-const { t } = useI18n()
+const { t, te, locale } = useI18n()
 const { trackSceneBackgroundSet } = useAnalytics()
 const cardStore = useAiriCardStore()
 const backgroundStore = useBackgroundStore()
@@ -275,9 +278,23 @@ const historyEntries = ref<HistoryEntry[]>([])
 const isLoadingHistory = ref(false)
 const historyLoadFailed = ref(false)
 const restoringRevision = ref<number | null>(null)
+const showRestoreConfirm = ref(false)
+const pendingRestore = ref<HistoryEntry | null>(null)
 
 function formatHistoryDate(at: string) {
-  return new Date(at).toLocaleString()
+  return new Date(at).toLocaleString(locale.value, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function formatHistoryRelative(at: string) {
+  return formatRelativeTime(at, locale.value)
+}
+
+// A field key is an RFC 6901 pointer such as `/name`. The label comes from
+// the last segment, with the raw segment as the fallback for unknown fields.
+function historyFieldLabel(pointer: string) {
+  const segment = pointer.split('/').pop() || pointer
+  const key = `settings.pages.card.sync.history.fields.${segment}`
+  return te(key) ? t(key) : segment
 }
 
 async function loadHistory() {
@@ -299,14 +316,15 @@ async function loadHistory() {
   }
 }
 
-async function handleRestoreVersion(entry: HistoryEntry) {
-  if (!selectedCard.value)
-    return
+function requestRestoreVersion(entry: HistoryEntry) {
+  pendingRestore.value = entry
+  showRestoreConfirm.value = true
+}
 
-  const confirmed = requestDeleteConfirmation(
-    t('settings.pages.card.sync.history.restore_confirm_body', { name: selectedCard.value.name, date: formatHistoryDate(entry.at) }),
-  )
-  if (!confirmed)
+async function confirmRestoreVersion() {
+  // The dialog closes on confirm, so the entry must live outside its visibility state.
+  const entry = pendingRestore.value
+  if (!entry || !selectedCard.value)
     return
 
   restoringRevision.value = entry.revision
@@ -322,6 +340,7 @@ async function handleRestoreVersion(entry: HistoryEntry) {
   }
   finally {
     restoringRevision.value = null
+    pendingRestore.value = null
   }
 }
 
@@ -405,7 +424,7 @@ function getModuleDisplayValue(value: string | undefined): string {
   <DialogRoot :open="modelValue" @update:open="emit('update:modelValue', $event)">
     <DialogPortal>
       <DialogOverlay class="fixed inset-0 z-100 bg-black/50 backdrop-blur-sm data-[state=closed]:animate-fadeOut data-[state=open]:animate-fadeIn" />
-      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-6xl w-[92vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[60vw] lg:w-[80vw] md:w-[85vw] xl:w-[70vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6" @interact-outside.prevent>
+      <DialogContent class="fixed left-1/2 top-1/2 z-100 m-0 max-h-[90vh] max-w-7xl w-[94vw] flex flex-col overflow-auto border border-neutral-200 rounded-xl bg-white p-5 shadow-xl 2xl:w-[70vw] lg:w-[85vw] md:w-[90vw] xl:w-[80vw] -translate-x-1/2 -translate-y-1/2 data-[state=closed]:animate-contentHide data-[state=open]:animate-contentShow dark:border-neutral-700 dark:bg-neutral-800 sm:p-6">
         <div v-if="selectedCard" class="w-full flex flex-col gap-5">
           <!-- Header with status indicator -->
           <div flex="~ col" gap-3>
@@ -760,34 +779,92 @@ function getModuleDisplayValue(value: string | undefined): string {
               <div v-else-if="historyLoadFailed" class="py-8 text-center text-sm text-red-500 dark:text-red-400">
                 {{ t('settings.pages.card.sync.history.load_failed') }}
               </div>
-              <div v-else-if="historyEntries.length === 0" class="py-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
-                {{ t('settings.pages.card.sync.history.empty') }}
+              <div
+                v-else-if="historyEntries.length === 0"
+                :class="[
+                  'flex flex-col items-center justify-center',
+                  'border border-dashed border-neutral-200 rounded-xl',
+                  'bg-neutral-50/50 py-12 dark:border-neutral-700/50 dark:bg-neutral-900/50',
+                ]"
+              >
+                <div class="i-solar:history-linear mb-3 text-5xl text-neutral-300 dark:text-neutral-600" />
+                <p class="text-sm text-neutral-500 dark:text-neutral-400">
+                  {{ t('settings.pages.card.sync.history.empty') }}
+                </p>
               </div>
-              <div v-else flex="~ col" max-h-80 gap-2 overflow-auto pr-1>
-                <div
-                  v-for="entry in historyEntries"
+              <ol v-else :class="['flex flex-col', 'max-h-96 overflow-auto pr-1']">
+                <li
+                  v-for="(entry, index) in historyEntries"
                   :key="entry.revision"
-                  flex="~ row" items-center justify-between gap-3 rounded-lg p-3
-                  bg="white/60 dark:black/30"
-                  border="~ neutral-200/50 dark:neutral-700/30"
+                  class="relative flex gap-3 pb-5 last:pb-1"
                 >
-                  <div flex="~ col" min-w-0 gap-1>
-                    <span text-sm font-medium>{{ formatHistoryDate(entry.at) }}</span>
-                    <span v-if="entry.changed.length > 0" truncate text-xs text-neutral-500 dark:text-neutral-400>
-                      {{ t('settings.pages.card.sync.history.changed', { keys: entry.changed.join(', ') }) }}
-                    </span>
-                    <span v-if="entry.removed.length > 0" truncate text-xs text-neutral-500 dark:text-neutral-400>
-                      {{ t('settings.pages.card.sync.history.removed', { keys: entry.removed.join(', ') }) }}
-                    </span>
+                  <!-- Timeline rail -->
+                  <div class="flex flex-col items-center">
+                    <div
+                      class="mt-1.5 size-2.5 shrink-0 rounded-full"
+                      :class="index === 0 ? 'bg-primary-500 dark:bg-primary-400' : 'bg-neutral-300 dark:bg-neutral-600'"
+                    />
+                    <div v-if="index < historyEntries.length - 1" class="mt-1 w-px flex-1 bg-neutral-200 dark:bg-neutral-700" />
                   </div>
-                  <Button
-                    shrink-0
-                    :label="t('settings.pages.card.sync.history.restore')"
-                    :disabled="restoringRevision === entry.revision"
-                    @click="handleRestoreVersion(entry)"
-                  />
-                </div>
-              </div>
+
+                  <div class="min-w-0 flex flex-1 flex-row items-start justify-between gap-3">
+                    <div class="min-w-0 flex flex-col gap-1.5">
+                      <div class="flex items-center gap-2">
+                        <span class="text-sm font-medium" :title="formatHistoryDate(entry.at)">
+                          {{ formatHistoryRelative(entry.at) }}
+                        </span>
+                        <span
+                          v-if="index === 0"
+                          :class="[
+                            'flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
+                            'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-400',
+                          ]"
+                        >
+                          {{ t('settings.pages.card.sync.history.current') }}
+                        </span>
+                      </div>
+                      <div v-if="entry.changed.length > 0" class="flex flex-wrap items-center gap-1.5">
+                        <span class="text-xs text-neutral-500 dark:text-neutral-400">
+                          {{ t('settings.pages.card.sync.history.changed_label') }}
+                        </span>
+                        <span
+                          v-for="key in entry.changed"
+                          :key="key"
+                          :class="[
+                            'rounded-md px-1.5 py-0.5 text-xs',
+                            'bg-primary-500/10 text-primary-600 dark:text-primary-400',
+                          ]"
+                        >
+                          {{ historyFieldLabel(key) }}
+                        </span>
+                      </div>
+                      <div v-if="entry.removed.length > 0" class="flex flex-wrap items-center gap-1.5">
+                        <span class="text-xs text-neutral-500 dark:text-neutral-400">
+                          {{ t('settings.pages.card.sync.history.removed_label') }}
+                        </span>
+                        <span
+                          v-for="key in entry.removed"
+                          :key="key"
+                          :class="[
+                            'rounded-md px-1.5 py-0.5 text-xs',
+                            'bg-red-500/10 text-red-600 dark:text-red-400',
+                          ]"
+                        >
+                          {{ historyFieldLabel(key) }}
+                        </span>
+                      </div>
+                    </div>
+                    <GhostButton
+                      v-if="index !== 0"
+                      size="sm"
+                      icon="i-solar:restart-line-duotone"
+                      :label="t('settings.pages.card.sync.history.restore')"
+                      :disabled="restoringRevision === entry.revision"
+                      @click="requestRestoreVersion(entry)"
+                    />
+                  </div>
+                </li>
+              </ol>
             </div>
           </div>
         </div>
@@ -811,5 +888,14 @@ function getModuleDisplayValue(value: string | undefined): string {
     :card-name="selectedCard?.name"
     @confirm="handleDeleteConfirm"
     @cancel="showDeleteConfirm = false"
+  />
+
+  <!-- Restore version confirmation dialog -->
+  <RestoreVersionDialog
+    v-model="showRestoreConfirm"
+    :card-name="selectedCard?.name"
+    :version-date="pendingRestore ? formatHistoryDate(pendingRestore.at) : ''"
+    @confirm="confirmRestoreVersion"
+    @cancel="showRestoreConfirm = false"
   />
 </template>

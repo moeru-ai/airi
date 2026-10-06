@@ -347,7 +347,7 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
   card:
     sync:
-      notice: 你的角色卡会同步到账号。当前选中的角色只保留在这台设备。删除的角色卡会在账号里保留 30 天。可以随时在"设置 > 系统 > 实验性特性"里关闭。
+      notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
       off_notice: 你已登录，但角色卡同步还没有打开。
       off_notice_link: 去实验性特性里打开。
       state:
@@ -361,8 +361,36 @@ pages:
         empty: 这张角色卡还没有历史版本。
         loading: 正在加载历史版本……
         load_failed: 无法加载这张角色卡的历史版本。
-        changed: '改动：{keys}'
-        removed: '删除：{keys}'
+        current: 当前版本
+        changed_label: 改动
+        removed_label: 移除
+        fields:
+          name: 名称
+          nickname: 昵称
+          version: 版本
+          creator: 作者
+          description: 描述
+          personality: 性格
+          scenario: 场景
+          systemPrompt: 系统提示词
+          postHistoryInstructions: 历史后指令
+          notes: 创作者备注
+          greetings: 问候语
+          tags: 标签
+          metadata: 元数据
+          assets: 资源
+          characterBook: 世界书
+          source: 来源
+          wakeWords: 唤醒词
+          agents: 智能体
+          consciousness: 意识模型
+          vision: 视觉模型
+          speech: 语音模型
+          vrm: VRM 模型
+          live2d: Live2D 模型
+          displayModelId: 展示模型
+          activeBackgroundId: 固定背景
+          artistry: 绘画
         restore: 恢复到此版本
         restore_confirm_title: 恢复到此版本？
         restore_confirm_body: 这会用 {date} 的内容替换 {name} 当前的内容。
@@ -375,6 +403,8 @@ pages:
         empty: 没有最近删除的角色卡。
         loading: 正在加载最近删除的角色卡……
         load_failed: 无法加载最近删除的角色卡。
+        deleted_when: 删除于 {when}
+        days_left: 还可恢复，剩余 {days} 天
         restore: 恢复
         restore_success: 已恢复 {name}。
         restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。

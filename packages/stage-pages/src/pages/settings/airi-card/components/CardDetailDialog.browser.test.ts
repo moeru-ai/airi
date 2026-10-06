@@ -78,14 +78,19 @@ describe('card detail dialog history tab', () => {
       // depend on them, so a generic empty response keeps the test focused.
       return new Response(null, { status: 404 })
     })
-    globalThis.confirm = () => true
-
     // Signing in changes the available tabs. Force the dialog to read them again.
     await screen.rerender({ cardId })
     await screen.getByRole('button', { name: 'History' }).click()
 
-    await expect.element(screen.getByText('Changed: /name').first()).toBeVisible()
-    await screen.getByRole('button', { name: 'Restore this version' }).nth(1).click()
+    // The newest entry is the current content, so it carries a badge and no restore button.
+    await expect.element(screen.getByText('Current')).toBeVisible()
+    await expect.element(screen.getByText('Changed').first()).toBeVisible()
+    await expect.element(screen.getByText('Name').first()).toBeVisible()
+
+    // Only the older revision offers a restore, and it asks through a dialog.
+    await screen.getByRole('button', { name: 'Restore this version' }).click()
+    await expect.element(screen.getByText('Restore this version?')).toBeVisible()
+    await screen.getByRole('button', { name: 'Restore', exact: true }).click()
 
     await expect.poll(() => useAiriCardStore(pinia).cards.get(cardId)?.name).toBe('Nova')
   })

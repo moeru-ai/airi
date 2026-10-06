@@ -17,7 +17,9 @@ import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
-const { t } = useI18n()
+import { formatRelativeTime } from './composables/relative-time'
+
+const { t, locale } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
@@ -217,6 +219,18 @@ const isLoadingDeleted = ref(false)
 const deletedLoadFailed = ref(false)
 const restoringDeletedId = ref<string | null>(null)
 
+// The server keeps the content of a deleted card for 30 days.
+const DELETED_CARD_RETENTION_DAYS = 30
+
+function formatDeletedRelative(deletedAt: string) {
+  return formatRelativeTime(deletedAt, locale.value)
+}
+
+function restorableDays(deletedAt: string) {
+  const elapsed = Math.floor((Date.now() - new Date(deletedAt).getTime()) / (24 * 60 * 60 * 1000))
+  return Math.max(0, DELETED_CARD_RETENTION_DAYS - elapsed)
+}
+
 async function loadDeletedCards() {
   isLoadingDeleted.value = true
   deletedLoadFailed.value = false
@@ -277,15 +291,26 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 <template>
   <div rounded-xl p-4 flex="~ col gap-4">
     <!-- Disclosure: signed-in users upload their cards -->
-    <div v-if="isAuthenticated && cloudSyncEnabled" flex="~ col" gap-2>
-      <div flex="~ row" items-center justify-between gap-2>
-        <p flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
-          <span i-solar:cloud-check-outline shrink-0 />
+    <div
+      v-if="isAuthenticated && cloudSyncEnabled"
+      :class="[
+        'flex flex-col gap-3 rounded-xl px-4 py-3',
+        'border border-primary-200/60 dark:border-primary-800/40',
+        'bg-primary-50/50 dark:bg-primary-950/30',
+      ]"
+    >
+      <div :class="['flex flex-row flex-wrap items-center justify-between gap-2']">
+        <p :class="['flex items-center gap-2 text-sm', 'text-neutral-600 dark:text-neutral-300']">
+          <span i-solar:cloud-check-outline :class="['shrink-0', 'text-primary-500 dark:text-primary-400']" />
           {{ t('settings.pages.card.sync.notice') }}
         </p>
         <button
           type="button"
-          flex="~ row" shrink-0 items-center gap-1 text-sm text="primary-600 dark:primary-400"
+          :class="[
+            'flex flex-row shrink-0 items-center gap-1 text-sm',
+            'text-primary-600 dark:text-primary-400',
+            'hover:underline',
+          ]"
           @click="toggleDeletedPanel"
         >
           <div i-solar:trash-bin-minimalistic-linear />
@@ -296,9 +321,11 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 
       <div
         v-if="showDeletedPanel"
-        flex="~ col" gap-2 rounded-xl p-4
-        bg="neutral-50/50 dark:neutral-900/50"
-        border="~ neutral-200/50 dark:neutral-700/30"
+        :class="[
+          'flex flex-col gap-2 rounded-lg p-3',
+          'bg-white/60 dark:bg-black/30',
+          'border border-neutral-200/50 dark:border-neutral-700/30',
+        ]"
       >
         <div v-if="isLoadingDeleted" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
           {{ t('settings.pages.card.sync.deleted.loading') }}
@@ -312,13 +339,24 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         <div
           v-for="card in deletedCardsList"
           :key="card.id"
-          flex="~ row" items-center justify-between gap-3 rounded-lg p-3
-          bg="white/60 dark:black/30"
-          border="~ neutral-200/50 dark:neutral-700/30"
+          :class="[
+            'flex flex-row items-center justify-between gap-3 rounded-lg p-3',
+            'bg-white dark:bg-neutral-900',
+            'border border-neutral-200/50 dark:border-neutral-700/30',
+          ]"
         >
-          <span truncate text-sm font-medium>{{ card.name }}</span>
+          <div :class="['flex min-w-0 flex-col gap-0.5']">
+            <span :class="['truncate text-sm font-medium']">{{ card.name }}</span>
+            <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']" :title="new Date(card.deletedAt).toLocaleString(locale)">
+              {{ t('settings.pages.card.sync.deleted.deleted_when', { when: formatDeletedRelative(card.deletedAt) }) }}
+              ·
+              {{ t('settings.pages.card.sync.deleted.days_left', { days: restorableDays(card.deletedAt) }) }}
+            </span>
+          </div>
           <Button
+            size="sm"
             shrink-0
+            icon="i-solar:restart-line-duotone"
             :label="t('settings.pages.card.sync.deleted.restore')"
             :disabled="restoringDeletedId === card.id"
             @click="handleRestoreDeletedCard(card)"
