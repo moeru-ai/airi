@@ -63,11 +63,11 @@ The unknown cost is not priced later with the original price. Reconciliation use
 
 ```mermaid
 flowchart LR
-  LLM[LlmBilling] -->|source and amount| Billing[BillingService]
-  Speech[Speech meter] -->|source and amount| Billing
+  LLM[llm-billing.ts] -->|source and amount| Billing[billing-service.ts]
+  Speech[speech-billing.ts] -->|source and amount| Billing
   Billing --> Usage[flux_usage]
   Billing --> Ledger[flux_transaction]
-  Billing --> Wallet[user_flux]
+  Billing --> WalletRow[user_flux]
   Billing -->|after commit| Cache[Redis invalidation]
 ```
 
@@ -77,7 +77,7 @@ flowchart LR
 server/apps/api/
   drizzle/0028_flux_usage.sql
   src/schemas/{flux,flux-usage}.ts
-  src/services/domain/billing/{billing-service,flux-posting,llm-billing,speech-billing}.ts
+  src/services/domain/billing/{billing-service,llm-price,llm-billing,speech-billing}.ts
   src/services/domain/{flux,flux-cache,flux-transaction}.ts
   src/routes/{flux,openai/v1,audio-speech-ws}/
   src/app.ts

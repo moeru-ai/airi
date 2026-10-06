@@ -1,22 +1,40 @@
 import type Redis from 'ioredis'
+import type { InferOutput } from 'valibot'
 
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
-import type { FluxUsageInput } from './flux-posting'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
-import { minValue, number, parse, pipe, safeInteger } from 'valibot'
+import { minValue, nonEmpty, number, object, optional, parse, pipe, record, safeInteger, string, unknown } from 'valibot'
 
 import { invalidateBalanceCache } from '../flux-cache'
-import { MICRO_PER_CREDIT, settleMicroCredits } from './credit-posting'
-import { fluxUsageInputSchema } from './flux-posting'
+import { availableMicroCredits, MICRO_PER_CREDIT, settleMicroCredits } from './credit-posting'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
 import * as fluxUsageSchema from '../../../schemas/flux-usage'
 
 const logger = useLogger('billing-service')
+
+/** Source identity scopes idempotency per wallet. Zero is a confirmed amount and still creates a usage record. */
+export const fluxUsageInputSchema = object({
+  userId: pipe(string(), nonEmpty()),
+  source: object({ type: pipe(string(), nonEmpty()), id: pipe(string(), nonEmpty()) }),
+  amountMicroFlux: pipe(number(), safeInteger(), minValue(0)),
+  detail: optional(record(string(), unknown())),
+})
+export type FluxUsageInput = InferOutput<typeof fluxUsageInputSchema>
+
+/** Converts a micro-Flux fee to Flux for telemetry. */
+export function microFluxToFlux(microFlux: number): number {
+  return microFlux / MICRO_PER_CREDIT
+}
+
+/** Integer balance minus confirmed outstanding fees, in micro-Credits. Admission uses this one formula. */
+export function availableMicroFlux(wallet: { flux: number, unsettledMicroFlux: number }): bigint {
+  return availableMicroCredits({ credits: wallet.flux, unsettledMicro: wallet.unsettledMicroFlux })
+}
 
 /** Database handle used when the caller owns the outer transaction. */
 export type BillingTransaction = Pick<Database, 'insert' | 'update' | 'select'>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { extractUsageFromBody } from '../../generation-usage'
-import { priceLlmCost } from '../billing'
+import { priceLlmCost } from '../llm-price'
 
 describe('provider cost pricing', () => {
   const pricing = { fluxPerUsd: 1000, multiplier: 1.5 }

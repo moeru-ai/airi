@@ -1,15 +1,38 @@
+import type { InferOutput } from 'valibot'
+
 import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { BillingService } from './billing-service'
-import type { PlanCreditAccount, UsageSettlement } from './credit-settlement'
+import type { PlanCreditAccount, UsageSettlement } from './settlement'
 
-import { parse } from 'valibot'
+import { finite, minValue, number, object, parse, pipe } from 'valibot'
 
 import { createPaymentRequiredError } from '../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../utils/observability'
-import { priceSpeechUsage, speechPricingSchema } from './billing'
-import { createUsageSettlement } from './credit-settlement'
-import { availableMicroFlux, microFluxToFlux } from './flux-posting'
+import { availableMicroFlux, microFluxToFlux } from './billing-service'
+import { MICRO_PER_CREDIT } from './credit-posting'
+import { decimalFraction } from './llm-price'
+import { createUsageSettlement } from './settlement'
+
+const microPerCredit = BigInt(MICRO_PER_CREDIT)
+
+/** Snapshot of the character price, fixed before speech dispatch. */
+export const speechPricingSchema = object({
+  fluxPer1kChars: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
+})
+export type SpeechPricing = InferOutput<typeof speechPricingSchema>
+
+/** Prices metered speech characters with decimal arithmetic before integer wallet settlement. */
+export function priceSpeechUsage(units: number, pricing: SpeechPricing): number {
+  if (!Number.isSafeInteger(units) || units < 0)
+    throw new Error('Speech units must be a non-negative safe integer')
+  const [numerator, denominator] = decimalFraction(pricing.fluxPer1kChars)
+  const divisor = denominator * 1000n
+  const fee = (BigInt(units) * numerator * microPerCredit + divisor - 1n) / divisor
+  if (fee > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error('Speech cost is out of range')
+  return Number(fee)
+}
 
 export interface SpeechSettlement extends UsageSettlement {
   /** Flux taken from the wallet. Zero when the plan pays or the fee stays unbilled. */

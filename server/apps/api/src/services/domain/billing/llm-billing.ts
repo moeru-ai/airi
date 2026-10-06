@@ -1,11 +1,11 @@
 import type { RevenueMetrics } from '../../../otel'
-import type { CostPricing, CostUsage } from './billing'
 import type { BillingService } from './billing-service'
+import type { CostPricing, CostUsage } from './llm-price'
 
 import { nonEmpty, parse, picklist, pipe, string } from 'valibot'
 
-import { costPricingSchema, priceLlmCost } from './billing'
-import { microFluxToFlux } from './flux-posting'
+import { microFluxToFlux } from './billing-service'
+import { costPricingSchema, priceLlmCost } from './llm-price'
 
 /**
  * Prices a confirmed provider cost and posts it once to the shared micro-Flux pool.

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { createUsageSettlement } from '../credit-settlement'
+import { createUsageSettlement } from '../settlement'
 
 function plans(input: {
   spendable?: number

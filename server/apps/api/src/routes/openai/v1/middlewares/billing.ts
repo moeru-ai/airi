@@ -1,8 +1,8 @@
 import type { RevenueMetrics } from '../../../../otel'
 import type { ConfigKVService } from '../../../../services/adapters/config-kv'
-import type { BillingPolicy, CostPricing, CostUsage } from '../../../../services/domain/billing/billing'
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
 import type { LlmBillingService } from '../../../../services/domain/billing/llm-billing'
+import type { BillingPolicy, CostPricing, CostUsage } from '../../../../services/domain/billing/llm-price'
 import type { SpeechMeter } from '../../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../../services/domain/flux'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
@@ -11,9 +11,10 @@ import type { SubscriptionService } from '../../../../services/domain/subscripti
 import { safeParse } from 'valibot'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
-import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/billing'
-import { createUsageSettlement } from '../../../../services/domain/billing/credit-settlement'
-import { availableMicroFlux, MICRO_FLUX_PER_FLUX, microFluxToFlux } from '../../../../services/domain/billing/flux-posting'
+import { availableMicroFlux, microFluxToFlux } from '../../../../services/domain/billing/billing-service'
+import { MICRO_PER_CREDIT } from '../../../../services/domain/billing/credit-posting'
+import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/llm-price'
+import { createUsageSettlement } from '../../../../services/domain/billing/settlement'
 import { createPaymentRequiredError, createServiceUnavailableError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
 
@@ -75,7 +76,7 @@ export function createOpenAiRouteBilling(deps: {
       throw createServiceUnavailableError('LLM pricing configuration is incomplete', 'LLM_BILLING_UNAVAILABLE')
     await deps.fluxService.getFlux(userId)
     // One pool must cover the minimum. Plan Credits and the wallet are not added together.
-    const minimumMicro = parsed.output.minimumBalance * MICRO_FLUX_PER_FLUX
+    const minimumMicro = parsed.output.minimumBalance * MICRO_PER_CREDIT
     if (!await usageSettlement.canCover(userId, minimumMicro))
       throw createPaymentRequiredError('Insufficient flux')
     return parsed.output

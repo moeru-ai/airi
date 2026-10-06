@@ -42,13 +42,13 @@ In-app product replacement checkout.
 
 ```mermaid
 flowchart LR
-  Chat[Chat billing] --> Settle["canCover and settle"]
-  Speech[Speech meter] --> Settle
-  Settle --> Plan[subscription allowance]
-  Settle --> Wallet[postFluxUsage]
-  Wallet --> Credits[credit-posting]
-  Plan --> Credits
-  Webhook[RevenueCat sync] --> Subs[subscription service]
+  Chat[Chat billing] --> Settle["settlement.ts"]
+  Speech[speech-billing.ts] --> Settle
+  Settle --> Subs["subscriptions/index.ts"]
+  Settle --> Billing[billing-service.ts]
+  Billing --> Credits[credit-posting.ts]
+  Subs --> Credits
+  Webhook[RevenueCat sync] --> Subs
 ```
 
 ## Sequence
@@ -72,7 +72,7 @@ server/apps/api/
   drizzle/0031_subscription.sql
   src/schemas/subscription.ts
   src/services/domain/billing/credit-posting.ts
-  src/services/domain/billing/credit-settlement.ts
+  src/services/domain/billing/settlement.ts
   src/services/domain/billing/speech-billing.ts
   src/services/domain/subscriptions/index.ts
   src/services/adapters/revenuecat-subscriptions.ts

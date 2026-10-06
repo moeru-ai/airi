@@ -49,7 +49,7 @@ The cache functions do not add a key prefix.
 `flux_transaction` records integer balance changes only. `user_flux` stores integer Flux and outstanding micro-Flux.
 One Flux equals 1,000,000 micro-Flux.
 LLM and TTS fees share one pool. Outstanding fees do not expire.
-`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux, detail? })` accepts confirmed amounts.
+`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux, detail? })` accepts confirmed amounts. The billing service lives in `src/services/domain/billing/billing-service.ts`.
 The accounting core has no model, provider, turn, attempt, or pricing dependency.
 A service puts its own evidence in `detail`. A new service needs a new `source.type` and no new table.
 A fee posts once. A replay with the same amount returns the first result. A replay with another amount fails.
@@ -155,8 +155,8 @@ Store all enter through the single RevenueCat webhook; `store` is only a
 field, so new channels need no server changes.
 
 `src/services/domain/subscriptions` owns sync, status reads, Credit debit,
-the Flux-fallback preference (default off), and `deleteAllForUser`. Status
-comes from webhook events. Only `EXPIRATION` revokes access. `BILLING_ISSUE`
+the Flux-fallback preference (default off), and `deleteAllForUser`.
+Status comes from webhook events. Only `EXPIRATION` revokes access. `BILLING_ISSUE`
 and `CANCELLATION` keep access until `expires_at`. `INITIAL_PURCHASE`,
 `RENEWAL`, and `PRODUCT_CHANGE` open a fresh Credit period and forfeit the
 old remainder. Those events also expire every other entitlement for that

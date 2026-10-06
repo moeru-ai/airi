@@ -1,4 +1,4 @@
-import type { CostUsage } from '../../domain/billing/billing'
+import type { CostUsage } from '../../domain/billing/llm-price'
 import type { UsageInfo } from '../../domain/generation-usage'
 
 import { boolean, finite, minValue, number, object, optional, pipe, safeParse } from 'valibot'

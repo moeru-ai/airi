@@ -10,6 +10,26 @@ import * as schema from '../../../schemas/subscription'
 
 const logger = useLogger('subscriptions')
 
+interface SubscriptionUpsert {
+  userId: string
+  entitlementId: string
+  status: SubscriptionStatus
+  productId?: string | null
+  source?: string | null
+  environment?: string | null
+  expiresAt?: Date | null
+}
+
+interface AllowancePeriod {
+  userId: string
+  entitlementId: string
+  grantedCredit: number
+  periodStart: Date
+  periodEnd?: Date | null
+  /** Deduplicates redeliveries of the same grant. Null disables the check. */
+  eventKey?: string | null
+}
+
 function usableAllowanceSql() {
   return sql`((${schema.subscriptionAllowance.grantedCredit} - ${schema.subscriptionAllowance.usedCredit})::bigint * ${MICRO_PER_CREDIT}) > ${schema.subscriptionAllowance.unsettledMicroCredit}`
 }
@@ -23,26 +43,6 @@ function openAllowanceWhere(userId: string, now: Date) {
     ),
     usableAllowanceSql(),
   )
-}
-
-export interface SubscriptionUpsert {
-  userId: string
-  entitlementId: string
-  status: SubscriptionStatus
-  productId?: string | null
-  source?: string | null
-  environment?: string | null
-  expiresAt?: Date | null
-}
-
-export interface AllowancePeriod {
-  userId: string
-  entitlementId: string
-  grantedCredit: number
-  periodStart: Date
-  periodEnd?: Date | null
-  /** Deduplicates redeliveries of the same grant. Null disables the check. */
-  eventKey?: string | null
 }
 
 /**
@@ -118,6 +118,14 @@ export function createSubscriptionService(db: Database) {
     })
   }
 
+  async function listOpenAllowances(userId: string, now: Date) {
+    return db
+      .select()
+      .from(schema.subscriptionAllowance)
+      .where(openAllowanceWhere(userId, now))
+      .orderBy(asc(schema.subscriptionAllowance.periodEnd))
+  }
+
   /** Live rows with usable access. Expired rows and lapsed periods are excluded. */
   async function getStatus(userId: string, now: Date = new Date()) {
     const rows = await db
@@ -129,14 +137,9 @@ export function createSubscriptionService(db: Database) {
       ))
 
     const active = rows.filter(row => row.status !== 'expired' && (!row.expiresAt || row.expiresAt > now))
-
     const allowances = active.length === 0
       ? []
-      : await db
-          .select()
-          .from(schema.subscriptionAllowance)
-          .where(openAllowanceWhere(userId, now))
-          .orderBy(asc(schema.subscriptionAllowance.periodEnd))
+      : await listOpenAllowances(userId, now)
 
     return {
       subscriptions: active.map(row => ({
@@ -172,12 +175,7 @@ export function createSubscriptionService(db: Database) {
    * Debit spends this same period.
    */
   async function spendableMicro(userId: string, now: Date = new Date()): Promise<number> {
-    const [period] = await db
-      .select()
-      .from(schema.subscriptionAllowance)
-      .where(openAllowanceWhere(userId, now))
-      .orderBy(asc(schema.subscriptionAllowance.periodEnd))
-      .limit(1)
+    const [period] = await listOpenAllowances(userId, now)
     if (!period)
       return 0
     return Number(availableMicroCredits({
