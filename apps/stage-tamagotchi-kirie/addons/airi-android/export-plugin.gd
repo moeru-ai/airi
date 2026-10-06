@@ -1490,6 +1490,7 @@ func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, 
 		return
 
 	enable_cleartext_traffic()
+	configure_launch_task()
 	configure_launch_resources()
 	configure_launch_activity()
 	write_build_file("res/values/airi-theme.xml", DAY_RESOURCES)
@@ -1560,6 +1561,22 @@ func enable_cleartext_traffic() -> void:
 			"tools:replace=\"android:usesCleartextTraffic,android:allowBackup,"
 		)
 	write_build_file(debug_relative_path, debug_content)
+
+
+func configure_launch_task() -> void:
+	# NOTICE:
+	# Godot exports its main activity with singleInstancePerTask.
+	# stage-pocket uses singleTask for its main activity.
+	# Source: apps/stage-pocket/android/app/src/main/AndroidManifest.xml.
+	# Remove this rewrite when Godot exports a configurable activity launch mode.
+	var relative_path = "src/main/AndroidManifest.xml"
+	var absolute_path = ProjectSettings.globalize_path(ANDROID_BUILD_ROOT.path_join(relative_path))
+	var content = FileAccess.get_file_as_string(absolute_path)
+	content = content.replace(
+		"android:launchMode=\"singleInstancePerTask\"",
+		"android:launchMode=\"singleTask\""
+	)
+	write_build_file(relative_path, content)
 
 
 func configure_launch_resources() -> void:

@@ -116,6 +116,13 @@ Android backup and restore therefore include eligible WebView storage under the 
 
 The runtime scenario writes renderer state, performs an Android backup and restore, then verifies the restored value.
 
+## Launcher task reuse
+
+Kirie exports its main Android activity with `singleTask`, matching stage-pocket's `MainActivity`.
+Repeated launcher intents reuse the existing task and deliver the new intent to its main activity.
+
+The runtime scenario launches the activity twice and verifies one task and one main activity instance.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.
