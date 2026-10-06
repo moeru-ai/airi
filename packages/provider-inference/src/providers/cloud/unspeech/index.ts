@@ -3,6 +3,7 @@ import type {
   UnAlibabaCloudOptions,
   UnDeepgramOptions,
   UnMicrosoftOptions,
+  UnStepfunOptions,
   UnVolcengineOptions,
   VoiceProviderWithExtraOptions,
 } from 'unspeech'
@@ -13,6 +14,7 @@ import {
   createUnAlibabaCloud,
   createUnDeepgram,
   createUnMicrosoft,
+  createUnStepfun,
   createUnVolcengine,
   listVoices,
 } from 'unspeech'
@@ -235,6 +237,53 @@ export const providerVolcengineSpeech = defineProvider<VolcengineSpeechConfig, '
         id: voice.id,
         name: voice.name,
         provider: 'volcano-engine',
+        previewURL: voice.preview_audio_url,
+        languages: voice.languages,
+        gender: voice.labels?.gender,
+      }))
+    },
+  },
+})
+
+/**
+ * StepFun speech through an unspeech instance.
+ *
+ * It is not in `portableProviderDefinitions` because Stage has no settings page for it yet.
+ * Hosts import it directly.
+ *
+ * NOTICE:
+ * unspeech 0.1.16 declares `createUnStepfun` in its types but does not export it at runtime.
+ * AIRI patches the export into the package.
+ * Source: patches/unspeech@0.1.16.patch.
+ * Remove the patch when a published unspeech version exports `createUnStepfun`.
+ */
+export const providerStepfunSpeech = defineProvider<UnspeechConfig, 'stepfun-speech'>({
+  id: 'stepfun-speech',
+  name: 'StepFun',
+  nameLocalize: () => 'StepFun',
+  description: 'platform.stepfun.com',
+  descriptionLocalize: () => 'platform.stepfun.com',
+  tasks: ['text-to-speech'],
+  createProviderConfig: ({ t }) => createUnspeechConfigSchema(unspeechConfigSchema, t),
+  createProvider: config => createUnStepfun(config.apiKey.trim(), config.baseUrl?.trim() ?? ''),
+  validationRequiredWhen: config => Boolean(config.apiKey?.trim() && config.baseUrl?.trim()),
+  validators: createUnspeechValidators('stepfun-speech'),
+  extraMethods: {
+    listModels: async () => [
+      { id: 'stepaudio-2.5-tts', name: 'StepAudio 2.5 TTS', provider: 'stepfun-speech', description: '', deprecated: false },
+      { id: 'step-tts-2', name: 'Step TTS 2', provider: 'stepfun-speech', description: '', deprecated: false },
+      { id: 'step-tts-mini', name: 'Step TTS Mini', provider: 'stepfun-speech', description: '', deprecated: false },
+    ],
+    voiceCatalogConfig: ({ apiKey, baseUrl }) => ({ apiKey, baseUrl }),
+    listVoices: async (config) => {
+      const provider = createUnStepfun(config.apiKey.trim(), config.baseUrl?.trim() ?? '') as VoiceProviderWithExtraOptions<UnStepfunOptions>
+      const voices = await listVoices(toListVoicesOptions(provider))
+      return voices.map(voice => ({
+        id: voice.id,
+        name: voice.name,
+        provider: 'stepfun-speech',
+        description: voice.description,
+        compatibleModels: voice.compatible_models,
         previewURL: voice.preview_audio_url,
         languages: voice.languages,
         gender: voice.labels?.gender,

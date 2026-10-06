@@ -186,21 +186,17 @@ export interface CreateLlmRouterServiceOptions {
 /**
  * Default TTL for the TTS voice catalog Redis cache, per provider.
  *
- * - Azure (`microsoft`): live `voices/list` REST. Stable on a weekly cadence
- *   so 6h trades a tolerable freshness window for a big upstream call
- *   reduction.
- * - alibaba / volcengine: unspeech embeds the catalog at build time, so the
- *   only way the catalog changes is unspeech redeploy. 24h is conservative
- *   and avoids hammering unspeech on every voice-picker open.
+ * - alibaba: unspeech embeds the catalog at build time, so the only way the
+ *   catalog changes is unspeech redeploy. 24h is conservative and avoids
+ *   hammering unspeech on every voice-picker open.
+ * - Other providers use the 6h default.
  *
  * Configuration writes invalidate every cache entry directly through
  * `invalidateTtsVoicesCache`, so a key rotation or unspeech URL change
  * propagates immediately and doesn't have to wait out the TTL.
  */
 const TTS_VOICES_CACHE_TTL_S_BY_PROVIDER: Record<string, number> = {
-  'azure': 21_600,
   'dashscope-cosyvoice': 86_400,
-  'volcengine': 86_400,
 }
 
 function ttsVoicesCacheTtl(provider: string): number {
@@ -1131,7 +1127,7 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
    * so the UI can render a real failure state instead of an empty list.
    * Cache writes only happen on success.
    *
-   * Static providers (dashscope-cosyvoice, volcengine) return their bundled
+   * Static providers (dashscope-cosyvoice) return their bundled
    * JSON and bypass the cache (no upstream call to amortize).
    */
   async function listTtsVoices(modelName: string) {
@@ -1165,42 +1161,22 @@ export function createLlmRouterService(options: CreateLlmRouterServiceOptions) {
     const load = (async () => {
       const unspeechBaseURL = (await options.configKV.getOrThrow('UNSPEECH_UPSTREAM')).restBaseURL
 
-      // Live providers (Azure) need the decrypted Azure subscription key + region;
-      // static-catalog providers (alibaba, volcengine) ignore both. The router
-      // decrypts unconditionally so the adapter doesn't have to know which
-      // category it's in — adapters that don't need creds just won't read them.
-      const region = typeof upstream.adapterParams?.region === 'string'
-        ? upstream.adapterParams.region
-        : undefined
+      const voices = await adapter.getVoiceCatalog({
+        adapterParams: upstream.adapterParams ?? {},
+        unspeechBaseURL,
+        fetchImpl,
+      })
 
-      const keyEntry = upstream.keys[0]
-      const plaintext = slice.model.provider === 'azure'
-        ? options.envelopeCrypto.decryptKey(keyEntry.ciphertext, { modelName, keyEntryId: keyEntry.id })
-        : undefined
-
-      try {
-        const voices = await adapter.getVoiceCatalog({
-          keyPlaintext: plaintext,
-          region,
-          adapterParams: upstream.adapterParams ?? {},
-          unspeechBaseURL,
-          fetchImpl,
+      // Cache only on success — failure responses must NOT be persisted or
+      // the next admin reconfigure would have to wait out the TTL even after
+      // fixing credentials.
+      const ttl = options.ttsVoiceCacheTtlSeconds ?? ttsVoicesCacheTtl(slice.model.provider)
+      await options.redis.set(cacheKey, JSON.stringify(voices), 'EX', ttl)
+        .catch((err) => {
+          logger.withError(err).withFields({ cacheKey }).warn('failed to write tts voices cache')
         })
 
-        // Cache only on success — failure responses must NOT be persisted or
-        // the next admin reconfigure would have to wait out the TTL even after
-        // fixing credentials.
-        const ttl = options.ttsVoiceCacheTtlSeconds ?? ttsVoicesCacheTtl(slice.model.provider)
-        await options.redis.set(cacheKey, JSON.stringify(voices), 'EX', ttl)
-          .catch((err) => {
-            logger.withError(err).withFields({ cacheKey }).warn('failed to write tts voices cache')
-          })
-
-        return voices
-      }
-      finally {
-        plaintext?.fill(0)
-      }
+      return voices
     })().finally(() => {
       ttsVoiceCatalogLoads.delete(cacheKey)
     })

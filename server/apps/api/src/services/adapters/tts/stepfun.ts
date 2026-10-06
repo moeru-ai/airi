@@ -1,11 +1,13 @@
+import type { StepfunSpeechOptions } from '@proj-airi/provider-inference'
 import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
+import { providerStepfunSpeech } from '@proj-airi/provider-inference'
 import { isPlainObject } from 'es-toolkit'
 
-import { audioMimeFromFormat } from './audio-format'
-import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
+import { sendViaDefinition } from './definition'
+import { listVoicesViaUnSpeech } from './unspeech'
 
 const STEPFUN_DEFAULT_MODEL = 'stepaudio-2.5-tts'
 const STEPFUN_DEFAULT_FORMAT = 'mp3'
@@ -43,18 +45,17 @@ export const stepfunAdapter: TtsAdapter = {
     const responseFormat = input.responseFormat ?? (typeof ctx.adapterParams.responseFormat === 'string' && ctx.adapterParams.responseFormat
       ? ctx.adapterParams.responseFormat
       : STEPFUN_DEFAULT_FORMAT)
-    const extraBody = buildExtraBody(input, ctx)
 
-    return sendSpeechViaUnSpeech({
+    return sendViaDefinition({
+      label: 'stepfun',
+      definition: providerStepfunSpeech,
       ctx,
-      model: `stepfun/${model}`,
-      input: input.text,
+      model,
+      text: input.text,
       voice,
       speed: input.speed,
       responseFormat,
-      extraBody,
-      fallbackContentType: audioMimeFromFormat(responseFormat),
-      providerLabel: 'stepfun',
+      providerOptions: buildSpeechOptions(input, ctx),
     })
   },
 
@@ -67,44 +68,44 @@ export const stepfunAdapter: TtsAdapter = {
   },
 }
 
-function buildExtraBody(input: TtsInput, ctx: TtsAdapterContext): Record<string, unknown> {
+function buildSpeechOptions(input: TtsInput, ctx: TtsAdapterContext): StepfunSpeechOptions {
   const extraOptions = input.extraOptions ?? {}
-  const body: Record<string, unknown> = {}
+  const options: StepfunSpeechOptions = {}
 
   if (typeof ctx.adapterParams.endpointProfile === 'string' && ctx.adapterParams.endpointProfile)
-    body.endpoint_profile = ctx.adapterParams.endpointProfile
+    options.endpointProfile = ctx.adapterParams.endpointProfile
 
   if (typeof extraOptions.volume === 'number' && Number.isFinite(extraOptions.volume))
-    body.volume = extraOptions.volume
+    options.volume = extraOptions.volume
   else if (typeof ctx.adapterParams.volume === 'number' && Number.isFinite(ctx.adapterParams.volume))
-    body.volume = ctx.adapterParams.volume
+    options.volume = ctx.adapterParams.volume
 
   if (typeof extraOptions.sample_rate === 'number' && Number.isFinite(extraOptions.sample_rate))
-    body.sample_rate = extraOptions.sample_rate
+    options.sampleRate = extraOptions.sample_rate
   else if (typeof extraOptions.sampleRate === 'number' && Number.isFinite(extraOptions.sampleRate))
-    body.sample_rate = extraOptions.sampleRate
+    options.sampleRate = extraOptions.sampleRate
   else if (typeof ctx.adapterParams.sampleRate === 'number' && Number.isFinite(ctx.adapterParams.sampleRate))
-    body.sample_rate = ctx.adapterParams.sampleRate
+    options.sampleRate = ctx.adapterParams.sampleRate
 
   if (isPlainObject(extraOptions.pronunciation_map))
-    body.pronunciation_map = extraOptions.pronunciation_map
+    options.pronunciationMap = extraOptions.pronunciation_map as StepfunSpeechOptions['pronunciationMap']
   else if (isPlainObject(extraOptions.pronunciationMap))
-    body.pronunciation_map = extraOptions.pronunciationMap
+    options.pronunciationMap = extraOptions.pronunciationMap as StepfunSpeechOptions['pronunciationMap']
 
   if (typeof extraOptions.markdown_filter === 'boolean')
-    body.markdown_filter = extraOptions.markdown_filter
+    options.markdownFilter = extraOptions.markdown_filter
   else if (typeof extraOptions.markdownFilter === 'boolean')
-    body.markdown_filter = extraOptions.markdownFilter
+    options.markdownFilter = extraOptions.markdownFilter
 
   if (typeof extraOptions.instruction === 'string' && extraOptions.instruction)
-    body.instruction = extraOptions.instruction
+    options.instruction = extraOptions.instruction
   else if (typeof ctx.adapterParams.instruction === 'string' && ctx.adapterParams.instruction)
-    body.instruction = ctx.adapterParams.instruction
+    options.instruction = ctx.adapterParams.instruction
 
   if (isPlainObject(extraOptions.voice_label))
-    body.voice_label = extraOptions.voice_label
+    options.voiceLabel = extraOptions.voice_label as StepfunSpeechOptions['voiceLabel']
   else if (isPlainObject(extraOptions.voiceLabel))
-    body.voice_label = extraOptions.voiceLabel
+    options.voiceLabel = extraOptions.voiceLabel as StepfunSpeechOptions['voiceLabel']
 
-  return body
+  return options
 }

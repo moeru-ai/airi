@@ -33,7 +33,7 @@ describe('dashscopeCosyvoiceAdapter', () => {
 
     expect(fetchImpl).toHaveBeenCalledTimes(1)
     const [calledURL, init] = fetchImpl.mock.calls[0]
-    expect(calledURL).toBe(SPEECH_URL)
+    expect(String(calledURL)).toBe(SPEECH_URL)
     expect(init.method).toBe('POST')
 
     const body = JSON.parse(init.body as string)

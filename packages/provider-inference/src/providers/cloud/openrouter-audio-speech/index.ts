@@ -109,9 +109,11 @@ function createAudioFetch(apiKey: string, baseUrl: string, model: string) {
         audio: { voice: body.voice, format: 'pcm16' },
         stream: true,
       }),
+      signal: init.signal,
     })
+    // A failed response goes back unchanged so the caller sees the upstream status.
     if (!response.ok)
-      throw new Error(`OpenRouter audio request failed: ${response.status} ${await response.text()}`)
+      return response
     if (!response.body)
       throw new Error('OpenRouter audio response has no body')
 

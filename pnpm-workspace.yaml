@@ -88,6 +88,7 @@ patchedDependencies:
   sponsorkit@17.1.0: patches/sponsorkit@17.1.0.patch
   tab-election@4.6.2: patches/tab-election@4.6.2.patch
   uiohook-napi@1.5.5: patches/uiohook-napi@1.5.5.patch
+  unspeech@0.1.16: patches/unspeech@0.1.16.patch
 catalog:
   '@alexanderolsen/libsamplerate-js': ^2.1.2
   '@alint-js/cli': ^0.6.0
