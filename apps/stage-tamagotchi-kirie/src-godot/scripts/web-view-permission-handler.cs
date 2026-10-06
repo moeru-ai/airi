@@ -5,6 +5,7 @@ internal sealed class WebViewPermissionHandler : IDisposable
     private readonly KirieClient _kirie;
     private readonly Uri _trustedOrigin;
     private readonly MicrophonePermissionService? _microphonePermissions;
+    private readonly AndroidPermissionService? _androidPermissions;
     private bool _disposed;
 
     public WebViewPermissionHandler(
@@ -15,6 +16,17 @@ internal sealed class WebViewPermissionHandler : IDisposable
         _kirie = kirie;
         _trustedOrigin = ParseOrigin(rendererUrl);
         _microphonePermissions = microphonePermissions;
+        _kirie.PermissionRequested += OnPermissionRequested;
+    }
+
+    public WebViewPermissionHandler(
+        KirieClient kirie,
+        string rendererUrl,
+        AndroidPermissionService androidPermissions)
+    {
+        _kirie = kirie;
+        _trustedOrigin = ParseOrigin(rendererUrl);
+        _androidPermissions = androidPermissions;
         _kirie.PermissionRequested += OnPermissionRequested;
     }
 
@@ -39,7 +51,31 @@ internal sealed class WebViewPermissionHandler : IDisposable
             return;
         }
 
+        if (StringComparer.Ordinal.Equals(permissionType, "microphone")
+            && HasSameOrigin(origin)
+            && _androidPermissions is not null)
+        {
+            _ = ResolveAndroidMicrophonePermission(requestId);
+            return;
+        }
+
         Resolve(requestId, granted: false);
+    }
+
+    private async Task ResolveAndroidMicrophonePermission(long requestId)
+    {
+        try
+        {
+            var granted = await _androidPermissions!.Request(
+                "microphone",
+                CancellationToken.None);
+            Resolve(requestId, granted);
+        }
+        catch (Exception error)
+        {
+            GD.PushError($"Kirie could not request Android microphone permission: {error.Message}");
+            Resolve(requestId, granted: false);
+        }
     }
 
     private void Resolve(long requestId, bool granted)

@@ -13,29 +13,48 @@ import { useI18n } from 'vue-i18n'
 
 import PermissionCard from './permission-card.vue'
 
+import {
+  checkKirieAndroidPermission,
+  isKirieAndroid,
+  openKirieAndroidPermissionSettings,
+  requestKirieAndroidPermission,
+} from '../../modules/kirie-android-permissions'
 import { MicrophonePermission } from '../../modules/microphone-permission'
 
 const { t } = useI18n()
 const audioDeviceStore = useSettingsAudioDevice()
 const { permissionGranted: webMicrophonePermissionGranted } = storeToRefs(audioDeviceStore)
 
-const isNativePlatform = Capacitor.isNativePlatform()
-const isAndroid = Capacitor.getPlatform() === 'android'
+const isNativePlatform = Capacitor.isNativePlatform() || isKirieAndroid
+const isAndroid = Capacitor.getPlatform() === 'android' || isKirieAndroid
 
 const notificationPermissionGranted = shallowRef(false)
 const platformMicrophonePermissionGranted = shallowRef(false)
 const requestingNotificationPermission = shallowRef(false)
 const requestingMicrophonePermission = shallowRef(false)
+const notificationPermissionRequested = useLocalStorage('permissions/notifications/requested', false)
 const microphonePermissionRequested = useLocalStorage('permissions/microphone/requested', false)
 
 let appStateListener: Promise<PluginListenerHandle> | undefined
 
 async function refreshNotificationPermission() {
+  if (isKirieAndroid) {
+    const permission = await checkKirieAndroidPermission('notifications')
+    notificationPermissionGranted.value = permission.granted
+    return
+  }
+
   const permission = await LocalNotifications.checkPermissions()
   notificationPermissionGranted.value = permission.display === 'granted'
 }
 
 async function refreshMicrophonePermission() {
+  if (isKirieAndroid) {
+    const permission = await checkKirieAndroidPermission('microphone')
+    platformMicrophonePermissionGranted.value = permission.granted
+    return
+  }
+
   if (isAndroid) {
     const permission = await MicrophonePermission.checkPermission()
     platformMicrophonePermissionGranted.value = permission.granted
@@ -55,9 +74,30 @@ async function refreshPermissionStates() {
   ])
 }
 
+function refreshVisiblePermissionStates() {
+  if (document.visibilityState === 'visible')
+    void refreshPermissionStates()
+}
+
 async function requestNotificationPermission() {
   requestingNotificationPermission.value = true
   try {
+    if (isKirieAndroid) {
+      await refreshNotificationPermission()
+      if (notificationPermissionGranted.value)
+        return
+
+      if (notificationPermissionRequested.value) {
+        await openKirieAndroidPermissionSettings('notifications')
+        return
+      }
+
+      notificationPermissionRequested.value = true
+      const permission = await requestKirieAndroidPermission('notifications')
+      notificationPermissionGranted.value = permission.granted
+      return
+    }
+
     const beforeRequest = await LocalNotifications.checkPermissions()
     if (beforeRequest.display === 'granted') {
       notificationPermissionGranted.value = true
@@ -90,6 +130,11 @@ async function requestMicrophonePermission() {
     if (platformMicrophonePermissionGranted.value)
       return
 
+    if (microphonePermissionRequested.value && isKirieAndroid) {
+      await openKirieAndroidPermissionSettings('microphone')
+      return
+    }
+
     if (microphonePermissionRequested.value && isNativePlatform) {
       await NativeSettings.open({
         optionAndroid: AndroidSettings.ApplicationDetails,
@@ -100,6 +145,12 @@ async function requestMicrophonePermission() {
 
     // Persist before requesting so later native clicks take the settings route, including after denial.
     microphonePermissionRequested.value = true
+    if (isKirieAndroid) {
+      const permission = await requestKirieAndroidPermission('microphone')
+      platformMicrophonePermissionGranted.value = permission.granted
+      return
+    }
+
     await audioDeviceStore.askPermission()
     await refreshMicrophonePermission()
   }
@@ -111,7 +162,11 @@ async function requestMicrophonePermission() {
 onMounted(() => {
   void refreshPermissionStates()
 
-  if (isNativePlatform) {
+  if (isKirieAndroid) {
+    window.addEventListener('focus', refreshPermissionStates)
+    document.addEventListener('visibilitychange', refreshVisiblePermissionStates)
+  }
+  else if (isNativePlatform) {
     appStateListener = App.addListener('appStateChange', ({ isActive }) => {
       if (isActive)
         void refreshPermissionStates()
@@ -120,6 +175,8 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('focus', refreshPermissionStates)
+  document.removeEventListener('visibilitychange', refreshVisiblePermissionStates)
   void appStateListener?.then(listener => listener.remove())
 })
 </script>
