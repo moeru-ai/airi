@@ -27,3 +27,15 @@ Kirie previously added each successful replacement to its custom stack. Back sto
 The history replacement boundary now replaces the current custom entry after Vue Router accepts navigation.
 This includes `router.push({ replace: true })` and excludes canceled replacements.
 Both replacement fixtures fail before the fix and pass after it.
+
+## Microphone grant state
+
+Pocket calls the shared audio store's `askPermission()` before its native panel refresh.
+VueUse's `ensurePermissions()` owns the shared permission ref. The shared audio composable also awaits device enumeration.
+Kirie previously returned after the native permission response, bypassing both operations.
+
+After a native grant, Kirie now awaits the same shared browser permission operation.
+Denied requests still avoid a second prompt. The requested flag and later Settings route remain unchanged.
+The source fixture executes the production request functions with real Vue refs and external permission boundaries.
+The grant test fails before the fix and passes after it. Denial and Settings tests pass in both versions.
+The fixture proves delegation and ordering. It does not prove Android device enumeration at runtime.

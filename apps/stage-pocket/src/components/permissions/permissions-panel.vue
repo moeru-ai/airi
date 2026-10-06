@@ -147,6 +147,9 @@ async function requestMicrophonePermission() {
     microphonePermissionRequested.value = true
     if (isKirieAndroid) {
       const permission = await requestKirieAndroidPermission('microphone')
+      // Native permission does not refresh the shared browser microphone state.
+      if (permission.granted)
+        await audioDeviceStore.askPermission()
       platformMicrophonePermissionGranted.value = permission.granted
       return
     }
