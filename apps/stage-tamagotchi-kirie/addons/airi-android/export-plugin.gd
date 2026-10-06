@@ -2,6 +2,27 @@
 extends EditorExportPlugin
 
 const ANDROID_BUILD_ROOT = "res://android/build"
+const POCKET_RESOURCES = "res://../stage-pocket/android/app/src/main/res"
+const LAUNCH_MANIFEST = """<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        tools:replace="android:icon" />
+</manifest>
+"""
+const LAUNCH_RESOURCES = """<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AiriAppMainTheme" parent="GodotAppMainTheme">
+        <item name="android:background">@null</item>
+        <item name="android:windowBackground">@color/airi_system_bar_color</item>
+    </style>
+    <style name="AiriAppSplashTheme" parent="Theme.SplashScreen">
+        <item name="android:background">@drawable/splash</item>
+    </style>
+</resources>
+"""
 const DAY_RESOURCES = """<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <bool name="airi_is_light_theme">true</bool>
@@ -1353,6 +1374,7 @@ func _supports_platform(platform: EditorExportPlatform) -> bool:
 
 func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) -> PackedStringArray:
 	return PackedStringArray([
+		"androidx.core:core-splashscreen:1.2.0",
 		"io.ionic.libs:ionbarcode-android:2.1.1@aar",
 		"androidx.appcompat:appcompat:1.7.1",
 		"androidx.activity:activity-ktx:1.10.1",
@@ -1374,6 +1396,8 @@ func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, 
 		return
 
 	enable_cleartext_traffic()
+	configure_launch_resources()
+	configure_launch_activity()
 	write_build_file("res/values/airi-theme.xml", DAY_RESOURCES)
 	write_build_file("res/values-night/airi-theme.xml", NIGHT_RESOURCES)
 	write_build_file("src/main/java/ai/moeru/airi/kirie/AiriAndroidPlugin.java", ANDROID_PLUGIN_SOURCE)
@@ -1442,6 +1466,77 @@ func enable_cleartext_traffic() -> void:
 			"tools:replace=\"android:usesCleartextTraffic,android:allowBackup,"
 		)
 	write_build_file(debug_relative_path, debug_content)
+
+
+func configure_launch_resources() -> void:
+	# NOTICE:
+	# Godot regenerates its splash theme with a fixed background and its own icon during export.
+	# stage-pocket uses the AndroidX theme defaults and the application launcher icon on Android 12 and later.
+	# Godot also regenerates build-type manifests with its application icon after export plugins run.
+	# Source: Godot platform/android/export/export_plugin.cpp and Android manifest merge priorities.
+	# When Godot supports launch themes and activity icons in export presets, remove this manifest rewrite.
+	var manifest_path = "src/main/AndroidManifest.xml"
+	var manifest = FileAccess.get_file_as_string(
+		ProjectSettings.globalize_path(ANDROID_BUILD_ROOT.path_join(manifest_path))
+	)
+	manifest = manifest.replace("@style/GodotAppSplashTheme", "@style/AiriAppSplashTheme")
+	manifest = manifest.replace(
+		"android:icon=\"@mipmap/icon\"",
+		"android:icon=\"@mipmap/ic_launcher\"\n        android:roundIcon=\"@mipmap/ic_launcher_round\""
+	)
+	manifest = manifest.replace(
+		"android:name=\".GodotApp\"\n            android:theme",
+		"android:name=\".GodotApp\"\n            android:icon=\"@mipmap/ic_launcher\"\n            android:theme"
+	)
+	manifest = manifest.replace(
+		"android:name=\".GodotAppLauncher\"\n            android:targetActivity",
+		"android:name=\".GodotAppLauncher\"\n            android:icon=\"@mipmap/ic_launcher\"\n            android:targetActivity"
+	)
+	write_build_file(manifest_path, manifest)
+	for edition in ["standard", "mono", "instrumented"]:
+		for build_type in ["Debug", "Release"]:
+			write_build_file("src/" + edition + build_type + "/AndroidManifest.xml", LAUNCH_MANIFEST)
+	write_build_file("res/values/airi-launch.xml", LAUNCH_RESOURCES)
+
+	var source_root = ProjectSettings.globalize_path(POCKET_RESOURCES)
+	for directory in DirAccess.get_directories_at(source_root):
+		for filename in DirAccess.get_files_at(source_root.path_join(directory)):
+			if filename != "splash.png" and not filename.begins_with("ic_launcher"):
+				continue
+			var relative_path = directory.path_join(filename)
+			var destination = ProjectSettings.globalize_path(
+				ANDROID_BUILD_ROOT.path_join("res").path_join(relative_path)
+			)
+			var directory_error = DirAccess.make_dir_recursive_absolute(destination.get_base_dir())
+			if directory_error != OK:
+				push_error("Cannot prepare Android launch resource directory: " + destination.get_base_dir())
+				return
+			var copy_error = DirAccess.copy_absolute(source_root.path_join(relative_path), destination)
+			if copy_error != OK:
+				push_error("Cannot copy Android launch resource: " + relative_path)
+				return
+
+
+func configure_launch_activity() -> void:
+	# NOTICE:
+	# Godot retains the native splash until its main loop starts and leaves the launch background in the activity theme.
+	# Capacitor switches application and activity themes without installing an AndroidX splash or adding a keep-on-screen condition.
+	# Source: Godot 4.7.2 GodotApp.java::onCreate and Capacitor 8.3.1 BridgeActivity.java::onCreate.
+	# When Godot exposes native splash lifecycle configuration, remove this template rewrite.
+	var activity_path = "src/main/java/com/godot/game/GodotApp.java"
+	var activity = FileAccess.get_file_as_string(
+		ProjectSettings.globalize_path(ANDROID_BUILD_ROOT.path_join(activity_path))
+	)
+	activity = activity.replace("import androidx.core.splashscreen.SplashScreen;\n", "")
+	activity = activity.replace(
+		"\t\tSplashScreen splashScreen = SplashScreen.installSplashScreen(this);",
+		"\t\tgetApplication().setTheme(R.style.AiriAppMainTheme);\n\t\tsetTheme(R.style.AiriAppMainTheme);"
+	)
+	activity = activity.replace(
+		"\n\t\tGodot godot = getGodot();\n\t\tif (godot != null && godot.getDisableGodotSplash()) {\n\t\t\tsplashScreen.setKeepOnScreenCondition(() -> godot.getRunStatus() != Godot.RunStatus.STARTED);\n\t\t}\n",
+		"\n"
+	)
+	write_build_file(activity_path, activity)
 
 
 func write_build_file(relative_path: String, content: String) -> void:
