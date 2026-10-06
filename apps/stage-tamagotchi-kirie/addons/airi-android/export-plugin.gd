@@ -90,7 +90,9 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 
 import ai.moeru.kirie.android.KirieAssetRequestHandler;
-import ai.moeru.kirie.android.KirieWebViewManager;
+import ai.moeru.kirie.android.DebugTlsBypassWebViewClient;
+import ai.moeru.kirie.android.KirieRuntimeConfig;
+import ai.moeru.kirie.android.KirieUrlResolver;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
@@ -201,7 +203,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
     private FrameLayout browserHost;
-    private KirieWebViewManager browserManager;
     private String browserUrl = "res://src-web/dist/android/index.html";
     private ViewGroup browserInsetsView;
     private ViewTreeObserver.OnGlobalLayoutListener browserImeLayoutListener;
@@ -280,23 +281,31 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         applySystemBarStyle(activity);
         browserHost = new FrameLayout(activity);
         browserHost.setBackgroundColor(activity.getColor(R.color.airi_startup_window_background));
-        // The Android page uses AiriAndroidEventa. Kirie supplies its WebView and asset transport.
-        browserManager = new KirieWebViewManager(
-            () -> activity,
-            id -> {
-                installBrowserChannel(activity, 100);
-                return kotlin.Unit.INSTANCE;
-            },
-            (id, packet) -> kotlin.Unit.INSTANCE,
-            (id, packet) -> kotlin.Unit.INSTANCE,
-            (id, packet) -> kotlin.Unit.INSTANCE,
-            (id, error) -> {
-                Log.e("AiriAndroid", error);
-                return kotlin.Unit.INSTANCE;
-            }
-        );
-        browserManager.attachHostView(browserHost);
-        browserManager.createWebView(0, browserUrl);
+        // NOTICE:
+        // Kirie 0.8.0 requires ArrayBuffer messages before it attaches or loads a WebView.
+        // Android uses string Eventa messages, as Pocket uses its string Capacitor bridge.
+        // Source: KirieWebViewManager.installMessageChannels and Capacitor 8.5.0 MessageHandler.
+        // Remove this ownership split when Kirie provides creation without desktop IPC requirements.
+        WebView webView = new WebView(activity);
+        webView.setLayoutParams(new ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        webView.setBackgroundColor(0);
+        webView.getSettings().setJavaScriptEnabled(true);
+        webView.getSettings().setDomStorageEnabled(true);
+        KirieRuntimeConfig config = KirieRuntimeConfig.Companion.from(activity);
+        if (config.getEnableWebInspector()) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
+        webView.setWebViewClient(new DebugTlsBypassWebViewClient(
+            browserUrl,
+            config.getAllowTlsBypass(),
+            new KirieAssetRequestHandler(activity.getAssets())
+        ));
+        browserHost.addView(webView);
+        installBrowserChannel(activity, 1);
+        loadResolvedBrowserUrl(webView, browserUrl);
         dispatchPendingUrlOpen();
         return browserHost;
     }
@@ -334,9 +343,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             hostWebSocketBridge.dispose();
             hostWebSocketBridge = null;
         }
-        browserManager.destroyAllWebViews();
-        browserManager.detachHostView(browserHost);
-        browserManager = null;
+        browserHost.removeView(browserWebView);
+        browserWebView.destroy();
         browserHost = null;
         browserWebView = null;
         eventaReplyProxy = null;
@@ -429,7 +437,15 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return;
         }
         browserUrl = url;
-        browserManager.loadUrl(0, url);
+        browserWebView.post(() -> loadResolvedBrowserUrl(browserWebView, url));
+    }
+
+    private void loadResolvedBrowserUrl(WebView webView, String url) {
+        try {
+            webView.loadUrl(KirieUrlResolver.INSTANCE.resolveForWebView(url));
+        } catch (IllegalArgumentException error) {
+            Log.e("AiriAndroid", "Cannot resolve browser URL: " + url, error);
+        }
     }
 
     @UsedByGodot
@@ -775,7 +791,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                     handleEventaMessage(message.getData(), replyProxy);
                 }
             );
-            webView.reload();
         });
     }
 

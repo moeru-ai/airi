@@ -13,6 +13,7 @@ tasks.register('generateParitySources', Exec) {
     inputs.file(new File(appRoot, 'addons/airi-android/export-plugin.gd'))
     inputs.file(new File(appRoot, '../stage-pocket/android/app/src/main/assets/capacitor.config.json'))
     inputs.dir(new File(appRoot, '../stage-pocket/node_modules/@capacitor/android'))
+    inputs.dir(file('fixtures'))
     outputs.dir(generated)
 }
 android {

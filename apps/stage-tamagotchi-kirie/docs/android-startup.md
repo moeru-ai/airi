@@ -5,8 +5,9 @@ The native splash remains a separate alignment point.
 
 ## Native handoff
 
-`AiriAndroidPlugin.onMainCreate` creates the WebView through Kirie 0.8.0's `KirieWebViewManager`.
-It installs the AIRI Eventa channel before the manager loads the packaged page.
+`AiriAndroidPlugin.onMainCreate` creates the Android WebView directly.
+It installs the AIRI Eventa channel before loading the packaged page.
+Kirie still supplies the asset handler, URL resolver, and development TLS policy.
 The host view becomes the plugin's Android view. Its lifecycle belongs to the Android activity.
 
 The opaque host uses stage-pocket's themed window background until web content paints.
@@ -63,7 +64,8 @@ Restore animation scales, rotation, and night mode after the comparison.
 Extract frame numbers and presentation timestamps with `ffprobe -show_frames`.
 Cut each still with `ffmpeg -vf 'select=eq(n,FRAME)' -frames:v 1`.
 Compare the last native frame, first web frame, bootstrap, resource loading, overlay exit, and interactive stage.
-Build the comparison timeline from those static PNG files only. Do not insert moving source segments.
+For a static comparison, build the timeline from those PNG files only.
+For an event-aligned video, trim both raw recordings at the same observed event. Retain their playback speed.
 Keep the original recordings and a manifest of source filenames, frame numbers, timestamps, and APK hashes.
 
 Wall-clock duration depends on resource readiness, emulator load, and cache state.
@@ -122,4 +124,85 @@ The post-change Android 15 run measured 564 CSS pixels in both applications.
 | `dotnet format StageTamagotchiKirie.csproj --verify-no-changes` in Kirie | Passed. |
 | `pnpm exec moeru-lint apps/stage-tamagotchi-kirie/src-web apps/stage-tamagotchi-kirie/docs apps/stage-tamagotchi-kirie/README.md` | Passed with existing warnings. |
 | `pnpm lint` | Failed on generated Kirie iOS ABI files and native build outputs. Reported 4,786 errors and 682 warnings. |
+| `git diff --check` | Passed. |
+
+## WebView 113 startup blocker
+
+Kirie 0.8.0's `KirieWebViewManager.createWebView` installs desktop IPC before attaching the view or loading its URL.
+Its `installMessageChannels` method requires both `WEB_MESSAGE_LISTENER` and `WEB_MESSAGE_ARRAY_BUFFER`.
+Its runtime injection also requires `DOCUMENT_START_SCRIPT`.
+WebView `113.0.5672.136` lacks ArrayBuffer messages. The manager reports an error and returns with no attached page.
+The exported APK contains the HTML and assets. Missing web files do not cause this failure.
+
+Pocket's Capacitor 8.5.0 `MessageHandler` installs a string listener. It does not require ArrayBuffer messages.
+AIRI's Android renderer also uses string messages through `AiriAndroidEventa`. It does not use Kirie's desktop channels or runtime injection.
+The Android activity now owns the WebView directly, with the same string transport requirement as Pocket.
+The host attaches the view, installs existing settings and callbacks, then loads the resolved URL once.
+Godot scene adoption retains the running document. Activity destruction removes and destroys the owned view.
+The Android path does not emit the unused desktop `KirieNode.webview_ready` signal.
+An attached DevTools target, a responsive document, and interactive routes establish Android readiness.
+
+`StartupTest` executes the production `onMainCreate` method and loads a packaged HTML fixture.
+It checks native string replies, input focus, route changes, and document retention during scene adoption.
+On Android 14 with WebView 113, the test fails before this fix because no WebView attaches.
+The existing callback tests only installed the channel on a pre-created WebView. They did not cover this creation gate.
+
+### Verification on 2026-10-07
+
+The worktree rebased onto `f896e786eed1fe5ffb5de70d75c8641e5fc8aea2`.
+The dedicated Android 14 clone used `emulator-5680` and adb server port `5039`.
+Its default WebView was `113.0.5672.136`. Other sessions' emulators remained outside this test scope.
+The original APK reproduced the ArrayBuffer error and retained zero DevTools targets across 35 samples over 16 seconds.
+The fixed APK retained one visible target and one document through native route taps and Back navigation.
+Both applications reached `/settings`, `/settings/system`, and `/settings/system/general` in light and dark mode.
+Kirie retained its document for 38.135 seconds in light mode and 47.469 seconds in dark mode.
+These durations use the host event log's monotonic clock, separate from video presentation timestamps.
+
+The installed APKs matched the inspected build artifacts byte for byte.
+Pocket's SHA-256 is `3bca05f3d101c0c7bb8ed90baffbc30ef4722732d057de289961ac0d8e6a0f9d`.
+Kirie's SHA-256 is `9560b50c464abed20394ac55028b6e42a9196bca1e072df0834eb169c85600ef`.
+All 1,351 Android web asset files matched between the original and fixed Kirie APKs.
+Pocket and Kirie retained identical favicon bytes, inline bootstrap scripts, and inline bootstrap styles.
+The final APK's `classes4.dex` contains direct WebView creation in `AiriAndroidPlugin`, with no `KirieWebViewManager` reference in that class.
+
+| Capture | Last native frame | First web frame | First complete stage frame |
+| --- | --- | --- | --- |
+| Pocket, light | n11, 1.577122 s | n19, 1.840878 s | n75, 3.192033 s |
+| Kirie, light | n13, 1.779211 s | n22, 2.235778 s | n193, 8.762211 s |
+| Pocket, dark | n12, 1.764889 s | n19, 2.275922 s | n146, 6.000078 s |
+| Kirie, dark | n12, 1.851222 s | n21, 2.367033 s | n173, 9.461456 s |
+
+These times are source MP4 presentation timestamps. Frame indices start at zero.
+The recordings preserve actual durations. Resource readiness and emulator load still affect elapsed time.
+The loading overlay retains Pocket's existing minimum display interval and interaction gate.
+
+The evidence directory is `recordings-android/android14-webview113-startup-alive-f896e786e-20261007/` under the shared repository root.
+It contains four raw route recordings, two event-aligned videos, the failing baseline recording, exact frames, event logs, and artifact evidence.
+The aligned videos place the first AIRI web frame at three seconds, with Pocket on the left.
+They retain playback speed and hold the first Home frame before each shifted recording.
+The shorter recording holds its final frame until the longer recording ends.
+`comparison-manifest.json` records exact frame indices, timestamps, offsets, hashes, and encoding commands.
+
+For a repeat comparison, use the same owned emulator, APKs, saved settings, and model cache.
+Set automatic web theme and the same onboarding state in both applications.
+Wait six seconds after each storage seed before force-stop, so Chromium writes its preferences.
+Record each application serially through cold launch, the ready stage, settings routes, and Back navigation.
+Stop screenrecord with a device-side SIGINT. Wait for recorder exit before pulling the raw MP4.
+Find each first AIRI web frame with ffprobe and static frame cuts. Shift both recordings to that common event.
+Do not stretch either recording. Retain raw files and report host event times separately from video timestamps.
+
+| Command | Result |
+| --- | --- |
+| `pnpm -F @proj-airi/stage-tamagotchi-kirie build:android` | Passed for the unmodified baseline. |
+| `pnpm -F @proj-airi/stage-tamagotchi-kirie exec kirie export android --build=false` | Passed for the fix. |
+| `pnpm -F @proj-airi/stage-pocket build` and `pnpm exec cap sync android` | Passed. Generated tracked Gradle changes were restored. |
+| `./android/gradlew -p android :app:assembleDebug :app:testDebugUnitTest --console=plain` in Pocket | Passed. The native test task was up-to-date. |
+| Standalone parity Gradle `assembleDebug assembleDebugAndroidTest` | Passed before and after the fix. |
+| Explicit-device `am instrument` for `StartupTest` before the fix | Failed as expected because no WebView attached. |
+| Explicit-device `am instrument` for the full parity suite after the fix | Passed all 21 tests. |
+| `pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `pnpm -F @proj-airi/stage-tamagotchi-kirie test:unit` | Passed 12 files and 38 tests. |
+| Focused `pnpm exec moeru-lint` for changed paths | Passed. GDScript has no matching lint configuration. |
+| `pnpm lint` | Failed on generated native outputs. Reported 3,229 errors and 682 warnings. |
+| FFmpeg decode of all four raw route videos and both comparisons | Passed. |
 | `git diff --check` | Passed. |

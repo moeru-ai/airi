@@ -4,6 +4,7 @@
         <intent><action android:name="android.media.action.VIDEO_CAPTURE" /></intent>
     </queries>
     <application android:theme="@style/Theme.AppCompat.Light.NoActionBar">
+        <activity android:name="ai.moeru.airi.kirie.StartupActivity" android:exported="true" />
         <activity android:name="ai.moeru.airi.kirie.ProbeActivity" android:exported="true" />
     </application>
 </manifest>

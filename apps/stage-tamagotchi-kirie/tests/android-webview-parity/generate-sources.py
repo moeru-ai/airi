@@ -62,3 +62,7 @@ assets.mkdir(parents=True, exist_ok=True)
 (assets / 'capacitor.config.json').write_bytes(
     (app.parent / 'stage-pocket/android/app/src/main/assets/capacitor.config.json').read_bytes()
 )
+
+startup = assets / 'src-web/dist/android/index.html'
+startup.parent.mkdir(parents=True, exist_ok=True)
+startup.write_bytes((app / 'tests/android-webview-parity/fixtures/startup.html').read_bytes())

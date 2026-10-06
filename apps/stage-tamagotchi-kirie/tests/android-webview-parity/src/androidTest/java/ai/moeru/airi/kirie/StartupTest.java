@@ -1,0 +1,47 @@
+package ai.moeru.airi.kirie;
+
+import android.content.Intent;
+import android.webkit.WebView;
+import androidx.test.platform.app.InstrumentationRegistry;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import org.junit.Test;
+import static org.junit.Assert.*;
+
+public final class StartupTest {
+    // Context: Android 14 route replay on WebView 113 at f896e786e.
+    // ROOT CAUSE:
+    // Kirie 0.8.0 aborts before attaching the page when WebView lacks desktop binary IPC.
+    // Android uses the string Eventa channel and needs no ArrayBuffer or document-start injection.
+    @Test public void packagedPageLoadsAndRetainsInputThroughSceneAdoption() throws Exception {
+        StartupActivity activity = (StartupActivity) InstrumentationRegistry.getInstrumentation().startActivitySync(
+            new Intent(InstrumentationRegistry.getInstrumentation().getTargetContext(), StartupActivity.class)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        );
+        try {
+            WebView[] browser = new WebView[1];
+            Fixture.onMain(() -> browser[0] = activity.browser());
+            assertNotNull("The Android page must attach even without WEB_MESSAGE_ARRAY_BUFFER", browser[0]);
+            String ready = "null";
+            for (int i = 0; i < 100 && !ready.equals("true"); i++) {
+                ready = evaluate(browser[0], "document.readyState === 'complete' && !!document.querySelector('#route') && window.reply === true");
+                if (!ready.equals("true")) Thread.sleep(100);
+            }
+            assertEquals("The packaged page and string Eventa reply must load", "true", ready);
+            String before = evaluate(browser[0], "performance.timeOrigin");
+            Fixture.onMain(() -> activity.plugin.loadBrowserUrl("res://src-web/dist/android/index.html"));
+            assertEquals(before, evaluate(browser[0], "performance.timeOrigin"));
+            assertEquals("true", evaluate(browser[0], "document.querySelector('#route').click(); location.hash === '#settings'"));
+            assertEquals("true", evaluate(browser[0], "document.querySelector('#name').value = 'alive'; document.querySelector('#name').focus(); document.activeElement.id === 'name'"));
+            assertEquals("\"alive\"", evaluate(browser[0], "document.querySelector('#name').value"));
+            assertEquals(before, evaluate(browser[0], "performance.timeOrigin"));
+        } finally { Fixture.onMain(activity::finish); }
+    }
+    private static String evaluate(WebView browser, String script) throws Exception {
+        CountDownLatch latch = new CountDownLatch(1);
+        String[] value = new String[1];
+        Fixture.onMain(() -> browser.evaluateJavascript(script, result -> { value[0] = result; latch.countDown(); }));
+        assertTrue("JavaScript must remain responsive", latch.await(5, TimeUnit.SECONDS));
+        return value[0];
+    }
+}
