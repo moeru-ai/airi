@@ -106,6 +106,9 @@ The active callback receives each delivered result until another chooser replace
 The superseded callback receives no value.
 After recreation, neither the old page nor the new page receives the pending chooser result.
 
+A `RESULT_OK` callback with a null intent throws `NullPointerException`, as Capacitor 8.5.0 does.
+Cancellation and other result codes pass the nullable intent to `FileChooserParams.parseResult`.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.
