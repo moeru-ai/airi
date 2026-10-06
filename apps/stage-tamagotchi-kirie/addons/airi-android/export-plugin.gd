@@ -1049,6 +1049,17 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return;
         }
 
+        NotificationManager notificationManager = activity.getSystemService(
+            NotificationManager.class
+        );
+        if (!notificationManager.areNotificationsEnabled()) {
+            sendEventaError(
+                request,
+                "Notifications are not enabled on this device."
+            );
+            return;
+        }
+
         AlarmManager alarmManager = activity.getSystemService(AlarmManager.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
             && !alarmManager.canScheduleExactAlarms()) {
@@ -1155,6 +1166,23 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             request.replyProxy.postMessage(envelope.toString());
         } catch (JSONException error) {
             Log.e("AiriAndroid", "Cannot send Eventa response", error);
+        }
+    }
+
+    private void sendEventaError(PendingEventaRequest request, String error) {
+        try {
+            String responseEvent = request.event.replace("-send", "-receive-error")
+                + "-" + request.invokeId;
+            JSONObject body = new JSONObject()
+                .put("invokeId", request.invokeId)
+                .put("content", new JSONObject().put("error", error));
+            JSONObject payload = new JSONObject().put("body", body);
+            JSONObject envelope = new JSONObject()
+                .put("type", responseEvent)
+                .put("payload", payload);
+            request.replyProxy.postMessage(envelope.toString());
+        } catch (JSONException jsonError) {
+            Log.e("AiriAndroid", "Cannot send Eventa error", jsonError);
         }
     }
 

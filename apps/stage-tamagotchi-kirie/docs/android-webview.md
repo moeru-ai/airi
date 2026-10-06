@@ -119,6 +119,7 @@ The default notification channel uses Pocket's `Default` name and description.
 Kirie persists pending notifications and restores them after the user unlocks a restarted device.
 It restores a one-time notification only when its trigger remains in the future.
 It keeps Pocket's bug that skips a missed one-time notification instead of scheduling its 15-second catch-up.
+When Android notifications are disabled, scheduling rejects before the exact-alarm settings flow.
 
 ## Android backup persistence
 
