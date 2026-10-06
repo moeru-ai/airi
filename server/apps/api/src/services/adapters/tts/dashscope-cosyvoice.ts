@@ -2,10 +2,11 @@ import type { Voice } from 'unspeech'
 
 import type { TtsAdapter, TtsAdapterContext, TtsInput, TtsResult, TtsVoiceCatalogContext } from './types'
 
-import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { providerAlibabaCloudModelStudio } from '@proj-airi/provider-inference'
 
-import { audioMimeFromFormat } from './audio-format'
-import { listVoicesViaUnSpeech, sendSpeechViaUnSpeech } from './unspeech'
+import { createBadRequestError } from '@proj-airi/http-error-shared'
+import { sendViaDefinition } from './definition'
+import { listVoicesViaUnSpeech } from './unspeech'
 
 /**
  * Default cosyvoice audio format. Mirrors the OpenAI `mp3` default expected by
@@ -65,14 +66,14 @@ export const dashscopeCosyvoiceAdapter: TtsAdapter = {
     const voice = input.voice
     const format = input.responseFormat ?? DEFAULT_COSYVOICE_FORMAT
 
-    return sendSpeechViaUnSpeech({
+    return sendViaDefinition({
+      label: 'dashscope-cosyvoice',
+      definition: providerAlibabaCloudModelStudio,
       ctx,
-      model: `alibaba/${model}`,
-      input: input.text,
+      model,
+      text: input.text,
       voice,
       responseFormat: format,
-      fallbackContentType: audioMimeFromFormat(format),
-      providerLabel: 'dashscope-cosyvoice',
     })
   },
 
