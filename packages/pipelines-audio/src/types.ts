@@ -43,6 +43,8 @@ export interface TtsRequest {
   special: string | null
   /** See {@link TextSegment.sentenceBoundary}. */
   sentenceBoundary?: boolean
+  /** Chunker boundary that produced this text. Tracing uses it to explain synthesis latency. */
+  reason: TextSegment['reason']
   priority: number
   createdAt: number
 }

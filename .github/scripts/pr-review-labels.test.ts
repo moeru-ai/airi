@@ -13,7 +13,8 @@ const changedCommit = { oid: 'changed', committedDate: '2026-10-05T11:00:00Z', p
 
 function api(options: {
   state?: string
-  reviews?: typeof request[]
+  isDraft?: boolean
+  reviews?: Array<Omit<typeof request, 'commit'> & { commit: typeof request.commit | null }>
   commits?: typeof changedCommit[]
   compared?: string[]
   labels?: string[]
@@ -43,6 +44,7 @@ function api(options: {
       if (query.includes('latestOpinionatedReviews')) {
         return { repository: { pullRequest: {
           state: options.state ?? 'OPEN',
+          isDraft: options.isDraft ?? false,
           headRefOid: 'head',
           latestOpinionatedReviews: {
             nodes: options.reviews ?? [],
@@ -72,6 +74,24 @@ describe('pR review handoff labels', () => {
     await run(github, context)
     expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-maintainer'] })
     expect(github.rest.issues.removeLabel).not.toHaveBeenCalled()
+  })
+
+  it.each([{ reviews: [] }, { reviews: [request] }])('clears both waiting labels on drafts with reviews %j', async ({ reviews }) => {
+    const github = api({ isDraft: true, reviews, labels: [...managed, 'scope/ui', 'pr-review/hold'] })
+    await run(github, context)
+    expect(github.rest.issues.addLabels).not.toHaveBeenCalled()
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledTimes(2)
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledWith({ ...context.repo, issue_number: 42, name: managed[0] })
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledWith({ ...context.repo, issue_number: 42, name: managed[1] })
+    expect(github.graphql).toHaveBeenCalledTimes(1)
+    expect(github.rest.repos.compareCommitsWithBasehead).not.toHaveBeenCalled()
+  })
+
+  it('reevaluates active change requests when the current PR becomes ready', async () => {
+    const github = api({ reviews: [request], isDraft: false })
+    await run(github, { ...context, payload: { pull_request: { number: 42, draft: true } } })
+    expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 42, labels: ['pr-review/waiting-on-author'] })
+    expect(github.graphql.mock.calls[0][0]).toContain('state isDraft headRefOid')
   })
 
   it('restricts review input to the latest opinionated reviews from maintainers', async () => {
@@ -165,6 +185,7 @@ describe('pR review handoff labels', () => {
     const github = api({ reviews: [request], labels: ['pr-review/waiting-maintainer'] })
     github.graphql.mockResolvedValueOnce({ repository: { pullRequest: {
       state: 'OPEN',
+      isDraft: false,
       headRefOid: 'head',
       latestOpinionatedReviews: {
         nodes: [],
@@ -189,6 +210,30 @@ describe('pR review handoff labels', () => {
     github.paginate.mockResolvedValueOnce([])
     await run(github, context)
     expect(github.rest.issues.createLabel).toHaveBeenCalledTimes(2)
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2806#discussion_r4181587747
+  // ROOT CAUSE:
+  // A review without a commit stopped reconciliation for every later PR.
+  // Preserve that PR's labels and continue the batch.
+  it('preserves labels and continues the batch for PR #2806', async () => {
+    const github = api({ labels: ['pr-review/waiting-on-author', 'scope/ui'] })
+    github.paginate.mockResolvedValueOnce(managed.map(name => ({ name })))
+    github.paginate.mockResolvedValueOnce([{ number: 42 }, { number: 43 }])
+    github.graphql.mockResolvedValueOnce({ repository: { pullRequest: {
+      state: 'OPEN',
+      isDraft: false,
+      headRefOid: 'head',
+      latestOpinionatedReviews: {
+        nodes: [{ ...request, commit: null }],
+        pageInfo: { hasNextPage: false, endCursor: null },
+      },
+    } } })
+    await run(github, { ...context, payload: {} })
+    expect(github.graphql).toHaveBeenCalledTimes(2)
+    expect(github.rest.issues.addLabels).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 43, labels: ['pr-review/waiting-maintainer'] })
+    expect(github.rest.issues.removeLabel).toHaveBeenCalledExactlyOnceWith({ ...context.repo, issue_number: 43, name: 'pr-review/waiting-on-author' })
+    expect(github.rest.repos.compareCommitsWithBasehead).not.toHaveBeenCalled()
   })
 
   it('leaves labels unchanged when GitHub cannot read the review', async () => {
