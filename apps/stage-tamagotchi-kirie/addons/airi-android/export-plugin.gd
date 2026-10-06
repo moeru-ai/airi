@@ -226,6 +226,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
     @Override
     public View onMainCreate(Activity activity) {
+        createDefaultNotificationChannel(activity);
         exactAlarmLauncher = ((ComponentActivity) activity).registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> completePendingNotificationSchedule()
@@ -1273,15 +1274,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
 
             int id = intent.getIntExtra(NOTIFICATION_EXTRA_ID, 0);
-            NotificationManager manager = context.getSystemService(NotificationManager.class);
-            NotificationChannel channel = new NotificationChannel(
-                NOTIFICATION_CHANNEL_ID,
-                "Default",
-                NotificationManager.IMPORTANCE_DEFAULT
-            );
-            channel.setDescription("Default");
-            manager.createNotificationChannel(channel);
-
+            NotificationManager manager = createDefaultNotificationChannel(context);
             Intent launchIntent = context.getPackageManager()
                 .getLaunchIntentForPackage(context.getPackageName());
             PendingIntent contentIntent = PendingIntent.getActivity(
@@ -1303,6 +1296,20 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
             manager.notify(id, notification.build());
         }
+    }
+
+    private static NotificationManager createDefaultNotificationChannel(Context context) {
+        NotificationManager manager = context.getSystemService(NotificationManager.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationChannel channel = new NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                "Default",
+                NotificationManager.IMPORTANCE_DEFAULT
+            );
+            channel.setDescription("Default");
+            manager.createNotificationChannel(channel);
+        }
+        return manager;
     }
 
     public static final class NotificationRestoreReceiver extends BroadcastReceiver {
