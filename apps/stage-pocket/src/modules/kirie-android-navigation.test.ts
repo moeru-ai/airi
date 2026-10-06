@@ -60,6 +60,39 @@ describe('kirie Android route traversal', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/settings'))
   })
 
+  // Source: settings/providers/index.vue replaces the hash when its category changes.
+  it.each(['replace', 'push-with-replace'])(
+    'does not add provider category replacements as Back stops through %s',
+    async (operation) => {
+      const router = createNavigation()
+      await router.push('/settings')
+      await router.push('/settings/providers')
+      if (operation === 'replace') {
+        await router.replace({ hash: '#chat' })
+        await router.replace({ hash: '#vision' })
+      }
+      else {
+        await router.push({ hash: '#chat', replace: true })
+        await router.push({ hash: '#vision', replace: true })
+      }
+      window.__airiKirieAndroidBack?.()
+      await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/settings'))
+      router.forward()
+      await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/settings/providers#vision'))
+    },
+  )
+
+  it('does not record a canceled replacement', async () => {
+    const router = createNavigation()
+    await router.push('/settings')
+    await router.push('/settings/providers')
+    const remove = router.beforeEach(to => to.hash !== '#vision')
+    await router.replace({ hash: '#vision' })
+    remove()
+    router.back()
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/settings'))
+  })
+
   it('consumes Back at the first route', async () => {
     const router = createNavigation()
     await router.push('/')

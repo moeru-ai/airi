@@ -18,8 +18,19 @@ export function installKirieAndroidNavigation(router: Router) {
   let position = -1
   let traversal: { path: string, position: number } | undefined
   const nativeGo = router.go.bind(router)
+  const history = router.options.history
+  const replace = history.replace.bind(history)
+  let replaced = false
+
+  // Vue Router commits this boundary only after guards succeed, including push({ replace: true }).
+  history.replace = (to, data) => {
+    replace(to, data)
+    replaced = true
+  }
 
   router.afterEach((to, _from, failure) => {
+    const replaceEntry = replaced
+    replaced = false
     if (failure) {
       traversal = undefined
       return
@@ -28,6 +39,11 @@ export function installKirieAndroidNavigation(router: Router) {
     if (traversal?.path === to.fullPath) {
       position = traversal.position
       traversal = undefined
+      return
+    }
+
+    if (replaceEntry && position >= 0) {
+      routeStack[position] = to.fullPath
       return
     }
 
