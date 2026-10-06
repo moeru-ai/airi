@@ -5,6 +5,7 @@ import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics, isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
+import { useCharacterCardSyncStore } from '@proj-airi/stage-ui/stores/character-card-sync'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
@@ -60,6 +61,7 @@ useHearingStore()
 useSpeechStore()
 useSettingsStageModel()
 useVisionStore()
+useCharacterCardSyncStore()
 
 let stopAuthenticatedSetup: (() => void) | undefined
 let stopLoggedOutSetup: (() => void) | undefined

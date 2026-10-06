@@ -372,6 +372,9 @@ pages:
         error:
           fallback: Could not start deletion. Try again later.
   card:
+    sync:
+      conflict_copy_name: '{name} (conflict copy)'
+      conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
     activate: Activate
     active: Active
     active_badge: Currently Active

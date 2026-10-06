@@ -346,6 +346,9 @@ pages:
         error:
           fallback: 无法开始删除操作，请稍后重试。
   card:
+    sync:
+      conflict_copy_name: '{name}（冲突副本）'
+      conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
     activate: 激活
     active: 已激活
     active_badge: 当前使用中

@@ -1,5 +1,6 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
+import type { LocalDocumentChanges } from '../../libs/document-sync'
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
@@ -8,11 +9,12 @@ import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore } from 'pinia'
-import { array, parse } from 'valibot'
+import { array, looseObject, parse, safeParse, string } from 'valibot'
 import { computed, toRaw } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
+import { joinCard } from '../../libs/character-card-sync'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
@@ -26,6 +28,9 @@ import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
 
 export type { AiriCard, AiriExtension } from '../../types/airiCard'
+
+/** The members that every card needs before `newAiriCard` can normalize it. */
+const synchronizedCardSchema = looseObject({ name: string(), version: string() })
 
 function resolveSystemPrompt(card: AiriCard | undefined): string {
   if (!card)
@@ -483,6 +488,69 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     }
   }
 
+  /**
+   * The `default` card before the user edits it. Each device creates this card
+   * with the same id, so synchronization compares a device's card with it to
+   * find the edits of the user.
+   */
+  const builtInCard = computed(() => newAiriCard({
+    name: 'ReLU',
+    version: '1.0.0',
+    description: t('base.prompt.prefix'),
+    extensions: {
+      airi: {
+        modules: {
+          consciousness: { provider: '', model: '' },
+          speech: { provider: '', model: '', voice_id: '' },
+          vision: { provider: '', model: '' },
+        },
+        agents: {},
+      },
+    },
+  }))
+
+  /**
+   * Applies the card changes of one synchronization run to this renderer.
+   *
+   * The function changes the cards without an `await`. The caller computes the
+   * changes from the same cards in the same task, so a local edit cannot occur
+   * between the comparison and this write. Only the synchronization leader
+   * calls it.
+   *
+   * @returns `true` when the content of the selected card changed, or another device deleted it. The caller must then call `activateCard`.
+   */
+  function applySynchronizedCards(changes: LocalDocumentChanges) {
+    const previousActiveCardId = activeCardId.value
+    let activeCardChanged = false
+
+    for (const [id, fields] of Object.entries(changes.upserts)) {
+      // Another device wrote this content, so validate it before use.
+      const card = safeParse(synchronizedCardSchema, joinCard(fields))
+      if (!card.success) {
+        console.warn('[character-card-sync] Ignored an invalid card from the server:', id)
+        continue
+      }
+      cards.value.set(id, newAiriCard(card.output))
+      activeCardChanged ||= id === previousActiveCardId
+    }
+
+    for (const fields of changes.conflictCopies) {
+      const card = parse(synchronizedCardSchema, joinCard(fields))
+      cards.value.set(nanoid(), newAiriCard({ ...card, name: t('settings.pages.card.sync.conflict_copy_name', { name: card.name }) }))
+    }
+
+    for (const id of changes.removals) {
+      // The built-in card is the guaranteed fallback for every runtime profile.
+      if (id !== 'default')
+        cards.value.delete(id)
+    }
+
+    if (!cards.value.has(activeCardId.value))
+      activeCardId.value = 'default'
+
+    return activeCardChanged || activeCardId.value !== previousActiveCardId
+  }
+
   /** Applies the initial card while preserving setup context when no auth work is pending. */
   async function initialize() {
     // Awaiting undefined would leave component setup before the first runtime
@@ -495,24 +563,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       return
 
     initialized = true
-    if (!cards.value.has('default')) {
-      const defaultCard: AiriCard = {
-        name: 'ReLU',
-        version: '1.0.0',
-        description: t('base.prompt.prefix'),
-        extensions: {
-          airi: {
-            modules: {
-              consciousness: { provider: '', model: '' },
-              speech: { provider: '', model: '', voice_id: '' },
-              vision: { provider: '', model: '' },
-            },
-            agents: {},
-          },
-        },
-      }
-      cards.value.set('default', newAiriCard(defaultCard))
-    }
+    if (!cards.value.has('default'))
+      cards.value.set('default', structuredClone(toRaw(builtInCard.value)))
 
     // Stored speech-noop can mean an intentional mute. Only the editor may
     // replace it with inheritance; the old placeholder has no provenance marker.
@@ -613,6 +665,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     moduleDefaults,
     activeCard,
     activeCardId,
+    builtInCard,
+    applySynchronizedCards,
     addCard,
     removeCard,
     updateCard,
