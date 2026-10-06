@@ -753,8 +753,9 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
 
         Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+        Insets navigationInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
         int keyboardInset = insets.isVisible(WindowInsetsCompat.Type.ime())
-            ? imeInsets.bottom
+            ? Math.max(0, imeInsets.bottom - navigationInsets.bottom)
             : 0;
         int bottom = browserInsetsPaddingBottom + keyboardInset;
         if (view.getPaddingBottom() == bottom) {

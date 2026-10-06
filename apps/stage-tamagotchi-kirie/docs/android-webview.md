@@ -151,6 +151,22 @@ Android can therefore apply a right-to-left layout direction and trigger the mat
 
 The runtime scenario changes to a right-to-left locale and verifies the application layout direction.
 
+## Keyboard viewport
+
+Android reports the navigation bar inside the IME bottom inset.
+Kirie subtracts that existing navigation-bar inset before resizing its WebView, matching Pocket's `adjustResize` content height.
+
+## Keyboard verification on 2026-10-07
+
+Pocket and Kirie ran on the same Android 15 emulator with the same screen, animation, and keyboard settings.
+Both WebViews measured 876 CSS pixels before opening the keyboard.
+Both measured 564 CSS pixels after tapping the message composer.
+Their visual viewports both measured 564.19049 CSS pixels.
+
+The raw recordings are `stage-pocket-keyboard-navigation-inset.mp4` and `stage-tamagotchi-kirie-keyboard-navigation-inset.mp4`.
+The event-aligned comparison is `compare-keyboard-navigation-inset-timeline.mp4`.
+All three files remain untracked under `recordings-android`.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.
@@ -160,7 +176,7 @@ Intent launches use a recording Activity. The scenarios do not launch external a
 Sixteen native tests passed on Android 15, including both popup callbacks and the expected unmapped extension failure.
 The main client's inherited deprecated callback also matches Capacitor.
 The `getValidTypes` method matches the Capacitor source verbatim.
-The keyboard methods from `cc2fbda9f` remain unchanged.
+The original keyboard methods came from `cc2fbda9f`.
 
 | Command | Result |
 | --- | --- |

@@ -104,7 +104,9 @@ The original `recordings-android` files remain untracked and unchanged.
 
 Native taps and typed input reached the ready stage in both applications. No chat message was sent.
 A separate post-start keyboard check measured a 540 CSS-pixel viewport in Kirie and 564 in Pocket.
-The pre-change Kirie APK reproduced 540 pixels. This existing keyboard difference is outside the startup interval covered here.
+The pre-change Kirie APK reproduced 540 pixels.
+The keyboard inset handler now removes the duplicated navigation-bar inset that caused this 24-pixel difference.
+The post-change Android 15 run measured 564 CSS pixels in both applications.
 
 | Command | Result |
 | --- | --- |
