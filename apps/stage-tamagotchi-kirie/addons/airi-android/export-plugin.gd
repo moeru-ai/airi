@@ -52,6 +52,7 @@ import android.content.ActivityNotFoundException;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
@@ -61,6 +62,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.UserManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -166,6 +168,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private static final String NOTIFICATION_EXTRA_BODY = "body";
     private static final String NOTIFICATION_EXTRA_ID = "id";
     private static final String NOTIFICATION_EXTRA_TITLE = "title";
+    private static final String NOTIFICATION_STORAGE = "NOTIFICATION_STORE";
     private static final String NOTIFICATIONS = "notifications";
     private static final String MICROPHONE = "microphone";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
@@ -1088,7 +1091,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         sendEventaResponse(schedule.request, JSONObject.NULL);
     }
 
-    private void scheduleNotificationAlarm(
+    private static void scheduleNotificationAlarm(
         Context context,
         AlarmManager alarmManager,
         int id,
@@ -1112,6 +1115,29 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             alarmManager.setExact(AlarmManager.RTC, at, pendingIntent);
         } else {
             alarmManager.set(AlarmManager.RTC, at, pendingIntent);
+        }
+        persistScheduledNotification(context, id, title, body, at);
+    }
+
+    private static void persistScheduledNotification(
+        Context context,
+        int id,
+        String title,
+        String body,
+        long at
+    ) {
+        try {
+            JSONObject notification = new JSONObject()
+                .put(NOTIFICATION_EXTRA_ID, id)
+                .put(NOTIFICATION_EXTRA_TITLE, title)
+                .put(NOTIFICATION_EXTRA_BODY, body)
+                .put("at", at);
+            context.getSharedPreferences(NOTIFICATION_STORAGE, Context.MODE_PRIVATE)
+                .edit()
+                .putString(Integer.toString(id), notification.toString())
+                .apply();
+        } catch (JSONException error) {
+            Log.e("AiriAndroid", "Cannot persist scheduled notification", error);
         }
     }
 
@@ -1247,6 +1273,46 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 .setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT);
             manager.notify(id, notification.build());
+        }
+    }
+
+    public static final class NotificationRestoreReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            UserManager userManager = context.getSystemService(UserManager.class);
+            if (userManager == null || !userManager.isUserUnlocked()) {
+                return;
+            }
+
+            long now = System.currentTimeMillis();
+            SharedPreferences storage = context.getSharedPreferences(
+                NOTIFICATION_STORAGE,
+                Context.MODE_PRIVATE
+            );
+            AlarmManager alarmManager = context.getSystemService(AlarmManager.class);
+            for (Map.Entry<String, ?> entry : storage.getAll().entrySet()) {
+                if (!(entry.getValue() instanceof String)) {
+                    continue;
+                }
+
+                try {
+                    JSONObject notification = new JSONObject((String) entry.getValue());
+                    long at = notification.getLong("at");
+                    if (at <= now) {
+                        continue;
+                    }
+                    scheduleNotificationAlarm(
+                        context,
+                        alarmManager,
+                        notification.getInt(NOTIFICATION_EXTRA_ID),
+                        notification.getString(NOTIFICATION_EXTRA_TITLE),
+                        notification.getString(NOTIFICATION_EXTRA_BODY),
+                        at
+                    );
+                } catch (JSONException error) {
+                    Log.e("AiriAndroid", "Cannot restore scheduled notification", error);
+                }
+            }
         }
     }
 
@@ -1563,6 +1629,16 @@ func _get_android_manifest_application_element_contents(_platform: EditorExportP
         <receiver
             android:name="ai.moeru.airi.kirie.AiriAndroidPlugin$NotificationReceiver"
             android:exported="false" />
+        <receiver
+            android:name="ai.moeru.airi.kirie.AiriAndroidPlugin$NotificationRestoreReceiver"
+            android:directBootAware="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
         <activity
             android:name="ai.moeru.airi.kirie.AiriAndroidPlugin$DeepLinkActivity"
             android:exported="true"
@@ -1582,6 +1658,8 @@ func _get_android_manifest_application_element_contents(_platform: EditorExportP
 func _get_android_manifest_element_contents(_platform: EditorExportPlatform, _debug: bool) -> String:
 	return """
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 """
 
 
