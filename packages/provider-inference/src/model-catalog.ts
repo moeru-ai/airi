@@ -13,6 +13,7 @@ const discoveredModelSchema = z.object({
   context_length: z.number().optional(),
   contextLength: z.number().optional(),
   deprecated: z.boolean().optional(),
+  reasoning: z.object({ mandatory: z.boolean().optional() }).optional(),
 })
 
 /**
@@ -34,6 +35,7 @@ export async function listModelCatalog(
       description: model.description,
       contextLength: model.contextLength ?? model.context_length,
       deprecated: model.deprecated,
+      reasoning: model.reasoning,
     }
   })
   const endpoint = new URL(config.baseURL)

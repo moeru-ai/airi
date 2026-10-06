@@ -354,6 +354,11 @@ pages:
             show_more: 더 보기
             subtitle: 공급자에서 기본 모델 선택
             title: 모델
+          model-options:
+            title: 모델 옵션
+            thinking:
+              label: Thinking
+              required-description: 이 모델은 Thinking이 필요합니다.
       title: 의식
     description: 사고, 시각, 음성 합성, 게임 등.
     gaming-factorio:

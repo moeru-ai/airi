@@ -717,6 +717,7 @@ pages:
             title: Model options
             thinking:
               label: Thinking
+              required-description: This model requires Thinking.
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:

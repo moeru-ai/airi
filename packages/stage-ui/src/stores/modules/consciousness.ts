@@ -33,6 +33,15 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     return providersStore.getModelsForProvider(activeProvider.value)
   })
 
+  function isOpenRouterProvider(provider: string) {
+    return providersStore.findProviderDefinition(provider)?.id === 'openrouter-ai'
+  }
+
+  const activeModelRequiresReasoning = computed(() => {
+    return isOpenRouterProvider(activeProvider.value)
+      && providerModels.value.find(model => model.id === activeModel.value)?.reasoning?.mandatory === true
+  })
+
   const isLoadingActiveProviderModels = computed(() => {
     return providersStore.isLoadingModels[activeProvider.value] || false
   })
@@ -114,6 +123,16 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
 
   /** Resolves a provider with the reasoning mode shared by every Consciousness input path. */
   async function getChatProviderInstance(provider: string) {
+    const selectedModel = providerModels.value.find(model => model.id === activeModel.value)
+    const useProviderReasoningDefault = provider === activeProvider.value
+      && isOpenRouterProvider(provider)
+      && (!selectedModel || selectedModel.reasoning?.mandatory === true)
+
+    // OpenRouter applies the model default when reasoning is mandatory or unknown.
+    if (useProviderReasoningDefault) {
+      return providersStore.getChatProviderInstance(provider)
+    }
+
     return providersStore.getChatProviderInstance(provider, {
       reasoning: settingsStore.reasoning ? 'enabled' : 'disabled',
     })
@@ -154,6 +173,7 @@ export const useConsciousnessStore = defineStore('consciousness', () => {
     // Computed
     supportsModelListing,
     providerModels,
+    activeModelRequiresReasoning,
     isLoadingActiveProviderModels,
     activeProviderModelError,
     filteredModels,

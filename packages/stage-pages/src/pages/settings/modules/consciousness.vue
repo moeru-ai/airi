@@ -27,6 +27,7 @@ const {
   modelSearchQuery,
   supportsModelListing,
   providerModels,
+  activeModelRequiresReasoning,
   isLoadingActiveProviderModels,
   activeProviderModelError,
   temperature,
@@ -308,8 +309,10 @@ async function updateTopPEnabled(value: boolean) {
       </h2>
 
       <FieldCheckbox
-        :model-value="reasoning"
+        :model-value="reasoning || activeModelRequiresReasoning"
         :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
+        :description="activeModelRequiresReasoning ? t('settings.pages.modules.consciousness.sections.section.model-options.thinking.required-description') : undefined"
+        :disabled="activeModelRequiresReasoning"
         @update:model-value="updateReasoning"
       />
     </section>
