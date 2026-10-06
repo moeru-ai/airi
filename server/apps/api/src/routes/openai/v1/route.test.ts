@@ -26,7 +26,7 @@ import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
 import { llmRequestLog } from '../../../schemas/llm-request-log'
 import { createBillingService, microFluxToFlux } from '../../../services/domain/billing/billing-service'
 import { createLlmBillingService } from '../../../services/domain/billing/llm-billing'
-import { priceLlmCost } from '../../../services/domain/billing/llm-price'
+import { priceLlmCost } from '../../../services/domain/billing/pricing'
 import { createRequestLogService } from '../../../services/domain/request-log'
 import { ApiError } from '../../../utils/error'
 import {

@@ -77,7 +77,7 @@ flowchart LR
 server/apps/api/
   drizzle/0028_flux_usage.sql
   src/schemas/{flux,flux-usage}.ts
-  src/services/domain/billing/{billing-service,llm-price,llm-billing,speech-billing}.ts
+  src/services/domain/billing/{billing-service,pricing,llm-billing,speech-billing}.ts
   src/services/domain/{flux,flux-cache,flux-transaction}.ts
   src/routes/{flux,openai/v1,audio-speech-ws}/
   src/app.ts

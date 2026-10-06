@@ -46,7 +46,7 @@ export type CostCharge = {
 }
 
 // Decimal multiplication prevents values such as 0.07 * 100 from crossing an integer boundary.
-export function decimalFraction(value: number): [bigint, bigint] {
+function decimalFraction(value: number): [bigint, bigint] {
   const [coefficient, exponent = '0'] = value.toString().split('e')
   const [whole, fraction = ''] = coefficient.split('.')
   const scale = fraction.length - Number(exponent)
@@ -75,4 +75,22 @@ export function priceLlmCost(usage: Pick<CostUsage, 'costUsd' | 'pendingReason' 
   if (costMicroFlux > BigInt(Number.MAX_SAFE_INTEGER))
     return { pricing, costUsd: cost.output, pendingReason: 'cost_out_of_range' }
   return { pricing, costUsd: cost.output, costMicroFlux: Number(costMicroFlux) }
+}
+
+/** Snapshot of the character price, fixed before speech dispatch. */
+export const speechPricingSchema = object({
+  fluxPer1kChars: pipe(number(), finite(), minValue(Number.MIN_VALUE)),
+})
+export type SpeechPricing = InferOutput<typeof speechPricingSchema>
+
+/** Prices metered speech characters with decimal arithmetic before integer wallet settlement. */
+export function priceSpeechUsage(units: number, pricing: SpeechPricing): number {
+  if (!Number.isSafeInteger(units) || units < 0)
+    throw new Error('Speech units must be a non-negative safe integer')
+  const [numerator, denominator] = decimalFraction(pricing.fluxPer1kChars)
+  const divisor = denominator * 1000n
+  const fee = (BigInt(units) * numerator * microPerCredit + divisor - 1n) / divisor
+  if (fee > BigInt(Number.MAX_SAFE_INTEGER))
+    throw new Error('Speech cost is out of range')
+  return Number(fee)
 }

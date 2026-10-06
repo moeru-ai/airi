@@ -3,7 +3,7 @@ import type { InferOutput } from 'valibot'
 import { any, array, boolean, check, finite, integer, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'
-import { costPricingSchema } from '../../domain/billing/llm-price'
+import { costPricingSchema } from '../../domain/billing/pricing'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
