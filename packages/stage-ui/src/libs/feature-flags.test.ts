@@ -3,7 +3,7 @@ import type { FeatureFlag } from './feature-flags'
 import { parse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
-import { featureFlagResponseSchema, resolveFeatureFlag } from './feature-flags'
+import { CHARACTER_CARD_SYNC_FLAG, featureFlagResponseSchema, featureFlags, resolveFeatureFlag } from './feature-flags'
 
 const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, availability: 'local' }
 
@@ -53,5 +53,12 @@ describe('feature flag decisions', () => {
 
   it('validates cloud modes at the response boundary', () => {
     expect(() => parse(featureFlagResponseSchema, { flags: [{ key: feature.key, mode: 'local', source: 'account' }] })).toThrow()
+  })
+
+  it('registers character card sync as a local, off-by-default choice', () => {
+    expect(featureFlags).toContain(CHARACTER_CARD_SYNC_FLAG)
+    expect(CHARACTER_CARD_SYNC_FLAG.availability).toBe('local')
+    expect(CHARACTER_CARD_SYNC_FLAG.defaultEnabled).toBe(false)
+    expect(resolveFeatureFlag(CHARACTER_CARD_SYNC_FLAG, undefined, undefined, true)).toEqual({ enabled: false, source: 'default', selectable: true })
   })
 })
