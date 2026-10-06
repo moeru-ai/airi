@@ -13,11 +13,6 @@ const prefix = 'settings.pages.system.experimental'
     <p :class="['text-sm text-neutral-500 dark:text-neutral-400']">
       {{ t(`${prefix}.notice`) }}
     </p>
-    <div :class="['flex justify-end']">
-      <Button :loading="experiments.loading" @click="experiments.refresh()">
-        {{ t(`${prefix}.refresh`) }}
-      </Button>
-    </div>
     <div v-if="experiments.error" role="status" :class="['flex items-center justify-between gap-3', 'rounded-xl bg-amber-100 p-4 dark:bg-amber-950']">
       <p :class="['text-sm']">
         {{ t(`${prefix}.load-error`) }}
@@ -52,5 +47,10 @@ const prefix = 'settings.pages.system.experimental'
         </Button>
       </div>
     </section>
+    <div :class="['flex justify-end']">
+      <Button :loading="experiments.loading" @click="experiments.refresh()">
+        {{ t(`${prefix}.refresh`) }}
+      </Button>
+    </div>
   </div>
 </template>

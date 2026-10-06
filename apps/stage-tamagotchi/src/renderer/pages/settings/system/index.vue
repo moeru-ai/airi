@@ -7,12 +7,6 @@ const { t } = useI18n()
 
 const settings = computed(() => [
   {
-    title: t('settings.pages.system.experimental.title'),
-    description: t('settings.pages.system.experimental.description'),
-    icon: 'i-solar:test-tube-bold-duotone',
-    to: '/settings/system/experimental',
-  },
-  {
     title: t('settings.pages.system.general.title'),
     description: t('settings.pages.system.general.description'),
     icon: 'i-solar:emoji-funny-square-bold-duotone',
@@ -35,6 +29,12 @@ const settings = computed(() => [
     description: t('settings.pages.system.developer.description'),
     icon: 'i-solar:code-bold-duotone',
     to: '/settings/system/developer',
+  },
+  {
+    title: t('settings.pages.system.experimental.title'),
+    description: t('settings.pages.system.experimental.description'),
+    icon: 'i-solar:test-tube-bold-duotone',
+    to: '/settings/system/experimental',
   },
 ])
 </script>
