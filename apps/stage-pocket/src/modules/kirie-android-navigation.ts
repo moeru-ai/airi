@@ -72,5 +72,16 @@ export function installKirieAndroidNavigation(router: Router) {
   router.go = navigate
   router.back = () => navigate(-1)
   router.forward = () => navigate(1)
-  window.__airiKirieAndroidBack = router.back
+  window.__airiKirieAndroidBack = () => {
+    // NOTICE:
+    // Kirie must leave system Back unchanged on the catch-all route to match Pocket.
+    // Pocket's WebView Back does not traverse this pushState entry.
+    // Source/context: recordings-android/android-g01-g05-final-f12e-2026-10-07/results/
+    // g01-not-found-system-back.json.
+    // Remove this exception when Pocket system Back traverses this state.
+    if (router.currentRoute.value.name === '/[...all]')
+      return
+
+    router.back()
+  }
 }
