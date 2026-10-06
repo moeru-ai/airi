@@ -47,6 +47,8 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import androidx.activity.ComponentActivity;
+import androidx.activity.OnBackPressedCallback;
 import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
@@ -110,6 +112,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private static AiriAndroidPlugin activePlugin;
     private static String pendingUrlOpen;
     private ComponentCallbacks configurationCallbacks;
+    private OnBackPressedCallback backPressedCallback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
     private final OSBARCController barcodeController = new OSBARCController();
@@ -148,6 +151,15 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
         };
         activity.registerComponentCallbacks(configurationCallbacks);
+        backPressedCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                navigateBrowserBack();
+            }
+        };
+        ((ComponentActivity) activity)
+            .getOnBackPressedDispatcher()
+            .addCallback(backPressedCallback);
         applySystemBarStyle(activity);
         installBrowserChannel(activity, 100);
         dispatchPendingUrlOpen();
@@ -160,6 +172,10 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         if (activity != null && configurationCallbacks != null) {
             activity.unregisterComponentCallbacks(configurationCallbacks);
             configurationCallbacks = null;
+        }
+        if (backPressedCallback != null) {
+            backPressedCallback.remove();
+            backPressedCallback = null;
         }
         mainHandler.removeCallbacksAndMessages(null);
         if (activePlugin == this) {
@@ -451,6 +467,18 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             Log.e("AiriAndroid", "No browser can open the external URL", error);
         }
         return true;
+    }
+
+    private void navigateBrowserBack() {
+        WebView webView = browserWebView;
+        if (webView == null) {
+            return;
+        }
+
+        webView.post(() -> webView.evaluateJavascript(
+            "window.__airiKirieAndroidBack?.()",
+            null
+        ));
     }
 
     private WebView findWebView(View view) {

@@ -26,6 +26,7 @@ import { installDeepLinks } from './modules/deep-links'
 import { i18n } from './modules/i18n'
 import { openKirieAndroidAuthorization } from './modules/kirie-android-authentication'
 import { isKirieAndroid } from './modules/kirie-android-eventa'
+import { installKirieAndroidNavigation } from './modules/kirie-android-navigation'
 import { WebAuthentication } from './modules/web-authentication'
 
 import '@proj-airi/font-cjkfonts-allseto/index.css'
@@ -93,6 +94,9 @@ router.beforeEach((to, from) => {
 router.afterEach(() => {
   NProgress.done()
 })
+
+if (isKirieAndroid)
+  installKirieAndroidNavigation(router)
 
 window.addEventListener('unhandledrejection', (event) => {
   console.warn('Unhandled rejection:', event.reason)
