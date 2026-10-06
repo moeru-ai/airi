@@ -70,3 +70,11 @@ The deprecated orientation overload retains its inherited platform behavior in b
 
 The pre-change test observed zero hidden callbacks in Kirie and one in Capacitor.
 Two focused tests cover the current callback pair and the deprecated overload.
+
+## Initial touch focus
+
+Reference: `Bridge.initWebView`, lines 614–616, and the loaded `CapConfig.initialFocus=true` default.
+Stage-pocket has no initial-focus override in `capacitor.config.ts`.
+Kirie requests touch focus during native initialization, before its initial page navigation.
+This targets the native WebView. It does not focus an HTML field or open the keyboard.
+The pre-change instrumentation test observed an unfocused native WebView.
