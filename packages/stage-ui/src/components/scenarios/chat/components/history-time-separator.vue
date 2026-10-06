@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { BasicButton } from '@proj-airi/ui'
+import { differenceInCalendarDays, intlFormat, intlFormatDistance, isSameYear } from 'date-fns'
 import { computed, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -11,36 +12,28 @@ const props = defineProps<{
 const { locale } = useI18n()
 const showFullDate = shallowRef(false)
 const date = computed(() => new Date(props.timestamp))
-const fullLabel = computed(() => new Intl.DateTimeFormat(locale.value, {
+const fullLabel = computed(() => intlFormat(date.value, {
   dateStyle: 'medium',
   timeStyle: 'short',
-}).format(date.value))
-
-function isSameDay(first: Date, second: Date) {
-  return first.getFullYear() === second.getFullYear()
-    && first.getMonth() === second.getMonth()
-    && first.getDate() === second.getDate()
-}
+}, { locale: locale.value }))
 
 const readableLabel = computed(() => {
   const today = new Date(props.now)
-  const time = new Intl.DateTimeFormat(locale.value, { hour: '2-digit', minute: '2-digit' }).format(date.value)
-  if (isSameDay(date.value, today))
+  const time = intlFormat(date.value, { hour: '2-digit', minute: '2-digit' }, { locale: locale.value })
+  const daysAgo = differenceInCalendarDays(today, date.value)
+  if (daysAgo === 0)
     return time
 
-  const relativeFormatter = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
-  for (const daysAgo of [1, 2]) {
-    const previousDay = new Date(today)
-    previousDay.setDate(today.getDate() - daysAgo)
-    if (isSameDay(date.value, previousDay))
-      return `${relativeFormatter.format(-daysAgo, 'day')} ${time}`
+  if (daysAgo === 1 || daysAgo === 2) {
+    const day = intlFormatDistance(date.value, today, { locale: locale.value, unit: 'day', numeric: 'auto' })
+    return `${day} ${time}`
   }
 
-  const day = new Intl.DateTimeFormat(locale.value, {
-    year: date.value.getFullYear() === today.getFullYear() ? undefined : 'numeric',
+  const day = intlFormat(date.value, {
+    year: isSameYear(date.value, today) ? undefined : 'numeric',
     month: 'short',
     day: 'numeric',
-  }).format(date.value)
+  }, { locale: locale.value })
   return `${day} ${time}`
 })
 </script>

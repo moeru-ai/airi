@@ -9,6 +9,7 @@ Timestamps use stored message times, the interface locale, and the device timezo
 Today's separators show only the time. Yesterday and the day before use relative labels.
 Older separators show the month and day. Dates outside the current year also show the year.
 Click a separator to toggle its full date and time. Relative labels refresh every minute while the history is open.
+`date-fns` handles calendar comparisons and localized formatting through `intlFormat` and `intlFormatDistance`.
 
 ## Startup progress
 
