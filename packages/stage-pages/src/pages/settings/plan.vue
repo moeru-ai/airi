@@ -5,17 +5,25 @@ import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { FieldCheckbox, SelectTab } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const { isAuthenticated, planRemaining } = storeToRefs(authStore)
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 const plan = useSubscription({
   getUserId: () => authStore.user?.id ?? '',
   onChanged: () => authStore.updateCredits(),
+})
+
+watch(() => plan.status.value, (status) => {
+  if (!status || !isAuthenticated.value)
+    return
+  planRemaining.value = status.allowances[0]?.remainingPercent ?? null
 })
 
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
@@ -81,7 +89,6 @@ function actionLabel(pkg: PlanPackage): string {
   return t(ACTION_LABEL[action])
 }
 
-const currentAllowance = computed(() => plan.status.value?.allowances[0])
 const fallbackToFlux = computed({
   get: () => plan.status.value?.fallbackToFlux ?? false,
   set: value => void savePreference(value),
@@ -94,7 +101,7 @@ const currentPlanName = computed(() => {
   return plan.packages.value.find(item => item.productId === current.productId)?.name ?? ''
 })
 
-const quotaPercentage = computed(() => currentAllowance.value?.remainingPercent ?? 0)
+const quotaPercentage = computed(() => planRemaining.value ?? 0)
 
 function formatDate(iso: string | null): string {
   if (!iso)
@@ -196,8 +203,8 @@ async function handleSubscribe(packageId: string) {
           <h2 v-if="currentPlanName" :class="['text-3xl font-bold tracking-tight', 'sm:text-4xl']">
             {{ currentPlanName }}
           </h2>
-          <p v-if="currentAllowance?.remainingPercent != null" :class="['text-sm text-neutral-500']">
-            {{ t('settings.pages.plan.creditsRemaining', { percent: currentAllowance.remainingPercent }) }}
+          <p v-if="planRemaining != null" :class="['text-sm text-neutral-500']">
+            {{ t('settings.pages.plan.creditsRemaining', { percent: planRemaining }) }}
           </p>
           <p v-else :class="['text-sm text-neutral-500']">
             {{ t('settings.pages.plan.description') }}

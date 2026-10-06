@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { client } from '@proj-airi/stage-ui/composables/api'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, DropdownMenu } from '@proj-airi/ui'
@@ -8,7 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from 'reka-ui'
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 
@@ -18,38 +17,13 @@ defineProps<{
 }>()
 
 const authStore = useAuthStore()
-const { isAuthenticated, user, credits } = storeToRefs(authStore)
+const { isAuthenticated, user, credits, planRemaining } = storeToRefs(authStore)
 const { t } = useI18n()
 
 const userName = computed(() => user.value?.name)
 const userAvatar = computed(() => user.value?.image)
 
 const formattedCredits = computed(() => credits.value.toLocaleString())
-const planRemaining = ref<number | null>(null)
-let summaryRequest = 0
-
-async function refreshAccountSummary() {
-  if (!isAuthenticated.value)
-    return
-  const request = ++summaryRequest
-  void authStore.updateCredits()
-  try {
-    const res = await client.api.v1.subscriptions.status.$get()
-    if (request !== summaryRequest || !isAuthenticated.value || !res.ok)
-      return
-    const status = await res.json()
-    planRemaining.value = status.allowances[0]?.remainingPercent ?? null
-  }
-  catch {
-    // A failed read keeps the last percent. The next open tries again.
-  }
-}
-
-watch(isAuthenticated, (authenticated) => {
-  summaryRequest += 1
-  if (!authenticated)
-    planRemaining.value = null
-})
 </script>
 
 <template>
@@ -72,7 +46,7 @@ watch(isAuthenticated, (authenticated) => {
             'data-[state=open]:ring-2 data-[state=open]:ring-primary-500/20',
             'transition-colors duration-200 ease-in-out',
           ]"
-          @click="refreshAccountSummary"
+          @click="authStore.updateCredits(); authStore.updatePlanRemaining()"
         >
           <Avatar
             v-if="isAuthenticated"

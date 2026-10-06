@@ -13,6 +13,7 @@ import { useProviderStore } from './provider'
 
 const mocks = vi.hoisted(() => ({
   updateCredits: vi.fn(async () => Response.json({ flux: 0 })),
+  subscriptionStatus: vi.fn(async () => Response.json({ allowances: [] })),
 }))
 
 vi.mock('../../composables/api', () => ({
@@ -20,6 +21,7 @@ vi.mock('../../composables/api', () => ({
     api: {
       v1: {
         flux: { $get: mocks.updateCredits },
+        subscriptions: { status: { $get: mocks.subscriptionStatus } },
       },
     },
   },

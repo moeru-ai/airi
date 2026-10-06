@@ -63,7 +63,7 @@ export interface AuthTokenSet {
 }
 
 /**
- * Auth store — holds identity state and credits.
+ * Auth store — holds identity state, Flux credits, and the plan remaining percent.
  *
  * This store has no dependency on `stores/providers`, which allows
  * `providers` to safely depend on it without creating a circular import.
@@ -96,6 +96,7 @@ export const useAuthStore = defineStore('auth', () => {
   let signingOut = false
 
   const credits = ref(0)
+  const planRemaining = ref<number | null>(null)
 
   // The leader owns this cross-window login request. Web consumes it locally;
   // Electron renderers compete to consume it before starting the IPC flow.
@@ -426,12 +427,26 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  const updatePlanRemaining = async () => {
+    if (!isAuthenticated.value)
+      return
+    const version = sessionVersion.value
+    const res = await client.api.v1.subscriptions.status.$get()
+    if (!res.ok)
+      return
+    const status = await res.json()
+    if (version !== sessionVersion.value || !isAuthenticated.value)
+      return
+    planRemaining.value = status.allowances?.[0]?.remainingPercent ?? null
+  }
+
   // This is the only watcher that reacts to an auth-state transition. Each
   // window runs its own lifecycle hooks, while persistence remains owned by
   // the auth commands above.
   watch(isAuthenticated, async (authenticated, wasAuthenticated) => {
     if (authenticated) {
       void updateCredits()
+      void updatePlanRemaining()
       needsLogin.value = false
 
       if (!wasAuthenticated)
@@ -439,6 +454,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
     else {
       credits.value = 0
+      planRemaining.value = null
 
       if (wasAuthenticated)
         await dispatchHooks(logoutHooks, 'logout hook error')
@@ -465,7 +481,9 @@ export const useAuthStore = defineStore('auth', () => {
     idToken,
     isAuthenticated,
     credits,
+    planRemaining,
     updateCredits,
+    updatePlanRemaining,
     needsLogin,
     onAuthenticated,
     onLogout,
