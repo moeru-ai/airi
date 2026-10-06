@@ -44,6 +44,7 @@ function remoteList(kind: Remote, at: string): ProviderReplicaRow[] {
   return [{
     id: ID,
     definitionId: 'openai',
+    displayName: 'Remote OpenAI',
     config: { apiKey: 'sk-remote' },
     updatedAt: at,
     deletedAt: kind === 'tombstone' ? at : null,

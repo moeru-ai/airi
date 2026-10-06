@@ -19,6 +19,7 @@ export const userProviderConfigs = pgTable(
     // it stable across edits so PUT upserts. Scoped by ownerId, not the row PK.
     instanceId: text('instance_id').notNull(),
     definitionId: text('definition_id').notNull(),
+    displayName: text('display_name'),
     config: text('config').notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),

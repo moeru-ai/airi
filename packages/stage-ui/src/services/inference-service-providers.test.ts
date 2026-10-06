@@ -14,6 +14,7 @@ function createClient() {
               id: 'srv-provider-1',
               instanceId: 'provider-1',
               definitionId: 'openai-compatible',
+              displayName: 'My OpenAI',
               config: { baseUrl: 'https://example.com/v1/' },
               updatedAt: '2026-01-02T00:00:00.000Z',
               deletedAt: null,
@@ -27,6 +28,7 @@ function createClient() {
                 id: 'srv-provider-1',
                 instanceId: 'provider-1',
                 definitionId: 'openai-compatible',
+                displayName: 'My OpenAI',
                 config: { apiKey: 'sk-test' },
                 updatedAt: '2026-01-03T00:00:00.000Z',
                 deletedAt: null,
@@ -47,6 +49,7 @@ describe('services inference-service-providers', () => {
     await expect(inferenceServiceProvidersService.listRemote(client)).resolves.toEqual([{
       id: 'provider-1',
       definitionId: 'openai-compatible',
+      displayName: 'My OpenAI',
       config: { baseUrl: 'https://example.com/v1/' },
       updatedAt: '2026-01-02T00:00:00.000Z',
       deletedAt: null,
@@ -59,10 +62,12 @@ describe('services inference-service-providers', () => {
     await expect(inferenceServiceProvidersService.upsertRemote(client, {
       id: 'provider-1',
       definitionId: 'openai-compatible',
+      displayName: 'My OpenAI',
       config: { apiKey: 'sk-test' },
     })).resolves.toEqual({
       id: 'provider-1',
       definitionId: 'openai-compatible',
+      displayName: 'My OpenAI',
       config: { apiKey: 'sk-test' },
       updatedAt: '2026-01-03T00:00:00.000Z',
       deletedAt: null,
@@ -89,5 +94,25 @@ describe('services inference-service-providers', () => {
     client.api.v1.providers[':id'].$delete.mockResolvedValue({ ok: false, status: 404 })
 
     await expect(inferenceServiceProvidersService.deleteRemote(client, 'provider-1')).resolves.toBeUndefined()
+  })
+
+  it('uploads custom provider display names', async () => {
+    const client = createClient()
+
+    await inferenceServiceProvidersService.upsertRemote(client, {
+      id: 'provider-1',
+      definitionId: 'openai-compatible',
+      displayName: 'Production OpenAI',
+      config: { apiKey: 'sk-test' },
+    })
+
+    expect(client.api.v1.providers[':id'].$put).toHaveBeenCalledWith({
+      param: { id: 'provider-1' },
+      json: {
+        definitionId: 'openai-compatible',
+        displayName: 'Production OpenAI',
+        config: { apiKey: 'sk-test' },
+      },
+    })
   })
 })

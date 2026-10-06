@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProviderValidationStep } from '@proj-airi/stage-ui/libs'
+import type { ProviderValidationStatus, ProviderValidationStep } from '@proj-airi/stage-ui/libs'
 import type { ZodType } from 'zod'
 import type { $ZodType } from 'zod/v4/core'
 
@@ -38,10 +38,26 @@ const emptyProviderConfigValues = Object.freeze({})
 const providerId = computed(() => route.params.providerId as string)
 const providerConfig = computed(() => providerStore.getProvider(providerId.value) ?? emptyProviderConfig)
 const providerDefinition = computed(() => getDefinedProvider(providerConfig.value.definitionId))
+const providerDefinitionDisplayName = computed(() => providerDefinition.value?.nameLocalize({ t }) || providerDefinition.value?.name || providerConfig.value.definitionId)
 
 // NOTICE: useCloned handles deep cloning and state isolation for the draft.
 // It provides a 'cloned' ref that we use for editing without affecting the original store state.
 const { cloned: providerConfigEdit, sync: syncProviderConfigEdit } = useCloned(providerConfig, { manual: true })
+const providerDisplayNameEdit = computed({
+  get: () => providerConfigEdit.value?.displayName ?? providerDefinitionDisplayName.value,
+  set: (displayName: string) => {
+    if (providerConfigEdit.value)
+      providerConfigEdit.value.displayName = displayName
+  },
+})
+const providerDisplayName = computed(() => providerConfigEdit.value?.displayName?.trim() || providerDefinitionDisplayName.value)
+
+function getCustomProviderDisplayName(displayName: string = providerDisplayNameEdit.value): string | null {
+  const normalizedDisplayName = displayName.trim()
+  return normalizedDisplayName && normalizedDisplayName !== providerDefinitionDisplayName.value
+    ? normalizedDisplayName
+    : null
+}
 
 const isProviderSchemaLoading = ref(false)
 const providerSchemaError = ref<string | undefined>()
@@ -80,9 +96,16 @@ const providerSchema = computedAsync<$ZodType<Record<string, unknown>> | undefin
   }
 }, undefined, { evaluating: isProviderSchemaLoading })
 const providerSchemaDefault = computed(() => getSchemaDefault(providerSchema.value))
+let pendingProviderSaveCount = 0
+let providerSaveChain: Promise<unknown> = Promise.resolve()
 
 watch(providerConfig, (newVal, oldVal) => {
   if (newVal && Object.keys(newVal).length > 0) {
+    // Do not replace an in-progress draft with an optimistic or remote save result.
+    // The queued save reconciles the draft after the latest request completes.
+    if (pendingProviderSaveCount > 0)
+      return
+
     // Only sync the draft if the underlying data in the store has actually changed from an external source.
     if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
       syncProviderConfigEdit()
@@ -93,7 +116,8 @@ watch(providerConfig, (newVal, oldVal) => {
 const isEdited = computed(() => {
   const currentConfig = providerConfigEdit.value?.config ?? emptyProviderConfigValues
   const savedConfig = providerConfig.value?.config ?? emptyProviderConfigValues
-  return JSON.stringify(currentConfig) !== JSON.stringify(savedConfig)
+  return getCustomProviderDisplayName() !== getCustomProviderDisplayName(providerConfig.value.displayName ?? providerDefinitionDisplayName.value)
+    || JSON.stringify(currentConfig) !== JSON.stringify(savedConfig)
 })
 
 const canSkipValidation = computed(() => {
@@ -313,7 +337,7 @@ const debouncedValidation = useDebounceFn(runValidation, 1500)
 let didInitValidation = false
 let validationPlanRequestId = 0
 
-watch([providerConfigEdit, providerDefinition, providerSchema], async () => {
+watch([() => providerConfigEdit.value?.config, providerDefinition, providerSchema], async () => {
   if (!providerConfig.value || !providerConfigEdit.value) {
     return
   }
@@ -369,12 +393,69 @@ function syncValidationSteps() {
   validationSteps.value = [...validationSteps.value]
 }
 
-function commitEditedConfig(status: 'configured' | 'bypassed') {
-  if (!providerConfigEdit.value)
+function isCurrentProviderDraft(config: Record<string, unknown>, displayName?: string | null) {
+  return JSON.stringify(providerConfigEdit.value?.config ?? emptyProviderConfigValues) === JSON.stringify(config)
+    && getCustomProviderDisplayName() === displayName
+}
+
+type ProviderUpdate
+  = { type: 'validated-draft', config: Record<string, unknown>, status: ProviderValidationStatus, displayName: string | null }
+    | { type: 'display-name', displayName: string | null }
+
+function persistProviderUpdate(update: ProviderUpdate) {
+  const id = providerId.value
+  pendingProviderSaveCount++
+
+  const save = providerSaveChain.then(async () => {
+    try {
+      const provider = providerStore.getProvider(id)
+      if (!provider)
+        return
+
+      const next = update.type === 'validated-draft'
+        ? { config: update.config, status: update.status, displayName: update.displayName }
+        : { config: provider.config, status: provider.status, displayName: update.displayName }
+
+      const remote = await providerStore.updateProviderConfig(id, next.config, next.status, next.displayName)
+      if (update.type === 'validated-draft' && isCurrentProviderDraft(next.config, next.displayName))
+        syncProviderConfigEdit()
+      return remote
+    }
+    finally {
+      pendingProviderSaveCount--
+    }
+  })
+  providerSaveChain = save.then(() => undefined, () => undefined)
+  return save
+}
+
+function commitEditedConfig(status: ProviderValidationStatus) {
+  const draft = providerConfigEdit.value
+  if (!draft)
     return
 
-  providerStore.updateProviderConfig(providerId.value, { ...providerConfigEdit.value.config }, status)
+  void persistProviderUpdate({
+    type: 'validated-draft',
+    config: { ...draft.config },
+    status,
+    displayName: getCustomProviderDisplayName(),
+  })
 }
+
+const debouncedDisplayNameSave = useDebounceFn(() => {
+  if (!providerConfigEdit.value || !providerConfig.value)
+    return
+
+  const savedDisplayName = providerConfig.value.displayName?.trim() || providerDefinitionDisplayName.value
+  if (providerDisplayNameEdit.value.trim() === savedDisplayName)
+    return
+
+  void persistProviderUpdate({ type: 'display-name', displayName: getCustomProviderDisplayName() })
+}, 500)
+
+watch(providerDisplayNameEdit, () => {
+  void debouncedDisplayNameSave()
+})
 
 function handleSaveAnyway() {
   if (!isEdited.value)
@@ -405,7 +486,7 @@ function handleDeleteProvider() {
   </div>
   <ProviderSettingsLayout
     v-else
-    :provider-name="providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || ''"
+    :provider-name="providerDisplayName"
     :provider-icon="providerDefinition?.icon"
     :provider-icon-color="providerDefinition?.iconColor"
     :on-back="() => router.back()"
@@ -418,7 +499,7 @@ function handleDeleteProvider() {
               <div :class="[providerDefinition?.iconColor || providerDefinition?.icon, 'absolute', 'left-50%', 'top-50%', '-translate-x-1/2', '-translate-y-1/2', 'text-2xl']" />
             </div>
             <h2 :class="['text-lg', 'text-neutral-900', 'font-semibold', 'dark:text-neutral-100']">
-              {{ providerDefinition?.nameLocalize({ t }) || providerDefinition?.name || providerId }}
+              {{ providerDisplayName }}
             </h2>
           </div>
           <div :class="['text-sm', 'text-neutral-500', 'dark:text-neutral-400']">
@@ -498,6 +579,12 @@ function handleDeleteProvider() {
             :description="t('settings.pages.providers.common.section.basic.description')"
           >
             <div :class="['flex', 'flex-col', 'gap-4']">
+              <FieldInput
+                v-model="providerDisplayNameEdit"
+                :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.display-name.label')"
+                :description="t('settings.pages.providers.catalog.edit.config.common.fields.field.display-name.description')"
+                :placeholder="providerDefinitionDisplayName || providerId"
+              />
               <div v-for="field in basicFields" :key="field.key">
                 <ProviderApiKeyInput
                   v-if="field.key === 'apiKey'"

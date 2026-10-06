@@ -218,6 +218,13 @@
       "when": 1791062783238,
       "tag": "0030_drop_flux_consumed_and_settlement",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791206194577,
+      "tag": "0031_add_provider_display_name",
+      "breakpoints": true
     }
   ]
 }
