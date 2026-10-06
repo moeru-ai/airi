@@ -8,6 +8,8 @@ import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import { scanKirieAndroidQrCode } from '../../../modules/kirie-android-barcode-scanner'
+import { isKirieAndroid } from '../../../modules/kirie-android-eventa'
 import { probeServerChannelQrPayload } from '../../../modules/server-channel-qr-probe'
 
 const { t } = useI18n()
@@ -21,11 +23,14 @@ async function scanServerChannelQrCode() {
   errorMessage.value = ''
 
   try {
-    const scanResult = await CapacitorBarcodeScanner.scanBarcode({
-      hint: CapacitorBarcodeScannerTypeHint.QR_CODE,
-      scanInstructions: t('settings.pages.connection.qr-scan.instructions'),
-    })
-    const payload = parseServerChannelQrPayload(scanResult.ScanResult)
+    const scanInstructions = t('settings.pages.connection.qr-scan.instructions')
+    const scanResult = isKirieAndroid
+      ? await scanKirieAndroidQrCode(scanInstructions)
+      : (await CapacitorBarcodeScanner.scanBarcode({
+          hint: CapacitorBarcodeScannerTypeHint.QR_CODE,
+          scanInstructions,
+        })).ScanResult
+    const payload = parseServerChannelQrPayload(scanResult)
     const url = await probeServerChannelQrPayload(payload)
 
     serverChannelStore.websocketAuthToken = payload.authToken

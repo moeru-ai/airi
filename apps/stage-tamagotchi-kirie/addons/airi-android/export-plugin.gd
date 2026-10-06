@@ -38,6 +38,10 @@ import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
 
+import com.outsystems.plugins.barcode.controller.OSBARCController;
+import com.outsystems.plugins.barcode.model.OSBARCScanParameters;
+import com.outsystems.plugins.barcode.model.OSBARCScannerHint;
+
 import com.godot.game.R;
 
 import org.godotengine.godot.Godot;
@@ -62,10 +66,13 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         "eventa:invoke:airi:android:permission:request-send";
     private static final String OPEN_PERMISSION_SETTINGS_EVENT =
         "eventa:invoke:airi:android:permission:open-settings-send";
+    private static final String SCAN_BARCODE_EVENT =
+        "eventa:invoke:airi:android:barcode:scan-send";
     private static final String NOTIFICATIONS = "notifications";
     private static final String MICROPHONE = "microphone";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
     private static final int MICROPHONE_PERMISSION_REQUEST = 4102;
+    private static final int BARCODE_SCAN_REQUEST = 112;
     private static final SignalInfo PERMISSION_RESULT =
         new SignalInfo("permission_result", String.class, Boolean.class);
     private static final int LIGHT_SYSTEM_BARS =
@@ -74,8 +81,10 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private ComponentCallbacks configurationCallbacks;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
-    private final Map<String, PendingPermissionRequest> pendingPermissionRequests =
+    private final OSBARCController barcodeController = new OSBARCController();
+    private final Map<String, PendingEventaRequest> pendingPermissionRequests =
         new HashMap<>();
+    private PendingEventaRequest pendingBarcodeScan;
 
     public AiriAndroidPlugin(Godot godot) {
         super(godot);
@@ -119,6 +128,46 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         mainHandler.removeCallbacksAndMessages(null);
         browserWebView = null;
         pendingPermissionRequests.clear();
+        pendingBarcodeScan = null;
+    }
+
+    @Override
+    public void onMainActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode != BARCODE_SCAN_REQUEST || pendingBarcodeScan == null) {
+            return;
+        }
+
+        PendingEventaRequest pending = pendingBarcodeScan;
+        pendingBarcodeScan = null;
+        barcodeController.handleActivityResult(
+            requestCode,
+            resultCode,
+            data,
+            scanResult -> {
+                try {
+                    sendEventaResponse(
+                        pending,
+                        new JSONObject()
+                            .put("ScanResult", scanResult.getText())
+                            .put("format", scanResult.getFormat().ordinal())
+                    );
+                } catch (JSONException error) {
+                    Log.e("AiriAndroid", "Cannot create barcode response", error);
+                }
+                return kotlin.Unit.INSTANCE;
+            },
+            scanError -> {
+                try {
+                    sendEventaResponse(
+                        pending,
+                        new JSONObject().put("error", scanError.getDescription())
+                    );
+                } catch (JSONException error) {
+                    Log.e("AiriAndroid", "Cannot create barcode error response", error);
+                }
+                return kotlin.Unit.INSTANCE;
+            }
+        );
     }
 
     @Override
@@ -135,7 +184,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         boolean granted = grantResults.length > 0
             && grantResults[0] == PackageManager.PERMISSION_GRANTED;
         emitSignal(PERMISSION_RESULT, permission, granted);
-        PendingPermissionRequest pending = pendingPermissionRequests.remove(permission);
+        PendingEventaRequest pending = pendingPermissionRequests.remove(permission);
         if (pending != null) {
             sendPermissionEventaResponse(pending, granted);
         }
@@ -287,11 +336,21 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             String event = payload.getString("id");
             JSONObject body = payload.getJSONObject("body");
             String invokeId = body.getString("invokeId");
-            String permission = body.getJSONObject("content").getString("permission");
+            JSONObject content = body.getJSONObject("content");
+
+            if (SCAN_BARCODE_EVENT.equals(event)) {
+                startBarcodeScanner(
+                    content.getString("scanInstructions"),
+                    new PendingEventaRequest(event, invokeId, replyProxy)
+                );
+                return;
+            }
+
+            String permission = content.getString("permission");
 
             if (CHECK_PERMISSION_EVENT.equals(event)) {
                 sendEventaResponse(
-                    new PendingPermissionRequest(event, invokeId, replyProxy),
+                    new PendingEventaRequest(event, invokeId, replyProxy),
                     new JSONObject().put("granted", checkPermission(permission))
                 );
                 return;
@@ -299,7 +358,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             if (REQUEST_PERMISSION_EVENT.equals(event)) {
                 if (checkPermission(permission)) {
                     sendEventaResponse(
-                        new PendingPermissionRequest(event, invokeId, replyProxy),
+                        new PendingEventaRequest(event, invokeId, replyProxy),
                         new JSONObject().put("granted", true)
                     );
                     return;
@@ -307,7 +366,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
                 pendingPermissionRequests.put(
                     permission,
-                    new PendingPermissionRequest(event, invokeId, replyProxy)
+                    new PendingEventaRequest(event, invokeId, replyProxy)
                 );
                 requestPermission(permission);
                 return;
@@ -315,7 +374,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             if (OPEN_PERMISSION_SETTINGS_EVENT.equals(event)) {
                 openPermissionSettings(permission);
                 sendEventaResponse(
-                    new PendingPermissionRequest(event, invokeId, replyProxy),
+                    new PendingEventaRequest(event, invokeId, replyProxy),
                     JSONObject.NULL
                 );
             }
@@ -324,7 +383,32 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
     }
 
-    private void sendEventaResponse(PendingPermissionRequest request, Object content) {
+    private void startBarcodeScanner(
+        String scanInstructions,
+        PendingEventaRequest pending
+    ) {
+        Activity activity = getActivity();
+        if (activity == null) {
+            return;
+        }
+
+        pendingBarcodeScan = pending;
+        OSBARCScanParameters parameters = new OSBARCScanParameters(
+            scanInstructions,
+            null,
+            null,
+            false,
+            "",
+            OSBARCScannerHint.QR_CODE,
+            null,
+            null,
+            null,
+            null
+        );
+        activity.runOnUiThread(() -> barcodeController.scanCode(activity, parameters));
+    }
+
+    private void sendEventaResponse(PendingEventaRequest request, Object content) {
         try {
             String responseEvent = request.event.replace("-send", "-receive")
                 + "-" + request.invokeId;
@@ -342,7 +426,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     }
 
     private void sendPermissionEventaResponse(
-        PendingPermissionRequest request,
+        PendingEventaRequest request,
         boolean granted
     ) {
         try {
@@ -352,12 +436,12 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
     }
 
-    private static final class PendingPermissionRequest {
+    private static final class PendingEventaRequest {
         private final String event;
         private final String invokeId;
         private final JavaScriptReplyProxy replyProxy;
 
-        private PendingPermissionRequest(
+        private PendingEventaRequest(
             String event,
             String invokeId,
             JavaScriptReplyProxy replyProxy
@@ -430,6 +514,23 @@ func _get_name() -> String:
 
 func _supports_platform(platform: EditorExportPlatform) -> bool:
 	return platform.get_os_name().to_lower() == "android"
+
+func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) -> PackedStringArray:
+	return PackedStringArray([
+		"io.ionic.libs:ionbarcode-android:2.1.1@aar",
+		"androidx.appcompat:appcompat:1.7.1",
+		"androidx.activity:activity-ktx:1.10.1",
+		"org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.10.2",
+		"org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2",
+		"com.google.zxing:core:3.5.3",
+		"com.google.mlkit:barcode-scanning:17.3.0",
+		"androidx.camera:camera-camera2:1.5.1",
+		"androidx.camera:camera-lifecycle:1.5.1",
+		"androidx.camera:camera-view:1.5.1",
+		"androidx.activity:activity-compose:1.10.1",
+		"androidx.compose.material3:material3:1.4.0",
+		"androidx.compose.material3:material3-window-size-class:1.4.0",
+	])
 
 func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, _flags: int) -> void:
 	if not features.has("android"):

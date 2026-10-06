@@ -13,9 +13,9 @@ import { useI18n } from 'vue-i18n'
 
 import PermissionCard from './permission-card.vue'
 
+import { isKirieAndroid } from '../../modules/kirie-android-eventa'
 import {
   checkKirieAndroidPermission,
-  isKirieAndroid,
   openKirieAndroidPermissionSettings,
   requestKirieAndroidPermission,
 } from '../../modules/kirie-android-permissions'
