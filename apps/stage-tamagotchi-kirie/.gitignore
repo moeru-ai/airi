@@ -6,6 +6,7 @@
 node_modules/
 addons/godot_cef/
 addons/kirie/
+android/
 src-web/dist/
 dist/
 build/

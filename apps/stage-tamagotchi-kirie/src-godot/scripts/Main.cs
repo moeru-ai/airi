@@ -6,6 +6,7 @@ using Godot;
 public partial class Main : Node
 {
     private const string PageUrl = "res://src-web/dist/index.html";
+    private const string AndroidPageUrl = "res://src-web/dist/android/index.html";
     private const string DevWebUrlOption = "kirie-web-url";
 
     private KirieClient? _kirie;
@@ -29,6 +30,12 @@ public partial class Main : Node
 
     public override void _Ready()
     {
+        if (OS.HasFeature("android"))
+        {
+            StartAndroid();
+            return;
+        }
+
         var window = GetWindow();
         DesktopWindowSizing.ApplyInitialDisplayScale(window);
         _nativeResize = new NativeWindowResizeController(window);
@@ -67,7 +74,7 @@ public partial class Main : Node
         string initialUrl;
         try
         {
-            var rendererUrl = ResolveInitialUrl();
+            var rendererUrl = ResolveInitialUrl(PageUrl);
             initialUrl = RendererUrl.ForMain(rendererUrl);
             _permissions = new WebViewPermissionHandler(
                 _kirie,
@@ -164,7 +171,24 @@ public partial class Main : Node
         _microphonePermissions?.Process();
     }
 
-    private string ResolveInitialUrl()
+    private void StartAndroid()
+    {
+        _kirie = KirieClient.FromNode(GetNode("KirieNode"));
+        if (!_kirie.IsAvailable)
+        {
+            GD.PushError("Kirie is unavailable on Android.");
+            return;
+        }
+
+        _kirie.WebViewReady += OnWebViewReady;
+        _kirie.IpcError += OnIpcError;
+
+        var initialUrl = ResolveInitialUrl(AndroidPageUrl);
+        GD.Print($"create_android_webview initial_url={initialUrl}");
+        _kirie.CreateWebView(initialUrl);
+    }
+
+    private string ResolveInitialUrl(string defaultUrl)
     {
         var launchUrl = _kirie!.GetLaunchOption(DevWebUrlOption).Trim();
         if (launchUrl.Length > 0)
@@ -173,7 +197,7 @@ public partial class Main : Node
         }
 
         var environmentUrl = OS.GetEnvironment("KIRIE_WEB_URL").Trim();
-        return environmentUrl.Length > 0 ? environmentUrl : PageUrl;
+        return environmentUrl.Length > 0 ? environmentUrl : defaultUrl;
     }
 
     private static void OnWebViewReady()

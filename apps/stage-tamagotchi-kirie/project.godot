@@ -21,6 +21,7 @@ config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 window/size/borderless=true
 window/size/always_on_top=true
 window/size/transparent=true
+window/handheld/orientation=1
 window/size/viewport_height=600
 window/size/viewport_width=450
 window/subwindows/embed_subwindows=false

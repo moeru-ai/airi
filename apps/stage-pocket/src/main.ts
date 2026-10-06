@@ -69,7 +69,7 @@ pinia.use(synced.pinia)
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 
 let router: Router
-if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE))
+if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE) || import.meta.env.MODE === 'kirie-android')
   router = createRouter({ routes: routeRecords, history: createWebHashHistory() })
 else
   router = createRouter({ routes: routeRecords, history: createWebHistory() })

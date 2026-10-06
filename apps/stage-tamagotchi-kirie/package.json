@@ -12,6 +12,8 @@
   "homepage": "https://airi.moeru.ai/docs/",
   "scripts": {
     "build": "kirie build",
+    "build:android": "kirie build && pnpm run build:android:web && kirie export android --build=false",
+    "build:android:web": "pnpm --dir ../stage-pocket exec vite build --mode kirie-android --base ./ --outDir ../stage-tamagotchi-kirie/src-web/dist/android --emptyOutDir",
     "dev": "kirie dev",
     "postinstall": "node -e \"require('node:fs').writeFileSync('node_modules/.gdignore', '')\"",
     "test:unit": "vitest run --config vitest.config.ts",
