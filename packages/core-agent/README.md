@@ -44,9 +44,6 @@ Local history preserves complete turns and visible output from interrupted turns
 
 ## Responses API
 
-Providers can supply `onUnsupported` to switch their model capability to Chat Completions after an explicit Responses protocol rejection.
-The runtime calls it only before output, then resolves the provider again and retries once. Other providers keep their selected protocol.
-
 A provider resolves a discriminated `GenerationRequest` before context projection. The adapter owns its wire format and SDK event conversion. The adapter uses `@xsai-ext/responses` with `store: false`. It replays complete Items and executes local function tools for at most ten steps.
 
 The current Responses adapter supports text, images, file data or URLs, refusals, and function calls. It rejects audio input and provider file IDs. It supports provider-executed web search alongside local function tools. Search records remain in native continuation. Citation events and portable text retain source URLs and offsets. Incomplete responses and EOF before a terminal event fail the generation. Session cancellation aborts the active provider request.

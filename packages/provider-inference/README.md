@@ -59,7 +59,6 @@ const provider = await definition.createProvider({
 
 User-configured providers send Responses requests directly to their configured endpoint with their own API key. They do not require AIRI backend changes or Flux billing.
 The official provider defaults to Responses and lets the user select Chat Completions.
-Its `onUnsupported` handler remembers rejected models within the provider instance. Core-agent retries with Chat Completions only before output.
 
 OpenAI has a `webSearch` switch, disabled by default. The selected protocol must be Responses.
 Explicitly enabling search sends the hosted tool on the official OpenAI endpoint. The provider validates model support.
