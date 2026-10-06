@@ -143,6 +143,13 @@ Kirie restarts Godot during this recreation so the replacement activity renders 
 
 The runtime scenario changes only layout direction and verifies activity destruction, process rebirth, and a rendered replacement.
 
+## Right-to-left layouts
+
+Kirie declares right-to-left layout support in every build variant, matching stage-pocket's manifest.
+Android can therefore apply a right-to-left layout direction and trigger the matching recreation path.
+
+The runtime scenario changes to a right-to-left locale and verifies the application layout direction.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.
