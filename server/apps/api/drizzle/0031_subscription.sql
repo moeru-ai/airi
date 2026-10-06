@@ -19,16 +19,9 @@ CREATE TABLE "subscription_allowance" (
 	"period_start" timestamp NOT NULL,
 	"period_end" timestamp,
 	"granted_credit" integer NOT NULL,
-	"used_credit" integer NOT NULL DEFAULT 0,
-	"unsettled_micro_credit" bigint NOT NULL DEFAULT 0,
+	"used_credit" integer DEFAULT 0 NOT NULL,
+	"unsettled_micro_credit" bigint DEFAULT 0 NOT NULL,
 	"event_id" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	"updated_at" timestamp DEFAULT now() NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "user_billing_preference" (
-	"user_id" text PRIMARY KEY NOT NULL,
-	"fallback_to_flux" boolean NOT NULL DEFAULT false,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
@@ -39,6 +32,13 @@ CREATE TABLE "subscription_consumption" (
 	"allowance_id" text NOT NULL,
 	"micro_credit" bigint NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "user_billing_preference" (
+	"user_id" text PRIMARY KEY NOT NULL,
+	"fallback_to_flux" boolean DEFAULT false NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX "subscription_user_entitlement_uidx" ON "subscription" USING btree ("user_id","entitlement_id") WHERE deleted_at IS NULL;--> statement-breakpoint
