@@ -3,6 +3,14 @@
 The AIRI Android export plugin aligns Kirie's native WebView with stage-pocket's Capacitor host.
 The shared stage-pocket renderer supplies the Android pages.
 
+## WebSettings initialization
+
+Kirie copies Capacitor 8.5.0's WebSettings values before it reloads the renderer.
+
+| Setting | Value |
+| --- | --- |
+| Geolocation | Enabled |
+
 ## External navigation
 
 Capacitor 8.5.0 supplies the reference through `BridgeWebViewClient.shouldOverrideUrlLoading` and `Bridge.launchIntent`.
