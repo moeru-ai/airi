@@ -1,4 +1,6 @@
-import { foreignKey, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { foreignKey, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+
+import { jsonValue } from '../../../libs/json-value'
 
 /**
  * Describes the tables that `createFieldSyncStore` reads and writes. The
@@ -44,7 +46,7 @@ function _describeTables(name: string) {
        * revision removed the part. The row stays, so a snapshot of an older
        * revision still knows that the part was absent from that point on.
        */
-      value: jsonb('value').$type<unknown>(),
+      value: jsonValue('value'),
       /** The store never updates or deletes a row. Each push only inserts new rows. */
       revision: integer('revision').notNull(),
       updatedAt: timestamp('updated_at').defaultNow().notNull(),
