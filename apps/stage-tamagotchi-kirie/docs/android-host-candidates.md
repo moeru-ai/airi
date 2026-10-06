@@ -18,3 +18,12 @@ Home Back remains a no-op.
 
 Run `pnpm -F @proj-airi/stage-pocket exec vitest run --config vitest.config.ts`.
 The Vite file watcher is disabled in this fixture configuration.
+
+## Replaced routes
+
+Provider category tabs call `router.replace({ hash })`. Pocket replaces the current history entry.
+Kirie previously added each successful replacement to its custom stack. Back stopped at the previous category.
+
+The history replacement boundary now replaces the current custom entry after Vue Router accepts navigation.
+This includes `router.push({ replace: true })` and excludes canceled replacements.
+Both replacement fixtures fail before the fix and pass after it.
