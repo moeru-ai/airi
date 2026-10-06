@@ -17,7 +17,7 @@ export interface FeatureFlag {
   titleKey: string
   descriptionKey: string
   defaultEnabled: boolean
-  mode: 'local' | 'cloud-opt-in' | 'cloud-controlled'
+  availability: 'local' | 'cloud'
 }
 
 export interface FeatureFlagDecision {
@@ -31,13 +31,13 @@ export const featureFlags: readonly FeatureFlag[] = []
 
 /** Missing cloud grants disable features. Only local and account-granted opt-in features expose settings. */
 export function resolveFeatureFlag(feature: FeatureFlag, preference: boolean | undefined, policy: InferOutput<typeof featureFlagPolicySchema> | undefined, authenticated: boolean): FeatureFlagDecision {
-  if (feature.mode === 'local')
+  if (feature.availability === 'local')
     return { enabled: preference ?? feature.defaultEnabled, source: preference === undefined ? 'default' : 'local', selectable: true }
 
-  if (!policy || policy.key !== feature.key || policy.mode !== feature.mode)
+  if (!policy || policy.key !== feature.key)
     return { enabled: false, source: 'default', selectable: false }
 
-  if (feature.mode === 'cloud-controlled')
+  if (policy.mode === 'cloud-controlled')
     return { enabled: true, source: policy.source, selectable: false }
 
   if (!authenticated)

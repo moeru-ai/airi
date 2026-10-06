@@ -29,7 +29,7 @@ export const useFeatureFlagsStore = defineStore('feature-flags', () => {
   let request: AbortController | undefined
 
   function preferenceKey(feature: FeatureFlag) {
-    return JSON.stringify([feature.key, feature.mode === 'cloud-opt-in' ? auth.user?.id : null])
+    return JSON.stringify([feature.key, feature.availability === 'cloud' ? auth.user?.id : null])
   }
 
   function decision(feature: FeatureFlag) {

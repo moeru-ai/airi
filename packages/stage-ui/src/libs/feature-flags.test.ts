@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 
 import { featureFlagResponseSchema, resolveFeatureFlag } from './feature-flags'
 
-const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, mode: 'local' }
+const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, availability: 'local' }
 
 describe('feature flag decisions', () => {
   it('allows local choices without a cloud grant or an account', () => {
@@ -17,13 +17,13 @@ describe('feature flag decisions', () => {
     expect(resolveFeatureFlag(feature, false, { key: feature.key, mode: 'cloud-controlled', source: 'global' }, true).enabled).toBe(false)
   })
 
-  it.each(['cloud-opt-in', 'cloud-controlled'] as const)('hides and disables missing %s grants despite saved preferences', (mode) => {
-    expect(resolveFeatureFlag({ ...feature, mode, defaultEnabled: true }, true, undefined, true))
+  it('hides and disables missing cloud grants despite saved preferences and local defaults', () => {
+    expect(resolveFeatureFlag({ ...feature, availability: 'cloud', defaultEnabled: true }, true, undefined, true))
       .toEqual({ enabled: false, source: 'default', selectable: false })
   })
 
   it('requires an account for opt-in grants and starts disabled', () => {
-    const optIn: FeatureFlag = { ...feature, mode: 'cloud-opt-in' }
+    const optIn: FeatureFlag = { ...feature, availability: 'cloud' }
     const policy = { key: feature.key, mode: 'cloud-opt-in', source: 'account' } as const
     expect(resolveFeatureFlag(optIn, true, policy, false)).toEqual({ enabled: false, source: 'default', selectable: false })
     expect(resolveFeatureFlag(optIn, undefined, policy, true)).toEqual({ enabled: false, source: 'account', selectable: true })
@@ -32,15 +32,23 @@ describe('feature flag decisions', () => {
   })
 
   it('applies cloud control without exposing a toggle or accepting device preferences', () => {
-    const controlled: FeatureFlag = { ...feature, mode: 'cloud-controlled' }
+    const controlled: FeatureFlag = { ...feature, availability: 'cloud' }
     const policy = { key: feature.key, mode: 'cloud-controlled', source: 'global' } as const
     expect(resolveFeatureFlag(controlled, false, policy, false)).toEqual({ enabled: true, source: 'global', selectable: false })
     expect(resolveFeatureFlag(controlled, true, undefined, true).enabled).toBe(false)
   })
 
-  it('fails closed when client registration and cloud mode disagree', () => {
-    expect(resolveFeatureFlag({ ...feature, mode: 'cloud-opt-in' }, true, { key: feature.key, mode: 'cloud-controlled', source: 'global' }, true).enabled).toBe(false)
-    expect(resolveFeatureFlag({ ...feature, mode: 'cloud-controlled' }, true, { key: 'other', mode: 'cloud-controlled', source: 'global' }, true).enabled).toBe(false)
+  it('lets Cloud change modes without changing client registration', () => {
+    const cloud: FeatureFlag = { ...feature, availability: 'cloud' }
+    const optIn = { key: feature.key, mode: 'cloud-opt-in', source: 'account' } as const
+    const controlled = { key: feature.key, mode: 'cloud-controlled', source: 'global' } as const
+    expect(resolveFeatureFlag(cloud, false, optIn, true)).toEqual({ enabled: false, source: 'local', selectable: true })
+    expect(resolveFeatureFlag(cloud, false, controlled, true)).toEqual({ enabled: true, source: 'global', selectable: false })
+    expect(resolveFeatureFlag(cloud, false, optIn, true)).toEqual({ enabled: false, source: 'local', selectable: true })
+  })
+
+  it('rejects grants for a different flag', () => {
+    expect(resolveFeatureFlag({ ...feature, availability: 'cloud' }, true, { key: 'other', mode: 'cloud-controlled', source: 'global' }, true).enabled).toBe(false)
   })
 
   it('validates cloud modes at the response boundary', () => {
