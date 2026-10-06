@@ -17,8 +17,11 @@ import { SERVER_URL } from '../libs/server'
 import { useAuthStore } from './auth'
 import { useAiriCardStore } from './modules/airi-card'
 
-/** The server collection that stores the cards. The server accepts only the collections that it knows. */
-const COLLECTION = 'character-cards'
+/** The route of the server that stores the cards. */
+const CARDS_PATH = '/api/v1/character-cards'
+
+/** Names the sync state of the cards in the local storage. */
+const STATE_NAME = 'character-cards'
 
 /**
  * Synchronizes the character cards with the account. The selected card is
@@ -76,13 +79,13 @@ export const useCharacterCardSyncStore = defineStore('character-card-sync', () =
     if (ownerId === 'local')
       return
 
-    client ??= createDocumentSyncClient({ serverUrl: SERVER_URL, collection: COLLECTION, fetch: authedFetch })
+    client ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
     await synchronize({
       client,
-      state: await documentSyncRepo.getState(COLLECTION, ownerId) ?? { documents: {} },
+      state: await documentSyncRepo.getState(STATE_NAME, ownerId) ?? { documents: {} },
       // The new account starts its own run from the `userId` watcher.
       isCurrent: () => userId.value === ownerId,
-      saveState: state => documentSyncRepo.saveState(COLLECTION, ownerId, state),
+      saveState: state => documentSyncRepo.saveState(STATE_NAME, ownerId, state),
       readLocal: () => ({
         documents: Object.fromEntries([...toRaw(cards.value)].map(([id, card]) => [id, splitCard(toRaw(card))])),
         pristine: { default: splitCard(cardStore.builtInCard) },

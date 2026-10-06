@@ -1,26 +1,35 @@
-import type { Database } from '../../libs/db'
-import type { PushedField } from '../../routes/sync/schema'
-import type { SyncedDocumentService } from './synced-documents'
+import type { Database } from '../../../libs/db'
+import type { PushedField } from './request'
+import type { FieldSyncStore } from './store'
 
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { mockDB } from '../../libs/mock-db'
-import { createSyncedDocumentService } from './synced-documents'
+import { mockDB } from '../../../libs/mock-db'
+import { defineFieldSyncTables } from '../../../schemas/field-sync'
+import { createBadRequestError } from '../../../utils/error'
+import { createFieldSyncStore } from './store'
 
-import * as schema from '../../schemas'
+import * as schema from '../../../schemas'
 
-describe('syncedDocumentService', () => {
+// The store works with the tables of any feature. These tables prove that it
+// does not depend on the character card tables.
+const tables = defineFieldSyncTables('field_sync_test')
+
+describe('fieldSyncStore', () => {
   let db: Database
-  let service: SyncedDocumentService
+  let store: FieldSyncStore
 
-  const collection = 'character-cards'
-  const push = (fields: PushedField[], ownerId = 'owner') => service.push({ ownerId, collection, documentId: 'card' }, fields)
-  const remove = (revision: number) => service.remove({ ownerId: 'owner', collection, documentId: 'card' }, revision)
-  const list = async (ownerId = 'owner') => (await service.list(ownerId, collection)).documents
+  const push = (fields: PushedField[], ownerId = 'owner') => store.push(ownerId, 'doc', fields)
+  const list = async (ownerId = 'owner') => (await store.list(ownerId)).documents
 
   beforeEach(async () => {
-    db = await mockDB(schema)
-    service = createSyncedDocumentService(db)
+    db = await mockDB({ ...schema, fieldSyncTestDocuments: tables.documents, fieldSyncTestFields: tables.fields })
+    store = createFieldSyncStore(db, tables, {
+      validate: (fields) => {
+        if (fields.some(field => field.key === '/forbidden'))
+          throw createBadRequestError('Forbidden key')
+      },
+    })
   })
 
   it('stores a new document and lists it for its owner only', async () => {
@@ -30,7 +39,7 @@ describe('syncedDocumentService', () => {
     ])
 
     expect(pushed.conflicts).toEqual([])
-    expect(pushed.document).toMatchObject({ id: 'card', revision: 1, deletedAt: null })
+    expect(pushed.document).toMatchObject({ id: 'doc', revision: 1, deletedAt: null })
     expect(await list()).toEqual([pushed.document])
     expect(await list('other')).toEqual([])
   })
@@ -93,7 +102,7 @@ describe('syncedDocumentService', () => {
     expect(stale.conflicts).toEqual(['/nickname'])
   })
 
-  it('does not create a document when the server accepts no field', async () => {
+  it('does not create a document when the store accepts no field', async () => {
     const result = await push([{ key: '/name', baseRevision: 4, value: 'Luna' }])
 
     expect(result.conflicts).toEqual(['/name'])
@@ -103,40 +112,46 @@ describe('syncedDocumentService', () => {
   it('keeps a deletion marker without content', async () => {
     await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
 
-    await remove(1)
-    await remove(1)
+    await store.remove('owner', 'doc', 1)
+    await store.remove('owner', 'doc', 1)
 
-    expect(await list()).toEqual([{ id: 'card', revision: 2, deletedAt: expect.any(String), fields: [] }])
+    expect(await list()).toEqual([{ id: 'doc', revision: 2, deletedAt: expect.any(String), fields: [] }])
   })
 
   it('rejects a deletion when another device changed the document', async () => {
     await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
     await push([{ key: '/name', baseRevision: 1, value: 'Nova' }])
 
-    await expect(remove(1)).rejects.toMatchObject({ statusCode: 409 })
+    await expect(store.remove('owner', 'doc', 1)).rejects.toMatchObject({ statusCode: 409 })
     expect((await list())[0].deletedAt).toBeNull()
   })
 
   it('restores a deleted document with revisions above the deleted ones', async () => {
     await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
-    await remove(1)
+    await store.remove('owner', 'doc', 1)
 
     const stale = await push([{ key: '/name', baseRevision: 1, value: 'Nova' }])
     const restored = await push([{ key: '/name', baseRevision: 0, value: 'Nova' }])
 
     expect(stale.conflicts).toEqual(['/name'])
     expect(stale.document.deletedAt).toEqual(expect.any(String))
-    expect(restored.document).toEqual({ id: 'card', revision: 3, deletedAt: null, fields: [{ key: '/name', revision: 3, value: 'Nova' }] })
+    expect(restored.document).toEqual({ id: 'doc', revision: 3, deletedAt: null, fields: [{ key: '/name', revision: 3, value: 'Nova' }] })
+  })
+
+  it('rejects a push that the validation rejects and writes nothing', async () => {
+    await expect(push([{ key: '/forbidden', baseRevision: 0, value: 'x' }])).rejects.toMatchObject({ statusCode: 400 })
+
+    expect(await list()).toEqual([])
   })
 
   it('removes the content of a deleted account', async () => {
     await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
     await push([{ key: '/name', baseRevision: 0, value: 'Kept' }], 'other')
 
-    await service.deleteAllForUser('owner')
-    await service.deleteAllForUser('owner')
+    await store.deleteAllForUser('owner')
+    await store.deleteAllForUser('owner')
 
-    expect(await list()).toEqual([{ id: 'card', revision: 1, deletedAt: expect.any(String), fields: [] }])
+    expect(await list()).toEqual([{ id: 'doc', revision: 1, deletedAt: expect.any(String), fields: [] }])
     expect((await list('other'))[0].fields).toEqual([{ key: '/name', revision: 1, value: 'Kept' }])
   })
 })

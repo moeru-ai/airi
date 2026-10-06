@@ -4,7 +4,7 @@ import { createDocumentSyncClient } from './client'
 
 function createClient(response: Response) {
   const fetch = vi.fn<typeof globalThis.fetch>().mockResolvedValue(response)
-  return { fetch, client: createDocumentSyncClient({ serverUrl: 'https://api.example/base/', collection: 'character-cards', fetch }) }
+  return { fetch, client: createDocumentSyncClient({ serverUrl: 'https://api.example/base/', path: '/api/v1/character-cards', fetch }) }
 }
 
 describe('createDocumentSyncClient', () => {
@@ -14,7 +14,7 @@ describe('createDocumentSyncClient', () => {
     const deleted = await client.remove('card/1', 4)
 
     expect(deleted).toBe(true)
-    expect(String(fetch.mock.calls[0][0])).toBe('https://api.example/base/api/v1/sync/character-cards/card%2F1?revision=4')
+    expect(String(fetch.mock.calls[0][0])).toBe('https://api.example/base/api/v1/character-cards/card%2F1?revision=4')
     expect(fetch.mock.calls[0][1]?.method).toBe('DELETE')
   })
 

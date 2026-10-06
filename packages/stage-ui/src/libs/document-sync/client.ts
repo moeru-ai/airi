@@ -20,7 +20,7 @@ const PushResultSchema = v.object({
   conflicts: v.array(v.string()),
 })
 
-/** A document as `GET /api/v1/sync/:collection` returns it. A deleted document has no fields. */
+/** A document as the list route of a feature returns it. A deleted document has no fields. */
 export type RemoteDocument = v.InferOutput<typeof RemoteDocumentSchema>
 export type RemoteSnapshot = v.InferOutput<typeof RemoteSnapshotSchema>
 export type PushResult = v.InferOutput<typeof PushResultSchema>
@@ -33,8 +33,8 @@ export type PushField
 export interface CreateDocumentSyncClientOptions {
   /** Base server URL, for example `https://api.airi.build`. */
   serverUrl: string
-  /** The collection that the server stores the documents in. The server accepts only the collections that it knows. */
-  collection: string
+  /** The route that the feature mounts on the server, for example `/api/v1/character-cards`. */
+  path: string
   /**
    * Production callers must pass `authedFetch`, which refreshes the token
    * after a 401 response.
@@ -58,14 +58,14 @@ export interface DocumentSyncClient {
   remove: (documentId: string, revision: number) => Promise<boolean>
 }
 
-/** Builds the REST client for one collection of `/api/v1/sync`. All methods throw on an unexpected status. */
+/** Builds the REST client for the routes of one feature. All methods throw on an unexpected status. */
 export function createDocumentSyncClient(options: CreateDocumentSyncClientOptions): DocumentSyncClient {
   const fetchImpl = options.fetch ?? globalThis.fetch.bind(globalThis)
   const requestTimeoutMs = options.requestTimeoutMs ?? 10_000
 
   async function request(path: string, init: RequestInit, expectedStatuses: number[], query?: Record<string, string>) {
     const url = new URL(options.serverUrl)
-    url.pathname = `${url.pathname.replace(/\/+$/, '')}/api/v1/sync/${encodeURIComponent(options.collection)}${path}`
+    url.pathname = `${url.pathname.replace(/\/+$/, '')}${options.path}${path}`
     url.search = new URLSearchParams(query).toString()
 
     const response = await fetchImpl(url, { ...init, signal: AbortSignal.timeout(requestTimeoutMs) })
