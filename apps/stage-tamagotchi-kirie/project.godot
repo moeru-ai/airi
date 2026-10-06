@@ -26,6 +26,7 @@ window/size/viewport_height=600
 window/size/viewport_width=450
 window/subwindows/embed_subwindows=false
 window/per_pixel_transparency/allowed=true
+window/per_pixel_transparency/allowed.android=false
 
 [dotnet]
 
@@ -33,7 +34,7 @@ project/assembly_name="StageTamagotchiKirie"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/kirie/plugin.cfg")
+enabled=PackedStringArray("res://addons/airi-android/plugin.cfg", "res://addons/kirie/plugin.cfg")
 
 [godot_cef]
 
@@ -47,3 +48,4 @@ renderer/rendering_method.mobile="mobile"
 rendering_device/driver.windows="d3d12"
 textures/vram_compression/import_etc2_astc=true
 viewport/transparent_background=true
+viewport/transparent_background.android=false
