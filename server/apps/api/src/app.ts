@@ -16,6 +16,7 @@ import type { ProductEventService } from './services/domain/product-events'
 import type { ProviderCatalogService } from './services/domain/provider-catalog'
 import type { ProviderService } from './services/domain/providers'
 import type { RequestLogService } from './services/domain/request-log'
+import type { SyncedDocumentService } from './services/domain/synced-documents'
 import type { UserDeletionService } from './services/domain/user-deletion'
 import type { VoicePackService } from './services/domain/voice-packs'
 import type { HonoEnv } from './types/hono'
@@ -62,6 +63,7 @@ import { createLlmRequestRoutes } from './routes/llm-requests'
 import { createV1Routes } from './routes/openai/v1'
 import { createProviderRoutes } from './routes/providers'
 import { createStripeRoutes } from './routes/stripe'
+import { createSyncRoutes } from './routes/sync'
 import { createVoicePackRoutes } from './routes/voice-packs'
 import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
@@ -80,6 +82,7 @@ import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
+import { createSyncedDocumentService } from './services/domain/synced-documents'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
@@ -89,6 +92,7 @@ import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
+  syncedDocumentService: SyncedDocumentService
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
@@ -401,6 +405,11 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/characters', createCharacterRoutes(deps.characterService))
 
     /**
+     * Sync routes store the documents that a user synchronizes between devices.
+     */
+    .route('/api/v1/sync', createSyncRoutes(deps.syncedDocumentService))
+
+    /**
      * Provider routes are handled by the provider service.
      */
     .route('/api/v1/providers', createProviderRoutes(deps.providerService))
@@ -618,6 +627,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
+  const syncedDocumentService = injeca.provide('services:syncedDocuments', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createSyncedDocumentService(dependsOn.db),
+  })
+
   // Envelope crypto for at-rest upstream key decryption. Shared by provider
   // config rows, the LLM router (HTTP chat / TTS), and the audio-speech-ws
   // proxy (streaming TTS) so a single master-key change rotates every surface.
@@ -715,7 +729,7 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, syncedDocumentService, chatService },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
@@ -724,6 +738,7 @@ export async function createApp() {
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'syncedDocuments', priority: 30, softDelete: ({ userId }) => dependsOn.syncedDocumentService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
       return service
     },
@@ -755,6 +770,7 @@ export async function createApp() {
   const resolved = await injeca.resolve({
     objectStore,
     db,
+    syncedDocumentService,
     characterService,
     chatService,
     providerService,
@@ -786,6 +802,7 @@ export async function createApp() {
 
   const appDeps = {
     db: resolved.db,
+    syncedDocumentService: resolved.syncedDocumentService,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
