@@ -66,6 +66,7 @@ import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
+import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
 import android.webkit.MimeTypeMap;
 import android.webkit.PermissionRequest;
@@ -76,6 +77,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.EditText;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
@@ -531,6 +533,42 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                         .setPositiveButton("OK", (dialog, buttonIndex) -> {
                             dialog.dismiss();
                             result.confirm();
+                        })
+                        .setNegativeButton("Cancel", (dialog, buttonIndex) -> {
+                            dialog.dismiss();
+                            result.cancel();
+                        })
+                        .setOnCancelListener(dialog -> {
+                            dialog.dismiss();
+                            result.cancel();
+                        });
+
+                    AlertDialog dialog = builder.create();
+                    dialog.show();
+                    return true;
+                }
+
+                @Override
+                public boolean onJsPrompt(
+                    WebView source,
+                    String url,
+                    String message,
+                    String defaultValue,
+                    JsPromptResult result
+                ) {
+                    if (activity.isFinishing()) {
+                        return true;
+                    }
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(source.getContext());
+                    EditText input = new EditText(source.getContext());
+                    builder
+                        .setMessage(message)
+                        .setView(input)
+                        .setPositiveButton("OK", (dialog, buttonIndex) -> {
+                            dialog.dismiss();
+                            String inputText = input.getText().toString().trim();
+                            result.confirm(inputText);
                         })
                         .setNegativeButton("Cancel", (dialog, buttonIndex) -> {
                             dialog.dismiss();
