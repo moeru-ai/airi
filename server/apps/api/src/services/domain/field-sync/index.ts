@@ -1,5 +1,5 @@
 export type { PushedField } from './request'
-export { parseDeleteRevision, parseDocumentId, parsePushRequest, readJsonBody } from './request'
-export type { FieldSyncLimits, FieldSyncStore, FieldSyncStoreOptions } from './store'
+export { parseDeleteRevision, parseDocumentId, parseHistoryQuery, parsePushRequest, parseRevisionParam, readJsonBody } from './request'
+export type { FieldSyncHistoryEntry, FieldSyncHistoryOptions, FieldSyncLimits, FieldSyncSnapshot, FieldSyncStore, FieldSyncStoreOptions } from './store'
 export { createFieldSyncStore } from './store'
 export type { FieldSyncTables } from './tables'

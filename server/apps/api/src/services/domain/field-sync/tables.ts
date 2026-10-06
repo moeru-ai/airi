@@ -39,13 +39,18 @@ function _describeTables(name: string) {
       documentId: text('document_id').notNull(),
       /** The client encodes the location of a part in the document. The store does not read it. */
       key: text('key').notNull(),
-      /** The store does not read the value. A missing row means that the document does not have the part. */
-      value: jsonb('value').notNull().$type<unknown>(),
+      /**
+       * The store does not read the value. A `null` value means that this
+       * revision removed the part. The row stays, so a snapshot of an older
+       * revision still knows that the part was absent from that point on.
+       */
+      value: jsonb('value').$type<unknown>(),
+      /** The store never updates or deletes a row. Each push only inserts new rows. */
       revision: integer('revision').notNull(),
       updatedAt: timestamp('updated_at').defaultNow().notNull(),
     },
     table => [
-      primaryKey({ columns: [table.ownerId, table.documentId, table.key] }),
+      primaryKey({ columns: [table.ownerId, table.documentId, table.key, table.revision] }),
       foreignKey({
         columns: [table.ownerId, table.documentId],
         foreignColumns: [documents.ownerId, documents.documentId],

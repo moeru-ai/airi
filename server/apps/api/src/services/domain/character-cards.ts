@@ -77,9 +77,33 @@ function assertCardFields(fields: PushedField[]) {
  */
 const CARD_LIMITS = { maxDocuments: 200, maxBytes: 16 * 1024 * 1024 }
 
+/**
+ * No user edits a card often enough to need more than this. The number has no
+ * data behind it. Raise it if users ask for deeper history.
+ */
+const CARD_HISTORY_REVISIONS_PER_KEY = 100
+
+/** How long a deleted card's content stays available for `restoreDeletedCard`. */
+const CARD_DELETED_RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+
+/**
+ * Bounds the history of one account, current and past content together. Past
+ * the limit, the store removes the oldest history first. It never removes
+ * the current content of a card, and a push never fails because of this limit.
+ */
+const CARD_HISTORY_MAX_BYTES = 64 * 1024 * 1024
+
 /** Stores the character cards that a user synchronizes between devices. */
 export function createCharacterCardService(db: Database) {
-  return createFieldSyncStore(db, { documents: characterCards, fields: characterCardFields }, { validate: assertCardFields, limits: CARD_LIMITS })
+  return createFieldSyncStore(db, { documents: characterCards, fields: characterCardFields }, {
+    validate: assertCardFields,
+    limits: CARD_LIMITS,
+    history: {
+      revisionsPerKey: CARD_HISTORY_REVISIONS_PER_KEY,
+      deletedDocumentRetentionMs: CARD_DELETED_RETENTION_MS,
+      maxHistoryBytes: CARD_HISTORY_MAX_BYTES,
+    },
+  })
 }
 
 export type CharacterCardService = ReturnType<typeof createCharacterCardService>

@@ -40,6 +40,21 @@ const DeleteQuerySchema = v.object({
   revision: v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), RevisionSchema),
 })
 
+const DEFAULT_HISTORY_LIMIT = 50
+const MAX_HISTORY_LIMIT = 200
+
+const OptionalRevisionQuerySchema = v.optional(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), RevisionSchema))
+const OptionalLimitQuerySchema = v.optional(v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), v.integer(), v.minValue(1), v.maxValue(MAX_HISTORY_LIMIT)))
+
+const HistoryQuerySchema = v.object({
+  /** Lists revisions older than this one. Omit it to start from the newest revision. */
+  before: OptionalRevisionQuerySchema,
+  /** The most history entries to return in one call. */
+  limit: OptionalLimitQuerySchema,
+})
+
+const RevisionParamSchema = v.pipe(v.string(), v.regex(/^\d+$/), v.transform(Number), RevisionSchema)
+
 export type PushedField = v.InferOutput<typeof PushRequestSchema>['fields'][number]
 
 function parseRequest<TOutput>(schema: BaseSchema<unknown, TOutput, BaseIssue<unknown>>, input: unknown) {
@@ -75,4 +90,15 @@ export function parsePushRequest(body: unknown) {
 /** Parses the query of a delete request into the document revision. Throws a 400 error for an invalid query. */
 export function parseDeleteRevision(query: Record<string, string>) {
   return parseRequest(DeleteQuerySchema, query).revision
+}
+
+/** Parses the query of a history request into its pagination. Throws a 400 error for an invalid query. */
+export function parseHistoryQuery(query: Record<string, string | undefined>) {
+  const parsed = parseRequest(HistoryQuerySchema, query)
+  return { before: parsed.before, limit: parsed.limit ?? DEFAULT_HISTORY_LIMIT }
+}
+
+/** Parses the `:revision` parameter of a snapshot route. Throws a 400 error for an invalid revision. */
+export function parseRevisionParam(param: string) {
+  return parseRequest(RevisionParamSchema, param)
 }

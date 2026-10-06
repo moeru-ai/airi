@@ -1,6 +1,6 @@
 import type { Database } from '../../../libs/db'
 import type { PushedField } from './request'
-import type { FieldSyncStore } from './store'
+import type { FieldSyncHistoryOptions, FieldSyncStore } from './store'
 
 import { eq } from 'drizzle-orm'
 import { foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
@@ -38,12 +38,12 @@ const fields = pgTable(
     ownerId: text('owner_id').notNull(),
     documentId: text('document_id').notNull(),
     key: text('key').notNull(),
-    value: jsonb('value').notNull().$type<unknown>(),
+    value: jsonb('value').$type<unknown>(),
     revision: integer('revision').notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
   table => [
-    primaryKey({ name: 'field_sync_test_fields_pk', columns: [table.ownerId, table.documentId, table.key] }),
+    primaryKey({ name: 'field_sync_test_fields_pk', columns: [table.ownerId, table.documentId, table.key, table.revision] }),
     foreignKey({
       name: 'field_sync_test_fields_document_fk',
       columns: [table.ownerId, table.documentId],
@@ -258,5 +258,150 @@ describe('fieldSyncStore', () => {
 
     expect(await list()).toEqual([{ id: 'doc', revision: 1, deletedAt: expect.any(String), fields: [] }])
     expect((await list('other'))[0].fields).toEqual([{ key: '/name', revision: 1, value: 'Kept' }])
+  })
+
+  describe('history and snapshots', () => {
+    it('lists a past revision and reads its content from a snapshot', async () => {
+      await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
+      await push([{ key: '/name', baseRevision: 1, value: 'Nova' }])
+
+      const history = await store.history('owner', 'doc', { limit: 50 })
+      expect(history).toEqual([
+        { revision: 2, at: expect.any(String), changed: ['/name'], removed: [] },
+        { revision: 1, at: expect.any(String), changed: ['/name'], removed: [] },
+      ])
+
+      expect(await store.snapshot('owner', 'doc', 1)).toEqual({
+        revision: 1,
+        at: expect.any(String),
+        fields: [{ key: '/name', value: 'Luna' }],
+      })
+    })
+
+    it('keeps a removed field out of the current content but in an old snapshot, and the removal does not conflict', async () => {
+      await push([{ key: '/name', baseRevision: 0, value: 'Luna' }, { key: '/nickname', baseRevision: 0, value: 'Lu' }])
+      await push([{ key: '/nickname', baseRevision: 1, removed: true }])
+
+      expect((await list())[0].fields).toEqual([{ key: '/name', revision: 1, value: 'Luna' }])
+      expect(await store.snapshot('owner', 'doc', 1)).toMatchObject({
+        fields: expect.arrayContaining([{ key: '/nickname', value: 'Lu' }]),
+      })
+
+      // The removed row never counts as a base revision, so pushing against revision 0 still succeeds.
+      const restored = await push([{ key: '/nickname', baseRevision: 0, value: 'Lulu' }])
+      expect(restored.conflicts).toEqual([])
+    })
+
+    it('reads the content before a deletion from a snapshot, then restores it', async () => {
+      await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
+      await store.remove('owner', 'doc', 1)
+
+      expect((await list())[0].fields).toEqual([])
+      expect(await store.snapshot('owner', 'doc', 1)).toEqual({
+        revision: 1,
+        at: expect.any(String),
+        fields: [{ key: '/name', value: 'Luna' }],
+      })
+
+      const restored = await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
+      expect(restored.document.fields).toEqual([{ key: '/name', revision: 3, value: 'Luna' }])
+    })
+
+    it('returns null for another user, a future revision, and a document that does not exist', async () => {
+      await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
+
+      expect(await store.history('owner', 'missing', { limit: 50 })).toBeNull()
+      expect(await store.history('other', 'doc', { limit: 50 })).toBeNull()
+      expect(await store.snapshot('owner', 'doc', 99)).toBeNull()
+      expect(await store.snapshot('other', 'doc', 1)).toBeNull()
+    })
+
+    it('pages history with before and limit', async () => {
+      for (let i = 0; i < 5; i++)
+        await push([{ key: '/name', baseRevision: i, value: `v${i}` }])
+
+      const page = await store.history('owner', 'doc', { limit: 2 })
+      expect(page?.map(entry => entry.revision)).toEqual([5, 4])
+
+      const nextPage = await store.history('owner', 'doc', { before: 4, limit: 2 })
+      expect(nextPage?.map(entry => entry.revision)).toEqual([3, 2])
+    })
+  })
+
+  describe('history cleanup', () => {
+    const withHistory = (history: FieldSyncHistoryOptions) =>
+      createFieldSyncStore(db, { documents, fields }, { history })
+
+    it('keeps a snapshot at the retained revision identical after it collapses older revisions', async () => {
+      const limited = withHistory({ revisionsPerKey: 3, deletedDocumentRetentionMs: 1000 * 60 * 60 * 24, maxHistoryBytes: 1024 * 1024 })
+      const pushTo = (fields: PushedField[]) => limited.push('owner', 'doc', fields)
+
+      // '/untouched' changes once and never again, '/name' changes every push.
+      await pushTo([{ key: '/untouched', baseRevision: 0, value: 'base' }, { key: '/name', baseRevision: 0, value: 'v0' }])
+      for (let i = 1; i < 10; i++)
+        await pushTo([{ key: '/name', baseRevision: i, value: `v${i}` }])
+
+      const current = await limited.history('owner', 'doc', { limit: 1 })
+      const currentRevision = current![0].revision
+
+      const beforeCleanupSnapshot = { revision: currentRevision - 3, fields: expect.arrayContaining([{ key: '/untouched', value: 'base' }, { key: '/name', value: `v${currentRevision - 3 - 1}` }]) }
+      expect(await limited.snapshot('owner', 'doc', currentRevision - 3)).toMatchObject(beforeCleanupSnapshot)
+
+      await pushTo([{ key: '/name', baseRevision: currentRevision, value: 'latest' }])
+
+      // The oldest kept snapshot still has the untouched field and its own correct value.
+      const oldestKept = currentRevision + 1 - 3
+      const snapshot = await limited.snapshot('owner', 'doc', oldestKept)
+      expect(snapshot).not.toBeNull()
+      expect(snapshot!.fields).toEqual(expect.arrayContaining([{ key: '/untouched', value: 'base' }]))
+    })
+
+    it('removes the history of a deleted document after its retention window, keeping the deletion marker', async () => {
+      const limited = withHistory({ revisionsPerKey: 100, deletedDocumentRetentionMs: 0, maxHistoryBytes: 1024 * 1024 })
+      await limited.push('owner', 'doc', [{ key: '/name', baseRevision: 0, value: 'Luna' }])
+      await limited.remove('owner', 'doc', 1)
+
+      // A second push against another document runs the cleanup pass again, now past the zero-length retention window.
+      await limited.push('owner', 'other', [{ key: '/name', baseRevision: 0, value: 'Nova' }])
+
+      expect(await limited.history('owner', 'doc', { limit: 50 })).toEqual([])
+      expect((await limited.list('owner')).documents.find(document => document.id === 'doc')).toMatchObject({ deletedAt: expect.any(String) })
+    })
+
+    it('never discards the current value of a field to enforce the total history byte cap', async () => {
+      const limited = withHistory({ revisionsPerKey: 100, deletedDocumentRetentionMs: 1000 * 60 * 60 * 24, maxHistoryBytes: 200 })
+      const pushTo = (fields: PushedField[]) => limited.push('owner', 'doc', fields)
+      const valueAt = (i: number) => `${i}`.padStart(50, 'x')
+
+      for (let i = 0; i < 10; i++)
+        await pushTo([{ key: '/name', baseRevision: i, value: valueAt(i) }])
+
+      const documents = (await limited.list('owner')).documents
+      expect(documents[0].fields).toEqual([{ key: '/name', revision: 10, value: valueAt(9) }])
+    })
+  })
+
+  it('does not count history bytes toward the storage limit', async () => {
+    const limited = createFieldSyncStore(db, { documents, fields }, {
+      limits: { maxDocuments: 10, maxBytes: 200 },
+      history: { revisionsPerKey: 100, deletedDocumentRetentionMs: 1000 * 60 * 60 * 24, maxHistoryBytes: 1024 * 1024 },
+    })
+    const pushTo = (fields: PushedField[]) => limited.push('owner', 'doc', fields)
+    const valueAt = (i: number) => `${i}`.padStart(50, 'x')
+
+    for (let i = 0; i < 10; i++)
+      await expect(pushTo([{ key: '/name', baseRevision: i, value: valueAt(i) }])).resolves.toMatchObject({ conflicts: [] })
+  })
+
+  it('removes history rows of a deleted account', async () => {
+    const limited = createFieldSyncStore(db, { documents, fields }, {
+      history: { revisionsPerKey: 100, deletedDocumentRetentionMs: 1000 * 60 * 60 * 24, maxHistoryBytes: 1024 * 1024 },
+    })
+    await limited.push('owner', 'doc', [{ key: '/name', baseRevision: 0, value: 'Luna' }])
+    await limited.push('owner', 'doc', [{ key: '/name', baseRevision: 1, value: 'Nova' }])
+
+    await limited.deleteAllForUser('owner')
+
+    expect(await limited.history('owner', 'doc', { limit: 50 })).toEqual([])
   })
 })

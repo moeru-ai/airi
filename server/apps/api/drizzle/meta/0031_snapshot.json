@@ -1,5 +1,5 @@
 {
-  "id": "0d0fdd56-a9a3-4fe0-bed0-9a0c0c3bb080",
+  "id": "790786c0-b7ac-4e2c-9490-2492ad6bf99c",
   "prevId": "1de1a685-2dc0-4b15-8f39-502686f9bb5b",
   "version": "7",
   "dialect": "postgresql",
@@ -30,7 +30,7 @@
           "name": "value",
           "type": "jsonb",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "revision": {
           "name": "revision",
@@ -70,7 +70,8 @@
           "columns": [
             "owner_id",
             "document_id",
-            "key"
+            "key",
+            "revision"
           ]
         }
       },

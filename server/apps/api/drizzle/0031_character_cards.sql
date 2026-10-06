@@ -2,10 +2,10 @@ CREATE TABLE "character_cards_fields" (
 	"owner_id" text NOT NULL,
 	"document_id" text NOT NULL,
 	"key" text NOT NULL,
-	"value" jsonb NOT NULL,
+	"value" jsonb,
 	"revision" integer NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "character_cards_fields_pk" PRIMARY KEY("owner_id","document_id","key")
+	CONSTRAINT "character_cards_fields_pk" PRIMARY KEY("owner_id","document_id","key","revision")
 );
 --> statement-breakpoint
 CREATE TABLE "character_cards" (

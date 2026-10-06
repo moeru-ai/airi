@@ -20,10 +20,13 @@ The client of a feature selects its fields. The store does not read field keys o
 The feature validates the content before the store writes it.
 
 Each document has a `revision` counter. An accepted write increases it.
-A field stores the document revision of its last change.
-A push gives a `baseRevision` for each field. The store accepts the field if the stored revision is equal.
+A field table only appends rows. Each row is the value that a field had at one revision.
+A `null` value means that the revision removed the field. The current value of a field is its row with the highest revision.
+A push gives a `baseRevision` for each field. The store accepts the field if the stored revision of the current value is equal.
 The store accepts the other fields of the same push. It returns the keys that it did not accept.
 Devices that change different fields of one document do not conflict.
+
+Because the field table keeps every past row, the store can also answer "what did this document look like at revision N" and "what changed at each revision". A feature turns this on by passing `history` limits to `createFieldSyncStore`. The store prunes old rows after every accepted write, inside the same transaction, so a feature needs no background job.
 
 The design does not use a CRDT. A value is a selection or a full text, and a merge of two texts gives a result that no user wrote.
 
@@ -32,8 +35,8 @@ The design does not use a CRDT. A value is a selection or a full text, and a mer
 | Module | Owner | Responsibility |
 | --- | --- | --- |
 | `FieldSyncTables` | Shared | A type that lists the columns the store needs. The compiler rejects a table that misses one. |
-| `createFieldSyncStore(db, tables, { validate })` | Shared | Locks a document, compares revisions, writes the accepted fields, keeps deletion markers, and removes the content of a deleted account. |
-| `parseDocumentId`, `parsePushRequest`, `parseDeleteRevision` | Shared | Parse the three request shapes. |
+| `createFieldSyncStore(db, tables, { validate, limits, history })` | Shared | Locks a document, compares revisions, appends the accepted fields, keeps deletion markers, prunes history, answers `history` and `snapshot`, and removes the content of a deleted account. |
+| `parseDocumentId`, `parsePushRequest`, `parseDeleteRevision`, `parseHistoryQuery`, `parseRevisionParam` | Shared | Parse the five request shapes. |
 | Tables, service, routes, and `validate` of a feature | Feature | Declare the two tables by hand in its own schema file. Choose the route, the extra columns and tables, the limits, the authorization, and every rule about the content. |
 
 A feature composes the store in its own route. The store gives no routes and no hooks other than `validate`.
@@ -66,7 +69,28 @@ The `default` card is built in. Each device creates it in its own language, so a
 The service accepts a field when its key is a JSON Pointer. For the keys that the client reads without a further check, such as `/name`, `/tags`, and `/extensions/airi/wakeWords`, the value must also have the expected type. A value of another type would make the card fail on every device. Other keys accept any JSON, because cards from other applications carry their own extensions.
 A device that cannot read a card keeps the cards that it can read and does not delete the server copy of the unreadable card.
 An account can store 200 cards and 16 MiB of field values. A deleted card does not count. The limits come from the size of a card, which is a few kilobytes. A card with a large lorebook can reach a few hundred kilobytes.
-The card list shows the cloud state of each card: synced, waiting to upload, or refused by the server. A signed-in user also sees one line that tells that the cards sync to the account. A user without an account sees neither.
+The card list shows the cloud state of each card: synced, waiting to upload, or refused by the server. A signed-in user also sees one line that tells that the cards sync to the account. A user without an account sees neither. There is no switch to turn this off. A signed-in user's cards always upload, and the notice says so.
+
+## History
+
+Cloud sync has no per-card or account-wide switch, so history is the user's way back from an unwanted overwrite or a conflict. `createCharacterCardService` passes a `history` option to the store:
+
+| Setting | Value | Reason |
+| --- | --- | --- |
+| Revisions kept per field key | 100 | No usage data exists. The number is a round guess, not a measured need. |
+| Deleted card retention | 30 days | Gives a user time to notice a deletion and undo it. |
+| Account history byte cap | 64 MiB | Bounds one account's total storage, current content and history together. |
+
+After every accepted push or deletion, inside the same transaction, the store:
+
+1. Collapses each field key's rows older than `revision - 100` into one row: the latest one at or below that cutoff, and only if it has a value. A key whose latest row there is a removal keeps nothing, because the key did not exist going forward from that point. This baseline keeps `snapshot` correct for the oldest revision the retention window still promises, even though an exact revision between the window and the baseline is not guaranteed to reconstruct every key.
+2. Removes the field rows of a document that has stayed deleted for more than 30 days. The document row itself, the deletion marker, stays.
+3. If the account's total field-row bytes exceed the cap, removes the oldest rows first, oldest revision first. The current value of a field never counts as removable, so a push never fails because of this cap, it only loses older history.
+
+`history(ownerId, documentId, { before, limit })` lists past revisions, newest first, each with the keys it changed and the keys it removed.
+`snapshot(ownerId, documentId, revision)` returns the content of the document at that revision. It returns `null` when the document does not exist, the revision is newer than the document's current revision, or the retention rules above already removed that revision.
+
+A deleted field never takes part in a conflict check. Its stored revision in a history row has no effect on `baseRevision` comparisons, the same as before this change: a removed field is absent from the current state, so a push against it always starts from revision zero.
 
 ## Scope
 
@@ -81,8 +105,10 @@ The card list shows the cloud state of each card: synced, waiting to upload, or 
 
 - A field value is plain JSON. A card from another application can carry any content in `extensions`, and the client uploads it so that an imported card keeps its extensions on every device. The client does not filter it. A user must not put a secret in a card.
 - The account deletion removes the content in one transaction. The store has no deletion gate, so a push that is already in flight can write content back before the account is gone. A gate needs a flag that every write checks and that the account deletion sets. That is a separate change.
-- A removed field leaves no row, so its revision is zero again. A device with a field revision of zero has never seen the field, and its new value is a new field. A device that has seen the field sends the old revision, and the server reports a conflict. No sequence of requests lets a device overwrite a revision that it has seen.
+- A removed field is absent from the current state, so its base revision is zero again. A device with a field revision of zero has never seen the field, and its new value is a new field. A device that has seen the field sends the old revision, and the server reports a conflict. No sequence of requests lets a device overwrite a revision that it has seen.
 - The server has no rate limit for these routes, and the list is not paginated.
+- A snapshot for a revision below the 100-revision retention window is not guaranteed to reconstruct every key correctly, only the key whose own history happened to collapse to a baseline at or near that point. See [History](#history).
+- There is no conflict review dialog. The existing rule in [Conflict rules](#conflict-rules) still decides the winner, and the losing edit survives only as the client's local copy, because it never reached the server.
 
 ## Non-goals
 
@@ -91,7 +117,10 @@ The card list shows the cloud state of each card: synced, waiting to upload, or 
 - Display model files. A card synchronizes its `displayModelId` only. A later feature stores the files in object storage and uses this store for their descriptions.
 - Contacts, group chats, and the binding of a chat to a contact.
 - A read-only built-in card. When it exists, the built-in card leaves synchronization and its forks synchronize as ordinary cards.
-- A history of the changes to a card. A conflict keeps the losing version as a copy, and a deleted card loses its content on the server.
+- A per-card or account-wide switch for cloud sync, and a first-time prompt before the first upload. See [Character cards](#character-cards).
+- Branching or merging history. A card's history is one line: older revisions, not alternate ones.
+- Line-level diff highlighting for a long text field in the history UI. It needs a diff library, and library choices go through the user first.
+- Upload rate limiting and list pagination for these routes. Both stay open follow-up work.
 - A push channel. Another device receives a change on its next run.
 - Pagination. A run reads all documents of the feature.
 - The relational `characters` tables and their routes. They do not change.
@@ -106,6 +135,8 @@ The character card routes are the reference.
 | `GET /` | `{ documents }`. A deleted document has `deletedAt` and no fields. |
 | `PUT /:id` with `{ fields }` | `{ document, conflicts }`. A field is `{ key, baseRevision, value }` or `{ key, baseRevision, removed: true }`. |
 | `DELETE /:id?revision=N` | `204`. `409` if the document revision is not `N`. |
+| `GET /:id/history?before=N&limit=N` | `{ history }`, newest first. `limit` defaults to 50 and stops at 200. `404` if the document does not exist or belongs to another account. |
+| `GET /:id/history/:revision` | `{ revision, at, fields }`. `404` if the document does not exist, the revision is newer than current, or history already removed it. |
 
 A push to a deleted document restores the document when the store accepts a field.
 A push that changes nothing is valid, so a client can send a push again after a lost response.
@@ -178,6 +209,9 @@ The local cards belong to the device. A second account on the device starts with
 ## Test plan
 
 - Store tests on PGlite with tables that no feature owns, and with extra columns: field independence, conflicts, a repeated push, deletion, restoration, validation, account deletion, and the kept extra columns.
+- Store history tests: a past revision's content from `snapshot`, a removed field kept out of current content but visible in an old snapshot without taking part in a conflict, the content before a deletion, `null` for another account and a future or removed revision, paging with `before` and `limit`.
+- Store cleanup tests: a baseline revision stays correct after older revisions collapse, a deleted document's history clears after its retention window while the deletion marker stays, the current value of a field survives the account history byte cap, history bytes do not count toward the storage limit, and account deletion clears history rows.
 - Character card tests: the tables, the key check, and the routes with their status codes.
+- Character card route tests: history and snapshot for an owned card, paging, 400 for a bad query or revision, 404 for a missing card or revision, and 404 for another account's card.
 - Client unit tests: each conflict rule, the built-in document, the REST client, and the card split.
 - Browser test with two profiles of one account: create, edit, and delete a card.
