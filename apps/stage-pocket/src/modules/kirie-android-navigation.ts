@@ -79,7 +79,9 @@ export function installKirieAndroidNavigation(router: Router) {
     // Source/context: recordings-android/android-g01-g05-final-f12e-2026-10-07/results/
     // g01-not-found-system-back.json.
     // Remove this exception when Pocket system Back traverses this state.
-    if (router.currentRoute.value.name === '/[...all]')
+    const isNotFoundRoute = router.currentRoute.value.matched
+      .some(route => route.name === '/[...all]')
+    if (isNotFoundRoute)
       return
 
     router.back()

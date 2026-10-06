@@ -16,7 +16,7 @@ function createNavigation() {
       { path: '/', component: {} },
       { path: '/settings', component: {} },
       { path: '/settings/providers', component: {} },
-      { path: '/:pathMatch(.*)*', name: '/[...all]', component: {} },
+      { path: '/:all(.*)', name: '/[...all]', component: {} },
     ],
   })
   installKirieAndroidNavigation(router)
@@ -105,17 +105,22 @@ describe('kirie Android route traversal', () => {
   // Kirie routed system Back through router.back() for every route.
   // Pocket uses WebView.goBack(), which leaves this catch-all history state unchanged.
   //
-  // Kirie now ignores system Back on the catch-all route.
-  // The page's router.go(-1) action continues to use the custom history.
-  it('keeps the missing route when Android system Back runs', async () => {
+  // The native callback now ignores the matched catch-all record.
+  // router.back() continues to use the custom history.
+  it('separates native Back from router.back() on the matched catch-all route', async () => {
     const router = createNavigation()
     await router.push('/')
     await router.push('/airi-replay-absent-f12e')
+    expect(router.currentRoute.value.matched.at(-1)).toMatchObject({
+      name: '/[...all]',
+      path: '/:all(.*)',
+    })
+
     window.__airiKirieAndroidBack?.()
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(router.currentRoute.value.fullPath).toBe('/airi-replay-absent-f12e')
 
-    router.go(-1)
+    router.back()
     await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/'))
   })
 
