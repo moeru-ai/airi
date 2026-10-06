@@ -51,7 +51,7 @@ For a required value, the feature uses a field, or another table with the key `(
 | Both sides changed a field to the same value | No write. |
 | Both sides changed a field to different values | The remote value applies. The client keeps the local document as a new document. |
 | One side deleted the document, and the other side edited it | The edit applies, and the document stays. |
-| First sync of a document that each device creates with the same id | The side that has an edit by the user applies. If both sides have one, the conflict rule applies. |
+| A document that each device creates with the same id | The device sends only the parts that differ from the built-in content, so an unedited document sends nothing. The other devices lay the received parts over their own built-in content. The conflict rules apply to the parts that both sides edited. |
 
 ## Character cards
 
@@ -62,6 +62,9 @@ It also makes one field for each key of `extensions`, `extensions.airi`, and `ex
 The settings of one module stay in one field, so a provider and its voice change together.
 A card stores provider ids and no credentials.
 The selected card is not synchronized. Each device keeps its own selection.
+The `default` card is built in. Each device creates it in its own language, so a part that equals the built-in card never leaves the device. The device lays the received parts over its own built-in card.
+The service accepts a field when its key is a JSON Pointer. For the keys that the client reads without a further check, such as `/name`, `/tags`, and `/extensions/airi/wakeWords`, the value must also have the expected type. A value of another type would make the card fail on every device. Other keys accept any JSON, because cards from other applications carry their own extensions.
+A device that cannot read a card keeps the cards that it can read and does not delete the server copy of the unreadable card.
 
 ## Scope
 
@@ -78,6 +81,8 @@ The selected card is not synchronized. Each device keeps its own selection.
 - Encrypted storage. A feature with secrets needs it first.
 - Display model files. A card synchronizes its `displayModelId` only. A later feature stores the files in object storage and uses this store for their descriptions.
 - Contacts, group chats, and the binding of a chat to a contact.
+- A read-only built-in card. When it exists, the built-in card leaves synchronization and its forks synchronize as ordinary cards.
+- A history of the changes to a card. A conflict keeps the losing version as a copy, and a deleted card loses its content on the server.
 - A push channel. Another device receives a change on its next run.
 - Pagination. A run reads all documents of the feature.
 - The relational `characters` tables and their routes. They do not change.

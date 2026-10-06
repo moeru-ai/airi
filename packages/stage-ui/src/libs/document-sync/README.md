@@ -46,8 +46,8 @@ await synchronize({
   state: await documentSyncRepo.getState('character-cards', userId) ?? { documents: {} },
   saveState: state => documentSyncRepo.saveState('character-cards', userId, state),
   isCurrent: () => currentUserId() === userId,
-  readLocal: () => ({ documents: splitAll(localDocuments), pristine: {} }),
-  applyLocal: async changes => writeLocalDocuments(changes),
+  readLocal: () => splitAll(localDocuments),
+  applyLocal: async changes => ({ rejected: writeLocalDocuments(changes) }),
 })
 ```
 
@@ -61,6 +61,7 @@ For a required value, store it in a field, or in another table that has the key 
 - `applyLocal` must write the local documents before it awaits anything. The run compares and writes in one task.
 - A field value must not be `null`. Omit the field.
 - Run one synchronization at a time for each feature and account.
-- Give `pristine` only for documents that each device creates with the same id.
+- `applyLocal` returns the ids of the documents that it could not apply, for example because the content is invalid. The run then keeps their sync state. Without it, the next run reads the missing document as a deletion and deletes the server copy.
+- A document that every device creates with the same id, such as the built-in character card, sends only its edits. `readLocal` leaves out the parts that equal the built-in content, and `applyLocal` adds them back. The built-in content can depend on the language of the device, so it must not leave the device.
 
 The design record is `server/docs/ai/adr/2026-10-06-document-sync.md`.

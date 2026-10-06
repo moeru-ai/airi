@@ -4,12 +4,14 @@ import type { DocumentSyncClient, LocalDocumentChanges } from '../../libs/docume
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
+import localeMessages from '@proj-airi/i18n/locales'
+
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers, useDocumentVisibility, watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
-import { array, looseObject, parse, safeParse, string } from 'valibot'
+import { array, looseObject, object, parse, safeParse, string } from 'valibot'
 import { computed, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
@@ -40,6 +42,18 @@ const CARDS_PATH = '/api/v1/character-cards'
 
 /** Names the sync state of the cards in the local storage. */
 const SYNC_STATE_NAME = 'character-cards'
+
+/**
+ * The text of the built-in description in every language. A device creates the
+ * built-in card once, in its language at that time. The language can change
+ * later, so a stored description can come from another language than the
+ * current one. None of these texts is an edit by the user.
+ */
+const builtInDescriptions = Object.values(localeMessages).flatMap((messages) => {
+  // A translation can lack the text until Crowdin delivers it. The language then shows the English text.
+  const parsed = safeParse(object({ base: object({ prompt: object({ prefix: string() }) }) }), messages)
+  return parsed.success ? [parsed.output.base.prompt.prefix] : []
+})
 
 /** The members that every card needs before `newAiriCard` can normalize it. */
 const synchronizedCardSchema = looseObject({ name: string(), version: string() })
@@ -522,6 +536,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     },
   }))
 
+  /** The built-in card in every language. Only its parts that differ from all of them are edits. */
+  const builtInVariants = computed(() => {
+    const current = builtInCard.value
+    return [...new Set([current.description, ...builtInDescriptions])].map(description => ({ ...current, description }))
+  })
+
   /**
    * Applies the card changes of one synchronization run to this renderer.
    *
@@ -530,25 +550,36 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * between the comparison and this write. Only the synchronization leader
    * calls it.
    *
-   * @returns `true` when the content of the selected card changed, or another device deleted it. The caller must then call `activateCard`.
+   * The built-in card is the only card that synchronization keeps as its edits
+   * alone. The parts that the changes lack come from the built-in card.
+   *
+   * @returns `activeCardChanged` is `true` when the content of the selected card changed, or another device deleted it. The caller must then call `activateCard`. `rejected` lists the cards that another device wrote and that this device cannot read.
    */
   function applySynchronizedCards(changes: LocalDocumentChanges) {
     const previousActiveCardId = activeCardId.value
+    const rejected: string[] = []
     let activeCardChanged = false
 
-    for (const [id, fields] of Object.entries(changes.upserts)) {
-      // Another device wrote this content, so validate it before use.
-      const card = safeParse(synchronizedCardSchema, joinCard(fields))
-      if (!card.success) {
-        console.warn('[character-card-sync] Ignored an invalid card from the server:', id)
-        continue
-      }
-      cards.value.set(id, newAiriCard(card.output))
-      activeCardChanged ||= id === previousActiveCardId
+    function builtInFor(id: string) {
+      return id === 'default' ? builtInCard.value : undefined
     }
 
-    for (const fields of changes.conflictCopies) {
-      const card = parse(synchronizedCardSchema, joinCard(fields))
+    for (const [id, fields] of Object.entries(changes.upserts)) {
+      // Another device wrote this content. A card that this device cannot read
+      // must not stop the other cards, and the run must not treat it as deleted.
+      try {
+        const card = parse(synchronizedCardSchema, joinCard(fields, builtInFor(id)))
+        cards.value.set(id, newAiriCard(card))
+        activeCardChanged ||= id === previousActiveCardId
+      }
+      catch (error) {
+        console.warn('[character-card-sync] Ignored a card from the server that this device cannot read:', id, errorMessageFrom(error))
+        rejected.push(id)
+      }
+    }
+
+    for (const { documentId, fields } of changes.conflictCopies) {
+      const card = parse(synchronizedCardSchema, joinCard(fields, builtInFor(documentId)))
       cards.value.set(nanoid(), newAiriCard({ ...card, name: t('settings.pages.card.sync.conflict_copy_name', { name: card.name }) }))
     }
 
@@ -561,7 +592,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
 
-    return activeCardChanged || activeCardId.value !== previousActiveCardId
+    return { activeCardChanged: activeCardChanged || activeCardId.value !== previousActiveCardId, rejected }
   }
 
   let syncClient: DocumentSyncClient | undefined
@@ -615,16 +646,15 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       // The new account starts its own run from the `userId` watcher.
       isCurrent: () => userId.value === ownerId,
       saveState: state => documentSyncRepo.saveState(SYNC_STATE_NAME, ownerId, state),
-      readLocal: () => ({
-        documents: Object.fromEntries([...toRaw(cards.value)].map(([id, card]) => [id, splitCard(toRaw(card))])),
-        pristine: { default: splitCard(builtInCard.value) },
-      }),
+      // Each device creates the built-in card in its own language. Only its edits are synchronized.
+      readLocal: () => Object.fromEntries([...toRaw(cards.value)].map(([id, card]) => [id, splitCard(toRaw(card), id === 'default' ? builtInVariants.value : [])])),
       async applyLocal(changes) {
-        const activeCardChanged = applySynchronizedCards(changes)
+        const { activeCardChanged, rejected } = applySynchronizedCards(changes)
         if (changes.conflictCopies.length > 0)
           toast.warning(t('settings.pages.card.sync.conflict_notice'))
         if (activeCardChanged)
           await activateCard(activeCardId.value)
+        return { rejected }
       },
     })
   }

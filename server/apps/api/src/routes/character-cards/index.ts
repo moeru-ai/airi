@@ -4,7 +4,7 @@ import type { HonoEnv } from '../../types/hono'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
-import { parseDeleteRevision, parseDocumentId, parsePushRequest } from '../../services/domain/field-sync'
+import { parseDeleteRevision, parseDocumentId, parsePushRequest, readJsonBody } from '../../services/domain/field-sync'
 
 export function createCharacterCardRoutes(characterCardService: CharacterCardService) {
   return new Hono<HonoEnv>()
@@ -17,7 +17,7 @@ export function createCharacterCardRoutes(characterCardService: CharacterCardSer
 
     .put('/:id', async (c) => {
       const user = c.get('user')!
-      const fields = parsePushRequest(await c.req.json())
+      const fields = parsePushRequest(await readJsonBody(c.req))
       return c.json(await characterCardService.push(user.id, parseDocumentId(c.req.param('id')), fields))
     })
 

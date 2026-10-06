@@ -65,3 +65,36 @@ describe('joinCard', () => {
     expect(({} as { polluted?: boolean }).polluted).toBeUndefined()
   })
 })
+
+describe('the built-in card', () => {
+  const builtIn: AiriCard = {
+    name: 'ReLU',
+    version: '1.0.0',
+    description: 'Built-in description',
+    extensions: { airi: { modules: { consciousness: { provider: '', model: '' }, speech: { provider: '', model: '', voice_id: '' }, vision: { provider: '', model: '' } }, agents: {} } },
+  }
+
+  it('leaves out the parts that equal the built-in card', () => {
+    const edited: AiriCard = { ...builtIn, systemPrompt: 'Be kind', extensions: { airi: { ...builtIn.extensions.airi, modules: { ...builtIn.extensions.airi.modules, speech: { provider: 'a', model: 'b', voice_id: 'c' } } } } }
+
+    expect(splitCard(builtIn, [builtIn])).toEqual({})
+    expect(splitCard(edited, [builtIn])).toEqual({
+      '/systemPrompt': 'Be kind',
+      '/extensions/airi/modules/speech': { provider: 'a', model: 'b', voice_id: 'c' },
+    })
+  })
+
+  it('leaves out a part that equals the built-in card of another language', () => {
+    const inJapanese = { ...builtIn, description: '日本語の説明' }
+
+    expect(splitCard(inJapanese, [builtIn, inJapanese])).toEqual({})
+    expect(splitCard({ ...builtIn, description: 'Edited by the user' }, [builtIn, inJapanese])).toEqual({ '/description': 'Edited by the user' })
+  })
+
+  it('takes the parts that the fields lack from the built-in card', () => {
+    const joined = joinCard({ '/systemPrompt': 'Be kind' }, builtIn)
+
+    expect(joined).toMatchObject({ name: 'ReLU', description: 'Built-in description', systemPrompt: 'Be kind' })
+    expect(joinCard(splitCard({ ...builtIn, name: 'Mine' }, [builtIn]), builtIn)).toEqual(JSON.parse(JSON.stringify({ ...builtIn, name: 'Mine' })))
+  })
+})

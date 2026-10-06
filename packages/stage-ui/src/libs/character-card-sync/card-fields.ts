@@ -1,6 +1,8 @@
 import type { AiriCard } from '../../types/airiCard'
 import type { DocumentFields } from '../document-sync'
 
+import { isEqual } from 'es-toolkit'
+
 /**
  * The containers that are split into their members. All other values are one
  * part each, so the settings of one module always change together.
@@ -47,11 +49,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * `extensions.airi`, and `extensions.airi.modules` give one part for each of
  * their keys. Absent and `null` values give no part.
  *
+ * Pass the built-in variants for a card that every device creates with the same
+ * id. The result then holds only the parts that differ from all of them. A
+ * device creates the card once, in the language of that time, so the stored
+ * card can match a variant other than the current one.
+ *
  * @example
  * splitCard({ name: 'Luna', extensions: { airi: { modules: { speech: { provider: 'a' } }, agents: {} } } })
  * // => { '/name': 'Luna', '/extensions/airi/modules/speech': { provider: 'a' }, '/extensions/airi/agents': {} }
  */
-export function splitCard(card: AiriCard): DocumentFields {
+export function splitCard(card: AiriCard, builtIns: AiriCard[] = []): DocumentFields {
   const fields: DocumentFields = {}
 
   function collect(container: Record<string, unknown>, path: string[]) {
@@ -69,19 +76,27 @@ export function splitCard(card: AiriCard): DocumentFields {
   // The JSON round trip removes `undefined` members. The server stores JSON,
   // so a value with such a member never equals the value that comes back.
   collect(JSON.parse(JSON.stringify(card)), [])
-  return fields
+
+  // A part that equals a built-in card is not an edit by the user. Each
+  // device creates the built-in card in its own language, so such a part
+  // must not leave the device.
+  const defaults = builtIns.map(builtIn => splitCard(builtIn))
+  return Object.fromEntries(Object.entries(fields).filter(([key, value]) => !defaults.some(candidate => isEqual(value, candidate[key]))))
 }
 
 /**
  * Builds a card from its parts. The function ignores keys that {@link splitCard}
  * cannot produce.
  *
+ * Pass the same `builtIn` that {@link splitCard} got. The parts that `fields`
+ * lacks then come from the built-in card.
+ *
  * The result is not validated. The caller must normalize it before use.
  */
-export function joinCard(fields: DocumentFields): Record<string, unknown> {
+export function joinCard(fields: DocumentFields, builtIn?: AiriCard): Record<string, unknown> {
   const card: Record<string, unknown> = {}
 
-  for (const [key, value] of Object.entries(fields)) {
+  for (const [key, value] of Object.entries({ ...(builtIn && splitCard(builtIn)), ...fields })) {
     const path = fromPointer(key)
     if (!key.startsWith('/') || !isFieldPath(path))
       continue

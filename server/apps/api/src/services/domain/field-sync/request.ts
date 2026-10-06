@@ -49,6 +49,19 @@ function parseRequest<TOutput>(schema: BaseSchema<unknown, TOutput, BaseIssue<un
   return result.output
 }
 
+/**
+ * Reads the JSON body of a request. Throws a 400 error when the body is not valid JSON.
+ * Without it, a malformed body reaches the global error handler and becomes a 500 response.
+ */
+export async function readJsonBody(request: { json: () => Promise<unknown> }) {
+  try {
+    return await request.json()
+  }
+  catch {
+    throw createBadRequestError('The request body must be valid JSON', 'INVALID_REQUEST')
+  }
+}
+
 /** Parses the `:id` parameter of a document route. Throws a 400 error for an invalid id. */
 export function parseDocumentId(param: string) {
   return parseRequest(DocumentIdSchema, param)

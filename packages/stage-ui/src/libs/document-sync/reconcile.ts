@@ -35,13 +35,12 @@ export interface ReconcileInput {
   local: Record<string, DocumentFields>
   state: SyncState
   remote: RemoteSnapshot
-  /**
-   * The parts that a built-in document has before the user edits it, by document id.
-   *
-   * Each device creates a built-in document with the same id, for example the `default` character card. Without sync history,
-   * this content tells which side holds an edit by the user.
-   */
-  pristine: Record<string, DocumentFields>
+}
+
+/** The local content that lost a conflict, and the document that it came from. */
+export interface ConflictCopy {
+  documentId: string
+  fields: DocumentFields
 }
 
 export interface DocumentPush {
@@ -58,7 +57,7 @@ export interface ReconcilePlan {
    * Local documents whose changes lost against a remote change to the same part.
    * The caller keeps each one as a new document, so no change is lost.
    */
-  conflictCopies: DocumentFields[]
+  conflictCopies: ConflictCopy[]
   pushes: DocumentPush[]
   deletions: Array<{ documentId: string, revision: number }>
   /** The sync state after the caller applies the local changes. Pushes and deletions update it later. */
@@ -80,7 +79,7 @@ function pushAll(documentId: string, local: DocumentFields): DocumentPush {
   return { documentId, fields: Object.entries(local).map(([key, value]) => ({ key, baseRevision: 0, value })) }
 }
 
-function reconcileParts(local: DocumentFields, synced: SyncedDocument | undefined, remote: RemoteDocument, pristine: DocumentFields | undefined) {
+function reconcileParts(local: DocumentFields, synced: SyncedDocument | undefined, remote: RemoteDocument) {
   const remoteFields = new Map(remote.fields.map(field => [field.key, field]))
   const merged: DocumentFields = { ...local }
   const nextSynced: SyncedDocument = { revision: remote.revision, fields: {} }
@@ -124,21 +123,10 @@ function reconcileParts(local: DocumentFields, synced: SyncedDocument | undefine
     else if (!hasRemoteChange) {
       pushLocal(syncedField?.revision ?? 0)
     }
-    else if (syncedField) {
-      // Both sides changed the part after the last sync. The remote value
-      // stays in the document, and the caller keeps the local document as a copy.
-      adoptRemote()
-      conflicted = true
-    }
-    else if (isEqual(localValue, pristine?.[key])) {
-      // No sync history, and the local part has no edit by the user.
-      adoptRemote()
-    }
-    else if (isEqual(remoteField?.value, pristine?.[key])) {
-      // No sync history, and only the local part has an edit by the user.
-      pushLocal(remoteField?.revision ?? 0)
-    }
     else {
+      // Both sides changed the part after the last sync, or the device has no
+      // sync history and both sides have a value. The remote value stays in
+      // the document, and the caller keeps the local document as a copy.
       adoptRemote()
       conflicted = true
     }
@@ -185,8 +173,9 @@ export function reconcile(input: ReconcileInput): ReconcilePlan {
       const hasLocalChange = !synced || !isEqual(localDocument, valuesOf(synced))
       if (remoteDocument?.deletedAt && !hasLocalChange)
         plan.removals.push(documentId)
-      else
+      else if (Object.keys(localDocument).length > 0)
         // The server deleted the content, so a new or restored document sends all parts.
+        // A document without parts has nothing to send. The server rejects an empty push.
         plan.pushes.push(pushAll(documentId, localDocument))
       continue
     }
@@ -205,14 +194,14 @@ export function reconcile(input: ReconcileInput): ReconcilePlan {
       continue
     }
 
-    const { merged, nextSynced, pushed, conflicted } = reconcileParts(localDocument, synced, remoteDocument, input.pristine[documentId])
+    const { merged, nextSynced, pushed, conflicted } = reconcileParts(localDocument, synced, remoteDocument)
     plan.state.documents[documentId] = nextSynced
     if (!isEqual(merged, localDocument))
       plan.upserts[documentId] = merged
     if (pushed.length > 0)
       plan.pushes.push({ documentId, fields: pushed })
     if (conflicted)
-      plan.conflictCopies.push(localDocument)
+      plan.conflictCopies.push({ documentId, fields: localDocument })
   }
 
   return plan

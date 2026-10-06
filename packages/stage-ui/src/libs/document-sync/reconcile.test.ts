@@ -28,7 +28,6 @@ function plan(input: Partial<ReconcileInput>) {
     local: {},
     state: { documents: {} },
     remote: { documents: [] },
-    pristine: {},
     ...input,
   })
 }
@@ -85,7 +84,7 @@ describe('reconcile', () => {
     })
 
     expect(result.upserts).toEqual({ luna: { '/name': 'Aria', '/description': 'Calm' } })
-    expect(result.conflictCopies).toEqual([local])
+    expect(result.conflictCopies).toEqual([{ documentId: 'luna', fields: local }])
     expect(result.pushes).toEqual([])
   })
 
@@ -160,49 +159,64 @@ describe('reconcile', () => {
     expect(result.upserts).toEqual({ luna: { '/name': 'Aria', '/description': 'Calm' } })
   })
 
-  describe('a built-in card without sync history', () => {
-    const pristine = { default: { '/name': 'ReLU', '/description': 'Built-in' } }
-
-    it('takes the remote edit when the local card has no edit', () => {
+  // A document that every device creates with the same id sends only its edits.
+  // The caller leaves the parts that equal the built-in content out.
+  describe('a document with only its edits and no sync history', () => {
+    it('takes the remote edit when the local document has no edit', () => {
       const result = plan({
-        local: { default: pristine.default },
-        pristine,
-        remote: { documents: [remoteDocument('default', 3, { '/name': [3, 'Mine'], '/description': [1, 'Built-in'] })] },
+        local: { default: {} },
+        remote: { documents: [remoteDocument('default', 3, { '/name': [3, 'Mine'] })] },
       })
 
-      expect(result.upserts).toEqual({ default: { '/name': 'Mine', '/description': 'Built-in' } })
+      expect(result.upserts).toEqual({ default: { '/name': 'Mine' } })
       expect(result.conflictCopies).toEqual([])
       expect(result.pushes).toEqual([])
     })
 
-    it('pushes the local edit when the remote card has no edit', () => {
+    it('pushes the local edits and takes the remote edit of another part', () => {
       const result = plan({
-        local: { default: { '/name': 'Mine', '/description': 'Built-in', '/systemPrompt': 'Be kind' } },
-        pristine,
-        remote: { documents: [remoteDocument('default', 1, { '/name': [1, 'ReLU'], '/description': [1, 'Built-in'] })] },
+        local: { default: { '/name': 'Mine', '/systemPrompt': 'Be kind' } },
+        remote: { documents: [remoteDocument('default', 1, { '/description': [1, 'Theirs'] })] },
       })
 
-      expect(result.upserts).toEqual({})
+      expect(result.upserts).toEqual({ default: { '/name': 'Mine', '/systemPrompt': 'Be kind', '/description': 'Theirs' } })
       expect(result.conflictCopies).toEqual([])
       expect(result.pushes).toEqual([{
         documentId: 'default',
         fields: [
-          { key: '/name', baseRevision: 1, value: 'Mine' },
+          { key: '/name', baseRevision: 0, value: 'Mine' },
           { key: '/systemPrompt', baseRevision: 0, value: 'Be kind' },
         ],
       }])
     })
 
-    it('keeps a copy when both cards have a different edit', () => {
-      const local = { '/name': 'Mine', '/description': 'Built-in' }
+    it('merges edits to different parts', () => {
       const result = plan({
-        local: { default: local },
-        pristine,
-        remote: { documents: [remoteDocument('default', 2, { '/name': [2, 'Theirs'], '/description': [1, 'Built-in'] })] },
+        local: { default: { '/systemPrompt': 'Be kind' } },
+        remote: { documents: [remoteDocument('default', 2, { '/name': [2, 'Theirs'] })] },
       })
 
-      expect(result.upserts).toEqual({ default: { '/name': 'Theirs', '/description': 'Built-in' } })
-      expect(result.conflictCopies).toEqual([local])
+      expect(result.upserts).toEqual({ default: { '/systemPrompt': 'Be kind', '/name': 'Theirs' } })
+      expect(result.conflictCopies).toEqual([])
+      expect(result.pushes).toEqual([{ documentId: 'default', fields: [{ key: '/systemPrompt', baseRevision: 0, value: 'Be kind' }] }])
+    })
+
+    it('keeps a copy when both documents have a different edit of one part', () => {
+      const local = { '/name': 'Mine' }
+      const result = plan({
+        local: { default: local },
+        remote: { documents: [remoteDocument('default', 2, { '/name': [2, 'Theirs'] })] },
+      })
+
+      expect(result.upserts).toEqual({ default: { '/name': 'Theirs' } })
+      expect(result.conflictCopies).toEqual([{ documentId: 'default', fields: local }])
+    })
+
+    it('sends nothing for a document without edits that the server does not have', () => {
+      const result = plan({ local: { default: {} } })
+
+      expect(result.pushes).toEqual([])
+      expect(result.upserts).toEqual({})
     })
   })
 })

@@ -1,5 +1,5 @@
 import type { DocumentSyncClient } from './client'
-import type { DocumentFields, SyncState } from './reconcile'
+import type { ConflictCopy, DocumentFields, SyncState } from './reconcile'
 
 import { applyPushResult, reconcile } from './reconcile'
 
@@ -15,21 +15,32 @@ export interface LocalDocumentChanges {
   /** The complete new parts of each document that takes changes from another device. */
   upserts: Record<string, DocumentFields>
   removals: string[]
-  /** The parts of local documents that lost a conflict. Each one becomes a new document. */
-  conflictCopies: DocumentFields[]
+  /** The local documents that lost a conflict. Each one becomes a new document. */
+  conflictCopies: ConflictCopy[]
+}
+
+/** What the caller did with the changes. */
+export interface AppliedLocalChanges {
+  /**
+   * The ids of the documents in `upserts` that the caller could not apply, for
+   * example because the content is invalid. The run keeps the sync state of
+   * these documents. Without that, the next run reads the missing local
+   * document as a deletion and deletes the server copy.
+   */
+  rejected: string[]
 }
 
 export interface SynchronizeOptions {
   client: DocumentSyncClient
   /** The sync state of the account at the start of the run. */
   state: SyncState
-  /** Reads the current local documents and the unedited content of the built-in documents. */
-  readLocal: () => { documents: Record<string, DocumentFields>, pristine: Record<string, DocumentFields> }
+  /** Reads the current local documents. */
+  readLocal: () => Record<string, DocumentFields>
   /**
    * Writes the changes to the local documents. The run calls it in the same task
    * as `readLocal`, so it must write the documents before it awaits anything.
    */
-  applyLocal: (changes: LocalDocumentChanges) => Promise<void>
+  applyLocal: (changes: LocalDocumentChanges) => Promise<AppliedLocalChanges>
   /** Stores the sync state. The run calls it after each step that a later run must not repeat. */
   saveState: (state: SyncState) => Promise<void>
   /**
@@ -62,15 +73,21 @@ export async function synchronize(options: SynchronizeOptions) {
 
     // No `await` between `readLocal` and the document write in `applyLocal`. A
     // local edit in between would be overwritten by the planned content.
-    const local = options.readLocal()
-    const plan = reconcile({ local: local.documents, state, remote, pristine: local.pristine })
-    const applied = options.applyLocal({
+    const plan = reconcile({ local: options.readLocal(), state, remote })
+    const applying = options.applyLocal({
       upserts: plan.upserts,
       removals: plan.removals,
       conflictCopies: plan.conflictCopies,
     })
+    const previous = state
     state = plan.state
-    await applied
+    const { rejected } = await applying
+    for (const documentId of rejected) {
+      if (previous.documents[documentId])
+        state.documents[documentId] = previous.documents[documentId]
+      else
+        delete state.documents[documentId]
+    }
     await options.saveState(state)
 
     // A conflict copy is a new local document. The next round sends it.
@@ -83,7 +100,11 @@ export async function synchronize(options: SynchronizeOptions) {
       if (!isCurrent())
         return
       state = applyPushResult(state, push, result)
-      needsAnotherRound ||= result.conflicts.length > 0 || result.document.deletedAt !== null
+      // The state keeps an older document revision when the document has a field from another device
+      // that this run has not merged. Another round reads that field.
+      needsAnotherRound ||= result.conflicts.length > 0
+        || result.document.deletedAt !== null
+        || state.documents[push.documentId]?.revision !== result.document.revision
     }
 
     for (const { documentId, revision } of plan.deletions) {

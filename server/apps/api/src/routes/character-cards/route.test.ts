@@ -64,6 +64,12 @@ describe('characterCardRoutes', () => {
     expect(deleted.status).toBe(204)
   })
 
+  it('rejects a body that is not valid JSON with 400', async () => {
+    const response = await request('/card', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: '{"fields": [' })
+
+    expect(response.status).toBe(400)
+  })
+
   it('rejects invalid input', async () => {
     const nullValue = await push('/card', [{ key: '/name', baseRevision: 0, value: null }])
     const noFields = await push('/card', [])
