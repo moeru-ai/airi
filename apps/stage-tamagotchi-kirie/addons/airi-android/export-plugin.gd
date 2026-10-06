@@ -30,6 +30,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
+import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -44,9 +45,11 @@ import android.view.Window;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.SslErrorHandler;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -451,6 +454,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
             browserWebView = webView;
             installImeInsetHandler(activity);
+            installExternalNavigation(activity, webView);
             hostWebSocketBridge = new HostWebSocketBridge(webView);
             webView.addJavascriptInterface(hostWebSocketBridge, "AiriHostBridge");
             webView.getSettings().setSupportMultipleWindows(true);
@@ -601,16 +605,43 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         );
     }
 
+    private void installExternalNavigation(Activity activity, WebView webView) {
+        // Kirie owns asset interception and development TLS handling.
+        WebViewClient kirieClient = webView.getWebViewClient();
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return openExternalBrowser(activity, request.getUrl());
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(
+                WebView view,
+                WebResourceRequest request
+            ) {
+                return kirieClient.shouldInterceptRequest(view, request);
+            }
+
+            @Override
+            public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
+                kirieClient.onReceivedSslError(view, handler, error);
+            }
+        });
+    }
+
     private boolean openExternalBrowser(Activity activity, Uri uri) {
-        String scheme = uri.getScheme();
-        if (!("http".equals(scheme) || "https".equals(scheme))) {
+        if (uri.getScheme().equals("data") || uri.getScheme().equals("blob")) {
+            return false;
+        }
+        Uri appUri = Uri.parse(EVENTA_ORIGIN);
+        if (appUri.getHost().equals(uri.getHost()) && uri.getScheme().equals(appUri.getScheme())) {
             return false;
         }
 
         try {
             activity.startActivity(new Intent(Intent.ACTION_VIEW, uri));
         } catch (ActivityNotFoundException error) {
-            Log.e("AiriAndroid", "No browser can open the external URL", error);
+            // Capacitor consumes the navigation even when no application handles the intent.
         }
         return true;
     }
