@@ -1,9 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { isSigningIn, registerAuthorizationHandler, triggerSignIn } from './auth'
+import { consumeFlowState } from './auth-oidc'
 
 describe('isSigningIn', () => {
+  beforeEach(() => {
+    consumeFlowState()
+  })
+
   afterEach(() => {
+    consumeFlowState()
     registerAuthorizationHandler(async () => {})
   })
 
