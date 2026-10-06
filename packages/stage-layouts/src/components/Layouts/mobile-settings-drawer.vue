@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { HearingConfig } from '@proj-airi/stage-ui/components'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { shallowRef, watch } from 'vue'
+import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRouter } from 'vue-router'
 
@@ -24,15 +22,13 @@ const { isDark } = useTheme()
 const authStore = useAuthStore()
 const { isAuthenticated, user } = storeToRefs(authStore)
 const router = useRouter()
-const settingsAudioDevice = useSettingsAudioDevice()
-const hearingOpen = shallowRef(false)
 const backgroundDialogOpen = shallowRef(false)
 const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
 // Finish closing settings before opening a sibling modal, so focus and scroll locks have one owner.
-const nextPanel = shallowRef<'background' | 'about' | 'account' | 'hearing' | 'view'>()
+const nextPanel = shallowRef<'background' | 'about' | 'account' | 'view'>()
 
-function openPanel(panel: 'background' | 'about' | 'account' | 'hearing' | 'view') {
+function openPanel(panel: 'background' | 'about' | 'account' | 'view') {
   nextPanel.value = panel
   settingsOpen.value = false
 }
@@ -43,9 +39,6 @@ function finishSettingsClose() {
   }
   else if (nextPanel.value === 'about') {
     aboutOpen.value = true
-  }
-  else if (nextPanel.value === 'hearing') {
-    hearingOpen.value = true
   }
   else if (nextPanel.value === 'account') {
     if (isAuthenticated.value)
@@ -58,11 +51,6 @@ function finishSettingsClose() {
   }
   nextPanel.value = undefined
 }
-
-watch(hearingOpen, async (open) => {
-  if (open)
-    await settingsAudioDevice.askPermission()
-})
 </script>
 
 <template>
@@ -142,12 +130,6 @@ watch(hearingOpen, async (open) => {
           <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.character-voice') }}</span>
           <Checkbox v-model="characterVoiceEnabled" :aria-label="t('stage.mobile-tools.character-voice')" />
         </label>
-        <div :class="['mx-4 border-t border-neutral-100 dark:border-neutral-700/50']" />
-        <GhostButton block size="unset" :class="['mobile-tool-row min-h-13 rounded-none px-4 py-3']" @click="openPanel('hearing')">
-          <span aria-hidden="true" :class="['i-solar:microphone-3-outline size-5 shrink-0 text-neutral-400']" />
-          <span :class="['flex-1 text-left text-sm']">{{ t('stage.mobile-tools.hearing') }}</span>
-          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 text-neutral-400']" />
-        </GhostButton>
       </div>
     </section>
     <section :class="['mb-4']">
@@ -179,14 +161,6 @@ watch(hearingOpen, async (open) => {
         </GhostButton>
       </div>
     </section>
-  </BottomDrawer>
-  <BottomDrawer
-    v-model="hearingOpen"
-    :title="t('stage.mobile-tools.hearing')"
-    @close-auto-focus="event => event.preventDefault()"
-    @after-close="settingsOpen = true"
-  >
-    <HearingConfig />
   </BottomDrawer>
   <BackgroundDialogPicker v-model="backgroundDialogOpen" class="pointer-events-auto" />
   <ActionAbout v-model="aboutOpen" hide-trigger />
