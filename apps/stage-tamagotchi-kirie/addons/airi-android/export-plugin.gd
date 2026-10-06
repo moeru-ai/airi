@@ -2203,6 +2203,21 @@ func configure_activity_recreation() -> void:
 
 func configure_launch_resources() -> void:
 	# NOTICE:
+	# Godot's DeviceDefault parent gives native WebView dialogs a different theme from stage-pocket.
+	# Godot exposes custom theme items but no main-theme parent option.
+	# Source: stage-pocket styles.xml and Godot platform/android/export/export_plugin.cpp::_fix_themes_xml.
+	# When Godot exposes the main-theme parent, remove this rewrite.
+	var theme_path = "res/values/themes.xml"
+	var theme = FileAccess.get_file_as_string(
+		ProjectSettings.globalize_path(ANDROID_BUILD_ROOT.path_join(theme_path))
+	)
+	theme = theme.replace(
+		"<style name=\"GodotAppMainTheme\" parent=\"@android:style/Theme.DeviceDefault.NoActionBar\">",
+		"<style name=\"GodotAppMainTheme\" parent=\"Theme.AppCompat.DayNight.NoActionBar\">"
+	)
+	write_build_file(theme_path, theme)
+
+	# NOTICE:
 	# Godot regenerates its splash theme with a fixed background and its own icon during export.
 	# stage-pocket uses the AndroidX theme defaults and the application launcher icon on Android 12 and later.
 	# Godot also regenerates build-type manifests with its application icon after export plugins run.
