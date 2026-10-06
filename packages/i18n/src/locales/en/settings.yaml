@@ -1775,6 +1775,20 @@ pages:
         title: QR scan failed
         failed: Failed to scan or connect with the QR code.
   system:
+    experimental:
+      refresh: Refresh policies
+      title: Experimental Features
+      description: Try features in development and manage your choices.
+      notice: Experimental features can change or be removed. Your choices apply to this device.
+      empty-title: No experiments available
+      load-error: Could not refresh feature policies. Current settings remain active.
+      retry: Retry
+      reset: Use default
+      sources:
+        default: App default
+        local: Your device choice
+        global: Global policy
+        account: Managed for your account
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme

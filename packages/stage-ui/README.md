@@ -2,6 +2,14 @@
 
 Shared core for stage
 
+## Experimental features
+
+Register experiments in `libs/feature-flags.ts`. Call `useExperimentalFeaturesStore().isEnabled(key)` at the feature entry point to record exposure.
+Account policy overrides device choices. Global policy controls whether device overrides are allowed.
+Choices persist locally. Remote policy resets on account changes and refreshes through `GET /v1/feature-flags`.
+Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
+For each new feature, assess its flag, exposure event, success metric, and removal condition. Keep authorization checks on the server.
+
 ## Startup progress
 
 `useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.

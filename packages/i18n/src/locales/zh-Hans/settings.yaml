@@ -1562,6 +1562,20 @@ pages:
         title: 二维码扫描失败
         failed: 扫描或连接二维码失败。
   system:
+    experimental:
+      refresh: 刷新策略
+      title: 实验性特性
+      description: 体验开发中的功能，管理你的实验选择。
+      notice: 实验性特性可能变更或移除。你的选择仅保存在此设备上。
+      empty-title: 暂无可用实验
+      load-error: 无法刷新功能策略，当前设置仍然有效。
+      retry: 重试
+      reset: 使用默认值
+      sources:
+        default: 应用默认值
+        local: 此设备的选择
+        global: 全局策略
+        account: 账户指定策略
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案
