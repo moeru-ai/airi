@@ -532,7 +532,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             webView.getSettings().setGeolocationEnabled(true);
             webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
             webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
-            webView.getSettings().setSupportMultipleWindows(true);
             webView.getSettings().setDisplayZoomControls(false);
             webView.getSettings().setBuiltInZoomControls(false);
             webView.requestFocusFromTouch();
