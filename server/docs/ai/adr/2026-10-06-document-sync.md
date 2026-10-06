@@ -69,7 +69,8 @@ The selected card is not synchronized. Each device keeps its own selection.
 - The character card tables, service, and routes.
 - Account deletion removes the card content and keeps the deletion markers.
 - A client module that compares, merges, and sends documents for any route of this shape.
-- The client runs after sign-in, after a card change, and when a window becomes visible.
+- The client runs after sign-in, after a card change, and when a window becomes visible. The `airi-card` store owns the runs, as the provider and chat stores own theirs. The synchronization leader executes one run at a time.
+- Before each request, a run checks that the account has not changed. A request reads the token when it starts, so an account change would otherwise send the documents of the old account to the new account.
 
 ## Non-goals
 
@@ -100,11 +101,9 @@ A value must not be `null`. A missing field row represents an absent value.
 
 ```mermaid
 flowchart LR
-  Store[character-card-sync store] --> Sync[document-sync: synchronize]
-  Store --> Fields[splitCard and joinCard]
-  Store --> Repo[sync state in IndexedDB]
-  Store --> Cards[airi-card store]
-  Cards --> Fields
+  Cards[airi-card store] --> Sync[document-sync: synchronize]
+  Cards --> Fields[splitCard and joinCard]
+  Cards --> Repo[sync state in IndexedDB]
   Sync --> Reconcile[document-sync: reconcile]
   Sync --> Client[document-sync: REST client]
   Client --> Routes[routes/character-cards]
@@ -130,9 +129,7 @@ packages/stage-ui/src
 ├── libs/document-sync/{client,reconcile,synchronize}.ts
 ├── libs/character-card-sync/card-fields.ts
 ├── database/repos/document-sync.repo.ts
-├── stores/character-card-sync.ts
-└── stores/modules/airi-card.ts
-apps/*/src/**/App.vue
+└── stores/modules/airi-card.ts         # starts the runs and applies the result
 ```
 
 ## Sequence

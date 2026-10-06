@@ -6,7 +6,6 @@ import { useInferencePreload } from '@proj-airi/stage-ui/composables'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { useCharacterCardSyncStore } from '@proj-airi/stage-ui/stores/character-card-sync'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -116,7 +115,6 @@ function createFullStageRuntime() {
   useSpeechStore()
   useSettingsStageModel()
   useVisionStore()
-  useCharacterCardSyncStore()
 
   let stopAuthenticatedSetup: (() => void) | undefined
   let stopLoggedOutSetup: (() => void) | undefined

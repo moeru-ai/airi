@@ -1,23 +1,29 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
-import type { LocalDocumentChanges } from '../../libs/document-sync'
+import type { DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
-import { StorageSerializers } from '@vueuse/core'
+import { StorageSerializers, useDocumentVisibility, watchDebounced } from '@vueuse/core'
 import { nanoid } from 'nanoid'
-import { defineStore } from 'pinia'
+import { defineStore, storeToRefs } from 'pinia'
 import { array, looseObject, parse, safeParse, string } from 'valibot'
-import { computed, toRaw } from 'vue'
+import { computed, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { toast } from 'vue-sonner'
 
 import { DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT } from '../../constants/prompts/character-defaults'
-import { joinCard } from '../../libs/character-card-sync'
+import { documentSyncRepo } from '../../database/repos/document-sync.repo'
+import { authedFetch } from '../../libs/auth-fetch'
+import { joinCard, splitCard } from '../../libs/character-card-sync'
+import { createDocumentSyncClient, synchronize } from '../../libs/document-sync'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
+import { SERVER_URL } from '../../libs/server'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
+import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
@@ -28,6 +34,12 @@ import { useSpeechStore } from './speech'
 import { useVisionStore } from './vision'
 
 export type { AiriCard, AiriExtension } from '../../types/airiCard'
+
+/** The route of the server that stores the cards. */
+const CARDS_PATH = '/api/v1/character-cards'
+
+/** Names the sync state of the cards in the local storage. */
+const SYNC_STATE_NAME = 'character-cards'
 
 /** The members that every card needs before `newAiriCard` can normalize it. */
 const synchronizedCardSchema = looseObject({ name: string(), version: string() })
@@ -51,6 +63,7 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
 
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
+  const { userId } = storeToRefs(useAuthStore())
 
   // Pinia synchronization owns cross-window updates. Local storage only loads
   // and saves this renderer's durable copy; listening to storage events here
@@ -551,6 +564,98 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return activeCardChanged || activeCardId.value !== previousActiveCardId
   }
 
+  let syncClient: DocumentSyncClient | undefined
+  let activeSynchronization: Promise<void> | undefined
+  let hasQueuedSynchronization = false
+
+  /**
+   * Compares the local cards with the server and exchanges the changes. The
+   * selected card is not synchronized, so each device keeps its own selection.
+   *
+   * A call during a run queues one more run and returns with the active run.
+   * Errors are logged. The next request sends the same changes again. A user
+   * without an account never sends a request.
+   *
+   * This synchronized action executes in the leader, one run at a time.
+   */
+  async function synchronizeCards() {
+    if (activeSynchronization) {
+      hasQueuedSynchronization = true
+      return activeSynchronization
+    }
+
+    activeSynchronization = (async () => {
+      do {
+        hasQueuedSynchronization = false
+        try {
+          await runCardSynchronization(userId.value)
+        }
+        catch (error) {
+          console.error('[character-card-sync] Synchronization failed:', errorMessageFrom(error))
+        }
+      } while (hasQueuedSynchronization)
+    })()
+
+    try {
+      await activeSynchronization
+    }
+    finally {
+      activeSynchronization = undefined
+    }
+  }
+
+  async function runCardSynchronization(ownerId: string) {
+    if (ownerId === 'local')
+      return
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    await synchronize({
+      client: syncClient,
+      state: await documentSyncRepo.getState(SYNC_STATE_NAME, ownerId) ?? { documents: {} },
+      // The new account starts its own run from the `userId` watcher.
+      isCurrent: () => userId.value === ownerId,
+      saveState: state => documentSyncRepo.saveState(SYNC_STATE_NAME, ownerId, state),
+      readLocal: () => ({
+        documents: Object.fromEntries([...toRaw(cards.value)].map(([id, card]) => [id, splitCard(toRaw(card))])),
+        pristine: { default: splitCard(builtInCard.value) },
+      }),
+      async applyLocal(changes) {
+        const activeCardChanged = applySynchronizedCards(changes)
+        if (changes.conflictCopies.length > 0)
+          toast.warning(t('settings.pages.card.sync.conflict_notice'))
+        if (activeCardChanged)
+          await activateCard(activeCardId.value)
+      },
+    })
+  }
+
+  async function requestCardSynchronization() {
+    if (userId.value === 'local')
+      return
+
+    try {
+      // The store action routes the run to the leader. A call to the local function would run in this window.
+      await useAiriCardStore().synchronizeCards()
+    }
+    catch (error) {
+      console.error('[character-card-sync] Failed to request synchronization:', errorMessageFrom(error))
+    }
+  }
+
+  // Each renderer observes the synchronized identity and cards. The requests
+  // go to the leader. A run that finds no difference changes nothing, so the
+  // request that follows a remote change ends the sequence.
+  watch(userId, requestCardSynchronization)
+  watchDebounced(cards, requestCardSynchronization, { debounce: 1500, deep: true })
+  const visibility = useDocumentVisibility()
+  watch(visibility, async (state) => {
+    if (state === 'visible')
+      await requestCardSynchronization()
+  })
+  // A restored session has its user id before this store exists, so no watcher
+  // reports it. The store has no actions during setup, so wait for it.
+  queueMicrotask(requestCardSynchronization)
+
   /** Applies the initial card while preserving setup context when no auth work is pending. */
   async function initialize() {
     // Awaiting undefined would leave component setup before the first runtime
@@ -667,6 +772,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     activeCardId,
     builtInCard,
     applySynchronizedCards,
+    synchronizeCards,
     addCard,
     removeCard,
     updateCard,
@@ -725,6 +831,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'updateActiveCardVision',
       'selectActiveCardVisionProvider',
       'updateCard',
+      'synchronizeCards',
     ],
     state: true,
   },

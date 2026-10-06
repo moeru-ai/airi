@@ -36,7 +36,7 @@ Client, in `packages/stage-ui`:
 1. Write a function that splits a document into fields, and a function that joins the fields. Keep values that must change together in one field.
 2. Call `synchronize` with a client for the route, the stored sync state, and the functions that read and write the local documents.
 
-`server/apps/api/src/services/domain/character-cards.ts`, `stores/character-card-sync.ts`, and `libs/character-card-sync/card-fields.ts` are the reference use.
+`server/apps/api/src/services/domain/character-cards.ts`, `stores/modules/airi-card.ts`, and `libs/character-card-sync/card-fields.ts` are the reference use.
 
 ```ts
 import { createDocumentSyncClient, synchronize } from '../libs/document-sync'

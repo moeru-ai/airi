@@ -50,7 +50,12 @@ export async function synchronize(options: SynchronizeOptions) {
   const { client, isCurrent } = options
   let state = options.state
 
+  // A request reads the token when it starts, so every request needs its own
+  // check. A sign-out or an account change during an earlier await would
+  // otherwise send the documents of the old account to the new account.
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
+    if (!isCurrent())
+      return
     const remote = await client.list()
     if (!isCurrent())
       return
@@ -72,6 +77,8 @@ export async function synchronize(options: SynchronizeOptions) {
     let needsAnotherRound = plan.conflictCopies.length > 0
 
     for (const push of plan.pushes) {
+      if (!isCurrent())
+        return
       const result = await client.push(push.documentId, push.fields)
       if (!isCurrent())
         return
@@ -80,6 +87,8 @@ export async function synchronize(options: SynchronizeOptions) {
     }
 
     for (const { documentId, revision } of plan.deletions) {
+      if (!isCurrent())
+        return
       const deleted = await client.remove(documentId, revision)
       if (!isCurrent())
         return
