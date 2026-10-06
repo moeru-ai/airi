@@ -16,3 +16,61 @@
   transform: translateY(10px);
   opacity: 0;
 }
+
+/* Card expand transition - 从列表卡片展开到全屏编辑器 */
+.card-expand-enter-active,
+.card-expand-leave-active,
+.card-collapse-enter-active,
+.card-collapse-leave-active {
+  transition:
+    transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow: hidden;
+}
+
+body:has(.card-expand-enter-active),
+body:has(.card-expand-leave-active),
+body:has(.card-collapse-enter-active),
+body:has(.card-collapse-leave-active) {
+  overflow: hidden;
+}
+
+.card-expand-enter-from {
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
+}
+
+.card-expand-enter-to {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.card-expand-leave-from {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.card-expand-leave-to {
+  opacity: 0;
+  transform: scale(1.02) translateY(-10px);
+}
+
+.card-collapse-enter-from {
+  opacity: 0;
+  transform: scale(1.02) translateY(-10px);
+}
+
+.card-collapse-enter-to {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.card-collapse-leave-from {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.card-collapse-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(20px);
+}

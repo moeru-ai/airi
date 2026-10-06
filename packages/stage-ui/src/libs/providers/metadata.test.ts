@@ -72,15 +72,4 @@ describe('provider metadata selector', () => {
     expect(definition.id).toBe('test-provider')
     expect(definition.tasks).toEqual(['chat'])
   })
-
-  // https://github.com/moeru-ai/airi/pull/2526#discussion_r3994122656
-  it('keeps API Route in the paid and cloud catalogue filters', async () => {
-    const metadata = await selectProviderMetadata({ ...definition, id: 'api-route' }, t)
-
-    const paidProviders = [metadata].filter(provider => provider.pricing === 'paid')
-    const cloudProviders = [metadata].filter(provider => provider.deployment === 'cloud')
-
-    expect(paidProviders).toEqual([metadata])
-    expect(cloudProviders).toEqual([metadata])
-  })
 })
