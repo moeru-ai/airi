@@ -1759,7 +1759,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                             JSONObject close = addEventValue(
                                 createEvent("close", id),
                                 "reason",
-                                message
+                                error.getMessage()
                             );
                             if (response != null) {
                                 addEventValue(close, "code", response.code());
