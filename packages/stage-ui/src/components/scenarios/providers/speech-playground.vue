@@ -179,6 +179,7 @@ defineExpose({
     <div flex="~ col gap-4">
       <FieldCheckbox
         v-model="useSSML"
+        v-track-switch="'providers.speech-playground.use-ssml'"
         :label="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.label')"
         :description="t('settings.pages.modules.speech.sections.section.voice-settings.use-ssml.description')"
       />

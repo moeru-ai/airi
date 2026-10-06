@@ -133,6 +133,7 @@ const {
 
     <FieldCheckbox
       v-model="screenAmbientLightTranslucentWrap"
+      v-track-switch="'devtools.live2d-ambient-light.shader.screen-ambient-light-translucent-wrap'"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.translucent-wrap.title')"
       :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.shader.translucent-wrap.description')"
     />

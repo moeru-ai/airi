@@ -401,6 +401,10 @@ Styled textarea wrapping `BasicTextarea`.
 
 Toggle switch using reka-ui `SwitchRoot`.
 
+User toggles dispatch the bubbling DOM event `switchToggleEvent` (`airi:switch-toggle`) with the requested boolean in `detail`.
+Programmatic model changes do not dispatch this event. The event reports interaction, not asynchronous save success.
+Attach DOM directives to a surrounding element, not the fragment-root Checkbox component. FieldCheckbox and CheckBar have element roots.
+
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `disabled` | `boolean?` | — | Disabled state |

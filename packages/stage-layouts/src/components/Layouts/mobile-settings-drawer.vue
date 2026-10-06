@@ -104,7 +104,7 @@ watch(hearingOpen, async (open) => {
         {{ t('stage.mobile-tools.appearance') }}
       </h3>
       <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-        <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
+        <label v-track-switch="'layouts.mobile-settings-drawer.is-dark'" :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
           <span aria-hidden="true" :class="['i-solar:moon-outline size-5 shrink-0 text-neutral-400']" />
           <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.dark-mode') }}</span>
           <Checkbox v-model="isDark" :aria-label="t('stage.mobile-tools.dark-mode')" />
@@ -137,7 +137,7 @@ watch(hearingOpen, async (open) => {
         {{ t('stage.mobile-tools.sound') }}
       </h3>
       <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-        <label :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
+        <label v-track-switch="'layouts.mobile-settings-drawer.character-voice-enabled'" :class="['min-h-13 flex cursor-pointer items-center gap-3 px-4 py-3']">
           <span aria-hidden="true" :class="['i-solar:volume-loud-outline size-5 shrink-0 text-neutral-400']" />
           <span :class="['flex-1 text-sm']">{{ t('stage.mobile-tools.character-voice') }}</span>
           <Checkbox v-model="characterVoiceEnabled" :aria-label="t('stage.mobile-tools.character-voice')" />

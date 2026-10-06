@@ -1,16 +1,32 @@
 <script setup lang="ts">
+import type { ComponentPublicInstance } from 'vue'
+
 import { SwitchRoot, SwitchThumb } from 'reka-ui'
+import { useTemplateRef } from 'vue'
+
+import { switchToggleEvent } from './events'
 
 const props = defineProps<{
   disabled?: boolean
 }>()
 
 const modelValue = defineModel<boolean>({ required: true })
+const root = useTemplateRef<ComponentPublicInstance>('root')
+
+function updateModel(value: boolean) {
+  if (value === modelValue.value)
+    return
+  const element = root.value?.$el
+  modelValue.value = value
+  if (element instanceof HTMLElement)
+    element.dispatchEvent(new CustomEvent(switchToggleEvent, { detail: value, bubbles: true }))
+}
 </script>
 
 <template>
   <SwitchRoot
-    v-model="modelValue"
+    ref="root"
+    :model-value="modelValue"
     :disabled="props.disabled"
     :class="[
       'duration-250 ease-in-out',
@@ -25,6 +41,7 @@ const modelValue = defineModel<boolean>({ required: true })
       'shadow-sm focus-within:shadow-none',
       props.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
     ]"
+    @update:model-value="updateModel"
   >
     <SwitchThumb
       :class="[

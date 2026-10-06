@@ -8,6 +8,7 @@ import { autoAnimatePlugin } from '@formkit/auto-animate/vue'
 import { PiniaColada } from '@pinia/colada'
 import { isEnvTruthy } from '@proj-airi/stage-shared'
 import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
+import { trackSwitchPlugin } from '@proj-airi/stage-ui/directives/track-switch'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
@@ -71,6 +72,7 @@ createApp(App)
   .use(i18n)
   .use(Tres)
   .use(trackButtonPlugin)
+  .use(trackSwitchPlugin)
   .mount('#app')
 
 if (import.meta.env.DEV && !import.meta.env.SSR) {

@@ -391,6 +391,7 @@ function applyExtensionUiPreset() {
 
     <FieldCheckbox
       v-model="form.alwaysOnTop"
+      v-track-switch="'devtools.widgets-calling.form-always-on-top'"
       label="Pin on top"
       description="Keep this widget window above other windows after spawning or updating."
     />

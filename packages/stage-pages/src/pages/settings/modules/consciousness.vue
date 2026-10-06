@@ -308,6 +308,7 @@ async function updateTopPEnabled(value: boolean) {
       </h2>
 
       <FieldCheckbox
+        v-track-switch="'settings.modules.consciousness.reasoning'"
         :model-value="reasoning"
         :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
         @update:model-value="updateReasoning"
@@ -318,6 +319,7 @@ async function updateTopPEnabled(value: boolean) {
   <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
     <div :class="['flex flex-col gap-4']">
       <FieldCheckbox
+        v-track-switch="'settings.modules.consciousness.temperature-enabled'"
         :model-value="temperatureEnabled"
         :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.temperature_enabled')"
         :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.sampling_override_description')"
@@ -334,6 +336,7 @@ async function updateTopPEnabled(value: boolean) {
         :format-value="value => value.toFixed(1)"
       />
       <FieldCheckbox
+        v-track-switch="'settings.modules.consciousness.top-penabled'"
         :model-value="topPEnabled"
         :label="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.top_p_enabled')"
         :description="t('settings.pages.modules.consciousness.sections.section.provider-model-selection.sampling_override_description')"

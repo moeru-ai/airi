@@ -120,6 +120,7 @@ async function toggleHearingEnabled() {
     <div v-if="hasAutoSendControl" class="mt-3">
       <FieldCheckbox
         v-model="autoSendEnabled"
+        v-track-switch="'dialogs.audio-input.hearing-config.auto-send-enabled'"
         label="Auto send"
         description="Send transcribed text to chat automatically."
       />

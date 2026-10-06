@@ -41,6 +41,7 @@ function saveSettings() {
   <div flex="~ col gap-6">
     <FieldCheckbox
       v-model="enabled"
+      v-track-switch="'modules.gaming-module-settings.enabled'"
       :label="t(`${i18nKeyPrefix}.enable`)"
       :description="t(`${i18nKeyPrefix}.enable-description`)"
     />

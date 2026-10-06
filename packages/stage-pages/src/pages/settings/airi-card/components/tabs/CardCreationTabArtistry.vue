@@ -117,7 +117,7 @@ function openReplicateModel() {
         'p-4',
       ]"
     >
-      <div :class="['flex items-center justify-between gap-2']">
+      <div v-track-switch="'settings.airi-card.tabs.card-creation-tab-artistry.selected-artistry-autonomous-enabled'" :class="['flex items-center justify-between gap-2']">
         <label :class="['flex items-center gap-2', 'text-sm font-semibold text-neutral-700 dark:text-neutral-200']">
           <div i-solar:magic-stick-bold-duotone :class="['text-base text-primary-500 dark:text-primary-400']" />
           {{ t('settings.pages.modules.artistry.autonomous.title') }}

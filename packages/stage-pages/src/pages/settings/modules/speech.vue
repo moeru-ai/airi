@@ -862,6 +862,7 @@ async function handleDeleteProvider(providerId: string) {
             <!-- SSML Support -->
             <FieldCheckbox
               v-model="ssmlEnabled"
+              v-track-switch="'settings.modules.speech.ssml-enabled'"
               label="Enable SSML"
               description="Enable Speech Synthesis Markup Language for more control over speech output"
             />
@@ -924,6 +925,7 @@ async function handleDeleteProvider(providerId: string) {
         <div flex="~ col gap-4">
           <FieldCheckbox
             v-model="useSSML"
+            v-track-switch="'settings.modules.speech.use-ssml'"
             label="Use Custom SSML"
             description="Enable to input raw SSML instead of plain text"
           />

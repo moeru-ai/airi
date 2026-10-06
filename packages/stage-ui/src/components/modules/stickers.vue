@@ -117,7 +117,7 @@ async function remove(entry: StickerEntry) {
 <template>
   <div :class="['flex flex-col gap-4']">
     <div :class="['flex flex-col gap-4', 'rounded-xl bg-neutral-100 p-4 dark:bg-neutral-900']">
-      <FieldCheckbox v-model="enabled" :label="t('settings.pages.modules.stickers.enable')" :description="t('settings.pages.modules.stickers.enable-description')" />
+      <FieldCheckbox v-model="enabled" v-track-switch="'modules.stickers.enabled'" :label="t('settings.pages.modules.stickers.enable')" :description="t('settings.pages.modules.stickers.enable-description')" />
       <FieldSelect v-model="frequency" :disabled="!enabled" :label="t('settings.pages.modules.stickers.frequency')" :description="t('settings.pages.modules.stickers.frequency-description')" :options="frequencyOptions" />
       <p :class="['text-sm text-neutral-600 dark:text-neutral-400']">
         {{ t('settings.pages.modules.stickers.local-only') }}

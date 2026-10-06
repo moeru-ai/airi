@@ -22,6 +22,7 @@ const { enabled, apiKey, configured } = storeToRefs(webSearchStore)
   >
     <FieldCheckbox
       v-model="enabled"
+      v-track-switch="'modules.web-search.enabled'"
       :label="t('settings.pages.modules.web-search.enable')"
       :description="t('settings.pages.modules.web-search.enable-description')"
     />

@@ -226,6 +226,7 @@ function hitVSequence() {
         />
         <FieldCheckbox
           v-model="autoStyleShift"
+          v-track-switch="'devtools.beat-sync.auto-style-shift'"
           class="min-w-[240px]"
           label="Auto style by BPM"
           description="Switch styles based on detected tempo"

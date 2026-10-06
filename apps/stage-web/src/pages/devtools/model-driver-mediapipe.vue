@@ -303,7 +303,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <label :class="['flex', 'items-center', 'gap-3']">
+        <label v-track-switch="'devtools.model-driver-mediapipe.pipeline-enabled'" :class="['flex', 'items-center', 'gap-3']">
           <div :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-300']">
             {{ pipelineEnabled ? 'Running' : 'Stopped' }}
           </div>
@@ -375,19 +375,19 @@ onUnmounted(() => {
           VRM Mapping
         </div>
         <div :class="['flex', 'items-center', 'gap-6', 'flex-wrap']">
-          <label :class="['flex', 'items-center', 'gap-3']">
+          <label v-track-switch="'devtools.model-driver-mediapipe.vrm-mapping-flip-x'" :class="['flex', 'items-center', 'gap-3']">
             <div :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-300']">
               Flip X
             </div>
             <Checkbox v-model="vrmMapping.flipX" />
           </label>
-          <label :class="['flex', 'items-center', 'gap-3']">
+          <label v-track-switch="'devtools.model-driver-mediapipe.vrm-mapping-flip-y'" :class="['flex', 'items-center', 'gap-3']">
             <div :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-300']">
               Flip Y
             </div>
             <Checkbox v-model="vrmMapping.flipY" />
           </label>
-          <label :class="['flex', 'items-center', 'gap-3']">
+          <label v-track-switch="'devtools.model-driver-mediapipe.vrm-mapping-flip-z'" :class="['flex', 'items-center', 'gap-3']">
             <div :class="['text-sm', 'text-neutral-600', 'dark:text-neutral-300']">
               Flip Z
             </div>

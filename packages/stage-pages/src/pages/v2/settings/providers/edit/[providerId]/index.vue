@@ -538,6 +538,7 @@ function handleDeleteProvider() {
                 />
                 <FieldCheckbox
                   v-else-if="field.type === 'boolean'"
+                  v-track-switch="'v2.settings.providers.edit.provider-id.provider-option'"
                   :model-value="(providerConfigEdit.config[field.key] ?? providerSchemaDefault?.[field.key]) === true"
                   :label="field.label"
                   :description="field.description"
@@ -594,6 +595,7 @@ function handleDeleteProvider() {
                 />
                 <FieldCheckbox
                   v-else-if="field.type === 'boolean'"
+                  v-track-switch="'v2.settings.providers.edit.provider-id.provider-option'"
                   :model-value="(providerConfigEdit.config[field.key] ?? providerSchemaDefault?.[field.key]) === true"
                   :label="field.label"
                   :description="field.description"

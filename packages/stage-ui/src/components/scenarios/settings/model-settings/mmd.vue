@@ -241,9 +241,9 @@ function removeMotion(id: string) {
     size="sm"
     :expand="false"
   >
-    <FieldCheckbox v-model="physicsEnabled" :label="t('settings.mmd.physics.enabled')" />
-    <FieldCheckbox v-model="ikEnabled" :label="t('settings.mmd.physics.ik')" />
-    <FieldCheckbox v-model="grantEnabled" :label="t('settings.mmd.physics.grant')" />
+    <FieldCheckbox v-model="physicsEnabled" v-track-switch="'settings.model-settings.mmd.physics-enabled'" :label="t('settings.mmd.physics.enabled')" />
+    <FieldCheckbox v-model="ikEnabled" v-track-switch="'settings.model-settings.mmd.ik-enabled'" :label="t('settings.mmd.physics.ik')" />
+    <FieldCheckbox v-model="grantEnabled" v-track-switch="'settings.model-settings.mmd.grant-enabled'" :label="t('settings.mmd.physics.grant')" />
     <FieldRange
       v-model="physicsGravity"
       as="div"

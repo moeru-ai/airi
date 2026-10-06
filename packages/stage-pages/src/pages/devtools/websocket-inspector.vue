@@ -113,9 +113,9 @@ function payloadClasses(direction: 'incoming' | 'outgoing') {
     <!-- Header / Filters -->
     <div class="flex flex-col gap-4 rounded-xl bg-neutral-50 p-4 dark:bg-[rgba(0,0,0,0.3)]">
       <div class="flex items-center gap-2">
-        <FieldCheckbox v-model="showIncoming" label="Incoming" />
-        <FieldCheckbox v-model="showOutgoing" label="Outgoing" />
-        <FieldCheckbox v-model="showHeartbeats" label="Heartbeats" />
+        <FieldCheckbox v-model="showIncoming" v-track-switch="'devtools.websocket-inspector.show-incoming'" label="Incoming" />
+        <FieldCheckbox v-model="showOutgoing" v-track-switch="'devtools.websocket-inspector.show-outgoing'" label="Outgoing" />
+        <FieldCheckbox v-model="showHeartbeats" v-track-switch="'devtools.websocket-inspector.show-heartbeats'" label="Heartbeats" />
       </div>
 
       <div class="flex gap-2">

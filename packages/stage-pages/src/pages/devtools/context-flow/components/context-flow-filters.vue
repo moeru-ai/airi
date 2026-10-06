@@ -42,8 +42,8 @@ const directionOptions = [
           Visibility
         </div>
         <div :class="['flex', 'flex-wrap', 'gap-2']">
-          <FieldCheckbox v-model="showIncoming" label="Show incoming" />
-          <FieldCheckbox v-model="showOutgoing" label="Show outgoing" />
+          <FieldCheckbox v-model="showIncoming" v-track-switch="'devtools.context-flow.context-flow-filters.show-incoming'" label="Show incoming" />
+          <FieldCheckbox v-model="showOutgoing" v-track-switch="'devtools.context-flow.context-flow-filters.show-outgoing'" label="Show outgoing" />
         </div>
       </div>
       <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">
@@ -51,10 +51,10 @@ const directionOptions = [
           Channels
         </div>
         <div :class="['flex', 'flex-wrap', 'gap-2']">
-          <FieldCheckbox v-model="showServer" label="Server" />
-          <FieldCheckbox v-model="showBroadcast" label="Broadcast" />
-          <FieldCheckbox v-model="showChat" label="Chat" />
-          <FieldCheckbox v-model="showDevtools" label="Devtools" />
+          <FieldCheckbox v-model="showServer" v-track-switch="'devtools.context-flow.context-flow-filters.show-server'" label="Server" />
+          <FieldCheckbox v-model="showBroadcast" v-track-switch="'devtools.context-flow.context-flow-filters.show-broadcast'" label="Broadcast" />
+          <FieldCheckbox v-model="showChat" v-track-switch="'devtools.context-flow.context-flow-filters.show-chat'" label="Chat" />
+          <FieldCheckbox v-model="showDevtools" v-track-switch="'devtools.context-flow.context-flow-filters.show-devtools'" label="Devtools" />
         </div>
       </div>
       <div :class="['flex', 'flex-col', 'gap-2', 'w-full']">

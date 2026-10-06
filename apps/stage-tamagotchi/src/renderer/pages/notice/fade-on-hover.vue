@@ -224,7 +224,7 @@ async function handleAction(action: 'confirm' | 'cancel' | 'close') {
                       :loading="waitingForRequest"
                       @click="handleAction('confirm')"
                     />
-                    <div class="flex items-center gap-2 whitespace-nowrap px-2">
+                    <div v-track-switch="'notice.fade-on-hover.dont-show-it-again-notice-fade-on-hover-pending'" class="flex items-center gap-2 whitespace-nowrap px-2">
                       <Checkbox v-model="dontShowItAgainNoticeFadeOnHoverPending" />
                       <div class="whitespace-nowrap text-sm">
                         {{ t('tamagotchi.stage.notice.fade-on-hover.dont-show-again') }}

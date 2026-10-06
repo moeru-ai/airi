@@ -599,6 +599,7 @@ onUnmounted(() => {
           <div class="space-y-4">
             <FieldCheckbox
               v-model="autoSendEnabled"
+              v-track-switch="'settings.modules.hearing.auto-send-enabled'"
               label="Auto-send transcribed text"
               description="Automatically send transcribed text to chat after a delay. This may consume tokens, so disable if you want to manually review and edit transcriptions before sending."
             />
@@ -729,6 +730,7 @@ onUnmounted(() => {
               <div class="border-t border-neutral-200 pt-3 dark:border-neutral-700">
                 <FieldCheckbox
                   v-model="useVADModel"
+                  v-track-switch="'settings.modules.hearing.use-vadmodel'"
                   label="Model Based"
                   description="Use AI models for more accurate speech detection"
                 />

@@ -105,11 +105,13 @@ function formatRelativeTime(timestamp: number | null) {
   <div :class="['flex', 'flex-col', 'gap-6']">
     <FieldCheckbox
       v-model="useForChat"
+      v-track-switch="'settings.modules.vision.use-for-chat'"
       :label="t('stage.chat.images.use-vision')"
       :description="t('stage.chat.images.use-vision-description')"
     />
     <FieldCheckbox
       v-model="useForToolImages"
+      v-track-switch="'settings.modules.vision.use-for-tool-images'"
       :label="t('settings.pages.modules.vision.tool-images.label')"
       :description="t('settings.pages.modules.vision.tool-images.description')"
     />
@@ -481,6 +483,7 @@ function formatRelativeTime(timestamp: number | null) {
 
         <FieldCheckbox
           v-model="ollamaThinkingEnabled"
+          v-track-switch="'settings.modules.vision.ollama-thinking-enabled'"
           :label="t('settings.pages.modules.vision.ollama.thinking.label')"
           :description="t('settings.pages.modules.vision.ollama.thinking.description')"
         />

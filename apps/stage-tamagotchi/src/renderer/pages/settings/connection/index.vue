@@ -62,6 +62,7 @@ watch(authTokenInputDebounced, (value) => {
         <FieldCheckbox
           v-if="showDesktopServerControls"
           v-model="exposeToAll"
+          v-track-switch="'settings.connection.expose-to-all'"
           :label="t('settings.pages.connection.server-hostname.label')"
           :description="t('settings.pages.connection.server-hostname.description')"
         />
@@ -110,6 +111,7 @@ watch(authTokenInputDebounced, (value) => {
 
         <FieldCheckbox
           v-model="websocketTlsEnabled"
+          v-track-switch="'settings.connection.websocket-tls-enabled'"
           :label="t('settings.websocket-secure-enabled.title')"
           :description="t('settings.websocket-secure-enabled.description')"
         />

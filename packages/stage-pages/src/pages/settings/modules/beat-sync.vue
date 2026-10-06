@@ -265,18 +265,21 @@ onUnmounted(() => {
 
             <FieldCheckbox
               v-model="parameters.warmup"
+              v-track-switch="'settings.modules.beat-sync.parameters-warmup'"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.warmup.description')"
             />
 
             <FieldCheckbox
               v-model="parameters.adaptiveThreshold"
+              v-track-switch="'settings.modules.beat-sync.parameters-adaptive-threshold'"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.adaptive_threshold.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.adaptive_threshold.description')"
             />
 
             <FieldCheckbox
               v-model="parameters.spectralFlux"
+              v-track-switch="'settings.modules.beat-sync.parameters-spectral-flux'"
               :label="t('settings.pages.modules.beat_sync.sections.parameters.parameters.spectral_flux.label')"
               :description="t('settings.pages.modules.beat_sync.sections.parameters.parameters.spectral_flux.description')"
             />

@@ -122,6 +122,7 @@ const menu = computed(() => [
 <template>
   <CheckBar
     v-model="settings.disableTransitions"
+    v-track-switch="'settings.system.developer.settings-disable-transitions'"
     v-motion
     :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     text="settings.animations.stage-transitions.title"
@@ -132,6 +133,7 @@ const menu = computed(() => [
   />
   <CheckBar
     v-model="settings.usePageSpecificTransitions"
+    v-track-switch="'settings.system.developer.settings-use-page-specific-transitions'"
     v-motion
     :disabled="settings.disableTransitions"
     text="settings.animations.use-page-specific-transitions.title"

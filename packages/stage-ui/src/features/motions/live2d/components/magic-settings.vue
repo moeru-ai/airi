@@ -44,12 +44,14 @@ const profileOptions = computed(() => Object.values(live2dMotionMagicProfiles).m
     />
     <FieldCheckbox
       v-model="skipMouthOpen"
+      v-track-switch="'features.motions.live2d.magic-settings.skip-mouth-open'"
       :label="t('settings.live2d.animation.motion-driver.magic.skip-mouth-open.title')"
       :description="t('settings.live2d.animation.motion-driver.magic.skip-mouth-open.description')"
       placement="right"
     />
     <FieldCheckbox
       v-model="forceViewTarget"
+      v-track-switch="'features.motions.live2d.magic-settings.force-view-target'"
       :label="t('settings.live2d.animation.motion-driver.magic.force-view-target.title')"
       :description="t('settings.live2d.animation.motion-driver.magic.force-view-target.description')"
       placement="right"

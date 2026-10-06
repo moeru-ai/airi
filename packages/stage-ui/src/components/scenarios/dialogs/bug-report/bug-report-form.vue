@@ -63,6 +63,7 @@ function onUploadMediaFromLibraryChange(next: boolean) {
 
     <FieldCheckbox
       v-model="includeTriageContext"
+      v-track-switch="'dialogs.bug-report.bug-report-form.include-triage-context'"
       :label="t('settings.dialogs.bug-report.include-current-page-screenshot')"
       :description="triageDescription"
       @update:model-value="onIncludeTriageContextChange"
@@ -76,6 +77,7 @@ function onUploadMediaFromLibraryChange(next: boolean) {
     >
       <FieldCheckbox
         v-model="uploadMediaFromLibrary"
+        v-track-switch="'dialogs.bug-report.bug-report-form.upload-media-from-library'"
         :label="t('settings.dialogs.bug-report.manual-media.label')"
         :description="t('settings.dialogs.bug-report.manual-media.optional')"
         @update:model-value="onUploadMediaFromLibraryChange"

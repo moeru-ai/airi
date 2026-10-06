@@ -41,6 +41,7 @@ async function updateHidden(hidden: boolean) {
     <template #additional-fields>
       <FieldCheckbox
         v-if="hideAppIcon !== undefined"
+        v-track-switch="'settings.system.general.hide-app-icon'"
         :model-value="hideAppIcon"
         :label="t('tamagotchi.settings.pages.system.general.hide-app-icon.title')"
         :description="t('tamagotchi.settings.pages.system.general.hide-app-icon.description')"

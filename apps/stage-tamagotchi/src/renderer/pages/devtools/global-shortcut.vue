@@ -206,6 +206,7 @@ onUnmounted(() => {
         />
         <FieldCheckbox
           v-model="form.receiveKeyUps"
+          v-track-switch="'devtools.global-shortcut.form-receive-key-ups'"
           label="Receive key-ups"
           description="Routes the binding through the uiohook driver so both 'down' and 'up' fire. macOS needs Accessibility; native Wayland returns 'unsupported'."
         />
