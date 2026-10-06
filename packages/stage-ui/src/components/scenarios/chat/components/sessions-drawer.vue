@@ -2,6 +2,8 @@
 import type { ChatSessionMeta } from '../../../../types/chat-session'
 import type { SessionRow } from './sessions-list.vue'
 
+import { useNow } from '@vueuse/core'
+import { intlFormatDistance } from 'date-fns'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -27,6 +29,7 @@ const showDialog = defineModel({ type: Boolean, default: false, required: false 
 
 const { isDesktop } = useBreakpoints()
 const { t, locale } = useI18n()
+const now = useNow({ interval: 60_000 })
 
 const chatSession = useChatSessionStore()
 const chat = useChatStore()
@@ -69,45 +72,30 @@ function previewFor(meta: ChatSessionMeta): string {
   return t('stage.chat.sessions.new-chat-fallback')
 }
 
-const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-  ['year', 31_536_000_000],
-  ['month', 2_592_000_000],
-  ['week', 604_800_000],
-  ['day', 86_400_000],
-  ['hour', 3_600_000],
-  ['minute', 60_000],
-]
-
-/**
- * Normalizes an epoch timestamp into a coarse relative label.
- *
- * @example
- * formatUpdatedAt(Date.now() - 5 * 60 * 1000)
- * // => '5 minutes ago'
- */
-function formatUpdatedAt(ts: number): string {
-  const formatter = new Intl.RelativeTimeFormat(locale.value, { numeric: 'auto' })
-  const delta = ts - Date.now()
-  const abs = Math.abs(delta)
-  for (const [unit, ms] of RELATIVE_UNITS) {
-    if (abs >= ms) {
-      const value = Math.round(delta / ms)
-      return formatter.format(value, unit)
-    }
+function activityAtFor(meta: ChatSessionMeta): number {
+  let lastMessageAt: number | undefined
+  for (const message of sessionMessages.value[meta.sessionId] ?? []) {
+    if (message.role !== 'user' && message.role !== 'assistant')
+      continue
+    const timestamp = message.createdAt
+    if (timestamp == null || !Number.isFinite(new Date(timestamp).getTime()))
+      continue
+    lastMessageAt = lastMessageAt == null ? timestamp : Math.max(lastMessageAt, timestamp)
   }
-  return formatter.format(0, 'second')
+  return lastMessageAt ?? meta.createdAt
 }
 
 const rows = computed<SessionRow[]>(() => {
-  const list = ownedSessions.value
-    .map<SessionRow>(meta => ({
+  const referenceTime = Math.max(now.value.getTime(), Date.now())
+  return ownedSessions.value
+    .map(meta => ({ meta, activityAt: activityAtFor(meta) }))
+    .sort((first, second) => second.activityAt - first.activityAt)
+    .map(({ meta, activityAt }) => ({
       meta,
       preview: previewFor(meta),
       isActive: meta.sessionId === activeSessionId.value,
-      updatedAtLabel: formatUpdatedAt(meta.updatedAt),
+      activityAtLabel: intlFormatDistance(activityAt, referenceTime, { locale: locale.value }),
     }))
-  list.sort((a, b) => b.meta.updatedAt - a.meta.updatedAt)
-  return list
 })
 
 async function selectSession(sessionId: string) {
