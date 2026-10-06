@@ -60,10 +60,12 @@ import android.net.Uri;
 import android.net.http.SslError;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.UserManager;
+import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -96,6 +98,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.content.FileProvider;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -114,6 +117,9 @@ import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
 import org.godotengine.godot.plugin.UsedByGodot;
 
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -145,6 +151,10 @@ import org.json.JSONObject;
 public final class AiriAndroidPlugin extends GodotPlugin {
     private interface PermissionListener {
         void onPermissionSelect(Boolean isGranted);
+    }
+
+    private interface ActivityResultListener {
+        void onActivityResult(int resultCode, Intent data);
     }
 
     private static final String EVENTA_CHANNEL = "AiriAndroidEventa";
@@ -205,7 +215,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         new HashMap<>();
     private PendingEventaRequest pendingBarcodeScan;
     private PendingNotificationSchedule pendingNotificationSchedule;
-    private ValueCallback<Uri[]> pendingFileChooser;
+    // The picker and both capture modes share the last listener, including after completion.
+    private ActivityResultListener activityListener;
     private JavaScriptReplyProxy eventaReplyProxy;
     private ActivityResultLauncher<Intent> exactAlarmLauncher;
     private ActivityResultLauncher<String[]> permissionLauncher;
@@ -336,20 +347,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
     @Override
     public void onMainActivityResult(int requestCode, int resultCode, Intent data) {
-        if (requestCode == FILE_CHOOSER_REQUEST && pendingFileChooser != null) {
-            ValueCallback<Uri[]> callback = pendingFileChooser;
-            Uri[] result;
-            if (resultCode == Activity.RESULT_OK
-                && data.getClipData() != null) {
-                int itemCount = data.getClipData().getItemCount();
-                result = new Uri[itemCount];
-                for (int index = 0; index < itemCount; index += 1) {
-                    result[index] = data.getClipData().getItemAt(index).getUri();
-                }
-            } else {
-                result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
-            }
-            callback.onReceiveValue(result);
+        if (requestCode == FILE_CHOOSER_REQUEST && activityListener != null) {
+            activityListener.onActivityResult(resultCode, data);
             return;
         }
 
@@ -691,12 +690,25 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                     ValueCallback<Uri[]> callback,
                     FileChooserParams parameters
                 ) {
-                    pendingFileChooser = callback;
-                    Intent intent = createFileChooserIntent(parameters);
-                    try {
-                        activity.startActivityForResult(intent, FILE_CHOOSER_REQUEST);
-                    } catch (ActivityNotFoundException error) {
-                        callback.onReceiveValue(null);
+                    List<String> acceptTypes = Arrays.asList(parameters.getAcceptTypes());
+                    boolean captureEnabled = parameters.isCaptureEnabled();
+                    boolean capturePhoto = captureEnabled && acceptTypes.contains("image/*");
+                    boolean captureVideo = captureEnabled && acceptTypes.contains("video/*");
+                    if (capturePhoto || captureVideo) {
+                        if (isMediaCaptureSupported(activity)) {
+                            showMediaCaptureOrFilePicker(activity, callback, parameters, captureVideo);
+                        } else {
+                            permissionListener = isGranted -> {
+                                if (isGranted) {
+                                    showMediaCaptureOrFilePicker(activity, callback, parameters, captureVideo);
+                                } else {
+                                    callback.onReceiveValue(null);
+                                }
+                            };
+                            permissionLauncher.launch(new String[] { Manifest.permission.CAMERA });
+                        }
+                    } else {
+                        showFilePicker(activity, callback, parameters);
                     }
                     return true;
                 }
@@ -808,6 +820,108 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
         }
         return true;
+    }
+
+    private boolean isMediaCaptureSupported(Activity activity) {
+        if (hasPermissions(activity, new String[] { Manifest.permission.CAMERA })) {
+            return true;
+        }
+        String[] requestedPermissions = null;
+        try {
+            requestedPermissions = activity.getPackageManager().getPackageInfo(
+                activity.getPackageName(), PackageManager.GET_PERMISSIONS
+            ).requestedPermissions;
+        } catch (Exception error) {
+            // Capacitor's PermissionHelper treats an unavailable manifest as having no camera permission.
+        }
+        return requestedPermissions == null
+            || !Arrays.asList(requestedPermissions).contains(Manifest.permission.CAMERA);
+    }
+
+    private void showMediaCaptureOrFilePicker(
+        Activity activity,
+        ValueCallback<Uri[]> callback,
+        WebChromeClient.FileChooserParams parameters,
+        boolean video
+    ) {
+        boolean shown = video
+            ? showVideoCapturePicker(activity, callback)
+            : showImageCapturePicker(activity, callback);
+        if (!shown) {
+            showFilePicker(activity, callback, parameters);
+        }
+    }
+
+    private boolean showImageCapturePicker(Activity activity, ValueCallback<Uri[]> callback) {
+        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        if (intent.resolveActivity(activity.getPackageManager()) == null) {
+            return false;
+        }
+        final Uri imageFileUri;
+        try {
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            File storageDir = activity.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+            File photoFile = File.createTempFile("JPEG_" + timeStamp + "_", ".jpg", storageDir);
+            imageFileUri = FileProvider.getUriForFile(
+                activity, activity.getPackageName() + ".fileprovider", photoFile
+            );
+        } catch (Exception error) {
+            Log.e("AiriAndroid", "Unable to create temporary media capture file", error);
+            return false;
+        }
+        intent.putExtra(MediaStore.EXTRA_OUTPUT, imageFileUri);
+        intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        activityListener = (resultCode, data) -> {
+            Uri[] result = null;
+            if (resultCode == Activity.RESULT_OK) {
+                result = new Uri[] { imageFileUri };
+            }
+            callback.onReceiveValue(result);
+        };
+        activity.startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+        return true;
+    }
+
+    private boolean showVideoCapturePicker(Activity activity, ValueCallback<Uri[]> callback) {
+        Intent intent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+        if (intent.resolveActivity(activity.getPackageManager()) == null) {
+            return false;
+        }
+        activityListener = (resultCode, data) -> {
+            Uri[] result = null;
+            if (resultCode == Activity.RESULT_OK) {
+                result = new Uri[] { data.getData() };
+            }
+            callback.onReceiveValue(result);
+        };
+        activity.startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+        return true;
+    }
+
+    private void showFilePicker(
+        Activity activity,
+        ValueCallback<Uri[]> callback,
+        WebChromeClient.FileChooserParams parameters
+    ) {
+        Intent intent = createFileChooserIntent(parameters);
+        try {
+            activityListener = (resultCode, data) -> {
+                Uri[] result;
+                if (resultCode == Activity.RESULT_OK && data.getClipData() != null) {
+                    int itemCount = data.getClipData().getItemCount();
+                    result = new Uri[itemCount];
+                    for (int index = 0; index < itemCount; index += 1) {
+                        result[index] = data.getClipData().getItemAt(index).getUri();
+                    }
+                } else {
+                    result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+                }
+                callback.onReceiveValue(result);
+            };
+            activity.startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+        } catch (ActivityNotFoundException error) {
+            callback.onReceiveValue(null);
+        }
     }
 
     private Intent createFileChooserIntent(WebChromeClient.FileChooserParams parameters) {
