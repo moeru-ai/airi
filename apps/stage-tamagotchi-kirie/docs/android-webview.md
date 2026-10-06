@@ -11,6 +11,7 @@ Kirie copies Capacitor 8.5.0's WebSettings values before it reloads the renderer
 | --- | --- |
 | Geolocation | Enabled |
 | Media playback user gesture | Not required |
+| Automatic JavaScript windows | Enabled |
 
 ## External navigation
 
