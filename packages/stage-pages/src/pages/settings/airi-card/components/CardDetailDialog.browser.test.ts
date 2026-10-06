@@ -1,6 +1,8 @@
 import en from '@proj-airi/i18n/locales/en'
 
+import { CHARACTER_CARD_SYNC_FLAG } from '@proj-airi/stage-ui/libs/feature-flags'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -21,6 +23,7 @@ describe('card detail dialog history tab', () => {
   let pinia: ReturnType<typeof createPinia>
 
   beforeEach(() => {
+    localStorage.clear()
     pinia = createPinia()
   })
 
@@ -28,6 +31,7 @@ describe('card detail dialog history tab', () => {
     cleanup()
     disposePinia(pinia)
     vi.unstubAllGlobals()
+    localStorage.clear()
   })
 
   // The store calls `useI18n()` at its own setup, so the first call to
@@ -55,6 +59,7 @@ describe('card detail dialog history tab', () => {
   it('shows the past revisions of a card and restores one', async () => {
     const { screen, cardId } = await renderDialog()
     signIn(useAuthStore(pinia))
+    useFeatureFlagsStore(pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, true)
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.includes(`/${encodeURIComponent(cardId)}/history/1`)) {
@@ -83,5 +88,14 @@ describe('card detail dialog history tab', () => {
     await screen.getByRole('button', { name: 'Restore this version' }).nth(1).click()
 
     await expect.poll(() => useAiriCardStore(pinia).cards.get(cardId)?.name).toBe('Nova')
+  })
+
+  it('does not offer a history tab for a signed-in user who has not turned cloud sync on', async () => {
+    const { screen, cardId } = await renderDialog()
+
+    signIn(useAuthStore(pinia))
+    await screen.rerender({ cardId })
+
+    expect(screen.getByText('History').elements()).toHaveLength(0)
   })
 })

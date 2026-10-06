@@ -21,7 +21,7 @@ const { t } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
 const { addCard, removeCard } = cardStore
-const { cards, activeCardId, cardSyncStates } = storeToRefs(cardStore)
+const { cards, activeCardId, cardSyncStates, cloudSyncEnabled } = storeToRefs(cardStore)
 const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const route = useRoute()
@@ -277,7 +277,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 <template>
   <div rounded-xl p-4 flex="~ col gap-4">
     <!-- Disclosure: signed-in users upload their cards -->
-    <div v-if="isAuthenticated" flex="~ col" gap-2>
+    <div v-if="isAuthenticated && cloudSyncEnabled" flex="~ col" gap-2>
       <div flex="~ row" items-center justify-between gap-2>
         <p flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
           <span i-solar:cloud-check-outline shrink-0 />
@@ -326,6 +326,15 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
         </div>
       </div>
     </div>
+
+    <!-- Disclosure: a signed-in user who has not turned cloud sync on -->
+    <p v-else-if="isAuthenticated" flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
+      <span i-solar:cloud-cross-outline shrink-0 />
+      {{ t('settings.pages.card.sync.off_notice') }}
+      <RouterLink to="/settings/system/experimental" class="text-primary-600 dark:text-primary-400 hover:underline">
+        {{ t('settings.pages.card.sync.off_notice_link') }}
+      </RouterLink>
+    </p>
 
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>

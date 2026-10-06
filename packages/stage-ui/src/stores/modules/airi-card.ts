@@ -22,11 +22,13 @@ import { documentSyncRepo } from '../../database/repos/document-sync.repo'
 import { authedFetch } from '../../libs/auth-fetch'
 import { joinCard, splitCard } from '../../libs/character-card-sync'
 import { createDocumentSyncClient, syncedValues, synchronize } from '../../libs/document-sync'
+import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
 import { captureAnalyticsEvent } from '../../libs/product-signals'
 import { SERVER_URL } from '../../libs/server'
 import { wakeWordSchema } from '../../libs/voice/wake-words'
 import { resolveModuleSelection } from '../../services/airi-card-modules'
 import { useAuthStore } from '../auth'
+import { useFeatureFlagsStore } from '../feature-flags'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useSettingsStageModel } from '../settings/stage-model'
@@ -85,6 +87,9 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
 export const useAiriCardStore = defineStore('airi-card', () => {
   const { t } = useI18n()
   const { userId } = storeToRefs(useAuthStore())
+  const featureFlagsStore = useFeatureFlagsStore()
+  /** Cloud sync is a device choice, off by default. Settings > System > Experimental Features owns it. */
+  const cloudSyncEnabled = computed(() => featureFlagsStore.isEnabled(CHARACTER_CARD_SYNC_FLAG.key))
 
   // Pinia synchronization owns cross-window updates. Local storage only loads
   // and saves this renderer's durable copy; listening to storage events here
@@ -556,13 +561,13 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   const refusedCardIds = ref<string[]>([])
 
   /**
-   * The cloud state of each card. It is empty without an account, because
-   * nothing leaves the device then. Before the first run ends, every card with
-   * content to send is `pending`.
+   * The cloud state of each card. It is empty without an account, and empty
+   * while cloud sync is off, because nothing leaves the device then. Before
+   * the first run ends, every card with content to send is `pending`.
    */
   const cardSyncStates = computed(() => {
     const states: Record<string, CardSyncState> = {}
-    if (userId.value === 'local')
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
       return states
 
     for (const [id, card] of cards.value) {
@@ -676,7 +681,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function runCardSynchronization(ownerId: string) {
-    if (ownerId === 'local')
+    if (ownerId === 'local' || !cloudSyncEnabled.value)
       return
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
@@ -724,7 +729,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * local copy to update, or the server no longer has that revision.
    */
   async function restoreCardVersion(id: string, revision: number) {
-    if (userId.value === 'local')
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
       return false
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
@@ -748,7 +753,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * deleted on the server, or the content before the deletion is gone.
    */
   async function restoreDeletedCard(id: string) {
-    if (userId.value === 'local')
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
       return false
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
@@ -777,7 +782,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * @returns `null` when the account has no cloud history for this card.
    */
   async function cardHistory(id: string, options?: { before?: number, limit?: number }) {
-    if (userId.value === 'local')
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
       return null
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
@@ -791,7 +796,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * This reads only, the same as {@link cardHistory}.
    */
   async function deletedCards() {
-    if (userId.value === 'local')
+    if (userId.value === 'local' || !cloudSyncEnabled.value)
       return []
 
     syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
@@ -825,6 +830,12 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // request that follows a remote change ends the sequence.
   watch(userId, requestCardSynchronization)
   watchDebounced(cards, requestCardSynchronization, { debounce: 1500, deep: true })
+  // Turning the experimental flag on is itself a reason to run, because none
+  // of the watchers above fired while it was off.
+  watch(cloudSyncEnabled, (enabled) => {
+    if (enabled)
+      void requestCardSynchronization()
+  })
   const visibility = useDocumentVisibility()
   watch(visibility, async (state) => {
     if (state === 'visible')
@@ -953,6 +964,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     syncedCardFields,
     refusedCardIds,
     cardSyncStates,
+    cloudSyncEnabled,
     applySynchronizedCards,
     synchronizeCards,
     addCard,

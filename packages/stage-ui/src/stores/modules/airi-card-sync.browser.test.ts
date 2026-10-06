@@ -7,7 +7,9 @@ import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp } from 'vue'
 
+import { CHARACTER_CARD_SYNC_FLAG } from '../../libs/feature-flags'
 import { useAuthStore } from '../auth'
+import { useFeatureFlagsStore } from '../feature-flags'
 import { useAiriCardStore } from './airi-card'
 
 vi.mock('vue-i18n', () => ({
@@ -24,6 +26,9 @@ function createContext(runtime: SyncedPiniaRuntime) {
   createApp({}).use(pinia).use(PiniaColada)
   setActivePinia(pinia)
   piniaInstances.push(pinia)
+  // Cloud sync is off by default. Most of these tests exercise the sync
+  // itself, so turn it on for this window the same way a user would.
+  useFeatureFlagsStore(pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, true)
   return { pinia, auth: useAuthStore(pinia), cards: useAiriCardStore(pinia) }
 }
 
@@ -135,6 +140,11 @@ function createFakeCardServer() {
       documents.set(id, { revision: deletedRevision, deletedAt: new Date(0).toISOString(), fields: new Map(), history })
     },
   }
+}
+
+/** The stubbed global fetch also catches unrelated requests, such as the feature-flags policy fetch. */
+function cardRequestsOf(fetchCards: { mock: { calls: unknown[][] } }) {
+  return fetchCards.mock.calls.filter(call => String(call[0]).includes('/character-cards'))
 }
 
 const accountId = () => `account-${crypto.randomUUID()}`
@@ -289,7 +299,7 @@ describe('card synchronization across windows', () => {
     await follower.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
     await follower.cards.synchronizeCards()
 
-    expect(server.fetchCards).not.toHaveBeenCalled()
+    expect(cardRequestsOf(server.fetchCards)).toEqual([])
     expect(onError).not.toHaveBeenCalled()
   })
 
@@ -339,6 +349,32 @@ describe('card synchronization across windows', () => {
     signIn(leader.auth, accountId())
 
     expect(await leader.cards.restoreDeletedCard('remote')).toBe(false)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('sends nothing while cloud sync is off, the default, even for a signed-in user', async () => {
+    const { leader, onError } = await createWindows()
+    useFeatureFlagsStore(leader.pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, false)
+    signIn(leader.auth, accountId())
+    await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+
+    await leader.cards.synchronizeCards()
+
+    expect(cardRequestsOf(server.fetchCards)).toEqual([])
+    expect(leader.cards.cardSyncStates).toEqual({})
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('starts a run as soon as a signed-in user turns cloud sync on', async () => {
+    const { leader, onError } = await createWindows()
+    useFeatureFlagsStore(leader.pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, false)
+    signIn(leader.auth, accountId())
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    expect(cardRequestsOf(server.fetchCards)).toEqual([])
+
+    useFeatureFlagsStore(leader.pinia).setPreference(CHARACTER_CARD_SYNC_FLAG.key, true)
+
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Luna')
     expect(onError).not.toHaveBeenCalled()
   })
 })

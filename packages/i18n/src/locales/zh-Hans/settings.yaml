@@ -347,7 +347,9 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
   card:
     sync:
-      notice: 登录后，你的角色卡会同步到账号。当前选中的角色只保留在这台设备。没有关闭同步的开关。删除的角色卡会在账号里保留 30 天。
+      notice: 你的角色卡会同步到账号。当前选中的角色只保留在这台设备。删除的角色卡会在账号里保留 30 天。可以随时在"设置 > 系统 > 实验性特性"里关闭。
+      off_notice: 你已登录，但角色卡同步还没有打开。
+      off_notice_link: 去实验性特性里打开。
       state:
         synced: 已同步到账号
         pending: 等待上传
@@ -1606,6 +1608,10 @@ pages:
         local: 此设备的选择
         global: 已向登录账户开放
         account: 已向你的账户开放
+      features:
+        character_card_sync:
+          title: 角色卡云同步
+          description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

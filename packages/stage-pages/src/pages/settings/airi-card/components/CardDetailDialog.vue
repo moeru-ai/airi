@@ -43,7 +43,7 @@ const backgroundStore = useBackgroundStore()
 const displayModelsStore = useDisplayModelsStore()
 
 const { removeCard } = cardStore
-const { activeCardId } = storeToRefs(cardStore)
+const { activeCardId, cloudSyncEnabled } = storeToRefs(cardStore)
 const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const isRefreshingGallery = ref(false)
@@ -236,8 +236,8 @@ const tabs = computed<Tab[]>(() => {
     icon: 'i-solar:gallery-linear',
   })
 
-  // History tab - only for a signed-in user, who has cloud history to show
-  if (isAuthenticated.value) {
+  // History tab - only for a signed-in user with cloud sync on, who has cloud history to show
+  if (isAuthenticated.value && cloudSyncEnabled.value) {
     availableTabs.push({
       id: 'history',
       label: t('settings.pages.card.sync.history.tab'),
