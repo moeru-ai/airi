@@ -32,4 +32,6 @@ It also supplies denied permissions and an unwritable directory to exercise erro
 The WebSettings reference extracts `Bridge.initWebView` through its final debugging setting.
 It compiles the original `CapConfig` and loads the exact generated Pocket configuration asset.
 The only initializer substitution replaces `this.config` with the local configuration variable.
-The comparison covers 25 getters, including navigation, storage, file access, media, fonts, and zoom.
+The comparison covers 26 getters, including navigation, storage, file access, media, fonts, and zoom.
+
+The multiple-window tests compare the loaded default and execute a real `window.open` call.

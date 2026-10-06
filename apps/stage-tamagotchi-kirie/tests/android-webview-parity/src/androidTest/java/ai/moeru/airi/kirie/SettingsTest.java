@@ -20,7 +20,7 @@ public final class SettingsTest {
                         "getAllowFileAccessFromFileURLs", "getAllowUniversalAccessFromFileURLs", "getMixedContentMode",
                         "getLoadsImagesAutomatically", "getBlockNetworkImage", "getBlockNetworkLoads", "getCacheMode",
                         "getDatabaseEnabled", "getUseWideViewPort", "getLoadWithOverviewMode", "getTextZoom",
-                        "supportZoom", "getBuiltInZoomControls", "getDisplayZoomControls", "getLayoutAlgorithm",
+                        "supportMultipleWindows", "supportZoom", "getBuiltInZoomControls", "getDisplayZoomControls", "getLayoutAlgorithm",
                         "getUserAgentString", "getDefaultFontSize", "getDefaultFixedFontSize", "getMinimumFontSize"
                     }) {
                         try {
