@@ -6,6 +6,7 @@ import type { ChatHistoryItem, StreamingAssistantMessage } from '../../../../typ
 import type { ChatHistoryReplyPayload } from '../reply'
 import type { ChatToolCallRendererRegistry } from './tool-call-renderer'
 
+import { useNow } from '@vueuse/core'
 import { Virtualizer } from 'virtua/vue'
 import { computed, useTemplateRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -14,6 +15,7 @@ import ChatAssistantItem from './assistant-item.vue'
 import ChatHistoryScrollContainer from './chat-history-scroll-container.vue'
 import ChatErrorItem from './error-item.vue'
 import ChatHistoryMessageFrame from './history-message-frame.vue'
+import ChatHistoryTimeSeparator from './history-time-separator.vue'
 import ChatUserItem from './user-item.vue'
 
 import { useChatHistoryScroll } from '../composables/use-chat-history-scroll'
@@ -86,7 +88,8 @@ const { scrollToIndex } = useVirtualizerScroll({
   virtualizer: virtualizerRef,
 })
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
+const now = useNow({ interval: 60_000 })
 const labels = computed(() => ({
   assistant: props.assistantLabel ?? t('stage.chat.message.character-name.airi'),
   user: props.userLabel ?? t('stage.chat.message.character-name.you'),
@@ -140,7 +143,6 @@ const messagesById = computed(() => new Map(
 ))
 const renderMessageCount = computed(() => renderMessages.value.length)
 const timeSeparators = computed(() => {
-  const formatter = new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeStyle: 'short' })
   let previousTimestamp: number | undefined
   return renderMessages.value.map((message) => {
     if (message.role !== 'user' && message.role !== 'assistant' && message.role !== 'error')
@@ -150,7 +152,7 @@ const timeSeparators = computed(() => {
       return undefined
     const show = previousTimestamp == null || timestamp - previousTimestamp >= 5 * 60 * 1000
     previousTimestamp = timestamp
-    return show ? { label: formatter.format(timestamp), datetime: new Date(timestamp).toISOString() } : undefined
+    return show ? timestamp : undefined
   })
 })
 const topFadeRatio = computed(() => props.variant === 'mobile' ? 0.2 : 0)
@@ -256,16 +258,11 @@ function emitToolCallRerun(
     >
       <template #default="{ item: message, index }">
         <div :key="getChatHistoryItemKey(message, index)">
-          <time
-            v-if="timeSeparators[index]"
-            :datetime="timeSeparators[index]?.datetime"
-            :class="[
-              'block w-full py-3 text-center text-xs',
-              'text-neutral-500 dark:text-neutral-400',
-            ]"
-          >
-            {{ timeSeparators[index]?.label }}
-          </time>
+          <ChatHistoryTimeSeparator
+            v-if="timeSeparators[index] != null"
+            :timestamp="timeSeparators[index]!"
+            :now="now.getTime()"
+          />
           <ChatHistoryMessageFrame
             :key="getChatHistoryItemKey(message, index)"
             :variant="variant"

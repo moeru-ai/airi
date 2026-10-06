@@ -10,6 +10,9 @@ The provider remembers unsupported models until its instance is recreated. Authe
 
 Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
 Timestamps use stored message times, the interface locale, and the device timezone. Messages without valid timestamps have no separator.
+Today's separators show only the time. Yesterday and the day before use relative labels.
+Older separators show the month and day. Dates outside the current year also show the year.
+Click a separator to toggle its full date and time. Relative labels refresh every minute while the history is open.
 
 ## Startup progress
 
