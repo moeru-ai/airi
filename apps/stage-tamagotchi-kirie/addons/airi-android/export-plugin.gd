@@ -148,6 +148,7 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
 import org.json.JSONException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public final class AiriAndroidPlugin extends GodotPlugin {
@@ -171,6 +172,12 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         "eventa:invoke:airi:android:barcode:scan-send";
     private static final String SCHEDULE_NOTIFICATION_EVENT =
         "eventa:invoke:airi:android:notification:schedule-send";
+    private static final String REGISTER_NOTIFICATION_ACTION_EVENT =
+        "eventa:invoke:airi:android:notification:action-listener:register-send";
+    private static final String UNREGISTER_NOTIFICATION_ACTION_EVENT =
+        "eventa:invoke:airi:android:notification:action-listener:unregister-send";
+    private static final String NOTIFICATION_ACTION_EVENT =
+        "eventa:event:airi:android:notification:action-performed";
     private static final String OPEN_AUTHORIZATION_EVENT =
         "eventa:invoke:airi:android:authentication:open-send";
     private static final String CONSUME_PENDING_URL_OPEN_EVENT =
@@ -183,6 +190,11 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private static final String NOTIFICATION_EXTRA_BODY = "body";
     private static final String NOTIFICATION_EXTRA_ID = "id";
     private static final String NOTIFICATION_EXTRA_TITLE = "title";
+    private static final String NOTIFICATION_INTENT_ACTION =
+        "LocalNotificationUserAction";
+    private static final String NOTIFICATION_INTENT_ID = "LocalNotificationId";
+    private static final String NOTIFICATION_INTENT_OBJECT = "LocalNotficationObject";
+    private static final String NOTIFICATION_TAP_ACTION = "tap";
     private static final String NOTIFICATION_STORAGE = "NOTIFICATION_STORE";
     private static final String NOTIFICATIONS = "notifications";
     private static final String MICROPHONE = "microphone";
@@ -198,6 +210,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
     private static AiriAndroidPlugin activePlugin;
     private static String pendingUrlOpen;
+    private static final List<JSONObject> pendingNotificationActions = new ArrayList<>();
     private ComponentCallbacks configurationCallbacks;
     private OnBackPressedCallback backPressedCallback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -219,6 +232,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     // The picker and both capture modes share the last listener, including after completion.
     private ActivityResultListener activityListener;
     private JavaScriptReplyProxy eventaReplyProxy;
+    private boolean notificationActionListenerRegistered;
     private ActivityResultLauncher<Intent> exactAlarmLauncher;
     private ActivityResultLauncher<String[]> permissionLauncher;
     // Keep one listener, including after completion, to match Capacitor 8.5.0.
@@ -241,6 +255,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     @Override
     public View onMainCreate(Activity activity) {
         createDefaultNotificationChannel(activity);
+        receiveNotificationAction(activity, activity.getIntent());
         exactAlarmLauncher = ((ComponentActivity) activity).registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> completePendingNotificationSchedule()
@@ -348,6 +363,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         browserHost = null;
         browserWebView = null;
         eventaReplyProxy = null;
+        notificationActionListenerRegistered = false;
         pendingPermissionRequests.clear();
         pendingBarcodeScan = null;
         pendingNotificationSchedule = null;
@@ -419,8 +435,10 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
     @Override
     public void onMainResume() {
+        receiveNotificationAction(getActivity(), getActivity().getIntent());
         applySystemBarStyle(getActivity());
         dispatchPendingUrlOpen();
+        dispatchPendingNotificationActions();
     }
 
     @Override
@@ -1083,12 +1101,30 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 return;
             }
             if (SCHEDULE_NOTIFICATION_EVENT.equals(event)) {
+                JSONObject notification = content.getJSONObject("notification");
                 scheduleNotification(
                     new PendingEventaRequest(event, invokeId, replyProxy),
-                    content.getInt("id"),
-                    content.getString("title"),
-                    content.getString("body"),
-                    content.getLong("at")
+                    notification.getInt("id"),
+                    notification.getString("title"),
+                    notification.getString("body"),
+                    content.getLong("at"),
+                    notification.toString()
+                );
+                return;
+            }
+            if (REGISTER_NOTIFICATION_ACTION_EVENT.equals(event)) {
+                notificationActionListenerRegistered = true;
+                sendEventaResponse(
+                    new PendingEventaRequest(event, invokeId, replyProxy),
+                    consumePendingNotificationActions()
+                );
+                return;
+            }
+            if (UNREGISTER_NOTIFICATION_ACTION_EVENT.equals(event)) {
+                notificationActionListenerRegistered = false;
+                sendEventaResponse(
+                    new PendingEventaRequest(event, invokeId, replyProxy),
+                    JSONObject.NULL
                 );
                 return;
             }
@@ -1236,7 +1272,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         int id,
         String title,
         String body,
-        long at
+        long at,
+        String notificationPayload
     ) {
         Activity activity = getActivity();
         if (activity == null) {
@@ -1262,7 +1299,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 id,
                 title,
                 body,
-                at
+                at,
+                notificationPayload
             );
             activity.runOnUiThread(() -> exactAlarmLauncher.launch(
                 new Intent(
@@ -1273,7 +1311,15 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return;
         }
 
-        scheduleNotificationAlarm(activity, alarmManager, id, title, body, at);
+        scheduleNotificationAlarm(
+            activity,
+            alarmManager,
+            id,
+            title,
+            body,
+            at,
+            notificationPayload
+        );
         sendEventaResponse(request, JSONObject.NULL);
     }
 
@@ -1291,7 +1337,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             schedule.id,
             schedule.title,
             schedule.body,
-            schedule.at
+            schedule.at,
+            schedule.notificationPayload
         );
         sendEventaResponse(schedule.request, JSONObject.NULL);
     }
@@ -1302,13 +1349,15 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         int id,
         String title,
         String body,
-        long at
+        long at,
+        String notificationPayload
     ) {
         Intent intent = new Intent(context, NotificationReceiver.class)
             .setAction(NOTIFICATION_ACTION)
             .putExtra(NOTIFICATION_EXTRA_ID, id)
             .putExtra(NOTIFICATION_EXTRA_TITLE, title)
-            .putExtra(NOTIFICATION_EXTRA_BODY, body);
+            .putExtra(NOTIFICATION_EXTRA_BODY, body)
+            .putExtra(NOTIFICATION_INTENT_OBJECT, notificationPayload);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(
             context,
             id,
@@ -1321,7 +1370,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         } else {
             alarmManager.set(AlarmManager.RTC, at, pendingIntent);
         }
-        persistScheduledNotification(context, id, title, body, at);
+        persistScheduledNotification(context, id, title, body, at, notificationPayload);
     }
 
     private static void persistScheduledNotification(
@@ -1329,14 +1378,16 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         int id,
         String title,
         String body,
-        long at
+        long at,
+        String notificationPayload
     ) {
         try {
             JSONObject notification = new JSONObject()
                 .put(NOTIFICATION_EXTRA_ID, id)
                 .put(NOTIFICATION_EXTRA_TITLE, title)
                 .put(NOTIFICATION_EXTRA_BODY, body)
-                .put("at", at);
+                .put("at", at)
+                .put(NOTIFICATION_INTENT_OBJECT, notificationPayload);
             context.getSharedPreferences(NOTIFICATION_STORAGE, Context.MODE_PRIVATE)
                 .edit()
                 .putString(Integer.toString(id), notification.toString())
@@ -1391,6 +1442,134 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
     }
 
+    private static void receiveNotificationAction(Context context, Intent intent) {
+        if (context == null || intent == null || !Intent.ACTION_MAIN.equals(intent.getAction())) {
+            return;
+        }
+
+        int id = intent.getIntExtra(NOTIFICATION_INTENT_ID, Integer.MIN_VALUE);
+        if (id == Integer.MIN_VALUE) {
+            return;
+        }
+
+        String notificationPayload = intent.getStringExtra(NOTIFICATION_INTENT_OBJECT);
+        try {
+            JSONObject action = new JSONObject()
+                .put("actionId", intent.getStringExtra(NOTIFICATION_INTENT_ACTION));
+            if (notificationPayload == null) {
+                action.put("notification", JSONObject.NULL);
+            } else {
+                action.put("notification", new JSONObject(notificationPayload));
+            }
+            synchronized (pendingNotificationActions) {
+                pendingNotificationActions.add(action);
+            }
+        } catch (JSONException error) {
+            try {
+                synchronized (pendingNotificationActions) {
+                    pendingNotificationActions.add(
+                        new JSONObject()
+                            .put("actionId", intent.getStringExtra(NOTIFICATION_INTENT_ACTION))
+                            .put("notification", JSONObject.NULL)
+                    );
+                }
+            } catch (JSONException fallbackError) {
+                Log.e("AiriAndroid", "Cannot retain notification action", fallbackError);
+            }
+        }
+
+        forgetTappedNotification(context, id);
+        intent.removeExtra(NOTIFICATION_INTENT_ID);
+        intent.removeExtra(NOTIFICATION_INTENT_ACTION);
+        intent.removeExtra(NOTIFICATION_INTENT_OBJECT);
+
+        if (activePlugin != null) {
+            activePlugin.dispatchPendingNotificationActions();
+        }
+    }
+
+    private static void forgetTappedNotification(Context context, int id) {
+        SharedPreferences storage = context.getSharedPreferences(
+            NOTIFICATION_STORAGE,
+            Context.MODE_PRIVATE
+        );
+        String key = Integer.toString(id);
+        String savedNotification;
+        try {
+            savedNotification = storage.getString(key, null);
+        } catch (ClassCastException error) {
+            savedNotification = null;
+        }
+
+        boolean safeToForget = true;
+        if (savedNotification != null) {
+            try {
+                safeToForget = new JSONObject(savedNotification).getLong("at")
+                    <= System.currentTimeMillis();
+            } catch (JSONException error) {
+                safeToForget = true;
+            }
+        }
+        if (safeToForget) {
+            storage.edit().remove(key).apply();
+        }
+    }
+
+    private JSONObject consumePendingNotificationActions() throws JSONException {
+        JSONArray actions = new JSONArray();
+        synchronized (pendingNotificationActions) {
+            for (JSONObject action : pendingNotificationActions) {
+                actions.put(action);
+            }
+            pendingNotificationActions.clear();
+        }
+        return new JSONObject().put("actions", actions);
+    }
+
+    private void dispatchPendingNotificationActions() {
+        JavaScriptReplyProxy replyProxy = eventaReplyProxy;
+        if (!notificationActionListenerRegistered || replyProxy == null) {
+            return;
+        }
+
+        while (true) {
+            JSONObject action;
+            synchronized (pendingNotificationActions) {
+                if (pendingNotificationActions.isEmpty()) {
+                    return;
+                }
+                action = pendingNotificationActions.get(0);
+            }
+            try {
+                JSONObject payload = new JSONObject().put("body", action);
+                JSONObject envelope = new JSONObject()
+                    .put("type", NOTIFICATION_ACTION_EVENT)
+                    .put("payload", payload);
+                replyProxy.postMessage(envelope.toString());
+                synchronized (pendingNotificationActions) {
+                    pendingNotificationActions.remove(action);
+                }
+            } catch (JSONException error) {
+                Log.e("AiriAndroid", "Cannot send notification action", error);
+                return;
+            }
+        }
+    }
+
+    private static Intent configureNotificationLaunchIntent(
+        Intent launchIntent,
+        int id,
+        String notificationPayload
+    ) {
+        launchIntent.setAction(Intent.ACTION_MAIN);
+        launchIntent.addCategory(Intent.CATEGORY_LAUNCHER);
+        launchIntent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        launchIntent.putExtra(NOTIFICATION_INTENT_ID, id);
+        launchIntent.putExtra(NOTIFICATION_INTENT_ACTION, NOTIFICATION_TAP_ACTION);
+        launchIntent.putExtra(NOTIFICATION_INTENT_OBJECT, notificationPayload);
+        return launchIntent;
+    }
+
     private static final class PendingEventaRequest {
         private final String event;
         private final String invokeId;
@@ -1413,19 +1592,22 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         private final String title;
         private final String body;
         private final long at;
+        private final String notificationPayload;
 
         private PendingNotificationSchedule(
             PendingEventaRequest request,
             int id,
             String title,
             String body,
-            long at
+            long at,
+            String notificationPayload
         ) {
             this.request = request;
             this.id = id;
             this.title = title;
             this.body = body;
             this.at = at;
+            this.notificationPayload = notificationPayload;
         }
     }
 
@@ -1467,13 +1649,16 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
             int id = intent.getIntExtra(NOTIFICATION_EXTRA_ID, 0);
             NotificationManager manager = createDefaultNotificationChannel(context);
-            Intent launchIntent = context.getPackageManager()
-                .getLaunchIntentForPackage(context.getPackageName());
+            Intent launchIntent = configureNotificationLaunchIntent(
+                context.getPackageManager().getLaunchIntentForPackage(context.getPackageName()),
+                id,
+                intent.getStringExtra(NOTIFICATION_INTENT_OBJECT)
+            );
             PendingIntent contentIntent = PendingIntent.getActivity(
                 context,
                 id,
                 launchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_MUTABLE
             );
             NotificationCompat.Builder notification = new NotificationCompat.Builder(
                 context,
@@ -1535,7 +1720,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                         notification.getInt(NOTIFICATION_EXTRA_ID),
                         notification.getString(NOTIFICATION_EXTRA_TITLE),
                         notification.getString(NOTIFICATION_EXTRA_BODY),
-                        at
+                        at,
+                        notification.getString(NOTIFICATION_INTENT_OBJECT)
                     );
                 } catch (JSONException error) {
                     Log.e("AiriAndroid", "Cannot restore scheduled notification", error);

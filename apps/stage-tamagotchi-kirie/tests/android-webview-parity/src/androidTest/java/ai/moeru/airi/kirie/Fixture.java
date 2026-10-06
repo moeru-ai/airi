@@ -73,6 +73,30 @@ final class Fixture implements AutoCloseable {
             throw new AssertionError(error.getCause());
         } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
     }
+    static Object callStatic(Class<?> owner, String name, Class<?>[] types, Object... args) {
+        try {
+            Method method = owner.getDeclaredMethod(name, types);
+            method.setAccessible(true);
+            return method.invoke(null, args);
+        } catch (java.lang.reflect.InvocationTargetException error) {
+            if (error.getCause() instanceof RuntimeException) throw (RuntimeException) error.getCause();
+            throw new AssertionError(error.getCause());
+        } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+    }
+    static void setStatic(Class<?> owner, String name, Object value) {
+        try {
+            Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            field.set(null, value);
+        } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+    }
+    static Object getStatic(Class<?> owner, String name) {
+        try {
+            Field field = owner.getDeclaredField(name);
+            field.setAccessible(true);
+            return field.get(null);
+        } catch (ReflectiveOperationException error) { throw new AssertionError(error); }
+    }
     @Override public void close() {
         onMain(() -> {
             activity.webView.destroy();

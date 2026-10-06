@@ -8,6 +8,20 @@ out = Path(sys.argv[1])
 capacitor = app.parent / 'stage-pocket/node_modules/@capacitor/android'
 assert json.loads((capacitor / 'package.json').read_text())['version'] == '8.5.0'
 source = capacitor / 'capacitor/src/main/java/com/getcapacitor'
+local_notifications = app.parent / 'stage-pocket/node_modules/@capacitor/local-notifications'
+assert json.loads((local_notifications / 'package.json').read_text())['version'] == '8.3.1'
+notification_manager = (
+    local_notifications
+    / 'android/src/main/kotlin/com/capacitorjs/plugins/localnotifications/LocalNotificationManager.kt'
+).read_text()
+for notification_contract in (
+    'const val NOTIFICATION_INTENT_KEY = "LocalNotificationId"',
+    'const val NOTIFICATION_OBJ_INTENT_KEY = "LocalNotficationObject"',
+    'const val ACTION_INTENT_KEY = "LocalNotificationUserAction"',
+    'private const val DEFAULT_PRESS_ACTION = "tap"',
+    'notificationStorage.deleteNotification(notificationId.toString())',
+):
+    assert notification_contract in notification_manager
 
 def write(relative, text):
     destination = out / relative

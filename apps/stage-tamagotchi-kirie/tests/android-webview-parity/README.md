@@ -40,3 +40,6 @@ The startup regression executes production `onMainCreate` through `StartupActivi
 It loads the packaged fixture and checks native string replies, route clicks, input focus, and document retention.
 Run this test on a WebView without ArrayBuffer messages, including Android 14's default WebView 113.
 Unlike the callback fixtures, this scenario does not supply a pre-created WebView.
+
+The notification action fixture checks Pocket's installed Local Notifications source contract.
+It verifies launch-intent extras, the Eventa callback body, and one-shot storage cleanup after a tap.
