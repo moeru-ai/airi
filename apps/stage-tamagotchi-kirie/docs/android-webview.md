@@ -20,6 +20,7 @@ Kirie copies Capacitor 8.5.0's native dialog callbacks.
 | Dialog | Callback behavior |
 | --- | --- |
 | Alert | OK confirms. Back or outside dismissal cancels. |
+| Confirm | OK confirms. Cancel, Back, or outside dismissal cancels. |
 
 If the Activity finishes, Capacitor returns `true` and does not resolve the JavaScript result.
 Kirie preserves this behavior.

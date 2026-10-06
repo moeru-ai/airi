@@ -515,6 +515,38 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 }
 
                 @Override
+                public boolean onJsConfirm(
+                    WebView source,
+                    String url,
+                    String message,
+                    JsResult result
+                ) {
+                    if (activity.isFinishing()) {
+                        return true;
+                    }
+
+                    AlertDialog.Builder builder = new AlertDialog.Builder(source.getContext());
+                    builder
+                        .setMessage(message)
+                        .setPositiveButton("OK", (dialog, buttonIndex) -> {
+                            dialog.dismiss();
+                            result.confirm();
+                        })
+                        .setNegativeButton("Cancel", (dialog, buttonIndex) -> {
+                            dialog.dismiss();
+                            result.cancel();
+                        })
+                        .setOnCancelListener(dialog -> {
+                            dialog.dismiss();
+                            result.cancel();
+                        });
+
+                    AlertDialog dialog = builder.create();
+                    dialog.show();
+                    return true;
+                }
+
+                @Override
                 public void onPermissionRequest(final PermissionRequest request) {
                     List<String> permissionList = new ArrayList<>();
                     if (Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
