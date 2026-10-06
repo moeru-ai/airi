@@ -6,8 +6,7 @@ import type { Voice } from 'unspeech'
  * Inbound TTS request shape passed to every adapter.
  *
  * Adapters translate this provider-neutral payload into the
- * provider's native protocol body (Azure SSML, DashScope JSON,
- * Volcengine JSON, etc.).
+ * provider's native protocol body.
  */
 export interface TtsInput {
   /** Caller-supplied speech text (raw text or SSML when {@link extraOptions} signals so). */
@@ -59,8 +58,8 @@ export interface TtsAdapterContext {
 /**
  * Result of a successful upstream call.
  *
- * `body` is either a fully-buffered `ArrayBuffer` (current v1 behavior — Azure
- * REST + DashScope JSON + Volcengine JSON are all one-shot) or a streaming
+ * `body` is either a fully-buffered `ArrayBuffer` (current v1 behavior — DashScope
+ * and StepFun responses are one-shot) or a streaming
  * body for future streaming adapters.
  */
 export interface TtsResult {
@@ -90,24 +89,16 @@ export class TtsUpstreamResponseError extends Error {
  * `./index.ts` — the union is intentionally tight so unknown ids fail at the
  * type level (router config validation handles runtime).
  */
-export type TtsAdapterId = 'azure' | 'dashscope-cosyvoice' | 'stepfun' | 'volcengine'
+export type TtsAdapterId = 'dashscope-cosyvoice' | 'stepfun'
 
 /**
  * Per-call context for {@link TtsAdapter.getVoiceCatalog}.
  *
- * `keyPlaintext` and `region` are mandatory for live providers (Azure) that
- * proxy through unspeech and call the upstream provider with a subscription
- * key; the router decrypts the envelope key and forwards `adapterParams.region`
- * verbatim. Unspeech-backed static catalogs ignore both fields.
- *
  * `unspeechBaseURL` is `UNSPEECH_UPSTREAM.restBaseURL` resolved by the router.
  * Passing it through the context keeps adapters free of configKV coupling.
+ * The catalogs are static in unspeech, so no upstream credential is needed.
  */
 export interface TtsVoiceCatalogContext {
-  /** Decrypted upstream credential (live providers only). */
-  keyPlaintext?: Buffer
-  /** Provider region (live providers only). */
-  region?: string
   /** Free-form adapter-specific params (mirrors `tts.upstreams[i].adapterParams`). */
   adapterParams: Record<string, unknown>
   /** unspeech REST base URL, no trailing slash. */

@@ -1,87 +1,11 @@
 import type { Voice } from 'unspeech'
 
-import type { TtsAdapterContext, TtsResult, TtsVoiceCatalogContext } from './types'
+import type { TtsVoiceCatalogContext } from './types'
 
 import { errorMessageFrom } from '@moeru/std'
-import { generateSpeechResponse, listVoices, UnSpeechAPIError } from 'unspeech'
+import { listVoices, UnSpeechAPIError } from 'unspeech'
 
-import { createBadGatewayError, createInternalError } from '../../../utils/error'
-import { TtsUpstreamResponseError } from './types'
-
-interface SendSpeechOptions {
-  ctx: TtsAdapterContext
-  model: string
-  input: string
-  voice: string
-  speed?: number
-  responseFormat: string
-  extraBody?: Record<string, unknown>
-  fallbackContentType: string
-  providerLabel: string
-}
-
-/**
- * Sends one OpenAI-shaped speech request through the unspeech SDK.
- *
- * Use when:
- * - A TTS adapter has resolved AIRI's provider policy and needs to delegate the
- *   actual HTTP request to unspeech.
- *
- * Expects:
- * - `model`, `voice`, `responseFormat`, and `extraBody` already match the
- *   provider-specific unspeech contract.
- *
- * Returns:
- * - The binary audio payload plus a content type for the OpenAI route.
- */
-export async function sendSpeechViaUnSpeech(options: SendSpeechOptions): Promise<TtsResult> {
-  const {
-    ctx,
-    extraBody,
-    fallbackContentType,
-    input,
-    model,
-    providerLabel,
-    responseFormat,
-    speed,
-    voice,
-  } = options
-
-  try {
-    const result = await generateSpeechResponse({
-      apiKey: ctx.keyPlaintext.toString('utf8'),
-      baseURL: `${ctx.unspeechBaseURL.replace(/\/+$/, '')}/v1/`,
-      fetch: ctx.fetchImpl,
-      input,
-      model,
-      responseFormat,
-      speed,
-      voice,
-      abortSignal: ctx.abortSignal,
-      extraBody,
-    })
-
-    return {
-      contentType: result.contentType ?? fallbackContentType,
-      body: result.body,
-    }
-  }
-  catch (error) {
-    // Keep abort identity intact so the router can apply `onTimeout`
-    // independently from HTTP 500 fallback policy.
-    if (ctx.abortSignal?.aborted)
-      throw error
-
-    if (error instanceof UnSpeechAPIError) {
-      throw new TtsUpstreamResponseError(new Response(error.responseBody, {
-        status: error.status,
-        headers: error.responseHeaders,
-      }))
-    }
-
-    throw createInternalError(`${providerLabel} tts fetch failed: ${errorMessageFrom(error) ?? 'unknown'}`)
-  }
-}
+import { createBadGatewayError } from '../../../utils/error'
 
 interface ListVoicesOptions {
   ctx: TtsVoiceCatalogContext
@@ -107,7 +31,6 @@ export async function listVoicesViaUnSpeech(options: ListVoicesOptions): Promise
 
   try {
     return await listVoices({
-      apiKey: ctx.keyPlaintext?.toString('utf8'),
       baseURL: ctx.unspeechBaseURL.replace(/\/+$/, ''),
       fetch: ctx.fetchImpl,
       query,

@@ -25,7 +25,7 @@ function makeConfig(): RouterConfig {
     tts: {
       models: {
         'tts-1': {
-          provider: 'azure',
+          provider: 'dashscope-cosyvoice',
           upstreams: [
             {
               baseURL: 'https://azure.example/tts',
@@ -157,7 +157,7 @@ describe('createConfigLoader', () => {
     const tts = await loader.getModelConfig('tts', 'tts-1')
     expect(tts.kind).toBe('tts')
     if (tts.kind === 'tts') {
-      expect(tts.model.provider).toBe('azure')
+      expect(tts.model.provider).toBe('dashscope-cosyvoice')
     }
   })
 })

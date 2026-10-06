@@ -947,7 +947,7 @@ describe('createLlmRouterService', () => {
   // stays on the existing fallback policy.
   describe('routeTts adapter error handling', () => {
     function makeTtsConfig(opts: {
-      provider?: 'azure'
+      provider?: 'dashscope-cosyvoice'
       upstreams?: Array<{ baseURL: string, keyIds: string[], adapterParams?: Record<string, unknown> }>
       fallbackHttpCodes?: number[]
     }): { config: RouterConfig, crypto: ReturnType<typeof createEnvelopeCrypto> } {
@@ -969,7 +969,7 @@ describe('createLlmRouterService', () => {
         tts: {
           models: {
             [modelName]: {
-              provider: opts.provider ?? 'azure',
+              provider: opts.provider ?? 'dashscope-cosyvoice',
               upstreams: upstreamConfigs,
               fallbackTriggers: { httpCodes: fallbackHttpCodes, onTimeout: true },
             },
@@ -984,9 +984,9 @@ describe('createLlmRouterService', () => {
       return { config, crypto }
     }
 
-    it('apiError 4xx (invalid voice) propagates without touching the second key', async () => {
-      // azure adapter validates `voice` against AZURE_VOICE_ID before any
-      // network call; an invalid voice throws createBadRequestError(400).
+    it('apiError 4xx (missing voice) propagates without touching the second key', async () => {
+      // The dashscope adapter requires a voice before any network call;
+      // a missing voice throws createBadRequestError(400).
       // Two keys are configured: the second must NEVER be tried.
       const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
       const fetchImpl = vi.fn(async () => happyResponse({ ok: 1 }))
@@ -1005,7 +1005,7 @@ describe('createLlmRouterService', () => {
       try {
         await router.routeTts({
           modelName: 'tts-test',
-          input: { text: 'hi', voice: 'bogus voice with spaces' },
+          input: { text: 'hi' },
         })
       }
       catch (err) {
@@ -1022,10 +1022,10 @@ describe('createLlmRouterService', () => {
     })
 
     it('apiError 5xx (adapter-wrapped network failure) walks to the next key', async () => {
-      // azure adapter wraps a fetch reject as createInternalError(500).
+      // The shared definition path wraps a fetch reject as createInternalError(500).
       // The router should treat that as a fallback-eligible network failure
       // and try the second key — not propagate the 500 as a final error.
-      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }] })
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
 
       let callIdx = 0
       const fetchImpl = vi.fn(async () => {
@@ -1047,7 +1047,7 @@ describe('createLlmRouterService', () => {
 
       const res = await router.routeTts({
         modelName: 'tts-test',
-        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+        input: { text: 'hi', voice: 'longxiaochun_v2' },
       })
 
       expect(res.status).toBe(200)
@@ -1080,7 +1080,7 @@ describe('createLlmRouterService', () => {
       try {
         await router.routeTts({
           modelName: 'tts-test',
-          input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+          input: { text: 'hi', voice: 'longxiaochun_v2' },
         })
       }
       catch (error) {
@@ -1093,9 +1093,9 @@ describe('createLlmRouterService', () => {
     })
 
     it('upstream 401 folds into the existing fallback path', async () => {
-      // The Azure adapter throws TtsUpstreamResponseError on upstream non-2xx.
+      // The adapter throws TtsUpstreamResponseError on upstream non-2xx.
       // 401 is in fallbackHttpCodes so we must try the next key.
-      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'], adapterParams: { region: 'eastasia' } }] })
+      const { config, crypto } = makeTtsConfig({ upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1', 'kA2'] }] })
 
       let callIdx = 0
       const failedResponse = failResponse(401)
@@ -1118,7 +1118,7 @@ describe('createLlmRouterService', () => {
 
       const res = await router.routeTts({
         modelName: 'tts-test',
-        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+        input: { text: 'hi', voice: 'longxiaochun_v2' },
       })
 
       expect(res.status).toBe(200)
@@ -1137,7 +1137,6 @@ describe('createLlmRouterService', () => {
         upstreams: [{
           baseURL: 'https://az.example',
           keyIds: ['kA1'],
-          adapterParams: { region: 'eastasia' },
         }],
       })
       const fetchImpl = vi.fn(async () => failResponse(451))
@@ -1154,7 +1153,7 @@ describe('createLlmRouterService', () => {
 
       const response = await router.routeTts({
         modelName: 'tts-test',
-        input: { text: 'hi', voice: 'en-US-AvaMultilingualNeural' },
+        input: { text: 'hi', voice: 'longxiaochun_v2' },
       })
       expect(response.status).toBe(451)
       await expect(response.json()).resolves.toEqual({ error: 'bad' })
@@ -1172,16 +1171,16 @@ describe('createLlmRouterService', () => {
     it('listTtsVoices deduplicates concurrent cold-cache upstream fetches per model', async () => {
       // ROOT CAUSE:
       //
-      // Azure voice catalogs are cached after a successful fetch, but concurrent
+      // Voice catalogs are cached after a successful fetch, but concurrent
       // cold-cache requests used to miss Redis together and each hit unspeech's
-      // microsoft voices endpoint. That can amplify one settings-page open into
-      // several Azure voices/list calls and trigger upstream 429.
+      // voices endpoint. That can amplify one settings-page open into
+      // several voices calls and trigger upstream 429.
       //
       // We fixed this by sharing the in-flight catalog load for the same
       // provider/model cache key. Failures are still returned to every caller and
       // are not cached.
       const { config, crypto } = makeTtsConfig({
-        upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1'], adapterParams: { region: 'eastasia' } }],
+        upstreams: [{ baseURL: 'https://az.example', keyIds: ['kA1'] }],
       })
 
       let resolveFetch!: () => void
@@ -1513,7 +1512,8 @@ describe('createLlmRouterService', () => {
   })
 
   describe('routeTtspool capacity-aware routing', () => {
-    // One app_id == one upstream (Volcengine `adapterParams.appid`), each capped
+    // One pool == one upstream. The router identifies a pool by `adapterParams.appid`, and
+    // StepFun reports the pool in `endpoint_profile` so the tests can see which pool ran. Each is capped
     // at `maxConcurrency`. The router spreads load least-inflight-first across pools
     // and circuit-breaks a pool on 429 (app_id concurrency exceeded upstream-side).
     function makePoolConfig(
@@ -1527,7 +1527,7 @@ describe('createLlmRouterService', () => {
         return {
           baseURL: u.baseURL,
           keys: [{ id, ciphertext: ct }],
-          adapterParams: { appid: u.appid },
+          adapterParams: { appid: u.appid, endpointProfile: u.appid },
           ...(u.maxConcurrency != null ? { maxConcurrency: u.maxConcurrency } : {}),
         }
       })
@@ -1536,7 +1536,7 @@ describe('createLlmRouterService', () => {
         tts: {
           models: {
             [modelName]: {
-              provider: 'volcengine',
+              provider: 'stepfun',
               upstreams: upstreamConfigs,
               fallbackTriggers: { httpCodes: [401, 429, 500, 502, 503, 504], onTimeout: true },
             },
@@ -1737,8 +1737,8 @@ describe('createLlmRouterService', () => {
       const { ledger, tryAcquire } = makeStatefulLedger({ 'plan-a': 8, 'plan-b': 2 })
       const selectedAppIds: string[] = []
       const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as { extra_body?: { app?: { appid?: string } } }
-        selectedAppIds.push(body.extra_body?.app?.appid ?? 'unknown')
+        const body = JSON.parse(String(init?.body)) as { extra_body?: { endpoint_profile?: string } }
+        selectedAppIds.push(body.extra_body?.endpoint_profile ?? 'unknown')
         return new Response(new Uint8Array([0x01]), {
           status: 200,
           headers: { 'content-type': 'audio/mpeg' },
@@ -1786,8 +1786,8 @@ describe('createLlmRouterService', () => {
       const { ledger } = makeStatefulLedger({ 'plan-a': 10, 'plan-b': 0 })
       const selectedAppIds: string[] = []
       const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
-        const body = JSON.parse(String(init?.body)) as { extra_body?: { app?: { appid?: string } } }
-        const appid = body.extra_body?.app?.appid ?? 'unknown'
+        const body = JSON.parse(String(init?.body)) as { extra_body?: { endpoint_profile?: string } }
+        const appid = body.extra_body?.endpoint_profile ?? 'unknown'
         selectedAppIds.push(appid)
         if (appid === 'plan-b')
           return failResponse(402, { error: { code: 'quota_exceeded' } })

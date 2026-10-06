@@ -48,6 +48,7 @@
     "@xsai-ext/providers": "catalog:",
     "@xsai-ext/responses": "catalog:",
     "@xsai-transformers/shared": "catalog:",
+    "@xsai/generate-speech": "catalog:",
     "@xsai/generate-text": "catalog:",
     "@xsai/model": "catalog:",
     "@xsai/stream-transcription": "catalog:",
@@ -63,7 +64,6 @@
   "devDependencies": {
     "@types/node": "catalog:",
     "@vitest/browser-playwright": "catalog:vitest",
-    "@xsai/generate-speech": "catalog:",
     "playwright": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

@@ -18,10 +18,13 @@ export function listProviders() {
 
 export { portableProviderDefinitions }
 export * from './generation'
+export { providerAlibabaCloudModelStudio, providerStepfunSpeech } from './providers/cloud/unspeech'
 export { createWebSpeechAPIProvider, streamWebSpeechAPITranscription } from './providers/local/browser-web-speech-api'
 export { createSherpawTranscriptionDefinition, executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from './providers/local/sherpaw-transcription'
 export type { SherpawModelResource, SherpawTranscriptionHost } from './providers/local/sherpaw-transcription'
 export * from './providers/local/sherpaw-transcription/models'
 export * from './providers/registry'
+export * from './speech'
 export * from './types'
 export * from './validators'
+export type { UnStepfunOptions as StepfunSpeechOptions } from 'unspeech'

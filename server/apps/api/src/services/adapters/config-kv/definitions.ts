@@ -108,7 +108,7 @@ export const llmModelSchema = pipe(
   }, 'llm.routing.groups must reference every upstream id exactly once'),
 )
 
-const ttsProviderSchema = picklist(['azure', 'dashscope-cosyvoice', 'stepfun', 'volcengine'])
+const ttsProviderSchema = picklist(['dashscope-cosyvoice', 'stepfun'])
 const asrProviderSchema = picklist(['aliyun-nls'])
 
 export const ttsUpstreamSchema = object({
