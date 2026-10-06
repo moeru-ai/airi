@@ -26,8 +26,20 @@ export interface FeatureFlagDecision {
   selectable: boolean
 }
 
+/**
+ * Cloud sync for character cards has no server policy. It is a device choice,
+ * off by default, so a user opts in before a card leaves the device.
+ */
+export const CHARACTER_CARD_SYNC_FLAG: FeatureFlag = {
+  key: 'character-card-sync',
+  titleKey: 'settings.pages.system.experimental.features.character_card_sync.title',
+  descriptionKey: 'settings.pages.system.experimental.features.character_card_sync.description',
+  defaultEnabled: false,
+  availability: 'local',
+}
+
 /** Only implemented experiments belong here. An empty catalog produces an empty settings page. */
-export const featureFlags: readonly FeatureFlag[] = []
+export const featureFlags: readonly FeatureFlag[] = [CHARACTER_CARD_SYNC_FLAG]
 
 /** Missing cloud grants disable features. Only local and account-granted opt-in features expose settings. */
 export function resolveFeatureFlag(feature: FeatureFlag, preference: boolean | undefined, policy: InferOutput<typeof featureFlagPolicySchema> | undefined, authenticated: boolean): FeatureFlagDecision {
