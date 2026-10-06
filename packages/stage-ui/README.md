@@ -2,6 +2,15 @@
 
 Shared core for stage
 
+## Official chat and message times
+
+The official chat provider defaults to Responses API. Saved Chat Completions selections remain active.
+If a request reports an unsupported protocol before output, the runtime retries once with Chat Completions.
+The provider remembers unsupported models until its instance is recreated. Authentication errors and interrupted streams do not trigger this switch.
+
+Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
+Timestamps use stored message times, the interface locale, and the device timezone. Messages without valid timestamps have no separator.
+
 ## Startup progress
 
 `useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
