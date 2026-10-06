@@ -94,17 +94,34 @@ export function sherpawModelPath(model: SherpawModel): string {
 }
 
 /**
- * Returns a pinned Hugging Face URL for one model artifact.
+ * Base URL that serves the pinned model artifacts.
+ *
+ * A host that reaches the Hub through a mirror sets this on the Vite plugin, or
+ * sets `HF_ENDPOINT`, the variable `huggingface_hub` already reads.
+ */
+export const defaultSherpawModelEndpoint = 'https://huggingface.co'
+
+/**
+ * Returns a pinned model URL for one artifact.
  *
  * @example
  * sherpawModelArtifactUrl(paraformerBilingualZhEn, 'preload.data')
  * // => 'https://huggingface.co/moeru-ai/sherpaw-paraformer-zh-en/resolve/46701cc.../install/bin/wasm/preload.data'
+ *
+ * @example
+ * sherpawModelArtifactUrl(paraformerBilingualZhEn, 'preload.data', 'https://hf-mirror.com')
+ * // => 'https://hf-mirror.com/moeru-ai/sherpaw-paraformer-zh-en/resolve/46701cc.../install/bin/wasm/preload.data'
  */
 export function sherpawModelArtifactUrl(
   model: SherpawModel,
   filename: 'preload.data' | 'preload.js.metadata',
+  endpoint: string = defaultSherpawModelEndpoint,
 ): string {
-  return `https://huggingface.co/${model.repository}/resolve/${model.revision}/${model.directory}/${filename}`
+  // A mirror URL commonly arrives with a trailing slash. Keeping it would put an
+  // empty segment before the repository path.
+  const base = endpoint.trim().replace(/\/+$/, '') || defaultSherpawModelEndpoint
+
+  return `${base}/${model.repository}/resolve/${model.revision}/${model.directory}/${filename}`
 }
 
 /**
