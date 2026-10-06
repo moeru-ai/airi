@@ -3,9 +3,10 @@ import type { PushedField } from './request'
 import type { FieldSyncHistoryOptions, FieldSyncStore } from './store'
 
 import { eq } from 'drizzle-orm'
-import { foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { foreignKey, index, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { jsonValue } from '../../../libs/json-value'
 import { mockDB } from '../../../libs/mock-db'
 import { createBadRequestError } from '../../../utils/error'
 import { createFieldSyncStore } from './store'
@@ -38,7 +39,7 @@ const fields = pgTable(
     ownerId: text('owner_id').notNull(),
     documentId: text('document_id').notNull(),
     key: text('key').notNull(),
-    value: jsonb('value').$type<unknown>(),
+    value: jsonValue('value'),
     revision: integer('revision').notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
@@ -79,6 +80,14 @@ describe('fieldSyncStore', () => {
     expect(pushed.document).toMatchObject({ id: 'doc', revision: 1, deletedAt: null })
     expect(await list()).toEqual([pushed.document])
     expect(await list('other')).toEqual([])
+  })
+
+  it('returns a string value that looks like JSON as the same string', async () => {
+    const values = ['1.0', 'true', 'null', '123', '{"a":1}', '"quoted"']
+    await push(values.map((value, index) => ({ key: `/text${index}`, baseRevision: 0, value })))
+
+    const [document] = await list()
+    expect(document.fields.map(field => field.value).sort()).toEqual([...values].sort())
   })
 
   it('accepts changes to different fields from two devices', async () => {

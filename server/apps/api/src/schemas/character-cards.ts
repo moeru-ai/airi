@@ -1,4 +1,6 @@
-import { foreignKey, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+import { foreignKey, integer, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
+
+import { jsonValue } from '../libs/json-value'
 
 /**
  * The character cards that a user synchronizes between devices.
@@ -36,7 +38,7 @@ export const characterCardFields = pgTable(
     ownerId: text('owner_id').notNull(),
     documentId: text('document_id').notNull(),
     key: text('key').notNull(),
-    value: jsonb('value').$type<unknown>(),
+    value: jsonValue('value'),
     revision: integer('revision').notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
   },
