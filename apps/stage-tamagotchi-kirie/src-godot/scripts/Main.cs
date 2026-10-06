@@ -7,7 +7,6 @@ public partial class Main : Node
 {
     private const string PageUrl = "res://src-web/dist/index.html";
     private const string AndroidPageUrl = "res://src-web/dist/android/index.html";
-    private const string AndroidPageOrigin = "https://res.kirie.invalid";
     private const string DevWebUrlOption = "kirie-web-url";
 
     private KirieClient? _kirie;
@@ -26,7 +25,6 @@ public partial class Main : Node
     private WebViewPermissionHandler? _permissions;
     private MicrophonePermissionService? _microphonePermissions;
     private IDisposable? _microphonePermissionRegistration;
-    private AndroidPermissionService? _androidPermissions;
     private IDisposable? _quitRegistration;
     private NativeWindowResizeController? _nativeResize;
 
@@ -162,7 +160,6 @@ public partial class Main : Node
         _permissions?.Dispose();
         _microphonePermissions?.Dispose();
         _microphonePermissionRegistration?.Dispose();
-        _androidPermissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
@@ -183,18 +180,9 @@ public partial class Main : Node
             return;
         }
 
-        _kirie.WebViewReady += OnWebViewReady;
-        _kirie.IpcError += OnIpcError;
-
-        _androidPermissions = new AndroidPermissionService();
-
         var initialUrl = ResolveInitialUrl(AndroidPageUrl);
-        _permissions = new WebViewPermissionHandler(
-            _kirie,
-            AndroidPageOrigin,
-            _androidPermissions);
-        GD.Print($"create_android_webview initial_url={initialUrl}");
-        _kirie.CreateWebView(initialUrl);
+        GD.Print($"configure_android_webview initial_url={initialUrl}");
+        Engine.GetSingleton("AiriAndroid").Call("loadBrowserUrl", initialUrl);
     }
 
     private string ResolveInitialUrl(string defaultUrl)
