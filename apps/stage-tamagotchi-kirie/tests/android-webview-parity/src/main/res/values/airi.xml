@@ -1,0 +1,5 @@
+<resources>
+    <bool name="airi_is_light_theme">true</bool>
+    <color name="airi_system_bar_color">#FFFFFF</color>
+    <color name="airi_startup_window_background">#FAFAFA</color>
+</resources>

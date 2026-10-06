@@ -71,6 +71,7 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowInsetsController;
+import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsPromptResult;
 import android.webkit.JsResult;
@@ -93,13 +94,14 @@ import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
 import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
-import androidx.core.app.NotificationCompat;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import com.outsystems.plugins.barcode.controller.OSBARCController;
 import com.outsystems.plugins.barcode.model.OSBARCScanParameters;
@@ -655,6 +657,35 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 }
 
                 @Override
+                public void onGeolocationPermissionsShowPrompt(
+                    String origin,
+                    GeolocationPermissions.Callback callback
+                ) {
+                    super.onGeolocationPermissionsShowPrompt(origin, callback);
+                    String[] permissions = {
+                        Manifest.permission.ACCESS_COARSE_LOCATION,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                    };
+                    if (!hasPermissions(activity, permissions)) {
+                        permissionListener = isGranted -> {
+                            if (isGranted) {
+                                callback.invoke(origin, true, false);
+                            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                                && hasPermissions(activity, new String[] {
+                                    Manifest.permission.ACCESS_COARSE_LOCATION
+                                })) {
+                                callback.invoke(origin, true, false);
+                            } else {
+                                callback.invoke(origin, false, false);
+                            }
+                        };
+                        permissionLauncher.launch(permissions);
+                    } else {
+                        callback.invoke(origin, true, false);
+                    }
+                }
+
+                @Override
                 public boolean onShowFileChooser(
                     WebView source,
                     ValueCallback<Uri[]> callback,
@@ -767,6 +798,16 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             browserInsetsPaddingRight,
             bottom
         );
+    }
+
+    private boolean hasPermissions(Activity activity, String[] permissions) {
+        for (String permission : permissions) {
+            if (ActivityCompat.checkSelfPermission(activity, permission)
+                != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private Intent createFileChooserIntent(WebChromeClient.FileChooserParams parameters) {
