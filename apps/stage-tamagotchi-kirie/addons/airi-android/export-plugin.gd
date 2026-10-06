@@ -43,6 +43,7 @@ import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -51,6 +52,8 @@ import android.webkit.WebViewClient;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.graphics.Insets;
 import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
@@ -70,8 +73,11 @@ import org.godotengine.godot.plugin.GodotPlugin;
 import org.godotengine.godot.plugin.SignalInfo;
 import org.godotengine.godot.plugin.UsedByGodot;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -96,6 +102,10 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 public final class AiriAndroidPlugin extends GodotPlugin {
+    private interface PermissionListener {
+        void onPermissionSelect(Boolean isGranted);
+    }
+
     private static final String EVENTA_CHANNEL = "AiriAndroidEventa";
     private static final String EVENTA_ORIGIN = "https://res.kirie.invalid";
     private static final String CHECK_PERMISSION_EVENT =
@@ -152,6 +162,9 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private PendingNotificationSchedule pendingNotificationSchedule;
     private ValueCallback<Uri[]> pendingFileChooser;
     private JavaScriptReplyProxy eventaReplyProxy;
+    private ActivityResultLauncher<String[]> permissionLauncher;
+    // Keep one listener, including after completion, to match Capacitor 8.5.0.
+    private PermissionListener permissionListener;
 
     public AiriAndroidPlugin(Godot godot) {
         super(godot);
@@ -169,6 +182,18 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
     @Override
     public View onMainCreate(Activity activity) {
+        permissionLauncher = ((ComponentActivity) activity).registerForActivityResult(
+            new ActivityResultContracts.RequestMultiplePermissions(),
+            isGranted -> {
+                if (permissionListener != null) {
+                    boolean granted = true;
+                    for (Map.Entry<String, Boolean> permission : isGranted.entrySet()) {
+                        if (!permission.getValue()) granted = false;
+                    }
+                    permissionListener.onPermissionSelect(granted);
+                }
+            }
+        );
         activePlugin = this;
         configurationCallbacks = new ComponentCallbacks() {
             @Override
@@ -430,6 +455,31 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             webView.addJavascriptInterface(hostWebSocketBridge, "AiriHostBridge");
             webView.getSettings().setSupportMultipleWindows(true);
             webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public void onPermissionRequest(final PermissionRequest request) {
+                    List<String> permissionList = new ArrayList<>();
+                    if (Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_VIDEO_CAPTURE)) {
+                        permissionList.add(Manifest.permission.CAMERA);
+                    }
+                    if (Arrays.asList(request.getResources()).contains(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {
+                        permissionList.add(Manifest.permission.MODIFY_AUDIO_SETTINGS);
+                        permissionList.add(Manifest.permission.RECORD_AUDIO);
+                    }
+                    if (!permissionList.isEmpty()) {
+                        String[] permissions = permissionList.toArray(new String[0]);
+                        permissionListener = (isGranted) -> {
+                            if (isGranted) {
+                                request.grant(request.getResources());
+                            } else {
+                                request.deny();
+                            }
+                        };
+                        permissionLauncher.launch(permissions);
+                    } else {
+                        request.grant(request.getResources());
+                    }
+                }
+
                 @Override
                 public boolean onShowFileChooser(
                     WebView source,

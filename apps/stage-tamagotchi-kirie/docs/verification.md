@@ -21,6 +21,68 @@ The [README](../README.md#checks-and-build) supplies the command sequence.
 Historical ablation command results remain in the [ablation batch record](ablation-review.md#historical-command-results).
 No check in this table extends the platform matrix after later simplifications.
 
+## Android WebView microphone alignment, 2026-10-06
+
+This alignment requires exact stage-pocket behavior, including existing Capacitor bugs.
+Stage-pocket uses Capacitor Android 8.5.0 `BridgeWebChromeClient` for WebView capture permissions.
+The AIRI Android export plugin replaces Kirie's `WebChromeClient` for file selection and external links.
+That replacement previously omitted permission callbacks, so WebView denied audio capture.
+It now mirrors Capacitor's resource mapping, result callback, single listener, cancellation, and lifecycle behavior.
+
+`VIDEO_CAPTURE` requests `CAMERA`. `AUDIO_CAPTURE` requests `MODIFY_AUDIO_SETTINGS` followed by `RECORD_AUDIO`.
+A combined request puts `CAMERA` first, then both audio permissions.
+The callback grants `request.getResources()` when every returned Android permission value is true. It denies the request if any value is false.
+An empty result map grants the request, as Capacitor does.
+Unknown resource arrays and empty resource arrays receive a direct grant without an Android permission request.
+Mixed arrays retain unknown resources in the full grant.
+
+One mutable listener retains the latest WebView request. Each capture request launches its own Android permission request.
+A later request replaces the listener, so an earlier Android result can resolve the later WebView request.
+The listener remains installed after completion. Cancellation uses the default `WebChromeClient` callback and leaves the listener intact.
+The launcher uses `ComponentActivity.registerForActivityResult` with `RequestMultiplePermissions`, as Capacitor's bridge does.
+The activity owns callback delivery and registration cleanup. The plugin adds no request cancellation, destruction denial, or late-result guard.
+The native Eventa permission flow remains unchanged and separate from the WebView launcher.
+The amended commit includes keyboard commit `cc2fbda9f` as its parent.
+
+| Command | Result |
+| --- | --- |
+| `pnpm --config.verifyDepsBeforeRun=false -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `pnpm --config.verifyDepsBeforeRun=false -F @proj-airi/stage-tamagotchi-kirie exec vitest run --config vitest.config.ts --project node src-web/src/renderer/host-context/microphone-permission.test.ts` | Three existing renderer permission tests passed. |
+| `python3 /tmp/airi-microphone-parity-check.py` | Fifteen differential Java checks matched Capacitor 8.5.0 with simulated Android boundaries. |
+| `mise exec -- godot --headless --export-debug Android dist/kirie/android/debug.apk` | Passed with Godot 4.7.2 Mono, including the keyboard changes. |
+| `pnpm --config.verifyDepsBeforeRun=false lint` | Source scan passed with 0 errors and 682 warnings. |
+| `pnpm --config.verifyDepsBeforeRun=false exec moeru-lint apps/stage-tamagotchi-kirie/addons/airi-android/export-plugin.gd apps/stage-tamagotchi-kirie/docs/verification.md` | Passed. One warning states that GDScript has no lint configuration. |
+| `adb -s emulator-5554 install -r apps/stage-tamagotchi-kirie/dist/kirie/android/debug.apk` | Passed on Android 15, API 35. |
+| `adb -s emulator-5554 shell am start -n ai.moeru.airi.kirie/com.godot.game.GodotAppLauncher` | Opened the WebView without a launcher registration exception. |
+| `git diff --check` | Passed. |
+
+The Java harness extracts both permission handlers and result callbacks from the application and the installed Capacitor source.
+It compares audio, video, combined capture, permission denial, empty results, unknown resources, duplicate resources, overlapping requests, retained listeners, and default cancellation.
+It also checks that the baseline native permission and destruction methods remain unchanged.
+These checks establish parity at simulated boundaries. They do not establish Android callback ordering or real microphone capture.
+The harness and build log are temporary evidence, not repository fixtures.
+The export reused local web assets and native template inputs. It rebuilt the Android plugin and published C# for both configured architectures.
+Godot reported a nonfatal `EditorSettings` diagnostic at shutdown. The export exited with code 0.
+Root lint excludes no new paths. Generated Android artifacts and installed Kirie iOS frameworks moved outside the scan for that command.
+The Android build inputs returned to the worktree afterward. No ignore rules changed, and `recordings-android` remains untouched.
+
+The amended APK displayed the Android microphone prompt after a WebView `navigator.mediaDevices.getUserMedia({ audio: true })` request through `agent-browser`.
+`adb -s emulator-5554 exec-out uiautomator dump /dev/tty` supplied the denial button bounds.
+`adb -s emulator-5554 shell input tap 1212 824` selected `Don't allow`.
+The WebView returned `NotAllowedError`, and `adb -s emulator-5554 shell dumpsys package ai.moeru.airi.kirie` confirmed `RECORD_AUDIO: granted=false`.
+The session restored the permission flags and removed its debugging port forward afterward.
+This establishes real Android denial handling. Grant, cancellation, overlap, and recreation still require runtime comparison with stage-pocket.
+On an emulator or physical device, compare both applications through these steps:
+
+1. With microphone permission unset, request audio capture. Grant the Android prompt and confirm a live audio track.
+2. With permission granted, request audio capture again. Confirm that no Android prompt appears.
+3. Revoke microphone permission. Compare denial with stage-pocket, then dismiss the next prompt and compare that result.
+4. Request audio and video capture together. Compare Android permission results and the complete granted resource array.
+5. Start overlapping requests, then cancel a WebView request. Compare listener replacement and late results with stage-pocket.
+6. Destroy or recreate the activity during a prompt. Compare callback delivery and restart behavior with stage-pocket.
+7. Return from Android settings after permission changes. Compare native permission state and subsequent audio capture.
+8. On a physical device, record microphone audio through the normal hearing flow and confirm usable input.
+
 ## Windows acceptance evidence
 
 The session used Godot 4.7.2 Mono, Kirie 0.6.5, CEF 1.16.1, and an NVIDIA RTX 4060 Laptop GPU.
