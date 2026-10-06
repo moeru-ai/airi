@@ -279,7 +279,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             ValueCallback<Uri[]> callback = pendingFileChooser;
             Uri[] result;
             if (resultCode == Activity.RESULT_OK
-                && data != null
                 && data.getClipData() != null) {
                 int itemCount = data.getClipData().getItemCount();
                 result = new Uri[itemCount];
