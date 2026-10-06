@@ -651,6 +651,35 @@ describe('interactive area synchronized state', () => {
     expect(captured).toEqual(draft)
   })
 
+  it('carries the shown conversation through a mode switch with an empty composer', async () => {
+    // ROOT CAUSE:
+    //
+    // A new window starts on the conversation saved for the character. A
+    // switch carried the shown one only in a typed draft, and the restore
+    // waited for the user to pick it, so the previous window stayed.
+    //
+    // The switch always carries the conversation, and the restore opens it.
+    let area: InstanceType<typeof InteractiveArea> | undefined
+    const { chatSession } = await renderArea(defineComponent({
+      setup: () => () => h(InteractiveArea, {
+        ref: (instance) => {
+          area = (instance ?? undefined) as InstanceType<typeof InteractiveArea> | undefined
+        },
+      }),
+    }))
+    if (!area)
+      throw new Error('Expected the composer.')
+
+    expect(await area.snapshotDraft()).toMatchObject({ sessionId: 'session-b', text: '', attachments: [] })
+
+    await expect(area.restoreDraft({ sessionId: 'session-a', text: '', attachments: [] })).resolves.toBe(true)
+    expect(chatSession.activeSessionId).toBe('session-a')
+
+    await expect(area.restoreDraft({ sessionId: 'session-b', text: 'unsent', attachments: [] })).resolves.toBe(true)
+    expect(chatSession.activeSessionId).toBe('session-b')
+    expect((await area.snapshotDraft())?.text).toBe('unsent')
+  })
+
   it('captures a reply picked from the history as a mode switch draft that can cross IPC', async () => {
     // The history hands out reactive message proxies. The draft crosses IPC
     // with structuredClone, which throws on a proxy, so the switch failed

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Enforce i18n Rules"
+  short_description: "Review pending Crowdin translations in a batch"
+  default_prompt: "Use $enforce-rules-for-i18n to review the pending Crowdin translations."

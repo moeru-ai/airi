@@ -301,6 +301,7 @@ export function createSpeechPipeline<TAudio>(options: SpeechPipelineOptions<TAud
           text: value.text,
           special: value.special,
           sentenceBoundary: value.sentenceBoundary,
+          reason: value.reason,
           priority: intent.priority,
           createdAt: Date.now(),
         }
