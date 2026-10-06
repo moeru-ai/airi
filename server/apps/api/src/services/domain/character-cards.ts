@@ -1,7 +1,7 @@
 import type { Database } from '../../libs/db'
 import type { PushedField } from './field-sync'
 
-import { characterCardTables } from '../../schemas/character-cards'
+import { characterCardFields, characterCards } from '../../schemas/character-cards'
 import { createBadRequestError } from '../../utils/error'
 import { createFieldSyncStore } from './field-sync'
 
@@ -17,7 +17,7 @@ function assertCardFieldKeys(fields: PushedField[]) {
 
 /** Stores the character cards that a user synchronizes between devices. */
 export function createCharacterCardService(db: Database) {
-  return createFieldSyncStore(db, characterCardTables, { validate: assertCardFieldKeys })
+  return createFieldSyncStore(db, { documents: characterCards, fields: characterCardFields }, { validate: assertCardFieldKeys })
 }
 
 export type CharacterCardService = ReturnType<typeof createCharacterCardService>

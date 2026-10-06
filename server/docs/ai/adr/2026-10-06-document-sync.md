@@ -31,13 +31,17 @@ The design does not use a CRDT. A value is a selection or a full text, and a mer
 
 | Module | Owner | Responsibility |
 | --- | --- | --- |
-| `defineFieldSyncTables(name)` | Shared | Defines the documents table `name` and the fields table `${name}_fields`. The feature exports the result from its own schema file. |
+| `FieldSyncTables` | Shared | A type that lists the columns the store needs. The compiler rejects a table that misses one. |
 | `createFieldSyncStore(db, tables, { validate })` | Shared | Locks a document, compares revisions, writes the accepted fields, keeps deletion markers, and removes the content of a deleted account. |
 | `parseDocumentId`, `parsePushRequest`, `parseDeleteRevision` | Shared | Parse the three request shapes. |
-| Tables, service, routes, and `validate` of a feature | Feature | Choose the route, the limits, the extra tables, the authorization, and every rule about the content. |
+| Tables, service, routes, and `validate` of a feature | Feature | Declare the two tables by hand in its own schema file. Choose the route, the extra columns and tables, the limits, the authorization, and every rule about the content. |
 
 A feature composes the store in its own route. The store gives no routes and no hooks other than `validate`.
 A feature can add other routes to the same path, for example a signed upload address for a file.
+
+A feature can add columns and indexes to its tables. An added column must accept `null` or have a default.
+The store inserts a document row with only the two key columns, and the compiler does not catch a required column.
+For a required value, the feature uses a field, or another table with the key `(ownerId, documentId)`.
 
 ## Conflict rules
 
@@ -61,7 +65,7 @@ The selected card is not synchronized. Each device keeps its own selection.
 
 ## Scope
 
-- The shared store, the table definition, and the request parsers.
+- The shared store, the table contract, and the request parsers.
 - The character card tables, service, and routes.
 - Account deletion removes the card content and keeps the deletion markers.
 - A client module that compares, merges, and sends documents for any route of this shape.
@@ -118,9 +122,8 @@ server/apps/api
 ├── drizzle/0031_character_cards.sql
 └── src
     ├── app.ts
-    ├── schemas/field-sync.ts            # defineFieldSyncTables
-    ├── schemas/character-cards.ts       # the tables of the feature
-    ├── services/domain/field-sync/      # the shared store and request parsers
+    ├── schemas/character-cards.ts       # the tables of the feature, declared by hand
+    ├── services/domain/field-sync/      # the shared store, the table contract, and request parsers
     ├── services/domain/character-cards.ts
     └── routes/character-cards/index.ts
 packages/stage-ui/src
@@ -161,7 +164,7 @@ The local cards belong to the device. A second account on the device starts with
 
 ## Test plan
 
-- Store tests on PGlite with tables that no feature owns: field independence, conflicts, a repeated push, deletion, restoration, validation, and account deletion.
+- Store tests on PGlite with tables that no feature owns, and with extra columns: field independence, conflicts, a repeated push, deletion, restoration, validation, account deletion, and the kept extra columns.
 - Character card tests: the tables, the key check, and the routes with their status codes.
 - Client unit tests: each conflict rule, the built-in document, the REST client, and the card split.
 - Browser test with two profiles of one account: create, edit, and delete a card.

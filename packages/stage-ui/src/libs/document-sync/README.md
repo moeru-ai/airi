@@ -27,8 +27,8 @@ Each feature owns its tables and its routes. The server and the client share onl
 
 Server, in `server/apps/api`:
 
-1. Define the tables in a schema file with `defineFieldSyncTables('<feature>')`, and generate the migration.
-2. Create the service with `createFieldSyncStore(db, tables, { validate })`. Put every rule about the content in `validate`.
+1. Declare two tables in the schema file of the feature, and generate the migration. Copy `server/apps/api/src/schemas/character-cards.ts` as the template. The tables need the columns of `FieldSyncTables` in `services/domain/field-sync/tables.ts`. The compiler rejects a table that misses one.
+2. Create the service with `createFieldSyncStore(db, { documents, fields }, { validate })`. Put every rule about the content in `validate`.
 3. Write the routes of the feature. Call `list`, `push`, and `remove`, and parse the requests with `parseDocumentId`, `parsePushRequest`, and `parseDeleteRevision`.
 
 Client, in `packages/stage-ui`:
@@ -50,6 +50,11 @@ await synchronize({
   applyLocal: async changes => writeLocalDocuments(changes),
 })
 ```
+
+## Extending the tables
+
+A feature can add columns, indexes, and other tables. An added column must accept `null` or have a default. The store inserts a document row with only `ownerId` and `documentId`, and the compiler does not catch a required column.
+For a required value, store it in a field, or in another table that has the key `(ownerId, documentId)`.
 
 ## Rules for the caller
 

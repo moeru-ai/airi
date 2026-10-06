@@ -1,6 +1,6 @@
 import type { Database } from '../../../libs/db'
-import type { FieldSyncTables } from '../../../schemas/field-sync'
 import type { PushedField } from './request'
+import type { FieldSyncTables } from './tables'
 
 import { isDeepStrictEqual } from 'node:util'
 
@@ -28,6 +28,7 @@ export interface FieldSyncStoreOptions {
  *
  * The store owns the locking, the revisions, and the deletion markers. The
  * feature owns its tables, its routes, and every rule about the content.
+ * The tables must have the columns that {@link FieldSyncTables} describes.
  */
 export function createFieldSyncStore(db: Database, tables: FieldSyncTables, options: FieldSyncStoreOptions = {}) {
   const { documents, fields } = tables

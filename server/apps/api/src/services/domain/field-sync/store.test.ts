@@ -2,18 +2,55 @@ import type { Database } from '../../../libs/db'
 import type { PushedField } from './request'
 import type { FieldSyncStore } from './store'
 
+import { eq } from 'drizzle-orm'
+import { foreignKey, index, integer, jsonb, pgTable, primaryKey, text, timestamp } from 'drizzle-orm/pg-core'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
-import { defineFieldSyncTables } from '../../../schemas/field-sync'
 import { createBadRequestError } from '../../../utils/error'
 import { createFieldSyncStore } from './store'
 
 import * as schema from '../../../schemas'
 
-// The store works with the tables of any feature. These tables prove that it
-// does not depend on the character card tables.
-const tables = defineFieldSyncTables('field_sync_test')
+// These tables belong to no feature. They prove that the store works with any
+// tables that have the required columns, and that a feature can add its own.
+const documents = pgTable(
+  'field_sync_test',
+  {
+    ownerId: text('owner_id').notNull(),
+    documentId: text('document_id').notNull(),
+    revision: integer('revision').notNull().default(0),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at'),
+    contentHash: text('content_hash'),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+  },
+  table => [
+    primaryKey({ name: 'field_sync_test_pk', columns: [table.ownerId, table.documentId] }),
+    index('field_sync_test_hash_idx').on(table.contentHash),
+  ],
+)
+
+const fields = pgTable(
+  'field_sync_test_fields',
+  {
+    ownerId: text('owner_id').notNull(),
+    documentId: text('document_id').notNull(),
+    key: text('key').notNull(),
+    value: jsonb('value').notNull().$type<unknown>(),
+    revision: integer('revision').notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  table => [
+    primaryKey({ name: 'field_sync_test_fields_pk', columns: [table.ownerId, table.documentId, table.key] }),
+    foreignKey({
+      name: 'field_sync_test_fields_document_fk',
+      columns: [table.ownerId, table.documentId],
+      foreignColumns: [documents.ownerId, documents.documentId],
+    }).onDelete('cascade'),
+  ],
+)
 
 describe('fieldSyncStore', () => {
   let db: Database
@@ -23,8 +60,8 @@ describe('fieldSyncStore', () => {
   const list = async (ownerId = 'owner') => (await store.list(ownerId)).documents
 
   beforeEach(async () => {
-    db = await mockDB({ ...schema, fieldSyncTestDocuments: tables.documents, fieldSyncTestFields: tables.fields })
-    store = createFieldSyncStore(db, tables, {
+    db = await mockDB({ ...schema, fieldSyncTestDocuments: documents, fieldSyncTestFields: fields })
+    store = createFieldSyncStore(db, { documents, fields }, {
       validate: (fields) => {
         if (fields.some(field => field.key === '/forbidden'))
           throw createBadRequestError('Forbidden key')
@@ -142,6 +179,17 @@ describe('fieldSyncStore', () => {
     await expect(push([{ key: '/forbidden', baseRevision: 0, value: 'x' }])).rejects.toMatchObject({ statusCode: 400 })
 
     expect(await list()).toEqual([])
+  })
+
+  it('keeps the columns that the feature added to its table', async () => {
+    await push([{ key: '/name', baseRevision: 0, value: 'Luna' }])
+    await db.update(documents).set({ contentHash: 'abc', sizeBytes: 12 }).where(eq(documents.ownerId, 'owner'))
+
+    await push([{ key: '/name', baseRevision: 1, value: 'Nova' }])
+    await store.remove('owner', 'doc', 2)
+
+    const [row] = await db.select().from(documents)
+    expect(row).toMatchObject({ contentHash: 'abc', sizeBytes: 12, revision: 3 })
   })
 
   it('removes the content of a deleted account', async () => {
