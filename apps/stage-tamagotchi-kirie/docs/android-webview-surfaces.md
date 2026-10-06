@@ -58,3 +58,15 @@ Capture launch exceptions are not caught. Only the existing picker catches `Acti
 
 Four of six capture tests failed before implementation.
 The tests compare capture selection, permission denial, URI grants, photo results, video results, and listener replacement against the installed reference.
+
+## Fullscreen custom views
+
+Reference: `BridgeWebChromeClient.onShowCustomView` and `onHideCustomView`, lines 83–95.
+Pocket immediately invokes `onCustomViewHidden()`, then calls the platform superclass.
+It does not attach the custom view or change orientation, bars, or the original WebView.
+The hide callback calls only the superclass.
+Kirie retains this rejection behavior. It does not add a fullscreen video surface.
+The deprecated orientation overload retains its inherited platform behavior in both clients.
+
+The pre-change test observed zero hidden callbacks in Kirie and one in Capacitor.
+Two focused tests cover the current callback pair and the deprecated overload.

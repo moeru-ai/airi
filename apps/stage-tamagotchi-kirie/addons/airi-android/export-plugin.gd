@@ -535,6 +535,17 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             webView.getSettings().setSupportMultipleWindows(true);
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
+                public void onShowCustomView(View view, CustomViewCallback callback) {
+                    callback.onCustomViewHidden();
+                    super.onShowCustomView(view, callback);
+                }
+
+                @Override
+                public void onHideCustomView() {
+                    super.onHideCustomView();
+                }
+
+                @Override
                 public boolean onJsAlert(
                     WebView source,
                     String url,
