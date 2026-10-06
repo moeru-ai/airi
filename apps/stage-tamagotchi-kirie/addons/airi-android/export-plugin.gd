@@ -10,6 +10,7 @@ const LAUNCH_MANIFEST = """<?xml version="1.0" encoding="utf-8"?>
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
         tools:replace="android:allowBackup,android:icon" />
 </manifest>
 """
