@@ -17,7 +17,7 @@ const LAUNCH_RESOURCES = """<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="AiriAppMainTheme" parent="GodotAppMainTheme">
         <item name="android:background">@null</item>
-        <item name="android:windowBackground">@color/airi_system_bar_color</item>
+        <item name="android:windowBackground">@color/airi_startup_window_background</item>
     </style>
     <style name="AiriAppSplashTheme" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
@@ -28,12 +28,14 @@ const DAY_RESOURCES = """<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <bool name="airi_is_light_theme">true</bool>
     <color name="airi_system_bar_color">#FFFFFF</color>
+    <color name="airi_startup_window_background">#FAFAFA</color>
 </resources>
 """
 const NIGHT_RESOURCES = """<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <bool name="airi_is_light_theme">false</bool>
     <color name="airi_system_bar_color">#303030</color>
+    <color name="airi_startup_window_background">#303030</color>
 </resources>
 """
 const ANDROID_PLUGIN_SOURCE = """package ai.moeru.airi.kirie;
@@ -79,6 +81,10 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+
+import ai.moeru.kirie.android.KirieAssetRequestHandler;
+import ai.moeru.kirie.android.KirieWebViewManager;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
@@ -178,6 +184,9 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private OnBackPressedCallback backPressedCallback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
+    private FrameLayout browserHost;
+    private KirieWebViewManager browserManager;
+    private String browserUrl = "res://src-web/dist/android/index.html";
     private ViewGroup browserInsetsView;
     private ViewTreeObserver.OnGlobalLayoutListener browserImeLayoutListener;
     private int browserInsetsPaddingLeft;
@@ -246,9 +255,27 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             .getOnBackPressedDispatcher()
             .addCallback(backPressedCallback);
         applySystemBarStyle(activity);
-        installBrowserChannel(activity, 100);
+        browserHost = new FrameLayout(activity);
+        browserHost.setBackgroundColor(activity.getColor(R.color.airi_startup_window_background));
+        // The Android page uses AiriAndroidEventa. Kirie supplies its WebView and asset transport.
+        browserManager = new KirieWebViewManager(
+            () -> activity,
+            id -> {
+                installBrowserChannel(activity, 100);
+                return kotlin.Unit.INSTANCE;
+            },
+            (id, packet) -> kotlin.Unit.INSTANCE,
+            (id, packet) -> kotlin.Unit.INSTANCE,
+            (id, packet) -> kotlin.Unit.INSTANCE,
+            (id, error) -> {
+                Log.e("AiriAndroid", error);
+                return kotlin.Unit.INSTANCE;
+            }
+        );
+        browserManager.attachHostView(browserHost);
+        browserManager.createWebView(0, browserUrl);
         dispatchPendingUrlOpen();
-        return null;
+        return browserHost;
     }
 
     @Override
@@ -284,6 +311,10 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             hostWebSocketBridge.dispose();
             hostWebSocketBridge = null;
         }
+        browserManager.destroyAllWebViews();
+        browserManager.detachHostView(browserHost);
+        browserManager = null;
+        browserHost = null;
         browserWebView = null;
         eventaReplyProxy = null;
         pendingPermissionRequests.clear();
@@ -382,6 +413,16 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     }
 
     @UsedByGodot
+    public void loadBrowserUrl(String url) {
+        // Scene initialization adopts the already running page without resetting its startup or input state.
+        if (browserUrl.equals(url)) {
+            return;
+        }
+        browserUrl = url;
+        browserManager.loadUrl(0, url);
+    }
+
+    @UsedByGodot
     public boolean checkPermission(String permission) {
         Activity activity = getActivity();
         if (activity == null) {
@@ -463,8 +504,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return;
         }
 
-        mainHandler.post(() -> {
-            WebView webView = findWebView(activity.getWindow().getDecorView());
+        activity.runOnUiThread(() -> {
+            WebView webView = findWebView(browserHost);
             if (webView == null) {
                 mainHandler.postDelayed(
                     () -> installBrowserChannel(activity, attemptsRemaining - 1),
@@ -754,6 +795,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private void installExternalNavigation(Activity activity, WebView webView) {
         // Kirie owns asset interception and development TLS handling.
         WebViewClient kirieClient = webView.getWebViewClient();
+        KirieAssetRequestHandler assets = new KirieAssetRequestHandler(activity.getAssets());
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -765,6 +807,14 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 WebView view,
                 WebResourceRequest request
             ) {
+                Uri url = request.getUrl();
+                String path = url.getEncodedPath();
+                if (EVENTA_ORIGIN.equals(url.getScheme() + "://" + url.getAuthority())
+                    && path != null && !path.startsWith("/src-web/dist/")) {
+                    // Pocket's root asset URLs resolve inside the Android renderer's packaged web root.
+                    String assetPath = path.equals("/") ? "/index.html" : path;
+                    return assets.open(Uri.parse(EVENTA_ORIGIN + "/src-web/dist/android" + assetPath));
+                }
                 return kirieClient.shouldInterceptRequest(view, request);
             }
 

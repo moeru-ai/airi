@@ -15,6 +15,7 @@ Production packaging remains deferred. Windows CEF shutdown still fails.
 | [Migration status](MIGRATION.md) | The 29 capabilities, platform decisions, blockers, dependencies, and deferred work |
 | [Host architecture](docs/host-architecture.md) | Runtime boundaries, ownership, and implementation requirements |
 | [Platform verification](docs/verification.md) | Dated acceptance evidence and automation limits |
+| [Android startup](docs/android-startup.md) | Native handoff, web loading behavior, and cold-start comparison |
 | [Ablation review](docs/ablation-review.md) | Whole-framework decisions, compact experiment evidence, and review limits |
 
 ## Setup and development
