@@ -1,6 +1,5 @@
 import type { SubscriptionService } from '../domain/subscriptions'
 import type { ConfigKVService } from './config-kv'
-import type { RevenuecatApiClient } from './revenuecat-api'
 
 import { describe, expect, it, vi } from 'vitest'
 
@@ -22,7 +21,6 @@ function createCore(): SubscriptionService {
   return {
     upsertSubscription: vi.fn(async () => undefined),
     openPeriod: vi.fn(async () => true),
-    reconcile: vi.fn(async () => undefined),
     getStatus: vi.fn(),
     debitCredits: vi.fn(),
     extendPeriod: vi.fn(),
@@ -48,7 +46,7 @@ const baseEvent = {
 describe('revenuecat subscription sync', () => {
   it('translates a purchase into upsert plus period', async () => {
     const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
 
     expect(await sync.syncEvent(baseEvent)).toEqual({ synced: true })
     expect(core.upsertSubscription).toHaveBeenCalledWith(expect.objectContaining({
@@ -65,7 +63,7 @@ describe('revenuecat subscription sync', () => {
 
   it('syncs status without a period for informative events', async () => {
     const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
 
     expect(await sync.syncEvent({ ...baseEvent, id: 'event-2', type: 'CANCELLATION' }))
       .toEqual({ synced: true })
@@ -76,7 +74,7 @@ describe('revenuecat subscription sync', () => {
 
   it('opens a period and retires other entitlements on product change', async () => {
     const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
 
     expect(await sync.syncEvent({ ...baseEvent, id: 'event-3', type: 'PRODUCT_CHANGE' }))
       .toEqual({ synced: true })
@@ -89,7 +87,7 @@ describe('revenuecat subscription sync', () => {
 
   it('syncs uncancellation without a new period', async () => {
     const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
 
     expect(await sync.syncEvent({ ...baseEvent, id: 'event-4', type: 'UNCANCELLATION' }))
       .toEqual({ synced: true })
@@ -103,7 +101,7 @@ describe('revenuecat subscription sync', () => {
 
   it('extends the open period without a new grant', async () => {
     const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
     const expirationAtMs = Date.now() + 14 * 24 * 60 * 60 * 1000
 
     expect(await sync.syncEvent({
@@ -123,7 +121,7 @@ describe('revenuecat subscription sync', () => {
 
   it('skips an extension that has no expiration', async () => {
     const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
 
     expect(await sync.syncEvent({
       ...baseEvent,
@@ -138,35 +136,9 @@ describe('revenuecat subscription sync', () => {
 
   it('acks unknown products without touching the core', async () => {
     const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), null)
+    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
 
     expect(await sync.syncEvent({ ...baseEvent, productId: 'unknown' })).toEqual({ synced: false })
     expect(core.upsertSubscription).not.toHaveBeenCalled()
-  })
-
-  it('reconciles with mapped quota and skips when the api is unreachable', async () => {
-    const core = createCore()
-    const api = {
-      enabled: true,
-      getActiveEntitlements: vi.fn(async () => [
-        { lookupKey: 'airi_go', expiresAtMs: 1790800000000 },
-      ]),
-    } as unknown as RevenuecatApiClient
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV(), api)
-
-    await sync.reconcile('user-1')
-    expect(core.reconcile).toHaveBeenCalledWith('user-1', [{
-      entitlementId: 'airi_go',
-      active: true,
-      expiresAt: new Date(1790800000000),
-      quotaCredit: 2000,
-    }])
-
-    const unreachable = createRevenuecatSubscriptionSync(core, createConfigKV(), {
-      enabled: true,
-      getActiveEntitlements: vi.fn(async () => null),
-    } as unknown as RevenuecatApiClient)
-    await unreachable.reconcile('user-1')
-    expect(core.reconcile).toHaveBeenCalledTimes(1)
   })
 })

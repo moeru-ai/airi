@@ -130,7 +130,7 @@ describe('revenuecat routes', () => {
   function setup(configKV: ConfigKVService = createPacksConfigKV()) {
     const payment = createMockPayment()
     const subscriptions = createSubscriptionService(db)
-    const sync = createRevenuecatSubscriptionSync(subscriptions, configKV, null)
+    const sync = createRevenuecatSubscriptionSync(subscriptions, configKV)
     return { payment, subscriptions, app: createTestApp(payment, configKV, sync) }
   }
 

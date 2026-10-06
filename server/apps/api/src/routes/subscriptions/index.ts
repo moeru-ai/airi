@@ -1,4 +1,3 @@
-import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -26,15 +25,10 @@ export function allowanceRemainingPercent(grantedCredit: number, remainingCredit
  * Subscription status and the Flux-fallback preference.
  * Allowances expose a percent only. Credit counts stay on the ledger for billing.
  */
-export function createSubscriptionRoutes(
-  subscriptions: SubscriptionService,
-  subscriptionSync: RevenuecatSubscriptionSync | null = null,
-) {
+export function createSubscriptionRoutes(subscriptions: SubscriptionService) {
   return new Hono<HonoEnv>()
     .get('/status', authGuard, async (c) => {
       const userId = c.get('user')!.id
-      // Best-effort lazy reconcile: a failed refresh must not fail the read.
-      await subscriptionSync?.reconcile(userId).catch(() => undefined)
       const status = await subscriptions.getStatus(userId)
       return c.json({
         subscriptions: status.subscriptions,

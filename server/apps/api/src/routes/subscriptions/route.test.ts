@@ -1,5 +1,4 @@
 import type { Database } from '../../libs/db'
-import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -23,8 +22,8 @@ const testUser = {
   updatedAt: new Date(),
 }
 
-function createTestApp(subscriptions: SubscriptionService, sync: RevenuecatSubscriptionSync | null = null) {
-  const routes = createSubscriptionRoutes(subscriptions, sync)
+function createTestApp(subscriptions: SubscriptionService) {
+  const routes = createSubscriptionRoutes(subscriptions)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -110,27 +109,6 @@ describe('subscription routes', () => {
       body: JSON.stringify({ fallbackToFlux: 'yes' }),
     }, testUser)
     expect(res.status).toBe(400)
-  })
-
-  it('reconciles before reading status without failing the read', async () => {
-    await db.delete(schema.subscriptionConsumption)
-    await db.delete(schema.subscriptionAllowance)
-    await db.delete(schema.subscription)
-    await db.delete(schema.userBillingPreference)
-    const core = createSubscriptionService(db)
-    const reconcile = async (userId: string) => {
-      await core.upsertSubscription({ userId, entitlementId: 'airi_go', status: 'active' })
-    }
-    const app = createTestApp(core, { reconcile } as never)
-
-    const res = await app.fetch(
-      new Request('http://localhost/api/v1/subscriptions/status'),
-      { user: testUser } as never,
-    )
-    expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({
-      subscriptions: [{ entitlementId: 'airi_go' }],
-    })
   })
 
   it('returns the remaining percent and omits credit counts', async () => {

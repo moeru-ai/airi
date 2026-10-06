@@ -221,42 +221,4 @@ describe('subscription service', () => {
     expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_plus' }])
     expect(status.allowances).toEqual([])
   })
-
-  it('revives missed rows and retires lapsed ones on reconcile', async () => {
-    const service = await setup()
-    await service.upsertSubscription({
-      userId: 'user-1',
-      entitlementId: 'airi_go',
-      status: 'cancelled',
-      expiresAt: new Date(Date.now() - 1000),
-    })
-
-    await service.reconcile('user-1', [
-      { entitlementId: 'airi_go', active: true, expiresAt: new Date(Date.now() + 1000), quotaCredit: 2000 },
-    ])
-    let status = await service.getStatus('user-1')
-    expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_go', status: 'active' }])
-    expect(status.allowances).toMatchObject([{ grantedCredit: 2000 }])
-
-    await service.reconcile('user-1', [], new Date(Date.now() + 2000))
-    status = await service.getStatus('user-1', new Date(Date.now() + 2000))
-    expect(status.subscriptions).toEqual([])
-
-    const [row] = await db.select().from(schema.subscription)
-    expect(row.status).toBe('expired')
-  })
-
-  it('never revokes unexpired access on a remote miss', async () => {
-    const service = await setup()
-    await service.upsertSubscription({
-      userId: 'user-1',
-      entitlementId: 'airi_go',
-      status: 'active',
-      expiresAt: new Date(Date.now() + 1000),
-    })
-
-    await service.reconcile('user-1', [])
-    const status = await service.getStatus('user-1')
-    expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_go', status: 'active' }])
-  })
 })

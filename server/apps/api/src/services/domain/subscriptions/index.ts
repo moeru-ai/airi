@@ -34,14 +34,6 @@ export interface AllowancePeriod {
   eventKey?: string | null
 }
 
-export interface ReconciledEntitlement {
-  entitlementId: string
-  active: boolean
-  expiresAt: Date | null
-  /** Opens a Credit period when provided and none is open. */
-  quotaCredit?: number
-}
-
 /**
  * Source-agnostic subscription state. Callers (RevenueCat webhooks, manual
  * grants, future store-direct integrations) translate their own events into
@@ -112,84 +104,6 @@ export function createSubscriptionService(db: Database) {
         eventId: input.eventKey,
       }).onConflictDoNothing()
       return true
-    })
-  }
-
-  /**
-   * Aligns local rows with an authoritative remote snapshot. Revives rows the
-   * event stream missed and retires lapsed ones; never revokes unexpired
-   * access on a remote miss, so API blips cannot lock users out.
-   */
-  async function reconcile(userId: string, remote: ReconciledEntitlement[], now: Date = new Date()): Promise<void> {
-    const rows = await db
-      .select()
-      .from(schema.subscription)
-      .where(and(
-        eq(schema.subscription.userId, userId),
-        isNull(schema.subscription.deletedAt),
-      ))
-
-    await db.transaction(async (tx) => {
-      for (const item of remote) {
-        const row = rows.find(candidate => candidate.entitlementId === item.entitlementId)
-        const locallyCovered = row
-          && row.status !== 'expired'
-          && (!row.expiresAt || row.expiresAt > now)
-          && (item.expiresAt == null || !row.expiresAt || row.expiresAt.getTime() === item.expiresAt.getTime())
-
-        if (locallyCovered)
-          continue
-
-        logger.withFields({ userId, entitlementId: item.entitlementId }).log('Reconcile reviving subscription row')
-        await tx.insert(schema.subscription).values({
-          userId,
-          entitlementId: item.entitlementId,
-          status: 'active',
-          expiresAt: item.expiresAt,
-        }).onConflictDoNothing()
-        await tx.update(schema.subscription).set({
-          status: 'active' as const,
-          expiresAt: item.expiresAt,
-          updatedAt: new Date(),
-          deletedAt: null,
-        }).where(and(
-          eq(schema.subscription.userId, userId),
-          eq(schema.subscription.entitlementId, item.entitlementId),
-          isNull(schema.subscription.deletedAt),
-        ))
-
-        if (item.quotaCredit != null) {
-          await tx.update(schema.subscriptionAllowance)
-            .set({ periodEnd: now, updatedAt: new Date() })
-            .where(and(
-              eq(schema.subscriptionAllowance.userId, userId),
-              eq(schema.subscriptionAllowance.entitlementId, item.entitlementId),
-              or(
-                isNull(schema.subscriptionAllowance.periodEnd),
-                gt(schema.subscriptionAllowance.periodEnd, now),
-              ),
-            ))
-          await tx.insert(schema.subscriptionAllowance).values({
-            userId,
-            entitlementId: item.entitlementId,
-            periodStart: now,
-            periodEnd: item.expiresAt,
-            grantedCredit: item.quotaCredit,
-            usedCredit: 0,
-            unsettledMicroCredit: 0,
-            eventId: `reconcile:${userId}:${item.entitlementId}:${item.expiresAt?.getTime() ?? 'open'}`,
-          }).onConflictDoNothing()
-        }
-      }
-
-      for (const row of rows) {
-        const present = remote.some(item => item.entitlementId === row.entitlementId && item.active)
-        if (!present && row.status !== 'expired' && row.expiresAt && row.expiresAt <= now) {
-          await tx.update(schema.subscription)
-            .set({ status: 'expired' as const, updatedAt: new Date() })
-            .where(eq(schema.subscription.id, row.id))
-        }
-      }
     })
   }
 
@@ -399,7 +313,6 @@ export function createSubscriptionService(db: Database) {
   return {
     upsertSubscription,
     openPeriod,
-    reconcile,
     getStatus,
     debitCredits,
     extendPeriod,

@@ -171,11 +171,8 @@ Otherwise the wallet pays only when Flux fallback is on. Plan Credits never
 touch `user_flux`. They live in `subscription_allowance` with per-request
 rows in `subscription_consumption`. Product-to-plan mapping lives in ConfigKV
 `REVENUECAT_SUBSCRIPTION_PLANS`.
-Lazy reconciliation (`services/adapters/revenuecat-api`, Developer API v2
-`GET /customers/{id}` plus entitlement lookup keys) runs only on explicit
-status reads, never on the billing hot path; it revives missed renewals and
-retires lapsed rows, and opens quota periods from the plan mapping when the
-canonical state proves payment.
+Status reads the local ledger. A missed webhook stays stale until RevenueCat
+resends that event.
 
 ## Run locally
 

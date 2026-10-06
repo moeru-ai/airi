@@ -147,10 +147,6 @@ const EnvSchema = intersect([S3EnvironmentSchema, object({
   // return 503 when both are unset.
   REVENUECAT_WEBHOOK_AUTH: optional(string()),
   REVENUECAT_WEBHOOK_SECRET: optional(string()),
-  // RevenueCat Developer API v2 for lazy entitlement reconciliation.
-  // Unset disables reconciliation; webhooks keep working.
-  REVENUECAT_API_SECRET: optional(string()),
-  REVENUECAT_PROJECT_ID: optional(string()),
   // Testing-only bearer token bypass. Keep unset in production. When set,
   // Authorization: Bearer $TEST_AUTH_TOKEN resolves to the virtual user below
   // through resolveRequestAuth without creating an Auth session row.

@@ -71,7 +71,6 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
-import { createRevenuecatApiClient } from './services/adapters/revenuecat-api'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
@@ -468,7 +467,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Subscription status and billing preference.
      */
-    .route('/api/v1/subscriptions', createSubscriptionRoutes(deps.subscriptionService, deps.subscriptionSync))
+    .route('/api/v1/subscriptions', createSubscriptionRoutes(deps.subscriptionService))
 
     /**
      * Apple IAP routes (StoreKit 2 JWS and Notifications V2).
@@ -739,14 +738,10 @@ export async function createApp() {
   })
 
   const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
-    dependsOn: { subscriptionService, configKV, env: parsedEnv },
+    dependsOn: { subscriptionService, configKV },
     build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
       dependsOn.subscriptionService,
       dependsOn.configKV,
-      createRevenuecatApiClient({
-        apiSecret: dependsOn.env.REVENUECAT_API_SECRET ?? null,
-        projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
-      }),
     ),
   })
 

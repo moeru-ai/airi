@@ -1,7 +1,6 @@
 import type { SubscriptionStatus } from '../../schemas/subscription'
 import type { SubscriptionService } from '../domain/subscriptions'
 import type { ConfigKVService } from './config-kv'
-import type { RevenuecatApiClient } from './revenuecat-api'
 
 import { useLogger } from '@guiiai/logg'
 
@@ -39,14 +38,13 @@ const STATUS_BY_EVENT: Record<string, SubscriptionStatus> = {
 }
 
 /**
- * Translates RevenueCat webhooks and API state into subscription-core calls.
+ * Translates RevenueCat webhooks into subscription-core calls.
  * Product-to-plan mapping and event semantics live here; the core stays
  * source-agnostic so future integrations reuse it unchanged.
  */
 export function createRevenuecatSubscriptionSync(
   subscriptions: SubscriptionService,
   configKV: ConfigKVService,
-  api?: RevenuecatApiClient | null,
 ) {
   /**
    * Syncs one webhook event. Unknown products and untracked types ack
@@ -104,31 +102,7 @@ export function createRevenuecatSubscriptionSync(
     return { synced: true }
   }
 
-  /**
-   * Aligns one user with the canonical API state. Skips silently when the
-   * API is unconfigured or unreachable.
-   */
-  async function reconcile(userId: string): Promise<void> {
-    if (!api?.enabled)
-      return
-    const remote = await api.getActiveEntitlements(userId)
-    if (!remote)
-      return
-
-    const plans = await configKV.getOptional('REVENUECAT_SUBSCRIPTION_PLANS') ?? {}
-    const quotaByEntitlement = new Map(
-      Object.values(plans).map(plan => [plan.entitlementId, plan.quotaCredit]),
-    )
-
-    await subscriptions.reconcile(userId, remote.map(item => ({
-      entitlementId: item.lookupKey,
-      active: true,
-      expiresAt: item.expiresAtMs == null ? null : new Date(item.expiresAtMs),
-      quotaCredit: quotaByEntitlement.get(item.lookupKey),
-    })))
-  }
-
-  return { syncEvent, reconcile }
+  return { syncEvent }
 }
 
 export type RevenuecatSubscriptionSync = ReturnType<typeof createRevenuecatSubscriptionSync>
