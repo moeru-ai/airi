@@ -192,7 +192,7 @@ app.whenReady().then(async () => {
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
+          ...currentConfig,
           updateChannel: lane,
         })
       },
