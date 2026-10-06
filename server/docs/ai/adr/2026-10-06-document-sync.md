@@ -1,6 +1,6 @@
 # Document synchronization by field
 
-Status: proposed
+Status: accepted
 
 ## Context
 
