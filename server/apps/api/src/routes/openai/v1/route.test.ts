@@ -59,7 +59,7 @@ function createMockBillingService(flux = 100): BillingService {
     settleLlmCost: vi.fn(async (input: Parameters<BillingService['settleLlmCost']>[0]) => {
       const quote = priceLlmCost(input.usage, input.pricing)
       if (input.pendingReason || quote.costMicroFlux === undefined)
-        return { charged: 0, requested: 0, pending: true, feeFlux: 0 }
+        return { charged: 0, requested: 0, pending: true, feeFlux: 0, replay: false }
       outstanding += quote.costMicroFlux
       const requested = Math.floor(outstanding / 1_000_000)
       const charged = Math.min(requested, balance)
@@ -75,7 +75,8 @@ function createMockSubscriptionService(overrides?: Partial<SubscriptionService>)
   // No plan quota with Flux fallback on: existing debit assertions keep passing.
   return {
     getStatus: vi.fn(async () => ({ subscriptions: [], allowances: [] })),
-    debitCredits: vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: 0, requestedMicro: input.microCredit })),
+    spendableMicro: vi.fn(async () => 0),
+    debitCredits: vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: 0, requestedMicro: input.microCredit, replay: false })),
     retireOtherEntitlements: vi.fn(),
     getFallbackPreference: vi.fn(async () => true),
     setFallbackPreference: vi.fn(),
@@ -153,7 +154,7 @@ function createMockTtsMeter(unitsPerFlux = 1000, initialBalance = 100) {
       const charged = Math.floor(debt / unitsPerFlux)
       debt -= charged * unitsPerFlux
       balance -= charged
-      return { charged, requested: charged, balance, unsettledMicroFlux: debt, replay: false }
+      return { meter: 'wallet', micro: 0, replay: false, fluxConsumed: charged }
     }),
   } as any
 }
@@ -496,21 +497,9 @@ describe('v1CompletionsRoutes', () => {
           usage: { cost: 0.002, prompt_tokens: 1, completion_tokens: 1 },
         })) as any
       const billingService = createMockBillingService(0)
-      const debitCredits = vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: input.microCredit, requestedMicro: input.microCredit }))
+      const debitCredits = vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: input.microCredit, requestedMicro: input.microCredit, replay: false }))
       const subscriptions = createMockSubscriptionService({
-        getStatus: vi.fn(async () => ({
-          subscriptions: [],
-          allowances: [{
-            entitlementId: 'airi_go',
-            periodStart: new Date().toISOString(),
-            periodEnd: null,
-            grantedCredit: 2000,
-            usedCredit: 0,
-            unsettledMicroCredit: 0,
-            remainingMicro: 2_000_000_000,
-            remainingCredit: 2000,
-          }],
-        })),
+        spendableMicro: vi.fn(async () => 2_000_000_000),
         debitCredits,
         getFallbackPreference: vi.fn(async () => false),
       })

@@ -14,6 +14,17 @@ function usableAllowanceSql() {
   return sql`((${schema.subscriptionAllowance.grantedCredit} - ${schema.subscriptionAllowance.usedCredit})::bigint * ${MICRO_PER_CREDIT}) > ${schema.subscriptionAllowance.unsettledMicroCredit}`
 }
 
+function openAllowanceWhere(userId: string, now: Date) {
+  return and(
+    eq(schema.subscriptionAllowance.userId, userId),
+    or(
+      isNull(schema.subscriptionAllowance.periodEnd),
+      gt(schema.subscriptionAllowance.periodEnd, now),
+    ),
+    usableAllowanceSql(),
+  )
+}
+
 export interface SubscriptionUpsert {
   userId: string
   entitlementId: string
@@ -124,14 +135,7 @@ export function createSubscriptionService(db: Database) {
       : await db
           .select()
           .from(schema.subscriptionAllowance)
-          .where(and(
-            eq(schema.subscriptionAllowance.userId, userId),
-            or(
-              isNull(schema.subscriptionAllowance.periodEnd),
-              gt(schema.subscriptionAllowance.periodEnd, now),
-            ),
-            usableAllowanceSql(),
-          ))
+          .where(openAllowanceWhere(userId, now))
           .orderBy(asc(schema.subscriptionAllowance.periodEnd))
 
     return {
@@ -163,6 +167,26 @@ export function createSubscriptionService(db: Database) {
   }
 
   /**
+   * Remaining micro-Credits on the earliest open period.
+   * A later period does not increase this amount.
+   * Debit spends this same period.
+   */
+  async function spendableMicro(userId: string, now: Date = new Date()): Promise<number> {
+    const [period] = await db
+      .select()
+      .from(schema.subscriptionAllowance)
+      .where(openAllowanceWhere(userId, now))
+      .orderBy(asc(schema.subscriptionAllowance.periodEnd))
+      .limit(1)
+    if (!period)
+      return 0
+    return Number(availableMicroCredits({
+      credits: period.grantedCredit - period.usedCredit,
+      unsettledMicro: period.unsettledMicroCredit,
+    }))
+  }
+
+  /**
    * Debits micro-Credits from the earliest-expiring open period when the
    * period covers the whole fee. A short period is left untouched.
    * Retries with the same requestId replay the original charge.
@@ -171,7 +195,7 @@ export function createSubscriptionService(db: Database) {
     userId: string
     microCredit: number
     requestId: string
-  }): Promise<{ chargedMicro: number, requestedMicro: number }> {
+  }): Promise<{ chargedMicro: number, requestedMicro: number, replay: boolean }> {
     return db.transaction(async (tx) => {
       const [existing] = await tx
         .select({ microCredit: schema.subscriptionConsumption.microCredit })
@@ -180,20 +204,13 @@ export function createSubscriptionService(db: Database) {
         .limit(1)
 
       if (existing)
-        return { chargedMicro: existing.microCredit, requestedMicro: input.microCredit }
+        return { chargedMicro: existing.microCredit, requestedMicro: input.microCredit, replay: true }
 
       const now = new Date()
       const [period] = await tx
         .select()
         .from(schema.subscriptionAllowance)
-        .where(and(
-          eq(schema.subscriptionAllowance.userId, input.userId),
-          or(
-            isNull(schema.subscriptionAllowance.periodEnd),
-            gt(schema.subscriptionAllowance.periodEnd, now),
-          ),
-          usableAllowanceSql(),
-        ))
+        .where(openAllowanceWhere(input.userId, now))
         .orderBy(asc(schema.subscriptionAllowance.periodEnd))
         .for('update')
         .limit(1)
@@ -202,7 +219,7 @@ export function createSubscriptionService(db: Database) {
         credits: period.grantedCredit - period.usedCredit,
         unsettledMicro: period.unsettledMicroCredit,
       }) < BigInt(input.microCredit)) {
-        return { chargedMicro: 0, requestedMicro: input.microCredit }
+        return { chargedMicro: 0, requestedMicro: input.microCredit, replay: false }
       }
 
       const posted = postMicroCredits({
@@ -225,7 +242,7 @@ export function createSubscriptionService(db: Database) {
         })
         .where(eq(schema.subscriptionAllowance.id, period.id))
 
-      return { chargedMicro: input.microCredit, requestedMicro: input.microCredit }
+      return { chargedMicro: input.microCredit, requestedMicro: input.microCredit, replay: false }
     })
   }
 
@@ -314,6 +331,7 @@ export function createSubscriptionService(db: Database) {
     upsertSubscription,
     openPeriod,
     getStatus,
+    spendableMicro,
     debitCredits,
     extendPeriod,
     retireOtherEntitlements,

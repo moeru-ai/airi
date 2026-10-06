@@ -64,7 +64,7 @@ The unknown cost is not priced later with the original price. Reconciliation use
 ```mermaid
 flowchart LR
   LLM[LlmBilling] -->|source and amount| Billing[BillingService]
-  Speech[SpeechBilling] -->|source and amount| Billing
+  Speech[Speech meter] -->|source and amount| Billing
   Billing --> Usage[flux_usage]
   Billing --> Ledger[flux_transaction]
   Billing --> Wallet[user_flux]

@@ -3,7 +3,7 @@ import type { ConfigKVService } from '../../../../services/adapters/config-kv'
 import type { BillingPolicy, CostPricing, CostUsage } from '../../../../services/domain/billing/billing'
 import type { BillingService } from '../../../../services/domain/billing/billing-service'
 import type { LlmBillingService } from '../../../../services/domain/billing/llm-billing'
-import type { SpeechBilling } from '../../../../services/domain/billing/speech-billing'
+import type { SpeechMeter } from '../../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../../services/domain/flux'
 import type { UsageInfo } from '../../../../services/domain/generation-usage'
 import type { SubscriptionService } from '../../../../services/domain/subscriptions'
@@ -12,7 +12,7 @@ import { safeParse } from 'valibot'
 
 import { resolveProviderCostAdapter } from '../../../../services/adapters/llm/cost'
 import { billingPolicySchema, priceLlmCost } from '../../../../services/domain/billing/billing'
-import { takePlanCredits } from '../../../../services/domain/billing/credit-settlement'
+import { createUsageSettlement } from '../../../../services/domain/billing/credit-settlement'
 import { availableMicroFlux, MICRO_FLUX_PER_FLUX, microFluxToFlux } from '../../../../services/domain/billing/flux-posting'
 import { createPaymentRequiredError, createServiceUnavailableError } from '../../../../utils/error'
 import { GEN_AI_ATTR_REQUEST_MODEL } from '../../../../utils/observability'
@@ -61,8 +61,12 @@ export function createOpenAiRouteBilling(deps: {
   configKV: ConfigKVService
   fluxService: FluxService
   revenue?: RevenueMetrics | null
-  speechBilling: SpeechBilling
+  speechBilling: SpeechMeter
 }): OpenAiRouteBilling {
+  const usageSettlement = createUsageSettlement({
+    plans: deps.subscriptions,
+    walletMicro: async userId => availableMicroFlux(await deps.billingService.getWallet(userId)),
+  })
   async function authorizeChat(userId: string): Promise<ChatBillingPolicy> {
     const costPricing = await deps.configKV.getOptional('LLM_COST_BILLING')
     const minimumBalance = await deps.configKV.getOrThrow('LLM_MINIMUM_BALANCE')
@@ -70,19 +74,9 @@ export function createOpenAiRouteBilling(deps: {
     if (!parsed.success)
       throw createServiceUnavailableError('LLM pricing configuration is incomplete', 'LLM_BILLING_UNAVAILABLE')
     await deps.fluxService.getFlux(userId)
-    // Plan quota counts as coverage. The Flux gate applies only when the
-    // wallet balance plus usable plan quota cannot cover the minimum.
-    const flux = await deps.billingService.getWallet(userId)
-    let effectiveMicroFlux = availableMicroFlux(flux)
-    if (deps.subscriptions) {
-      const planStatus = await deps.subscriptions.getStatus(userId)
-      const planRemaining = planStatus.allowances.reduce((sum, allowance) => sum + allowance.remainingMicro, 0)
-      const fallbackToFlux = await deps.subscriptions.getFallbackPreference(userId)
-      effectiveMicroFlux = fallbackToFlux
-        ? effectiveMicroFlux + BigInt(planRemaining)
-        : BigInt(planRemaining)
-    }
-    if (effectiveMicroFlux < BigInt(parsed.output.minimumBalance) * BigInt(MICRO_FLUX_PER_FLUX))
+    // One pool must cover the minimum. Plan Credits and the wallet are not added together.
+    const minimumMicro = parsed.output.minimumBalance * MICRO_FLUX_PER_FLUX
+    if (!await usageSettlement.canCover(userId, minimumMicro))
       throw createPaymentRequiredError('Insufficient flux')
     return parsed.output
   }
@@ -105,19 +99,28 @@ export function createOpenAiRouteBilling(deps: {
   }
 
   async function settleChat(input: Omit<ChatFluxDebitInput, 'llmBilling' | 'revenue'>): Promise<number> {
-    // Zero-fee and pending requests settle through the wallet path below so
-    // usage records keep the upstream reconciliation semantics.
-    const microCredit = input.amount > 0
-      ? (priceLlmCost(input.costReceipt.usage, input.costReceipt.pricing).costMicroFlux ?? 0)
+    // Pending and zero-fee requests stay on the wallet path.
+    // llm-billing keeps the pending receipt and posts no plan debit.
+    const quote = priceLlmCost(input.costReceipt.usage, input.costReceipt.pricing)
+    const micro = input.pendingReason === undefined && input.amount > 0
+      ? (quote.costMicroFlux ?? 0)
       : 0
-    const settlement = await takePlanCredits(deps.subscriptions, {
+    let walletFlux = 0
+    const settlement = await usageSettlement.settle({
       userId: input.userId,
       requestId: input.requestId,
-      microCredit,
+      micro,
+      postWallet: async () => {
+        const posted = await debitChatFlux({
+          ...input,
+          llmBilling: deps.llmBilling,
+          revenue: deps.revenue,
+        })
+        walletFlux = posted.feeFlux
+        return { replay: posted.replay }
+      },
     })
-    if (settlement === 'taken')
-      return microFluxToFlux(microCredit)
-    if (settlement === 'stopped') {
+    if (settlement.meter === 'unbilled') {
       deps.revenue?.fluxUnbilled.add(input.amount, {
         [GEN_AI_ATTR_REQUEST_MODEL]: input.model,
         reason: 'plan_quota_exhausted',
@@ -125,13 +128,9 @@ export function createOpenAiRouteBilling(deps: {
       })
       return 0
     }
-
-    const feeFlux = await debitChatFlux({
-      ...input,
-      llmBilling: deps.llmBilling,
-      revenue: deps.revenue,
-    })
-    return feeFlux
+    if (settlement.meter === 'plan')
+      return 0
+    return walletFlux
   }
 
   function recordChatDebitFailure(input: {
@@ -149,7 +148,7 @@ export function createOpenAiRouteBilling(deps: {
   return { authorizeChat, authorizeDispatch, priceChatUsage, recordChatDebitFailure, settleChat }
 }
 
-export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> {
+async function debitChatFlux(input: ChatFluxDebitInput): Promise<{ feeFlux: number, replay: boolean }> {
   const result = await input.llmBilling.settleLlmCost({
     provider: input.costReceipt.provider,
     userId: input.userId,
@@ -177,5 +176,5 @@ export async function debitChatFlux(input: ChatFluxDebitInput): Promise<number> 
       : 'Partial debit on non-streaming completion — flux drained to zero')
   }
 
-  return result.feeFlux
+  return { feeFlux: result.feeFlux, replay: result.replay }
 }

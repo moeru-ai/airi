@@ -10,7 +10,7 @@ import { createConfigKVService } from '../../../adapters/config-kv'
 import { createConfigKVStore } from '../../../adapters/config-kv/store'
 import { createBillingService } from '../billing-service'
 import { createLlmBillingService } from '../llm-billing'
-import { SpeechBilling } from '../speech-billing'
+import { createSpeechMeter } from '../speech-billing'
 
 import * as schema from '../../../../schemas'
 
@@ -18,7 +18,7 @@ describe('shared Flux usage', () => {
   let db: Database
   let billing: ReturnType<typeof createBillingService>
   let llmBilling: ReturnType<typeof createLlmBillingService>
-  let speech: SpeechBilling
+  let speech: ReturnType<typeof createSpeechMeter>
   let config: ReturnType<typeof createConfigKVService>
   const pricing = { fluxPerUsd: 1000, multiplier: 1 }
   const llm = (requestId: string, costUsd: number | undefined) => ({
@@ -44,7 +44,7 @@ describe('shared Flux usage', () => {
     config = createConfigKVService(createConfigKVStore(db, redis))
     billing = createBillingService(db, redis)
     llmBilling = createLlmBillingService(billing)
-    speech = new SpeechBilling(billing, config)
+    speech = createSpeechMeter({ billing, config })
   })
 
   it('combines LLM and speech fees into one pool', async () => {
@@ -52,7 +52,7 @@ describe('shared Flux usage', () => {
     expect(first).toMatchObject({ costMicroFlux: 600_000, charged: 0, unsettledMicroFlux: 600_000 })
     await speech.assertCanAfford('wallet', 550)
     const second = await speech.settle(tts('tts', 550))
-    expect(second).toMatchObject({ costMicroFlux: 550_000, charged: 1, unsettledMicroFlux: 150_000 })
+    expect(second).toMatchObject({ meter: 'wallet', micro: 550_000, replay: false, fluxConsumed: 0.55 })
     const fees = await db.select().from(fluxUsage)
     expect(fees).toHaveLength(2)
     expect(fees.find(fee => fee.sourceType === 'llm')?.amountMicroFlux).toBe(600_000)
@@ -63,7 +63,7 @@ describe('shared Flux usage', () => {
   it('never accumulates a replay that produced no integer debit', async () => {
     await speech.settle(tts('dust', 100))
     const replay = await speech.settle(tts('dust', 100))
-    expect(replay).toMatchObject({ replay: true, costMicroFlux: 100_000, charged: 0, unsettledMicroFlux: 100_000 })
+    expect(replay).toMatchObject({ meter: 'wallet', micro: 100_000, replay: true, fluxConsumed: 0 })
     expect(await db.select().from(fluxTransaction)).toHaveLength(0)
     expect(await db.select().from(fluxUsage)).toHaveLength(1)
     await expect(speech.settle(tts('dust', 200))).rejects.toThrow('Flux source replay')
@@ -126,36 +126,72 @@ describe('shared Flux usage', () => {
 
   it('spends plan Credits before the wallet and skips Flux when the plan covers speech', async () => {
     await db.update(userFlux).set({ flux: 0 }).where(eq(userFlux.userId, 'wallet'))
-    const debitCredits = vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: input.microCredit, requestedMicro: input.microCredit }))
+    const debitCredits = vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: input.microCredit, requestedMicro: input.microCredit, replay: false }))
     const subscriptions = {
-      getStatus: async () => ({ allowances: [{ remainingMicro: 5_000_000 }] }),
+      spendableMicro: async () => 5_000_000,
       getFallbackPreference: async () => false,
       debitCredits,
     }
-    const planSpeech = new SpeechBilling(billing, config, null, subscriptions)
+    const planSpeech = createSpeechMeter({ billing, config, plans: subscriptions })
     await planSpeech.assertCanAfford('wallet', 1000)
-    await planSpeech.settle(tts('plan-tts', 1000))
+    expect(await planSpeech.settle(tts('plan-tts', 1000))).toMatchObject({ meter: 'plan', micro: 1_000_000, fluxConsumed: 0 })
     expect(debitCredits).toHaveBeenCalledWith(expect.objectContaining({ microCredit: 1_000_000 }))
     expect(await db.select().from(fluxUsage)).toHaveLength(0)
   })
 
   it('rejects speech when plan Credits are short and Flux fallback is off', async () => {
     const subscriptions = {
-      getStatus: async () => ({ allowances: [] }),
+      spendableMicro: async () => 0,
       getFallbackPreference: async () => false,
       debitCredits: vi.fn(),
     }
-    const planSpeech = new SpeechBilling(billing, config, null, subscriptions)
+    const planSpeech = createSpeechMeter({ billing, config, plans: subscriptions })
     await expect(planSpeech.assertCanAfford('wallet', 1000)).rejects.toThrow('Insufficient flux')
+  })
+
+  it('rejects speech when the earliest period cannot cover the whole fee', async () => {
+    const planSpeech = createSpeechMeter({
+      billing,
+      config,
+      plans: {
+        spendableMicro: async () => 600_000,
+        getFallbackPreference: async () => false,
+        debitCredits: vi.fn(),
+      },
+    })
+    await expect(planSpeech.assertCanAfford('wallet', 1000)).rejects.toThrow('Insufficient flux')
+  })
+
+  it('leaves speech unbilled when the period debit misses and Flux fallback is off', async () => {
+    const fluxUnbilled = { add: vi.fn() }
+    const ttsChars = { add: vi.fn() }
+    const planSpeech = createSpeechMeter({
+      billing,
+      config,
+      plans: {
+        spendableMicro: async () => 1_000_000,
+        getFallbackPreference: async () => false,
+        debitCredits: async () => ({ chargedMicro: 0, requestedMicro: 1_000_000, replay: false }),
+      },
+      metrics: { fluxUnbilled, ttsChars, ttsPreflightRejections: { add: vi.fn() } },
+    })
+    expect(await planSpeech.settle(tts('missed-period', 1000))).toMatchObject({
+      meter: 'unbilled',
+      micro: 1_000_000,
+      fluxConsumed: 0,
+    })
+    expect(await db.select().from(fluxUsage)).toHaveLength(0)
+    expect(fluxUnbilled.add).toHaveBeenCalledWith(1, expect.objectContaining({ reason: 'plan_quota_exhausted', stage: 'speech' }))
+    expect(ttsChars.add).not.toHaveBeenCalled()
   })
 
   it('posts speech to the wallet when plan Credits are short and Flux fallback is on', async () => {
     const subscriptions = {
-      getStatus: async () => ({ allowances: [] }),
+      spendableMicro: async () => 0,
       getFallbackPreference: async () => true,
       debitCredits: vi.fn(),
     }
-    const planSpeech = new SpeechBilling(billing, config, null, subscriptions)
+    const planSpeech = createSpeechMeter({ billing, config, plans: subscriptions })
     await planSpeech.settle(tts('fallback-tts', 1000))
     expect(await db.select().from(fluxUsage)).toHaveLength(1)
   })

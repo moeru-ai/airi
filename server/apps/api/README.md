@@ -166,11 +166,12 @@ end to the new expiration and does not grant Credits. One Credit equals one
 Flux.
 `src/services/domain/billing/credit-posting.ts` settles both pools in
 micro-Credits (1 Credit = 1,000,000 micro-Credits). Chat and speech call
-`takePlanCredits`. The plan pays when its micro-Credits cover the whole fee.
-Otherwise the wallet pays only when Flux fallback is on. Plan Credits never
-touch `user_flux`. They live in `subscription_allowance` with per-request
-rows in `subscription_consumption`. Product-to-plan mapping lives in ConfigKV
-`REVENUECAT_SUBSCRIPTION_PLANS`.
+`canCover` and `settle`. The earliest open Credit period pays when it covers
+the whole fee. Otherwise the wallet pays when Flux fallback is on. Each pool
+must cover the whole fee alone. Plan Credits never touch `user_flux`. They
+live in `subscription_allowance` with per-request rows in
+`subscription_consumption`.
+Product-to-plan mapping lives in ConfigKV `REVENUECAT_SUBSCRIPTION_PLANS`.
 Status reads the local ledger. A missed webhook stays stale until RevenueCat
 resends that event.
 

@@ -69,7 +69,7 @@ export const subscriptionConsumption = pgTable('subscription_consumption', {
   index('subscription_consumption_user_id_idx').on(table.userId),
 ])
 
-/** Whether LLM debit falls back to Flux after plan quota runs out. Defaults off. */
+/** Chat and speech use the Flux wallet when plan Credits cannot cover the whole fee. Defaults off. */
 export const userBillingPreference = pgTable('user_billing_preference', {
   userId: text('user_id').primaryKey(),
   fallbackToFlux: boolean('fallback_to_flux').notNull().default(false),

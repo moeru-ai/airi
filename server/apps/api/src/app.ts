@@ -7,6 +7,7 @@ import type { ConfigKVService } from './services/adapters/config-kv'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
+import type { SpeechMeter } from './services/domain/billing/speech-billing'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
@@ -74,7 +75,7 @@ import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
-import { SpeechBilling } from './services/domain/billing/speech-billing'
+import { createSpeechMeter } from './services/domain/billing/speech-billing'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
@@ -105,7 +106,7 @@ interface AppDeps {
   stripe: Stripe | null
   llmBilling: LlmBillingService
   billingService: BillingService
-  speechBilling: SpeechBilling
+  speechBilling: SpeechMeter
   subscriptionService: SubscriptionService
   subscriptionSync: RevenuecatSubscriptionSync
   requestLogService: RequestLogService
@@ -770,7 +771,12 @@ export async function createApp() {
 
   const speechBilling = injeca.provide('services:speechBilling', {
     dependsOn: { billingService, configKV, otel, subscriptionService },
-    build: ({ dependsOn }) => new SpeechBilling(dependsOn.billingService, dependsOn.configKV, dependsOn.otel?.revenue, dependsOn.subscriptionService),
+    build: ({ dependsOn }) => createSpeechMeter({
+      billing: dependsOn.billingService,
+      config: dependsOn.configKV,
+      plans: dependsOn.subscriptionService,
+      metrics: dependsOn.otel?.revenue,
+    }),
   })
 
   // Redis coordinates upstream pool capacity across API replicas.

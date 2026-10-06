@@ -7,9 +7,11 @@ Status: accepted
 Plan Credits and the Flux wallet share one posting scale.
 One Credit equals one Flux and 1,000,000 micro-Credits.
 `credit-posting.ts` owns the pool math.
-Chat and speech call `takePlanCredits`.
-The plan pays a fee only when its micro-Credits cover the whole amount.
-Otherwise the Flux wallet pays only when the user turned fallback on.
+Chat and speech call `canCover` and `settle`.
+The earliest open Credit period pays when it covers the whole fee.
+Otherwise the Flux wallet pays when Flux fallback is on.
+Each pool must cover the whole fee alone.
+`spendableMicro` is the remaining balance of that earliest period.
 
 `INITIAL_PURCHASE`, `RENEWAL`, and `PRODUCT_CHANGE` open a new Credit period and forfeit the old remainder.
 Those events expire every other entitlement for that user.
@@ -40,8 +42,8 @@ In-app product replacement checkout.
 
 ```mermaid
 flowchart LR
-  Chat[Chat billing] --> Settle[takePlanCredits]
-  Speech[SpeechBilling] --> Settle
+  Chat[Chat billing] --> Settle["canCover and settle"]
+  Speech[Speech meter] --> Settle
   Settle --> Plan[subscription allowance]
   Settle --> Wallet[postFluxUsage]
   Wallet --> Credits[credit-posting]
@@ -83,5 +85,6 @@ server/apps/api/
 Run the subscription service tests.
 Run the RevenueCat subscription sync tests.
 Run the Flux usage tests, including speech that plan Credits cover.
+Run the usage settlement tests for plan, wallet, unbilled, and replay.
 Run the OpenAI route test that spends plan Credits before the wallet.
 Run the subscription route test that returns `remainingPercent` and omits Credit counts.

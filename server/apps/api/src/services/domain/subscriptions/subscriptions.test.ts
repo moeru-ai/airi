@@ -87,11 +87,12 @@ describe('subscription service', () => {
 
     const fee = 1_500_000
     expect(await service.debitCredits({ userId: 'user-1', microCredit: fee, requestId: 'req-1' }))
-      .toEqual({ chargedMicro: fee, requestedMicro: fee })
+      .toEqual({ chargedMicro: fee, requestedMicro: fee, replay: false })
     expect(await service.debitCredits({ userId: 'user-1', microCredit: fee, requestId: 'req-1' }))
-      .toEqual({ chargedMicro: fee, requestedMicro: fee })
+      .toEqual({ chargedMicro: fee, requestedMicro: fee, replay: true })
     expect(await service.debitCredits({ userId: 'user-1', microCredit: 5000 * MICRO_PER_CREDIT, requestId: 'req-2' }))
-      .toEqual({ chargedMicro: 0, requestedMicro: 5000 * MICRO_PER_CREDIT })
+      .toEqual({ chargedMicro: 0, requestedMicro: 5000 * MICRO_PER_CREDIT, replay: false })
+    expect(await service.spendableMicro('user-1')).toBe(1998 * MICRO_PER_CREDIT + 500_000)
 
     const status = await service.getStatus('user-1')
     expect(status.allowances).toMatchObject([{
@@ -149,6 +150,7 @@ describe('subscription service', () => {
       })).toEqual({
         chargedMicro: 100 * MICRO_PER_CREDIT,
         requestedMicro: 100 * MICRO_PER_CREDIT,
+        replay: false,
       })
 
       await service.extendPeriod({
@@ -162,6 +164,29 @@ describe('subscription service', () => {
     finally {
       vi.useRealTimers()
     }
+  })
+
+  it('reports spendable micro from the earliest open period', async () => {
+    const service = await setup()
+    const sooner = new Date(Date.now() + 86_400_000)
+    const later = new Date(Date.now() + 172_800_000)
+    await service.openPeriod({
+      userId: 'user-1',
+      entitlementId: 'early',
+      grantedCredit: 600,
+      periodStart: new Date(),
+      periodEnd: sooner,
+      eventKey: 'early',
+    })
+    await service.openPeriod({
+      userId: 'user-1',
+      entitlementId: 'later',
+      grantedCredit: 5000,
+      periodStart: new Date(),
+      periodEnd: later,
+      eventKey: 'later',
+    })
+    expect(await service.spendableMicro('user-1')).toBe(600 * MICRO_PER_CREDIT)
   })
 
   it('leaves a closed period closed', async () => {

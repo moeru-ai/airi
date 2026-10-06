@@ -2,7 +2,7 @@ import type { GenAiMetrics, RateLimitMetrics, RevenueMetrics } from '../../../ot
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { BillingService } from '../../../services/domain/billing/billing-service'
 import type { LlmBillingService } from '../../../services/domain/billing/llm-billing'
-import type { SpeechBilling } from '../../../services/domain/billing/speech-billing'
+import type { SpeechMeter } from '../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
 import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
@@ -27,7 +27,7 @@ export interface V1RouteDeps {
   configKV: ConfigKVService
   requestLogService: RequestLogService
   productEventService: ProductEventService
-  speechBilling: SpeechBilling
+  speechBilling: SpeechMeter
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
   providerCatalogService: ProviderCatalogService
