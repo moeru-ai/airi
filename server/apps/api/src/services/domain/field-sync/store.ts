@@ -68,8 +68,9 @@ export function createFieldSyncStore(db: Database, tables: FieldSyncTables, opti
         const documentRows = await tx.select().from(documents).where(eq(documents.ownerId, ownerId))
         const fieldRows = await tx.select().from(fields).where(eq(fields.ownerId, ownerId))
 
+        const rowsByDocument = Map.groupBy(fieldRows, row => row.documentId)
         return {
-          documents: documentRows.map(document => toWireDocument(document, fieldRows.filter(row => row.documentId === document.documentId))),
+          documents: documentRows.map(document => toWireDocument(document, rowsByDocument.get(document.documentId) ?? [])),
         }
       }, { isolationLevel: 'repeatable read' })
     },
