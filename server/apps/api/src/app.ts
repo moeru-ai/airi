@@ -6,6 +6,7 @@ import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
+import type { CharacterCardService } from './services/domain/character-cards'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
 import type { FluxService } from './services/domain/flux'
@@ -50,6 +51,7 @@ import { createAppleIapRoutes } from './routes/apple-iap'
 import { createVerifier as createAppleIapVerifier } from './routes/apple-iap/verifier'
 import { createAudioSpeechWsHandlers } from './routes/audio-speech-ws'
 import { createAudioTranscriptionStreamHandler } from './routes/audio-transcription-stream/route'
+import { createCharacterCardRoutes } from './routes/character-cards'
 import { createCharacterRoutes } from './routes/characters'
 import { createChatWsRuntime } from './routes/chat-ws/runtime'
 import { createChatWsV1Handlers } from './routes/chat-ws/v1'
@@ -70,6 +72,7 @@ import { createOpenpanelSink } from './services/adapters/openpanel'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
 import { SpeechBilling } from './services/domain/billing/speech-billing'
+import { createCharacterCardService } from './services/domain/character-cards'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
 import { createFluxService } from './services/domain/flux'
@@ -89,6 +92,7 @@ import { getTrustedOrigin } from './utils/origin'
 
 interface AppDeps {
   db: Database
+  characterCardService: CharacterCardService
   characterService: CharacterService
   chatService: ChatService
   providerService: ProviderService
@@ -401,6 +405,11 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/characters', createCharacterRoutes(deps.characterService))
 
     /**
+     * Character card routes synchronize the cards of a user between devices.
+     */
+    .route('/api/v1/character-cards', createCharacterCardRoutes(deps.characterCardService))
+
+    /**
      * Provider routes are handled by the provider service.
      */
     .route('/api/v1/providers', createProviderRoutes(deps.providerService))
@@ -618,6 +627,11 @@ export async function createApp() {
     build: ({ dependsOn }) => createCharacterService(dependsOn.db, dependsOn.otel?.engagement),
   })
 
+  const characterCardService = injeca.provide('services:characterCards', {
+    dependsOn: { db },
+    build: ({ dependsOn }) => createCharacterCardService(dependsOn.db),
+  })
+
   // Envelope crypto for at-rest upstream key decryption. Shared by provider
   // config rows, the LLM router (HTTP chat / TTS), and the audio-speech-ws
   // proxy (streaming TTS) so a single master-key change rotates every surface.
@@ -715,7 +729,7 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, chatService },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
       // priority: 20 = financial / cache state (Flux balance + Redis),
@@ -724,6 +738,7 @@ export async function createApp() {
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
       service.register({ name: 'characters', priority: 30, softDelete: ({ userId }) => dependsOn.characterService.deleteAllForUser(userId) })
+      service.register({ name: 'characterCards', priority: 30, softDelete: ({ userId }) => dependsOn.characterCardService.deleteAllForUser(userId) })
       service.register({ name: 'chats', priority: 30, softDelete: ({ userId }) => dependsOn.chatService.deleteAllForUser(userId) })
       return service
     },
@@ -755,6 +770,7 @@ export async function createApp() {
   const resolved = await injeca.resolve({
     objectStore,
     db,
+    characterCardService,
     characterService,
     chatService,
     providerService,
@@ -786,6 +802,7 @@ export async function createApp() {
 
   const appDeps = {
     db: resolved.db,
+    characterCardService: resolved.characterCardService,
     characterService: resolved.characterService,
     chatService: resolved.chatService,
     providerService: resolved.providerService,
