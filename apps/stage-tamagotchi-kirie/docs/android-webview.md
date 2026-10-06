@@ -135,6 +135,14 @@ Repeated launcher intents reuse the existing task and deliver the new intent to 
 
 The runtime scenario launches the activity twice and verifies one task and one main activity instance.
 
+## Activity recreation
+
+Kirie omits `layoutDirection` from the main activity's handled configuration changes, matching stage-pocket.
+Android recreates the activity for a layout-direction-only configuration change.
+Kirie restarts Godot during this recreation so the replacement activity renders the shared stage.
+
+The runtime scenario changes only layout direction and verifies activity destruction, process rebirth, and a rendered replacement.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.

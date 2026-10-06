@@ -1643,6 +1643,7 @@ func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, 
 
 	enable_cleartext_traffic()
 	configure_launch_task()
+	configure_activity_recreation()
 	configure_launch_resources()
 	configure_launch_activity()
 	write_build_file("res/values/airi-theme.xml", DAY_RESOURCES)
@@ -1741,6 +1742,46 @@ func configure_launch_task() -> void:
 		"android:launchMode=\"singleTask\""
 	)
 	write_build_file(relative_path, content)
+
+
+func configure_activity_recreation() -> void:
+	# NOTICE:
+	# Godot handles layout-direction changes inside its existing activity and quits on activity destruction.
+	# stage-pocket lets Android recreate its main activity for that configuration change.
+	# Source: stage-pocket's manifest and GodotActivity's onGodotForceQuit implementation.
+	# Remove this rewrite when Godot supports activity recreation without quitting its process.
+	var relative_path = "src/main/AndroidManifest.xml"
+	var absolute_path = ProjectSettings.globalize_path(ANDROID_BUILD_ROOT.path_join(relative_path))
+	var content = FileAccess.get_file_as_string(absolute_path)
+	content = content.replace(
+		"android:configChanges=\"layoutDirection|",
+		"android:configChanges=\""
+	)
+	write_build_file(relative_path, content)
+
+	var activity_path = "src/main/java/com/godot/game/GodotApp.java"
+	var activity = FileAccess.get_file_as_string(
+		ProjectSettings.globalize_path(ANDROID_BUILD_ROOT.path_join(activity_path))
+	)
+	if not activity.contains("\tprivate boolean changingConfigurations;\n"):
+		activity = activity.replace(
+			"public class GodotApp extends GodotActivity {\n",
+			"public class GodotApp extends GodotActivity {\n\tprivate boolean changingConfigurations;\n"
+		)
+	if not activity.contains("\t\tchangingConfigurations = isChangingConfigurations();\n"):
+		activity = activity.replace(
+			"\n\t@Override\n\tpublic void onGodotForceQuit(Godot instance) {",
+			"\n\t@Override\n\tprotected void onDestroy() {\n\t\tchangingConfigurations = isChangingConfigurations();\n\t\tsuper.onDestroy();\n\t}\n\n\t@Override\n\tpublic void onGodotForceQuit(Godot instance) {"
+		)
+	activity = activity.replace(
+		"\t\tif (!changingConfigurations && !BuildConfig.FLAVOR.equals(\"instrumented\")) {",
+		"\t\tif (changingConfigurations) {\n\t\t\torg.godotengine.godot.utils.ProcessPhoenix.triggerRebirth(this);\n\t\t} else if (!BuildConfig.FLAVOR.equals(\"instrumented\")) {"
+	)
+	activity = activity.replace(
+		"\t\tif (!BuildConfig.FLAVOR.equals(\"instrumented\")) {",
+		"\t\tif (changingConfigurations) {\n\t\t\torg.godotengine.godot.utils.ProcessPhoenix.triggerRebirth(this);\n\t\t} else if (!BuildConfig.FLAVOR.equals(\"instrumented\")) {"
+	)
+	write_build_file(activity_path, activity)
 
 
 func configure_launch_resources() -> void:
