@@ -9,6 +9,7 @@ Synchronizes small documents of one user between devices. It resolves conflicts 
 - A field that two devices changed takes the server value. The local document becomes a conflict copy, so no change is lost.
 - An edit has priority over a deletion from another device.
 - The module works offline. It sends the local changes on the next run.
+- The server keeps past revisions of each field. A feature that passes `history` to `createFieldSyncStore` can list them and read the content at a past revision.
 
 ## When to use it
 
@@ -28,14 +29,15 @@ Each feature owns its tables and its routes. The server and the client share onl
 
 Server, in `server/apps/api`:
 
-1. Declare two tables in the schema file of the feature, and generate the migration. Copy `server/apps/api/src/schemas/character-cards.ts` as the template. The tables need the columns of `FieldSyncTables` in `services/domain/field-sync/tables.ts`. The compiler rejects a table that misses one.
-2. Create the service with `createFieldSyncStore(db, { documents, fields }, { validate, limits })`. Put every rule about the content in `validate`.
-3. Write the routes of the feature. Call `list`, `push`, and `remove`, and parse the requests with `parseDocumentId`, `parsePushRequest`, and `parseDeleteRevision`.
+1. Declare two tables in the schema file of the feature, and generate the migration. Copy `server/apps/api/src/schemas/character-cards.ts` as the template. The tables need the columns of `FieldSyncTables` in `services/domain/field-sync/tables.ts`. The compiler rejects a table that misses one. The field table only appends rows, and its primary key includes `revision`. Its `value` column accepts `null`, which means that the revision removed the field.
+2. Create the service with `createFieldSyncStore(db, { documents, fields }, { validate, limits, history })`. Put every rule about the content in `validate`. Pass `history` to keep past revisions. Without it, the store keeps only the current value of each field.
+3. Write the routes of the feature. Call `list`, `push`, and `remove`, and parse the requests with `parseDocumentId`, `parsePushRequest`, and `parseDeleteRevision`. Call `history` and `snapshot` for routes that read past revisions, and parse their requests with `parseHistoryQuery` and `parseRevisionParam`.
 
 Client, in `packages/stage-ui`:
 
 1. Write a function that splits a document into fields, and a function that joins the fields. Keep values that must change together in one field.
 2. Call `synchronize` with a client for the route, the stored sync state, and the functions that read and write the local documents.
+3. Call `history` and `snapshot` on the client of `createDocumentSyncClient` to read past revisions. Both return `null` when the document, or that revision of it, is gone.
 
 `server/apps/api/src/services/domain/character-cards.ts`, `stores/modules/airi-card.ts`, and `libs/character-card-sync/card-fields.ts` are the reference use.
 

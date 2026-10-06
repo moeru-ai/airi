@@ -25,7 +25,9 @@ function createClient(remote: RemoteSnapshot, extraRemoteField?: { key: string, 
   }))
   const list = vi.fn(async () => remote)
   const remove = vi.fn(async () => true)
-  const client: DocumentSyncClient = { list, push, remove }
+  const history = vi.fn(async () => null)
+  const snapshot = vi.fn(async () => null)
+  const client: DocumentSyncClient = { list, push, remove, history, snapshot }
   return { client, list, push, remove }
 }
 

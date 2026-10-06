@@ -347,13 +347,35 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
   card:
     sync:
-      notice: 登录后，你的角色卡会同步到账号。当前选中的角色只保留在这台设备。
+      notice: 登录后，你的角色卡会同步到账号。当前选中的角色只保留在这台设备。没有关闭同步的开关。删除的角色卡会在账号里保留 30 天。
       state:
         synced: 已同步到账号
         pending: 等待上传
         refused: 未上传。账号里没有空间再存角色卡，这张卡只保留在这台设备。
       conflict_copy_name: '{name}（冲突副本）'
       conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
+      history:
+        tab: 历史版本
+        empty: 这张角色卡还没有历史版本。
+        loading: 正在加载历史版本……
+        load_failed: 无法加载这张角色卡的历史版本。
+        changed: '改动：{keys}'
+        removed: '删除：{keys}'
+        restore: 恢复到此版本
+        restore_confirm_title: 恢复到此版本？
+        restore_confirm_body: 这会用 {date} 的内容替换 {name} 当前的内容。
+        restore_confirm_confirm: 恢复
+        restore_confirm_cancel: 取消
+        restore_success: 已将 {name} 恢复到较早的版本。
+        restore_failed: 无法恢复到此版本，服务端可能已不再保留它。
+      deleted:
+        title: 最近删除
+        empty: 没有最近删除的角色卡。
+        loading: 正在加载最近删除的角色卡……
+        load_failed: 无法加载最近删除的角色卡。
+        restore: 恢复
+        restore_success: 已恢复 {name}。
+        restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。
     activate: 激活
     active: 已激活
     active_badge: 当前使用中

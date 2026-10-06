@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useDownload } from '@proj-airi/stage-ui/composables/download'
 import { exportAiriCardPackage } from '@proj-airi/stage-ui/services/airi-card-import-export'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -43,6 +44,7 @@ const displayModelsStore = useDisplayModelsStore()
 
 const { removeCard } = cardStore
 const { activeCardId } = storeToRefs(cardStore)
+const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const isRefreshingGallery = ref(false)
 const isExportingCard = shallowRef(false)
@@ -234,6 +236,15 @@ const tabs = computed<Tab[]>(() => {
     icon: 'i-solar:gallery-linear',
   })
 
+  // History tab - only for a signed-in user, who has cloud history to show
+  if (isAuthenticated.value) {
+    availableTabs.push({
+      id: 'history',
+      label: t('settings.pages.card.sync.history.tab'),
+      icon: 'i-solar:history-linear',
+    })
+  }
+
   return availableTabs
 })
 
@@ -250,6 +261,68 @@ function requestDeleteConfirmation(message: string): boolean {
   // Removal condition: replace with the shared modal confirmation component.
   const confirmAction = globalThis.confirm.bind(globalThis)
   return confirmAction(message)
+}
+
+// Card history
+interface HistoryEntry {
+  revision: number
+  at: string
+  changed: string[]
+  removed: string[]
+}
+
+const historyEntries = ref<HistoryEntry[]>([])
+const isLoadingHistory = ref(false)
+const historyLoadFailed = ref(false)
+const restoringRevision = ref<number | null>(null)
+
+function formatHistoryDate(at: string) {
+  return new Date(at).toLocaleString()
+}
+
+async function loadHistory() {
+  if (!props.cardId)
+    return
+
+  isLoadingHistory.value = true
+  historyLoadFailed.value = false
+  try {
+    const history = await cardStore.cardHistory(props.cardId, { limit: 50 })
+    historyEntries.value = history ?? []
+  }
+  catch (error) {
+    console.error('Error loading card history:', error)
+    historyLoadFailed.value = true
+  }
+  finally {
+    isLoadingHistory.value = false
+  }
+}
+
+async function handleRestoreVersion(entry: HistoryEntry) {
+  if (!selectedCard.value)
+    return
+
+  const confirmed = requestDeleteConfirmation(
+    t('settings.pages.card.sync.history.restore_confirm_body', { name: selectedCard.value.name, date: formatHistoryDate(entry.at) }),
+  )
+  if (!confirmed)
+    return
+
+  restoringRevision.value = entry.revision
+  try {
+    const restored = await cardStore.restoreCardVersion(props.cardId, entry.revision)
+    toast(t(restored ? 'settings.pages.card.sync.history.restore_success' : 'settings.pages.card.sync.history.restore_failed', { name: selectedCard.value.name }))
+    if (restored)
+      await loadHistory()
+  }
+  catch (error) {
+    console.error('Error restoring card version:', error)
+    toast(t('settings.pages.card.sync.history.restore_failed', { name: selectedCard.value.name }))
+  }
+  finally {
+    restoringRevision.value = null
+  }
 }
 
 async function handleDeleteEntry(id: string) {
@@ -297,6 +370,11 @@ const activeTab = computed({
   },
 })
 
+watch(activeTab, (tab) => {
+  if (tab === 'history')
+    void loadHistory()
+})
+
 // Reset active tab when dialog opens
 watch(() => props.modelValue, (isOpen) => {
   if (isOpen) {
@@ -304,6 +382,11 @@ watch(() => props.modelValue, (isOpen) => {
       activeTabId.value = props.initialTab
     else
       activeTabId.value = '' // Let computed handle default
+  }
+  else {
+    // Stale history must not flash for another card the next time the dialog opens.
+    historyEntries.value = []
+    historyLoadFailed.value = false
   }
 })
 
@@ -665,6 +748,44 @@ function getModuleDisplayValue(value: string | undefined): string {
                   <div v-if="activeBackgroundId === entry.id" class="absolute left-1 top-1 rounded bg-primary-500 p-1 text-white shadow-lg">
                     <div class="i-solar:pin-bold text-[10px]" />
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- History -->
+            <div v-if="activeTab === 'history'">
+              <div v-if="isLoadingHistory" class="py-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
+                {{ t('settings.pages.card.sync.history.loading') }}
+              </div>
+              <div v-else-if="historyLoadFailed" class="py-8 text-center text-sm text-red-500 dark:text-red-400">
+                {{ t('settings.pages.card.sync.history.load_failed') }}
+              </div>
+              <div v-else-if="historyEntries.length === 0" class="py-8 text-center text-sm text-neutral-500 dark:text-neutral-400">
+                {{ t('settings.pages.card.sync.history.empty') }}
+              </div>
+              <div v-else flex="~ col" max-h-80 gap-2 overflow-auto pr-1>
+                <div
+                  v-for="entry in historyEntries"
+                  :key="entry.revision"
+                  flex="~ row" items-center justify-between gap-3 rounded-lg p-3
+                  bg="white/60 dark:black/30"
+                  border="~ neutral-200/50 dark:neutral-700/30"
+                >
+                  <div flex="~ col" min-w-0 gap-1>
+                    <span text-sm font-medium>{{ formatHistoryDate(entry.at) }}</span>
+                    <span v-if="entry.changed.length > 0" truncate text-xs text-neutral-500 dark:text-neutral-400>
+                      {{ t('settings.pages.card.sync.history.changed', { keys: entry.changed.join(', ') }) }}
+                    </span>
+                    <span v-if="entry.removed.length > 0" truncate text-xs text-neutral-500 dark:text-neutral-400>
+                      {{ t('settings.pages.card.sync.history.removed', { keys: entry.removed.join(', ') }) }}
+                    </span>
+                  </div>
+                  <Button
+                    shrink-0
+                    :label="t('settings.pages.card.sync.history.restore')"
+                    :disabled="restoringRevision === entry.revision"
+                    @click="handleRestoreVersion(entry)"
+                  />
                 </div>
               </div>
             </div>

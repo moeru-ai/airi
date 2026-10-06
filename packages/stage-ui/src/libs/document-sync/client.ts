@@ -20,10 +20,34 @@ const PushResultSchema = v.object({
   conflicts: v.array(v.string()),
 })
 
+const HistoryEntrySchema = v.object({
+  revision: v.number(),
+  at: v.string(),
+  changed: v.array(v.string()),
+  removed: v.array(v.string()),
+})
+
+const HistoryResultSchema = v.object({
+  history: v.array(HistoryEntrySchema),
+})
+
+const DocumentSnapshotSchema = v.object({
+  revision: v.number(),
+  at: v.string(),
+  fields: v.array(v.object({
+    key: v.string(),
+    value: v.unknown(),
+  })),
+})
+
 /** A document as the list route of a feature returns it. A deleted document has no fields. */
 export type RemoteDocument = v.InferOutput<typeof RemoteDocumentSchema>
 export type RemoteSnapshot = v.InferOutput<typeof RemoteSnapshotSchema>
 export type PushResult = v.InferOutput<typeof PushResultSchema>
+/** One past revision of a document, the keys it changed and the keys it removed. */
+export type DocumentHistoryEntry = v.InferOutput<typeof HistoryEntrySchema>
+/** The content of a document at a past revision. */
+export type DocumentSnapshot = v.InferOutput<typeof DocumentSnapshotSchema>
 
 /** One changed part of a document. `baseRevision` is the revision that this device last merged, or zero. */
 export type PushField
@@ -64,6 +88,10 @@ export interface DocumentSyncClient {
   push: (documentId: string, fields: PushField[]) => Promise<PushResult>
   /** @returns `false` when another device changed the document after `revision`. The document is not deleted. */
   remove: (documentId: string, revision: number) => Promise<boolean>
+  /** @returns `null` when the document does not exist or belongs to another account. */
+  history: (documentId: string, options?: { before?: number, limit?: number }) => Promise<DocumentHistoryEntry[] | null>
+  /** @returns `null` when the document, or that revision of it, does not exist. */
+  snapshot: (documentId: string, revision: number) => Promise<DocumentSnapshot | null>
 }
 
 /** Builds the REST client for the routes of one feature. All methods throw on an unexpected status. */
@@ -100,6 +128,26 @@ export function createDocumentSyncClient(options: CreateDocumentSyncClientOption
     async remove(documentId, revision) {
       const response = await request(`/${encodeURIComponent(documentId)}`, { method: 'DELETE' }, [409], { revision: String(revision) })
       return response.ok
+    },
+
+    async history(documentId, options) {
+      const query: Record<string, string> = {}
+      if (options?.before !== undefined)
+        query.before = String(options.before)
+      if (options?.limit !== undefined)
+        query.limit = String(options.limit)
+
+      const response = await request(`/${encodeURIComponent(documentId)}/history`, { method: 'GET' }, [404], query)
+      if (response.status === 404)
+        return null
+      return v.parse(HistoryResultSchema, await response.json()).history
+    },
+
+    async snapshot(documentId, revision) {
+      const response = await request(`/${encodeURIComponent(documentId)}/history/${revision}`, { method: 'GET' }, [404])
+      if (response.status === 404)
+        return null
+      return v.parse(DocumentSnapshotSchema, await response.json())
     },
   }
 }

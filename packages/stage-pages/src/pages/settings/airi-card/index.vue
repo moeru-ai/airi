@@ -4,7 +4,7 @@ import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { InputFileCard } from '@proj-airi/ui'
+import { Button, InputFileCard } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -204,6 +204,57 @@ function getVersionNumber(id: string) {
   return card?.version || '1.0.0'
 }
 
+// Recently deleted cards
+interface DeletedCard {
+  id: string
+  name: string
+  deletedAt: string
+}
+
+const showDeletedPanel = ref(false)
+const deletedCardsList = ref<DeletedCard[]>([])
+const isLoadingDeleted = ref(false)
+const deletedLoadFailed = ref(false)
+const restoringDeletedId = ref<string | null>(null)
+
+async function loadDeletedCards() {
+  isLoadingDeleted.value = true
+  deletedLoadFailed.value = false
+  try {
+    deletedCardsList.value = await cardStore.deletedCards()
+  }
+  catch (error) {
+    console.error('Error loading recently deleted cards:', error)
+    deletedLoadFailed.value = true
+  }
+  finally {
+    isLoadingDeleted.value = false
+  }
+}
+
+async function toggleDeletedPanel() {
+  showDeletedPanel.value = !showDeletedPanel.value
+  if (showDeletedPanel.value)
+    await loadDeletedCards()
+}
+
+async function handleRestoreDeletedCard(card: DeletedCard) {
+  restoringDeletedId.value = card.id
+  try {
+    const restored = await cardStore.restoreDeletedCard(card.id)
+    toast(t(restored ? 'settings.pages.card.sync.deleted.restore_success' : 'settings.pages.card.sync.deleted.restore_failed', { name: card.name }))
+    if (restored)
+      await loadDeletedCards()
+  }
+  catch (error) {
+    console.error('Error restoring a deleted card:', error)
+    toast(t('settings.pages.card.sync.deleted.restore_failed', { name: card.name }))
+  }
+  finally {
+    restoringDeletedId.value = null
+  }
+}
+
 // Card module short name
 function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
   const card = cards.value.get(id)
@@ -226,10 +277,55 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 <template>
   <div rounded-xl p-4 flex="~ col gap-4">
     <!-- Disclosure: signed-in users upload their cards -->
-    <p v-if="isAuthenticated" flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
-      <span i-solar:cloud-check-outline shrink-0 />
-      {{ t('settings.pages.card.sync.notice') }}
-    </p>
+    <div v-if="isAuthenticated" flex="~ col" gap-2>
+      <div flex="~ row" items-center justify-between gap-2>
+        <p flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
+          <span i-solar:cloud-check-outline shrink-0 />
+          {{ t('settings.pages.card.sync.notice') }}
+        </p>
+        <button
+          type="button"
+          flex="~ row" shrink-0 items-center gap-1 text-sm text="primary-600 dark:primary-400"
+          @click="toggleDeletedPanel"
+        >
+          <div i-solar:trash-bin-minimalistic-linear />
+          {{ t('settings.pages.card.sync.deleted.title') }}
+          <div :class="showDeletedPanel ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear'" />
+        </button>
+      </div>
+
+      <div
+        v-if="showDeletedPanel"
+        flex="~ col" gap-2 rounded-xl p-4
+        bg="neutral-50/50 dark:neutral-900/50"
+        border="~ neutral-200/50 dark:neutral-700/30"
+      >
+        <div v-if="isLoadingDeleted" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.pages.card.sync.deleted.loading') }}
+        </div>
+        <div v-else-if="deletedLoadFailed" class="py-4 text-center text-sm text-red-500 dark:text-red-400">
+          {{ t('settings.pages.card.sync.deleted.load_failed') }}
+        </div>
+        <div v-else-if="deletedCardsList.length === 0" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          {{ t('settings.pages.card.sync.deleted.empty') }}
+        </div>
+        <div
+          v-for="card in deletedCardsList"
+          :key="card.id"
+          flex="~ row" items-center justify-between gap-3 rounded-lg p-3
+          bg="white/60 dark:black/30"
+          border="~ neutral-200/50 dark:neutral-700/30"
+        >
+          <span truncate text-sm font-medium>{{ card.name }}</span>
+          <Button
+            shrink-0
+            :label="t('settings.pages.card.sync.deleted.restore')"
+            :disabled="restoringDeletedId === card.id"
+            @click="handleRestoreDeletedCard(card)"
+          />
+        </div>
+      </div>
+    </div>
 
     <!-- Toolbar with search and filters -->
     <div flex="~ row" flex-wrap items-center justify-between gap-4>

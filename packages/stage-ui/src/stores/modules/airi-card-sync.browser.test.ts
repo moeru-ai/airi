@@ -29,7 +29,10 @@ function createContext(runtime: SyncedPiniaRuntime) {
 
 interface ServerDocument {
   revision: number
+  deletedAt: string | null
   fields: Map<string, { revision: number, value: unknown }>
+  /** Every field row the server ever wrote for this document, current and past. */
+  history: Array<{ revision: number, key: string, value: unknown }>
 }
 
 /**
@@ -47,25 +50,60 @@ function createFakeCardServer() {
       documents: [...documents].map(([id, document]) => ({
         id,
         revision: document.revision,
-        deletedAt: null,
-        fields: [...document.fields].map(([key, field]) => ({ key, ...field })),
+        deletedAt: document.deletedAt,
+        fields: document.deletedAt ? [] : [...document.fields].map(([key, field]) => ({ key, ...field })),
       })),
     }
   }
 
   const fetchCards = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input))
-    const id = decodeURIComponent(url.pathname.split('/').at(-1) ?? '')
+    const basePath = '/api/v1/character-cards'
+    const parts = url.pathname.slice(url.pathname.indexOf(basePath) + basePath.length).replace(/^\/+/, '').split('/').filter(Boolean).map(decodeURIComponent)
+
+    if (parts.length >= 2 && parts[1] === 'history') {
+      requests.list += 1
+      const document = documents.get(parts[0])
+      if (!document)
+        return new Response(null, { status: 404 })
+
+      if (parts.length === 3) {
+        const revision = Number(parts[2])
+        if (revision > document.revision || !document.history.some(entry => entry.revision === revision))
+          return new Response(null, { status: 404 })
+        const atRevision = new Map<string, unknown>()
+        for (const entry of document.history) {
+          if (entry.revision <= revision)
+            atRevision.set(entry.key, entry.value)
+        }
+        const fields = [...atRevision].filter(([, value]) => value !== null).map(([key, value]) => ({ key, value }))
+        return Response.json({ revision, at: new Date(0).toISOString(), fields })
+      }
+
+      const revisions = [...new Set(document.history.map(entry => entry.revision))].sort((a, b) => b - a)
+      const history = revisions.map(revision => ({
+        revision,
+        at: new Date(0).toISOString(),
+        changed: document.history.filter(entry => entry.revision === revision && entry.value !== null).map(entry => entry.key),
+        removed: document.history.filter(entry => entry.revision === revision && entry.value === null).map(entry => entry.key),
+      }))
+      return Response.json({ history })
+    }
+
+    const id = parts[0] ?? ''
 
     if (init?.method === 'PUT') {
       requests.push += 1
       if (refusing.has(id))
         return new Response(null, { status: 413, statusText: 'Payload Too Large' })
       const { fields } = JSON.parse(String(init.body)) as { fields: Array<{ key: string, value: unknown }> }
-      const document = documents.get(id) ?? { revision: 0, fields: new Map() }
+      const document: ServerDocument = documents.get(id) ?? { revision: 0, deletedAt: null, fields: new Map(), history: [] }
       document.revision += 1
-      for (const field of fields)
+      document.deletedAt = null
+      for (const field of fields) {
         document.fields.set(field.key, { revision: document.revision, value: field.value })
+        document.history.push({ revision: document.revision, key: field.key, value: field.value })
+      }
       documents.set(id, document)
       return Response.json({ document: toWire().documents.find(candidate => candidate.id === id), conflicts: [] })
     }
@@ -81,7 +119,20 @@ function createFakeCardServer() {
     fetchCards,
     /** Stores a card as another device would. */
     seed(id: string, fields: Record<string, unknown>) {
-      documents.set(id, { revision: 1, fields: new Map(Object.entries(fields).map(([key, value]) => [key, { revision: 1, value }])) })
+      documents.set(id, {
+        revision: 1,
+        deletedAt: null,
+        fields: new Map(Object.entries(fields).map(([key, value]) => [key, { revision: 1, value }])),
+        history: Object.entries(fields).map(([key, value]) => ({ revision: 1, key, value })),
+      })
+    },
+    /** Stores a card and then deletes it, as another device would. The content stays in its history. */
+    seedDeleted(id: string, fields: Record<string, unknown>) {
+      const history = Object.entries(fields).map(([key, value]) => ({ revision: 1, key, value }))
+      const deletedRevision = 2
+      for (const key of Object.keys(fields))
+        history.push({ revision: deletedRevision, key, value: null })
+      documents.set(id, { revision: deletedRevision, deletedAt: new Date(0).toISOString(), fields: new Map(), history })
     },
   }
 }
@@ -239,6 +290,55 @@ describe('card synchronization across windows', () => {
     await follower.cards.synchronizeCards()
 
     expect(server.fetchCards).not.toHaveBeenCalled()
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('restores a card to the content it had at a past revision', async () => {
+    const { leader, follower, onError } = await createWindows()
+    signIn(leader.auth, accountId())
+    await expect.poll(() => follower.auth.userId).toBe(leader.auth.userId)
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Luna')
+    const firstRevision = server.documents.get(cardId)!.history.find(entry => entry.key === '/name')!.revision
+
+    await leader.cards.updateCard(cardId, { ...leader.cards.cards.get(cardId)!, name: 'Nova' })
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Nova')
+
+    const restored = await leader.cards.restoreCardVersion(cardId, firstRevision)
+
+    expect(restored).toBe(true)
+    expect(leader.cards.cards.get(cardId)?.name).toBe('Luna')
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('returns false for a revision the server does not have', async () => {
+    const { leader, onError } = await createWindows()
+    signIn(leader.auth, accountId())
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Luna')
+
+    expect(await leader.cards.restoreCardVersion(cardId, 999)).toBe(false)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('restores a card that another device deleted, from the content before the deletion', async () => {
+    const { leader, onError } = await createWindows()
+    server.seedDeleted('remote', { '/name': 'Remote', '/version': '1.0.0' })
+    signIn(leader.auth, accountId())
+
+    const restored = await leader.cards.restoreDeletedCard('remote')
+
+    expect(restored).toBe(true)
+    expect(leader.cards.cards.get('remote')?.name).toBe('Remote')
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('returns false when restoring a card the server does not report as deleted', async () => {
+    const { leader, onError } = await createWindows()
+    server.seed('remote', { '/name': 'Remote', '/version': '1.0.0' })
+    signIn(leader.auth, accountId())
+
+    expect(await leader.cards.restoreDeletedCard('remote')).toBe(false)
     expect(onError).not.toHaveBeenCalled()
   })
 })

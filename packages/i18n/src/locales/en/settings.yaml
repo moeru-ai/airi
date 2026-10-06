@@ -373,13 +373,35 @@ pages:
           fallback: Could not start deletion. Try again later.
   card:
     sync:
-      notice: When you are signed in, your character cards sync to your account. The selected character stays on this device.
+      notice: When you are signed in, your character cards sync to your account. The selected character stays on this device. There is no setting to turn this off. A card you delete stays in your account history for 30 days.
       state:
         synced: Synced to your account
         pending: Waiting to upload
         refused: Not uploaded. Your account has no room for more cards, so this card stays on this device.
       conflict_copy_name: '{name} (conflict copy)'
       conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
+      history:
+        tab: History
+        empty: No history yet for this card.
+        loading: Loading history…
+        load_failed: Could not load the history of this card.
+        changed: 'Changed: {keys}'
+        removed: 'Removed: {keys}'
+        restore: Restore this version
+        restore_confirm_title: Restore this version?
+        restore_confirm_body: This replaces the current content of {name} with the content from {date}.
+        restore_confirm_confirm: Restore
+        restore_confirm_cancel: Cancel
+        restore_success: Restored {name} to an earlier version.
+        restore_failed: Could not restore this version. The server may no longer have it.
+      deleted:
+        title: Recently deleted
+        empty: No recently deleted cards.
+        loading: Loading recently deleted cards…
+        load_failed: Could not load recently deleted cards.
+        restore: Restore
+        restore_success: Restored {name}.
+        restore_failed: Could not restore this card. The server may no longer have its content.
     activate: Activate
     active: Active
     active_badge: Currently Active

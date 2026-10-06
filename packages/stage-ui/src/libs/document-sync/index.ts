@@ -1,4 +1,4 @@
-export type { CreateDocumentSyncClientOptions, DocumentSyncClient, PushField, PushResult, RemoteDocument, RemoteSnapshot } from './client'
+export type { CreateDocumentSyncClientOptions, DocumentHistoryEntry, DocumentSnapshot, DocumentSyncClient, PushField, PushResult, RemoteDocument, RemoteSnapshot } from './client'
 export { createDocumentSyncClient, DocumentSyncRequestError } from './client'
 
 export type { ConflictCopy, DocumentFields, DocumentPush, ReconcileInput, ReconcilePlan, SyncState } from './reconcile'

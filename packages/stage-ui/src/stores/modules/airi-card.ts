@@ -1,6 +1,6 @@
 import type { Card, ccv3 } from '@proj-airi/ccc'
 
-import type { DocumentFields, DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
+import type { DocumentFields, DocumentSnapshot, DocumentSyncClient, LocalDocumentChanges } from '../../libs/document-sync'
 import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
@@ -574,6 +574,16 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return states
   })
 
+  /** The built-in content that `joinCard` lays a card's synchronized fields over. Only the `default` card has one. */
+  function builtInFor(id: string) {
+    return id === 'default' ? builtInCard.value : undefined
+  }
+
+  /** Turns the field list of a snapshot into the keyed shape that `joinCard` reads. */
+  function fieldsOfSnapshot(snapshot: DocumentSnapshot): DocumentFields {
+    return Object.fromEntries(snapshot.fields.map(field => [field.key, field.value]))
+  }
+
   /**
    * Applies the card changes of one synchronization run to this renderer.
    *
@@ -591,10 +601,6 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     const previousActiveCardId = activeCardId.value
     const rejected: string[] = []
     let activeCardChanged = false
-
-    function builtInFor(id: string) {
-      return id === 'default' ? builtInCard.value : undefined
-    }
 
     for (const [id, fields] of Object.entries(changes.upserts)) {
       // Another device wrote this content. A card that this device cannot read
@@ -705,6 +711,100 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     refusedCardIds.value = refused
     if (refused.length > 0)
       console.warn('[character-card-sync] The server refused these cards. They stay on this device:', refused)
+  }
+
+  /**
+   * Replaces a card's content with the content it had at a past revision.
+   *
+   * The restore is an ordinary edit, not a special write. The next
+   * synchronization run uploads it, and a field that another device changed
+   * since the restore can still conflict, the same as any other edit.
+   *
+   * @returns `false` when the account has no cloud history, the card has no
+   * local copy to update, or the server no longer has that revision.
+   */
+  async function restoreCardVersion(id: string, revision: number) {
+    if (userId.value === 'local')
+      return false
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    const snapshot = await syncClient.snapshot(id, revision)
+    if (!snapshot)
+      return false
+
+    const card = parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id)))
+    return updateCard(id, card)
+  }
+
+  /**
+   * Brings back a card that synchronization removed from this device because
+   * another device deleted it. The content comes from the server's record of
+   * the card just before that deletion.
+   *
+   * The device has no synchronized state for this id anymore, so the next
+   * run treats the restored card as new and uploads all of its content.
+   *
+   * @returns `false` when the account has no cloud history, the card is not
+   * deleted on the server, or the content before the deletion is gone.
+   */
+  async function restoreDeletedCard(id: string) {
+    if (userId.value === 'local')
+      return false
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    const { documents } = await syncClient.list()
+    const deleted = documents.find(document => document.id === id && document.deletedAt !== null)
+    if (!deleted)
+      return false
+
+    const snapshot = await syncClient.snapshot(id, deleted.revision - 1)
+    if (!snapshot)
+      return false
+
+    const card = parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id)))
+    cards.value.set(id, newAiriCard(card))
+    if (!cards.value.has(activeCardId.value))
+      activeCardId.value = 'default'
+    return true
+  }
+
+  /**
+   * Lists the past revisions of a card, newest first, for a history view.
+   *
+   * This reads only. It does not change a card or its sync state, so every
+   * window can call it directly without going through the leader.
+   *
+   * @returns `null` when the account has no cloud history for this card.
+   */
+  async function cardHistory(id: string, options?: { before?: number, limit?: number }) {
+    if (userId.value === 'local')
+      return null
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    return syncClient.history(id, options)
+  }
+
+  /**
+   * Lists the cards that the server has as deleted for this account, each
+   * with the name it had just before the deletion, for a "recently deleted" view.
+   *
+   * This reads only, the same as {@link cardHistory}.
+   */
+  async function deletedCards() {
+    if (userId.value === 'local')
+      return []
+
+    syncClient ??= createDocumentSyncClient({ serverUrl: SERVER_URL, path: CARDS_PATH, fetch: authedFetch })
+    const client = syncClient
+    const { documents } = await client.list()
+    // The panel shows only the most recent deletions, so an account with a long history makes few requests.
+    const deleted = documents.filter(document => document.deletedAt !== null).slice(0, 20)
+
+    return Promise.all(deleted.map(async (document) => {
+      const snapshot = await client.snapshot(document.id, document.revision - 1)
+      const name = snapshot?.fields.find(field => field.key === '/name')?.value
+      return { id: document.id, name: typeof name === 'string' ? name : document.id, deletedAt: document.deletedAt! }
+    }))
   }
 
   async function requestCardSynchronization() {
@@ -858,6 +958,10 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     addCard,
     removeCard,
     updateCard,
+    restoreCardVersion,
+    restoreDeletedCard,
+    cardHistory,
+    deletedCards,
     updateActiveCardConsciousness,
     updateActiveCardDisplayModel,
     updateActiveCardSpeech,
@@ -913,6 +1017,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'updateActiveCardVision',
       'selectActiveCardVisionProvider',
       'updateCard',
+      'restoreCardVersion',
+      'restoreDeletedCard',
       'synchronizeCards',
     ],
     state: true,
