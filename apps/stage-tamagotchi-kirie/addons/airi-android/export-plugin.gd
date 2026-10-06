@@ -39,6 +39,7 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowInsetsController;
 import android.webkit.JavascriptInterface;
@@ -50,10 +51,13 @@ import android.webkit.WebViewClient;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
+import androidx.core.graphics.Insets;
 import androidx.webkit.JavaScriptReplyProxy;
 import androidx.webkit.WebMessageCompat;
 import androidx.webkit.WebViewCompat;
 import androidx.core.app.NotificationCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.outsystems.plugins.barcode.controller.OSBARCController;
 import com.outsystems.plugins.barcode.model.OSBARCScanParameters;
@@ -134,6 +138,12 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private OnBackPressedCallback backPressedCallback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
+    private ViewGroup browserInsetsView;
+    private ViewTreeObserver.OnGlobalLayoutListener browserImeLayoutListener;
+    private int browserInsetsPaddingLeft;
+    private int browserInsetsPaddingTop;
+    private int browserInsetsPaddingRight;
+    private int browserInsetsPaddingBottom;
     private HostWebSocketBridge hostWebSocketBridge;
     private final OSBARCController barcodeController = new OSBARCController();
     private final Map<String, PendingEventaRequest> pendingPermissionRequests =
@@ -200,6 +210,20 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         mainHandler.removeCallbacksAndMessages(null);
         if (activePlugin == this) {
             activePlugin = null;
+        }
+        if (browserInsetsView != null) {
+            ViewTreeObserver observer = browserInsetsView.getViewTreeObserver();
+            if (browserImeLayoutListener != null && observer.isAlive()) {
+                observer.removeOnGlobalLayoutListener(browserImeLayoutListener);
+            }
+            browserInsetsView.setPadding(
+                browserInsetsPaddingLeft,
+                browserInsetsPaddingTop,
+                browserInsetsPaddingRight,
+                browserInsetsPaddingBottom
+            );
+            browserInsetsView = null;
+            browserImeLayoutListener = null;
         }
         if (hostWebSocketBridge != null) {
             hostWebSocketBridge.dispose();
@@ -401,6 +425,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
 
             browserWebView = webView;
+            installImeInsetHandler(activity);
             hostWebSocketBridge = new HostWebSocketBridge(webView);
             webView.addJavascriptInterface(hostWebSocketBridge, "AiriHostBridge");
             webView.getSettings().setSupportMultipleWindows(true);
@@ -479,6 +504,51 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             );
             webView.reload();
         });
+    }
+
+    // NOTICE:
+    // Kirie's overlay WebView ignores Android adjustResize.
+    // The native view keeps its full height while the IME is visible.
+    // Context: apps/stage-tamagotchi-kirie keyboard parity testing.
+    // Remove this when gd-kirie's Android WebView consumes IME insets.
+    private void installImeInsetHandler(Activity activity) {
+        View contentView = activity.findViewById(android.R.id.content);
+        if (!(contentView instanceof ViewGroup)) {
+            return;
+        }
+
+        browserInsetsView = (ViewGroup) contentView;
+        browserInsetsPaddingLeft = browserInsetsView.getPaddingLeft();
+        browserInsetsPaddingTop = browserInsetsView.getPaddingTop();
+        browserInsetsPaddingRight = browserInsetsView.getPaddingRight();
+        browserInsetsPaddingBottom = browserInsetsView.getPaddingBottom();
+        browserImeLayoutListener = () -> applyImeInsets(browserInsetsView);
+        browserInsetsView.getViewTreeObserver().addOnGlobalLayoutListener(
+            browserImeLayoutListener
+        );
+        browserInsetsView.post(() -> applyImeInsets(browserInsetsView));
+    }
+
+    private void applyImeInsets(ViewGroup view) {
+        WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(view);
+        if (insets == null) {
+            return;
+        }
+
+        Insets imeInsets = insets.getInsets(WindowInsetsCompat.Type.ime());
+        int keyboardInset = insets.isVisible(WindowInsetsCompat.Type.ime())
+            ? imeInsets.bottom
+            : 0;
+        int bottom = browserInsetsPaddingBottom + keyboardInset;
+        if (view.getPaddingBottom() == bottom) {
+            return;
+        }
+        view.setPadding(
+            browserInsetsPaddingLeft,
+            browserInsetsPaddingTop,
+            browserInsetsPaddingRight,
+            bottom
+        );
     }
 
     private boolean openExternalBrowser(Activity activity, Uri uri) {
