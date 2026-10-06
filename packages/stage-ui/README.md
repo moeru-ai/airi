@@ -2,6 +2,18 @@
 
 Shared core for stage
 
+## Experimental features
+
+Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
+Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.
+Cloud decides whether each granted Cloud flag allows account opt-in or uses direct control. Client registrations do not duplicate this mode.
+`cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They start disabled and retain choices per account on this device.
+`cloud-controlled` flags follow Cloud grants directly and never expose a switch.
+Missing Cloud grants disable Cloud features. Refresh failures and account changes clear grants, not local choices.
+`useCloudFetch()` in `composables/cloud.ts` shares the Cloud origin and authenticated fetch boundary. The store reads `GET /v1/feature-flags`.
+Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
+Keep authorization checks on the server.
+
 ## Message times
 
 Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
