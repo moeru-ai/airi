@@ -23,6 +23,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.Manifest;
 import android.content.BroadcastReceiver;
+import android.content.ActivityNotFoundException;
 import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.Intent;
@@ -38,6 +39,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowInsetsController;
+import android.webkit.ValueCallback;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 
 import androidx.webkit.JavaScriptReplyProxy;
@@ -87,6 +90,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private static final String MICROPHONE = "microphone";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
     private static final int MICROPHONE_PERMISSION_REQUEST = 4102;
+    private static final int FILE_CHOOSER_REQUEST = 4103;
     private static final int BARCODE_SCAN_REQUEST = 112;
     private static final SignalInfo PERMISSION_RESULT =
         new SignalInfo("permission_result", String.class, Boolean.class);
@@ -101,6 +105,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         new HashMap<>();
     private PendingEventaRequest pendingBarcodeScan;
     private PendingNotificationSchedule pendingNotificationSchedule;
+    private ValueCallback<Uri[]> pendingFileChooser;
 
     public AiriAndroidPlugin(Godot godot) {
         super(godot);
@@ -146,10 +151,33 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         pendingPermissionRequests.clear();
         pendingBarcodeScan = null;
         pendingNotificationSchedule = null;
+        if (pendingFileChooser != null) {
+            pendingFileChooser.onReceiveValue(null);
+            pendingFileChooser = null;
+        }
     }
 
     @Override
     public void onMainActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == FILE_CHOOSER_REQUEST && pendingFileChooser != null) {
+            ValueCallback<Uri[]> callback = pendingFileChooser;
+            pendingFileChooser = null;
+            Uri[] result;
+            if (resultCode == Activity.RESULT_OK
+                && data != null
+                && data.getClipData() != null) {
+                int itemCount = data.getClipData().getItemCount();
+                result = new Uri[itemCount];
+                for (int index = 0; index < itemCount; index += 1) {
+                    result[index] = data.getClipData().getItemAt(index).getUri();
+                }
+            } else {
+                result = WebChromeClient.FileChooserParams.parseResult(resultCode, data);
+            }
+            callback.onReceiveValue(result);
+            return;
+        }
+
         if (requestCode != BARCODE_SCAN_REQUEST || pendingBarcodeScan == null) {
             return;
         }
@@ -313,6 +341,30 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
 
             browserWebView = webView;
+            webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public boolean onShowFileChooser(
+                    WebView source,
+                    ValueCallback<Uri[]> callback,
+                    FileChooserParams parameters
+                ) {
+                    if (pendingFileChooser != null) {
+                        pendingFileChooser.onReceiveValue(null);
+                    }
+                    pendingFileChooser = callback;
+                    Intent intent = parameters.createIntent();
+                    if (parameters.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                        intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                    }
+                    try {
+                        activity.startActivityForResult(intent, FILE_CHOOSER_REQUEST);
+                    } catch (ActivityNotFoundException error) {
+                        pendingFileChooser = null;
+                        callback.onReceiveValue(null);
+                    }
+                    return true;
+                }
+            });
             WebViewCompat.addWebMessageListener(
                 webView,
                 EVENTA_CHANNEL,
