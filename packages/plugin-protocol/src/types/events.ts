@@ -1147,7 +1147,15 @@ interface SparkCommandEvent {
   ack?: string
   guidance?: SparkCommandGuidance
   contexts?: Array<ContextUpdate>
-  destinations: Array<string>
+  /**
+   * The peers that receive this command.
+   *
+   * An omitted list reaches every authenticated peer. An explicit empty list
+   * reaches no peer. The delivery loop reads the rule from `collectDestinations`
+   * in `@proj-airi/server-runtime`, which preserves an array-shaped `destinations`
+   * and returns `undefined` when the field is absent.
+   */
+  destinations?: Array<string>
 }
 
 interface TransportConnectionHeartbeatEvent {
