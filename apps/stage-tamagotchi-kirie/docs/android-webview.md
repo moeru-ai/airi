@@ -115,6 +115,7 @@ Kirie copies Capacitor Local Notifications 8.3.1 for the notification page's def
 It uses an exact non-wakeup alarm when Android permits exact alarms.
 Without that permission, the Send Notification click opens Android's alarm settings.
 When the user returns, it uses an exact alarm if granted and a non-exact alarm otherwise.
+The default notification channel uses Pocket's `Default` name and description.
 
 ## Android backup persistence
 

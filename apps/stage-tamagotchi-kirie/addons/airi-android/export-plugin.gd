@@ -1224,7 +1224,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 "Default",
                 NotificationManager.IMPORTANCE_DEFAULT
             );
-            channel.setDescription("hasDescription");
+            channel.setDescription("Default");
             manager.createNotificationChannel(channel);
 
             Intent launchIntent = context.getPackageManager()
