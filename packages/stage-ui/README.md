@@ -362,3 +362,9 @@ The default pack contains twelve generated chibi reactions of AIRI's official bl
 See [artwork provenance](src/assets/stickers/README.md) for references, exact prompts, and inspection notes.
 These are static assets. No runtime image-generation dependency is included.
 The four development-only Fluent Emoji images are removed. No old-ID migration is included.
+
+## Official chat
+
+The official chat provider defaults to Responses API. Saved Chat Completions selections remain active.
+If a request reports an unsupported protocol before output, the runtime retries once with Chat Completions.
+The provider remembers unsupported models until its instance is recreated. Authentication errors and interrupted streams do not trigger this switch.
