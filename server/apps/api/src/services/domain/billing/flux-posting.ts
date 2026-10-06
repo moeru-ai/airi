@@ -13,6 +13,11 @@ export const fluxUsageInputSchema = object({
 })
 export type FluxUsageInput = InferOutput<typeof fluxUsageInputSchema>
 
+/** Converts a micro-Flux fee to Flux for telemetry. */
+export function microFluxToFlux(microFlux: number): number {
+  return microFlux / MICRO_FLUX_PER_FLUX
+}
+
 /** Integer balance minus confirmed outstanding fees, in micro-Flux. Admission uses this one formula. */
 export function availableMicroFlux(wallet: { flux: number, unsettledMicroFlux: number }): bigint {
   return BigInt(wallet.flux) * BigInt(MICRO_FLUX_PER_FLUX) - BigInt(wallet.unsettledMicroFlux)

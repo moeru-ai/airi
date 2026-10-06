@@ -115,7 +115,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const { requiresWebSearch } = input.policy
     const alias = await resolveModelAliasPlan(deps, model, { protocol: 'responses', requiresWebSearch })
     const startedAt = Date.now()
-    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0, prompt: captureRequestContent(input.body) })
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, prompt: captureRequestContent(input.body) })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
@@ -155,7 +155,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       startTrace().fail('Responses routing failed')
       const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs, fluxConsumed: 0, errorBody: captureErrorMessage(error) })
+      telemetry.recordRequestLog({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs, errorBody: captureErrorMessage(error) })
       throw error
     }
 
@@ -190,7 +190,7 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       generation.fail(message)
       telemetry.failSpan(span, message)
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ ...observation, ...lastUsage, timeToFirstTokenMs, userId: input.userId, requestId, model, status, durationMs, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ ...observation, ...lastUsage, timeToFirstTokenMs, userId: input.userId, requestId, model, status, durationMs })
     }
 
     async function complete(response: InferOutput<typeof responseSchema>) {
@@ -209,20 +209,20 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       const price = billing.priceChatUsage(usage, policy, routeCtx.provider)
       const amount = price.amount
       const stage = input.policy.stream ? 'streaming' : 'non_streaming'
-      let charged = 0
+      let feeFlux = 0
       try {
-        charged = await billing.settleChat({ ...usage, ...price, userId: input.userId, requestId, model, stage, logger })
+        feeFlux = await billing.settleChat({ ...usage, ...price, userId: input.userId, requestId, model, stage, logger })
       }
       catch (error) {
         // Generation has completed. A debit failure is revenue telemetry, not a new provider attempt.
         billing.recordChatDebitFailure({ amount, model, stage })
         logger.withFields({ requestId }).withError(error).error('Responses debit failed')
       }
-      telemetry.recordUsageOnSpan(span, { ...usage, fluxConsumed: charged })
+      telemetry.recordUsageOnSpan(span, { ...usage, fluxConsumed: feeFlux })
       telemetry.endSpan(span)
-      generation.succeed({ ...usage, output: response.output, fluxConsumed: charged })
-      telemetry.recordMetrics({ ...usage, model, status: upstream.status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: charged })
-      telemetry.recordRequestLog({ ...observation, ...usage, timeToFirstTokenMs, userId: input.userId, requestId, model, status: upstream.status, durationMs, fluxConsumed: charged })
+      generation.succeed({ ...usage, output: response.output, fluxConsumed: feeFlux })
+      telemetry.recordMetrics({ ...usage, model, status: upstream.status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: feeFlux })
+      telemetry.recordRequestLog({ ...observation, ...usage, timeToFirstTokenMs, userId: input.userId, requestId, model, status: upstream.status, durationMs })
     }
 
     telemetry.setHttpStatus(span, upstream.status)

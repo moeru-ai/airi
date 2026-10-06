@@ -6,7 +6,7 @@ import { parse } from 'valibot'
 
 import { createPaymentRequiredError } from '../../../utils/error'
 import { priceSpeechUsage, speechPricingSchema } from './billing'
-import { availableMicroFlux } from './flux-posting'
+import { availableMicroFlux, microFluxToFlux } from './flux-posting'
 
 /** Speech fees follow the character price and post to the same wallet pool as every other metered service. */
 export class SpeechBilling {
@@ -42,6 +42,6 @@ export class SpeechBilling {
     })
     if (!result.replay)
       this.metrics?.ttsChars.add(input.units, { meter: 'tts', model: input.model })
-    return { ...result, costMicroFlux }
+    return { ...result, costMicroFlux, feeFlux: result.replay ? 0 : microFluxToFlux(costMicroFlux) }
   }
 }

@@ -5,6 +5,7 @@ import type { BillingService } from './billing-service'
 import { nonEmpty, parse, picklist, pipe, string } from 'valibot'
 
 import { costPricingSchema, priceLlmCost } from './billing'
+import { microFluxToFlux } from './flux-posting'
 
 /**
  * Prices a confirmed provider cost and posts it once to the shared micro-Flux pool.
@@ -26,7 +27,7 @@ export function createLlmBillingService(billing: BillingService, metrics?: Reven
       const pricing = parse(costPricingSchema, input.pricing)
       const fee = priceLlmCost(input.usage, pricing)
       if (input.pendingReason !== undefined || fee.costMicroFlux === undefined)
-        return { pending: true as const, replay: false, charged: 0, requested: 0, costMicroFlux: null }
+        return { pending: true as const, replay: false, charged: 0, requested: 0, costMicroFlux: null, feeFlux: 0 }
 
       const posted = await billing.postFluxUsage({
         userId: input.userId,
@@ -36,7 +37,7 @@ export function createLlmBillingService(billing: BillingService, metrics?: Reven
       })
       if (!posted.replay && posted.charged < posted.requested)
         metrics?.fluxInsufficientBalance.add(1)
-      return { ...posted, pending: false as const, costMicroFlux: fee.costMicroFlux }
+      return { ...posted, pending: false as const, costMicroFlux: fee.costMicroFlux, feeFlux: posted.replay ? 0 : microFluxToFlux(fee.costMicroFlux) }
     },
   }
 }

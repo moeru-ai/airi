@@ -68,7 +68,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       messageCount: Array.isArray(body.messages) ? body.messages.length : undefined,
     }).log('chat completion request')
     const startedAt = Date.now()
-    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, fluxConsumed: 0, prompt: captureRequestContent(body) })
+    await deps.requestLogService.beginRequest({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, interactionId: input.roundId, dimensions: { appSurface: input.appSurface }, status: 0, durationMs: 0, prompt: captureRequestContent(body) })
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
 
     // Server-connection attrs come from the router (which knows the actual
@@ -118,7 +118,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
         sessionId: input.sessionId,
       }).fail('Router exhausted or unknown model')
       telemetry.recordMetrics({ model: requestModel, status, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
-      telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs: Date.now() - startedAt, fluxConsumed: 0, errorBody: captureErrorMessage(err) })
+      telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs: Date.now() - startedAt, errorBody: captureErrorMessage(err) })
       throw err
     }
 
@@ -156,7 +156,7 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
 
     if (!response.ok) {
       observation.errorBody = routeCtx.errorBody ?? await captureErrorResponse(response.clone())
-      telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId, model: requestModel, fluxConsumed: 0 })
+      telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId, model: requestModel })
       telemetry.failSpan(span, `Gateway ${response.status}`)
       generationTrace.fail(`Gateway ${response.status}`)
       telemetry.recordMetrics({ model: requestModel, status: response.status, type: 'chat', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
@@ -361,7 +361,7 @@ function streamChatCompletion(input: {
         input.telemetry.endSpan(input.span)
         input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
-        input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: 0 })
+        input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel })
       }
       else if (streamCompleted) {
         try {
@@ -380,9 +380,9 @@ function streamChatCompletion(input: {
         //
         // Settlement retains pending evidence on failure. Partial debits
         // return `charged < requested` and increment `fluxUnbilled`.
-        let actualCharged = 0
+        let feeFlux = 0
         try {
-          actualCharged = await input.billing.settleChat({
+          feeFlux = await input.billing.settleChat({
             userId: input.userId,
             ...price,
             pendingReason: invalidReceipt || !receivedDone ? 'incomplete_or_invalid_stream' : undefined,
@@ -402,10 +402,10 @@ function streamChatCompletion(input: {
           input.logger.withError(err).withFields({ userId: input.userId, fluxConsumed, requestId: input.requestId }).error('Failed to debit flux after streaming — unpaid usage')
         }
 
-        input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: actualCharged })
+        input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
         input.telemetry.endSpan(input.span)
-        input.generationTrace.succeed({ promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: actualCharged })
-        input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: actualCharged })
+        input.generationTrace.succeed({ promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: feeFlux })
+        input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
 
         input.telemetry.recordRequestLog({
           ...observation,
@@ -415,7 +415,6 @@ function streamChatCompletion(input: {
           model: input.requestModel,
           status: input.response.status,
           durationMs: observation.durationMs,
-          fluxConsumed: actualCharged,
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
         })
@@ -428,7 +427,7 @@ function streamChatCompletion(input: {
           durationMs: input.durationMs,
           promptTokens: usage.promptTokens,
           completionTokens: usage.completionTokens,
-          fluxConsumed: actualCharged,
+          fluxConsumed: feeFlux,
           stream: true,
         }).log('chat completion delivered')
       }
@@ -479,7 +478,7 @@ async function completeNonStreamingChat(input: {
     input.observation.errorBody = responseText === undefined ? captureErrorMessage(error) : captureResponseText(responseText)
     const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
-    input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: 0 })
+    input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel })
     input.generationTrace.fail('Failed to parse upstream response body')
     input.telemetry.recordMetrics({ model: input.requestModel, status: 502, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
     throw createBadGatewayError('Invalid Chat Completions JSON response')
@@ -490,9 +489,9 @@ async function completeNonStreamingChat(input: {
 
   // The upstream cost is already incurred. Settlement retains evidence and
   // reports partial debits through `fluxUnbilled`, as in the streaming path.
-  let actualCharged = 0
+  let feeFlux = 0
   try {
-    actualCharged = await input.billing.settleChat({
+    feeFlux = await input.billing.settleChat({
       userId: input.userId,
       ...price,
       requestId: input.requestId,
@@ -505,17 +504,17 @@ async function completeNonStreamingChat(input: {
   catch (error) {
     const status = error instanceof ApiError ? error.statusCode : 500
     observation.errorBody = captureErrorMessage(error)
-    input.telemetry.recordRequestLog({ ...observation, ...usage, status, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: actualCharged })
+    input.telemetry.recordRequestLog({ ...observation, ...usage, status, userId: input.userId, requestId: input.requestId, model: input.requestModel })
     input.telemetry.failSpan(input.span, 'Chat settlement failed')
     input.generationTrace.fail('Chat settlement failed')
-    input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status, type: 'chat', provider: input.routeCtxProvider, durationMs: observation.durationMs, fluxConsumed: actualCharged })
+    input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status, type: 'chat', provider: input.routeCtxProvider, durationMs: observation.durationMs, fluxConsumed: feeFlux })
     throw error
   }
-  input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel, fluxConsumed: actualCharged })
-  input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: actualCharged })
+  input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel })
+  input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
   input.telemetry.endSpan(input.span)
-  input.generationTrace.succeed({ output: responseBody, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: actualCharged })
-  input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: actualCharged })
+  input.generationTrace.succeed({ output: responseBody, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: feeFlux })
+  input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
 
   input.logger.withFields({
     requestId: input.requestId,
@@ -525,7 +524,7 @@ async function completeNonStreamingChat(input: {
     durationMs: input.durationMs,
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
-    fluxConsumed: actualCharged,
+    fluxConsumed: feeFlux,
     stream: false,
   }).log('chat completion delivered')
 

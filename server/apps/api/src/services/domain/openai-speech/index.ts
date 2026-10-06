@@ -4,7 +4,6 @@ import type { SpeechBilling } from '../billing/speech-billing'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProviderCatalogService } from '../provider-catalog'
-import type { RequestLogService } from '../request-log'
 import type { VoicePackService } from '../voice-packs'
 
 import { useLogger } from '@guiiai/logg'
@@ -47,7 +46,6 @@ function readOptionalNumber(record: Record<string, unknown> | undefined, key: st
 
 export interface OpenAiSpeechServiceDeps {
   configKV: ConfigKVService
-  requestLogService: RequestLogService
   speechBilling: SpeechBilling
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
@@ -216,7 +214,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         turnId: analytics.turnId,
         provider: routeCtx.provider,
       })
-      fluxConsumed = result.charged
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       generationTrace.succeed({
         inputChars: inputText.length,
@@ -233,13 +231,6 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
     }
 
     recordMetrics({ model: requestModel, status: response.status, provider: routeCtx.provider, durationMs, fluxConsumed })
-    deps.requestLogService.logRequest({
-      userId: input.userId,
-      model: requestModel,
-      status: response.status,
-      durationMs,
-      fluxConsumed,
-    }).catch(err => logger.withError(err).warn('Failed to write llm_request_log row'))
 
     logger.withFields({
       requestId,

@@ -250,8 +250,10 @@ Zero fees do not create debit ledger rows. Underfunded settlements increment the
 `flux_usage.detail` keeps the price snapshot, cost source, provider, model, and generation ID.
 The request log and attempts keep the provider evidence. A request with a log and no `flux_usage` row is unbilled.
 Reconcile unbilled requests by joining the request log with `flux_usage` on the request ID.
-The `llm_request_settlement` table is a read-only archive of whole-Flux settlements. No code writes to it.
-Request-log `fluxConsumed` remains an observation-time summary, not a live billing total.
+The request log no longer stores a Flux amount. Read the fee from `flux_usage` by request ID.
+The `airi.billing.flux.consumed` metric and the `airi.billing.flux_consumed` span attribute report the fee in Flux, not the integer debit.
+Migration 0030 drops the `llm_request_settlement` archive and `llm_request_log.flux_consumed`.
+Export the historical settlements before this migration runs.
 There is no automatic reconciliation worker in this release.
 
 A future model-price-table adapter is a supported pricing mode, not a fallback.

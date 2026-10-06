@@ -26,7 +26,6 @@ describe('request log and billing ownership', () => {
     generationId: 'gen-1',
     status: 200,
     durationMs: 150,
-    fluxConsumed: 0,
     protocol: 'chat-completions',
     stream: true,
     providerUsage: { cost: 0.002, vendor_meter: { units: 3 } },

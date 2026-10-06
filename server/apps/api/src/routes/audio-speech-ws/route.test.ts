@@ -179,8 +179,10 @@ function makeFakeDeps(overrides: {
       replay: false,
     })),
   }
-  const requestLogService = {
-    logRequest: vi.fn(async () => undefined),
+  const genAi = {
+    operationCount: { add: vi.fn() },
+    operationDuration: { record: vi.fn() },
+    firstTokenDuration: { record: vi.fn() },
   }
   const configKV = {
     getOptional: vi.fn(async (key: string) => {
@@ -205,7 +207,7 @@ function makeFakeDeps(overrides: {
     decryptKey: vi.fn(() => Buffer.from(overrides.decryptedKey ?? 'mock-upstream-token', 'utf8')),
   }
 
-  return { configKV, envelopeCrypto, speechBilling, requestLogService }
+  return { configKV, envelopeCrypto, speechBilling, genAi }
 }
 
 /** Drives the WSEvents lifecycle as if a real client had connected. */
@@ -283,14 +285,13 @@ describe('audio-speech-ws route', () => {
       model: 'volcengine/seed-tts-2.0',
     })
 
-    // Request log gets the model label from the start frame, not the
-    // hardcoded fallback.
-    expect(deps.requestLogService.logRequest).toHaveBeenCalledTimes(1)
-    expect((deps.requestLogService.logRequest.mock.calls[0] as any[])[0]).toMatchObject({
-      userId: 'user-123',
-      model: 'volcengine/seed-tts-2.0',
-      status: 200,
-      fluxConsumed: 1,
+    // Duration and time to first audio are recorded once, with the start frame's model.
+    expect(deps.genAi.operationCount.add).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.operationDuration.record).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.firstTokenDuration.record).toHaveBeenCalledTimes(1)
+    expect(deps.genAi.operationDuration.record.mock.calls[0][1]).toMatchObject({
+      'gen_ai.request.model': 'volcengine/seed-tts-2.0',
+      'http.response.status_code': 200,
     })
   })
 

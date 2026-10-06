@@ -69,6 +69,7 @@ const expanded = ref(false)
 // animation ends, then isolate the same menu for natural-size measurement.
 const panelPresent = ref(false)
 const islandElement = useTemplateRef<HTMLElement>('island')
+const profileCreationActive = ref(false)
 const islandScrollArea = useTemplateRef<InstanceType<typeof ScrollableArea>>('islandScrollArea')
 const islandViewport = computed(() => islandScrollArea.value?.viewport)
 const islandContent = useTemplateRef<HTMLElement>('islandContent')
@@ -146,6 +147,7 @@ watch(expanded, (isExpanded) => {
   if (isExpanded)
     panelPresent.value = true
   if (!isExpanded) {
+    profileCreationActive.value = false
     if (menuContent.value?.contains(document.activeElement) || blockingOverlays.size > 0)
       mainControlsElement.value?.querySelector<HTMLButtonElement>('[aria-controls]')?.focus()
     profileOpen.value = false
@@ -330,7 +332,12 @@ function resetMainWindowPosition() {
                   </ControlButtonTooltip>
 
                   <ControlButtonTooltip disable-hoverable-content>
-                    <ControlsIslandProfilePicker v-model:open="profileOpen" :active="expanded" @interaction-change="setOverlay('profile-picker', $event)">
+                    <ControlsIslandProfilePicker
+                      v-model:open="profileOpen"
+                      v-model:creating="profileCreationActive"
+                      :active="expanded"
+                      @interaction-change="setOverlay('profile-picker', $event)"
+                    >
                       <template #default="{ toggle }">
                         <ControlButton
                           v-track-button="{ name: 'controls_island_action', action: 'toggle_profile_picker' }"

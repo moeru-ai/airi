@@ -32,7 +32,6 @@ import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
-export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
@@ -109,12 +108,13 @@ export interface ChatFloatingState {
 }
 
 /**
- * Unsent composer content that a chat mode switch carries from the window it
- * closes to the window it opens. Each renderer owns its composer, so the
- * content crosses through the main process.
+ * The conversation and the unsent composer content that a chat mode switch
+ * carries from the window it closes to the window it opens. Each renderer owns
+ * its composer and its selected conversation, so both cross through the main
+ * process. The content is empty when nothing was typed.
  */
 export interface ChatDraftHandover {
-  /** The chat session the content belongs to; another session discards it. */
+  /** The chat session that the closing window shows, and that the content belongs to. */
   sessionId: string
   text: string
   replyTarget?: ChatHistoryReplyPayload

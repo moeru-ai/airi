@@ -18,6 +18,7 @@ import {
   AIRI_ATTR_GEN_AI_GATEWAY_KEY_ID,
   AIRI_ATTR_GEN_AI_GATEWAY_UPSTREAM_URL,
   AIRI_ATTR_GEN_AI_OPERATION_KIND,
+  AIRI_ATTR_GEN_AI_STREAM,
   GEN_AI_ATTR_REQUEST_MODEL,
 } from '../../utils/observability'
 import { bufferToString, readUsageChars, toBufferLike } from './protocol'
@@ -82,6 +83,7 @@ export function createSessionState(
 ): AudioSpeechSessionState {
   const requestId = nanoid()
   const startedAt = Date.now()
+  let firstAudioAt: number | null = null
   const span = tracer.startSpan('llm.gateway.tts.stream', {
     attributes: {
       [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'text_to_speech_stream',
@@ -311,6 +313,7 @@ export function createSessionState(
     if (!clientWs)
       return
     if (isBinary) {
+      firstAudioAt ??= Date.now()
       // Audio binary frames pass through verbatim.
       try {
         clientWs.send(toBufferLike(data))
@@ -449,7 +452,7 @@ export function createSessionState(
           model: modelLabel,
           turnId: analyticsInput.turnId,
         }))
-      fluxConsumed = result.charged
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
     }
     catch (err) {
@@ -459,21 +462,21 @@ export function createSessionState(
       span.setStatus({ code: SpanStatusCode.ERROR, message: 'billing_failed' })
     }
 
-    const durationMs = Date.now() - startedAt
-    try {
-      await opts.requestLogService.logRequest({
-        userId,
-        model: modelLabel,
-        status: 200,
-        durationMs,
-        fluxConsumed,
-      })
-    }
-    catch (err) {
-      log.withError(err).warn('failed to write request log for streaming tts')
-    }
-
+    recordMetrics()
     finalize()
+  }
+
+  function recordMetrics() {
+    const attrs = {
+      [GEN_AI_ATTR_REQUEST_MODEL]: modelLabel,
+      [AIRI_ATTR_GEN_AI_OPERATION_KIND]: 'tts',
+      [AIRI_ATTR_GEN_AI_STREAM]: true,
+      'http.response.status_code': 200,
+    }
+    opts.genAi?.operationCount.add(1, attrs)
+    opts.genAi?.operationDuration.record((Date.now() - startedAt) / 1000, attrs)
+    if (firstAudioAt != null)
+      opts.genAi?.firstTokenDuration.record((firstAudioAt - startedAt) / 1000, attrs)
   }
 
   function finalize() {

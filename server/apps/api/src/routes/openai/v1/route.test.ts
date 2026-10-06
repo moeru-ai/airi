@@ -25,6 +25,7 @@ import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
 import { llmRequestLog } from '../../../schemas/llm-request-log'
 import { priceLlmCost } from '../../../services/domain/billing/billing'
 import { createBillingService } from '../../../services/domain/billing/billing-service'
+import { microFluxToFlux } from '../../../services/domain/billing/flux-posting'
 import { createLlmBillingService } from '../../../services/domain/billing/llm-billing'
 import { createRequestLogService } from '../../../services/domain/request-log'
 import { ApiError } from '../../../utils/error'
@@ -57,13 +58,13 @@ function createMockBillingService(flux = 100): BillingService {
     settleLlmCost: vi.fn(async (input: Parameters<BillingService['settleLlmCost']>[0]) => {
       const quote = priceLlmCost(input.usage, input.pricing)
       if (input.pendingReason || quote.costMicroFlux === undefined)
-        return { charged: 0, requested: 0, pending: true }
+        return { charged: 0, requested: 0, pending: true, feeFlux: 0 }
       outstanding += quote.costMicroFlux
       const requested = Math.floor(outstanding / 1_000_000)
       const charged = Math.min(requested, balance)
       balance -= charged
       outstanding -= charged * 1_000_000
-      return { charged, requested, pending: false, balance, unsettledMicroFlux: outstanding, costMicroFlux: quote.costMicroFlux, replay: false }
+      return { charged, requested, pending: false, balance, unsettledMicroFlux: outstanding, costMicroFlux: quote.costMicroFlux, feeFlux: microFluxToFlux(quote.costMicroFlux), replay: false }
     }),
     creditFlux: vi.fn(),
   } as any
@@ -546,9 +547,9 @@ describe('v1CompletionsRoutes', () => {
     // never moved. Same user with the same script kept replaying.
     //
     // After: balance is drained to zero (`charged = balance`), the request
-    // log records the actual `charged` (5, not the full 38), and the next
+    // log is still written, and the next
     // request fails the pre-flight gate.
-    it('non-streaming completion drains partial balance and logs charged (Issue: unpaid-usage-exploit)', async () => {
+    it('non-streaming completion drains partial balance and logs the request (Issue: unpaid-usage-exploit)', async () => {
       const upstreamBody = JSON.stringify({
         id: 'chatcmpl-partial',
         choices: [{ message: { content: 'hi' } }],
@@ -563,11 +564,19 @@ describe('v1CompletionsRoutes', () => {
       const fluxService = createMockFluxService(5)
       const billingService = createMockBillingService(5)
       const requestLogService = createMockRequestLogService()
+      const genAi = createMockGenAiMetrics()
       const app = createTestApp(
         fluxService,
         createMockConfigKV({ LLM_MINIMUM_BALANCE: 5 }),
         billingService,
         requestLogService,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        genAi,
       )
 
       const res = await app.fetch(
@@ -585,8 +594,10 @@ describe('v1CompletionsRoutes', () => {
         expect.objectContaining({ usage: expect.objectContaining({ costUsd: 0.038 }) }),
       )
       expect(requestLogService.logRequest).toHaveBeenCalledWith(
-        expect.objectContaining({ userId: 'user-1', fluxConsumed: 5 }),
+        expect.objectContaining({ userId: 'user-1' }),
       )
+      // Telemetry reports the 38 Flux fee, not the 5 Flux that the drained wallet could pay.
+      expect(genAi.fluxConsumed.add).toHaveBeenCalledWith(38, expect.anything())
     })
 
     it('should proxy upstream response on success', async () => {
@@ -1135,7 +1146,6 @@ describe('v1CompletionsRoutes', () => {
           userId: 'user-1',
           model: 'gpt-4',
           status: 200,
-          fluxConsumed: 1,
         }),
       )
     })
@@ -1177,7 +1187,7 @@ describe('v1CompletionsRoutes', () => {
 
       await Promise.resolve()
 
-      await vi.waitFor(() => expect(requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0, protocol: 'chat-completions' })))
+      await vi.waitFor(() => expect(requestLogService.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, protocol: 'chat-completions' })))
     })
   })
 
@@ -2700,11 +2710,10 @@ describe('openRouter cost billing through HTTP routes', () => {
         })
         const [wallet] = await db.select().from(userFlux)
         expect(wallet.flux).toBe(100 - expectedFlux)
-        expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: expectedFlux }))
         await Promise.all(vi.mocked(logs.logRequest).mock.results.map(result => result.value))
         const entries = await db.select().from(llmRequestLog)
         expect(entries).toHaveLength(1)
-        expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, fluxConsumed: expectedFlux, state: 'completed' })
+        expect(entries[0]).toMatchObject({ gateway: 'openrouter.ai', upstreamProvider: 'Inference Provider', upstreamModel: 'vendor/native-model', responseModel: 'returned-model', cachedTokens: 90, reasoningTokens: 12, state: 'completed' })
         expect(entries[0]).toMatchObject({ providerUsage: { future_meter: { units: 4 } } })
       })
     }
@@ -2825,7 +2834,7 @@ describe('openRouter cost billing through HTTP routes', () => {
     const rest = await reader.read()
     expect(new TextDecoder().decode(rest.value)).toBe(terminal)
     await reader.read()
-    await vi.waitFor(async () => expect((await db.select().from(llmRequestLog))[0]).toMatchObject({ fluxConsumed: 3 }))
+    await vi.waitFor(async () => expect(await db.select().from(llmRequestLog)).toHaveLength(1))
   })
 
   it('posts no fee and cancels upstream when the chat client disconnects', async () => {
@@ -2881,7 +2890,7 @@ describe('issue #2479 hosted Responses', () => {
     expect(harness.router.route).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses', modelName: 'openai/gpt-5-mini', body: expect.objectContaining({ store: false }) }), expect.anything())
     expect(harness.billing.settleLlmCost).toHaveBeenCalledTimes(1)
     expect(harness.billing.settleLlmCost).toHaveBeenCalledWith(expect.objectContaining({ usage: expect.objectContaining({ costUsd: 0.003, promptTokens: 100, completionTokens: 50 }), model: 'openai/gpt-5-mini' }))
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200, fluxConsumed: 3 }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
     expect(harness.tracing.startChatGeneration).toHaveBeenCalledWith(expect.objectContaining({ protocol: 'responses' }))
   })
 
@@ -2948,7 +2957,7 @@ describe('issue #2479 hosted Responses', () => {
     const harness = responsesHarness(() => Response.json(responsesResult(status)))
     const response = await harness.send({})
     expect(await response.json()).toMatchObject({ status })
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
   })
 
   it('uses the existing flat price when usage is unavailable', async () => {
@@ -2964,7 +2973,7 @@ describe('issue #2479 hosted Responses', () => {
     expect(await response.text()).toBe('quota exceeded')
     expect(response.headers.get('Retry-After')).toBe('10')
     expect(response.headers.has('Set-Cookie')).toBe(false)
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 429, fluxConsumed: 0, errorBody: { text: 'quota exceeded', format: 'text', state: 'complete', omittedMedia: false } }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 429, errorBody: { text: 'quota exceeded', format: 'text', state: 'complete', omittedMedia: false } }))
   })
 
   it('attributes alias routing failures to the last attempted provider', async () => {
@@ -3020,7 +3029,7 @@ describe('issue #2479 hosted Responses', () => {
     expect(await response.json()).toEqual(responsesResult())
     expect(harness.router.route).toHaveBeenCalledTimes(1)
     expect(harness.billing.settleLlmCost).toHaveBeenCalledTimes(1)
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ fluxConsumed: 0 }))
+    expect(harness.logs.logRequest).toHaveBeenCalledTimes(1)
   })
 
   it('forwards split UTF-8 SSE events and stops before duplicate terminal events', async () => {
@@ -3080,7 +3089,7 @@ describe('issue #2479 hosted Responses', () => {
     const harness = responsesHarness(() => new Response(responsesFrame(status)))
     const response = await harness.send({ stream: true })
     expect(await response.text()).toBe(responsesFrame(status))
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
   })
 
   it.each([
@@ -3092,7 +3101,7 @@ describe('issue #2479 hosted Responses', () => {
     const harness = responsesHarness(() => new Response(frame))
     const response = await harness.send({ stream: true })
     await expect(response.text()).rejects.toThrow()
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502, fluxConsumed: 0 }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 502 }))
   })
 
   // ROOT CAUSE:
@@ -3221,7 +3230,7 @@ describe('issue #2479 hosted Responses', () => {
       await response.body!.cancel()
     }
     await vi.waitFor(() => expect(cancelled).toHaveBeenCalledTimes(1))
-    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 499, fluxConsumed: 0 }))
+    expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 499 }))
   })
 
   it('shares the generation quota with Chat Completions', async () => {
@@ -3277,7 +3286,7 @@ it('pR #2554 settles a terminal frame that the downstream received before cancel
   controller.abort()
 
   await vi.waitFor(() => expect(harness.billing.settleLlmCost).toHaveBeenCalledTimes(1))
-  expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200, fluxConsumed: 3 }))
+  expect(harness.logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 200 }))
 })
 
 // https://github.com/moeru-ai/airi/issues/2479
@@ -3485,7 +3494,7 @@ it('releases the terminal upstream stream before settlement completes', async ()
     resolveSettlement = () => resolve({ charged: 3, requested: 3, pending: false })
   })
   const harness = responsesHarness(() => new Response(upstream))
-  vi.mocked(harness.billing.settleLlmCost).mockImplementationOnce(async () => ({ ...await settlement, pending: false as const, balance: 100, unsettledMicroFlux: 0, costMicroFlux: 0, amountMicroFlux: 0, replay: false }))
+  vi.mocked(harness.billing.settleLlmCost).mockImplementationOnce(async () => ({ ...await settlement, pending: false as const, balance: 100, unsettledMicroFlux: 0, costMicroFlux: 0, amountMicroFlux: 0, feeFlux: 3, replay: false }))
 
   const response = await harness.send({ stream: true })
   const body = response.text()
@@ -3517,7 +3526,7 @@ it('records failed Chat settlement with the status returned to the client', asyn
     body: JSON.stringify({ messages: [] }),
   }, { user: testUser })
   expect(response.status).toBe(402)
-  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 402, fluxConsumed: 0 }))
+  expect(logs.logRequest).toHaveBeenCalledWith(expect.objectContaining({ status: 402 }))
 })
 
 it('returns the recorded bad-gateway status for malformed Chat JSON', async () => {

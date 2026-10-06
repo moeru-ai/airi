@@ -17,7 +17,6 @@ export function speechGeneration(deps: V1RouteDeps): GatewayCallback<'speech.gen
     llmRouter: deps.llmRouter,
     llmTracing: deps.llmTracing,
     providerCatalogService: deps.providerCatalogService,
-    requestLogService: deps.requestLogService,
     speechBilling: deps.speechBilling,
     voicePackService: deps.voicePackService,
   })
