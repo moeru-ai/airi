@@ -109,6 +109,13 @@ After recreation, neither the old page nor the new page receives the pending cho
 A `RESULT_OK` callback with a null intent throws `NullPointerException`, as Capacitor 8.5.0 does.
 Cancellation and other result codes pass the nullable intent to `FileChooserParams.parseResult`.
 
+## Android backup persistence
+
+Kirie enables Android application backup in every build variant, matching stage-pocket's manifest.
+Android backup and restore therefore include eligible WebView storage under the same platform rules.
+
+The runtime scenario writes renderer state, performs an Android backup and restore, then verifies the restored value.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.
