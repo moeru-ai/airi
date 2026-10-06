@@ -6,6 +6,7 @@ declare global {
   }
 }
 
+/** Routes programmatic traversal and Android Back through the asset WebView history. */
 export function installKirieAndroidNavigation(router: Router) {
   // NOTICE:
   // Kirie Android's asset WebView does not traverse same-document hash history.
@@ -13,33 +14,47 @@ export function installKirieAndroidNavigation(router: Router) {
   // Source: apps/stage-pocket/src/main.ts uses hash history for kirie-android.
   // Remove this stack when the WebView traverses Kirie's hash history correctly.
   const routeStack: string[] = []
-  let backTarget: string | undefined
+  // The cursor preserves forward entries until a new successful push replaces them.
+  let position = -1
+  let traversal: { path: string, position: number } | undefined
+  const nativeGo = router.go.bind(router)
 
   router.afterEach((to, _from, failure) => {
-    if (failure)
-      return
-
-    if (backTarget === to.fullPath) {
-      backTarget = undefined
+    if (failure) {
+      traversal = undefined
       return
     }
 
-    if (routeStack.at(-1) !== to.fullPath)
+    if (traversal?.path === to.fullPath) {
+      position = traversal.position
+      traversal = undefined
+      return
+    }
+
+    if (routeStack[position] !== to.fullPath) {
+      routeStack.splice(position + 1)
       routeStack.push(to.fullPath)
+      position = routeStack.length - 1
+    }
   })
 
-  function navigateBack() {
-    if (routeStack.length <= 1)
+  function navigate(delta: number) {
+    if (delta === 0) {
+      nativeGo(delta)
+      return
+    }
+
+    const targetPosition = position + delta
+    const path = routeStack[targetPosition]
+    if (!path || traversal)
       return
 
-    routeStack.pop()
-    backTarget = routeStack.at(-1)
-    if (!backTarget)
-      return
-
-    void router.replace(backTarget)
+    traversal = { path, position: targetPosition }
+    void router.replace(path)
   }
 
-  router.back = navigateBack
-  window.__airiKirieAndroidBack = navigateBack
+  router.go = navigate
+  router.back = () => navigate(-1)
+  router.forward = () => navigate(1)
+  window.__airiKirieAndroidBack = router.back
 }
