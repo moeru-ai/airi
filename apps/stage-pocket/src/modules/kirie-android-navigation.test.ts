@@ -12,7 +12,12 @@ function createNavigation() {
   history.go = vi.fn()
   const router = createRouter({
     history,
-    routes: [{ path: '/:pathMatch(.*)*', component: {} }],
+    routes: [
+      { path: '/', component: {} },
+      { path: '/settings', component: {} },
+      { path: '/settings/providers', component: {} },
+      { path: '/:pathMatch(.*)*', name: '/[...all]', component: {} },
+    ],
   })
   installKirieAndroidNavigation(router)
   return router
@@ -91,6 +96,35 @@ describe('kirie Android route traversal', () => {
     remove()
     router.back()
     await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/settings'))
+  })
+
+  // Source: recordings-android/android-g01-g05-final-f12e-2026-10-07/results/
+  // g01-not-found-system-back.json
+  // ROOT CAUSE:
+  //
+  // Kirie routed system Back through router.back() for every route.
+  // Pocket uses WebView.goBack(), which leaves this catch-all history state unchanged.
+  //
+  // Kirie now ignores system Back on the catch-all route.
+  // The page's router.go(-1) action continues to use the custom history.
+  it('keeps the missing route when Android system Back runs', async () => {
+    const router = createNavigation()
+    await router.push('/')
+    await router.push('/airi-replay-absent-f12e')
+    window.__airiKirieAndroidBack?.()
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(router.currentRoute.value.fullPath).toBe('/airi-replay-absent-f12e')
+
+    router.go(-1)
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/'))
+  })
+
+  it('returns from a matched route when Android system Back runs', async () => {
+    const router = createNavigation()
+    await router.push('/')
+    await router.push('/settings')
+    window.__airiKirieAndroidBack?.()
+    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/'))
   })
 
   it('consumes Back at the first route', async () => {
