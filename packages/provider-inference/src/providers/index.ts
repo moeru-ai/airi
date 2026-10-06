@@ -39,6 +39,7 @@ import { providerOpenAICompatible } from './cloud/openai-compatible'
 import { providerOpenPaths } from './cloud/openpaths'
 import { providerOpenRouterAI } from './cloud/openrouter-ai'
 import { providerOpenRouterAudioSpeech } from './cloud/openrouter-audio-speech'
+import { providerOpper } from './cloud/opper'
 import { providerPerplexityAI } from './cloud/perplexity-ai'
 import { providerTogetherAI } from './cloud/together-ai'
 import {
@@ -126,6 +127,7 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerOpenPaths,
   providerOpenRouterAI,
   providerOpenRouterAudioSpeech,
+  providerOpper,
   providerPerplexityAI,
   providerTogetherAI,
   providerAlibabaCloudModelStudio,

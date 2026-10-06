@@ -96,6 +96,7 @@ const providerAttributesById = {
   'openpaths': paidCloud,
   'openrouter-ai': paidCloud,
   'openrouter-audio-speech': paidCloud,
+  'opper': paidCloud,
   'perplexity-ai': paidCloud,
   'player2-speech': freeLocal,
   'speech-noop': false,
