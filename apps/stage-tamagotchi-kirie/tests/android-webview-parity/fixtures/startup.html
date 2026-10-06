@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><button id="route" onclick="location.hash='settings'">Settings</button><input id="name"><script>
+window.reply = false;
+AiriAndroidEventa.onmessage = () => { window.reply = true; };
+AiriAndroidEventa.postMessage(JSON.stringify({payload:{id:'eventa:invoke:airi:android:app:url-open:consume-send',body:{invokeId:'startup',content:{}}}}));
+</script>

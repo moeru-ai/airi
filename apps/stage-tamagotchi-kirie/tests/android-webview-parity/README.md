@@ -35,3 +35,8 @@ The only initializer substitution replaces `this.config` with the local configur
 The comparison covers 26 getters, including navigation, storage, file access, media, fonts, and zoom.
 
 The multiple-window tests compare the loaded default and execute a real `window.open` call.
+
+The startup regression executes production `onMainCreate` through `StartupActivity`.
+It loads the packaged fixture and checks native string replies, route clicks, input focus, and document retention.
+Run this test on a WebView without ArrayBuffer messages, including Android 14's default WebView 113.
+Unlike the callback fixtures, this scenario does not supply a pre-created WebView.
