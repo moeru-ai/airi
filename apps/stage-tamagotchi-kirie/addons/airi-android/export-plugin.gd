@@ -41,6 +41,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowInsetsController;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -69,6 +70,23 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.security.KeyStore;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
+import javax.security.auth.x500.X500Principal;
+
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -104,6 +122,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private static final int MICROPHONE_PERMISSION_REQUEST = 4102;
     private static final int FILE_CHOOSER_REQUEST = 4103;
     private static final int BARCODE_SCAN_REQUEST = 112;
+    private static final int NORMAL_WEB_SOCKET_CLOSE_CODE = 1000;
     private static final SignalInfo PERMISSION_RESULT =
         new SignalInfo("permission_result", String.class, Boolean.class);
     private static final int LIGHT_SYSTEM_BARS =
@@ -115,6 +134,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private OnBackPressedCallback backPressedCallback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
+    private HostWebSocketBridge hostWebSocketBridge;
     private final OSBARCController barcodeController = new OSBARCController();
     private final Map<String, PendingEventaRequest> pendingPermissionRequests =
         new HashMap<>();
@@ -180,6 +200,10 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         mainHandler.removeCallbacksAndMessages(null);
         if (activePlugin == this) {
             activePlugin = null;
+        }
+        if (hostWebSocketBridge != null) {
+            hostWebSocketBridge.dispose();
+            hostWebSocketBridge = null;
         }
         browserWebView = null;
         eventaReplyProxy = null;
@@ -377,6 +401,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
 
             browserWebView = webView;
+            hostWebSocketBridge = new HostWebSocketBridge(webView);
+            webView.addJavascriptInterface(hostWebSocketBridge, "AiriHostBridge");
             webView.getSettings().setSupportMultipleWindows(true);
             webView.setWebChromeClient(new WebChromeClient() {
                 @Override
@@ -923,6 +949,217 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
         return null;
     }
+
+    private static OkHttpClient createHostWebSocketClient() {
+        try {
+            X509TrustManager trustManager = new AiriHostWebSocketTrustManager();
+            SSLContext sslContext = SSLContext.getInstance("TLS");
+            sslContext.init(null, new TrustManager[] { trustManager }, new SecureRandom());
+            return new OkHttpClient.Builder()
+                .sslSocketFactory(sslContext.getSocketFactory(), trustManager)
+                .build();
+        } catch (Exception error) {
+            throw new IllegalStateException("Cannot create the host WebSocket client", error);
+        }
+    }
+
+    private static X509TrustManager createPlatformTrustManager() {
+        try {
+            TrustManagerFactory factory = TrustManagerFactory.getInstance(
+                TrustManagerFactory.getDefaultAlgorithm()
+            );
+            factory.init((KeyStore) null);
+            for (TrustManager manager : factory.getTrustManagers()) {
+                if (manager instanceof X509TrustManager) {
+                    return (X509TrustManager) manager;
+                }
+            }
+        } catch (Exception error) {
+            throw new IllegalStateException("Cannot create the platform trust manager", error);
+        }
+        throw new IllegalStateException("The platform trust manager is unavailable");
+    }
+
+    private static boolean looksLikeAiriServerCertificate(X509Certificate certificate) {
+        X500Principal subject = certificate.getSubjectX500Principal();
+        X500Principal issuer = certificate.getIssuerX500Principal();
+        return "localhost".equals(principalAttribute(subject, "CN"))
+            && "AIRI".equals(principalAttribute(issuer, "CN"))
+            && "US".equals(principalAttribute(issuer, "C"))
+            && "Local".equals(principalAttribute(issuer, "L"))
+            && "AIRI".equals(principalAttribute(issuer, "O"));
+    }
+
+    private static String principalAttribute(X500Principal principal, String key) {
+        String[] entries = principal.getName().split(",");
+        for (String entry : entries) {
+            String[] parts = entry.trim().split("=", 2);
+            if (parts.length == 2 && key.equalsIgnoreCase(parts[0])) {
+                return parts[1];
+            }
+        }
+        return null;
+    }
+
+    private static final class AiriHostWebSocketTrustManager implements X509TrustManager {
+        private final X509TrustManager platformTrustManager = createPlatformTrustManager();
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType)
+            throws CertificateException {
+            platformTrustManager.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType)
+            throws CertificateException {
+            try {
+                platformTrustManager.checkServerTrusted(chain, authType);
+            } catch (CertificateException error) {
+                X509Certificate leaf = chain.length == 0 ? null : chain[0];
+                if (leaf == null || !looksLikeAiriServerCertificate(leaf)) {
+                    throw error;
+                }
+                leaf.checkValidity();
+            }
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return platformTrustManager.getAcceptedIssuers();
+        }
+    }
+
+    private static final class HostWebSocketBridge {
+        private final OkHttpClient client = createHostWebSocketClient();
+        private final Map<String, WebSocket> sessions = new ConcurrentHashMap<>();
+        private final WebView webView;
+
+        private HostWebSocketBridge(WebView webView) {
+            this.webView = webView;
+        }
+
+        @JavascriptInterface
+        public void postMessage(String payload) {
+            try {
+                JSONObject command = new JSONObject(payload);
+                String kind = command.getString("kind");
+                if ("connect".equals(kind)) {
+                    connect(command.getString("id"), command.getString("url"));
+                    return;
+                }
+                if ("send".equals(kind)) {
+                    WebSocket socket = sessions.get(command.getString("id"));
+                    if (socket != null) {
+                        socket.send(command.getString("data"));
+                    }
+                    return;
+                }
+                if ("close".equals(kind)) {
+                    WebSocket socket = sessions.get(command.getString("id"));
+                    if (socket != null) {
+                        int code = command.has("code") && !command.isNull("code")
+                            ? command.getInt("code")
+                            : NORMAL_WEB_SOCKET_CLOSE_CODE;
+                        String reason = command.has("reason") && !command.isNull("reason")
+                            ? command.getString("reason")
+                            : null;
+                        socket.close(code, reason);
+                    }
+                }
+            } catch (Exception error) {
+                Log.e("AiriAndroid", "Cannot handle host WebSocket command", error);
+            }
+        }
+
+        private void connect(String id, String url) {
+            try {
+                WebSocket socket = client.newWebSocket(
+                    new Request.Builder().url(url).build(),
+                    new WebSocketListener() {
+                        @Override
+                        public void onOpen(WebSocket socket, Response response) {
+                            emit(createEvent("open", id));
+                        }
+
+                        @Override
+                        public void onMessage(WebSocket socket, String text) {
+                            emit(addEventValue(createEvent("message", id), "data", text));
+                        }
+
+                        @Override
+                        public void onClosing(WebSocket socket, int code, String reason) {
+                            socket.close(code, reason);
+                        }
+
+                        @Override
+                        public void onClosed(WebSocket socket, int code, String reason) {
+                            sessions.remove(id);
+                            JSONObject close = createEvent("close", id);
+                            addEventValue(close, "code", code);
+                            addEventValue(close, "reason", reason);
+                            emit(close);
+                        }
+
+                        @Override
+                        public void onFailure(WebSocket socket, Throwable error, Response response) {
+                            String message = error.getMessage() == null
+                                ? "WebSocket failure"
+                                : error.getMessage();
+                            emit(addEventValue(createEvent("error", id), "message", message));
+                            JSONObject close = addEventValue(
+                                createEvent("close", id),
+                                "reason",
+                                message
+                            );
+                            if (response != null) {
+                                addEventValue(close, "code", response.code());
+                            }
+                            sessions.remove(id);
+                            emit(close);
+                        }
+                    }
+                );
+                sessions.put(id, socket);
+            } catch (Exception error) {
+                String message = error.getMessage() == null
+                    ? "Failed to create websocket session"
+                    : error.getMessage();
+                emit(addEventValue(createEvent("error", id), "message", message));
+                emit(addEventValue(createEvent("close", id), "reason", message));
+            }
+        }
+
+        private JSONObject createEvent(String kind, String id) {
+            JSONObject event = new JSONObject();
+            addEventValue(event, "kind", kind);
+            addEventValue(event, "id", id);
+            return event;
+        }
+
+        private JSONObject addEventValue(JSONObject event, String key, Object value) {
+            try {
+                return event.put(key, value);
+            } catch (JSONException error) {
+                throw new IllegalStateException("Cannot create host WebSocket event", error);
+            }
+        }
+
+        private void emit(JSONObject event) {
+            String payload = event.toString();
+            webView.post(() -> webView.evaluateJavascript(
+                "window.__airiHostBridge?.onNativeMessage(" + JSONObject.quote(payload) + ")",
+                null
+            ));
+        }
+
+        private void dispose() {
+            for (WebSocket socket : sessions.values()) {
+                socket.close(NORMAL_WEB_SOCKET_CLOSE_CODE, "Bridge disposed");
+            }
+            sessions.clear();
+        }
+    }
 }
 """
 
@@ -947,12 +1184,14 @@ func _get_android_dependencies(_platform: EditorExportPlatform, _debug: bool) ->
 		"androidx.activity:activity-compose:1.10.1",
 		"androidx.compose.material3:material3:1.4.0",
 		"androidx.compose.material3:material3-window-size-class:1.4.0",
+		"com.squareup.okhttp3:okhttp:4.12.0",
 	])
 
 func _export_begin(features: PackedStringArray, _is_debug: bool, _path: String, _flags: int) -> void:
 	if not features.has("android"):
 		return
 
+	enable_cleartext_traffic()
 	write_build_file("res/values/airi-theme.xml", DAY_RESOURCES)
 	write_build_file("res/values-night/airi-theme.xml", NIGHT_RESOURCES)
 	write_build_file("src/main/java/ai/moeru/airi/kirie/AiriAndroidPlugin.java", ANDROID_PLUGIN_SOURCE)
@@ -985,6 +1224,43 @@ func _get_android_manifest_element_contents(_platform: EditorExportPlatform, _de
 	return """
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 """
+
+
+func enable_cleartext_traffic() -> void:
+	# NOTICE:
+	# Godot's export plugin API cannot add an Android application attribute.
+	# stage-pocket permits cleartext WebSocket connections for local server channels.
+	# Source: apps/stage-pocket/android/app/src/main/AndroidManifest.xml.
+	# Remove this rewrite when Godot exposes application attributes to export plugins.
+	var relative_path = "src/main/AndroidManifest.xml"
+	var absolute_path = ProjectSettings.globalize_path(ANDROID_BUILD_ROOT.path_join(relative_path))
+	var content = FileAccess.get_file_as_string(absolute_path)
+	var application_tag = "    <application\n"
+	if not content.contains("android:usesCleartextTraffic"):
+		content = content.replace(
+			application_tag,
+			application_tag + "        android:usesCleartextTraffic=\"true\"\n"
+		)
+	if not content.contains("tools:replace=\"android:usesCleartextTraffic\""):
+		content = content.replace(
+			application_tag,
+			application_tag + "        tools:replace=\"android:usesCleartextTraffic\"\n"
+		)
+	write_build_file(relative_path, content)
+
+	var debug_relative_path = "src/debug/AndroidManifest.xml"
+	var debug_absolute_path = ProjectSettings.globalize_path(
+		ANDROID_BUILD_ROOT.path_join(debug_relative_path)
+	)
+	var debug_content = FileAccess.get_file_as_string(debug_absolute_path)
+	var tools_replace = "tools:replace=\"android:allowBackup,"
+	if not debug_content.contains("tools:replace=\"android:usesCleartextTraffic,"):
+		debug_content = debug_content.replace(
+			tools_replace,
+			"tools:replace=\"android:usesCleartextTraffic,android:allowBackup,"
+		)
+	write_build_file(debug_relative_path, debug_content)
+
 
 func write_build_file(relative_path: String, content: String) -> void:
 	var resource_path = ANDROID_BUILD_ROOT.path_join(relative_path)
