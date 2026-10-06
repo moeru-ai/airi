@@ -1164,8 +1164,16 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         activity.runOnUiThread(() -> {
             try {
                 activity.startActivity(new Intent(Intent.ACTION_VIEW, uri));
-            } catch (ActivityNotFoundException error) {
+            } catch (RuntimeException error) {
                 Log.e("AiriAndroid", "No browser can open the authorization URL", error);
+                try {
+                    sendEventaError(request, new JSONObject()
+                        .put("code", "BROWSER_UNAVAILABLE")
+                        .put("message", "No browser can open the authentication URL."));
+                } catch (JSONException jsonError) {
+                    Log.e("AiriAndroid", "Cannot create authorization error", jsonError);
+                }
+                return;
             }
             sendEventaResponse(request, JSONObject.NULL);
         });
@@ -1355,7 +1363,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         }
     }
 
-    private void sendEventaError(PendingEventaRequest request, String error) {
+    private void sendEventaError(PendingEventaRequest request, Object error) {
         try {
             String responseEvent = request.event.replace("-send", "-receive-error")
                 + "-" + request.invokeId;
