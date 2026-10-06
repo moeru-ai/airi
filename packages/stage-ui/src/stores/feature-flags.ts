@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import type { ExperimentalFeature } from '../libs/feature-flags'
+import type { FeatureFlag } from '../libs/feature-flags'
 
 import { errorMessageFrom } from '@moeru/std'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
@@ -8,15 +8,16 @@ import { defineStore } from 'pinia'
 import { parse } from 'valibot'
 import { computed, onScopeDispose, shallowRef, watch } from 'vue'
 
-import { authedFetch } from '../libs/auth-fetch'
-import { experimentalFeatures, featureFlagPreferencesSchema, featureFlagResponseSchema, resolveFeatureFlag } from '../libs/feature-flags'
+import { useCloudFetch } from '../composables/cloud'
+import { featureFlagPreferencesSchema, featureFlagResponseSchema, featureFlags, resolveFeatureFlag } from '../libs/feature-flags'
 import { captureFeatureFlagEvent } from '../libs/product-signals/events/feature-flags'
 import { useAuthStore } from './auth'
 
 /** Owns device preferences and a non-persisted policy snapshot for the current account. */
-export const useExperimentalFeaturesStore = defineStore('experimental-features', () => {
+export const useFeatureFlagsStore = defineStore('feature-flags', () => {
   const auth = useAuthStore()
-  const preferences = useLocalStorageManualReset<Record<string, boolean>>('settings/experimental-features', {}, {
+  const cloudFetch = useCloudFetch()
+  const preferences = useLocalStorageManualReset<Record<string, boolean>>('settings/feature-flags', {}, {
     serializer: {
       read: value => parse(featureFlagPreferencesSchema, JSON.parse(value)),
       write: value => JSON.stringify(value),
@@ -29,33 +30,40 @@ export const useExperimentalFeaturesStore = defineStore('experimental-features',
   let requestVersion = 0
   let request: AbortController | undefined
 
-  function decision(feature: ExperimentalFeature) {
-    return resolveFeatureFlag(feature, preferences.value[feature.key], policies.value.find(policy => policy.key === feature.key))
+  function preferenceKey(feature: FeatureFlag) {
+    return JSON.stringify([feature.key, feature.mode === 'cloud-opt-in' ? auth.user?.id : null])
   }
 
-  const features = computed(() => experimentalFeatures.map(feature => ({
+  function decision(feature: FeatureFlag) {
+    return resolveFeatureFlag(feature, preferences.value[preferenceKey(feature)], policies.value.find(policy => policy.key === feature.key), Boolean(auth.user?.id && auth.token))
+  }
+
+  const features = computed(() => featureFlags.map(feature => ({
     ...feature,
     ...decision(feature),
-    preference: preferences.value[feature.key],
-  })))
+    preference: preferences.value[preferenceKey(feature)],
+  })).filter(feature => feature.selectable))
 
   function setPreference(key: string, value: boolean | undefined) {
-    const feature = experimentalFeatures.find(feature => feature.key === key)
-    if (!feature || decision(feature).locked || preferences.value[key] === value)
+    const feature = featureFlags.find(feature => feature.key === key)
+    if (!feature || !decision(feature).selectable)
+      return
+    const storageKey = preferenceKey(feature)
+    if (preferences.value[storageKey] === value)
       return
 
     const next = { ...preferences.value }
     if (value === undefined)
-      delete next[key]
+      delete next[storageKey]
     else
-      next[key] = value
+      next[storageKey] = value
     preferences.value = next
     captureFeatureFlagEvent('feature_flag_changed', key, decision(feature), value ?? null)
   }
 
   /** Call at the feature entry point, not during settings rendering. Unknown features stay disabled. */
   function isEnabled(key: string): boolean {
-    const feature = experimentalFeatures.find(feature => feature.key === key)
+    const feature = featureFlags.find(feature => feature.key === key)
     if (!feature)
       return false
 
@@ -70,11 +78,11 @@ export const useExperimentalFeaturesStore = defineStore('experimental-features',
     const version = ++requestVersion
     request?.abort()
     request = new AbortController()
+    policies.value = []
     loading.value = true
     error.value = undefined
     try {
-      const cloudUrl = import.meta.env.VITE_CLOUD_URL || 'https://cloud.airi.build'
-      const response = await authedFetch(new URL('/v1/feature-flags', cloudUrl), {
+      const response = await cloudFetch('/v1/feature-flags', {
         signal: AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]),
       })
       if (!response.ok)
@@ -93,7 +101,7 @@ export const useExperimentalFeaturesStore = defineStore('experimental-features',
     }
   }
 
-  watch([() => auth.sessionVersion, () => auth.user?.id], () => {
+  watch([() => auth.sessionVersion, () => auth.user?.id, () => auth.token], () => {
     requestVersion++
     request?.abort()
     policies.value = []

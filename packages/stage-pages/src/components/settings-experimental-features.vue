@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { useExperimentalFeaturesStore } from '@proj-airi/stage-ui/stores/experimental-features'
+import { useFeatureFlagsStore } from '@proj-airi/stage-ui/stores/feature-flags'
 import { Button, FieldCheckbox } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
-const experiments = useExperimentalFeaturesStore()
+const experiments = useFeatureFlagsStore()
 const prefix = 'settings.pages.system.experimental'
 </script>
 
@@ -39,7 +39,6 @@ const prefix = 'settings.pages.system.experimental'
     >
       <FieldCheckbox
         :model-value="feature.enabled"
-        :disabled="feature.locked || experiments.loading"
         :label="t(feature.titleKey)"
         :description="t(feature.descriptionKey)"
         @update:model-value="experiments.setPreference(feature.key, $event)"
@@ -48,7 +47,7 @@ const prefix = 'settings.pages.system.experimental'
         <p :class="['text-xs text-neutral-500 dark:text-neutral-400']">
           {{ t(`${prefix}.sources.${feature.source}`) }}
         </p>
-        <Button v-if="feature.preference !== undefined && !feature.locked" size="sm" @click="experiments.setPreference(feature.key, undefined)">
+        <Button v-if="feature.preference !== undefined" size="sm" @click="experiments.setPreference(feature.key, undefined)">
           {{ t(`${prefix}.reset`) }}
         </Button>
       </div>

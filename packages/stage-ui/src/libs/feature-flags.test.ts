@@ -1,35 +1,49 @@
+import type { FeatureFlag } from './feature-flags'
+
+import { parse } from 'valibot'
 import { describe, expect, it } from 'vitest'
 
-import { resolveFeatureFlag } from './feature-flags'
+import { featureFlagResponseSchema, resolveFeatureFlag } from './feature-flags'
 
-const feature = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false }
+const feature: FeatureFlag = { key: 'test-feature', titleKey: 'test.title', descriptionKey: 'test.description', defaultEnabled: false, mode: 'local' }
 
 describe('feature flag decisions', () => {
-  it('uses the client default without a policy or device choice', () => {
-    expect(resolveFeatureFlag(feature, undefined, undefined)).toEqual({ enabled: false, source: 'default', locked: false })
+  it('allows local choices without a cloud grant or an account', () => {
+    expect(resolveFeatureFlag(feature, undefined, undefined, false)).toEqual({ enabled: false, source: 'default', selectable: true })
+    expect(resolveFeatureFlag(feature, true, undefined, false)).toEqual({ enabled: true, source: 'local', selectable: true })
   })
 
-  it('preserves an explicit false device choice over an enabled global default', () => {
-    expect(resolveFeatureFlag(feature, false, { key: feature.key, enabled: true, source: 'global', allowLocalOverride: true }))
-      .toEqual({ enabled: false, source: 'local', locked: false })
+  it('ignores cloud policies for local-only flags', () => {
+    expect(resolveFeatureFlag(feature, false, { key: feature.key, mode: 'cloud-controlled', source: 'global' }, true).enabled).toBe(false)
   })
 
-  it('prevents local choices from overriding a managed global policy', () => {
-    expect(resolveFeatureFlag(feature, true, { key: feature.key, enabled: false, source: 'global', allowLocalOverride: false }))
-      .toEqual({ enabled: false, source: 'global', locked: true })
+  it.each(['cloud-opt-in', 'cloud-controlled'] as const)('hides and disables missing %s grants despite saved preferences', (mode) => {
+    expect(resolveFeatureFlag({ ...feature, mode, defaultEnabled: true }, true, undefined, true))
+      .toEqual({ enabled: false, source: 'default', selectable: false })
   })
 
-  it('keeps account policy authoritative even when local overrides are allowed globally', () => {
-    expect(resolveFeatureFlag(feature, true, { key: feature.key, enabled: false, source: 'account', allowLocalOverride: true }))
-      .toEqual({ enabled: false, source: 'account', locked: true })
+  it('requires an account for opt-in grants and starts disabled', () => {
+    const optIn: FeatureFlag = { ...feature, mode: 'cloud-opt-in' }
+    const policy = { key: feature.key, mode: 'cloud-opt-in', source: 'account' } as const
+    expect(resolveFeatureFlag(optIn, true, policy, false)).toEqual({ enabled: false, source: 'default', selectable: false })
+    expect(resolveFeatureFlag(optIn, undefined, policy, true)).toEqual({ enabled: false, source: 'account', selectable: true })
+    expect(resolveFeatureFlag(optIn, true, policy, true)).toEqual({ enabled: true, source: 'local', selectable: true })
+    expect(resolveFeatureFlag(optIn, false, policy, true).enabled).toBe(false)
   })
 
-  it('returns to global policy when the device choice is removed', () => {
-    expect(resolveFeatureFlag(feature, undefined, { key: feature.key, enabled: true, source: 'global', allowLocalOverride: true }))
-      .toEqual({ enabled: true, source: 'global', locked: false })
+  it('applies cloud control without exposing a toggle or accepting device preferences', () => {
+    const controlled: FeatureFlag = { ...feature, mode: 'cloud-controlled' }
+    const policy = { key: feature.key, mode: 'cloud-controlled', source: 'global' } as const
+    expect(resolveFeatureFlag(controlled, false, policy, false)).toEqual({ enabled: true, source: 'global', selectable: false })
+    expect(resolveFeatureFlag(controlled, true, undefined, true).enabled).toBe(false)
   })
 
-  it('rejects malformed remote policy instead of treating string false as enabled', () => {
-    expect(() => resolveFeatureFlag(feature, undefined, { key: feature.key, enabled: 'false', source: 'global', allowLocalOverride: true })).toThrow()
+  it('fails closed when client registration and cloud mode disagree', () => {
+    expect(resolveFeatureFlag({ ...feature, mode: 'cloud-opt-in' }, true, { key: feature.key, mode: 'cloud-controlled', source: 'global' }, true).enabled).toBe(false)
+    expect(resolveFeatureFlag({ ...feature, mode: 'cloud-controlled' }, true, { key: 'other', mode: 'cloud-controlled', source: 'global' }, true).enabled).toBe(false)
+  })
+
+  it('validates cloud modes at the response boundary', () => {
+    expect(() => parse(featureFlagResponseSchema, { flags: [{ key: feature.key, mode: 'local', source: 'account' }] })).toThrow()
   })
 })

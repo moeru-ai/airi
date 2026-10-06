@@ -20,7 +20,7 @@ it('captures feature decisions only with analytics consent and build support', a
   }))
   const settings = useSettingsAnalytics()
   const previousConsent = settings.analyticsEnabled
-  const decision = { enabled: false, source: 'account', locked: true } as const
+  const decision = { enabled: false, source: 'account', selectable: false } as const
 
   try {
     settings.analyticsEnabled = false

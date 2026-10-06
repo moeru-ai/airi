@@ -1781,14 +1781,14 @@ pages:
       description: Try features in development and manage your choices.
       notice: Experimental features can change or be removed. Your choices apply to this device.
       empty-title: No experiments available
-      load-error: Could not refresh feature policies. Current settings remain active.
+      load-error: Cloud features are unavailable. Local features remain available.
       retry: Retry
       reset: Use default
       sources:
         default: App default
         local: Your device choice
-        global: Global policy
-        account: Managed for your account
+        global: Available to signed-in accounts
+        account: Available to your account
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme
