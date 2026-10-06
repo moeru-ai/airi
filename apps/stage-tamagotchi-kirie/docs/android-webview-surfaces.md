@@ -6,7 +6,7 @@ The differential excludes dialogs, basic picker callbacks, lifecycle, downloads,
 
 ## Geolocation
 
-Reference: `BridgeWebChromeClient.onGeolocationPermissionsShowPrompt`, lines 226–263, and `util/PermissionHelper.hasPermissions`, lines 29–37.
+Reference: `BridgeWebChromeClient.onGeolocationPermissionsShowPrompt`, lines 246–273, and `util/PermissionHelper.hasPermissions`, lines 29–37.
 These files reside in stage-pocket's installed `@capacitor/android/capacitor/src/main/java/com/getcapacitor` directory.
 
 Kirie requests coarse and fine location together unless both permissions are granted.
@@ -61,7 +61,7 @@ The tests compare capture selection, permission denial, URI grants, photo result
 
 ## Fullscreen custom views
 
-Reference: `BridgeWebChromeClient.onShowCustomView` and `onHideCustomView`, lines 83–95.
+Reference: `BridgeWebChromeClient.onShowCustomView` and `onHideCustomView`, lines 86–99.
 Pocket immediately invokes `onCustomViewHidden()`, then calls the platform superclass.
 It does not attach the custom view or change orientation, bars, or the original WebView.
 The hide callback calls only the superclass.
@@ -78,3 +78,20 @@ Stage-pocket has no initial-focus override in `capacitor.config.ts`.
 Kirie requests touch focus during native initialization, before its initial page navigation.
 This targets the native WebView. It does not focus an HTML field or open the keyboard.
 The pre-change instrumentation test observed an unfocused native WebView.
+
+## Zoom and other WebSettings defaults
+
+Reference: `Bridge.initWebView`, lines 582–618, and `CapConfig`, lines 43–55, 287, and 306–310.
+Pocket loads its configuration from assets. Its initial-focus default differs from the unrelated embedded `CapConfig.Builder` default.
+The fixture compiles the full loaded configuration and extracts the original WebSettings initializer.
+
+Pocket sets display zoom controls to false and built-in zoom controls to its configured value, which defaults to false.
+Kirie now sets both to false. The platform's `supportZoom=true` remains unchanged.
+The pre-change comparison failed specifically at `getDisplayZoomControls`: Pocket returned false and Kirie returned true.
+
+The runtime differential compares 25 settings on actual WebViews with the same application target SDK.
+JavaScript, DOM storage, geolocation enablement, gesture-free media, and script-created windows already match before this change.
+Neither host adds wide-viewport, overview, file-access, content-access, mixed-content, text-zoom, cache, image, database, layout, or user-agent overrides.
+Their platform defaults consequently match on the tested API levels.
+No additional setting changes are necessary for these surfaces.
+The existing multiple-window routing belongs to the earlier popup alignment and remains outside this differential.

@@ -4,11 +4,14 @@ buildscript {
 }
 apply plugin: 'com.android.application'
 
+if (project.hasProperty('parityBuildDir')) layout.buildDirectory.set(file(project.property('parityBuildDir')))
+
 def appRoot = file('../..')
 def generated = layout.buildDirectory.dir('generated/parity')
 tasks.register('generateParitySources', Exec) {
     commandLine 'python3', file('generate-sources.py'), generated.get().asFile
     inputs.file(new File(appRoot, 'addons/airi-android/export-plugin.gd'))
+    inputs.file(new File(appRoot, '../stage-pocket/android/app/src/main/assets/capacitor.config.json'))
     inputs.dir(new File(appRoot, '../stage-pocket/node_modules/@capacitor/android'))
     outputs.dir(generated)
 }
@@ -22,6 +25,7 @@ android {
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
     sourceSets.main.java.srcDir generated
+    sourceSets.main.assets.srcDir generated.map { it.asFile.parentFile.toPath().resolve('assets').toFile() }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
