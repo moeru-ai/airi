@@ -25,7 +25,7 @@
 import { mkdir, open, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 
-import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import { errorMessageFrom } from '@moeru/std'
 import { app } from 'electron'
 
 // ============================================================================
@@ -69,13 +69,6 @@ export const nullFileLoggerHandle: FileLoggerHandle = {
 // ============================================================================
 
 /**
- * Extracts a human-readable error message from an unknown error object.
- */
-function getErrorMessage(error: unknown): string {
-  return errorMessageFromValue(error)
-}
-
-/**
  * Generates the log file path for the current session.
  * Format: {userData}/logs/airi-tamagotchi-{timestamp}.log
  */
@@ -94,7 +87,7 @@ async function ensureLogsDirectory(): Promise<string | null> {
     return logsDir
   }
   catch (error) {
-    const message = getErrorMessage(error)
+    const message = errorMessageFrom(error)
     console.error(`[FileLogger] Failed to create logs directory: ${message}`)
     return null
   }
@@ -161,7 +154,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
         await fileHandle.appendFile(normalizedContent)
       }
       catch (error) {
-        const message = getErrorMessage(error)
+        const message = errorMessageFrom(error)
         console.error(`[FileLogger] Failed to write log: ${message}`)
       }
     }
@@ -177,7 +170,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
         console.info('[FileLogger] File closed successfully')
       }
       catch (error) {
-        const message = getErrorMessage(error)
+        const message = errorMessageFrom(error)
         console.error(`[FileLogger] Failed to close log file: ${message}`)
       }
 
@@ -189,7 +182,7 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
     return { logFilePath, logFileFd, appendLog, close }
   }
   catch (error) {
-    const message = getErrorMessage(error)
+    const message = errorMessageFrom(error)
     console.error(`[FileLogger] Failed to create log file - logging to console only: ${message}`)
     return nullFileLoggerHandle
   }
