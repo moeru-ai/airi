@@ -1041,7 +1041,7 @@ pages:
         airi-tired: Tired
         airi-affectionate: Love
         airi-awkward: Awkward
-        airi-agree: Yes
+        airi-agree: 'Yes'
         airi-disagree: No thanks
     web-search:
       title: Web Search

@@ -1042,19 +1042,6 @@ pages:
             volume:
               description: Ajustar el volumen del habla
               label: Volumen
-      minimax-speech:
-        description: minimax.io
-        errors:
-          provider-initialization-failed: No se pudo inicializar el proveedor de voz de MiniMax.
-        fields:
-          field:
-            model:
-              description: Selecciona el modelo TTS de MiniMax que se utilizará para generar voz.
-              label: Modelo
-              placeholder: Selecciona un modelo de MiniMax...
-        playground:
-          default-text: ¡Hola! Esta es una prueba de síntesis de voz de MiniMax.
-        title: MiniMax Speech
       speech-noop:
         title: Ninguno
         description: Sin salida de voz.
@@ -1201,6 +1188,17 @@ pages:
       index-tts-vllm:
         callout_indextts2_unavailable_title: Soporte Limitado
         callout_indextts2_unavailable: El soporte para IndexTTS2 no está disponible en este momento. Por favor, utilice IndexTTS.
+      minimax-speech:
+        errors:
+          provider-initialization-failed: No se pudo inicializar el proveedor de voz de MiniMax.
+        fields:
+          field:
+            model:
+              description: Selecciona el modelo TTS de MiniMax que se utilizará para generar voz.
+              label: Modelo
+              placeholder: Selecciona un modelo de MiniMax...
+        playground:
+          default-text: '¡Hola! Esta es una prueba de síntesis de voz de MiniMax.'
       n1n:
         description: n1n.ai - Proveedor de API de IA de alto rendimiento.
       volcengine:
