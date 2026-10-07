@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capacitor/barcode-scanner'
 import { errorMessageFrom } from '@moeru/std'
 import { parseServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
 import { probeServerChannelQrPayload } from '@proj-airi/stage-ui/libs/server-channel-qr-probe'
@@ -9,9 +8,10 @@ import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import { scanAndroidBarcode } from '../../../host-context/android-barcode-scanner'
+
 const { t } = useI18n()
 const serverChannelStore = useModsServerChannelStore()
-
 const scanning = shallowRef(false)
 const errorMessage = shallowRef('')
 
@@ -20,11 +20,8 @@ async function scanServerChannelQrCode() {
   errorMessage.value = ''
 
   try {
-    const scanResult = await CapacitorBarcodeScanner.scanBarcode({
-      hint: CapacitorBarcodeScannerTypeHint.QR_CODE,
-      scanInstructions: t('settings.pages.connection.qr-scan.instructions'),
-    })
-    const payload = parseServerChannelQrPayload(scanResult.ScanResult)
+    const scanResult = await scanAndroidBarcode(t('settings.pages.connection.qr-scan.instructions'))
+    const payload = parseServerChannelQrPayload(scanResult)
     const url = await probeServerChannelQrPayload(payload)
 
     serverChannelStore.websocketAuthToken = payload.authToken
@@ -46,17 +43,16 @@ async function scanServerChannelQrCode() {
 </script>
 
 <template>
-  <div :class="['flex flex-col items-start justify-between gap-3']">
-    <div :class="['flex flex-col gap-1']">
-      <div :class="['text-sm font-medium text-neutral-900 dark:text-neutral-100']">
+  <div class="flex flex-col items-start justify-between gap-3">
+    <div class="flex flex-col gap-1">
+      <div class="text-sm text-neutral-900 font-medium dark:text-neutral-100">
         {{ t('settings.pages.connection.qr-scan.title') }}
       </div>
-      <p :class="['m-0 text-xs leading-5 text-neutral-500 dark:text-neutral-400']">
+      <p class="m-0 text-xs text-neutral-500 leading-5 dark:text-neutral-400">
         {{ t('settings.pages.connection.qr-scan.description') }}
       </p>
     </div>
     <GhostButton
-
       :loading="scanning"
       :label="t('settings.pages.connection.qr-scan.action')"
       @click="scanServerChannelQrCode"

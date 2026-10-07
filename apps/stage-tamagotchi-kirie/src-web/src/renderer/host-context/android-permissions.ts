@@ -1,6 +1,5 @@
 import type {
   AiriAndroidPermission,
-  AiriAndroidPermissionPayload,
   AiriAndroidPermissionSnapshot,
 } from '../../shared/eventa'
 
@@ -69,7 +68,7 @@ function getAndroidEventaChannel() {
   return channel
 }
 
-function invokeAndroidEventa<Response>(eventId: string, content: AiriAndroidPermissionPayload): Promise<Response> {
+export function invokeAndroidEventa<Response>(eventId: string, content: unknown): Promise<Response> {
   const channel = getAndroidEventaChannel()
   const invokeId = crypto.randomUUID()
   return new Promise<Response>((resolve, reject) => {

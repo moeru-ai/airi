@@ -8,8 +8,10 @@ import { computed, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ServerChannelQrCard from './server-channel-qr-card.vue'
+import ServerChannelQrScanner from './server-channel-qr-scanner.vue'
 
 import { useServerChannelSettingsStore } from '../../../stores/settings/server-channel'
+import { isAndroidRenderer } from '../../../window-context'
 
 const serverChannelSettingsStore = useServerChannelSettingsStore()
 const { authToken, hostname, lastApplyError, tlsConfig } = storeToRefs(serverChannelSettingsStore)
@@ -29,7 +31,7 @@ const exposeToAll = computed({
   },
 })
 
-const showDesktopServerControls = computed(() => isStageTamagotchi())
+const showDesktopServerControls = computed(() => isStageTamagotchi() && !isAndroidRenderer())
 const authTokenInput = shallowRef(authToken.value)
 const authTokenInputDebounced = refDebounced(authTokenInput, 500)
 const authTokenVisible = shallowRef(false)
@@ -57,7 +59,7 @@ watch(authTokenInputDebounced, (value) => {
     >
       {{ lastApplyError }}
     </Callout>
-    <ConnectionSettings server-address-disabled>
+    <ConnectionSettings :server-address-disabled="!isAndroidRenderer()">
       <template #before-server-address>
         <FieldCheckbox
           v-if="showDesktopServerControls"
@@ -109,12 +111,14 @@ watch(authTokenInputDebounced, (value) => {
         </div>
 
         <FieldCheckbox
+          v-if="!isAndroidRenderer()"
           v-model="websocketTlsEnabled"
           :label="t('settings.websocket-secure-enabled.title')"
           :description="t('settings.websocket-secure-enabled.description')"
         />
 
-        <ServerChannelQrCard />
+        <ServerChannelQrScanner v-if="isAndroidRenderer()" />
+        <ServerChannelQrCard v-else />
       </template>
     </ConnectionSettings>
   </div>

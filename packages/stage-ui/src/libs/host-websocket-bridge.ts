@@ -13,22 +13,27 @@ type HostBridgeEvent
     | { kind: 'error', id: string, message: string }
     | { kind: 'close', id: string, code?: number, reason?: string }
 
+interface WebkitHostBridge {
+  messageHandlers?: {
+    airiHostBridge?: {
+      postMessage: (payload: string) => void
+    }
+  }
+}
+
 declare global {
   interface Window {
     AiriHostBridge?: {
       postMessage: (payload: string) => void
     }
-    webkit?: {
-      messageHandlers?: {
-        airiHostBridge?: {
-          postMessage: (payload: string) => void
-        }
-      }
-    }
     __airiHostBridge?: {
       onNativeMessage?: (payload: string) => void
     }
   }
+}
+
+function getWebkitHostBridge() {
+  return (window as unknown as { webkit?: WebkitHostBridge }).webkit?.messageHandlers?.airiHostBridge
 }
 
 const connections = new Map<string, HostBridgeConnection>()
@@ -39,8 +44,9 @@ function postBridgeMessage(command: HostBridgeCommand) {
     return
   }
 
-  if (window.webkit?.messageHandlers?.airiHostBridge) {
-    window.webkit.messageHandlers.airiHostBridge.postMessage(JSON.stringify(command))
+  const webkitHostBridge = getWebkitHostBridge()
+  if (webkitHostBridge) {
+    webkitHostBridge.postMessage(JSON.stringify(command))
     return
   }
 
@@ -149,7 +155,7 @@ function createCloseBeforeOpenError(event: Extract<HostBridgeEvent, { kind: 'clo
 }
 
 export function getHostWebSocketConnector(url: string): ClientConnector<string> | undefined {
-  if (!window.AiriHostBridge && !window.webkit?.messageHandlers?.airiHostBridge) {
+  if (!window.AiriHostBridge && !getWebkitHostBridge()) {
     return undefined
   }
 

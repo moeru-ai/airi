@@ -3,7 +3,7 @@ import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-chan
 import { errorMessageFrom } from '@moeru/std'
 import { Client, createTextProtocolConnector, WebSocketEventSource } from '@proj-airi/server-sdk'
 
-import { getHostWebSocketConnector } from './websocket-bridge'
+import { getHostWebSocketConnector } from './host-websocket-bridge'
 
 export async function probeServerChannelQrPayload(payload: ServerChannelQrPayload) {
   if (!payload.urls.some(url => getHostWebSocketConnector(url))) {
