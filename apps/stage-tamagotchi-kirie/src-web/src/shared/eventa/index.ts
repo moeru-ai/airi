@@ -78,6 +78,7 @@ export const airiMicrophonePermissionPromptRequested = defineEventa<AiriMicropho
 export const airiMicrophonePermissionPromptDismissed = defineEventa<{ promptId: string }>('eventa:event:airi:permissions:microphone:prompt-dismissed')
 
 export type AiriAndroidPermission = 'microphone' | 'notifications'
+export type AiriAndroidPermissionState = 'denied' | 'granted' | 'prompt' | 'prompt-with-rationale'
 
 export interface AiriAndroidPermissionPayload {
   permission: AiriAndroidPermission
@@ -85,6 +86,7 @@ export interface AiriAndroidPermissionPayload {
 
 export interface AiriAndroidPermissionSnapshot {
   granted: boolean
+  state: AiriAndroidPermissionState
 }
 
 export const airiAndroidPermissionEventIds = {

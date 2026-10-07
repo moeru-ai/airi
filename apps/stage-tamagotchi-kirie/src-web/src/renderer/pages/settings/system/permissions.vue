@@ -3,9 +3,13 @@ import { Button } from '@proj-airi/ui'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import AndroidPermissionsPanel from '../../../components/permissions/android-permissions-panel.vue'
+
 import { useHostMicrophonePermission } from '../../../host-context'
+import { isAndroidRenderer } from '../../../window-context'
 
 const { t } = useI18n()
+const isAndroid = isAndroidRenderer()
 const permission = useHostMicrophonePermission()
 const busy = shallowRef(false)
 const status = permission.status
@@ -38,6 +42,9 @@ async function resetPermission() {
 }
 
 onMounted(() => {
+  if (isAndroid)
+    return
+
   permission.refresh().catch((error) => {
     console.warn('[permissions] Failed to load microphone permission state:', error)
   })
@@ -45,8 +52,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div :class="['flex flex-col gap-4 pb-8']">
+  <div :class="['flex flex-col gap-4', isAndroid ? 'pb-12' : 'pb-8']">
+    <template v-if="isAndroid">
+      <p :class="['text-sm text-neutral-600', 'md:text-base dark:text-neutral-300']">
+        {{ t('settings.pages.system.permissions.description') }}
+      </p>
+
+      <AndroidPermissionsPanel />
+    </template>
+
     <section
+      v-else
       :class="[
         'rounded-xl border border-neutral-200 bg-white/70 p-5 dark:border-neutral-700 dark:bg-neutral-900/60',
         'flex flex-col gap-5',

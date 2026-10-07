@@ -26,9 +26,9 @@ describe('host Android permissions', () => {
           payload: {
             body: {
               content: request.payload.id.includes(':request-send')
-                ? { granted: true }
+                ? { granted: true, state: 'granted' }
                 : request.payload.id.includes(':check-send')
-                  ? { granted: false }
+                  ? { granted: false, state: 'prompt' }
                   : null,
               invokeId: request.payload.body.invokeId,
             },
@@ -42,8 +42,8 @@ describe('host Android permissions', () => {
   it('checks, requests, and opens settings through the Android host', async () => {
     const permissions = useHostAndroidPermissions()
 
-    await expect(permissions.check('notifications')).resolves.toBe(false)
-    await expect(permissions.request('microphone')).resolves.toBe(true)
+    await expect(permissions.check('notifications')).resolves.toEqual({ granted: false, state: 'prompt' })
+    await expect(permissions.request('microphone')).resolves.toEqual({ granted: true, state: 'granted' })
     await permissions.openSettings('microphone')
 
     expect(postMessage).toHaveBeenNthCalledWith(1, JSON.stringify({
