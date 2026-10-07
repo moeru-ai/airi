@@ -61,9 +61,26 @@ class AuthenticationFixture {
         require(failure.getString("message").equals("No browser can open the authentication URL."),
             "Pocket browser error message must match");
     }
+    private static void invalidUrl(String url, String message) {
+        AuthenticationFixture plugin = new AuthenticationFixture();
+        PendingEventaRequest request = new PendingEventaRequest();
+        plugin.openAuthorization(url, request);
+        require(plugin.activity.opens == 0, "Invalid authentication URL must not open a browser");
+        require(request.replyProxy.messages.size() == 1, "Invalid URL must reject exactly once");
+        JSONObject failure = request.replyProxy.messages.get(0).getJSONObject("payload")
+            .getJSONObject("body").getJSONObject("content").getJSONObject("error");
+        require(failure.getString("code").equals("INVALID_URL"),
+            "Pocket invalid URL code must match");
+        require(failure.getString("message").equals(message),
+            "Pocket invalid URL message must match");
+    }
     public static void main(String[] args) {
         missingHandler(new ActivityNotFoundException());
         missingHandler(new SecurityException("Intent denied"));
+        invalidUrl(null, "The authentication URL is missing.");
+        invalidUrl("", "The authentication URL is missing.");
+        invalidUrl("   ", "The authentication URL is missing.");
+        invalidUrl("ftp://example.invalid", "The authentication URL is invalid.");
         AuthenticationFixture plugin = new AuthenticationFixture();
         PendingEventaRequest request = new PendingEventaRequest();
         plugin.openAuthorization("https://example.invalid/auth", request);
@@ -76,6 +93,6 @@ class AuthenticationFixture {
         require(existing.replyProxy.messages.get(0).getJSONObject("payload").getJSONObject("body")
             .getJSONObject("content").getString("error").equals("Notifications are not enabled on this device."),
             "Existing string error envelopes remain unchanged");
-        System.out.println("authentication: PASS 4 JVM cases");
+        System.out.println("authentication: PASS 8 JVM cases");
     }
 }

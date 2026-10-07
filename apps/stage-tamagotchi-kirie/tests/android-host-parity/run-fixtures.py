@@ -27,6 +27,7 @@ if args.case == 'authentication':
     fixture_name = 'AuthenticationFixture'
     signatures = [
         'private void openAuthorization(',
+        'private void rejectAuthorization(',
         'private void sendEventaResponse(',
         'private void sendEventaError(',
     ]
