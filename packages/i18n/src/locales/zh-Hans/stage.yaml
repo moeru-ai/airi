@@ -50,7 +50,7 @@ chat:
     input-device: 麦克风
     system-default: 系统默认
     listen: 持续聆听
-    hearing-settings: 听觉设置…
+    hearing-settings: 更多听觉设置…
     options-hint: 悬停或右键查看选项
     recording: 正在录音
     stop: 停止录音

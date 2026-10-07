@@ -16,7 +16,7 @@ import { useVoiceRephrase } from '../composables/voice-rephrase'
 import { observeInputLevel } from '../libs/voice/input-level'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
 import { createVoiceRephrasePlugin } from '../libs/voice/voice-rephrase-plugin'
-import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInputLevel, voiceInterrupt, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
+import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInputLevel, voiceInterrupt, voiceLevelMonitor, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
 import { SileroVad } from '../workers/vad/silero-vad'
 import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from './audio'
@@ -206,13 +206,25 @@ export const useVoiceStore = defineStore('voice', () => {
   }
 
   /**
-   * Publishes the microphone level while a voice message records or a speech input captures.
+   * Publishes the microphone level while a voice message records, a speech input captures, or a control monitors the level.
    * A device change or the end of capture stops the current observation. The returned function stops publication.
    */
   function publishInputLevel() {
     let observation: AbortController | undefined
+    /** A control shows a level meter. It turns off when the newest request expires. */
+    const monitoring = shallowRef(false)
+    let monitorTimer: ReturnType<typeof setTimeout> | undefined
+    const stopMonitor = getSpeechBusContext().on(voiceLevelMonitor, ({ body }) => {
+      if (!body)
+        return
+      clearTimeout(monitorTimer)
+      const remaining = body.until - Date.now()
+      monitoring.value = remaining > 0
+      if (remaining > 0)
+        monitorTimer = setTimeout(() => monitoring.value = false, remaining)
+    })
     const stop = watch(
-      [() => voiceMessages.isRecording || state.value?.phase === 'capturing', () => devices.input],
+      [() => voiceMessages.isRecording || state.value?.phase === 'capturing' || monitoring.value, () => devices.input],
       ([capturing, input]) => {
         observation?.abort('Voice capture changed')
         observation = undefined
@@ -228,6 +240,8 @@ export const useVoiceStore = defineStore('voice', () => {
 
     return () => {
       stop()
+      stopMonitor()
+      clearTimeout(monitorTimer)
       observation?.abort('Voice output host detached')
     }
   }

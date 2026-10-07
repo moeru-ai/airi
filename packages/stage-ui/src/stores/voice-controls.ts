@@ -6,7 +6,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { onScopeDispose, shallowRef } from 'vue'
 
-import { getSpeechBusContext, voiceInputCommand, voiceInputLevel, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages, voiceRequestSnapshot, voiceSnapshotChanged } from '../services/speech/bus'
+import { getSpeechBusContext, voiceInputCommand, voiceInputLevel, voiceLevelMonitor, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages, voiceRequestSnapshot, voiceSnapshotChanged } from '../services/speech/bus'
 
 /** Windows render host snapshots and send named commands. They do not acquire audio resources. */
 export const useVoiceControlsStore = defineStore('voice-controls', () => {
@@ -63,11 +63,16 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
     }
   }
 
+  /** Asks the host to publish the level for `durationMs`. Call it again before that ends to keep the meter live. */
+  function monitorLevel(durationMs: number) {
+    context.emit(voiceLevelMonitor, { until: Date.now() + durationMs })
+  }
+
   onScopeDispose(() => {
     stop()
     stopMessages()
     stopLevel()
     connection.abort('Voice controls disposed')
   })
-  return { snapshot, messages, level, error, command, messageCommand }
+  return { snapshot, messages, level, error, command, messageCommand, monitorLevel }
 })

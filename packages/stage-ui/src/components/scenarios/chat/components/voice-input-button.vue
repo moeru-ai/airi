@@ -3,7 +3,7 @@ import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
 import { BasicButton, DropdownMenu } from '@proj-airi/ui'
-import { useEventListener, useLocalStorage, useNow, useObjectUrl, useTimeoutFn } from '@vueuse/core'
+import { useEventListener, useIntervalFn, useLocalStorage, useNow, useObjectUrl, useTimeoutFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import {
   DropdownMenuCheckboxItem,
@@ -25,6 +25,7 @@ import VoiceWaveform from './voice-waveform.vue'
 
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
+import { useVoiceControlsStore } from '../../../../stores/voice-controls'
 import { useVoiceComposer } from '../composables/use-voice-composer'
 
 const props = defineProps<{
@@ -50,6 +51,8 @@ const draft = defineModel<string>({ required: true })
 const MENU_HOVER_DELAY_MS = 600
 /** The menu closes after the pointer leaves the button and the menu for this long. */
 const MENU_LEAVE_DELAY_MS = 300
+/** The open menu renews its level meter request this often. Each request lasts a little longer, so the meter does not gap. */
+const LEVEL_MONITOR_RENEW_MS = 1000
 
 const { t } = useI18n()
 const mode = useLocalStorage<VoiceComposerMode>('ui/chat/voice-mode', 'audio')
@@ -57,6 +60,7 @@ const { autoSendEnabled } = storeToRefs(useHearingStore())
 const devices = useSettingsAudioDevice()
 const { audioInputOptions, selectedAudioInput, enabled: listening } = storeToRefs(devices)
 const menuOpen = shallowRef(false)
+const controls = useVoiceControlsStore()
 
 /** Composer text before dictation started. The live transcript is shown after it until the input ends. */
 let draftBeforeDictation: string | undefined
@@ -173,6 +177,39 @@ function openMenu() {
 }
 
 // NOTICE:
+// A browser resumes the microphone AudioContext only after a user activation, and a hover is none.
+// So the meter waits for sticky activation. Electron plays without a gesture.
+// Source: `microphoneSource` in packages/audio/src/browser/sources.ts awaits `context.resume()`.
+// Remove when that source stops waiting for resume.
+const monitor = useIntervalFn(() => {
+  if (navigator.userActivation?.hasBeenActive ?? true)
+    controls.monitorLevel(LEVEL_MONITOR_RENEW_MS * 1.5)
+}, LEVEL_MONITOR_RENEW_MS, { immediate: false, immediateCallback: true })
+watch(menuOpen, async (open) => {
+  monitor.pause()
+  if (!open)
+    return
+  // The meter must not cause a permission prompt on hover. Without granted permission it stays empty.
+  const permission = await navigator.permissions?.query({ name: 'microphone' as PermissionName }).catch(() => undefined)
+  if (menuOpen.value && (!permission || permission.state === 'granted'))
+    monitor.resume()
+})
+
+/** Level of the selected microphone while the menu is open. The host's level from an earlier capture is not shown. */
+const meterLevel = shallowRef(0)
+watch(() => controls.level, (value) => {
+  if (menuOpen.value)
+    meterLevel.value = value
+})
+watch(menuOpen, () => meterLevel.value = 0)
+
+const currentDevice = computed(() => {
+  const option = audioInputOptions.value.find(item => item.value === selectedAudioInput.value)
+  // Chromium labels the default entry "Default - <device>". An entry without a label shows the generic name.
+  return option && option.label !== option.value ? option.label : t('stage.chat.voice-composer.system-default')
+})
+
+// NOTICE:
 // Opening the menu does not ask for permission. A hover is no user activation, so the opened AudioContext never resumes.
 // Source: `microphoneSource` in packages/audio/src/browser/sources.ts awaits `context.resume()`.
 // Remove when that source stops waiting for resume.
@@ -217,10 +254,27 @@ const itemClasses = [
   'w-full flex cursor-pointer select-none items-center gap-2 rounded-lg px-3 py-2 text-left',
   'text-sm leading-none outline-none text-neutral-700 dark:text-neutral-200',
   'data-[highlighted]:bg-primary-100/80 dark:data-[highlighted]:bg-primary-900/40',
-  'data-[state=checked]:text-primary-600 dark:data-[state=checked]:text-primary-300',
   'transition-colors duration-150 ease-in-out',
 ]
+const radioItemClasses = [
+  ...itemClasses,
+  'data-[state=checked]:text-primary-600 dark:data-[state=checked]:text-primary-300',
+]
 const labelClasses = ['px-3 pb-1 pt-2 text-xs text-neutral-500 dark:text-neutral-400']
+
+function switchTrackClasses(on: boolean) {
+  return [
+    'relative h-4.5 w-8 shrink-0 rounded-full transition-colors duration-200 motion-reduce:transition-none',
+    on ? 'bg-primary-500' : 'bg-neutral-300 dark:bg-neutral-600',
+  ]
+}
+
+function switchThumbClasses(on: boolean) {
+  return [
+    'absolute top-0.5 size-3.5 rounded-full bg-white shadow transition-transform duration-200 motion-reduce:transition-none',
+    on ? 'translate-x-4' : 'translate-x-0.5',
+  ]
+}
 const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']
 </script>
 
@@ -236,7 +290,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
       :title="active ? buttonLabel : `${buttonLabel} · ${t('stage.chat.voice-composer.options-hint')}`"
       :class="[
         'size-9 flex items-center justify-center rounded-full outline-none',
-        'focus-visible:ring-2 focus-visible:ring-primary-500 transition-colors duration-200 motion-reduce:transition-none',
+        'focus:outline-none focus-visible:outline-none transition-colors duration-200 motion-reduce:transition-none',
         active
           ? 'bg-red-500 text-white hover:bg-red-600'
           : 'bg-primary-100/90 text-primary-600 hover:bg-primary-200/90 dark:bg-primary-900/90 dark:text-primary-200 dark:hover:bg-primary-800/90',
@@ -257,14 +311,14 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
           {{ t('stage.chat.voice-composer.mode') }}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup v-model="mode">
-          <DropdownMenuRadioItem value="audio" :class="itemClasses" @select.prevent>
+          <DropdownMenuRadioItem value="audio" :class="radioItemClasses" @select.prevent>
             <span :class="['i-solar:microphone-3-linear size-4 shrink-0']" />
             <span :class="['flex-1']">{{ t('stage.chat.voice-composer.audio') }}</span>
             <DropdownMenuItemIndicator>
               <span :class="['i-ph:check-bold size-4 shrink-0']" />
             </DropdownMenuItemIndicator>
           </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="transcription" :class="itemClasses" @select.prevent>
+          <DropdownMenuRadioItem value="transcription" :class="radioItemClasses" @select.prevent>
             <span :class="['i-solar:text-field-focus-linear size-4 shrink-0']" />
             <span :class="['flex-1']">{{ t('stage.chat.voice-composer.transcription') }}</span>
             <DropdownMenuItemIndicator>
@@ -273,17 +327,22 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator :class="separatorClasses" />
-        <DropdownMenuCheckboxItem v-model="autoSendEnabled" :class="itemClasses" @select.prevent>
-          <span :class="['i-solar:plain-2-linear size-4 shrink-0']" />
-          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.auto-send') }}</span>
-          <DropdownMenuItemIndicator>
-            <span :class="['i-ph:check-bold size-4 shrink-0']" />
-          </DropdownMenuItemIndicator>
-        </DropdownMenuCheckboxItem>
+        <DropdownMenuLabel :class="labelClasses">
+          {{ t('stage.chat.voice-composer.input-device') }}
+        </DropdownMenuLabel>
+        <!-- The current microphone and its live level. Its submenu lists the other devices. -->
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger :class="itemClasses">
-            <span :class="['i-solar:microphone-large-linear size-4 shrink-0']" />
-            <span :class="['flex-1']">{{ t('stage.chat.voice-composer.input-device') }}</span>
+          <DropdownMenuSubTrigger data-testid="voice-menu-device" :class="[itemClasses, 'py-1.5']">
+            <span :class="['min-w-0 flex flex-1 flex-col gap-1.5']">
+              <span :class="['truncate']">{{ currentDevice }}</span>
+              <span aria-hidden="true" :class="['h-1 w-full overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
+                <span
+                  data-testid="voice-menu-level"
+                  :class="['block h-full rounded-full bg-primary-500 transition-[width] duration-75 motion-reduce:transition-none']"
+                  :style="{ width: `${Math.round(meterLevel * 100)}%` }"
+                />
+              </span>
+            </span>
             <span :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
           </DropdownMenuSubTrigger>
           <DropdownMenuSubContent
@@ -299,10 +358,10 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
                 v-for="device in audioInputOptions"
                 :key="device.value"
                 :value="device.value"
-                :class="itemClasses"
+                :class="radioItemClasses"
                 @select.prevent
               >
-                <span :class="['flex-1 truncate']">{{ device.value === 'default' ? t('stage.chat.voice-composer.system-default') : device.label }}</span>
+                <span :class="['flex-1 truncate']">{{ device.label !== device.value ? device.label : t('stage.chat.voice-composer.system-default') }}</span>
                 <DropdownMenuItemIndicator>
                   <span :class="['i-ph:check-bold size-4 shrink-0']" />
                 </DropdownMenuItemIndicator>
@@ -311,16 +370,23 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
           </DropdownMenuSubContent>
         </DropdownMenuSub>
         <DropdownMenuSeparator :class="separatorClasses" />
-        <DropdownMenuCheckboxItem :model-value="listening" :class="itemClasses" @update:model-value="setListening" @select.prevent>
-          <span :class="['i-solar:soundwave-linear size-4 shrink-0']" />
-          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.listen') }}</span>
-          <DropdownMenuItemIndicator>
-            <span :class="['i-ph:check-bold size-4 shrink-0']" />
-          </DropdownMenuItemIndicator>
+        <!-- Settings that change behavior are switches. The item toggles them, so the switch itself takes no input. -->
+        <DropdownMenuCheckboxItem v-model="autoSendEnabled" data-testid="voice-menu-auto-send" :class="itemClasses" @select.prevent>
+          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.auto-send') }}</span>
+          <span aria-hidden="true" :class="switchTrackClasses(autoSendEnabled)">
+            <span :class="switchThumbClasses(autoSendEnabled)" />
+          </span>
         </DropdownMenuCheckboxItem>
+        <DropdownMenuCheckboxItem :model-value="listening" data-testid="voice-menu-listen" :class="itemClasses" @update:model-value="setListening" @select.prevent>
+          <span :class="['flex-1']">{{ t('stage.chat.voice-composer.listen') }}</span>
+          <span aria-hidden="true" :class="switchTrackClasses(listening)">
+            <span :class="switchThumbClasses(listening)" />
+          </span>
+        </DropdownMenuCheckboxItem>
+        <DropdownMenuSeparator :class="separatorClasses" />
         <DropdownMenuItem :class="itemClasses" @select="emit('configure')">
-          <span :class="['i-solar:settings-linear size-4 shrink-0']" />
           <span :class="['flex-1']">{{ t('stage.chat.voice-composer.hearing-settings') }}</span>
+          <span :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
         </DropdownMenuItem>
       </div>
     </DropdownMenu>

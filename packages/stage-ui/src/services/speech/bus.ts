@@ -121,6 +121,13 @@ export const voiceSnapshotChanged = defineEventa<VoiceHostSnapshot>('eventa:voic
  */
 export const voiceInputLevel = defineEventa<{ level: number }>('eventa:voice:input-level')
 
+/**
+ * A control asks the host to publish `voiceInputLevel` without recording, for example for a level meter in a menu.
+ * The request lasts until `until`, a Unix time in milliseconds. The control renews it while the meter is visible,
+ * so a closed window cannot keep the microphone open.
+ */
+export const voiceLevelMonitor = defineEventa<{ until: number }>('eventa:voice:level-monitor')
+
 /** Recording commands address one session-owned voice message draft. */
 export type VoiceMessageCommand
   = {

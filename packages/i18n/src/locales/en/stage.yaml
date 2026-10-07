@@ -50,7 +50,7 @@ chat:
     input-device: Microphone
     system-default: System default
     listen: Listen continuously
-    hearing-settings: Hearing settings…
+    hearing-settings: More Hearing settings…
     options-hint: Hover or right-click for options
     recording: Recording
     stop: Stop recording
