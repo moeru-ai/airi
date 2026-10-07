@@ -6,7 +6,7 @@ declare global {
   }
 }
 
-/** Routes programmatic traversal and Android Back through the asset WebView history. */
+/** Routes programmatic traversal through the asset WebView history. */
 export function installKirieAndroidNavigation(router: Router) {
   // NOTICE:
   // Kirie Android's asset WebView does not traverse same-document hash history.
@@ -74,16 +74,15 @@ export function installKirieAndroidNavigation(router: Router) {
   router.forward = () => navigate(1)
   window.__airiKirieAndroidBack = () => {
     // NOTICE:
-    // Kirie must leave system Back unchanged on the catch-all route to match Pocket.
-    // Pocket's WebView Back does not traverse this pushState entry.
-    // Source/context: recordings-android/android-g01-g05-final-f12e-2026-10-07/results/
-    // g01-not-found-system-back.json.
-    // Remove this exception when Pocket system Back traverses this state.
+    // Pocket leaves a catch-all route unchanged and reloads other routes on system Back.
+    // Capacitor sends this action to WebView navigation instead of Vue Router traversal.
+    // Source/context: recordings-android/android-back-final-7f930b29f-2026-10-07/events/.
+    // Remove this behavior when Pocket system Back uses Vue Router traversal.
     const isNotFoundRoute = router.currentRoute.value.matched
       .some(route => route.name === '/[...all]')
     if (isNotFoundRoute)
       return
 
-    router.back()
+    nativeGo(0)
   }
 }

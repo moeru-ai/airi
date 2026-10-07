@@ -80,7 +80,7 @@ describe('kirie Android route traversal', () => {
         await router.push({ hash: '#chat', replace: true })
         await router.push({ hash: '#vision', replace: true })
       }
-      window.__airiKirieAndroidBack?.()
+      router.back()
       await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/settings'))
       router.forward()
       await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/settings/providers#vision'))
@@ -124,18 +124,20 @@ describe('kirie Android route traversal', () => {
     await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/'))
   })
 
-  it('returns from a matched route when Android system Back runs', async () => {
+  it('reloads a matched route when Android system Back runs', async () => {
     const router = createNavigation()
     await router.push('/')
     await router.push('/settings')
     window.__airiKirieAndroidBack?.()
-    await vi.waitFor(() => expect(router.currentRoute.value.fullPath).toBe('/'))
+    expect(router.options.history.go).toHaveBeenCalledWith(0)
+    expect(router.currentRoute.value.fullPath).toBe('/settings')
   })
 
-  it('consumes Back at the first route', async () => {
+  it('reloads the first route on Android system Back', async () => {
     const router = createNavigation()
     await router.push('/')
     window.__airiKirieAndroidBack?.()
+    expect(router.options.history.go).toHaveBeenCalledWith(0)
     expect(router.currentRoute.value.fullPath).toBe('/')
   })
 })
