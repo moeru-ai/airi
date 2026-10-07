@@ -87,24 +87,22 @@ function invokeAndroidEventa<Response>(eventId: string, content: AiriAndroidPerm
 }
 
 export interface HostAndroidPermissions {
-  check: (permission: AiriAndroidPermission) => Promise<boolean>
+  check: (permission: AiriAndroidPermission) => Promise<AiriAndroidPermissionSnapshot>
   openSettings: (permission: AiriAndroidPermission) => Promise<void>
-  request: (permission: AiriAndroidPermission) => Promise<boolean>
+  request: (permission: AiriAndroidPermission) => Promise<AiriAndroidPermissionSnapshot>
 }
 
 /** Connects the universal renderer to Kirie's Android permission bridge. */
 export function useHostAndroidPermissions(): HostAndroidPermissions {
   return {
     async check(permission) {
-      const snapshot = await invokeAndroidEventa<AiriAndroidPermissionSnapshot>(airiAndroidPermissionEventIds.check, { permission })
-      return snapshot.granted
+      return await invokeAndroidEventa<AiriAndroidPermissionSnapshot>(airiAndroidPermissionEventIds.check, { permission })
     },
     async openSettings(permission) {
       await invokeAndroidEventa<void>(airiAndroidPermissionEventIds.openSettings, { permission })
     },
     async request(permission) {
-      const snapshot = await invokeAndroidEventa<AiriAndroidPermissionSnapshot>(airiAndroidPermissionEventIds.request, { permission })
-      return snapshot.granted
+      return await invokeAndroidEventa<AiriAndroidPermissionSnapshot>(airiAndroidPermissionEventIds.request, { permission })
     },
   }
 }

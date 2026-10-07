@@ -47,6 +47,8 @@ import android.Manifest;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentCallbacks;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.net.Uri;
@@ -161,8 +163,13 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         "eventa:invoke:airi:android:app:url-open:consume-send";
     private static final String URL_OPEN_EVENT =
         "eventa:event:airi:android:app:url-open";
+    private static final String PERMISSION_STORAGE = "AiriAndroidPermissionStates";
     private static final String NOTIFICATIONS = "notifications";
     private static final String MICROPHONE = "microphone";
+    private static final String PERMISSION_DENIED = "denied";
+    private static final String PERMISSION_GRANTED = "granted";
+    private static final String PERMISSION_PROMPT = "prompt";
+    private static final String PERMISSION_PROMPT_WITH_RATIONALE = "prompt-with-rationale";
     private static final int NOTIFICATION_PERMISSION_REQUEST = 4101;
     private static final int MICROPHONE_PERMISSION_REQUEST = 4102;
     private static final int FILE_CHOOSER_REQUEST = 4103;
@@ -348,10 +355,11 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
         boolean granted = grantResults.length > 0
             && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+        cachePermissionState(permission, granted);
         emitSignal(PERMISSION_RESULT, permission, granted);
         PendingEventaRequest pending = pendingPermissionRequests.remove(permission);
         if (pending != null) {
-            sendPermissionEventaResponse(pending, granted);
+            sendPermissionEventaResponse(pending, permission);
         }
     }
 
@@ -1025,15 +1033,15 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             if (CHECK_PERMISSION_EVENT.equals(event)) {
                 sendEventaResponse(
                     new PendingEventaRequest(event, invokeId, replyProxy),
-                    new JSONObject().put("granted", checkPermission(permission))
+                    permissionSnapshot(permission)
                 );
                 return;
             }
             if (REQUEST_PERMISSION_EVENT.equals(event)) {
-                if (checkPermission(permission)) {
+                if (PERMISSION_GRANTED.equals(permissionState(permission))) {
                     sendEventaResponse(
                         new PendingEventaRequest(event, invokeId, replyProxy),
-                        new JSONObject().put("granted", true)
+                        permissionSnapshot(permission)
                     );
                     return;
                 }
@@ -1199,13 +1207,55 @@ public final class AiriAndroidPlugin extends GodotPlugin {
 
     private void sendPermissionEventaResponse(
         PendingEventaRequest request,
-        boolean granted
+        String permission
     ) {
         try {
-            sendEventaResponse(request, new JSONObject().put("granted", granted));
+            sendEventaResponse(request, permissionSnapshot(permission));
         } catch (JSONException error) {
             Log.e("AiriAndroid", "Cannot create permission response", error);
         }
+    }
+
+    private JSONObject permissionSnapshot(String permission) throws JSONException {
+        String state = permissionState(permission);
+        return new JSONObject()
+            .put("granted", PERMISSION_GRANTED.equals(state))
+            .put("state", state);
+    }
+
+    private String permissionState(String permission) {
+        Activity activity = getActivity();
+        String androidPermission = androidPermission(permission);
+        if (activity == null || androidPermission == null) {
+            return PERMISSION_DENIED;
+        }
+        if (activity.checkSelfPermission(androidPermission) == PackageManager.PERMISSION_GRANTED) {
+            return PERMISSION_GRANTED;
+        }
+        return activity
+            .getSharedPreferences(PERMISSION_STORAGE, Context.MODE_PRIVATE)
+            .getString(androidPermission, PERMISSION_PROMPT);
+    }
+
+    private void cachePermissionState(String permission, boolean granted) {
+        Activity activity = getActivity();
+        String androidPermission = androidPermission(permission);
+        if (activity == null || androidPermission == null) {
+            return;
+        }
+
+        SharedPreferences.Editor editor = activity
+            .getSharedPreferences(PERMISSION_STORAGE, Context.MODE_PRIVATE)
+            .edit();
+        if (granted) {
+            editor.remove(androidPermission).apply();
+            return;
+        }
+
+        String state = ActivityCompat.shouldShowRequestPermissionRationale(activity, androidPermission)
+            ? PERMISSION_PROMPT_WITH_RATIONALE
+            : PERMISSION_DENIED;
+        editor.putString(androidPermission, state).apply();
     }
 
     private static final class PendingEventaRequest {

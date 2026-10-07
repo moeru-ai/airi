@@ -142,6 +142,19 @@ The Kirie debug APK SHA-256 was `c4cd7e4926b90bc1dddeb71cfed9135505da6df01fb428b
 Temporary evidence is in `recordings-android/onboarding-permissions-cc34b1b61-2026-10-07/`.
 The comparison places stage-pocket on the left and Kirie on the right.
 
+### Settings permission denial
+
+The comparison used Android API 36 and WebView 133.0.6943.137.
+Both apps started on the system permission page with notifications denied.
+Tapping `Request access` opened AIRI's Android notification settings in both apps.
+System Back returned both apps to the same permission page and state.
+
+Kirie used the universal `src-web` renderer and its Android Eventa bridge.
+The native bridge now reports the Android permission state to the shared panel.
+The final Kirie debug APK SHA-256 was `8f1b23b193ce0a61971f917890234215e1b71ddfce94e8172e1ee93f1f786562`.
+Temporary evidence is in `recordings-android/settings-permissions-50bd1b55c-2026-10-07/`.
+The comparison places stage-pocket on the left and Kirie on the right.
+
 ### Permission step continuation
 
 The comparison used Android API 36 and WebView 133.0.6943.137.
