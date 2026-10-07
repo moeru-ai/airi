@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuItemIndicator,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -345,29 +346,32 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
             </span>
             <span :class="['i-solar:alt-arrow-right-linear size-4 shrink-0 opacity-60']" />
           </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent
-            :side-offset="6"
-            :class="[
-              'z-[10001] max-h-72 min-w-[220px] overflow-y-auto rounded-xl border p-1 shadow-lg outline-none backdrop-blur-md',
-              'border-neutral-100/80 bg-neutral-100/90 dark:border-neutral-800/60 dark:bg-neutral-800/90',
-            ]"
-            @pointerenter="leaveClose.stop()"
-          >
-            <DropdownMenuRadioGroup v-model="selectedAudioInput">
-              <DropdownMenuRadioItem
-                v-for="device in audioInputOptions"
-                :key="device.value"
-                :value="device.value"
-                :class="radioItemClasses"
-                @select.prevent
-              >
-                <span :class="['flex-1 truncate']">{{ device.label !== device.value ? device.label : t('stage.chat.voice-composer.system-default') }}</span>
-                <DropdownMenuItemIndicator>
-                  <span :class="['i-ph:check-bold size-4 shrink-0']" />
-                </DropdownMenuItemIndicator>
-              </DropdownMenuRadioItem>
-            </DropdownMenuRadioGroup>
-          </DropdownMenuSubContent>
+          <!-- A portal keeps the submenu above the menu. Inside the menu it opened behind it when it flipped to the left. -->
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent
+              :side-offset="6"
+              :class="[
+                'z-[10001] max-h-72 min-w-[220px] overflow-y-auto rounded-xl border p-1 shadow-lg outline-none backdrop-blur-md',
+                'border-neutral-100/80 bg-neutral-100/90 dark:border-neutral-800/60 dark:bg-neutral-800/90',
+              ]"
+              @pointerenter="leaveClose.stop()"
+            >
+              <DropdownMenuRadioGroup v-model="selectedAudioInput">
+                <DropdownMenuRadioItem
+                  v-for="device in audioInputOptions"
+                  :key="device.value"
+                  :value="device.value"
+                  :class="radioItemClasses"
+                  @select.prevent
+                >
+                  <span :class="['flex-1 truncate']">{{ device.label !== device.value ? device.label : t('stage.chat.voice-composer.system-default') }}</span>
+                  <DropdownMenuItemIndicator>
+                    <span :class="['i-ph:check-bold size-4 shrink-0']" />
+                  </DropdownMenuItemIndicator>
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
         </DropdownMenuSub>
         <DropdownMenuSeparator :class="separatorClasses" />
         <!-- Settings that change behavior are switches. The item toggles them, so the switch itself takes no input. -->
