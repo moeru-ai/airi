@@ -30,13 +30,19 @@ const settings = computed(() => [
     icon: 'i-solar:code-bold-duotone',
     to: '/settings/system/developer',
   },
+  {
+    title: t('settings.pages.system.experimental.title'),
+    description: t('settings.pages.system.experimental.description'),
+    icon: 'i-solar:test-tube-bold-duotone',
+    to: '/settings/system/experimental',
+  },
 ])
 </script>
 
 <template>
-  <div flex="~ col gap-4" font-normal>
+  <div :class="['flex flex-col gap-4', 'font-normal']">
     <div />
-    <div flex="~ col gap-4">
+    <div :class="['flex flex-col gap-4']">
       <IconItem
         v-for="(setting, index) in settings"
         :key="setting.to"
@@ -55,15 +61,12 @@ const settings = computed(() => [
     </div>
     <div
       v-motion
-      text="neutral-200/50 dark:neutral-600/20" pointer-events-none
-      fixed top="[calc(100dvh-12rem)]" bottom-0 right--10 z--1
+      :class="['text-neutral-200/50 dark:text-neutral-600/20', 'pointer-events-none fixed top-[calc(100dvh-12rem)] bottom-0 right--10 z--1', 'size-60 flex items-center justify-center']"
       :initial="{ scale: 0.9, opacity: 0, rotate: 180 }"
       :enter="{ scale: 1, opacity: 1, rotate: 0 }"
       :duration="500"
-      size-60
-      flex items-center justify-center
     >
-      <div v-motion text="60" i-solar:settings-bold-duotone />
+      <div v-motion :class="['text-60', 'i-solar:settings-bold-duotone']" />
     </div>
   </div>
 </template>

@@ -372,6 +372,68 @@ pages:
         error:
           fallback: Could not start deletion. Try again later.
   card:
+    sync:
+      notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
+      off_notice: You are signed in, but character card sync is off.
+      off_notice_link: Turn it on in Experimental Features.
+      state:
+        synced: Synced to your account
+        pending: Waiting to upload
+        refused: Not uploaded. Your account has no room for more cards, so this card stays on this device.
+      conflict_copy_name: '{name} (conflict copy)'
+      conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
+      history:
+        tab: History
+        empty: No history yet for this card.
+        loading: Loading history…
+        load_failed: Could not load the history of this card.
+        current: Current
+        changed_label: Changed
+        removed_label: Removed
+        fields:
+          name: Name
+          nickname: Nickname
+          version: Version
+          creator: Creator
+          description: Description
+          personality: Personality
+          scenario: Scenario
+          systemPrompt: System prompt
+          postHistoryInstructions: Post-history instructions
+          notes: Creator notes
+          greetings: Greetings
+          tags: Tags
+          metadata: Metadata
+          assets: Assets
+          characterBook: Lorebook
+          source: Source
+          wakeWords: Wake words
+          agents: Agents
+          consciousness: Consciousness model
+          vision: Vision model
+          speech: Speech model
+          vrm: VRM model
+          live2d: Live2D model
+          displayModelId: Display model
+          activeBackgroundId: Pinned background
+          artistry: Artistry
+        restore: Restore this version
+        restore_confirm_title: Restore this version?
+        restore_confirm_body: This replaces the current content of {name} with the content from {date}.
+        restore_confirm_confirm: Restore
+        restore_confirm_cancel: Cancel
+        restore_success: Restored {name} to an earlier version.
+        restore_failed: Could not restore this version. The server may no longer have it.
+      deleted:
+        title: Recently deleted
+        empty: No recently deleted cards.
+        loading: Loading recently deleted cards…
+        load_failed: Could not load recently deleted cards.
+        deleted_when: 'Deleted {when}'
+        days_left: '{days} days left to restore'
+        restore: Restore
+        restore_success: Restored {name}.
+        restore_failed: Could not restore this card. The server may no longer have its content.
     activate: Activate
     active: Active
     active_badge: Currently Active
@@ -1775,6 +1837,24 @@ pages:
         title: QR scan failed
         failed: Failed to scan or connect with the QR code.
   system:
+    experimental:
+      refresh: Refresh policies
+      title: Experimental Features
+      description: Try features in development and manage your choices.
+      notice: Experimental features can change or be removed. Your choices apply to this device.
+      empty-title: No experiments available
+      load-error: Cloud features are unavailable. Local features remain available.
+      retry: Retry
+      reset: Use default
+      sources:
+        default: App default
+        local: Your device choice
+        global: Available to signed-in accounts
+        account: Available to your account
+      features:
+        character_card_sync:
+          title: Character card cloud sync
+          description: Sync your character cards to your account when you are signed in, so they reach your other devices. Off by default. A card you delete stays in your account history for 30 days.
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme
