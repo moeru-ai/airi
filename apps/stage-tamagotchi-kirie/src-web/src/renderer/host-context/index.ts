@@ -1,3 +1,4 @@
+export { useHostAndroidPermissions } from './android-permissions'
 export { useHostAppQuit } from './app'
 export { useHostAuth } from './auth'
 export { useHostAutoUpdater } from './auto-updater'

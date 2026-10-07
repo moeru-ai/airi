@@ -35,6 +35,7 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
+import AndroidPermissionsStep from '../components/onboarding/android-permissions-step.vue'
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
@@ -68,11 +69,18 @@ const onboardingStore = useOnboardingStore()
 const { showingSetup } = storeToRefs(onboardingStore)
 const { open: openOnboarding } = useHostOnboarding()
 const startupOnboarding = ref(false)
-const onboardingExtraSteps = computed(() => (
-  isAnalyticsAvailableInBuild()
-    ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
-    : []
-))
+const onboardingExtraSteps = computed(() => [
+  ...(
+    isAnalyticsAvailableInBuild()
+      ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+      : []
+  ),
+  ...(
+    isAndroidRenderer()
+      ? [{ id: 'step-permissions', component: AndroidPermissionsStep }]
+      : []
+  ),
+])
 
 const { isOutside: isOutsideWindow } = useHostMouseInWindow()
 const { isOutside } = useHostMouseInElement(controlsIslandElement)

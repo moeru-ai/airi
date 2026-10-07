@@ -77,6 +77,22 @@ export const airiMicrophonePermissionStateChanged = defineEventa<AiriMicrophoneP
 export const airiMicrophonePermissionPromptRequested = defineEventa<AiriMicrophonePermissionPromptPayload>('eventa:event:airi:permissions:microphone:prompt-requested')
 export const airiMicrophonePermissionPromptDismissed = defineEventa<{ promptId: string }>('eventa:event:airi:permissions:microphone:prompt-dismissed')
 
+export type AiriAndroidPermission = 'microphone' | 'notifications'
+
+export interface AiriAndroidPermissionPayload {
+  permission: AiriAndroidPermission
+}
+
+export interface AiriAndroidPermissionSnapshot {
+  granted: boolean
+}
+
+export const airiAndroidPermissionEventIds = {
+  check: 'eventa:invoke:airi:android:permission:check',
+  openSettings: 'eventa:invoke:airi:android:permission:open-settings',
+  request: 'eventa:invoke:airi:android:permission:request',
+} as const
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
