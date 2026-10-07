@@ -108,15 +108,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       if (clientAbort?.aborted)
         status = 499
       telemetry.failSpan(span, 'Router exhausted or unknown model')
-      deps.llmTracing.startChatGeneration({
-        protocol: 'chat-completions',
-        input: body.messages,
-        model: routeCtx.upstreamModel ?? requestModel,
-        requestId,
-        stream,
-        userId: input.userId,
-        sessionId: input.sessionId,
-      }).fail('Router exhausted or unknown model')
       telemetry.recordMetrics({ model: requestModel, status, type: 'chat', provider: routeCtx.provider, durationMs: Date.now() - startedAt, fluxConsumed: 0 })
       telemetry.recordRequestLog({ userId: input.userId, requestId, model: requestModel, requestedModel: requestedAlias, protocol: 'chat-completions', stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs: Date.now() - startedAt, errorBody: captureErrorMessage(err) })
       throw err
@@ -137,28 +128,10 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       routing: { triedUpstreams: routeCtx.triedUpstreams, triedKeys: routeCtx.triedKeys, lastStatus: routeCtx.lastStatus ?? undefined },
     }
     telemetry.setHttpStatus(span, response.status)
-    const langfuseModel = routeCtx.upstreamModel ?? requestModel
-
-    // Langfuse LLM-native generation: per-request prompt/completion record
-    // (input/output/model/usage) powering prompt trace, eval, and per-user/
-    // session cost. Use the router-resolved upstream model, not the client
-    // alias (`auto` / `chat-auto`), so Langfuse model-cost grouping matches the
-    // provider model that actually generated the tokens.
-    const generationTrace = deps.llmTracing.startChatGeneration({
-      protocol: 'chat-completions',
-      input: body.messages,
-      model: langfuseModel,
-      requestId,
-      stream,
-      userId: input.userId,
-      sessionId: input.sessionId,
-    })
-
     if (!response.ok) {
       observation.errorBody = routeCtx.errorBody ?? await captureErrorResponse(response.clone())
       telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId, model: requestModel })
       telemetry.failSpan(span, `Gateway ${response.status}`)
-      generationTrace.fail(`Gateway ${response.status}`)
       telemetry.recordMetrics({ model: requestModel, status: response.status, type: 'chat', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
       logger.withFields({ requestId, userId: input.userId, model: requestModel, status: response.status, durationMs })
         .warn('chat completion delivered with upstream error status')
@@ -174,7 +147,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
         observation,
         deps,
         response,
-        generationTrace,
         span,
         startedAt,
         durationMs,
@@ -194,7 +166,6 @@ export function chatCompletions(deps: V1RouteDeps): GatewayCallback<'chat-comple
       startedAt,
       deps,
       response,
-      generationTrace,
       span,
       durationMs,
       requestId,
@@ -213,7 +184,6 @@ function streamChatCompletion(input: {
   observation: RequestObservation
   deps: V1RouteDeps
   response: Response
-  generationTrace: ReturnType<V1RouteDeps['llmTracing']['startChatGeneration']>
   span: Parameters<RouteTelemetry['endSpan']>[0]
   startedAt: number
   durationMs: number
@@ -307,9 +277,6 @@ function streamChatCompletion(input: {
         const text = decoder.decode(value, { stream: true })
         await parserWriter.write(text)
         await writer.write(value)
-        // Accumulate the assistant completion for the Langfuse trace output
-        // (no-op when tracing is off). Module owns SSE parsing + the cap.
-        input.generationTrace.appendStreamChunk(text)
         if (receivedDone) {
           streamCompleted = true
           break
@@ -359,7 +326,6 @@ function streamChatCompletion(input: {
       }
       if (streamInterrupted || streamError) {
         input.telemetry.endSpan(input.span)
-        input.generationTrace.fail('Gateway stream interrupted')
         input.telemetry.recordMetrics({ model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
         input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel })
       }
@@ -404,7 +370,6 @@ function streamChatCompletion(input: {
 
         input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
         input.telemetry.endSpan(input.span)
-        input.generationTrace.succeed({ promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: feeFlux })
         input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
 
         input.telemetry.recordRequestLog({
@@ -451,7 +416,6 @@ async function completeNonStreamingChat(input: {
   startedAt: number
   deps: V1RouteDeps
   response: Response
-  generationTrace: ReturnType<V1RouteDeps['llmTracing']['startChatGeneration']>
   span: Parameters<RouteTelemetry['endSpan']>[0]
   durationMs: number
   requestId: string
@@ -464,9 +428,7 @@ async function completeNonStreamingChat(input: {
   logger: ReturnType<typeof useLogger>
 }) {
   // Non-streaming: parse response, bill, then return.
-  // Parse failure (malformed upstream JSON) must close both span and the
-  // Langfuse generation before bubbling up — otherwise the trace leaks.
-  // Mirrors the error-branch shape used above (router throw / !response.ok).
+  // Parse failure records the request before it bubbles up.
   let responseBody: unknown
   let responseText: string | undefined
   try {
@@ -479,7 +441,6 @@ async function completeNonStreamingChat(input: {
     const observation = { ...input.observation, status: 502, durationMs: Date.now() - input.startedAt }
     input.telemetry.failSpan(input.span, 'Failed to parse upstream response body')
     input.telemetry.recordRequestLog({ ...observation, userId: input.userId, requestId: input.requestId, model: input.requestModel })
-    input.generationTrace.fail('Failed to parse upstream response body')
     input.telemetry.recordMetrics({ model: input.requestModel, status: 502, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: 0 })
     throw createBadGatewayError('Invalid Chat Completions JSON response')
   }
@@ -506,14 +467,12 @@ async function completeNonStreamingChat(input: {
     observation.errorBody = captureErrorMessage(error)
     input.telemetry.recordRequestLog({ ...observation, ...usage, status, userId: input.userId, requestId: input.requestId, model: input.requestModel })
     input.telemetry.failSpan(input.span, 'Chat settlement failed')
-    input.generationTrace.fail('Chat settlement failed')
     input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status, type: 'chat', provider: input.routeCtxProvider, durationMs: observation.durationMs, fluxConsumed: feeFlux })
     throw error
   }
   input.telemetry.recordRequestLog({ ...observation, ...usage, userId: input.userId, requestId: input.requestId, model: input.requestModel })
   input.telemetry.recordUsageOnSpan(input.span, { ...usage, fluxConsumed: feeFlux })
   input.telemetry.endSpan(input.span)
-  input.generationTrace.succeed({ output: responseBody, promptTokens: usage.promptTokens, completionTokens: usage.completionTokens, fluxConsumed: feeFlux })
   input.telemetry.recordMetrics({ ...usage, model: input.requestModel, status: input.response.status, type: 'chat', provider: input.routeCtxProvider, durationMs: input.durationMs, fluxConsumed: feeFlux })
 
   input.logger.withFields({

@@ -2,6 +2,30 @@
 
 Shared core for stage
 
+## Experimental features
+
+Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
+Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.
+Cloud decides whether each granted Cloud flag allows account opt-in or uses direct control. Client registrations do not duplicate this mode.
+`cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They start disabled and retain choices per account on this device.
+`cloud-controlled` flags follow Cloud grants directly and never expose a switch.
+Missing Cloud grants disable Cloud features. Refresh failures and account changes clear grants, not local choices.
+`useCloudFetch()` in `composables/cloud.ts` shares the Cloud origin and authenticated fetch boundary. The store reads `GET /v1/feature-flags`.
+Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
+Keep authorization checks on the server.
+
+## Message times
+
+Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
+Timestamps use stored message times, the interface locale, and the device timezone. Messages without valid timestamps have no separator.
+Today's separators show only the time. Yesterday and the day before use relative labels.
+Older separators show the month and day. Dates outside the current year also show the year.
+Click a separator to toggle its full date and time. Relative labels refresh every minute while the history is open.
+`date-fns` handles calendar comparisons and localized formatting through `intlFormat` and `intlFormatDistance`.
+The session list displays and sorts by the latest valid user or assistant message timestamp.
+Sessions without dated conversation messages use their creation time. Loading messages updates the list from the stored history.
+Saving or synchronizing a session does not change its displayed activity time unless its messages change.
+
 ## Startup progress
 
 `useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.

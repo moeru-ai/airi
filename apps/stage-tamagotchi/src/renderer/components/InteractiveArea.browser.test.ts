@@ -454,15 +454,21 @@ describe('interactive area synchronized state', () => {
     }
   })
 
-  it('returns from hearing to mobile settings without stacked dialogs', async () => {
+  // https://github.com/moeru-ai/airi/pull/2832
+  // ROOT CAUSE:
+  //
+  // The mobile composer now owns the Hearing drawer. The old test still looked
+  // for the removed settings-menu entry and timed out before testing the drawer.
+  //
+  // Test the composer trigger and its focus restoration after the drawer closes.
+  it('closes hearing and restores focus to the mobile voice button', async () => {
     const { screen } = await renderArea(MobileInteractiveArea)
-    await screen.getByTestId('mobile-settings-button').click()
-    await screen.getByRole('button', { name: 'stage.mobile-tools.hearing' }).click()
+    const voiceButton = screen.getByTestId('mobile-voice-button')
+    await voiceButton.click()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).toBeVisible()
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).not.toBeInTheDocument()
     await userEvent.keyboard('{Escape}')
-    await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.hearing' })).not.toBeInTheDocument()
+    await expect.element(voiceButton).toHaveFocus()
   })
 
   it('expands the Electron input bubble around a reply preview', async () => {

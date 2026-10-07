@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import type { CardSyncState } from '@proj-airi/stage-ui/stores/modules/airi-card'
+
 import { CursorFloating } from '@proj-airi/stage-ui/components'
+import { computed } from 'vue'
 
 interface Props {
   id: string
@@ -10,15 +13,26 @@ interface Props {
   version: string
   consciousnessModel: string
   voiceModel: string
+  /** Absent when the user is not signed in, because nothing is uploaded then. */
+  syncState?: CardSyncState
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
 const emit = defineEmits<{
   (e: 'select'): void
   (e: 'activate'): void
   (e: 'delete'): void
   (e: 'edit'): void
 }>()
+
+const syncIcons = {
+  synced: 'i-solar:cloud-check-outline',
+  pending: 'i-solar:cloud-upload-outline',
+  refused: 'i-solar:cloud-cross-outline',
+} as const
+
+const syncIcon = computed(() => props.syncState ? syncIcons[props.syncState] : undefined)
 </script>
 
 <template>
@@ -49,6 +63,13 @@ const emit = defineEmits<{
           {{ name }}
         </h3>
         <div flex shrink-0 items-center gap-2>
+          <div
+            v-if="syncState && syncIcon"
+            :class="[syncIcon, syncState === 'refused' ? 'text-amber-500' : 'text-neutral-500 dark:text-neutral-400']"
+            text-sm
+            :title="$t(`settings.pages.card.sync.state.${syncState}`)"
+            :data-sync-state="syncState"
+          />
           <button
             rounded-lg p-1 text-neutral-500 transition-colors dark:text-neutral-400 hover="bg-neutral-200 dark:bg-neutral-700/50"
             title="Edit card"

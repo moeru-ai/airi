@@ -76,6 +76,66 @@ function createSessionsPinia() {
 }
 
 describe('sessions drawer orchestration', () => {
+  it('orders and labels chats by message time, not session saves', async () => {
+    const now = Date.now()
+    const pinia = createSessionsPinia()
+    const screen = await render(SessionsDrawer, {
+      props: { modelValue: false },
+      global: { plugins: [pinia, PiniaColada, createTestI18n()] },
+    })
+    const chatSession = useChatSessionStore(pinia)
+    chatSession.sessionMessages['session-a'] = [
+      { id: 'a', role: 'user', content: 'Hello', createdAt: now - 7_200_000 },
+      { id: 'system', role: 'system', content: 'Context', createdAt: now },
+    ]
+    chatSession.sessionMessages['session-b'] = [
+      { id: 'b', role: 'user', content: 'Earlier', createdAt: now - 14_400_000 },
+    ]
+    vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
+    await screen.rerender({ modelValue: true })
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('4 hours ago')
+    expect(Array.from(document.querySelectorAll('.session-select')).map(button => button.textContent?.trim())).toEqual([
+      expect.stringContaining('Chat A'),
+      expect.stringContaining('Chat B'),
+      expect.stringContaining('Chat C'),
+    ])
+    await chatSession.persistSessionMessages('session-b')
+    expect(chatSession.sessionMetas['session-b'].updatedAt).toBeGreaterThanOrEqual(now)
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('4 hours ago')
+    expect(document.querySelector('.session-select')?.textContent).toContain('Chat A')
+    chatSession.sessionMessages['session-b'].push({
+      id: 'reply',
+      role: 'assistant',
+      content: 'Reply',
+      slices: [],
+      tool_results: [],
+      createdAt: now - 3_600_000,
+    })
+    await expect.element(screen.getByRole('button', { name: /^Chat B/ })).toHaveTextContent('1 hour ago')
+    expect(document.querySelector('.session-select')?.textContent).toContain('Chat B')
+  })
+
+  it('uses creation time when no conversation message has a valid date', async () => {
+    const now = Date.now()
+    const pinia = createSessionsPinia()
+    const screen = await render(SessionsDrawer, {
+      props: { modelValue: false },
+      global: { plugins: [pinia, PiniaColada, createTestI18n()] },
+    })
+    const chatSession = useChatSessionStore(pinia)
+    chatSession.sessionMetas['session-a'].createdAt = now - 7_200_000
+    chatSession.sessionMetas['session-a'].updatedAt = now
+    chatSession.sessionMessages['session-a'] = [
+      { id: 'system', role: 'system', content: 'Context', createdAt: now },
+      { id: 'undated', role: 'user', content: 'No date' },
+      { id: 'invalid', role: 'user', content: 'Invalid date', createdAt: Number.NaN },
+    ]
+    vi.spyOn(chatSession, 'loadSession').mockResolvedValue(true)
+    await screen.rerender({ modelValue: true })
+    await expect.element(screen.getByRole('button', { name: /^Chat A/ })).toHaveTextContent('2 hours ago')
+  })
+
   // https://github.com/moeru-ai/airi/pull/2086#discussion_r3743073795
   it('preserves a newer selection while active-session deletion is pending for Issue #2085', async () => {
     // ROOT CAUSE:

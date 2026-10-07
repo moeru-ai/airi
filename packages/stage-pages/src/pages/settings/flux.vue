@@ -5,11 +5,12 @@ import { isFluxPurchaseDisabled, isStageTamagotchi } from '@proj-airi/stage-shar
 import { client } from '@proj-airi/stage-ui/composables/api'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { AIRI_PRIVACY_URL, AIRI_TERMS_URL } from '@proj-airi/stage-ui/constants/public-links'
+import { isSigningIn } from '@proj-airi/stage-ui/libs/auth'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Button, SelectTab, Skeleton } from '@proj-airi/ui'
-import { useEventListener } from '@vueuse/core'
+import { until, useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -345,6 +346,9 @@ async function handleBuy(stripePriceId: string) {
   try {
     if (!isAuthenticated.value) {
       await authStore.requestLogin()
+      // The sign-in starts on the next tick. Keep the spinner until it settles or the page unloads.
+      await nextTick()
+      await until(isSigningIn).toBe(false)
       return
     }
 
