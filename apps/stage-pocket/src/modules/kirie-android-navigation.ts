@@ -74,13 +74,13 @@ export function installKirieAndroidNavigation(router: Router) {
   router.forward = () => navigate(1)
   window.__airiKirieAndroidBack = () => {
     // NOTICE:
-    // Pocket leaves a catch-all route unchanged and reloads other routes on system Back.
+    // Pocket leaves the first and catch-all routes unchanged, then reloads later routes on system Back.
     // Capacitor sends this action to WebView navigation instead of Vue Router traversal.
-    // Source/context: recordings-android/android-back-final-7f930b29f-2026-10-07/events/.
+    // Source/context: recordings-android/voice-drawer-system-back-0ac49dcb4-2026-10-07/.
     // Remove this behavior when Pocket system Back uses Vue Router traversal.
     const isNotFoundRoute = router.currentRoute.value.matched
       .some(route => route.name === '/[...all]')
-    if (isNotFoundRoute)
+    if (position <= 0 || isNotFoundRoute)
       return
 
     nativeGo(0)

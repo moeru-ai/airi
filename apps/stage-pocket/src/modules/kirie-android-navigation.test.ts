@@ -133,11 +133,11 @@ describe('kirie Android route traversal', () => {
     expect(router.currentRoute.value.fullPath).toBe('/settings')
   })
 
-  it('reloads the first route on Android system Back', async () => {
+  it('keeps the first route unchanged on Android system Back', async () => {
     const router = createNavigation()
     await router.push('/')
     window.__airiKirieAndroidBack?.()
-    expect(router.options.history.go).toHaveBeenCalledWith(0)
+    expect(router.options.history.go).not.toHaveBeenCalled()
     expect(router.currentRoute.value.fullPath).toBe('/')
   })
 })
