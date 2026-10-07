@@ -16,8 +16,8 @@ function isAbort(cause: unknown) {
  * The enabled preference holds one extra subscription, so later consumers start without waiting for permission.
  */
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
-  const device = useAudioDevice()
   const selectedAudioInput = useLocalStorageManualReset<string>('settings/audio/input', '')
+  const device = useAudioDevice(selectedAudioInput)
   const enabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
   const error = ref<string>()
   let permissionStatus: PermissionStatus | undefined
@@ -42,7 +42,6 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     })
   }
 
-  watch(selectedAudioInput, id => void (device.selectedAudioInput.value = id), { immediate: true, flush: 'sync' })
   watch([enabled, device.input], hold, { flush: 'sync' })
 
   function initialize() {

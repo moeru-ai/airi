@@ -1,4 +1,5 @@
 import type { MicrophoneSource } from '@proj-airi/audio/browser'
+import type { Ref } from 'vue'
 
 import { microphoneSource } from '@proj-airi/audio/browser'
 import { AudioInput } from '@proj-airi/pipelines-audio'
@@ -33,21 +34,31 @@ function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_una
   return 'device_unavailable'
 }
 
+/** Prefers the system default microphone, then the first detected input. */
+function resolvePreferredAudioInput(audioInputs: readonly MediaDeviceInfo[]) {
+  return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
+}
+
 /**
  * Provides microphone selection and one shared input for the selected device.
  *
  * Consumers subscribe to `input` with their own abort signal. The first subscriber opens the microphone,
  * and the last one to leave releases it. Selecting another device creates a new input. Existing
  * subscriptions keep the old device until their owners move to the new input.
+ *
+ * `selectedAudioInput` can be a persisted preference. An empty or unavailable selection falls back to the
+ * preferred device once the browser lists device IDs, so controls show the device that capture uses.
  */
-export function useAudioDevice() {
+export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
   const { trackMicrophonePermissionDenied } = useAnalytics()
   const { devices, audioInputs } = useDevicesList({ requestPermissions: false })
-  const selectedAudioInput = ref('')
   const permissionGranted = ref(false)
   const audioInputOptions = computed(() => audioInputs.value.filter(device => device.deviceId).map(device => ({ label: device.label || device.deviceId, value: device.deviceId })))
+  // An empty selection and `default` both mean the system default. Filling the empty selection
+  // with `default` then keeps the same device and does not reopen the microphone.
+  const capturedDeviceId = computed(() => selectedAudioInput.value === 'default' ? '' : selectedAudioInput.value)
   const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: {
-    ...(selectedAudioInput.value ? { deviceId: { exact: selectedAudioInput.value } } : {}),
+    ...(capturedDeviceId.value ? { deviceId: { exact: capturedDeviceId.value } } : {}),
     autoGainControl: true,
     echoCancellation: true,
     noiseSuppression: true,
@@ -69,10 +80,18 @@ export function useAudioDevice() {
     return created
   }
 
+  // Browsers hide device IDs until permission, so the fallback waits for a list with IDs.
+  // A reset or an unplugged device also clears the selection, so the selection is watched too.
+  watch([audioInputs, selectedAudioInput], ([inputs, selected]) => {
+    const available = inputs.filter(device => device.deviceId)
+    if (available.length && !available.some(device => device.deviceId === selected))
+      selectedAudioInput.value = resolvePreferredAudioInput(available)
+  }, { immediate: true })
+
   // Subscribers move to the new input themselves. The old device closes when its last subscriber leaves.
-  watch(deviceConstraints, (constraints) => {
+  watch(capturedDeviceId, () => {
     stream.value = undefined
-    source.value = createSource(constraints)
+    source.value = createSource(deviceConstraints.value)
     input.value = markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS }))
   })
 

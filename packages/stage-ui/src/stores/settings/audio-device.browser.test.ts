@@ -60,6 +60,35 @@ describe('microphone settings through the browser adapter', () => {
     expect(devices.stream).toBeUndefined()
   })
 
+  // The Web Speech and Hearing test controls stay disabled while no microphone is selected.
+  it('selects the system default microphone after permission without reopening it', async () => {
+    const devices = mountDevices()
+    expect(devices.selectedAudioInput).toBe('')
+    const subscription = new AbortController()
+    const reader = devices.input.subscribe({ signal: subscription.signal }).getReader()
+    await reader.read()
+    const track = devices.stream!.getAudioTracks()[0]
+
+    expect(await devices.askPermission()).toBe(true)
+    const available = devices.audioInputOptions.map(option => option.value)
+    await expect.poll(() => devices.selectedAudioInput).toBe(available.includes('default') ? 'default' : available[0])
+
+    expect(devices.stream?.getAudioTracks()[0]).toBe(track)
+    expect(track.readyState).toBe('live')
+    subscription.abort()
+  })
+
+  it('selects the preferred microphone again after a reset', async () => {
+    const devices = mountDevices()
+    expect(await devices.askPermission()).toBe(true)
+    await expect.poll(() => devices.selectedAudioInput).not.toBe('')
+    const preferred = devices.selectedAudioInput
+
+    devices.resetState()
+
+    await expect.poll(() => devices.selectedAudioInput).toBe(preferred)
+  })
+
   it('keeps the selected device and exposes unavailable-device failures', async () => {
     localStorage.setItem('settings/audio/input', 'missing-test-microphone')
     const devices = mountDevices()
