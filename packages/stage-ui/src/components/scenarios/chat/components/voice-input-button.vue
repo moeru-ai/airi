@@ -33,7 +33,7 @@ const props = defineProps<{
   sessionId: string
   replyToMessageId?: string
   tools?: ChatToolReference[]
-  /** The element above the composer that holds the voice status bar. The bar is not shown without it. */
+  /** A flexible slot in the composer action row. The recording status and a waiting voice message show there. */
   statusElement: HTMLElement | null
 }>()
 const emit = defineEmits<{
@@ -276,6 +276,12 @@ function switchThumbClasses(on: boolean) {
     on ? 'translate-x-4' : 'translate-x-0.5',
   ]
 }
+/** Buttons in the status row share one size, so the row lines up. */
+const statusButtonClasses = [
+  'size-8 shrink-0 flex items-center justify-center rounded-full outline-none',
+  'text-neutral-500 hover:bg-neutral-900/10 dark:text-neutral-400 dark:hover:bg-white/10',
+  'transition-colors duration-150 motion-reduce:transition-none',
+]
 const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/80']
 </script>
 
@@ -396,93 +402,96 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
     </DropdownMenu>
   </div>
 
+  <!-- The status sits in the composer action row, so the composer keeps its height while recording. -->
   <Teleport v-if="statusElement" :to="statusElement">
-    <!-- Recording: level waveform, elapsed time, and cancel. Dictation text goes into the composer, not into this bar. -->
-    <div
-      v-if="active"
-      data-testid="voice-status-bar"
-      :data-phase="phase"
-      :class="[
-        'mb-2 h-10 flex items-center gap-3 rounded-xl px-3',
-        'bg-neutral-100/90 text-neutral-700 shadow-sm backdrop-blur-md dark:bg-neutral-900/90 dark:text-neutral-200',
-      ]"
+    <Transition
+      enter-active-class="transition-opacity duration-200 ease-out motion-reduce:transition-none"
+      enter-from-class="opacity-0"
+      leave-active-class="transition-opacity duration-150 ease-in motion-reduce:transition-none"
+      leave-to-class="opacity-0"
+      mode="out-in"
     >
-      <span :class="['size-2 shrink-0 rounded-full bg-red-500', phase === 'recording' && 'animate-pulse motion-reduce:animate-none']" aria-hidden="true" />
-      <span :class="['shrink-0 text-xs text-neutral-500 dark:text-neutral-400']">
-        {{ t(phase === 'processing' ? 'stage.chat.voice-composer.processing' : activeMode === 'audio' ? 'stage.chat.voice-composer.recording' : 'stage.chat.voice-composer.listening') }}
-      </span>
-      <VoiceWaveform :level="level" :active="phase === 'recording'" :class="['text-primary-500 dark:text-primary-300']" />
-      <span data-testid="voice-status-time" :class="['shrink-0 text-xs font-medium tabular-nums']">{{ elapsed }}</span>
-      <BasicButton
-        size="unset"
-        type="button"
-        data-testid="voice-status-cancel"
-        :aria-label="t('stage.chat.voice-composer.cancel')"
-        :title="t('stage.chat.voice-composer.cancel')"
-        :class="['size-7 shrink-0 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-900/10 dark:text-neutral-400 dark:hover:bg-white/10']"
-        @click="cancel"
+      <!-- Recording: level waveform, elapsed time, and cancel. Dictation text goes into the composer, not here. -->
+      <div
+        v-if="active"
+        data-testid="voice-status-bar"
+        role="status"
+        :aria-label="t(phase === 'processing' ? 'stage.chat.voice-composer.processing' : activeMode === 'audio' ? 'stage.chat.voice-composer.recording' : 'stage.chat.voice-composer.listening')"
+        :data-phase="phase"
+        :class="['h-8 min-w-0 flex flex-1 items-center gap-2 px-1 text-neutral-600 dark:text-neutral-300']"
       >
-        <span :class="['i-solar:close-circle-linear size-5']" aria-hidden="true" />
-      </BasicButton>
-    </div>
-    <!-- A voice message that waits for the user: Auto send was off, or the send failed. -->
-    <div
-      v-else-if="pendingMessage"
-      data-testid="voice-pending-bar"
-      :class="[
-        'mb-2 h-10 flex items-center gap-2 rounded-xl px-2',
-        'bg-neutral-100/90 text-neutral-700 shadow-sm backdrop-blur-md dark:bg-neutral-900/90 dark:text-neutral-200',
-      ]"
-    >
-      <audio
-        ref="player"
-        :src="pendingUrl"
-        preload="metadata"
-        :class="['hidden']"
-        @play="playing = true"
-        @pause="playing = false"
-        @ended="playing = false"
-        @timeupdate="playedSeconds = ($event.target as HTMLAudioElement).currentTime"
-        @loadedmetadata="durationSeconds = ($event.target as HTMLAudioElement).duration"
-      />
-      <BasicButton
-        size="unset"
-        type="button"
-        :aria-label="t(playing ? 'stage.chat.voice-composer.pause' : 'stage.chat.voice-composer.play')"
-        :class="['size-7 shrink-0 flex items-center justify-center rounded-full text-primary-600 hover:bg-primary-500/10 dark:text-primary-300']"
-        @click="togglePlayback"
-      >
-        <span :class="[playing ? 'i-solar:pause-bold' : 'i-solar:play-bold', 'size-4']" aria-hidden="true" />
-      </BasicButton>
-      <div :class="['h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
-        <div :class="['h-full rounded-full bg-primary-500']" :style="{ width: `${durationSeconds ? Math.min(100, playedSeconds / durationSeconds * 100) : 0}%` }" />
+        <span :class="['size-2 shrink-0 rounded-full bg-red-500', phase === 'recording' && 'animate-pulse motion-reduce:animate-none']" aria-hidden="true" />
+        <span v-if="phase === 'processing'" :class="['min-w-0 flex-1 truncate text-xs text-neutral-500 dark:text-neutral-400']">
+          {{ t('stage.chat.voice-composer.processing') }}
+        </span>
+        <VoiceWaveform v-else :level="level" :active="phase === 'recording'" :class="['text-primary-500 dark:text-primary-300']" />
+        <span data-testid="voice-status-time" :class="['shrink-0 text-xs tabular-nums']">{{ elapsed }}</span>
+        <BasicButton
+          size="unset"
+          type="button"
+          data-testid="voice-status-cancel"
+          :aria-label="t('stage.chat.voice-composer.cancel')"
+          :title="t('stage.chat.voice-composer.cancel')"
+          :class="statusButtonClasses"
+          @click="cancel"
+        >
+          <span :class="['i-solar:close-circle-linear size-5']" aria-hidden="true" />
+        </BasicButton>
       </div>
-      <span :class="['shrink-0 text-xs tabular-nums']">{{ formatDuration(playing ? playedSeconds : durationSeconds) }}</span>
-      <span v-if="pendingMessage.error" role="alert" :title="pendingMessage.error" :class="['max-w-40 truncate text-xs text-red-600 dark:text-red-400']">
-        {{ pendingMessage.error }}
-      </span>
-      <BasicButton
-        size="unset"
-        type="button"
-        data-testid="voice-pending-discard"
-        :aria-label="t('stage.chat.voice-composer.discard')"
-        :title="t('stage.chat.voice-composer.discard')"
-        :class="['size-7 shrink-0 flex items-center justify-center rounded-full text-neutral-500 hover:bg-neutral-900/10 dark:text-neutral-400 dark:hover:bg-white/10']"
-        @click="voice.discard(pendingMessage.id)"
+      <!-- A voice message that waits for the user: Auto send was off, or the send failed. -->
+      <div
+        v-else-if="pendingMessage"
+        data-testid="voice-pending-bar"
+        :class="['h-8 min-w-0 flex flex-1 items-center gap-1 text-neutral-600 dark:text-neutral-300']"
       >
-        <span :class="['i-solar:trash-bin-minimalistic-linear size-4']" aria-hidden="true" />
-      </BasicButton>
-      <BasicButton
-        size="unset"
-        type="button"
-        data-testid="voice-pending-send"
-        :aria-label="t(pendingMessage.error ? 'stage.chat.voice-composer.retry' : 'stage.chat.voice-composer.send')"
-        :title="t(pendingMessage.error ? 'stage.chat.voice-composer.retry' : 'stage.chat.voice-composer.send')"
-        :class="['size-7 shrink-0 flex items-center justify-center rounded-full bg-primary-500 text-white hover:bg-primary-600']"
-        @click="voice.send(pendingMessage.id)"
-      >
-        <span :class="[pendingMessage.error ? 'i-solar:refresh-linear' : 'i-solar:arrow-up-outline', 'size-4']" aria-hidden="true" />
-      </BasicButton>
-    </div>
+        <audio
+          ref="player"
+          :src="pendingUrl"
+          preload="metadata"
+          :class="['hidden']"
+          @play="playing = true"
+          @pause="playing = false"
+          @ended="playing = false"
+          @timeupdate="playedSeconds = ($event.target as HTMLAudioElement).currentTime"
+          @loadedmetadata="durationSeconds = ($event.target as HTMLAudioElement).duration"
+        />
+        <BasicButton
+          size="unset"
+          type="button"
+          :aria-label="t(playing ? 'stage.chat.voice-composer.pause' : 'stage.chat.voice-composer.play')"
+          :class="[statusButtonClasses, 'text-primary-600 dark:text-primary-300']"
+          @click="togglePlayback"
+        >
+          <span :class="[playing ? 'i-solar:pause-bold' : 'i-solar:play-bold', 'size-4']" aria-hidden="true" />
+        </BasicButton>
+        <div :class="['h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
+          <div :class="['h-full rounded-full bg-primary-500']" :style="{ width: `${durationSeconds ? Math.min(100, playedSeconds / durationSeconds * 100) : 0}%` }" />
+        </div>
+        <span :class="['shrink-0 px-1 text-xs tabular-nums']">{{ formatDuration(playing ? playedSeconds : durationSeconds) }}</span>
+        <span v-if="pendingMessage.error" role="alert" :title="pendingMessage.error" :class="['i-solar:danger-triangle-linear size-4 shrink-0 text-red-500']" />
+        <BasicButton
+          size="unset"
+          type="button"
+          data-testid="voice-pending-discard"
+          :aria-label="t('stage.chat.voice-composer.discard')"
+          :title="t('stage.chat.voice-composer.discard')"
+          :class="statusButtonClasses"
+          @click="voice.discard(pendingMessage.id)"
+        >
+          <span :class="['i-solar:trash-bin-minimalistic-linear size-4']" aria-hidden="true" />
+        </BasicButton>
+        <BasicButton
+          size="unset"
+          type="button"
+          data-testid="voice-pending-send"
+          :aria-label="t(pendingMessage.error ? 'stage.chat.voice-composer.retry' : 'stage.chat.voice-composer.send')"
+          :title="t(pendingMessage.error ? 'stage.chat.voice-composer.retry' : 'stage.chat.voice-composer.send')"
+          :class="[statusButtonClasses, 'bg-primary-500 text-white hover:bg-primary-600 dark:text-white dark:hover:bg-primary-600']"
+          @click="voice.send(pendingMessage.id)"
+        >
+          <span :class="[pendingMessage.error ? 'i-solar:refresh-linear' : 'i-solar:arrow-up-outline', 'size-4']" aria-hidden="true" />
+        </BasicButton>
+      </div>
+    </Transition>
   </Teleport>
 </template>

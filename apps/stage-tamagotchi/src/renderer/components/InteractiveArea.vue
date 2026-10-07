@@ -444,8 +444,6 @@ defineExpose({
             ],
         ]"
       >
-        <!-- The voice status bar sits at the top of the composer while a recording is open or waits to be sent. -->
-        <div ref="voice-status" :class="['shrink-0 empty:hidden']" />
         <div
           data-testid="chat-composer-previews"
           :class="[
@@ -594,7 +592,9 @@ defineExpose({
             </DropdownMenuPortal>
           </DropdownMenuRoot>
 
-          <div :class="['ml-auto flex items-center gap-1']">
+          <!-- The voice control shows its recording status here, so the composer keeps its height. -->
+          <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
+          <div :class="['flex shrink-0 items-center gap-1']">
             <VoiceInputButton
               v-model="messageInput"
               :status-element="voiceStatus"

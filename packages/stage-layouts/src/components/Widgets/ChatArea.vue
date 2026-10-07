@@ -132,8 +132,6 @@ watch(replyTarget, async (target) => {
 
 <template>
   <VoiceDrafts />
-  <!-- The voice status bar sits above the composer while a recording is open or waits to be sent. -->
-  <div ref="voiceStatus" />
   <div ref="composer" :class="['flex gap-2 <md:h-full', 'ph-no-capture']">
     <div
       :class="[
@@ -175,7 +173,7 @@ watch(replyTarget, async (target) => {
         @compositionend="isComposing = false"
       />
 
-      <div :class="['absolute bottom-2 left-2 z-10 flex items-center gap-2']">
+      <div :class="['absolute inset-x-2 bottom-2 z-10 flex items-center gap-2']">
         <button
           type="button"
           :aria-label="t('stage.chat.images.attach')"
@@ -184,45 +182,46 @@ watch(replyTarget, async (target) => {
         >
           <span :class="['i-solar:gallery-outline size-5']" />
         </button>
-      </div>
-
-      <div :class="['absolute bottom-2 right-2 z-10 flex items-center gap-1']">
-        <VoiceInputButton
-          v-model="messageInput"
-          :status-element="voiceStatus"
-          :session-id="chatSession.activeSessionId"
-          :reply-to-message-id="replyTarget?.message.id"
-          @recording-change="voiceActive = $event"
-          @sent="props.composer.clearReply()"
-          @submit="handleSend"
-          @configure="router.push('/settings/modules/hearing')"
-        />
-        <button
-          v-if="showStopAction"
-          data-testid="stop-speaking-button"
-          :class="[
-            composerActionButtonClass,
-            'bg-neutral-500/15 text-neutral-500 hover:bg-neutral-500/25 dark:bg-neutral-400/15 dark:text-neutral-300 dark:hover:bg-neutral-400/25',
-          ]"
-          :title="t('stage.chat.actions.stop')"
-          :aria-label="t('stage.chat.actions.stop')"
-          @click="stopActiveResponse"
-        >
-          <div class="i-solar:stop-outline size-5" />
-        </button>
-        <button
-          v-else
-          type="button"
-          :aria-label="t('stage.chat.actions.send')"
-          :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
-          :class="[
-            composerActionButtonClass,
-            'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',
-          ]"
-          @click="handleSend"
-        >
-          <span :class="['i-solar:arrow-up-outline size-5']" />
-        </button>
+        <!-- The voice control shows its recording status here, so the composer keeps its height. -->
+        <div ref="voiceStatus" :class="['min-w-0 flex flex-1 items-center']" />
+        <div :class="['flex shrink-0 items-center gap-1']">
+          <VoiceInputButton
+            v-model="messageInput"
+            :status-element="voiceStatus"
+            :session-id="chatSession.activeSessionId"
+            :reply-to-message-id="replyTarget?.message.id"
+            @recording-change="voiceActive = $event"
+            @sent="props.composer.clearReply()"
+            @submit="handleSend"
+            @configure="router.push('/settings/modules/hearing')"
+          />
+          <button
+            v-if="showStopAction"
+            data-testid="stop-speaking-button"
+            :class="[
+              composerActionButtonClass,
+              'bg-neutral-500/15 text-neutral-500 hover:bg-neutral-500/25 dark:bg-neutral-400/15 dark:text-neutral-300 dark:hover:bg-neutral-400/25',
+            ]"
+            :title="t('stage.chat.actions.stop')"
+            :aria-label="t('stage.chat.actions.stop')"
+            @click="stopActiveResponse"
+          >
+            <div class="i-solar:stop-outline size-5" />
+          </button>
+          <button
+            v-else
+            type="button"
+            :aria-label="t('stage.chat.actions.send')"
+            :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+            :class="[
+              composerActionButtonClass,
+              'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',
+            ]"
+            @click="handleSend"
+          >
+            <span :class="['i-solar:arrow-up-outline size-5']" />
+          </button>
+        </div>
       </div>
     </div>
   </div>
