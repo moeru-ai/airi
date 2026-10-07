@@ -24,6 +24,34 @@ chat:
     title: 尚未正确配置聊天 Provider
     description: 请先前往设置页面选择并验证一个 Provider，再发送消息。
     action: 打开 Provider 设置
+  voice-message:
+    title: 语音消息
+    record: 录制消息
+    finish: 结束录制
+    dictate: 按住说话转文字
+    recording: 正在录制
+    starting: 正在启动麦克风
+    preparing: 正在准备音频预览
+    preview: 已录制的语音消息
+  voice-preview:
+    processing: 正在完成转录
+    device: 音频输入设备
+    device-description: 选择本次录音使用的麦克风。
+    device-placeholder: 选择麦克风
+    level: 输入音量
+    activity: 语音活动
+    silence: 静音
+    speech: 人声
+    threshold: 检测阈值
+    sensitivity: 灵敏度
+    sensitivity-description: 调整人声指示器的检测阈值。
+    start: 开始录音
+    stop: 结束录音
+    failed: 音频操作失败。
+  voice-draft:
+    title: 语音草稿
+    select: '查看草稿 {number}'
+    discard: 丢弃草稿
   voice-input: 语音输入
   error-details:
     show: 查看详情
