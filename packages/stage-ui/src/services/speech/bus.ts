@@ -70,6 +70,8 @@ export interface VoiceDraft {
   readonly sessionId: string
   readonly rawText: string
   text: string
+  /** The host is sending the draft. A failed send clears this flag and keeps the draft. */
+  readonly sending?: boolean
 }
 
 /** A snapshot replaces earlier presentation state. Commands still target the original request or draft identity. */

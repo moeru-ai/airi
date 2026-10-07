@@ -1,6 +1,6 @@
 import en from '@proj-airi/i18n/locales/en'
 
-import { createPinia, disposePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
@@ -8,6 +8,7 @@ import { createI18n } from 'vue-i18n'
 import VoiceDrafts from './voice-drafts.vue'
 
 import { getSpeechBusContext, voiceSnapshotChanged } from '../../../../services/speech/bus'
+import { useChatSessionStore } from '../../../../stores/chat/session-store'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
@@ -18,21 +19,22 @@ afterEach(() => {
   localStorage.clear()
 })
 
-function renderComposer() {
+function renderComposer(attrs: { onPresence?: (visible: boolean) => void } = {}) {
   const pinia = createPinia()
+  setActivePinia(pinia)
   cleanups.push(() => disposePinia(pinia))
   // The inlay gives the composer a fixed height. Long text then scrolls inside it.
   const container = document.body.appendChild(Object.assign(document.createElement('div'), { style: 'height: 160px; width: 320px' }))
   cleanups.push(() => container.remove())
   return render(VoiceDrafts, {
     container,
-    props: { variant: 'composer' },
+    props: { variant: 'composer', ...attrs },
     global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', messages: { en } })] },
   })
 }
 
 describe('voiceDrafts composer variant', () => {
-  it('keeps the draft editable and separates earlier and newest interim text while speech is transcribed', async () => {
+  it('continues the draft with live speech in one read-only paragraph', async () => {
     const view = renderComposer()
     getSpeechBusContext().emit(voiceSnapshotChanged, {
       connected: true,
@@ -50,12 +52,48 @@ describe('voiceDrafts composer variant', () => {
       },
     })
 
-    await expect.element(view.getByTestId('voice-draft-live')).toBeVisible()
-    await expect.element(view.getByRole('textbox', { name: 'Voice draft' })).toHaveValue('First sentence, rephrased.')
-    await expect.element(view.getByRole('textbox', { name: 'Voice draft' })).toBeEnabled()
+    const live = view.getByTestId('voice-draft-live')
+    await expect.element(live).toHaveTextContent('First sentence, rephrased. Second part. Still talking')
+    expect(view.getByRole('textbox', { name: 'Voice draft' }).query()).toBeNull()
     await expect.element(view.getByText('Second part.')).toHaveAttribute('data-tier', 'interim')
     await expect.element(view.getByText('Still talking')).toHaveAttribute('data-tier', 'latest')
+    await expect.element(view.getByText('Listening')).toBeVisible()
     await expect.element(view.getByRole('button', { name: 'Send message' })).toBeDisabled()
+  })
+
+  it('hides a draft while the host sends it and reports that nothing is shown', async () => {
+    const presence: boolean[] = []
+    const view = renderComposer({ onPresence: (visible: boolean) => presence.push(visible) })
+    const draft = { id: 'draft', sessionId: 'alice', rawText: 'hello', text: 'Hello there.' }
+    const context = getSpeechBusContext()
+    context.emit(voiceSnapshotChanged, { connected: true, drafts: [draft], frontDraftId: 'draft' })
+    await expect.element(view.getByRole('textbox', { name: 'Voice draft' })).toHaveValue('Hello there.')
+
+    context.emit(voiceSnapshotChanged, { connected: true, drafts: [{ ...draft, sending: true }], frontDraftId: 'draft' })
+
+    await expect.element(view.getByRole('region', { name: 'Voice draft' })).not.toBeInTheDocument()
+    expect(presence).toEqual([false, true, false])
+  })
+
+  it('switches between drafts of different conversations by name', async () => {
+    const view = renderComposer()
+    const sessions = useChatSessionStore()
+    sessions.sessionMetas = {
+      alice: { sessionId: 'alice', userId: 'user', characterId: '', title: 'Trip plans', createdAt: 0, updatedAt: 0 },
+      bob: { sessionId: 'bob', userId: 'user', characterId: '', title: 'Groceries', createdAt: 0, updatedAt: 0 },
+    }
+    getSpeechBusContext().emit(voiceSnapshotChanged, {
+      connected: true,
+      drafts: [
+        { id: 'first', sessionId: 'alice', rawText: 'a', text: 'Book the train.' },
+        { id: 'second', sessionId: 'bob', rawText: 'b', text: 'Buy milk.' },
+      ],
+      frontDraftId: 'second',
+    })
+
+    await expect.element(view.getByRole('button', { name: 'Groceries' })).toHaveAttribute('aria-pressed', 'true')
+    await expect.element(view.getByRole('button', { name: 'Trip plans' })).toHaveAttribute('aria-pressed', 'false')
+    await expect.element(view.getByRole('textbox', { name: 'Voice draft' })).toHaveValue('Buy milk.')
   })
 
   it('keeps the newest live text scrolled into view', async () => {
