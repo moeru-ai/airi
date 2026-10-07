@@ -36,10 +36,9 @@ The comparison covers 26 getters, including navigation, storage, file access, me
 
 The multiple-window tests compare the loaded default and execute a real `window.open` call.
 
-The startup regression executes production `onMainCreate` through `StartupActivity`.
-It loads the packaged fixture and checks native string replies, route clicks, input focus, and document retention.
-Run this test on a WebView without ArrayBuffer messages, including Android 14's default WebView 113.
-Unlike the callback fixtures, this scenario does not supply a pre-created WebView.
+The startup regression creates the WebView through Kirie's Android plugin.
+It then attaches the AIRI Android plugin to the same WebView.
+The test loads the packaged universal-page fixture and checks native replies, route clicks, and input focus.
 
 The notification action fixture checks Pocket's installed Local Notifications source contract.
 It verifies launch-intent extras, the Eventa callback body, and one-shot storage cleanup after a tap.

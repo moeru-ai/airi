@@ -87,12 +87,6 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.EditText;
-import android.widget.FrameLayout;
-
-import ai.moeru.kirie.android.KirieAssetRequestHandler;
-import ai.moeru.kirie.android.DebugTlsBypassWebViewClient;
-import ai.moeru.kirie.android.KirieRuntimeConfig;
-import ai.moeru.kirie.android.KirieUrlResolver;
 
 import androidx.activity.ComponentActivity;
 import androidx.activity.OnBackPressedCallback;
@@ -216,8 +210,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private OnBackPressedCallback backPressedCallback;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private WebView browserWebView;
-    private FrameLayout browserHost;
-    private String browserUrl = "res://src-web/dist/android/index.html";
     private ViewGroup browserInsetsView;
     private ViewTreeObserver.OnGlobalLayoutListener browserImeLayoutListener;
     private int browserInsetsPaddingLeft;
@@ -295,35 +287,9 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             .getOnBackPressedDispatcher()
             .addCallback(backPressedCallback);
         applySystemBarStyle(activity);
-        browserHost = new FrameLayout(activity);
-        browserHost.setBackgroundColor(activity.getColor(R.color.airi_startup_window_background));
-        // NOTICE:
-        // Kirie 0.8.0 requires ArrayBuffer messages before it attaches or loads a WebView.
-        // Android uses string Eventa messages, as Pocket uses its string Capacitor bridge.
-        // Source: KirieWebViewManager.installMessageChannels and Capacitor 8.5.0 MessageHandler.
-        // Remove this ownership split when Kirie provides creation without desktop IPC requirements.
-        WebView webView = new WebView(activity);
-        webView.setLayoutParams(new ViewGroup.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
-        ));
-        webView.setBackgroundColor(0);
-        webView.getSettings().setJavaScriptEnabled(true);
-        webView.getSettings().setDomStorageEnabled(true);
-        KirieRuntimeConfig config = KirieRuntimeConfig.Companion.from(activity);
-        if (config.getEnableWebInspector()) {
-            WebView.setWebContentsDebuggingEnabled(true);
-        }
-        webView.setWebViewClient(new DebugTlsBypassWebViewClient(
-            browserUrl,
-            config.getAllowTlsBypass(),
-            new KirieAssetRequestHandler(activity.getAssets())
-        ));
-        browserHost.addView(webView);
-        installBrowserChannel(activity, 1);
-        loadResolvedBrowserUrl(webView, browserUrl);
+        installBrowserChannel(activity, 100);
         dispatchPendingUrlOpen();
-        return browserHost;
+        return null;
     }
 
     @Override
@@ -359,9 +325,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             hostWebSocketBridge.dispose();
             hostWebSocketBridge = null;
         }
-        browserHost.removeView(browserWebView);
-        browserWebView.destroy();
-        browserHost = null;
         browserWebView = null;
         eventaReplyProxy = null;
         notificationActionListenerRegistered = false;
@@ -454,24 +417,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
         Activity activity = getActivity();
         applySystemBarStyle(activity);
         installBrowserChannel(activity, 100);
-    }
-
-    @UsedByGodot
-    public void loadBrowserUrl(String url) {
-        // Scene initialization adopts the already running page without resetting its startup or input state.
-        if (browserUrl.equals(url)) {
-            return;
-        }
-        browserUrl = url;
-        browserWebView.post(() -> loadResolvedBrowserUrl(browserWebView, url));
-    }
-
-    private void loadResolvedBrowserUrl(WebView webView, String url) {
-        try {
-            webView.loadUrl(KirieUrlResolver.INSTANCE.resolveForWebView(url));
-        } catch (IllegalArgumentException error) {
-            Log.e("AiriAndroid", "Cannot resolve browser URL: " + url, error);
-        }
     }
 
     @UsedByGodot
@@ -579,8 +524,8 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             return;
         }
 
-        activity.runOnUiThread(() -> {
-            WebView webView = findWebView(browserHost);
+        mainHandler.post(() -> {
+            WebView webView = findWebView(activity.getWindow().getDecorView());
             if (webView == null) {
                 mainHandler.postDelayed(
                     () -> installBrowserChannel(activity, attemptsRemaining - 1),
@@ -1037,7 +982,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     private void installExternalNavigation(Activity activity, WebView webView) {
         // Kirie owns asset interception and development TLS handling.
         WebViewClient kirieClient = webView.getWebViewClient();
-        KirieAssetRequestHandler assets = new KirieAssetRequestHandler(activity.getAssets());
         webView.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
@@ -1049,14 +993,6 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 WebView view,
                 WebResourceRequest request
             ) {
-                Uri url = request.getUrl();
-                String path = url.getEncodedPath();
-                if (EVENTA_ORIGIN.equals(url.getScheme() + "://" + url.getAuthority())
-                    && path != null && !path.startsWith("/src-web/dist/")) {
-                    // Pocket's root asset URLs resolve inside the Android renderer's packaged web root.
-                    String assetPath = path.equals("/") ? "/index.html" : path;
-                    return assets.open(Uri.parse(EVENTA_ORIGIN + "/src-web/dist/android" + assetPath));
-                }
                 return kirieClient.shouldInterceptRequest(view, request);
             }
 

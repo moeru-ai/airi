@@ -1,9 +1,10 @@
 # Stage Tamagotchi Kirie
 
-This application runs the Stage Tamagotchi Vue renderer in a Godot desktop host.
-Kirie supplies the WebView and IPC transport. AIRI owns application services and native windows.
+This application runs the Stage Tamagotchi Vue renderer in a Godot host.
+The shared `src-web` renderer supports desktop and Android exports.
+Kirie supplies the WebView and IPC transport. AIRI owns application services and native surfaces.
 
-Use this application for Kirie desktop development.
+Use this application for Kirie desktop and Android development.
 The Electron application remains supported and supplies the behavior reference.
 Production packaging remains deferred. Windows CEF shutdown still fails.
 

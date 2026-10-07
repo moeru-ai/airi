@@ -4,36 +4,10 @@ import { Button, FieldInput } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { toast } from 'vue-sonner'
 
-import { isKirieAndroid } from '../../modules/kirie-android-eventa'
-import { scheduleKirieAndroidNotification } from '../../modules/kirie-android-notifications'
-import {
-  checkKirieAndroidPermission,
-  requestKirieAndroidPermission,
-} from '../../modules/kirie-android-permissions'
-
 const title = useLocalStorage('devtools/notifications/title', '')
 const content = useLocalStorage('devtools/notifications/content', '')
-const notificationPermissionRequested = useLocalStorage('permissions/notifications/requested', false)
 
 async function sendNotification() {
-  if (isKirieAndroid) {
-    const permission = await checkKirieAndroidPermission('notifications')
-    if (!permission.granted && notificationPermissionRequested.value)
-      return toast.error('Notification permission denied, please enable it in settings')
-    if (!permission.granted) {
-      notificationPermissionRequested.value = true
-      await requestKirieAndroidPermission('notifications')
-    }
-
-    await scheduleKirieAndroidNotification({
-      at: Date.now() + 5000,
-      body: content.value,
-      id: Math.floor(Math.random() * 1000000),
-      title: title.value,
-    })
-    return
-  }
-
   const permission = await LocalNotifications.checkPermissions()
   if (permission.display === 'denied') {
     return toast.error('Notification permission denied, please enable it in settings')

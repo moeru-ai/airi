@@ -87,107 +87,41 @@ On an emulator or physical device, compare both applications through these steps
 7. Return from Android settings after permission changes. Compare native permission state and subsequent audio capture.
 8. On a physical device, record microphone audio through the normal hearing flow and confirm usable input.
 
-### Android microphone grant verification on 2026-10-07
+## Invalidated Android renderer evidence
 
-Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
-The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
-Both applications started with cleared data and the same skipped-onboarding fixture.
+Recordings from commit `024d35aca` through `dc02e73e9` packaged the stage-pocket Web build inside Kirie.
+They do not establish parity for the universal Kirie renderer.
+Native host results remain valid only when they do not depend on the packaged page.
 
-Native taps opened the voice drawer and the Android microphone prompt.
-Both prompts displayed `Allow AIRI to record audio?` with the same three actions and bounds.
-The flow selected `While using the app`, enabled microphone input, and closed the drawer through its backdrop.
-Both drawers displayed the same controls and enabled state.
-Both closures focused the `Voice input` button and retained an 839 CSS-pixel viewport.
+## Universal Android renderer correction, 2026-10-07
 
-Android AppOps reported `RECORD_AUDIO: allow` and `running` for both applications.
-Android AudioService reported `mRecordingActive=true` for both package UIDs.
-This establishes a live WebView input session on the emulator.
-It does not establish useful physical microphone samples or successful transcription.
+Kirie Android now builds and packages `src-web/dist/index.html`.
+The Android build no longer invokes the stage-pocket Vite build.
+Stage-pocket source matches `origin/main` after removing the Kirie-only renderer bridge.
 
-The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
-The Kirie APK SHA-256 is `c7131b5e6828fa791b896576872e71c99e6f286b3c97bd3c11e1ce0496a31410`.
-The raw recording hashes are `9398a5fb32831c5f2aab573df7e47aebd48738897e35c3da1363043c4a6ae55b` and `bf0bc9814ebcada9ba49d5526af086f388396f977a1c3914c96856865c3dd0ee`.
-The aligned comparison hash is `db99ae11b3861950f759c3b31d3201ba9a91847075f037164cb844b39076cfe7`.
+| Command | Result |
+| --- | --- |
+| `pnpm --config.verifyDepsBeforeRun=false -F @proj-airi/stage-pocket typecheck` | Passed. |
+| `pnpm --config.verifyDepsBeforeRun=false -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
+| `dotnet build --no-restore` | Passed with no warnings or errors. |
+| `pnpm --config.verifyDepsBeforeRun=false -F @proj-airi/stage-tamagotchi-kirie build` | Passed. |
+| `pnpm --config.verifyDepsBeforeRun=false -F @proj-airi/stage-tamagotchi-kirie exec kirie export android --build=false` | Passed. |
+| Android WebView parity fixture `assembleDebug` | Passed with JDK 21 and Gradle 8.14.3. |
+| Android WebView parity fixture `assembleDebugAndroidTest` | Blocked because the offline cache lacked AndroidX Test 1.3.0 and Runner 1.7.0. |
+| `unzip -l apps/stage-tamagotchi-kirie/dist/kirie/android/debug.apk` | Found the universal HTML files and no Android renderer directory. |
+| `pnpm --config.verifyDepsBeforeRun=false -F @proj-airi/stage-pocket lint` | Passed with one existing warning. |
+| `pnpm --config.verifyDepsBeforeRun=false lint` | Failed with 4,808 existing errors, mainly from generated Kirie iOS framework files. |
 
-The evidence directory is `recordings-android/voice-permission-drawer-aea95f68d-2026-10-07/`.
-It contains both raw recordings, trimmed recordings, contact sheets, and the side-by-side comparison.
-All evidence files remain untracked, and no ignore rule changed.
+The debug APK SHA-256 was `499c21ff298c2cc20d9faac2fa387104b6d1c9ca59891ac288b8ee907d1b3c08`.
+It was 501,304,381 bytes.
+The API 36 emulator used WebView 133 and the host NVIDIA GeForce RTX 3060.
+The application process remained alive after a clean-data launch.
+Chrome DevTools confirmed the universal renderer URL and Kirie's stage controls.
+Godot logged nonfatal Vulkan presentation errors while the WebView remained interactive.
 
-### Android experimental feature verification on 2026-10-07
-
-Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
-The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
-Both applications started with the same skipped-onboarding fixture and an empty `settings/feature-flags` value.
-
-Native taps opened Settings, All settings, System, and Experimental Features.
-Both pages displayed the disabled character card cloud sync switch and the `App default` source.
-Native taps enabled the switch, returned to System, and reopened Experimental Features.
-Both reopened pages displayed the enabled switch, `Your device choice`, and `Use default`.
-
-Each application then received a complete process stop and launcher restart.
-Native taps repeated the full navigation path from the stage.
-Both applications retained `{"[\"character-card-sync\",null]":true}` and displayed the enabled switch.
-
-The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
-The Kirie APK SHA-256 is `c7131b5e6828fa791b896576872e71c99e6f286b3c97bd3c11e1ce0496a31410`.
-The Pocket raw hashes are `1651e2f8cd1fa2fc802d83b8a83d5768f1a82bb2dce99b5e895d808f64f2aac9` and `a2d106bcb614d14295395b1a00fac9a2f7b76209e9c05c0fc22471f673caf31e`.
-The Kirie raw hashes are `26a5627ba6d1414ee54d88cdbf9e80fb2a30099f60a1a0a9eebbc6445201e437` and `900f37cbfae86bd4dbb6ffe6d3c43c0428b7d0fb721b646719298229292d7b16`.
-The event-aligned comparison hash is `7c9db6a57bceec92ec6a9d51d8bd3de3df890a4b27f4db1283cde943abc77bb8`.
-
-The evidence directory is `recordings-android/experimental-feature-persistence-9c5bcb87b-2026-10-07/`.
-It contains four raw recordings, an alignment contact sheet, and the side-by-side comparison.
-All evidence files remain untracked, and no ignore rule changed.
-
-### Android session draft verification on 2026-10-07
-
-Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
-The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
-Each application started with one local `New chat` session and an empty composer.
-
-Native taps entered `draftA`, closed the keyboard, opened Conversations, and created another session.
-Both applications retained `draftA` in the new active session.
-The reopened drawer displayed two `New chat` rows and marked the new row as current.
-
-Native taps exposed the new row's Delete action and selected it.
-Both applications removed the new session and reactivated the original session.
-Both composers still contained `draftA` after deletion.
-This retains Pocket's current cross-session draft behavior.
-
-The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
-The Kirie APK SHA-256 is `c7131b5e6828fa791b896576872e71c99e6f286b3c97bd3c11e1ce0496a31410`.
-The Pocket raw recording hash is `fda32c84163c62ff1687b5a53daa4ef01a40634559f98a36751fc151aae69ac7`.
-The Kirie raw recording hash is `157570d9628c45efbca3af12671579710d8f117204d571592ceefa943257045d`.
-The event-aligned comparison hash is `541d1df9284b17a804d1de764d6c2f5a9f4960a96ce4df0d9c0c6855e7ece322`.
-
-The evidence directory is `recordings-android/session-draft-delete-8f8939c7e-2026-10-07/`.
-It contains both raw recordings, an alignment contact sheet, and the side-by-side comparison.
-All evidence files remain untracked, and no ignore rule changed.
-
-### Android root drawer Back verification on 2026-10-07
-
-Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
-The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
-Each application started on the first history entry with the voice drawer closed.
-
-Before correction, Android system Back reloaded Kirie's first route and closed the open drawer.
-Pocket kept the route and drawer unchanged because its WebView history had no earlier entry.
-The Kirie navigation adapter now ignores system Back when its mirrored history position is zero.
-Later matched routes retain Pocket's reload behavior, and catch-all routes remain unchanged.
-
-Native taps opened the voice drawer in each application.
-Android system Back left both drawers open with the same controls and backdrop.
-A final native tap on the backdrop closed both drawers.
-The seven-second comparison aligns all three events and removes extra leading and trailing frames.
-
-The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
-The Kirie APK SHA-256 is `3c93c9404b1bcb1cd692b4de92e926dcb1ccaa0789c4a28fa2ffb35a5f37b2b1`.
-The Pocket raw recording hash is `0798ed2ee8644b842a15df9b5ef438cd8aa5767e16a1dc0ca8c1a7eeaed41fef`.
-The Kirie raw recording hash is `efd074cc8dd3ed1d84940db8f9f5ce624557eb3f9b270e2bc3583e66b3099bb9`.
-The event-aligned comparison hash is `cdf707c4b0447091a4bb2c22637e33a7a184875ea9569f877445653116e924dc`.
-
-The evidence directory is `recordings-android/voice-drawer-system-back-0ac49dcb4-2026-10-07/`.
-It contains both raw recordings, contact sheets, and the labeled side-by-side comparison.
-All evidence files remain untracked, and no ignore rule changed.
+The node Vitest project passed 10 files and 32 tests.
+The browser project could not start because the environment lacked `libglib-2.0.so.0`.
+This environment failure happened after the node tests passed.
 
 ## Windows acceptance evidence
 
