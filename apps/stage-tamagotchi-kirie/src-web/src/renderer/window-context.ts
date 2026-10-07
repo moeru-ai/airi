@@ -1,3 +1,4 @@
+import type { KirieRuntime } from '@gd-kirie/ipc'
 import type { LeadershipMode } from '@proj-airi/stage-ui/libs/pinia'
 
 /** Describes the synchronization and Stage runtime policy for one renderer. */
@@ -12,6 +13,11 @@ export interface RendererWindowContext {
    * Deferred server, plugin, MCP, and Artistry services do not start during renderer setup.
    */
   stageRuntime: 'full' | 'minimal'
+}
+
+/** Returns whether Kirie runs this renderer in an Android WebView. */
+export function isAndroidRenderer(runtime: KirieRuntime | undefined = globalThis.window?.kirie): boolean {
+  return runtime?.platform.os === 'android' && runtime.platform.backend === 'webview'
 }
 
 function normalizeRoutePath(routePath: string) {

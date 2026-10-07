@@ -37,7 +37,7 @@ import { useLanguage } from './composables/use-language'
 import { initializeHostContext, startHostOwnedSpotlightShortcut, useHostMicrophonePermission } from './host-context'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import { useTamagotchiBuiltinToolsStore } from './stores/tools/built-in'
-import { resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
+import { isAndroidRenderer, resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
 
 const { isDark: dark } = useTheme()
 const settingsStore = useSettings()
@@ -224,12 +224,18 @@ onMounted(async () => {
     })
   }
 
+  if (isAndroidRenderer()) {
+    await fullStageRuntime?.initialize()
+    await chatStore.initialize(syncedPinia)
+  }
+  else {
+    await chatStore.initialize(syncedPinia)
+    await fullStageRuntime?.initialize()
+  }
+
   await microphonePermission.refresh().catch((error) => {
     console.warn('[App] Failed to load microphone permission state:', error)
   })
-
-  await chatStore.initialize(syncedPinia)
-  await fullStageRuntime?.initialize()
 })
 
 watch(themeColorsHue, () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
+import { isAndroidRenderer, resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
 
 describe('resolveInitialRendererRoutePath', () => {
   // ROOT CAUSE:
@@ -40,5 +40,15 @@ describe('resolveRendererWindowContext', () => {
     expect(() => resolveRendererWindowContext('')).toThrow('Missing synced-leader query')
     expect(() => resolveRendererWindowContext('?synced-leader=unknown')).toThrow('Invalid synced-leader query: unknown')
     expect(() => resolveRendererWindowContext('?synced-leader=false&stage-runtime=unknown')).toThrow('Invalid stage-runtime query: unknown')
+  })
+})
+
+describe('isAndroidRenderer', () => {
+  it('detects the Android WebView runtime', () => {
+    expect(isAndroidRenderer({ platform: { backend: 'webview', os: 'android' } })).toBe(true)
+  })
+
+  it('keeps desktop Kirie runtimes separate', () => {
+    expect(isAndroidRenderer({ platform: { backend: 'godot-cef', os: 'linux' } })).toBe(false)
   })
 })

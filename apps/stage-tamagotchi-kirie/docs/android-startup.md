@@ -37,6 +37,29 @@ A fresh data directory had no profile or selected model, so the existing stage r
 This run establishes the renderer source and native handoff only.
 It does not establish Android interaction parity.
 
+## Fresh-data onboarding
+
+Kirie now opens onboarding inside the main Android WebView.
+Desktop builds keep the separate onboarding window.
+
+The Android renderer initializes stage data before chat history.
+This order prevents an unavailable Android chat dependency from blocking the first-run screen.
+
+The 2026-10-07 comparison used Android API 35 and WebView 124.
+The emulator used the host NVIDIA GeForce RTX 3060 through Vulkan 1.3.
+Both recordings started on the launcher and opened the app at second 4.
+Both apps displayed the shared Welcome page at second 8.
+The aligned recordings end at second 14 and remove the remaining static frames.
+
+The Kirie debug APK SHA-256 was `ff6ba7e0788bedd050448aec58aa18710e2173dac17a70b19f641a27c32b4f74`.
+Temporary evidence is in `recordings-android/fresh-onboarding-812397724-2026-10-07/`.
+The comparison places stage-pocket on the left and Kirie on the right.
+The evidence directory remains untracked.
+
+The same APK crashed after WebView creation on Android API 36 with WebView 133.
+API 35 remained alive during the complete recording.
+This WebView 133 failure needs a separate native investigation.
+
 ## Reference boundary
 
 Stage-pocket supplies the Android behavior reference for native and Web interactions.
