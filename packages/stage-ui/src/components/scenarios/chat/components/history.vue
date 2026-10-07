@@ -263,8 +263,10 @@ function emitToolCallRerun(
             :timestamp="timeSeparators[index]!"
             :now="now.getTime()"
           />
+          <!-- Audio end-to-end tests read rendered messages through data-chat-message-role. -->
           <ChatHistoryMessageFrame
             :key="getChatHistoryItemKey(message, index)"
+            :data-chat-message-role="message.role"
             :variant="variant"
             :scroll-container="chatHistoryRef"
             :reply-enabled="canReplyToMessage(message)"
