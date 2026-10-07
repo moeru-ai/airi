@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DocumentHistoryEntry } from '@proj-airi/stage-ui/libs/document-sync/client'
+import type { Ref } from 'vue'
 
 import { useBreakpoints } from '@proj-airi/stage-ui/composables/use-breakpoints'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
@@ -50,25 +51,19 @@ const open = computed({
 // Delete confirmation
 const showDeleteConfirm = ref(false)
 
-async function handleDeleteConfirm() {
-  if (selectedCard.value) {
-    await removeCard(props.cardId)
-    emit('update:modelValue', false)
-  }
-  showDeleteConfirm.value = false
-}
-
 // Card history restore confirmation
 const restoringRevision = ref<number | null>(null)
 const showRestoreConfirm = ref(false)
 const pendingRestore = ref<DocumentHistoryEntry | null>(null)
 
-// The restore dialog stacks at z-100, below the mobile drawer at z-[9999].
-// On mobile the drawer closes first, the dialog opens once the drawer has
-// closed, and the detail view reopens on the history tab after the dialog
-// settles. This flag marks that handoff.
-const restoreHandoff = ref(false)
-// Initial tab for the reopen after the handoff, cleared once the content mounts.
+// The delete and restore dialogs stack at z-100, below the mobile drawer at
+// z-[9999]. On mobile the drawer closes first, the dialog opens once the
+// drawer has closed, and the detail view reopens when the dialog cancels.
+// This flag marks that handoff.
+const modalHandoff = ref(false)
+
+// The restore dialog needs one extra step after the handoff: the detail view
+// reopens on the history tab once the restore settles.
 const reopenTab = ref<string>()
 const contentInitialTab = computed(() => reopenTab.value ?? props.initialTab)
 
@@ -84,40 +79,62 @@ function formatHistoryDate(at: string) {
   return new Date(at).toLocaleString(locale.value, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-function handleRequestRestore(entry: DocumentHistoryEntry) {
-  pendingRestore.value = entry
+function openModalAfterDrawerClose(show: Ref<boolean>) {
   if (isDesktop.value) {
-    showRestoreConfirm.value = true
+    show.value = true
     return
   }
-  restoreHandoff.value = true
+  modalHandoff.value = true
   open.value = false
   setTimeout(() => {
-    if (restoreHandoff.value)
-      showRestoreConfirm.value = true
+    if (modalHandoff.value)
+      show.value = true
   }, drawerCloseDurationMs)
 }
 
+function handleRequestRestore(entry: DocumentHistoryEntry) {
+  pendingRestore.value = entry
+  openModalAfterDrawerClose(showRestoreConfirm)
+}
+
+function handleRequestDelete() {
+  openModalAfterDrawerClose(showDeleteConfirm)
+}
+
 function handleDrawerCloseAutoFocus(event: Event) {
-  // The restore dialog opens right after the drawer releases. Moving focus
+  // The stacked dialog opens right after the drawer releases. Moving focus
   // back to a node inside the closed drawer would strand it in between.
-  if (restoreHandoff.value)
+  if (modalHandoff.value)
     event.preventDefault()
 }
 
-async function settleRestoreHandoff() {
-  if (!restoreHandoff.value)
+async function settleModalHandoff(tab?: string) {
+  if (!modalHandoff.value)
     return
-  restoreHandoff.value = false
+  modalHandoff.value = false
   // The reopened drawer remounts the content, so the history tab reloads on its own.
-  reopenTab.value = 'history'
+  reopenTab.value = tab
   open.value = true
   await nextTick()
   reopenTab.value = undefined
 }
 
+function handleDeleteCancel() {
+  void settleModalHandoff()
+}
+
+async function handleDeleteConfirm() {
+  if (selectedCard.value) {
+    await removeCard(props.cardId)
+    // The view stays closed after a delete: the card is gone.
+    modalHandoff.value = false
+    emit('update:modelValue', false)
+  }
+  showDeleteConfirm.value = false
+}
+
 function handleRestoreCancel() {
-  void settleRestoreHandoff()
+  void settleModalHandoff('history')
 }
 
 async function confirmRestoreVersion() {
@@ -140,7 +157,7 @@ async function confirmRestoreVersion() {
   finally {
     restoringRevision.value = null
     pendingRestore.value = null
-    await settleRestoreHandoff()
+    await settleModalHandoff('history')
   }
 }
 </script>
@@ -158,6 +175,7 @@ async function confirmRestoreVersion() {
           :restoring-revision="restoringRevision"
           @close="emit('update:modelValue', false)"
           @request-restore="handleRequestRestore"
+          @request-delete="handleRequestDelete"
         />
       </DialogContent>
     </DialogPortal>
@@ -178,6 +196,7 @@ async function confirmRestoreVersion() {
       :restoring-revision="restoringRevision"
       @close="open = false"
       @request-restore="handleRequestRestore"
+      @request-delete="handleRequestDelete"
     />
   </BottomDrawer>
 
@@ -186,7 +205,7 @@ async function confirmRestoreVersion() {
     v-model="showDeleteConfirm"
     :card-name="selectedCard?.name"
     @confirm="handleDeleteConfirm"
-    @cancel="showDeleteConfirm = false"
+    @cancel="handleDeleteCancel"
   />
 
   <!-- Restore version confirmation dialog -->

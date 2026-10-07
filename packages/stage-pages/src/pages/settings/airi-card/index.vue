@@ -4,7 +4,7 @@ import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button, Callout, Input, InputFileCard } from '@proj-airi/ui'
+import { Button, Callout, Input } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -12,7 +12,6 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import CardCreate from './components/CardCreate.vue'
 import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
 import DeleteCardDialog from './components/DeleteCardDialog.vue'
@@ -43,6 +42,52 @@ const searchQuery = ref('')
 const sortOption = ref<'nameAsc' | 'nameDesc' | 'recent'>('nameAsc')
 
 const inputFiles = ref<File[]>([])
+
+// The toolbar Upload button opens this hidden native picker. The value resets
+// after each selection so picking the same file twice still triggers a change.
+const uploadInput = ref<HTMLInputElement>()
+
+function handleUploadChange(event: Event) {
+  const input = event.target as HTMLInputElement
+  inputFiles.value = Array.from(input.files ?? [])
+  input.value = ''
+}
+
+// The card grid doubles as the drop zone. Nested cards fire their own
+// dragenter/dragleave pairs, so a depth counter keeps the overlay stable.
+const dragDepth = ref(0)
+const isDraggingFile = computed(() => dragDepth.value > 0)
+
+function isFileDrag(event: DragEvent) {
+  return event.dataTransfer?.types.includes('Files') ?? false
+}
+
+function handleDragEnter(event: DragEvent) {
+  if (!isFileDrag(event))
+    return
+  event.preventDefault()
+  dragDepth.value += 1
+}
+
+function handleDragOver(event: DragEvent) {
+  // preventDefault marks the zone as a valid drop target.
+  if (isFileDrag(event))
+    event.preventDefault()
+}
+
+function handleDragLeave(event: DragEvent) {
+  if (!isFileDrag(event))
+    return
+  dragDepth.value = Math.max(0, dragDepth.value - 1)
+}
+
+function handleDrop(event: DragEvent) {
+  if (!isFileDrag(event))
+    return
+  event.preventDefault()
+  dragDepth.value = 0
+  inputFiles.value = Array.from(event.dataTransfer?.files ?? [])
+}
 
 // Card list data structure
 interface CardItem {
@@ -204,6 +249,14 @@ watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
 function getVersionNumber(id: string) {
   const card = cards.value.get(id)
   return card?.version || '1.0.0'
+}
+
+// Preview of the display model the card points at, same lookup as the
+// character switcher. Undefined when the card has no model or the model is
+// not installed; the card then renders the fallback icon.
+function getPreviewImage(id: string) {
+  const displayModelId = cards.value.get(id)?.extensions?.airi?.modules?.displayModelId
+  return displayModelsStore.displayModels.find(model => model.id === displayModelId)?.previewImage
 }
 
 // Recently deleted cards
@@ -372,22 +425,15 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </RouterLink>
     </p>
 
-    <!-- Toolbar with search and sort -->
+    <!-- Toolbar: search takes a full row when the rest wraps on narrow screens -->
     <div :class="['flex flex-wrap items-center gap-3']">
-      <!-- Search bar -->
-      <div :class="['relative min-w-[200px] flex-1']">
-        <div :class="['pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3']">
-          <div i-solar:magnifer-line-duotone :class="['text-neutral-400 dark:text-neutral-500']" />
-        </div>
-        <Input
-          v-model="searchQuery"
-          type="search"
-          class="pl-9!"
-          :placeholder="t('settings.pages.card.search')"
-        />
-      </div>
+      <Input
+        v-model="searchQuery"
+        type="search"
+        :placeholder="t('settings.pages.card.search')"
+        :class="['min-w-[200px] flex-1']"
+      />
 
-      <!-- Sort options -->
       <div :class="['flex items-center gap-2']">
         <span :class="['whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.card.sort_by') }}:
@@ -403,85 +449,100 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
           class="min-w-[150px]"
         />
       </div>
+
+      <Button
+        icon="i-solar:upload-square-line-duotone"
+        :label="t('settings.pages.card.upload')"
+        @click="uploadInput?.click()"
+      />
+      <Button
+        variant="primary"
+        color="primary"
+        icon="i-solar:add-square-line-duotone"
+        :label="t('settings.pages.card.create_card')"
+        @click="handleCardCreationDialog"
+      />
+      <input
+        ref="uploadInput"
+        type="file"
+        accept=".zip"
+        class="hidden"
+        @change="handleUploadChange"
+      >
     </div>
 
-    <!-- Masonry card layout -->
+    <!-- Card grid and drop zone -->
     <div
-      class="mt-4"
-      :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
+      :class="['relative mt-4']"
+      @dragenter="handleDragEnter"
+      @dragover="handleDragOver"
+      @dragleave="handleDragLeave"
+      @drop="handleDrop"
     >
-      <!-- Upload and create stay compact side by side on narrow screens. -->
-      <div :class="['col-span-full grid grid-cols-2 gap-4 sm:contents']">
-        <!-- Upload card -->
-        <InputFileCard v-model="inputFiles" accept=".zip">
-          <template #default="{ isDragging }">
-            <template v-if="!isDragging">
-              <div :class="['flex flex-col items-center text-center']">
-                <div i-solar:upload-square-line-duotone :class="['mb-1 text-3xl text-neutral-400 sm:mb-4 sm:text-5xl dark:text-neutral-500']" />
-                <p :class="['text-sm font-medium text-neutral-600 sm:text-base dark:text-neutral-300']">
-                  {{ t('settings.pages.card.upload') }}
-                </p>
-                <p :class="['mt-2 hidden text-sm text-neutral-500 sm:block dark:text-neutral-400']">
-                  {{ t('settings.pages.card.upload_desc') }}
-                </p>
-              </div>
-            </template>
-            <template v-else>
-              <div :class="['flex flex-col items-center text-center']">
-                <div i-solar:upload-minimalistic-bold :class="['mb-1 text-3xl text-primary-500 sm:mb-2 sm:text-5xl dark:text-primary-400']" />
-                <p :class="['text-sm font-medium text-primary-600 sm:text-base dark:text-primary-300']">
-                  {{ t('settings.pages.card.drop_here') }}
-                </p>
-              </div>
-            </template>
-          </template>
-        </InputFileCard>
-
-        <!-- Create card -->
-        <CardCreate @click="handleCardCreationDialog" />
-      </div>
-
-      <!-- Card Items -->
-      <template v-if="cards.size > 0">
-        <CardListItem
-          v-for="item in sortedFilteredCards"
-          :id="item.id"
-          :key="item.id"
-          :name="item.name"
-          :description="item.description"
-          :is-active="item.id === activeCardId"
-          :is-selected="item.id === selectedCardId && isCardDialogOpen"
-          :version="getVersionNumber(item.id)"
-          :consciousness-model="getModuleShortName(item.id, 'consciousness')"
-          :voice-model="getModuleShortName(item.id, 'voice')"
-          :sync-state="cardSyncStates[item.id]"
-          @select="handleSelectCard(item.id)"
-          @activate="activateCard(item.id)"
-          @delete="confirmDelete(item.id)"
-          @edit="handleEditCard(item.id)"
-        />
-      </template>
-
-      <!-- No cards message -->
       <div
-        v-if="cards.size === 0"
-        class="col-span-full rounded-xl p-8 text-center"
-        border="~ neutral-200/50 dark:neutral-700/30"
-        bg="neutral-50/50 dark:neutral-900/50"
+        :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
       >
-        <div i-solar:card-search-broken mx-auto mb-3 text-6xl text-neutral-400 />
-        <p>{{ t('settings.pages.card.no_cards') }}</p>
+        <!-- Card Items -->
+        <template v-if="cards.size > 0">
+          <CardListItem
+            v-for="item in sortedFilteredCards"
+            :id="item.id"
+            :key="item.id"
+            :name="item.name"
+            :description="item.description"
+            :preview-image="getPreviewImage(item.id)"
+            :is-active="item.id === activeCardId"
+            :is-selected="item.id === selectedCardId && isCardDialogOpen"
+            :version="getVersionNumber(item.id)"
+            :consciousness-model="getModuleShortName(item.id, 'consciousness')"
+            :voice-model="getModuleShortName(item.id, 'voice')"
+            :sync-state="cardSyncStates[item.id]"
+            @select="handleSelectCard(item.id)"
+            @activate="activateCard(item.id)"
+            @delete="confirmDelete(item.id)"
+            @edit="handleEditCard(item.id)"
+          />
+        </template>
+
+        <!-- No cards message -->
+        <div
+          v-if="cards.size === 0"
+          :class="[
+            'col-span-full rounded-xl p-8 text-center',
+            'border border-neutral-200/50 dark:border-neutral-700/30',
+            'bg-neutral-50/50 dark:bg-neutral-900/50',
+          ]"
+        >
+          <div i-solar:card-search-broken :class="['mx-auto mb-3 text-6xl text-neutral-400']" />
+          <p>{{ t('settings.pages.card.no_cards') }}</p>
+        </div>
+
+        <!-- No search results -->
+        <Alert v-if="searchQuery && sortedFilteredCards.length === 0" type="warning">
+          <template #title>
+            {{ t('settings.pages.card.no_results') }}
+          </template>
+          <template #content>
+            {{ t('settings.pages.card.try_different_search') }}
+          </template>
+        </Alert>
       </div>
 
-      <!-- No search results -->
-      <Alert v-if="searchQuery && sortedFilteredCards.length === 0" type="warning">
-        <template #title>
-          {{ t('settings.pages.card.no_results') }}
-        </template>
-        <template #content>
-          {{ t('settings.pages.card.try_different_search') }}
-        </template>
-      </Alert>
+      <!-- Drop overlay -->
+      <div
+        v-if="isDraggingFile"
+        :class="[
+          'pointer-events-none absolute inset-0 z-10',
+          'flex flex-col items-center justify-center gap-2 rounded-xl',
+          'border-2 border-dashed border-primary-400 dark:border-primary-500',
+          'bg-primary-500/10 dark:bg-primary-400/10',
+        ]"
+      >
+        <div i-solar:upload-minimalistic-bold :class="['text-4xl text-primary-500 dark:text-primary-400']" />
+        <p :class="['text-sm font-medium text-primary-600 dark:text-primary-300']">
+          {{ t('settings.pages.card.drop_here') }}
+        </p>
+      </div>
     </div>
   </div>
 
