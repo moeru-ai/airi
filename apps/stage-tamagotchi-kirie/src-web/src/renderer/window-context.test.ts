@@ -48,6 +48,20 @@ describe('isAndroidRenderer', () => {
     expect(isAndroidRenderer({ platform: { backend: 'webview', os: 'android' } })).toBe(true)
   })
 
+  // ROOT CAUSE:
+  //
+  // The Android host can inject the Kirie bridge after Vue starts. The first
+  // render then used desktop behavior because the runtime was unavailable.
+  //
+  // We use the Android asset origin until the native bridge is ready.
+  it('detects the Android asset origin before bridge injection', () => {
+    expect(isAndroidRenderer(undefined, 'https://res.kirie.invalid')).toBe(true)
+    expect(isAndroidRenderer(
+      { platform: { backend: 'godot-cef', os: 'linux' } },
+      'https://res.kirie.invalid',
+    )).toBe(true)
+  })
+
   it('keeps desktop Kirie runtimes separate', () => {
     expect(isAndroidRenderer({ platform: { backend: 'godot-cef', os: 'linux' } })).toBe(false)
   })

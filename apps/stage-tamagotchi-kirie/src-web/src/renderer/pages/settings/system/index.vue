@@ -3,7 +3,10 @@ import { IconItem } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import { isAndroidRenderer } from '../../../window-context'
+
 const { t } = useI18n()
+const isAndroid = isAndroidRenderer()
 
 const settings = computed(() => [
   {
@@ -18,12 +21,14 @@ const settings = computed(() => [
     icon: 'i-solar:pallete-2-bold-duotone',
     to: '/settings/system/color-scheme',
   },
-  {
-    title: t('tamagotchi.settings.pages.system.window-shortcuts.title'),
-    description: t('tamagotchi.settings.pages.system.window-shortcuts.description'),
-    icon: 'i-solar:keyboard-bold-duotone',
-    to: '/settings/system/window-shortcuts',
-  },
+  ...(!isAndroid
+    ? [{
+        title: t('tamagotchi.settings.pages.system.window-shortcuts.title'),
+        description: t('tamagotchi.settings.pages.system.window-shortcuts.description'),
+        icon: 'i-solar:keyboard-bold-duotone',
+        to: '/settings/system/window-shortcuts',
+      }]
+    : []),
   {
     title: t('settings.pages.system.permissions.title'),
     description: t('settings.pages.system.permissions.description'),
@@ -35,6 +40,12 @@ const settings = computed(() => [
     description: t('settings.pages.system.developer.description'),
     icon: 'i-solar:code-bold-duotone',
     to: '/settings/system/developer',
+  },
+  {
+    title: t('settings.pages.system.experimental.title'),
+    description: t('settings.pages.system.experimental.description'),
+    icon: 'i-solar:test-tube-bold-duotone',
+    to: '/settings/system/experimental',
   },
 ])
 </script>

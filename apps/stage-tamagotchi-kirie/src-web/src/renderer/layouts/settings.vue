@@ -9,10 +9,12 @@ import { RouterView, useRoute } from 'vue-router'
 import WindowTitleBar from '../components/Window/TitleBar.vue'
 
 import { useRestoreScroll } from '../composables/use-restore-scroll'
+import { isAndroidRenderer } from '../window-context'
 
 const route = useRoute()
 const { t } = useI18n()
 const providersStore = useProviderStore()
+const isAndroid = isAndroidRenderer()
 const scrollContainer = ref<HTMLElement>()
 useRestoreScroll(scrollContainer)
 
@@ -58,6 +60,11 @@ const routeHeaderMetadata = computed(() => {
 
   return undefined
 })
+const disableBackButton = computed(() =>
+  !isAndroid
+  && isStageTamagotchi()
+  && route.path === '/settings',
+)
 </script>
 
 <template>
@@ -78,7 +85,7 @@ const routeHeaderMetadata = computed(() => {
           <PageHeader
             :title="routeHeaderMetadata?.title ?? ''"
             :subtitle="routeHeaderMetadata?.subtitle ?? ''"
-            :disable-back-button="isStageTamagotchi() && route.path === '/settings'"
+            :disable-back-button="disableBackButton"
             px-4
           />
           <div min-h-0 flex-1 px-4>

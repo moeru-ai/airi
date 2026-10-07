@@ -1,6 +1,8 @@
 import type { KirieRuntime } from '@gd-kirie/ipc'
 import type { LeadershipMode } from '@proj-airi/stage-ui/libs/pinia'
 
+const ANDROID_RENDERER_ORIGIN = 'https://res.kirie.invalid'
+
 /** Describes the synchronization and Stage runtime policy for one renderer. */
 export interface RendererWindowContext {
   /** Determines whether this renderer can own synchronized actions. */
@@ -16,8 +18,17 @@ export interface RendererWindowContext {
 }
 
 /** Returns whether Kirie runs this renderer in an Android WebView. */
-export function isAndroidRenderer(runtime: KirieRuntime | undefined = globalThis.window?.kirie): boolean {
-  return runtime?.platform.os === 'android' && runtime.platform.backend === 'webview'
+export function isAndroidRenderer(
+  runtime: KirieRuntime | undefined = globalThis.window?.kirie,
+  origin = globalThis.location?.origin,
+): boolean {
+  if (origin === ANDROID_RENDERER_ORIGIN)
+    return true
+
+  if (runtime)
+    return runtime.platform.os === 'android' && runtime.platform.backend === 'webview'
+
+  return false
 }
 
 function normalizeRoutePath(routePath: string) {
