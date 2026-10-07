@@ -40,7 +40,7 @@ The source fixture executes the production request functions with real Vue refs 
 The grant test fails before the fix and passes after it. Denial and Settings tests pass in both versions.
 The fixture proves delegation and ordering. It does not prove Android device enumeration at runtime.
 
-## Authorization without an intent handler
+## Authorization errors
 
 Pocket's `WebAuthenticationPlugin.kt` catches `RuntimeException` and rejects with `BROWSER_UNAVAILABLE`.
 Kirie previously caught only `ActivityNotFoundException` and then sent a successful null response.
@@ -50,8 +50,12 @@ The renderer reconstructs an Error after schema validation of the serialized nat
 Other channel failures retain their original rejection. Successful browser opens still resolve.
 Existing notification error strings retain their original envelope shape.
 
+Pocket also rejects a missing, blank, or non-HTTP(S) URL with `INVALID_URL`.
+Kirie previously resolved these requests. A missing `url` field produced no response.
+Kirie now gives both cases Pocket's exact code and message.
+
 The JVM fixture compiles unchanged production methods with external Android boundaries.
-Its missing-browser assertion fails before the fix and passes after it.
+Its missing-browser and invalid-URL assertions fail before the fixes and pass after them.
 The real Eventa channel fixture also fails before Error reconstruction and passes after it.
 Run `python3 tests/android-host-parity/run-fixtures.py authentication --json-jar "$JSON_JAR"` from Kirie.
 
@@ -80,7 +84,7 @@ The historical Pocket bugs remain untouched, including missing routes, denied-pe
 | `pnpm -F @proj-airi/stage-pocket exec vitest run --config vitest.config.ts` | Passed 14 tests. Each confirmed gap has a failing pre-fix fixture. |
 | `pnpm -F @proj-airi/stage-pocket typecheck` | Passed. |
 | `pnpm -F @proj-airi/stage-tamagotchi-kirie typecheck` | Passed. |
-| JVM fixture `authentication` with Pocket's cached JSON test JAR | Passed four cases. |
+| JVM fixture `authentication` with Pocket's cached JSON test JAR | Passed eight cases. |
 | JVM fixture `websocket` with the same JSON test JAR | Passed six cases. |
 | Existing native parity fixture `compileDebugJavaWithJavac --offline --no-daemon --max-workers=1 -Dorg.gradle.vfs.watch=false` | Passed complete embedded-plugin Java compilation. No APK assembly ran. |
 | Kirie Vitest `--project node` with a temporary `server.watch=null` configuration | Passed 10 files and 32 tests. |

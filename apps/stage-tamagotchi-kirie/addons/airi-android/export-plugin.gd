@@ -1161,7 +1161,7 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
             if (OPEN_AUTHORIZATION_EVENT.equals(event)) {
                 openAuthorization(
-                    content.getString("url"),
+                    content.optString("url", ""),
                     new PendingEventaRequest(event, invokeId, replyProxy)
                 );
                 return;
@@ -1218,13 +1218,26 @@ public final class AiriAndroidPlugin extends GodotPlugin {
     }
 
     private void openAuthorization(String url, PendingEventaRequest request) {
+        if (url == null || url.trim().isEmpty()) {
+            rejectAuthorization(
+                request,
+                "INVALID_URL",
+                "The authentication URL is missing."
+            );
+            return;
+        }
+
         Activity activity = getActivity();
         Uri uri = Uri.parse(url);
         if (activity == null
             || uri.getScheme() == null
             || !("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))) {
             Log.e("AiriAndroid", "Cannot open an invalid authorization URL");
-            sendEventaResponse(request, JSONObject.NULL);
+            rejectAuthorization(
+                request,
+                "INVALID_URL",
+                "The authentication URL is invalid."
+            );
             return;
         }
 
@@ -1233,17 +1246,29 @@ public final class AiriAndroidPlugin extends GodotPlugin {
                 activity.startActivity(new Intent(Intent.ACTION_VIEW, uri));
             } catch (RuntimeException error) {
                 Log.e("AiriAndroid", "No browser can open the authorization URL", error);
-                try {
-                    sendEventaError(request, new JSONObject()
-                        .put("code", "BROWSER_UNAVAILABLE")
-                        .put("message", "No browser can open the authentication URL."));
-                } catch (JSONException jsonError) {
-                    Log.e("AiriAndroid", "Cannot create authorization error", jsonError);
-                }
+                rejectAuthorization(
+                    request,
+                    "BROWSER_UNAVAILABLE",
+                    "No browser can open the authentication URL."
+                );
                 return;
             }
             sendEventaResponse(request, JSONObject.NULL);
         });
+    }
+
+    private void rejectAuthorization(
+        PendingEventaRequest request,
+        String code,
+        String message
+    ) {
+        try {
+            sendEventaError(request, new JSONObject()
+                .put("code", code)
+                .put("message", message));
+        } catch (JSONException error) {
+            Log.e("AiriAndroid", "Cannot create authorization error", error);
+        }
     }
 
     private static void receiveUrlOpen(String url) {
