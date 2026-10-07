@@ -52,6 +52,7 @@ chat:
     title: 语音草稿
     select: '查看草稿 {number}'
     discard: 丢弃草稿
+    finalizing: 正在整理……
   voice-input: 语音输入
   error-details:
     show: 查看详情

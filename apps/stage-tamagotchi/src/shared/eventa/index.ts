@@ -38,6 +38,7 @@ export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electr
 export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
 export const electronOpenEditor = defineInvokeEventa<void>('eventa:invoke:electron:windows:editor:open')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
+/** Shows the inlay without focus. The tray menu opens it with focus. */
 export const electronOpenInlay = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:open')
 export const electronInlayHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:hide')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
