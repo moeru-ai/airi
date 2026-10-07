@@ -95,6 +95,20 @@ export const airiAndroidPermissionEventIds = {
   request: 'eventa:invoke:airi:android:permission:request',
 } as const
 
+export interface AiriAndroidBarcodeScanPayload {
+  scanInstructions: string
+}
+
+export interface AiriAndroidBarcodeScanResult {
+  ScanResult?: string
+  error?: string
+  format?: number
+}
+
+export const airiAndroidBarcodeEventIds = {
+  scan: 'eventa:invoke:airi:android:barcode:scan',
+} as const
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 

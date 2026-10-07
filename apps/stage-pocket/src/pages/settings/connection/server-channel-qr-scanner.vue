@@ -2,13 +2,12 @@
 import { CapacitorBarcodeScanner, CapacitorBarcodeScannerTypeHint } from '@capacitor/barcode-scanner'
 import { errorMessageFrom } from '@moeru/std'
 import { parseServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
+import { probeServerChannelQrPayload } from '@proj-airi/stage-ui/libs/server-channel-qr-probe'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { GhostButton } from '@proj-airi/ui'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
-
-import { probeServerChannelQrPayload } from '../../../modules/server-channel-qr-probe'
 
 const { t } = useI18n()
 const serverChannelStore = useModsServerChannelStore()
