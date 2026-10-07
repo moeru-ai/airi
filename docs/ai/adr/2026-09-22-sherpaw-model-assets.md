@@ -10,6 +10,7 @@ The Vite plugin exposes every configured model to the runtime. A model can use a
 `bundledModels` selects production build files. It is a subset of `models`.
 
 Model artifact URLs come from `https://huggingface.co` by default. The plugin accepts an `endpoint` option and reads `HF_ENDPOINT`, so a deployment can serve the same pinned revisions from a mirror. The configured endpoint applies to both the download and the URL that a remote model keeps at runtime. Artifact paths and revisions do not change.
+The Electron main process downloads remote desktop models outside Vite. Its build resolves the endpoint with the plugin's `resolveModelEndpoint`, so desktop downloads use the same mirror as the renderer.
 
 Web and Pocket expose remote models and install the selected model in OPFS.
 Desktop development installs selected models in the application user data directory.

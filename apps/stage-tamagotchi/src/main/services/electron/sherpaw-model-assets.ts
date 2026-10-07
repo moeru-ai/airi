@@ -17,13 +17,15 @@ import {
 } from '../../../shared/eventa/model-assets'
 import { FileModelAssetStorage } from './model-asset-storage'
 
+// The renderer gets mirror URLs from the Vite plugin, but main owns desktop downloads.
+// The build defines the same endpoint for main, so both processes resolve one source.
 const models: ModelAsset[] = Object.values(sherpawModels).map(model => ({
   id: model.id,
   revision: model.revision,
   source: 'remote',
   files: [
-    { name: 'data', url: sherpawModelArtifactUrl(model, 'preload.data') },
-    { name: 'metadata', url: sherpawModelArtifactUrl(model, 'preload.js.metadata') },
+    { name: 'data', url: sherpawModelArtifactUrl(model, 'preload.data', import.meta.env.SHERPAW_MODEL_ENDPOINT) },
+    { name: 'metadata', url: sherpawModelArtifactUrl(model, 'preload.js.metadata', import.meta.env.SHERPAW_MODEL_ENDPOINT) },
   ],
 }))
 
