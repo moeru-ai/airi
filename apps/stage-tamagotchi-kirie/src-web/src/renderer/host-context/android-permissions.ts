@@ -17,6 +17,7 @@ interface AndroidEventaResponse {
     body?: {
       content?: unknown
       invokeId?: string
+      url?: string
     }
   }
   type?: string
@@ -34,13 +35,19 @@ declare global {
 }
 
 const pendingRequests = new Map<string, PendingRequest>()
+const eventListeners = new Map<string, Set<(body: unknown) => void>>()
 let activeChannel: AndroidEventaChannel | undefined
 
 function handleAndroidEventaMessage(event: MessageEvent<string>) {
   const response = JSON.parse(event.data) as AndroidEventaResponse
   const invokeId = response.payload?.body?.invokeId
-  if (!invokeId)
+  if (!invokeId) {
+    if (response.type) {
+      for (const listener of eventListeners.get(response.type) ?? [])
+        listener(response.payload?.body)
+    }
     return
+  }
 
   const pending = pendingRequests.get(invokeId)
   if (!pending)
@@ -83,6 +90,18 @@ export function invokeAndroidEventa<Response>(eventId: string, content: unknown)
       },
     }))
   })
+}
+
+export function onAndroidEventa(eventId: string, listener: (body: unknown) => void) {
+  getAndroidEventaChannel()
+  const listeners = eventListeners.get(eventId) ?? new Set()
+  listeners.add(listener)
+  eventListeners.set(eventId, listeners)
+  return () => {
+    listeners.delete(listener)
+    if (listeners.size === 0)
+      eventListeners.delete(eventId)
+  }
 }
 
 export interface HostAndroidPermissions {

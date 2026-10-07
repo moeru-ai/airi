@@ -3,6 +3,7 @@ import { useHostEventaContext, useHostLocale } from '@proj-airi/stage-host-conte
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { completeOIDCSignIn, triggerSignIn } from '@proj-airi/stage-ui/libs/auth'
 import { getHostWebSocketConnector } from '@proj-airi/stage-ui/libs/host-websocket-bridge'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
@@ -40,6 +41,7 @@ import { initializeElectronAuthCallbackBridge } from './bridges/electron-auth-ca
 import { initializeStageThreeRuntimeTraceBridge } from './bridges/stage-three-runtime-trace'
 import { useLanguage } from './composables/use-language'
 import { initializeHostContext, startHostOwnedSpotlightShortcut, useHostMicrophonePermission } from './host-context'
+import { consumePendingAndroidUrlOpen, onAndroidUrlOpen } from './host-context/android-authentication'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import { useTamagotchiBuiltinToolsStore } from './stores/tools/built-in'
 import { isAndroidRenderer, resolveInitialRendererRoutePath, resolveRendererWindowContext } from './window-context'
@@ -112,6 +114,7 @@ const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
 
 function createFullStageRuntime() {
   const authStore = useAuthStore()
+  const { isAuthenticated, needsLogin } = storeToRefs(authStore)
   const onboardingStore = useOnboardingStore()
   const displayModelsStore = useDisplayModelsStore()
   const serverChannelStore = useModsServerChannelStore()
@@ -129,7 +132,27 @@ function createFullStageRuntime() {
   useVisionStore()
 
   let stopAuthenticatedSetup: (() => void) | undefined
+  let stopAndroidLogin: (() => void) | undefined
+  let stopAndroidUrlOpen: (() => void) | undefined
   let stopLoggedOutSetup: (() => void) | undefined
+
+  async function handleAndroidUrlOpen(url: string) {
+    const callback = new URL(url)
+    if (callback.host !== 'links' || callback.pathname !== '/auth/callback')
+      return
+
+    if (await completeOIDCSignIn(url))
+      await router.replace('/')
+  }
+
+  if (isAndroidRenderer()) {
+    stopAndroidLogin = watch(needsLogin, async (requested) => {
+      if (!requested || isAuthenticated.value || !await authStore.consumeLoginRequest())
+        return
+      await triggerSignIn()
+    })
+    stopAndroidUrlOpen = onAndroidUrlOpen(url => void handleAndroidUrlOpen(url))
+  }
 
   async function removeAuthenticationProviderConfiguration() {
     if (!syncedPinia.isLeader())
@@ -165,6 +188,11 @@ function createFullStageRuntime() {
         providerStore.setProviderAvailabilityOverride('nvidia', false)
 
       await authStore.initialize()
+      if (isAndroidRenderer()) {
+        const pendingUrlOpen = await consumePendingAndroidUrlOpen()
+        if (pendingUrlOpen.url)
+          await handleAndroidUrlOpen(pendingUrlOpen.url)
+      }
       await displayModelsStore.initialize()
       await cardStore.initialize()
       registerAuthenticatedSetup()
@@ -191,6 +219,8 @@ function createFullStageRuntime() {
     },
     dispose() {
       stopAuthenticatedSetup?.()
+      stopAndroidLogin?.()
+      stopAndroidUrlOpen?.()
       stopLoggedOutSetup?.()
     },
   }
