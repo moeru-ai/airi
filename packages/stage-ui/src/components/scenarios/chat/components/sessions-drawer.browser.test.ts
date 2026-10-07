@@ -2,7 +2,7 @@ import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { PiniaColada } from '@pinia/colada'
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -75,8 +75,25 @@ function createSessionsPinia() {
   return pinia
 }
 
+// https://github.com/moeru-ai/airi/issues/2844
+// ROOT CAUSE:
+//
+// Before 04:00, "now minus 4 hours" falls on the previous day,
+// so `intlFormatDistance` shows "yesterday" instead of "4 hours ago".
+//
+// We fixed this by faking only `Date` and setting local midday before render.
+function pinLocalMidday() {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 0, 15, 12, 0, 0))
+}
+
 describe('sessions drawer orchestration', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('orders and labels chats by message time, not session saves', async () => {
+    pinLocalMidday()
     const now = Date.now()
     const pinia = createSessionsPinia()
     const screen = await render(SessionsDrawer, {
@@ -117,6 +134,7 @@ describe('sessions drawer orchestration', () => {
   })
 
   it('uses creation time when no conversation message has a valid date', async () => {
+    pinLocalMidday()
     const now = Date.now()
     const pinia = createSessionsPinia()
     const screen = await render(SessionsDrawer, {
