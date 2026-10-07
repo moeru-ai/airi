@@ -134,6 +134,20 @@ The Kirie debug APK SHA-256 was `c4cd7e4926b90bc1dddeb71cfed9135505da6df01fb428b
 Temporary evidence is in `recordings-android/onboarding-permission-next-d1b2dd338-2026-10-07/`.
 The comparison places stage-pocket on the left and Kirie on the right.
 
+### Model step navigation
+
+The comparison used Android API 36 and WebView 133.0.6943.137.
+Both apps started on the failed `Choose model` page.
+Tapping the search field opened the same Android keyboard and resized the page equally.
+
+System Back hid the keyboard and kept the search field focused in both apps.
+The page header Back button returned both apps to `Permission management`.
+The recordings align these four states at two-second intervals.
+
+The Kirie debug APK SHA-256 was `c4cd7e4926b90bc1dddeb71cfed9135505da6df01fb428bac517e8ef7b6df322`.
+Temporary evidence is in `recordings-android/onboarding-model-navigation-e6cba9614-2026-10-07/`.
+The comparison places stage-pocket on the left and Kirie on the right.
+
 ## Reference boundary
 
 Stage-pocket supplies the Android behavior reference for native and Web interactions.
