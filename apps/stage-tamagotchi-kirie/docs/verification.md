@@ -138,6 +138,31 @@ The evidence directory is `recordings-android/experimental-feature-persistence-9
 It contains four raw recordings, an alignment contact sheet, and the side-by-side comparison.
 All evidence files remain untracked, and no ignore rule changed.
 
+### Android session draft verification on 2026-10-07
+
+Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
+The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
+Each application started with one local `New chat` session and an empty composer.
+
+Native taps entered `draftA`, closed the keyboard, opened Conversations, and created another session.
+Both applications retained `draftA` in the new active session.
+The reopened drawer displayed two `New chat` rows and marked the new row as current.
+
+Native taps exposed the new row's Delete action and selected it.
+Both applications removed the new session and reactivated the original session.
+Both composers still contained `draftA` after deletion.
+This retains Pocket's current cross-session draft behavior.
+
+The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
+The Kirie APK SHA-256 is `c7131b5e6828fa791b896576872e71c99e6f286b3c97bd3c11e1ce0496a31410`.
+The Pocket raw recording hash is `fda32c84163c62ff1687b5a53daa4ef01a40634559f98a36751fc151aae69ac7`.
+The Kirie raw recording hash is `157570d9628c45efbca3af12671579710d8f117204d571592ceefa943257045d`.
+The event-aligned comparison hash is `541d1df9284b17a804d1de764d6c2f5a9f4960a96ce4df0d9c0c6855e7ece322`.
+
+The evidence directory is `recordings-android/session-draft-delete-8f8939c7e-2026-10-07/`.
+It contains both raw recordings, an alignment contact sheet, and the side-by-side comparison.
+All evidence files remain untracked, and no ignore rule changed.
+
 ## Windows acceptance evidence
 
 The session used Godot 4.7.2 Mono, Kirie 0.6.5, CEF 1.16.1, and an NVIDIA RTX 4060 Laptop GPU.
