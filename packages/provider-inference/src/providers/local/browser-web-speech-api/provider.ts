@@ -1,36 +1,7 @@
 import type { TranscriptionProviderWithExtraOptions } from '@xsai-ext/providers/utils'
-import type { StreamTranscriptionDelta, StreamTranscriptionResult } from '@xsai/stream-transcription'
+import type { StreamTranscriptionDelta } from '@xsai/stream-transcription'
 
-import { errorMessageFrom } from '@moeru/std'
-
-// NOTICE: Copied/adapted from @xsai/stream-transcription delayed promise helper.
-// Ref: @xsai/stream-transcription@0.4.0-beta.8 (dist/index.js DelayedPromise usage).
-function createDeferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void
-  let reject!: (reason?: unknown) => void
-  let _isResolved = false
-  let _isRejected = false
-  const promise = new Promise<T>((res, rej) => {
-    resolve = (value) => {
-      _isResolved = true
-      res(value)
-    }
-    reject = (reason) => {
-      _isRejected = true
-      rej(reason)
-    }
-  })
-
-  return {
-    promise,
-    resolve,
-    reject,
-    get isResolved() { return _isResolved },
-    get isRejected() { return _isRejected },
-    set isResolved(value: boolean) { _isResolved = value },
-    set isRejected(value: boolean) { _isRejected = value },
-  }
-}
+import type { StreamTranscriptionSnapshot } from '../../../types'
 
 export interface WebSpeechAPIExtraOptions {
   language?: string
@@ -40,449 +11,215 @@ export interface WebSpeechAPIExtraOptions {
   abortSignal?: AbortSignal
 }
 
-/**
- * Web Speech API Speech Recognition provider
- *
- * This is a free, browser-native STT solution that requires no API keys.
- * Available in Chrome, Edge, Safari, and other Chromium-based browsers.
- *
- * Limitations:
- * - Only works in browser contexts (Electron renderer, web browsers)
- * - Requires user permission for microphone access
- * - Language support depends on browser implementation
- * - Not available in Node.js or Tauri main process
- */
+/** The catalog exposes settings here. Recognition requires the native media entry point below. */
 export function createWebSpeechAPIProvider(): TranscriptionProviderWithExtraOptions<string, WebSpeechAPIExtraOptions> {
-  // Check if Web Speech API is available
-  const isAvailable = typeof window !== 'undefined'
+  const available = typeof window !== 'undefined'
     && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
-
-  if (!isAvailable) {
-    throw new Error('Web Speech API is not available in this environment. It requires a browser context with SpeechRecognition support (Chrome, Edge, Safari).')
-  }
-
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  if (!available)
+    throw new Error('Web Speech API is not available in this browser')
 
   return {
-    transcription: (model: string, extraOptions?: WebSpeechAPIExtraOptions) => {
-      return {
-        baseURL: 'about:blank', // Web Speech API doesn't use HTTP endpoints
-        model: model || 'web-speech-api',
-        fetch: async (_request: RequestInfo | URL, _init?: RequestInit) => {
-          // Web Speech API does not support file-based transcription - it only supports live streaming
-          // Check if a file is provided in the request body and reject it
-          if (_init?.body) {
-            // If body is FormData, it likely contains a file
-            // If body is a Blob/File, it's definitely a file
-            const body = _init.body
-            if (body instanceof FormData || body instanceof Blob || body instanceof File) {
-              const error = new Error('Web Speech API does not support file-based transcription. It only supports live streaming from a MediaStream. Please use the streaming transcription API or select a different provider that supports file-based transcription.')
-              throw error
-            }
-          }
-
-          const deferredText = createDeferred<string>()
-          let fullText = ''
-          let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
-
-          const textStream = new ReadableStream<string>({
-            start(controller) {
-              textStreamCtrl = controller
-            },
-          })
-
-          const recognition = new SpeechRecognition()
-          recognition.lang = extraOptions?.language || 'en-US'
-          recognition.continuous = extraOptions?.continuous ?? true
-          recognition.interimResults = extraOptions?.interimResults ?? true
-          recognition.maxAlternatives = extraOptions?.maxAlternatives ?? 1
-
-          recognition.onresult = (event: any) => {
-            let finalTranscript = ''
-
-            for (let i = event.resultIndex; i < event.results.length; i++) {
-              const transcript = event.results[i][0].transcript
-              if (event.results[i].isFinal) {
-                finalTranscript += transcript
-              }
-            }
-
-            // Emit final results as deltas
-            if (finalTranscript) {
-              fullText += finalTranscript
-              textStreamCtrl?.enqueue(finalTranscript)
-            }
-
-            // Optionally emit interim results (commented out to avoid spam)
-            // if (interimTranscript) {
-            //   textStreamCtrl?.enqueue(interimTranscript)
-            // }
-          }
-
-          recognition.onerror = (event: any) => {
-            const error = new Error(`Speech recognition error: ${event.error}`)
-            textStreamCtrl?.error(error)
-            deferredText.reject(error)
-            deferredText.isRejected = true
-          }
-
-          recognition.onend = () => {
-            textStreamCtrl?.close()
-            if (!deferredText.isResolved && !deferredText.isRejected) {
-              deferredText.resolve(fullText)
-              deferredText.isResolved = true
-            }
-          }
-
-          // Handle abort signal
-          if (extraOptions?.abortSignal) {
-            extraOptions.abortSignal.addEventListener('abort', () => {
-              recognition.stop()
-              const error = new DOMException('Aborted', 'AbortError')
-              textStreamCtrl?.error(error)
-              deferredText.reject(error)
-              deferredText.isRejected = true
-            })
-          }
-
-          // Start recognition
-          recognition.start()
-
-          return textStream as unknown as Response
-        },
-      }
-    },
+    transcription: model => ({
+      baseURL: 'about:blank',
+      model: model || 'web-speech-api',
+      fetch: async () => {
+        throw new Error('Web Speech API requires a native MediaStream. Use streamWebSpeechAPITranscription.')
+      },
+    }),
   }
 }
 
-/**
- * Stream transcription using Web Speech API with MediaStream
- * This is designed to work with the existing hearing pipeline
- */
-export function streamWebSpeechAPITranscription(
-  _mediaStream: MediaStream,
-  options?: WebSpeechAPIExtraOptions & {
-    onSentenceEnd?: (delta: string) => void
-    onSpeechEnd?: (text: string) => void
-    /** Receives the current interim utterance, excluding committed sentences. */
-    onTranscriptionUpdate?: (text: string) => void
-    /** Browser speech detection, before any final transcript. */
-    onSpeechStart?: () => void
-    /** Audio ended; recognition may still be pending. */
-    onSpeechCaptureEnd?: () => void
-    /** One recognition cycle ended, before a continuous restart. */
-    onRecognitionCycleEnd?: () => void
-  },
-): StreamTranscriptionResult & { recognition?: any } {
-  const deferredText = createDeferred<string>()
-  let fullText = ''
-  let textStreamCtrl: ReadableStreamDefaultController<string> | undefined
-  let fullStreamCtrl: ReadableStreamDefaultController<StreamTranscriptionDelta> | undefined
-  let recognitionInstance: any = null
+/** Browser recognition is absent from lib.dom. This boundary describes the native operations used by the provider. */
+interface NativeSpeechRecognition {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  maxAlternatives: number
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+  onspeechstart: (() => void) | null
+  onspeechend: (() => void) | null
+  start: (track: MediaStreamTrack) => void
+  stop: () => void
+  abort: () => void
+}
 
-  const fullStream = new ReadableStream<StreamTranscriptionDelta>({
-    start(controller) {
-      fullStreamCtrl = controller
-    },
-  })
+/** Recognition callbacks report provider facts. Capture ownership remains with the supplied media stream. */
+interface WebSpeechStreamOptions extends WebSpeechAPIExtraOptions {
+  onSentenceEnd?: (delta: string) => void
+  onSpeechEnd?: (text: string) => void
+  onTranscriptionUpdate?: (text: string) => void
+  onSpeechStart?: () => void
+  onSpeechCaptureEnd?: () => void
+  onRecognitionCycleEnd?: () => void
+}
 
-  const textStream = new ReadableStream<string>({
-    start(controller) {
-      textStreamCtrl = controller
-    },
-    cancel: () => {
-      // Clean up recognition when stream is cancelled
-      if (recognitionInstance) {
-        try {
-          recognitionInstance.stop()
-        }
-        catch {}
-      }
-    },
-  })
+/** Owns recognition cycles for one supplied track. Stop drains final results. Abort rejects the request. */
+class WebSpeechSession {
+  readonly textStream: ReadableStream<string>
+  readonly fullStream: ReadableStream<StreamTranscriptionDelta | StreamTranscriptionSnapshot>
+  readonly text: Promise<string>
+  private readonly completion = Promise.withResolvers<string>()
+  private textOutput!: ReadableStreamDefaultController<string>
+  private fullOutput!: ReadableStreamDefaultController<StreamTranscriptionDelta | StreamTranscriptionSnapshot>
+  private recognition: NativeSpeechRecognition | undefined
+  private readonly track: MediaStreamTrack | undefined
+  private completedText = ''
+  private cycleText = ''
+  private finalCount = 0
+  private stopping = false
+  private closed = false
+  private restart: ReturnType<typeof setTimeout> | undefined
 
-  const isAvailable = typeof window !== 'undefined'
-    && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)
-
-  if (!isAvailable) {
-    const error = new Error('Web Speech API is not available in this environment.')
-    deferredText.reject(error)
-    deferredText.isRejected = true
-    textStreamCtrl?.error(error)
-    fullStreamCtrl?.error(error)
-    return {
-      fullStream,
-      text: deferredText.promise,
-      textStream,
-    }
-  }
-
-  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-  const recognition = new SpeechRecognition()
-  recognitionInstance = recognition
-
-  recognition.lang = options?.language || 'en-US'
-  recognition.continuous = options?.continuous ?? true
-  recognition.interimResults = options?.interimResults ?? true // Default to true for real-time feedback
-  recognition.maxAlternatives = options?.maxAlternatives ?? 1
-
-  console.info('Web Speech API configured:', {
-    lang: recognition.lang,
-    continuous: recognition.continuous,
-    interimResults: recognition.interimResults,
-  })
-
-  recognition.onresult = (event: any) => {
-    let finalTranscript = ''
-    let interimTranscript = ''
-
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const result = event.results[i]
-      const transcript = result[0]?.transcript || ''
-
-      if (result.isFinal) {
-        finalTranscript = `${finalTranscript}${transcript} ` // Add space between final results
-      }
-      else if (recognition.interimResults) {
-        // Collect interim results but don't emit them as final yet
-        interimTranscript += transcript
-      }
-    }
-
-    // Emit final results when we have them
-    if (finalTranscript.trim()) {
-      const trimmedTranscript = finalTranscript.trim()
-      fullText = `${fullText}${trimmedTranscript} `
-      const delta: StreamTranscriptionDelta = {
-        type: 'transcript.text.delta',
-        delta: trimmedTranscript,
-      }
-      fullStreamCtrl?.enqueue(delta)
-      textStreamCtrl?.enqueue(trimmedTranscript)
-      options?.onSentenceEnd?.(trimmedTranscript)
-      console.info('Web Speech API transcribed (final):', trimmedTranscript)
-    }
-
-    options?.onTranscriptionUpdate?.(interimTranscript)
-
-    // Log interim results for debugging (don't emit as final)
-    if (interimTranscript && recognition.interimResults) {
-      console.info('Web Speech API transcribed (interim):', interimTranscript)
-    }
-  }
-
-  recognition.onerror = (event: any) => {
-    const errorType = event.error || 'unknown'
-    console.warn('Web Speech API error:', errorType)
-
-    if (errorType === 'no-speech') {
-      return
-    }
-
-    if (errorType === 'aborted') {
-      return
-    }
-    if (deferredText.isRejected || deferredText.isResolved)
-      return
-
-    const error = new Error(`Speech recognition error: ${errorType}`)
-    fullStreamCtrl?.error(error)
-    textStreamCtrl?.error(error)
-    deferredText.reject(error)
-    deferredText.isRejected = true
-    options?.onSpeechEnd?.(fullText)
-  }
-
-  recognition.onend = () => {
-    options?.onRecognitionCycleEnd?.()
-    console.info('Web Speech API recognition ended. Continuous mode:', options?.continuous !== false, 'Aborted:', options?.abortSignal?.aborted)
-
-    if (deferredText.isRejected)
-      return
-
-    // If continuous mode and not aborted, restart recognition
-    if (options?.continuous !== false && !options?.abortSignal?.aborted) {
-      // Use the current recognitionInstance to ensure we're using the correct instance
-      const currentRecognition = recognitionInstance || recognition
-
-      // Small delay before restarting to avoid rapid restart loops
-      setTimeout(() => {
-        try {
-          currentRecognition.start()
-          console.info('Web Speech API recognition restarted (continuous mode)')
-        }
-        catch (err) {
-          console.warn('Web Speech API failed to restart, creating new instance:', err)
-          // If restart fails, create a new instance
-          try {
-            createAndStartNewRecognitionInstance(recognition)
-            console.info('Web Speech API created new instance and started')
-          }
-          catch (newErr) {
-            console.error('Web Speech API failed to create new instance:', newErr)
-            const error = new Error(`Failed to restart recognition: ${errorMessageFrom(newErr) ?? 'Unknown error'}`)
-            fullStreamCtrl?.error(error)
-            textStreamCtrl?.error(error)
-            deferredText.reject(error)
-            deferredText.isRejected = true
-          }
-        }
-      }, 100)
-    }
-    else {
-      // Don't try to enqueue/close if the stream has already been aborted/errored
-      if (options?.abortSignal?.aborted || deferredText.isRejected) {
-        return
-      }
-
-      const doneDelta: StreamTranscriptionDelta = {
-        type: 'transcript.text.done',
-        delta: '',
-      }
-      fullStreamCtrl?.enqueue(doneDelta)
-      fullStreamCtrl?.close()
-      textStreamCtrl?.close()
-      if (!deferredText.isResolved && !deferredText.isRejected) {
-        deferredText.resolve(fullText)
-        deferredText.isResolved = true
-      }
-      options?.onSpeechEnd?.(fullText)
-    }
-  }
-
-  // Handle abort signal
-  if (options?.abortSignal) {
-    options.abortSignal.addEventListener('abort', () => {
-      try {
-        recognition.stop()
-      }
-      catch {}
-      const error = new DOMException('Aborted', 'AbortError')
-      fullStreamCtrl?.error(error)
-      textStreamCtrl?.error(error)
-      deferredText.reject(error)
-      deferredText.isRejected = true
-    })
-  }
-
-  function createAndStartNewRecognitionInstance(sourceRecognition: any): any {
-    const newRecognition = new SpeechRecognition()
-    newRecognition.lang = sourceRecognition.lang
-    newRecognition.continuous = sourceRecognition.continuous
-    newRecognition.interimResults = sourceRecognition.interimResults
-    newRecognition.maxAlternatives = sourceRecognition.maxAlternatives
-    newRecognition.onresult = sourceRecognition.onresult
-    newRecognition.onerror = sourceRecognition.onerror
-    newRecognition.onend = sourceRecognition.onend
-    newRecognition.onspeechstart = sourceRecognition.onspeechstart
-    newRecognition.onspeechend = sourceRecognition.onspeechend
-    recognitionInstance = newRecognition
-    newRecognition.start()
-    return newRecognition
-  }
-
-  function startRecognition() {
+  constructor(media: MediaStream, private readonly options: WebSpeechStreamOptions) {
+    this.text = this.completion.promise
+    this.textStream = new ReadableStream({ start: (output) => {
+      this.textOutput = output
+    }, cancel: () => this.abort() })
+    this.fullStream = new ReadableStream({ start: (output) => {
+      this.fullOutput = output
+    }, cancel: () => this.abort() })
+    this.track = media.getAudioTracks()[0]
     try {
-      recognition.start()
-      console.info('Web Speech API recognition started successfully')
-      return true
+      const browser = globalThis as typeof globalThis & { SpeechRecognition?: new () => NativeSpeechRecognition, webkitSpeechRecognition?: new () => NativeSpeechRecognition }
+      const Recognition = browser.SpeechRecognition ?? browser.webkitSpeechRecognition
+      if (!Recognition)
+        throw new Error('Web Speech API is not available in this browser')
+      if (!this.track || this.track.readyState !== 'live')
+        throw new Error('Web Speech API requires a live audio track')
+      this.recognition = new Recognition()
+      this.recognition.lang = options.language ?? 'en-US'
+      this.recognition.continuous = options.continuous ?? true
+      this.recognition.interimResults = options.interimResults ?? true
+      this.recognition.maxAlternatives = options.maxAlternatives ?? 1
+      this.recognition.onresult = event => this.result(event)
+      this.recognition.onerror = (event) => {
+        if (event.error !== 'no-speech')
+          this.fail(new Error(`Speech recognition error: ${event.error}`))
+      }
+      this.recognition.onend = () => this.ended()
+      this.recognition.onspeechstart = () => this.notify(options.onSpeechStart)
+      this.recognition.onspeechend = () => this.notify(options.onSpeechCaptureEnd)
+      options.abortSignal?.addEventListener('abort', this.abort, { once: true })
+      options.abortSignal?.throwIfAborted()
+      this.start()
     }
-    catch (error: any) {
-      // Common errors:
-      // - "already started": Recognition is already running
-      // - "not-allowed": Microphone permission denied
-      // - "service-not-allowed": Service not available
-      const errorMessage = error?.message || String(error)
-      console.warn('Web Speech API recognition start failed:', errorMessage, error)
-
-      if (errorMessage.includes('already') || errorMessage.includes('started')) {
-        // Recognition is already running, this is OK
-        console.info('Web Speech API recognition already running')
-        return true
-      }
-
-      if (errorMessage.includes('not-allowed') || errorMessage.includes('permission')) {
-        // Permission denied - user needs to grant microphone access
-        const err = new Error('Microphone permission denied. Please grant microphone access and try again.')
-        console.error('Web Speech API: Microphone permission denied')
-        fullStreamCtrl?.error(err)
-        textStreamCtrl?.error(err)
-        deferredText.reject(err)
-        deferredText.isRejected = true
-        return false
-      }
-
-      // For other errors, try creating a new instance
-      console.warn('Creating new recognition instance due to error')
-      try {
-        createAndStartNewRecognitionInstance(recognition)
-        console.info('Web Speech API recognition restarted successfully with new instance')
-        return true
-      }
-      catch (restartError: any) {
-        const err = new Error(`Failed to start Web Speech API recognition: ${restartError?.message || String(restartError)}`)
-        fullStreamCtrl?.error(err)
-        textStreamCtrl?.error(err)
-        deferredText.reject(err)
-        deferredText.isRejected = true
-        console.error('Web Speech API recognition failed to start after retry:', restartError)
-        return false
-      }
+    catch (error) {
+      this.fail(error)
     }
   }
 
-  // Add event listeners for debugging before starting
-  recognition.onstart = () => {
-    console.info('Web Speech API recognition started (onstart event)')
+  /** Triggering workflow: provider stop or capture completion → native stop → final result and end events. */
+  stop() {
+    if (this.closed || this.stopping)
+      return
+    this.stopping = true
+    if (this.restart) {
+      clearTimeout(this.restart)
+      this.ended()
+      return
+    }
+    try {
+      this.recognition?.stop()
+    }
+    catch (error) {
+      this.fail(error)
+    }
   }
 
-  recognition.onaudiostart = () => {
-    console.info('Web Speech API audio capture started')
+  private start() {
+    if (this.closed || this.stopping)
+      return
+    try {
+      this.recognition!.start(this.track!)
+    }
+    catch (error) {
+      this.fail(error)
+    }
   }
 
-  recognition.onsoundstart = () => {
-    console.info('Web Speech API sound detected')
+  /** Triggering workflow: native result event → complete revision and committed sentence callbacks → Hearing. */
+  private result(event: SpeechRecognitionEvent) {
+    if (this.closed)
+      return
+    const final: string[] = []
+    const interim: string[] = []
+    for (let index = 0; index < event.results.length; index++) {
+      const result = event.results[index]
+      const text = result[0]?.transcript ?? ''
+      if (result.isFinal)
+        final.push(text)
+      else
+        interim.push(text)
+    }
+    const delta = final.slice(this.finalCount).join(' ')
+    this.finalCount = final.length
+    this.cycleText = final.join(' ')
+    const text = [this.completedText, this.cycleText, ...interim].filter(Boolean).join(' ')
+    this.fullOutput.enqueue({ type: 'transcript.text.snapshot', text, isFinal: !interim.length, locale: this.recognition!.lang, startMilliseconds: 0, durationMilliseconds: 0 })
+    if (delta) {
+      this.textOutput.enqueue(delta)
+      this.notify(this.options.onSentenceEnd, delta)
+    }
+    this.notify(this.options.onTranscriptionUpdate, text)
   }
 
-  recognition.onspeechstart = () => {
-    options?.onSpeechStart?.()
-    console.info('Web Speech API speech detected')
+  /** Triggering workflow: native end event → restart an open request or complete a stopped request. */
+  private ended() {
+    if (this.closed)
+      return
+    this.completedText = [this.completedText, this.cycleText].filter(Boolean).join(' ')
+    this.cycleText = ''
+    this.finalCount = 0
+    this.notify(this.options.onRecognitionCycleEnd)
+    if (!this.stopping && this.options.continuous !== false) {
+      // Keep the existing restart delay between browser recognition cycles.
+      this.restart = setTimeout(() => {
+        this.restart = undefined
+        this.start()
+      }, 100)
+      return
+    }
+    this.closed = true
+    this.options.abortSignal?.removeEventListener('abort', this.abort)
+    this.fullOutput.enqueue({ type: 'transcript.text.done', delta: '' })
+    this.fullOutput.close()
+    this.textOutput.close()
+    this.completion.resolve(this.completedText)
+    this.notify(this.options.onSpeechEnd, this.completedText)
   }
 
-  recognition.onspeechend = () => {
-    options?.onSpeechCaptureEnd?.()
-    console.info('Web Speech API speech ended')
+  private readonly abort = () => this.fail(this.options.abortSignal?.reason ?? new DOMException('Recognition cancelled', 'AbortError'))
+
+  private fail(cause: unknown) {
+    if (this.closed)
+      return
+    this.closed = true
+    clearTimeout(this.restart)
+    this.options.abortSignal?.removeEventListener('abort', this.abort)
+    const error = cause instanceof Error ? cause : new Error('Speech recognition failed', { cause })
+    this.fullOutput.error(error)
+    this.textOutput.error(error)
+    this.completion.reject(error)
+    try {
+      this.recognition?.abort()
+    }
+    catch { /* The streams already report the original failure. */ }
   }
 
-  recognition.onsoundend = () => {
-    console.info('Web Speech API sound ended')
+  private notify<Args extends unknown[]>(callback: ((...args: Args) => void) | undefined, ...args: Args) {
+    try {
+      callback?.(...args)
+    }
+    catch (error) {
+      console.error('Speech recognition observer failed', error)
+    }
   }
+}
 
-  recognition.onaudioend = () => {
-    console.info('Web Speech API audio capture ended')
-  }
-
-  recognition.onnomatch = () => {
-    console.info('Web Speech API: No speech match')
-  }
-
-  const started = startRecognition()
-  if (!started) {
-    // If immediate start failed, it might be a permission issue
-    // Web Speech API will prompt for permission automatically, so we just log
-    console.warn('Web Speech API recognition did not start immediately. This might be due to:')
-    console.warn('1. Microphone permission not granted - browser should prompt automatically')
-    console.warn('2. Recognition already running - this is normal if called multiple times')
-    console.warn('3. Browser requires user gesture - ensure microphone was enabled by user action')
-
-    // Don't retry immediately - wait for permission or user action
-    // The recognition instance is already created, so it can be started later if needed
-  }
-
-  return {
-    fullStream,
-    text: deferredText.promise,
-    textStream,
-    recognition: recognitionInstance,
-  }
+/** Uses the caller's track. Stop preserves final text, while request abort cancels recognition and its output streams. */
+export function streamWebSpeechAPITranscription(media: MediaStream, options: WebSpeechStreamOptions = {}) {
+  const session = new WebSpeechSession(media, options)
+  return { fullStream: session.fullStream, text: session.text, textStream: session.textStream, recognition: session }
 }

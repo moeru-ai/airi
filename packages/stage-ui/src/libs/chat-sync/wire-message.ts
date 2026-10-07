@@ -73,6 +73,9 @@ export function isCloudSyncableMessage(message: ChatHistoryItem): boolean {
     return false
   if (message.role === 'assistant' && message.interrupted)
     return false
+  // The cloud wire format cannot retain recordings. Keep their replies with the local source turn too.
+  if (message.role === 'user' && Array.isArray(message.content) && message.content.some(part => part.type === 'input_audio'))
+    return false
   return true
 }
 
