@@ -120,6 +120,20 @@ The Kirie debug APK SHA-256 was `c4cd7e4926b90bc1dddeb71cfed9135505da6df01fb428b
 Temporary evidence is in `recordings-android/onboarding-permissions-cc34b1b61-2026-10-07/`.
 The comparison places stage-pocket on the left and Kirie on the right.
 
+### Permission step continuation
+
+The comparison used Android API 36 and WebView 133.0.6943.137.
+Both apps started on `Permission management` with both permissions denied.
+The `Next` button opened `Choose model` in both apps.
+
+Both pages displayed `No available models` and the same OpenAI validation error.
+The search field remained empty, and `Save and Continue` remained disabled.
+The recordings use settled screenshots because screen recording disturbs transparent WebView tiles.
+
+The Kirie debug APK SHA-256 was `c4cd7e4926b90bc1dddeb71cfed9135505da6df01fb428bac517e8ef7b6df322`.
+Temporary evidence is in `recordings-android/onboarding-permission-next-d1b2dd338-2026-10-07/`.
+The comparison places stage-pocket on the left and Kirie on the right.
+
 ## Reference boundary
 
 Stage-pocket supplies the Android behavior reference for native and Web interactions.
