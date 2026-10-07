@@ -167,6 +167,26 @@ The raw recordings are `stage-pocket-keyboard-navigation-inset.mp4` and `stage-t
 The event-aligned comparison is `compare-keyboard-navigation-inset-timeline.mp4`.
 All three files remain untracked under `recordings-android`.
 
+## Mobile composer action verification on 2026-10-07
+
+Pocket and Kirie ran from commit `0ba436cd2` on the same Android 16 emulator.
+The emulator used API 36, WebView 133.0.6943.137, KVM, and host GPU rendering.
+Both WebViews measured 412 × 839 CSS pixels at a device pixel ratio of 2.625.
+
+Each application started with the voice-input action beside an empty composer.
+Native taps focused the composer, entered `parity`, and pressed the resulting send action.
+Both applications opened the same keyboard, changed the action to send, closed the keyboard, and retained the draft without a configured provider.
+The aligned keyboard transitions differ by no more than one 30 FPS frame.
+
+The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
+The Kirie APK SHA-256 is `c7131b5e6828fa791b896576872e71c99e6f286b3c97bd3c11e1ce0496a31410`.
+The raw recording hashes are `72b65a8044f3e7c06dcac54aee895477f2dcdd396bb1c2c11bc172a066271f89` and `fc6abc4c0c2783c355d9d54e8b1ccb898ddbb2a1af6418a8cd747efbdeebe475`.
+The aligned comparison hash is `7f43ed3d0cba693e034e2bdb318b4b3dda2a6b4b59fbec9099e883f4151a7a2d`.
+
+The evidence directory is `recordings-android/input-action-button-0ba436cd2-2026-10-07/`.
+It contains both raw recordings, trimmed recordings, contact sheets, and the side-by-side comparison.
+All evidence files remain untracked, and no ignore rule changed.
+
 ## Verification on 2026-10-06
 
 A temporary Android instrumentation project compiles the Java source extracted from `ANDROID_PLUGIN_SOURCE`.
