@@ -1,3 +1,5 @@
+import type { VoiceMessageCommand } from '../services/speech/bus'
+
 import { defineInvokeHandler } from '@moeru/eventa'
 import { encodeBase64 } from '@moeru/std/base64'
 import { defineStore } from 'pinia'
@@ -7,6 +9,22 @@ import { VoiceMessage } from '../libs/voice/voice-message'
 import { getSpeechBusContext, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages } from '../services/speech/bus'
 import { useChatStore } from './chat'
 import { useSettingsAudioDevice } from './settings/audio-device'
+
+/** Resolves when encoding ends. A ready message can then be sent. A failed or discarded one cannot. */
+function encoded(message: VoiceMessage) {
+  const encoding = () => ['pending', 'capturing', 'finalizing'].includes(message.snapshot.phase)
+  if (!encoding())
+    return Promise.resolve()
+
+  return new Promise<void>((resolve) => {
+    const stop = message.subscribe(() => {
+      if (encoding())
+        return
+      stop()
+      resolve()
+    })
+  })
+}
 
 /** The audio host retains attachment drafts. Windows only render snapshots and send explicit commands. */
 export const useVoiceMessagesStore = defineStore('voice-messages', () => {
@@ -23,23 +41,25 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
     bus.emit(voiceMessagesChanged, snapshots)
   }
 
-  function record(id: string, sessionId: string) {
-    if (opened.has(id))
+  function record(command: Extract<VoiceMessageCommand, { type: 'record' }>) {
+    if (opened.has(command.id))
       return false
-    opened.add(id)
-    const message = new VoiceMessage(id, sessionId, devices.input, async (draft) => {
+    opened.add(command.id)
+    const message = new VoiceMessage(command.id, command.sessionId, devices.input, async (draft) => {
       const data = encodeBase64(new Uint8Array(await draft.audio.arrayBuffer()))
       return chat.submit({
         sessionId: draft.sessionId,
         messageId: draft.messageId,
         text: '',
         attachments: [{ type: 'audio', mimeType: 'audio/wav', data }],
+        replyToMessageId: command.replyToMessageId,
+        tools: command.tools,
       })
     })
-    messages.set(id, message)
+    messages.set(command.id, message)
     const stop = message.subscribe(() => {
       if (message.snapshot.phase === 'sent' || message.snapshot.phase === 'cancelled') {
-        messages.delete(id)
+        messages.delete(command.id)
         stop()
       }
       publish()
@@ -53,13 +73,19 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
       bus.on(voiceRequestMessages, publish),
       defineInvokeHandler(bus, voiceMessageCommand, async (command) => {
         if (command.type === 'record')
-          return { status: record(command.id, command.sessionId) ? 'accepted' : 'closed' }
+          return { status: record(command) ? 'accepted' : 'closed' }
         const message = messages.get(command.id)
         if (!message)
           return { status: 'closed' }
         switch (command.type) {
           case 'finish':
             await message.finish()
+            if (command.send) {
+              await encoded(message)
+              // A failed send keeps the message `ready` with its error. The snapshot reports it, and the control can retry.
+              if (message.snapshot.phase === 'ready')
+                await message.send().catch(() => {})
+            }
             break
           case 'send':
             await message.send()

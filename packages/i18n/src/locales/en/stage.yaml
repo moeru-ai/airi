@@ -25,14 +25,26 @@ chat:
     description: Choose and validate a provider in Settings before sending a message.
     action: Open provider settings
   voice-message:
-    title: Voice message
-    record: Record a message
-    finish: Finish recording
-    dictate: Hold to dictate
     recording: Recording
     starting: Starting microphone
-    preparing: Preparing audio preview
     preview: Recorded voice message
+  voice-composer:
+    audio: Voice message
+    transcription: Dictation
+    hold-hint: Hold to record. Click to switch between voice message and dictation. Press Enter to record without holding.
+    listening: Listening…
+    lock: Slide up to lock
+    cancel-hint: Slide left to cancel
+    processing: Finishing…
+    cancel: Cancel
+    send: Send voice message
+    insert: Insert text
+    retry: Send voice message again
+    discard: Discard voice message
+    failed: Voice input failed
+    configure-title: Set up Hearing
+    configure-description: Select a transcription provider and model in Hearing to use dictation.
+    configure-action: Open Hearing
   voice-preview:
     processing: Finishing transcription
     device: Audio input device

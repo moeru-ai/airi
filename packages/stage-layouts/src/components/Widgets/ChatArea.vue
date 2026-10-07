@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, useVoiceInput, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, useVoiceInput, VoiceComposer, VoiceDrafts } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { HearingConfig } from '@proj-airi/stage-ui/components/scenarios/dialogs/audio-input/index'
 import { useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -11,8 +11,9 @@ import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
-import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import IndicatorMicVolume from './IndicatorMicVolume.vue'
 
@@ -24,6 +25,10 @@ const props = defineProps<{
 }>()
 
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
+const voiceInput = useTemplateRef<HTMLDivElement>('voiceInput')
+/** Recording UI covers the input. Text, attachments, and send stay hidden and inactive until it closes. */
+const voiceActive = shallowRef(false)
+const router = useRouter()
 
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
 const chatSession = useChatSessionStore()
@@ -73,7 +78,7 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  if (!pendingImages.value)
+  if (!voiceActive.value && !pendingImages.value)
     await submitInterruptingResponse()
 }
 
@@ -177,9 +182,9 @@ watch(replyTarget, async (target) => {
 
 <template>
   <VoiceDrafts />
-  <VoiceMessageControls />
-  <div ref="composer" h="<md:full" flex gap-2 class="ph-no-capture">
+  <div ref="composer" :class="['flex gap-2 <md:h-full', 'ph-no-capture']">
     <div
+      ref="voiceInput"
       :class="[
         'relative w-full overflow-hidden rounded-t-xl',
         'border-t-2 border-solid border-primary-200/20 bg-primary-100/50 backdrop-blur-md',
@@ -188,9 +193,10 @@ watch(replyTarget, async (target) => {
     >
       <ChatReplyPreview
         :target="replyTarget"
+        :class="[voiceActive && 'invisible']"
         @cancel="handleCancelReply"
       />
-      <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2']">
+      <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceActive && 'invisible']">
         <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
       </div>
       <p v-if="imageError" role="alert" :class="['px-2 text-sm text-red-600']">
@@ -205,14 +211,14 @@ watch(replyTarget, async (target) => {
         v-model="messageInput"
         :submit-on-enter="false"
         :placeholder="t('stage.message')"
-        text="primary-600 dark:primary-100  placeholder:primary-500 dark:placeholder:primary-200"
-        bg="transparent"
-        min-h="[100px]" max-h="[300px]" w-full
-        p-4 font-medium pb="[60px]"
-        outline-none transition="all duration-250 ease-in-out placeholder:all placeholder:duration-250 placeholder:ease-in-out"
-        :class="{
-          'transition-colors-none placeholder:transition-colors-none': themeColorsHueDynamic,
-        }"
+        :class="[
+          'max-h-[300px] min-h-[100px] w-full p-4 pb-[60px] font-medium outline-none',
+          'bg-transparent text-primary-600 dark:text-primary-100',
+          'placeholder:text-primary-500 dark:placeholder:text-primary-200',
+          'transition-all duration-250 ease-in-out placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out',
+          themeColorsHueDynamic && 'transition-colors-none placeholder:transition-colors-none',
+          voiceActive && 'invisible',
+        ]"
         @keydown="handleMessageInputKeydown"
         @paste-file="addFiles"
         @compositionstart="isComposing = true"
@@ -220,9 +226,7 @@ watch(replyTarget, async (target) => {
       />
 
       <!-- Input configuration controls -->
-      <div
-        absolute bottom-2 left-2 z-10 flex items-center gap-2
-      >
+      <div :class="['absolute bottom-2 left-2 z-10 flex items-center gap-2', voiceActive && 'invisible']">
         <button
           type="button"
           :aria-label="t('stage.chat.images.attach')"
@@ -269,35 +273,44 @@ watch(replyTarget, async (target) => {
         </PopoverRoot>
       </div>
 
-      <div
-        absolute bottom-2 right-2 z-10 flex items-center gap-1
-      >
-        <button
-          v-if="showStopAction"
-          data-testid="stop-speaking-button"
-          :class="[
-            composerActionButtonClass,
-            'bg-neutral-500/15 text-neutral-500 hover:bg-neutral-500/25 dark:bg-neutral-400/15 dark:text-neutral-300 dark:hover:bg-neutral-400/25',
-          ]"
-          :title="t('stage.chat.actions.stop')"
-          :aria-label="t('stage.chat.actions.stop')"
-          @click="stopActiveResponse"
-        >
-          <div class="i-solar:stop-outline size-5" />
-        </button>
-        <button
-          v-else
-          type="button"
-          :aria-label="t('stage.chat.actions.send')"
-          :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
-          :class="[
-            composerActionButtonClass,
-            'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',
-          ]"
-          @click="handleSend"
-        >
-          <span :class="['i-solar:arrow-up-outline size-5']" />
-        </button>
+      <div :class="['absolute bottom-2 right-2 z-10 flex items-center gap-1']">
+        <VoiceComposer
+          v-model="messageInput"
+          :input-element="voiceInput"
+          :session-id="chatSession.activeSessionId"
+          :reply-to-message-id="replyTarget?.message.id"
+          @recording-change="voiceActive = $event"
+          @sent="props.composer.clearReply()"
+          @configure="router.push('/settings/modules/hearing')"
+        />
+        <template v-if="!voiceActive">
+          <button
+            v-if="showStopAction"
+            data-testid="stop-speaking-button"
+            :class="[
+              composerActionButtonClass,
+              'bg-neutral-500/15 text-neutral-500 hover:bg-neutral-500/25 dark:bg-neutral-400/15 dark:text-neutral-300 dark:hover:bg-neutral-400/25',
+            ]"
+            :title="t('stage.chat.actions.stop')"
+            :aria-label="t('stage.chat.actions.stop')"
+            @click="stopActiveResponse"
+          >
+            <div class="i-solar:stop-outline size-5" />
+          </button>
+          <button
+            v-else
+            type="button"
+            :aria-label="t('stage.chat.actions.send')"
+            :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+            :class="[
+              composerActionButtonClass,
+              'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',
+            ]"
+            @click="handleSend"
+          >
+            <span :class="['i-solar:arrow-up-outline size-5']" />
+          </button>
+        </template>
       </div>
     </div>
   </div>

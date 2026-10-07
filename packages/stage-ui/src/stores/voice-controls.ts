@@ -6,13 +6,15 @@ import { errorMessageFrom } from '@moeru/std'
 import { defineStore } from 'pinia'
 import { onScopeDispose, shallowRef } from 'vue'
 
-import { getSpeechBusContext, voiceInputCommand, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages, voiceRequestSnapshot, voiceSnapshotChanged } from '../services/speech/bus'
+import { getSpeechBusContext, voiceInputCommand, voiceInputLevel, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages, voiceRequestSnapshot, voiceSnapshotChanged } from '../services/speech/bus'
 
 /** Windows render host snapshots and send named commands. They do not acquire audio resources. */
 export const useVoiceControlsStore = defineStore('voice-controls', () => {
   const snapshot = shallowRef<VoiceHostSnapshot>({ connected: false, drafts: [] })
   const error = shallowRef<string>()
   const messages = shallowRef<readonly VoiceMessageSnapshot[]>([])
+  /** The latest microphone level from the host. It keeps its last value after capture ends, so controls reset their own display. */
+  const level = shallowRef(0)
   const context = getSpeechBusContext()
   let connection = new AbortController()
   const stop = context.on(voiceSnapshotChanged, ({ body }) => {
@@ -30,6 +32,10 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
     messages.value = body ?? []
   })
   context.emit(voiceRequestMessages, undefined)
+  const stopLevel = context.on(voiceInputLevel, ({ body }) => {
+    if (body)
+      level.value = body.level
+  })
 
   async function messageCommand(command: VoiceMessageCommand) {
     if (!snapshot.value.connected)
@@ -60,7 +66,8 @@ export const useVoiceControlsStore = defineStore('voice-controls', () => {
   onScopeDispose(() => {
     stop()
     stopMessages()
+    stopLevel()
     connection.abort('Voice controls disposed')
   })
-  return { snapshot, messages, error, command, messageCommand }
+  return { snapshot, messages, level, error, command, messageCommand }
 })

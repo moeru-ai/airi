@@ -25,14 +25,26 @@ chat:
     description: 请先前往设置页面选择并验证一个 Provider，再发送消息。
     action: 打开 Provider 设置
   voice-message:
-    title: 语音消息
-    record: 录制消息
-    finish: 结束录制
-    dictate: 按住说话转文字
     recording: 正在录制
     starting: 正在启动麦克风
-    preparing: 正在准备音频预览
     preview: 已录制的语音消息
+  voice-composer:
+    audio: 语音消息
+    transcription: 语音转文字
+    hold-hint: 按住录音。单击在语音消息和语音转文字之间切换。按 Enter 可以免按住录音。
+    listening: 正在聆听…
+    lock: 上滑锁定
+    cancel-hint: 左滑取消
+    processing: 正在完成…
+    cancel: 取消
+    send: 发送语音消息
+    insert: 插入文字
+    retry: 重新发送语音消息
+    discard: 丢弃语音消息
+    failed: 语音输入失败
+    configure-title: 设置听觉
+    configure-description: 请在听觉设置中选择转录服务和模型，才能使用语音转文字。
+    configure-action: 打开听觉设置
   voice-preview:
     processing: 正在完成转录
     device: 音频输入设备
