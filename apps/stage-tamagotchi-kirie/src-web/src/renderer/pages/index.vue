@@ -15,7 +15,7 @@ import {
 import { hearingInputChannelName } from '@proj-airi/stage-shared'
 import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HoloCoupon } from '@proj-airi/stage-ui/components'
+import { HoloCoupon, OnboardingDialog, OnboardingStepAnalyticsNotice } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -23,6 +23,7 @@ import {
 import { WidgetStage } from '@proj-airi/stage-ui/components/scenes'
 import { useVoiceInputSession } from '@proj-airi/stage-ui/composables'
 import { useCanvasPixelIsTransparentAtPoint } from '@proj-airi/stage-ui/composables/canvas-alpha'
+import { isAnalyticsAvailableInBuild } from '@proj-airi/stage-ui/libs/product-signals'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
@@ -49,6 +50,7 @@ import {
   DEFAULT_ASSISTANT_SPEECH_INPUT_COOLDOWN_MS,
   shouldSuppressVoiceInput,
 } from '../utils/voice-input-suppression'
+import { isAndroidRenderer } from '../window-context'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
@@ -63,7 +65,14 @@ const isIgnoringMouseEvents = ref(false)
 const shouldFadeOnCursorWithin = ref(false)
 
 const onboardingStore = useOnboardingStore()
+const { showingSetup } = storeToRefs(onboardingStore)
 const { open: openOnboarding } = useHostOnboarding()
+const startupOnboarding = ref(false)
+const onboardingExtraSteps = computed(() => (
+  isAnalyticsAvailableInBuild()
+    ? [{ id: 'analytics-notice', component: OnboardingStepAnalyticsNotice }]
+    : []
+))
 
 const { isOutside: isOutsideWindow } = useHostMouseInWindow()
 const { isOutside } = useHostMouseInElement(controlsIslandElement)
@@ -735,9 +744,16 @@ watch(nowSpeaking, async (speaking) => {
 })
 
 onMounted(() => {
-  if (onboardingStore.needsOnboarding) {
-    openOnboarding()
+  if (!onboardingStore.needsOnboarding)
+    return
+
+  if (isAndroidRenderer()) {
+    startupOnboarding.value = true
+    showingSetup.value = true
+    return
   }
+
+  void openOnboarding()
 })
 
 onUnmounted(() => {
@@ -846,6 +862,15 @@ const cursorPosition = computed(() => ({
       </div>
     </div>
   </div>
+  <OnboardingDialog
+    v-if="isAndroidRenderer()"
+    v-model="showingSetup"
+    :extra-steps="onboardingExtraSteps"
+    :instant-open="startupOnboarding"
+    :scale-background="false"
+    @configured="onboardingStore.markSetupCompleted()"
+    @skipped="onboardingStore.markSetupSkipped()"
+  />
   <Transition
     enter-active-class="transition-opacity duration-250"
     enter-from-class="opacity-0"
