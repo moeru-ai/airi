@@ -365,6 +365,29 @@ describe('fieldSyncStore', () => {
       expect(snapshot!.fields).toEqual(expect.arrayContaining([{ key: '/untouched', value: 'base' }]))
     })
 
+    // Found in the review of https://github.com/moeru-ai/airi/pull/2817
+    // ROOT CAUSE:
+    //
+    // The baseline query filtered `value is not null` before `DISTINCT ON`.
+    // Cleanup then deleted a removal row and kept the older value.
+    //
+    // We fixed this by picking the latest row of each key first.
+    it('does not bring back a removed field when it collapses older revisions', async () => {
+      const limited = withHistory({ revisionsPerKey: 3, deletedDocumentRetentionMs: 1000 * 60 * 60 * 24, maxHistoryBytes: 1024 * 1024 })
+      const pushTo = (fields: PushedField[]) => limited.push('owner', 'doc', fields)
+
+      await pushTo([{ key: '/nickname', baseRevision: 0, value: 'Lulu' }, { key: '/name', baseRevision: 0, value: 'v0' }])
+      await pushTo([{ key: '/nickname', baseRevision: 1, removed: true }])
+      let nameRevision = 1
+      for (let i = 1; i < 6; i++) {
+        const pushed = await pushTo([{ key: '/name', baseRevision: nameRevision, value: `v${i}` }])
+        nameRevision = pushed.document.revision
+      }
+
+      const document = (await limited.list('owner')).documents[0]
+      expect(document.fields.map(field => field.key)).toEqual(['/name'])
+    })
+
     it('removes the history of a deleted document after its retention window, keeping the deletion marker', async () => {
       const limited = withHistory({ revisionsPerKey: 100, deletedDocumentRetentionMs: 0, maxHistoryBytes: 1024 * 1024 })
       await limited.push('owner', 'doc', [{ key: '/name', baseRevision: 0, value: 'Luna' }])
