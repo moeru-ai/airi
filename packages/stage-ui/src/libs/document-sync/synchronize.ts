@@ -27,6 +27,9 @@ export interface AppliedLocalChanges {
    * example because the content is invalid. The run keeps the sync state of
    * these documents. Without that, the next run reads the missing local
    * document as a deletion and deletes the server copy.
+   *
+   * A rejected document must keep its local content and get no conflict copy.
+   * Its state does not change, so each later round finds the same conflict.
    */
   rejected: string[]
 }
@@ -109,8 +112,10 @@ export async function synchronize(options: SynchronizeOptions): Promise<Synchron
     }
     await options.saveState(state)
 
-    // A conflict copy is a new local document. The next round sends it.
-    let needsAnotherRound = plan.conflictCopies.length > 0
+    // A conflict copy is a new local document. The next round sends it. The
+    // caller makes no copy for a rejected document, and that document keeps
+    // its earlier state, so another round only finds the same conflict.
+    let needsAnotherRound = plan.conflictCopies.some(copy => !rejected.includes(copy.documentId))
 
     for (const push of plan.pushes) {
       if (!isCurrent())
