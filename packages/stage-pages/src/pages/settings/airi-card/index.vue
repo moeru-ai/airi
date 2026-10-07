@@ -12,28 +12,19 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 
-import CardDetailDialog from './components/CardDetailDialog.vue'
 import CardListItem from './components/CardListItem.vue'
-import DeleteCardDialog from './components/DeleteCardDialog.vue'
 
 import { formatRelativeTime } from './composables/relative-time'
 
 const { t, locale } = useI18n()
 const cardStore = useAiriCardStore()
 const displayModelsStore = useDisplayModelsStore()
-const { addCard, removeCard } = cardStore
+const { addCard } = cardStore
 const { cards, activeCardId, cardSyncStates, cloudSyncEnabled } = storeToRefs(cardStore)
 const { isAuthenticated } = storeToRefs(useAuthStore())
 
 const route = useRoute()
 const router = useRouter()
-
-// Currently selected card ID (different from active card ID)
-const selectedCardId = ref<string>('')
-// Initial tab to open in the dialog
-const initialTabId = ref<string>('')
-// Dialog state
-const isCardDialogOpen = ref(false)
 
 // Search query
 const searchQuery = ref('')
@@ -94,8 +85,7 @@ interface CardItem {
   id: string
   name: string
   description?: string
-  deprecated?: boolean
-  customizable?: boolean
+  displayModelId?: string
 }
 
 watch(inputFiles, async (newFiles) => {
@@ -124,6 +114,7 @@ const cardsArray = computed<CardItem[]>(() =>
     id,
     name: card.name,
     description: card.description,
+    displayModelId: card.extensions?.airi?.modules?.displayModelId,
   })),
 )
 
@@ -154,49 +145,8 @@ const sortedFilteredCards = computed<CardItem[]>(() => {
   return sorted.reverse()
 })
 
-// Delete confirmation
-const showDeleteConfirm = ref(false)
-const cardToDelete = ref<string | null>(null)
-
-async function handleDeleteConfirm() {
-  if (cardToDelete.value) {
-    await removeCard(cardToDelete.value)
-    cardToDelete.value = null
-    showDeleteConfirm.value = false
-  }
-}
-
-// Card deletion confirmation
-function confirmDelete(id: string) {
-  cardToDelete.value = id
-  showDeleteConfirm.value = true
-}
-
-function handleSelectCard(cardId: string) {
-  // Verify card exists before opening dialog
-  if (!cards.value.has(cardId)) {
-    console.error(`Card with id ${cardId} not found`)
-    return
-  }
-  selectedCardId.value = cardId
-  isCardDialogOpen.value = true
-}
-
-function handleEditCard(cardId: string) {
-  if (!cards.value.has(cardId)) {
-    console.error(`Card with id ${cardId} not found`)
-    return
-  }
-  void router.push(`/settings/airi-card/${encodeURIComponent(cardId)}/edit`)
-}
-
 function handleCardCreationDialog() {
   void router.push('/settings/airi-card/new')
-}
-
-// Card activation
-function activateCard(id: string) {
-  void cardStore.activateCard(id)
 }
 
 watch(activeCardId, (cardId, previousCardId) => {
@@ -208,55 +158,23 @@ watch(activeCardId, (cardId, previousCardId) => {
     toast(t('settings.pages.card.activation_notice', { name: activeCard.name }))
 })
 
-// Clear initial tab when detail dialog closes
-watch(isCardDialogOpen, (isOpen) => {
-  if (!isOpen) {
-    initialTabId.value = ''
-  }
-})
-
-// Handle deep-linking from query params
+// Legacy deep links pointed at the list page with query params; send them to
+// the standalone detail or edit route instead.
 watch(() => [route.query.cardId, route.query.tab], ([cardId, tab]) => {
-  if (!cardId || typeof cardId !== 'string' || !cards.value.has(cardId))
+  if (typeof cardId !== 'string')
     return
-
-  const targetTab = typeof tab === 'string' ? tab : ''
-  selectedCardId.value = cardId
-  initialTabId.value = targetTab
-
-  // Gallery or other viewing tabs go to Detail dialog
-  if (['gallery', 'description', 'notes', 'character'].includes(targetTab)) {
-    isCardDialogOpen.value = true
-  }
-  // Artistry or other editing tabs go to Creation/Edit dialog
-  else if (['artistry', 'identity', 'behavior', 'modules', 'settings'].includes(targetTab)) {
-    void router.replace({
-      path: `/settings/airi-card/${encodeURIComponent(cardId)}/edit`,
-      query: { section: targetTab },
-    })
-    return
-  }
-  else {
-    // Default to detail if tab is unknown
-    isCardDialogOpen.value = true
-  }
-
-  // Clear query params to prevent re-triggering and keep URL clean
-  void router.replace({ query: {} })
+  const section = typeof tab === 'string' ? tab : ''
+  const edit = ['identity', 'behavior', 'model', 'modules', 'artistry', 'settings'].includes(section)
+  void router.replace({
+    path: `/settings/airi-card/${encodeURIComponent(cardId)}${edit ? '/edit' : ''}`,
+    query: edit ? { section } : { tab: section },
+  })
 }, { immediate: true })
 
 // Card version number
 function getVersionNumber(id: string) {
   const card = cards.value.get(id)
   return card?.version || '1.0.0'
-}
-
-// Preview of the display model the card points at, same lookup as the
-// character switcher. Undefined when the card has no model or the model is
-// not installed; the card then renders the fallback icon.
-function getPreviewImage(id: string) {
-  const displayModelId = cards.value.get(id)?.extensions?.airi?.modules?.displayModelId
-  return displayModelsStore.displayModels.find(model => model.id === displayModelId)?.previewImage
 }
 
 // Recently deleted cards
@@ -320,24 +238,6 @@ async function handleRestoreDeletedCard(card: DeletedCard) {
   finally {
     restoringDeletedId.value = null
   }
-}
-
-// Card module short name
-function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
-  const card = cards.value.get(id)
-  if (!card || !card.extensions?.airi?.modules)
-    return 'default'
-
-  const airiExt = card.extensions.airi.modules
-
-  if (module === 'consciousness') {
-    return airiExt.consciousness?.model ? airiExt.consciousness.model.split('-').pop() || 'default' : 'default'
-  }
-  else if (module === 'voice') {
-    return airiExt.speech?.voice_id || 'default'
-  }
-
-  return 'default'
 }
 </script>
 
@@ -490,17 +390,10 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
             :key="item.id"
             :name="item.name"
             :description="item.description"
-            :preview-image="getPreviewImage(item.id)"
             :is-active="item.id === activeCardId"
-            :is-selected="item.id === selectedCardId && isCardDialogOpen"
             :version="getVersionNumber(item.id)"
-            :consciousness-model="getModuleShortName(item.id, 'consciousness')"
-            :voice-model="getModuleShortName(item.id, 'voice')"
+            :model-id="item.displayModelId"
             :sync-state="cardSyncStates[item.id]"
-            @select="handleSelectCard(item.id)"
-            @activate="activateCard(item.id)"
-            @delete="confirmDelete(item.id)"
-            @edit="handleEditCard(item.id)"
           />
         </template>
 
@@ -545,21 +438,6 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       </div>
     </div>
   </div>
-
-  <!-- Delete confirmation dialog -->
-  <DeleteCardDialog
-    v-model="showDeleteConfirm"
-    :card-name="cardToDelete ? cardStore.getCard(cardToDelete)?.name : ''"
-    @confirm="handleDeleteConfirm"
-    @cancel="cardToDelete = null"
-  />
-
-  <!-- Card detail dialog -->
-  <CardDetailDialog
-    v-model="isCardDialogOpen"
-    :card-id="selectedCardId"
-    :initial-tab="initialTabId"
-  />
 
   <!-- Background decoration -->
   <div

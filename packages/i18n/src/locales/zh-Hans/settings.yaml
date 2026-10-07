@@ -348,20 +348,20 @@ pages:
   card:
     sync:
       title: 云同步
-      notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
-      off_notice: 你已登录，但角色卡同步还没有打开。
+      notice: 角色会同步到账号。删除的角色可在 30 天内恢复。
+      off_notice: 你已登录，但角色同步还没有打开。
       off_notice_link: 去实验性特性里打开。
       state:
         synced: 已同步到账号
         pending: 等待上传
-        refused: 未上传。账号里没有空间再存角色卡，这张卡只保留在这台设备。
+        refused: 未上传。账号里没有空间再存角色，这个角色只保留在这台设备。
       conflict_copy_name: '{name}（冲突副本）'
       conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
       history:
         tab: 历史版本
-        empty: 这张角色卡还没有历史版本。
+        empty: 这个角色还没有历史版本。
         loading: 正在加载历史版本……
-        load_failed: 无法加载这张角色卡的历史版本。
+        load_failed: 无法加载这个角色的历史版本。
         current: 当前版本
         changed_label: 改动
         removed_label: 移除
@@ -401,14 +401,14 @@ pages:
         restore_failed: 无法恢复到此版本，服务端可能已不再保留它。
       deleted:
         title: 最近删除
-        empty: 没有最近删除的角色卡。
-        loading: 正在加载最近删除的角色卡……
-        load_failed: 无法加载最近删除的角色卡。
+        empty: 没有最近删除的角色。
+        loading: 正在加载最近删除的角色……
+        load_failed: 无法加载最近删除的角色。
         deleted_when: 删除于 {when}
         days_left: 还可恢复，剩余 {days} 天
         restore: 恢复
         restore_success: 已恢复 {name}。
-        restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。
+        restore_failed: 无法恢复这个角色，服务端可能已不再保留它的内容。
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
@@ -416,7 +416,7 @@ pages:
     cancel: 取消操作
     save: 保存更改
     save_and_activate: 保存并激活
-    card_not_found: 未找到角色卡
+    card_not_found: 未找到角色
     back: 返回
     character: 角色设定
     close: 关闭
@@ -430,14 +430,14 @@ pages:
     created_by: 创建者
     creator_notes: 创建者笔记
     delete: 删除
-    delete_card: 删除角色卡
-    delete_confirmation: 确定要删除这张角色卡吗？
-    description: 使用 AIRI 角色卡预设
+    delete_card: 删除角色
+    delete_confirmation: 确定要删除这个角色吗？
+    description: 使用 AIRI 角色预设
     description_label: 描述
     drop_here: 放开以上传文件
-    create_card: 创建新角色卡
-    edit_card: 卡片编辑
-    saved: 角色卡已保存
+    create_card: 创建新角色
+    edit_card: 编辑角色
+    saved: 角色已保存
     unsaved:
       badge: 未保存
       title: 放弃更改？
@@ -461,7 +461,7 @@ pages:
         systemprompt: 你将收到消息，请像真实人类一样回复。
         posthistoryinstructions: 记得模仿人类的行为。
       modules_info: >-
-        配置此角色卡的模块。留空会继承全局设置。
+        配置此角色的模块。留空会继承全局设置。
       sections:
         chat: 聊天
         vision: 视觉
@@ -485,14 +485,14 @@ pages:
         systemprompt: 在这里向 AI LLM 解释当被提示时应该如何回应。
         posthistoryinstructions: 在消息历史之后，放入 AI LLM 应该阅读的内容。
         version: >-
-          卡片版本，如果您从之前的卡片做了更改，应当增加此版本号。
+          角色版本，如果您从之前的版本做了更改，应当增加此版本号。
         consciousness_model: 为这个角色选择 AI 模型。
         speech_model: 为此角色指定语音合成模型与音色。
       errors:
         model_required: 请为指定的提供商选择模型，不能继承其他提供商的模型。
         name: 错误：你必须提供一个有效的名称！
         version: '错误：版本号无效！'
-        description: '错误：你必须为此卡片提供描述。'
+        description: '错误：你必须为此角色提供描述。'
         personality: '错误：必须为该角色提供性格描述。'
         scenario: '错误：必须提供一个情境。'
         systemprompt: '错误：请提供系统提示。'
@@ -503,21 +503,26 @@ pages:
     modules: 模块
     name_asc: 名称 (A-Z)
     name_desc: 名称 (Z-A)
-    no_cards: 还没有任何角色卡，点击上方按钮上传一个吧！
-    no_results: 没有找到匹配的角色卡
+    no_cards: 还没有任何角色，点击上方按钮上传一个吧！
+    no_results: 没有找到匹配的角色
     personality: 性格
     posthistoryinstructions: 历史提示指令
     recent: 最近添加
     scenario: 场景
-    search: 搜索角色卡...
+    search: 搜索角色...
     sort_by: 排序方式
     body-model: 身体 / 显示模型
+    model: 模型
+    view-card: 查看角色
+    model-unavailable: 模型不可用
+    model-bound: 已绑定此角色
+    model-not-bound: 未选择模型
     speech:
       provider: 语音 / 提供商
       model: 声音 / 模型
       voice: 声音 / 声线
     systemprompt: 系统提示词
-    title: AIRI 角色卡
+    title: 角色
     try_different_search: 尝试使用其他关键词搜索
     export: 导出
     exported: 卡片包已导出

@@ -374,20 +374,20 @@ pages:
   card:
     sync:
       title: Cloud sync
-      notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
-      off_notice: You are signed in, but character card sync is off.
+      notice: Characters sync to your account. A deleted character stays restorable for 30 days.
+      off_notice: You are signed in, but character sync is off.
       off_notice_link: Turn it on in Experimental Features.
       state:
         synced: Synced to your account
         pending: Waiting to upload
-        refused: Not uploaded. Your account has no room for more cards, so this card stays on this device.
+        refused: Not uploaded. Your account has no room for more characters, so this character stays on this device.
       conflict_copy_name: '{name} (conflict copy)'
       conflict_notice: Another device changed the same character. AIRI kept the version from this device as a copy.
       history:
         tab: History
-        empty: No history yet for this card.
+        empty: No history yet for this character.
         loading: Loading history…
-        load_failed: Could not load the history of this card.
+        load_failed: Could not load the history of this character.
         current: Current
         changed_label: Changed
         removed_label: Removed
@@ -427,14 +427,14 @@ pages:
         restore_failed: Could not restore this version. The server may no longer have it.
       deleted:
         title: Recently deleted
-        empty: No recently deleted cards.
-        loading: Loading recently deleted cards…
-        load_failed: Could not load recently deleted cards.
+        empty: No recently deleted characters.
+        loading: Loading recently deleted characters…
+        load_failed: Could not load recently deleted characters.
         deleted_when: 'Deleted {when}'
         days_left: '{days} days left to restore'
         restore: Restore
         restore_success: Restored {name}.
-        restore_failed: Could not restore this card. The server may no longer have its content.
+        restore_failed: Could not restore this character. The server may no longer have its content.
     activate: Activate
     active: Active
     active_badge: Currently Active
@@ -442,7 +442,7 @@ pages:
     cancel: Cancel action
     save: Save changes
     save_and_activate: Save and activate
-    card_not_found: Card not found
+    card_not_found: Character not found
     back: Back
     character: Character
     close: Close
@@ -456,14 +456,14 @@ pages:
     created_by: created by
     creator_notes: Creator Notes
     delete: Delete
-    delete_card: Delete Card
-    delete_confirmation: Are you sure you want to delete this card?
-    description: Use AIRI character card presets
+    delete_card: Delete character
+    delete_confirmation: Are you sure you want to delete this character?
+    description: Use AIRI character presets
     description_label: Description
     drop_here: Drop to upload
-    create_card: Create a new Card
-    edit_card: Edit Card
-    saved: Card saved
+    create_card: Create a new character
+    edit_card: Edit character
+    saved: Character saved
     unsaved:
       badge: Unsaved
       title: Discard changes?
@@ -487,7 +487,7 @@ pages:
         systemprompt: You will receive messages, answer to them like a real human.
         posthistoryinstructions: Remember to imitate an human.
       modules_info: >-
-        Configure modules for this character card. Empty fields inherit global settings.
+        Configure modules for this character. Empty fields inherit global settings.
       sections:
         chat: Chat
         vision: Vision
@@ -514,15 +514,15 @@ pages:
         systemprompt: Explain here to the AI LLM how it should answer when prompted.
         posthistoryinstructions: Place here anything the AI LLM should read after the messages history.
         version: >-
-          Card version, you should increase this if you are making changes from
-          a previous card.
+          Character version, you should increase this if you are making changes
+          from a previous version.
         consciousness_model: Select the consciousness model (AI model) for this character.
         speech_model: Select the speech synthesis model and voice for this character.
       errors:
         model_required: Select a model for each explicit provider. Models cannot be inherited from a different provider.
         name: Name should be valid or non-empty.
         version: 'Error: Invalid version number !'
-        description: 'Error: You must provide a description for this card.'
+        description: 'Error: You must provide a description for this character.'
         personality: 'Error: A personality must be provided for this character.'
         scenario: 'Error: A scenario is required.'
         systemprompt: 'Error: Please, provide a system prompt.'
@@ -533,21 +533,26 @@ pages:
     modules: Modules
     name_asc: Name (A-Z)
     name_desc: Name (Z-A)
-    no_cards: No cards yet. Click the button above to upload one!
-    no_results: No matching cards found
+    no_cards: No characters yet. Click the button above to upload one!
+    no_results: No matching characters found
     personality: Personality
     posthistoryinstructions: Post-History Instructions
     recent: Recently Added
     scenario: Scenario
-    search: Search cards...
+    search: Search characters...
     sort_by: Sort by
     body-model: Body / Display Model
+    model: Model
+    view-card: View character
+    model-unavailable: Model unavailable
+    model-bound: Bound to this character
+    model-not-bound: No model selected
     speech:
       provider: Speech / Provider
       model: Speech / Model
       voice: Speech / Voice
     systemprompt: System Prompt
-    title: AIRI Card
+    title: Characters
     try_different_search: Try a different search term
     export: Export
     exported: Card package exported
