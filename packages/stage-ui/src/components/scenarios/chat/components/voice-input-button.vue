@@ -172,12 +172,10 @@ function openMenu() {
   menuOpen.value = true
 }
 
-watch(menuOpen, (open) => {
-  // Device labels are empty until the page has microphone permission.
-  if (open && !devices.permissionGranted)
-    void devices.askPermission()
-})
-
+// NOTICE:
+// Opening the menu does not ask for permission. A hover is no user activation, so the opened AudioContext never resumes.
+// Source: `microphoneSource` in packages/audio/src/browser/sources.ts awaits `context.resume()`.
+// Remove when that source stops waiting for resume.
 async function setListening(value: boolean) {
   if (value && !await devices.askPermission())
     return
