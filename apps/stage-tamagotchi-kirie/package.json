@@ -60,6 +60,7 @@
     "@proj-airi/stage-ui-mmd": "workspace:^",
     "@proj-airi/stage-ui-spine": "workspace:^",
     "@proj-airi/stage-ui-three": "workspace:^",
+    "@proj-airi/stream-kit": "workspace:^",
     "@proj-airi/ui": "workspace:^",
     "@shikijs/markdown-it": "catalog:",
     "@tresjs/cientos": "catalog:",

@@ -2564,6 +2564,9 @@ importers:
       '@proj-airi/stage-ui-three':
         specifier: workspace:^
         version: link:../../packages/stage-ui-three
+      '@proj-airi/stream-kit':
+        specifier: workspace:^
+        version: link:../../packages/stream-kit
       '@proj-airi/ui':
         specifier: workspace:^
         version: link:../../packages/ui
