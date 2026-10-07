@@ -39,6 +39,12 @@ The home page reports when its character model is ready or fails. A failed model
 If the model fails, the user can retry the app or continue without a character.
 The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
 
+## Official chat
+
+The official chat provider defaults to Responses API. Saved Chat Completions selections remain active.
+If a request reports an unsupported protocol before output, the runtime retries once with Chat Completions.
+The provider remembers unsupported models until its instance is recreated. Authentication errors and interrupted streams do not trigger this switch.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off

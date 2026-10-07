@@ -71,6 +71,22 @@ async function resolveTools(options?: StreamOptions) {
   return tools ?? []
 }
 
+function isResponsesUnsupported(error: unknown): boolean {
+  if (!(error instanceof APICallError))
+    return false
+  if (error.statusCode === 405 || error.statusCode === 501)
+    return true
+  const body = error.responseBody
+  if (!body)
+    return false
+  if (error.statusCode === 503 && /"(?:error|code|errorCode)"\s*:\s*"LLM_PROTOCOL_UNAVAILABLE"/.test(body))
+    return true
+  if (![400, 404, 422].includes(error.statusCode))
+    return false
+  return /\bresponses\b.{1,80}(?:not supported|unsupported|not implemented|not found)/i.test(body)
+    || /(?:does not support|unsupported).{1,80}\bresponses\b/i.test(body)
+}
+
 /** Runs the selected protocol adapter and waits for its generated turn and event consumers. */
 async function streamOnce({
   model,
@@ -78,12 +94,19 @@ async function streamOnce({
   conversation,
   options,
   builtinToolsResolver,
-}: StreamFromOptions) {
+}: StreamFromOptions, allowProtocolFallback = true): Promise<void> {
   const initialStep = await options?.resolveStep?.()
   const currentModel = initialStep?.model ?? model
   const currentProvider = initialStep?.chatProvider ?? chatProvider
   // Resolve before async tool loading so all decisions use this request's configuration.
   const request = currentProvider.generation(currentModel)
+  let consumerNotified = false
+  const canDowngrade = (error: unknown) => allowProtocolFallback
+    && request.protocol === 'responses'
+    && !!request.onUnsupported
+    && !consumerNotified
+    && !options?.abortSignal?.aborted
+    && isResponsesUnsupported(error)
   const supportedTools = supportsTools(currentModel, request, options)
   const contentArraySupported = supportsContentArray(currentModel, request, options)
   if (request.protocol === 'chat-completions' && !contentArraySupported && options?.prepareStringContent)
@@ -100,7 +123,7 @@ async function streamOnce({
 
   const scope = createContinuationScope(request.config, { ...options, providerId: initialStep?.providerId ?? options?.providerId })
 
-  return new Promise<void>((resolve, reject) => {
+  const generation = new Promise<void>((resolve, reject) => {
     let settled = false
     let stepsSettled = false
     const resolveOnce = () => {
@@ -118,8 +141,14 @@ async function streamOnce({
 
     const onEvent = async (streamEvent: StreamEvent) => {
       try {
-        if (streamEvent != null)
+        if (streamEvent?.type === 'error' && canDowngrade(streamEvent.error)) {
+          rejectOnce(streamEvent.error)
+          return
+        }
+        if (streamEvent != null) {
+          consumerNotified = true
           await options?.onStreamEvent?.(streamEvent)
+        }
         if (streamEvent?.type === 'error')
           rejectOnce(streamEvent.error)
       }
@@ -148,6 +177,7 @@ async function streamOnce({
         stepsSettled = true
         try {
           const generatedTurn = await streamResult.generatedTurn
+          consumerNotified = true
           await options?.onStreamEvent?.({ type: 'finish' })
           if (options?.abortSignal?.aborted)
             throw options.abortSignal.reason
@@ -216,6 +246,15 @@ async function streamOnce({
       rejectOnce(error)
     }
   })
+  try {
+    await generation
+  }
+  catch (error) {
+    if (!canDowngrade(error) || request.protocol !== 'responses')
+      throw error
+    request.onUnsupported?.()
+    await streamOnce({ model, chatProvider, conversation, options, builtinToolsResolver }, false)
+  }
 }
 
 /**
