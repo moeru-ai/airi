@@ -169,11 +169,14 @@ export function createFieldSyncStore(db: Database, tables: FieldSyncTables, opti
     if (cutoff <= 0)
       return
 
-    const baseline = await tx.selectDistinctOn([fields.key], { key: fields.key, revision: fields.revision })
+    // Pick the latest row of each key first, then drop the removals. A filter
+    // on the value before `DISTINCT ON` picks an older value instead of the
+    // removal, and the removed key becomes current again.
+    const baseline = await tx.selectDistinctOn([fields.key], { key: fields.key, revision: fields.revision, removed: sql<boolean>`${fields.value} is null` })
       .from(fields)
-      .where(and(fieldsFilter(ownerId, documentId), lte(fields.revision, cutoff), isNotNull(fields.value)))
+      .where(and(fieldsFilter(ownerId, documentId), lte(fields.revision, cutoff)))
       .orderBy(fields.key, desc(fields.revision))
-    const keptRevisionByKey = new Map(baseline.map(row => [row.key, row.revision]))
+    const keptRevisionByKey = new Map(baseline.filter(row => !row.removed).map(row => [row.key, row.revision]))
 
     const old = await tx.select({ key: fields.key, revision: fields.revision })
       .from(fields)

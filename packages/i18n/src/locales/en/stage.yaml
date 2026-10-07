@@ -52,6 +52,7 @@ chat:
     title: Voice draft
     select: 'Show draft {number}'
     discard: Discard draft
+    finalizing: Finishing…
   voice-input: Voice input
   error-details:
     show: Show details
