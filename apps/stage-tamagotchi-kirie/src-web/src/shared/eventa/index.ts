@@ -109,6 +109,19 @@ export const airiAndroidBarcodeEventIds = {
   scan: 'eventa:invoke:airi:android:barcode:scan',
 } as const
 
+export interface AiriAndroidNotificationSchedulePayload {
+  at: number
+  notification: {
+    body: string
+    id: number
+    title: string
+  }
+}
+
+export const airiAndroidNotificationEventIds = {
+  schedule: 'eventa:invoke:airi:android:notification:schedule',
+} as const
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
