@@ -794,6 +794,16 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          rephrase:
+            title: 转写改写
+            description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。
+            enabled: 改写转写文本
+            enabled-description: 每段完成的转写都会发送给所选的对话模型。模型失败或超过 10 秒时，使用原始文本。
+            provider: 服务来源
+            provider-description: 默认使用意识模块的对话模型。
+            same-as-chat: 与对话相同
+            model: 模型
+            model-placeholder: 选择模型
           playground:
             current: 当前转写
             description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
