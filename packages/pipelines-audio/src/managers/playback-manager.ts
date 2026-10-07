@@ -1,5 +1,6 @@
 import type {
   PlaybackEndEvent,
+  PlaybackIntentDrainedEvent,
   PlaybackInterruptEvent,
   PlaybackItem,
   PlaybackRejectEvent,
@@ -53,6 +54,92 @@ export function createPlaybackManager<TAudio>(
     end: new Set<Listener<PlaybackEndEvent<TAudio>>>(),
     interrupt: new Set<Listener<PlaybackInterruptEvent<TAudio>>>(),
     reject: new Set<Listener<PlaybackRejectEvent<TAudio>>>(),
+    intentDrained: new Set<Listener<PlaybackIntentDrainedEvent>>(),
+  }
+
+  /**
+   * Lifecycle state of one producer intent.
+   *
+   * Streaming intents schedule items one by one, so the tracked set
+   * legitimately empties between sentences while more items are coming.
+   * The `intentDrained` event fires only for a SEALED intent whose set is
+   * empty, never on a transient gap. It fires exactly once: the state is
+   * removed at emission, and `drainedIntents` keeps a late duplicate
+   * {@link sealIntent} call (for example from a cancel followed by the
+   * producer's own terminal seal) quiet.
+   */
+  interface IntentTracking {
+    /** Ids of active or waiting items. Counting ids survives queue moves. */
+    items: Set<string>
+    /** The producer promised that no more items will be scheduled. */
+    sealed: boolean
+  }
+  const intentTracking = new Map<string, IntentTracking>()
+  /** Intents that already emitted their terminal drain event. */
+  const drainedIntents = new Set<string>()
+  /** Latest turn id seen for an intent, echoed on the drained event. */
+  const intentTurnIds = new Map<string, string>()
+
+  function trackItemScheduled(item: PlaybackItem<TAudio>) {
+    // A new item after a drain should not exist under the producer
+    // contract, but revive the intent instead of dropping it silently.
+    drainedIntents.delete(item.intentId)
+    let tracking = intentTracking.get(item.intentId)
+    if (!tracking) {
+      tracking = { items: new Set(), sealed: false }
+      intentTracking.set(item.intentId, tracking)
+    }
+    tracking.items.add(item.id)
+    if (item.turnId)
+      intentTurnIds.set(item.intentId, item.turnId)
+  }
+
+  function emitIntentDrainedIfDone(intentId: string) {
+    const tracking = intentTracking.get(intentId)
+    if (!tracking || !tracking.sealed || tracking.items.size > 0)
+      return
+    intentTracking.delete(intentId)
+    drainedIntents.add(intentId)
+    const turnId = intentTurnIds.get(intentId)
+    intentTurnIds.delete(intentId)
+    emit(listeners.intentDrained, {
+      intentId,
+      ...(turnId ? { turnId } : {}),
+      drainedAt: Date.now(),
+    })
+  }
+
+  function trackItemRemoved(item: PlaybackItem<TAudio>) {
+    const tracking = intentTracking.get(item.intentId)
+    if (!tracking)
+      return
+    tracking.items.delete(item.id)
+    if (tracking.items.size > 0)
+      return
+    // Empty for now, but a streaming producer may schedule the next
+    // sentence shortly. Emit only after the intent is sealed.
+    emitIntentDrainedIfDone(item.intentId)
+  }
+
+  /**
+   * Declares that no more items will be scheduled for this intent. When
+   * every tracked item has ended, `intentDrained` fires; if the intent
+   * already has no items, it fires immediately. Producers call this when
+   * their input stream terminates (segmenter flush, WebSocket
+   * `session.finished`, cancellation), not between sentences.
+   */
+  function sealIntent(intentId: string, turnId?: string) {
+    if (drainedIntents.has(intentId))
+      return
+    let tracking = intentTracking.get(intentId)
+    if (!tracking) {
+      tracking = { items: new Set(), sealed: false }
+      intentTracking.set(intentId, tracking)
+    }
+    tracking.sealed = true
+    if (turnId)
+      intentTurnIds.set(intentId, turnId)
+    emitIntentDrainedIfDone(intentId)
   }
 
   function subscribe<T>(bucket: Set<Listener<T>>, listener: Listener<T>) {
@@ -141,6 +228,7 @@ export function createPlaybackManager<TAudio>(
     if (!active.delete(entry.item.id)) {
       return
     }
+    trackItemRemoved(entry.item)
 
     if (interrupted) {
       emit(
@@ -176,6 +264,7 @@ export function createPlaybackManager<TAudio>(
       }
 
     active.set(item.id, entry)
+    trackItemScheduled(item)
 
     emit(
       listeners.start,
@@ -216,6 +305,7 @@ export function createPlaybackManager<TAudio>(
     if (index === -1)
       index = waiting.length
     waiting.splice(index, 0, queued)
+    trackItemScheduled(item)
   }
 
   function resolvePolicy(blocked: 'overflow' | 'owner-overflow') {
@@ -287,6 +377,9 @@ export function createPlaybackManager<TAudio>(
   }
 
   function reject(item: PlaybackItem<TAudio>, reason: string) {
+    // Safe for items that were rejected before ever entering active/waiting
+    // state: nothing was tracked for them and this is a no-op.
+    trackItemRemoved(item)
     emit(
       listeners.reject,
       {
@@ -363,9 +456,15 @@ export function createPlaybackManager<TAudio>(
   }
 
   function stopByIntent(intentId: string, reason = 'stop-by-intent') {
+    // Cancellation is a terminal state: no further items are expected, so
+    // seal first and let the purge emit the terminal drain event.
+    sealIntent(intentId)
     for (let i = waiting.length - 1; i >= 0; i--) {
-      if (waiting[i]?.item.intentId === intentId)
-        waiting.splice(i, 1)
+      if (waiting[i]?.item.intentId === intentId) {
+        const [removed] = waiting.splice(i, 1)
+        if (removed)
+          trackItemRemoved(removed.item)
+      }
     }
 
     for (const entry of [...active.values()]) {
@@ -377,9 +476,24 @@ export function createPlaybackManager<TAudio>(
   }
 
   function stopByOwner(ownerId: string, reason = 'stop-by-owner') {
+    const intentIds = new Set<string>()
+    for (const queued of waiting) {
+      if (queued.item.ownerId === ownerId)
+        intentIds.add(queued.item.intentId)
+    }
+    for (const entry of active.values()) {
+      if (entry.item.ownerId === ownerId)
+        intentIds.add(entry.item.intentId)
+    }
+    for (const intentId of intentIds)
+      sealIntent(intentId)
+
     for (let i = waiting.length - 1; i >= 0; i--) {
-      if (waiting[i]?.item.ownerId === ownerId)
-        waiting.splice(i, 1)
+      if (waiting[i]?.item.ownerId === ownerId) {
+        const [removed] = waiting.splice(i, 1)
+        if (removed)
+          trackItemRemoved(removed.item)
+      }
     }
 
     for (const entry of [...active.values()]) {
@@ -392,8 +506,20 @@ export function createPlaybackManager<TAudio>(
 
   return {
     schedule,
+    sealIntent,
     stopAll(reason = 'stop-all') {
+      const intentIds = new Set<string>()
+      for (const queued of waiting)
+        intentIds.add(queued.item.intentId)
+      for (const entry of active.values())
+        intentIds.add(entry.item.intentId)
+      for (const intentId of intentIds)
+        sealIntent(intentId)
+
+      const pending = [...waiting]
       waiting.length = 0
+      for (const queued of pending)
+        trackItemRemoved(queued.item)
 
       for (const x of [...active.values()]) {
         interrupt(x, reason, { allowStartWaiting: false })
@@ -413,5 +539,8 @@ export function createPlaybackManager<TAudio>(
     onReject: (
       f: Listener<PlaybackRejectEvent<TAudio>>,
     ) => subscribe(listeners.reject, f),
+    onIntentDrained: (
+      f: Listener<PlaybackIntentDrainedEvent>,
+    ) => subscribe(listeners.intentDrained, f),
   }
 }

@@ -24,6 +24,7 @@ import { useWebSearchStore } from '../stores/modules/web-search'
 import { useOnboardingStore } from '../stores/onboarding'
 import { useProviderStore } from '../stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '../stores/settings'
+import { useSettingsBilingualSubtitles } from '../stores/settings/bilingual-subtitles'
 
 export function useDataMaintenance() {
   const chatStore = useChatSessionStore()
@@ -49,6 +50,7 @@ export function useDataMaintenance() {
   const mcpStore = useMcpStore()
   const onboardingStore = useOnboardingStore()
   const airiCardStore = useAiriCardStore()
+  const bilingualSubtitlesStore = useSettingsBilingualSubtitles()
 
   async function deleteAllModels() {
     await displayModelsStore.resetDisplayModels()
@@ -67,6 +69,7 @@ export function useDataMaintenance() {
     const results = await Promise.allSettled([
       () => hearingStore.resetState(),
       () => speechStore.resetState(),
+      () => bilingualSubtitlesStore.resetState(),
       () => consciousnessStore.resetState(),
       () => consciousnessSettingsStore.resetState(),
       () => twitterStore.resetState(),

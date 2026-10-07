@@ -50,6 +50,12 @@ export const useChatContextStore = defineStore('chat-context', () => {
     syncRegistrySnapshot()
   }
 
+  /** Drops one active context bucket by its stable source key. */
+  function removeContext(sourceKey: string) {
+    registry.remove(sourceKey)
+    syncRegistrySnapshot()
+  }
+
   function getContextsSnapshot() {
     return registry.snapshot()
   }
@@ -70,6 +76,7 @@ export const useChatContextStore = defineStore('chat-context', () => {
   return {
     ingestContextMessage,
     resetContexts,
+    removeContext,
     getContextsSnapshot,
     getContextBucketsSnapshot,
     activeContexts,

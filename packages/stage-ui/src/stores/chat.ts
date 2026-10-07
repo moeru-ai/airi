@@ -32,7 +32,7 @@ import { resolveLlmTools } from './ai/chat-llm/tool-resolver'
 import { useLlmToolsStore } from './ai/chat-llm/tools'
 import { useLlmToolsetPromptsStore } from './ai/chat-llm/toolset-prompts'
 import { useAuthStore } from './auth'
-import { createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
+import { BILINGUAL_PROMPT_CONTEXT_ID, createMinecraftContext, createRuntimePromptContext, createUserAccountContext } from './chat/context-providers'
 import { useChatContextStore } from './chat/context-store'
 import { describeChatImages, replaceToolResultImages } from './chat/image-projection'
 import { useChatSessionStore } from './chat/session-store'
@@ -44,6 +44,7 @@ import { useConsciousnessStore } from './modules/consciousness'
 import { useStickersStore } from './modules/stickers'
 import { useVisionStore } from './modules/vision'
 import { useWebSearchStore } from './modules/web-search'
+import { buildBilingualInstruction, useSettingsBilingualSubtitles } from './settings/bilingual-subtitles'
 import { executeToolCallRerun } from './tool-call-rerun'
 
 interface ForkOptions {
@@ -180,6 +181,7 @@ const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The v
 export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n()
   const runtimePrompt = useAiriRuntimePrompt()
+  const bilingualSettings = useSettingsBilingualSubtitles()
   const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()
@@ -448,6 +450,7 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
+      remove: sourceKey => chatContext.removeContext(sourceKey),
       snapshot: () => {
         const snapshot = { ...chatContext.getContextsSnapshot() }
         // Account data belongs to this request, not the persistent context registry.
@@ -472,6 +475,15 @@ export const useChatStore = defineStore('chat', () => {
     getActiveSessionId: () => activeSessionId.value,
     getActiveProvider: () => activeProvider.value,
     getSystemPromptSupplement: () => llmToolsetPromptsStore.activeToolsetPrompt,
+    getBilingualSnapshot: () => bilingualSettings.snapshot(),
+    // Built from the same per-send snapshot the orchestrator captured before
+    // the async before-compose hook, so the prompt mode and the splitter mode
+    // can never disagree because settings changed mid-send.
+    getBilingualInstructionContext: snapshot =>
+      snapshot ? createRuntimePromptContext(buildBilingualInstruction(snapshot), BILINGUAL_PROMPT_CONTEXT_ID) : undefined,
+    // Re-asserted on every send without a bilingual snapshot, so disabling
+    // the setting drops the instruction bucket an earlier turn injected.
+    bilingualContextKey: BILINGUAL_PROMPT_CONTEXT_ID,
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
       createMinecraftContext,
@@ -826,6 +838,7 @@ export const useChatStore = defineStore('chat', () => {
     emitBeforeSendHooks: runtime.hooks.emitBeforeSendHooks,
     emitAfterSendHooks: runtime.hooks.emitAfterSendHooks,
     emitTokenLiteralHooks: runtime.hooks.emitTokenLiteralHooks,
+    emitTokenTranslationHooks: runtime.hooks.emitTokenTranslationHooks,
     emitTokenSpecialHooks: runtime.hooks.emitTokenSpecialHooks,
     emitStreamEndHooks: runtime.hooks.emitStreamEndHooks,
     emitAssistantResponseEndHooks: runtime.hooks.emitAssistantResponseEndHooks,
@@ -837,6 +850,7 @@ export const useChatStore = defineStore('chat', () => {
     onBeforeSend: runtime.hooks.onBeforeSend,
     onAfterSend: runtime.hooks.onAfterSend,
     onTokenLiteral: runtime.hooks.onTokenLiteral,
+    onTokenTranslation: runtime.hooks.onTokenTranslation,
     onTokenSpecial: runtime.hooks.onTokenSpecial,
     onStreamEnd: runtime.hooks.onStreamEnd,
     onAssistantResponseEnd: runtime.hooks.onAssistantResponseEnd,

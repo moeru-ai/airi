@@ -624,6 +624,20 @@ pages:
           description: Configure 3D VRM models and settings
         scene: Scene
   modules:
+    bilingual_subtitles:
+      title: Bilingual subtitles
+      description: Speak one language and show translated subtitles
+      enable:
+        label: Enable bilingual subtitles
+        description: AIRI speaks in the spoken language and adds translations in the caption window.
+      spoken_language:
+        label: Spoken language (text-to-speech)
+        description: The language that text-to-speech reads aloud.
+      translation_subtitle_1:
+        label: Translation subtitle 1
+        same_language_disabled: Already used as the spoken language
+      voice_warning: The selected text-to-speech voice may not support the spoken language. Check the voice in Speech settings.
+      buffered_speech_warning: Translation subtitles are unavailable with this streaming voice (Seed-TTS 2.0 / ICL 2.0). Its protocol gives sentence timing during synthesis with no playback offsets. Speech and spoken captions still work. Use a REST voice or Seed-TTS 1.0 for translation subtitles.
     beat_sync:
       description: Vibe with beats from the audio source
       title: Beat Sync

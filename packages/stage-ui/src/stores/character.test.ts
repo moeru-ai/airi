@@ -4,9 +4,8 @@ import { createTestingPinia } from '@pinia/testing'
 import { setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { setCharacterLlmMarkerParserFactoryForTest, useCharacterStore } from './character'
+import { useCharacterStore } from './character'
 import { useAiriCardStore } from './modules'
-import { useSpeechRuntimeStore } from './speech-runtime'
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -14,51 +13,10 @@ vi.mock('vue-i18n', () => ({
   }),
 }))
 
-const writeLiteralSpy = vi.fn()
-const writeFlushSpy = vi.fn()
-const endSpy = vi.fn()
-const cancelSpy = vi.fn()
-const parserConsumeSpy = vi.fn()
-const parserEndSpy = vi.fn()
-
-const openSpeechIntentSpy = vi.fn(() => ({
-  intentId: 'intent-test',
-  streamId: 'stream-test',
-  priority: 100,
-  stream: new ReadableStream(),
-  writeLiteral: writeLiteralSpy,
-  writeSpecial: vi.fn(),
-  writeFlush: writeFlushSpy,
-  end: endSpy,
-  cancel: cancelSpy,
-}))
-
 describe('store character', () => {
   beforeEach(() => {
     const pinia = createTestingPinia({ createSpy: vi.fn, stubActions: false })
     setActivePinia(pinia)
-
-    setCharacterLlmMarkerParserFactoryForTest(options => ({
-      async consume(textPart: string) {
-        parserConsumeSpy(textPart)
-        if (textPart)
-          await options.onLiteral?.(textPart)
-      },
-      async end() {
-        parserEndSpy()
-      },
-    }))
-
-    writeLiteralSpy.mockClear()
-    writeFlushSpy.mockClear()
-    endSpy.mockClear()
-    cancelSpy.mockClear()
-    openSpeechIntentSpy.mockClear()
-    parserConsumeSpy.mockClear()
-    parserEndSpy.mockClear()
-
-    const speechRuntimeStore = useSpeechRuntimeStore(pinia)
-    speechRuntimeStore.openIntent = openSpeechIntentSpy
 
     const airiCardStore = useAiriCardStore(pinia)
     // @ts-expect-error - testing purpose
@@ -109,7 +67,7 @@ describe('store character', () => {
     expect(store.reactions[199]?.message).toBe('message-200')
   })
 
-  it('records streamed reactions when the stream ends', async () => {
+  it('records a streamed reaction with its raw text when the stream ends', () => {
     const store = useCharacterStore()
     const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(123456)
 
@@ -122,24 +80,7 @@ describe('store character', () => {
     expect(store.reactions[0]?.sourceEventId).toBe('spark-1')
     expect(store.reactions[0]?.createdAt).toBe(123456)
 
-    await vi.waitFor(() => {
-      expect(parserConsumeSpy).toHaveBeenCalled()
-      expect(parserEndSpy).toHaveBeenCalled()
-      expect(writeLiteralSpy).toHaveBeenCalledWith('Hello')
-      expect(writeLiteralSpy).toHaveBeenCalledWith(' world')
-      expect(writeFlushSpy).toHaveBeenCalled()
-      expect(endSpy).toHaveBeenCalled()
-    })
-
     nowSpy.mockRestore()
-  })
-
-  it('ignores stream end when no streaming reaction exists', () => {
-    const store = useCharacterStore()
-
-    store.onSparkNotifyReactionStreamEnd('missing', 'Ignored')
-
-    expect(store.reactions).toHaveLength(0)
   })
 
   it('clears reactions', () => {
