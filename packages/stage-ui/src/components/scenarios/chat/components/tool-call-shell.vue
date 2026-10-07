@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Collapsible } from '@proj-airi/ui'
+import { BasicButton, Collapsible } from '@proj-airi/ui'
 
 /** Properties for the shared collapsible frame around a chat tool call. */
 interface Props {
@@ -30,32 +30,47 @@ defineSlots<{
           'inline-flex items-center gap-1',
         ]"
       >
-        <button
+        <BasicButton
+          type="button"
+          size="unset"
+          :aria-expanded="visible"
           :class="[
             'min-w-0 flex-1 text-start',
-            'inline-flex items-center',
+            'justify-start! [&>.basic-button-content]:min-w-0 [&>.basic-button-content]:justify-start',
           ]"
           @click="setVisible(!visible)"
         >
           <div
             v-if="state === 'executing'"
-            class="i-eos-icons:loading mr-1 inline-block op-50"
+            :class="[
+              'i-eos-icons:loading mr-1 inline-block op-50',
+            ]"
           />
           <div
             v-else-if="state === 'error'"
-            class="i-solar:danger-circle-bold-duotone mr-1 inline-block text-red-500"
+            :class="[
+              'i-solar:danger-circle-bold-duotone mr-1 inline-block text-red-500',
+            ]"
           />
           <div
             v-else-if="state === 'done'"
-            class="i-solar:check-circle-bold-duotone mr-1 inline-block text-emerald-500"
+            :class="[
+              'i-solar:check-circle-bold-duotone mr-1 inline-block text-emerald-500',
+            ]"
           />
           <div
             v-else
-            class="i-solar:sledgehammer-bold-duotone mr-1 inline-block translate-y-1 op-50"
+            :class="[
+              'i-solar:sledgehammer-bold-duotone mr-1 inline-block translate-y-1 op-50',
+            ]"
           />
-          <code class="truncate text-xs">{{ toolName }}</code>
+          <code
+            :class="[
+              'truncate text-xs',
+            ]"
+          >{{ toolName }}</code>
           <slot name="labelSuffix" />
-        </button>
+        </BasicButton>
         <slot name="actions" />
       </div>
     </template>

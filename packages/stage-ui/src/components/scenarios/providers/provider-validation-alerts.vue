@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BasicButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 import Alert from '../../misc/alert.vue'
@@ -31,13 +32,14 @@ const { t } = useI18n()
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationFailed') }}</span>
-        <button
+        <BasicButton
+          size="unset"
           type="button"
           :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
           @click="props.onForceValid"
         >
           {{ t('settings.pages.providers.common.continueAnyway') }}
-        </button>
+        </BasicButton>
       </div>
     </template>
     <template v-if="validationMessage" #content>
@@ -52,21 +54,23 @@ const { t } = useI18n()
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationPartial') }}</span>
         <div :class="['flex items-center gap-2']">
-          <button
+          <BasicButton
+            size="unset"
             type="button"
             :disabled="isManualTesting"
             :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40', isManualTesting ? 'cursor-not-allowed opacity-50' : '']"
             @click="props.onRunTest"
           >
             {{ isManualTesting ? t('settings.dialogs.onboarding.testGenerationRunning') : t('settings.dialogs.onboarding.testGeneration') }}
-          </button>
-          <button
+          </BasicButton>
+          <BasicButton
+            size="unset"
             type="button"
             :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-blue-100 text-blue-600 hover:bg-blue-200', 'dark:bg-blue-800/30 dark:text-blue-300 dark:hover:bg-blue-700/40']"
             @click="props.onGoToModelSelection"
           >
             {{ t('settings.pages.providers.common.goToModelSelection') }}
-          </button>
+          </BasicButton>
         </div>
       </div>
     </template>
@@ -76,13 +80,14 @@ const { t } = useI18n()
     <template #title>
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.validationSuccess') }}</span>
-        <button
+        <BasicButton
+          size="unset"
           type="button"
           :class="['ml-2 rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-green-100 text-green-600 hover:bg-green-200', 'dark:bg-green-800/30 dark:text-green-300 dark:hover:bg-green-700/40']"
           @click="props.onGoToModelSelection"
         >
           {{ t('settings.pages.providers.common.goToModelSelection') }}
-        </button>
+        </BasicButton>
       </div>
     </template>
   </Alert>
@@ -92,20 +97,22 @@ const { t } = useI18n()
       <div :class="['w-full flex items-center justify-between']">
         <span>{{ t('settings.dialogs.onboarding.testGenerationFailed') }}</span>
         <div :class="['flex items-center gap-2']">
-          <button
+          <BasicButton
+            size="unset"
             type="button"
             :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
             @click="props.onRunTest"
           >
             {{ t('settings.dialogs.onboarding.retryPingCheck') }}
-          </button>
-          <button
+          </BasicButton>
+          <BasicButton
+            size="unset"
             type="button"
             :class="['rounded px-2 py-0.5 text-xs font-medium transition-colors', 'bg-red-100 text-red-600 hover:bg-red-200', 'dark:bg-red-800/30 dark:text-red-300 dark:hover:bg-red-700/40']"
             @click="props.onForceValid"
           >
             {{ t('settings.pages.providers.common.continueAnyway') }}
-          </button>
+          </BasicButton>
         </div>
       </div>
     </template>
