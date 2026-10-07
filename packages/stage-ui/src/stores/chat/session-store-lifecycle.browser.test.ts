@@ -2,20 +2,41 @@ import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsIndex } from '../.
 
 import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, ref } from 'vue'
+import { computed, createApp, defineComponent, h, nextTick } from 'vue'
+import { createI18n } from 'vue-i18n'
 
-// Refs the store reads through the mocked `useAuthStore` / `useAiriCardStore`.
-// Tests mutate these to simulate auth and card swaps.
-const userIdRef = ref<string>('local')
-const activeCardIdRef = ref<string>('default')
-const systemPromptRef = ref<string>('')
+import { useAuthStore } from '../auth'
+import { useAiriCardStore } from '../modules/airi-card'
+
+let pinia: ReturnType<typeof createPinia>
+
+// Change real store state while storage and network calls remain external test boundaries.
+const userIdRef = computed({
+  get: () => useAuthStore(pinia).userId,
+  set: (id: string) => {
+    useAuthStore(pinia).user = id === 'local' ? null : { id, name: id, email: `${id}@example.test`, emailVerified: true, createdAt: new Date(0), updatedAt: new Date(0) }
+  },
+})
+const activeCardIdRef = computed({
+  get: () => useAiriCardStore(pinia).activeCardId,
+  set: (id: string) => { useAiriCardStore(pinia).activeCardId = id },
+})
+const systemPromptRef = computed({
+  get: () => useAiriCardStore(pinia).systemPrompt,
+  set: (prompt: string) => {
+    const card = useAiriCardStore(pinia).getCard('default')
+    if (!card)
+      throw new Error('Missing test character')
+    card.systemPrompt = prompt
+  },
+})
 
 const getIndexMock = vi.fn<(uid: string) => Promise<ChatSessionsIndex | null>>()
 const saveIndexMock = vi.fn<(idx: ChatSessionsIndex) => Promise<void>>()
 const getSessionMock = vi.fn<(id: string) => Promise<ChatSessionRecord | null>>()
 const saveSessionMock = vi.fn<(id: string, rec: ChatSessionRecord) => Promise<void>>()
 const deleteSessionRepoMock = vi.fn<(id: string) => Promise<void>>()
-const getOutboxMock = vi.fn<(uid: string) => Promise<any[]>>()
+const getOutboxMock = vi.fn<(uid: string) => Promise<import('../../database/repos/chat-sessions.repo').ChatSendOutboxEntry[]>>()
 const dropOutboxForSessionMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const getTombstonesMock = vi.fn<(uid: string) => Promise<string[]>>()
 const removeTombstonesMock = vi.fn<(uid: string, ids: string[]) => Promise<void>>()
@@ -23,29 +44,9 @@ const addTombstoneMock = vi.fn<(uid: string, id: string) => Promise<void>>()
 const deleteCloudChatMock = vi.fn<(id: string) => Promise<void>>()
 const listChatsMock = vi.fn()
 const pullMessagesMock = vi.fn()
-const reconcileLocalAndRemoteMock = vi.fn()
 const connectCloudWsMock = vi.fn()
 let cloudWsStatus: 'idle' | 'open' = 'idle'
 let cloudStatusListener: ((status: 'idle' | 'open') => void) | undefined
-
-vi.mock('pinia', async () => {
-  const actual = await vi.importActual<typeof import('pinia')>('pinia')
-  return {
-    ...actual,
-    storeToRefs: (store: any) => store,
-  }
-})
-
-vi.mock('../auth', () => ({
-  useAuthStore: () => ({ userId: userIdRef }),
-}))
-
-vi.mock('../modules/airi-card', () => ({
-  useAiriCardStore: () => ({
-    activeCardId: activeCardIdRef,
-    systemPrompt: systemPromptRef,
-  }),
-}))
 
 vi.mock('../../database/repos/chat-sessions.repo', () => ({
   chatSessionsRepo: {
@@ -67,6 +68,7 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
 
 vi.mock('../../libs/auth', () => ({
   getAuthToken: vi.fn().mockResolvedValue('test-token'),
+  triggerSignIn: vi.fn(),
 }))
 
 vi.mock('../../libs/auth-fetch', () => ({
@@ -77,15 +79,13 @@ vi.mock('../../libs/server', () => ({
   SERVER_URL: 'http://test',
 }))
 
-// Inert chat-sync surface. The store doesn't drive any cloud writes in these
-// tests (anonymous user for one, deferred index for the other), so noops are
-// sufficient. We keep `extractMessageText` realistic so message previews work.
-vi.mock('../../libs/chat-sync', () => ({
-  applyCreateActions: vi.fn().mockResolvedValue([]),
-  reconcileLocalAndRemote: (...args: unknown[]) => reconcileLocalAndRemoteMock(...args),
+// Keep reconciliation and message merging real. Only cloud HTTP and WebSocket adapters are replaced.
+vi.mock('../../libs/chat-sync', async importOriginal => ({
+  ...await importOriginal<typeof import('../../libs/chat-sync')>(),
   createCloudChatMapper: () => ({
     listChats: () => listChatsMock(),
     deleteChat: (id: string) => deleteCloudChatMock(id),
+    createChat: async (options: { id: string }) => ({ id: options.id, type: 'bot', title: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }),
   }),
   createChatWsClient: () => ({
     status: () => cloudWsStatus,
@@ -100,17 +100,33 @@ vi.mock('../../libs/chat-sync', () => ({
       return () => {}
     },
   }),
-  extractMessageText: (m: any) => (typeof m?.content === 'string' ? m.content : ''),
-  isCloudSyncableMessage: () => false,
-  mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
 }))
 
 const { useChatSessionStore } = await import('./session-store')
-let pinia: ReturnType<typeof createPinia>
+let app: ReturnType<typeof createApp>
+let container: HTMLDivElement
 
 beforeEach(() => {
   pinia = createPinia()
   setActivePinia(pinia)
+  localStorage.clear()
+  app = createApp(defineComponent({ setup() {
+    useAuthStore()
+    useAiriCardStore().cards.set('default', {
+      name: 'Test character',
+      version: '1.0',
+      extensions: { airi: { agents: {}, modules: {
+        consciousness: { provider: '', model: '' },
+        vision: { provider: '', model: '' },
+        speech: { provider: '', model: '', voice_id: '' },
+      } } },
+    })
+    return () => h('div')
+  } }))
+  app.use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
+  container = document.createElement('div')
+  document.body.append(container)
+  app.mount(container)
   userIdRef.value = 'local'
   activeCardIdRef.value = 'default'
   systemPromptRef.value = ''
@@ -128,14 +144,16 @@ beforeEach(() => {
   deleteCloudChatMock.mockReset().mockResolvedValue(undefined)
   listChatsMock.mockReset().mockResolvedValue([])
   pullMessagesMock.mockReset().mockResolvedValue({ messages: [], seq: 0 })
-  reconcileLocalAndRemoteMock.mockReset().mockReturnValue({ adopt: [], claim: [], create: [] })
   connectCloudWsMock.mockReset()
   cloudWsStatus = 'idle'
   cloudStatusListener = undefined
 })
 
 afterEach(() => {
+  app.unmount()
+  container.remove()
   disposePinia(pinia)
+  localStorage.clear()
 })
 
 async function flushMicrotasks(rounds = 8) {
@@ -144,19 +162,7 @@ async function flushMicrotasks(rounds = 8) {
 }
 
 describe('chat-session-store · user swap during in-flight ensureActiveSessionForCharacter', () => {
-  // ROOT CAUSE:
-  //
-  // ensureActiveSessionForCharacter caches `ensureActivePromise` for singleflight
-  // and the IIFE captures `currentUserId` at start. An explicit A → B identity
-  // transition must invalidate A's in-flight read before it hydrates B.
-  //
-  // We fix this by:
-  //   - bumping an `ensureActiveEpoch` and nulling `ensureActivePromise` in
-  //     `clearInMemoryState`,
-  //   - re-checking the captured epoch after each await inside the IIFE,
-  //   - re-checking `sessionMetas[sessionId]` inside `loadSession` so the
-  //     post-IDB write does not resurrect cleared state,
-  //   - hydrating the new identity only through `activateCurrentUser`.
+  // ROOT CAUSE: Account changes could reuse stale hydration work. The request now checks its account epoch after each await. Session loading also checks deletion before writeback.
   it('runs a fresh hydrate for the new user and discards the stale write from the old user', async () => {
     const aSessionMeta: ChatSessionMeta = {
       sessionId: 'sess-A',
@@ -246,21 +252,7 @@ describe('chat-session-store · user swap during in-flight ensureActiveSessionFo
 })
 
 describe('chat-session-store · loadSession vs concurrent deleteSession', () => {
-  // ROOT CAUSE:
-  //
-  // loadSession kicks off `chatSessionsRepo.getSession(id)` and writes the
-  // returned record back into reactive state on resolve. If `deleteSession(id)`
-  // runs synchronously between the getSession() call and its resolution, the
-  // post-await `sessionMetas.value[sessionId] = stored.meta` write resurrects
-  // the deleted entry — and `loadedSessions.add(id)` then short-circuits every
-  // future loadSession retry, locking the resurrection in.
-  //
-  // The drawer's batch loadSession + per-row trash button is the production
-  // path that hits this race.
-  //
-  // We fix this by re-checking `sessionMetas.value[sessionId]` inside
-  // loadSession after the await; if the session is gone, skip the write-back
-  // and skip `loadedSessions.add` so a subsequent (legitimate) load can retry.
+  // ROOT CAUSE: Deleting a session during IndexedDB loading could restore its old record. loadSession now checks whether the session still exists after reading storage.
   it('does not resurrect a session deleted while loadSession was awaiting IDB', async () => {
     const meta: ChatSessionMeta = {
       sessionId: 'sess-1',
@@ -529,10 +521,12 @@ describe('chat-session-store · cloud placeholder hydration', () => {
       return Promise.resolve({ meta: localMeta, messages: [] })
     })
     listChatsMock.mockResolvedValue([remoteChat])
-    reconcileLocalAndRemoteMock.mockReturnValue({ adopt: [remoteChat], claim: [], create: [] })
-    pullMessagesMock
-      .mockRejectedValueOnce(new Error('temporary cloud failure'))
-      .mockResolvedValueOnce({ messages: [], seq: 0 })
+    let remoteAttempts = 0
+    pullMessagesMock.mockImplementation(async ({ chatId }: { chatId: string }) => {
+      if (chatId === remoteChat.id && ++remoteAttempts === 1)
+        throw new Error('temporary cloud failure')
+      return { messages: [], seq: 0 }
+    })
     vi.spyOn(console, 'warn').mockImplementation(() => {})
 
     const store = useChatSessionStore()
@@ -544,11 +538,11 @@ describe('chat-session-store · cloud placeholder hydration', () => {
     await vi.waitFor(() => {
       expect(store.cloudSyncReady).toBe(true)
     })
-    expect(pullMessagesMock).toHaveBeenCalledTimes(1)
+    expect(pullMessagesMock.mock.calls.filter(([request]) => request.chatId === remoteChat.id)).toHaveLength(1)
 
     await store.setActiveSession(remoteChat.id)
 
-    expect(pullMessagesMock).toHaveBeenCalledTimes(2)
+    expect(pullMessagesMock.mock.calls.filter(([request]) => request.chatId === remoteChat.id)).toHaveLength(2)
   })
 })
 
@@ -613,16 +607,7 @@ describe('chat-session-store · active card prompt edits', () => {
     expect(content).not.toContain('eg: $ x^3 $')
   })
 
-  // ROOT CAUSE:
-  //
-  // Editing the active card updates `systemPrompt`, but the session store only
-  // used that value when creating or resetting a session. The current
-  // conversation therefore kept sending its stale system message until the
-  // user manually started a new session.
-  //
-  // We fix this by replacing only the current character session's system
-  // message when its resolved card prompt changes, while preserving the
-  // message identity and conversation history.
+  // ROOT CAUSE: Prompt edits left existing sessions with stale system messages. The session now replaces that message when the resolved prompt changes. Message identity and conversation history remain intact.
   // https://github.com/moeru-ai/airi/issues/1995
   it('updates the current session system message for Issue #1995 without clearing its history', async () => {
     systemPromptRef.value = 'Original character prompt'
@@ -712,16 +697,7 @@ describe('chat-session-store · active card prompt edits', () => {
 
 describe('chat-session-store · synchronized data actions', () => {
   it('keeps synchronized session data when a follower receives authenticated user state', async () => {
-    // ROOT CAUSE:
-    //
-    // A new settings window received the synchronized auth user after its
-    // chat-session store was created. The userId watcher then cleared the
-    // synchronized session state in that follower. pinia-plugin-synced sent
-    // the empty full-state proposal to the leader and removed chat messages
-    // from every window.
-    //
-    // The watcher routes the identity transition to an idempotent synchronized
-    // action. The action keeps state that already belongs to the current user.
+    // ROOT CAUSE: A follower cleared shared sessions after receiving auth state. The identity watcher now calls a synchronized action that retains matching session data.
     const session: ChatSessionMeta = {
       sessionId: 'session-a',
       userId: 'cloud-user',
@@ -802,17 +778,7 @@ describe('chat-session-store · synchronized data actions', () => {
 
   // https://github.com/moeru-ai/airi/issues/2595
   it('keeps the window-local selection when a synchronized index snapshot arrives for Issue #2595', async () => {
-    // ROOT CAUSE:
-    //
-    // A new session is created by the synchronized leader without changing
-    // that window's selection. The caller then selects it in the current
-    // window. The first message updates synchronized session metadata, which
-    // replaces the index ref. An index watcher treated that data update as
-    // navigation and restored the previous persisted session.
-    //
-    // Selection now changes only at explicit lifecycle boundaries: window
-    // initialization, user changes, character changes, deletion, or a user
-    // selection. Shared index updates do not control window navigation.
+    // ROOT CAUSE: Shared index updates restored the previous selection after message submission. Window selection now changes only through explicit navigation or lifecycle transitions.
     const previousSession: ChatSessionMeta = {
       sessionId: 'session-previous',
       userId: 'local',

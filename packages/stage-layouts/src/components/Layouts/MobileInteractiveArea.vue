@@ -2,9 +2,8 @@
 import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
-import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory, HearingConfig, HearingStatus } from '@proj-airi/stage-ui/components'
+import { CharacterSwitcherDrawer, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components'
 import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
@@ -26,7 +25,6 @@ import MobileHeader from './MobileHeader.vue'
 
 import { useChatInterruption } from '../../composables/use-chat-interruption'
 import { useMobileInteractiveAreaLayout } from '../../composables/use-mobile-interactive-area-layout'
-import { useTranscriptions } from '../../composables/use-transcriptions'
 import { useChatToolCallRerun } from '../../composables/useChatToolCallRerun'
 import { useStopSpeakingButton } from '../../composables/useStopSpeakingButton'
 
@@ -234,14 +232,6 @@ function isMobileDevice() {
   return /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
 }
 
-const { receiveTranscription } = useTranscriptions(
-  {
-    messageInputRef: messageInput,
-    sendMessage: handleSend,
-    isStageTamagotchi,
-  },
-)
-defineExpose({ receiveTranscription })
 const { speechMuted, toggleSpeechMuted } = useStopSpeakingButton()
 const characterVoiceEnabled = computed({
   get: () => !speechMuted.value,
@@ -388,6 +378,8 @@ onUnmounted(() => {
       <div :class="['absolute left-0 top-2 z-30 -translate-y-full px-3 font-sans']">
         <div :class="['flex flex-col gap-1']">
           <slot name="status" />
+          <VoiceDrafts />
+          <VoiceMessageControls />
           <HearingStatus />
         </div>
       </div>

@@ -13,6 +13,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowReactive, toRaw, watch } from 'vue'
 
+import { getSpeechBusContext, voiceGenerationEnded } from '../../../services/speech/bus'
 import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
 import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
 import { useCharacterOrchestratorStore } from '../../character'
@@ -516,6 +517,21 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }
       })
       disposeHookFns.value.push(stopContextUpdates)
+
+      disposeHookFns.value.push(getSpeechBusContext().on(voiceGenerationEnded, ({ body }) => {
+        if (!body)
+          return
+        if (localProducedStreams.get(body.sessionId)?.turnId === body.turnId) {
+          localProducedStreams.delete(body.sessionId)
+          if (body.status !== 'finished')
+            void contextChannel?.emitStreamFailed(body)
+        }
+      }))
+      disposeHookFns.value.push(contextChannel.onStreamFailed((turn) => {
+        const guard = remoteStreams.get(turn.sessionId)
+        if (guard?.turnId === turn.turnId)
+          removeRemoteStream(guard)
+      }))
 
       disposeHookFns.value.push(contextChannel.onStreamCancel(async (command) => {
         const guard = remoteStreams.get(command.sessionId)

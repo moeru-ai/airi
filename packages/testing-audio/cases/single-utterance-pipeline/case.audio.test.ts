@@ -27,6 +27,8 @@ describe('audio input pipeline', () => {
             provider: environment.TESTING_AUDIO_ASR_PROVIDER ?? 'openai-compatible-audio-transcription',
           }),
           captureFormat: 'wav',
+          // The full pipeline needs the transcript in chat, not in a voice draft.
+          autoSend: true,
         }
       }),
       configureModuleConsciousness(async (context) => {

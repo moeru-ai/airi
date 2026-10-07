@@ -1,30 +1,28 @@
-import { useDevicesList, useUserMedia } from '@vueuse/core'
-import { computed, nextTick, ref, watch } from 'vue'
+import type { MicrophoneSource } from '@proj-airi/audio/browser'
+import type { Ref } from 'vue'
+
+import { microphoneSource } from '@proj-airi/audio/browser'
+import { AudioInput } from '@proj-airi/pipelines-audio'
+import { useDevicesList } from '@vueuse/core'
+import { computed, markRaw, onScopeDispose, ref, shallowRef, watch } from 'vue'
 
 import { useAnalytics } from '../use-analytics'
 
 const UNKNOWN_STT_PROVIDER_ID = 'unknown'
 
-/**
- * Selects the default microphone when available, otherwise the first detected input.
- */
-function resolvePreferredAudioInput(audioInputs: MediaDeviceInfo[]) {
-  return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
-}
+/** Speech-onset capture replays this much audio from before detection. */
+const MICROPHONE_HISTORY_MS = 360
 
 /**
- * Detects browser errors caused by a stale or unavailable microphone device.
+ * Silero VAD requires 512-sample windows at 16 kHz, so capture runs at that rate.
+ *
+ * NOTICE:
+ * Firefox rejects createMediaStreamSource when the AudioContext rate differs from the device rate.
+ * Root cause: Firefox does not resample MediaStream sources across AudioContext sample rates.
+ * Source: "Connecting AudioNodes from AudioContexts with different sample-rate is currently not supported".
+ * Removal condition: capture at the device rate and resample windows for VAD, or Firefox supports resampling.
  */
-export function isMissingAudioInputDeviceError(error: unknown) {
-  if (!error || typeof error !== 'object')
-    return false
-
-  const { message, name } = error as { message?: unknown, name?: unknown }
-
-  return name === 'NotFoundError'
-    || name === 'OverconstrainedError'
-    || (typeof message === 'string' && message.includes('Requested device not found'))
-}
+const MICROPHONE_CONTEXT: AudioContextOptions = { sampleRate: 16000 }
 
 /**
  * Normalizes browser microphone failures into low-cardinality analytics codes.
@@ -36,121 +34,94 @@ function audioDeviceErrorCode(error: unknown): 'permission_denied' | 'device_una
   return 'device_unavailable'
 }
 
+/** Prefers the system default microphone, then the first detected input. */
+function resolvePreferredAudioInput(audioInputs: readonly MediaDeviceInfo[]) {
+  return audioInputs.find(device => device.deviceId === 'default')?.deviceId || audioInputs[0]?.deviceId || ''
+}
+
 /**
- * Provides microphone device selection, permission requests, and audio stream lifecycle state.
+ * Provides microphone selection and one shared input for the selected device.
+ *
+ * Consumers subscribe to `input` with their own abort signal. The first subscriber opens the microphone,
+ * and the last one to leave releases it. Selecting another device creates a new input. Existing
+ * subscriptions keep the old device until their owners move to the new input.
+ *
+ * `selectedAudioInput` can be a persisted preference. An empty or unavailable selection falls back to the
+ * preferred device once the browser lists device IDs, so controls show the device that capture uses.
  */
-export function useAudioDevice(requestPermission: boolean = false) {
+export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
   const { trackMicrophonePermissionDenied } = useAnalytics()
-  const {
-    devices,
-    audioInputs,
-    permissionGranted,
-    ensurePermissions,
-  } = useDevicesList({
-    constraints: { audio: true },
-    requestPermissions: requestPermission,
+  const { devices, audioInputs } = useDevicesList({ requestPermissions: false })
+  const permissionGranted = ref(false)
+  const audioInputOptions = computed(() => audioInputs.value.filter(device => device.deviceId).map(device => ({ label: device.label || device.deviceId, value: device.deviceId })))
+  // An empty selection and `default` both mean the system default. Filling the empty selection
+  // with `default` then keeps the same device and does not reopen the microphone.
+  const capturedDeviceId = computed(() => selectedAudioInput.value === 'default' ? '' : selectedAudioInput.value)
+  const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: {
+    ...(capturedDeviceId.value ? { deviceId: { exact: capturedDeviceId.value } } : {}),
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true,
+  } }))
+  /** Tracks of the selected device while any subscriber keeps it open. */
+  const stream = shallowRef<MediaStream>()
+  const source = shallowRef<MicrophoneSource>(createSource(deviceConstraints.value))
+  const input = shallowRef(markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS })))
+
+  function createSource(constraints: MediaStreamConstraints): MicrophoneSource {
+    const created = markRaw(microphoneSource(constraints, {
+      contextOptions: MICROPHONE_CONTEXT,
+      // A replaced device can close after the new one opened. Only the selected source updates the view.
+      onStream: (opened) => {
+        if (source.value === created)
+          stream.value = opened
+      },
+    }))
+    return created
+  }
+
+  // Browsers hide device IDs until permission, so the fallback waits for a list with IDs.
+  // A reset or an unplugged device also clears the selection, so the selection is watched too.
+  watch([audioInputs, selectedAudioInput], ([inputs, selected]) => {
+    const available = inputs.filter(device => device.deviceId)
+    if (available.length && !available.some(device => device.deviceId === selected))
+      selectedAudioInput.value = resolvePreferredAudioInput(available)
+  }, { immediate: true })
+
+  // Subscribers move to the new input themselves. The old device closes when its last subscriber leaves.
+  watch(capturedDeviceId, () => {
+    stream.value = undefined
+    source.value = createSource(deviceConstraints.value)
+    input.value = markRaw(new AudioInput(source.value, { historyMs: MICROPHONE_HISTORY_MS }))
   })
-  const audioInputOptions = computed(() => audioInputs.value
-    .filter(device => device.deviceId)
-    .map(device => ({
-      label: device.label || device.deviceId,
-      value: device.deviceId,
-    })))
-  const selectedAudioInput = ref<string>(audioInputs.value.find(device => device.deviceId === 'default')?.deviceId || '')
+
   /**
-   * Keeps the selected microphone aligned with the currently available device list.
+   * Subscribes until the first block arrives, then leaves. It reports a denied or missing device.
+   * Device labels need enumeration after permission, so this also refreshes the device list.
    */
-  function selectAvailableAudioInput() {
-    if (!audioInputs.value.length)
-      return
-
-    const selectedIsAvailable = audioInputs.value.some(device => device.deviceId === selectedAudioInput.value)
-    if (!selectedAudioInput.value || !selectedIsAvailable)
-      selectedAudioInput.value = resolvePreferredAudioInput(audioInputs.value)
+  async function askPermission() {
+    const probe = new AbortController()
+    const reader = input.value.subscribe({ signal: probe.signal }).getReader()
+    try {
+      await reader.read()
+      permissionGranted.value = true
+      devices.value = await navigator.mediaDevices.enumerateDevices()
+    }
+    catch (error) {
+      if (audioDeviceErrorCode(error) === 'permission_denied') {
+        permissionGranted.value = false
+        trackMicrophonePermissionDenied({ stt_provider_id: UNKNOWN_STT_PROVIDER_ID, error_code: 'permission_denied' })
+      }
+      throw error
+    }
+    finally {
+      probe.abort('Permission probe finished')
+    }
   }
 
-  const deviceConstraints = computed<MediaStreamConstraints>(() => ({
-    audio: selectedAudioInput.value
-      ? {
-          deviceId: { exact: selectedAudioInput.value },
-          autoGainControl: true,
-          echoCancellation: true,
-          noiseSuppression: true,
-        }
-      : {
-          autoGainControl: true,
-          echoCancellation: true,
-          noiseSuppression: true,
-        },
-  }))
-  const { stream, stop: stopStream, start: startUserMediaStream } = useUserMedia({ constraints: deviceConstraints, enabled: false, autoSwitch: true })
-
-  watch(audioInputs, () => {
-    selectAvailableAudioInput()
+  onScopeDispose(() => {
+    void input.value.close()
   })
 
-  async function askPermission() {
-    try {
-      const granted = await ensurePermissions()
-
-      if (granted) {
-        // NOTICE:
-        // VueUse starts its post-permission device refresh without awaiting it, so callers can
-        // otherwise observe the anonymous pre-permission list after askPermission() resolves.
-        // Source: `@vueuse/core` 14.2.1 `useDevicesList.ensurePermissions()`.
-        // Remove this refresh when VueUse exposes or awaits its internal device-list update.
-        devices.value = await navigator.mediaDevices.enumerateDevices()
-      }
-
-      selectAvailableAudioInput()
-    }
-    catch (error) {
-      const errorCode = audioDeviceErrorCode(error)
-      if (errorCode === 'permission_denied') {
-        trackMicrophonePermissionDenied({
-          stt_provider_id: UNKNOWN_STT_PROVIDER_ID,
-          error_code: errorCode,
-        })
-      }
-      console.error('Error ensuring permissions:', error)
-      throw error
-    }
-  }
-
-  async function startStream() {
-    selectAvailableAudioInput()
-
-    try {
-      return await startUserMediaStream()
-    }
-    catch (error) {
-      const fallbackDeviceId = resolvePreferredAudioInput(audioInputs.value)
-      if (fallbackDeviceId && fallbackDeviceId !== selectedAudioInput.value) {
-        selectedAudioInput.value = fallbackDeviceId
-        await nextTick()
-        return await startUserMediaStream()
-      }
-
-      if (selectedAudioInput.value && isMissingAudioInputDeviceError(error)) {
-        selectedAudioInput.value = ''
-        await nextTick()
-        return await startUserMediaStream()
-      }
-
-      throw error
-    }
-  }
-
-  return {
-    audioInputs,
-    audioInputOptions,
-    selectedAudioInput,
-    stream,
-    deviceConstraints,
-    permissionGranted,
-
-    askPermission,
-    startStream,
-    stopStream,
-  }
+  return { audioInputs, audioInputOptions, selectedAudioInput, deviceConstraints, permissionGranted, source, input, stream, askPermission }
 }

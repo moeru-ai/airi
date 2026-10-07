@@ -1,3 +1,9 @@
+import type { SpeechAudio } from '@proj-airi/core-agent'
+import type { PcmBlock } from '@proj-airi/pipelines-audio'
+
+import { createPushStream } from '@proj-airi/pipelines-audio'
+import { nanoid } from 'nanoid/non-secure'
+
 import { getAuthToken } from '../auth'
 import { SERVER_URL } from '../server'
 
@@ -95,6 +101,79 @@ export interface StreamingTtsPipelineHandle {
   cancel: () => void
 }
 
+/** Connects the existing WebSocket protocol to SpeechStream. Normal text EOF flushes synthesis. Cancellation releases its reader and transport. */
+export function streamSpeech(options: Omit<StreamingTtsPipelineOptions, keyof StreamingTtsPipelineEvents>, text: ReadableStream<string>, signal: AbortSignal): ReadableStream<SpeechAudio> {
+  const reader = text.getReader()
+  const sourceId = nanoid()
+  let frame = 0
+  let closed = false
+  let handle: StreamingTtsPipelineHandle | undefined
+  const output = createPushStream<SpeechAudio>(() => stop())
+
+  function stop(error?: Error) {
+    if (closed)
+      return
+    closed = true
+    signal.removeEventListener('abort', abort)
+    handle?.cancel()
+    void reader.cancel(error).catch(() => {})
+    if (error)
+      output.error(error)
+    else
+      output.close()
+  }
+
+  function abort() {
+    stop(new DOMException('Speech synthesis cancelled', 'AbortError'))
+  }
+
+  signal.addEventListener('abort', abort, { once: true })
+  if (signal.aborted) {
+    abort()
+    reader.releaseLock()
+    return output.stream
+  }
+
+  handle = createStreamingTtsPipeline({
+    ...options,
+    onSentence: ({ audio, text }) => {
+      if (closed)
+        return
+      const channels = Array.from({ length: audio.numberOfChannels }, (_, channel) => audio.getChannelData(channel).slice())
+      const block: PcmBlock = { range: { sourceId, startFrame: frame, endFrame: frame + audio.length }, sampleRate: audio.sampleRate, channels }
+      output.write({ text, audio: new ReadableStream<PcmBlock>({ start(controller) {
+        controller.enqueue(block)
+        controller.close()
+      } }) })
+      frame += audio.length
+    },
+    onError: error => stop(error),
+    onDone: () => stop(),
+  })
+
+  void (async () => {
+    try {
+      while (true) {
+        const result = await reader.read()
+        if (closed)
+          return
+        if (result.done) {
+          handle?.finish()
+          return
+        }
+        handle?.appendText(result.value)
+      }
+    }
+    catch (cause) {
+      stop(cause instanceof Error ? cause : new Error('Speech text stream failed', { cause }))
+    }
+    finally {
+      reader.releaseLock()
+    }
+  })()
+  return output.stream
+}
+
 /**
  * Drives a single bidirectional streaming TTS session for one LLM intent.
  *
@@ -144,17 +223,8 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
   let chunkBytes = 0
   let sentenceIndex = 0
   /**
-   * Promise chain for serialized `flushAccumulatedAsSentence` invocations.
-   *
-   * Each `handleControlFrame` runs via `void handleControlFrame(...)`, so
-   * multiple control frames execute concurrently. Without serialization,
-   * `session.finished`'s synchronous `chunkBytes === 0` check fires
-   * immediately (the prior `sentence.end` already cleared the buffer
-   * synchronously before its `await decodeAudioData`), terminating the
-   * session before the last sentence's `decodeAudioData` resolves — its
-   * `onSentence` then arrives after `terminated = true` in tts-session.ts
-   * and gets dropped. Chaining all flushes through this single promise lets
-   * `requestTerminate` await the tail before tearing down.
+   * Serializes sentence decoding before termination. A cleared chunk buffer does not mean its decoding has finished.
+   * Waiting for this tail prevents onDone from closing SpeechStream before the final sentence arrives.
    */
   let pendingFlush: Promise<void> = Promise.resolve()
   let terminationRequested = false
@@ -381,12 +451,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
     appendText(text: string) {
       if (text.length === 0)
         return
-      // Pure-whitespace chunks (e.g. the " " between two LLM tokens) ARE
-      // forwarded verbatim. Dropping them would corrupt the text the
-      // upstream model sees ("hello" + " " + "world" → "helloworld").
-      // The per-character billing cost is negligible compared to the
-      // semantic risk; codex review LOW #7 noted the wasted units but
-      // accepted the trade-off.
+      // Preserve whitespace between streamed words. Dropping it joins separate tokens into different words.
       safeSend(JSON.stringify({ event: 'text', text }))
     },
     finish() {
@@ -396,13 +461,7 @@ export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions)
       if (closed || terminationRequested)
         return
       safeSend(JSON.stringify({ event: 'cancel' }))
-      // Route through `requestTerminate` so any in-flight `decodeAudioData`
-      // can still resolve and emit `onSentence` before `onDone` flips the
-      // consumer's `terminated` flag. tts-session.ts then runs
-      // `stopByIntent` on the playback manager and drops whatever did
-      // schedule, so this does NOT prolong playback — it just keeps the
-      // termination semantics consistent across cancel / session.finished
-      // / error / close paths (codex review).
+      // Let pending decoding settle before onDone. SpeechStream rejects chunks after cancellation and owns playback termination.
       void requestTerminate(null)
     },
   }
