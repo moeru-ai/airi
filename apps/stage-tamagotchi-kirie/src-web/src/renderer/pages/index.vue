@@ -58,6 +58,16 @@ import { isAndroidRenderer } from '../window-context'
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const mobileInteractiveArea = ref<InstanceType<typeof MobileInteractiveArea>>()
 const mobileSettingsOpen = ref(false)
+const stageViewport = shallowRef({ height: 0, offsetTop: 0 })
+const stageSurfaceStyle = computed(() => isAndroidRenderer()
+  ? {
+      position: 'fixed' as const,
+      inset: '0',
+      height: stageViewport.value.height > 0 ? `${stageViewport.value.height}px` : '100dvh',
+      transform: `translate3d(0, ${stageViewport.value.offsetTop}px, 0)`,
+      willChange: 'transform',
+    }
+  : undefined)
 const controlsIslandInteractionActive = shallowRef(false)
 const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -818,6 +828,7 @@ const cursorPosition = computed(() => ({
     flex="~ col"
     relative z-2 h-full overflow-hidden rounded-xl
     transition="opacity duration-500 ease-in-out"
+    :style="stageSurfaceStyle"
   >
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
@@ -884,6 +895,7 @@ const cursorPosition = computed(() => ({
       v-if="isAndroidRenderer()"
       ref="mobileInteractiveArea"
       @settings-open="mobileSettingsOpen = $event"
+      @stage-viewport-change="stageViewport = $event"
     />
   </Teleport>
   <OnboardingDialog
