@@ -59,7 +59,9 @@ The amended commit includes keyboard commit `cc2fbda9f` as its parent.
 The Java harness extracts both permission handlers and result callbacks from the application and the installed Capacitor source.
 It compares audio, video, combined capture, permission denial, empty results, unknown resources, duplicate resources, overlapping requests, retained listeners, and default cancellation.
 It also checks that the baseline native permission and destruction methods remain unchanged.
-These checks establish parity at simulated boundaries. They do not establish Android callback ordering or real microphone capture.
+These checks establish parity at simulated boundaries.
+The later grant-path check establishes one real input session.
+Cancellation, overlap, and recreation remain pending.
 The harness and build log are temporary evidence, not repository fixtures.
 The export reused local web assets and native template inputs. It rebuilt the Android plugin and published C# for both configured architectures.
 Godot reported a nonfatal `EditorSettings` diagnostic at shutdown. The export exited with code 0.
@@ -71,7 +73,9 @@ The amended APK displayed the Android microphone prompt after a WebView `navigat
 `adb -s emulator-5554 shell input tap 1212 824` selected `Don't allow`.
 The WebView returned `NotAllowedError`, and `adb -s emulator-5554 shell dumpsys package ai.moeru.airi.kirie` confirmed `RECORD_AUDIO: granted=false`.
 The session restored the permission flags and removed its debugging port forward afterward.
-This establishes real Android denial handling. Grant, cancellation, overlap, and recreation still require runtime comparison with stage-pocket.
+This establishes real Android denial handling.
+The later grant-path check covers grant behavior.
+Cancellation, overlap, and recreation still require runtime comparison with stage-pocket.
 On an emulator or physical device, compare both applications through these steps:
 
 1. With microphone permission unset, request audio capture. Grant the Android prompt and confirm a live audio track.
@@ -82,6 +86,32 @@ On an emulator or physical device, compare both applications through these steps
 6. Destroy or recreate the activity during a prompt. Compare callback delivery and restart behavior with stage-pocket.
 7. Return from Android settings after permission changes. Compare native permission state and subsequent audio capture.
 8. On a physical device, record microphone audio through the normal hearing flow and confirm usable input.
+
+### Android microphone grant verification on 2026-10-07
+
+Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
+The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
+Both applications started with cleared data and the same skipped-onboarding fixture.
+
+Native taps opened the voice drawer and the Android microphone prompt.
+Both prompts displayed `Allow AIRI to record audio?` with the same three actions and bounds.
+The flow selected `While using the app`, enabled microphone input, and closed the drawer through its backdrop.
+Both drawers displayed the same controls and enabled state.
+Both closures focused the `Voice input` button and retained an 839 CSS-pixel viewport.
+
+Android AppOps reported `RECORD_AUDIO: allow` and `running` for both applications.
+Android AudioService reported `mRecordingActive=true` for both package UIDs.
+This establishes a live WebView input session on the emulator.
+It does not establish useful physical microphone samples or successful transcription.
+
+The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
+The Kirie APK SHA-256 is `c7131b5e6828fa791b896576872e71c99e6f286b3c97bd3c11e1ce0496a31410`.
+The raw recording hashes are `9398a5fb32831c5f2aab573df7e47aebd48738897e35c3da1363043c4a6ae55b` and `bf0bc9814ebcada9ba49d5526af086f388396f977a1c3914c96856865c3dd0ee`.
+The aligned comparison hash is `db99ae11b3861950f759c3b31d3201ba9a91847075f037164cb844b39076cfe7`.
+
+The evidence directory is `recordings-android/voice-permission-drawer-aea95f68d-2026-10-07/`.
+It contains both raw recordings, trimmed recordings, contact sheets, and the side-by-side comparison.
+All evidence files remain untracked, and no ignore rule changed.
 
 ## Windows acceptance evidence
 
