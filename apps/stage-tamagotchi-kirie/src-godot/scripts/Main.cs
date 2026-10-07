@@ -6,7 +6,6 @@ using Godot;
 public partial class Main : Node
 {
     private const string PageUrl = "res://src-web/dist/index.html";
-    private const string AndroidPageUrl = "res://src-web/dist/android/index.html";
     private const string DevWebUrlOption = "kirie-web-url";
 
     private KirieClient? _kirie;
@@ -25,20 +24,20 @@ public partial class Main : Node
     private WebViewPermissionHandler? _permissions;
     private MicrophonePermissionService? _microphonePermissions;
     private IDisposable? _microphonePermissionRegistration;
+    private AndroidPermissionService? _androidPermissions;
     private IDisposable? _quitRegistration;
     private NativeWindowResizeController? _nativeResize;
 
     public override void _Ready()
     {
-        if (OS.HasFeature("android"))
+        var isAndroid = OS.HasFeature("android");
+        var window = GetWindow();
+        if (!isAndroid)
         {
-            StartAndroid();
-            return;
+            DesktopWindowSizing.ApplyInitialDisplayScale(window);
+            _nativeResize = new NativeWindowResizeController(window);
         }
 
-        var window = GetWindow();
-        DesktopWindowSizing.ApplyInitialDisplayScale(window);
-        _nativeResize = new NativeWindowResizeController(window);
         _kirie = KirieClient.FromNode(GetNode("KirieNode"));
         if (!_kirie.IsAvailable)
         {
@@ -59,6 +58,8 @@ public partial class Main : Node
         _microphonePermissionRegistration = _microphonePermissions.Attach(
             _eventa.Context,
             ownsPrompt: true);
+        if (isAndroid)
+            _androidPermissions = new AndroidPermissionService();
         _quitRegistration = _eventa.Context.RegisterInvokeHandler(
             AiriDesktopEvents.QuitApp,
             (EmptyPayload _, CancellationToken _) =>
@@ -74,12 +75,11 @@ public partial class Main : Node
         string initialUrl;
         try
         {
-            var rendererUrl = ResolveInitialUrl(PageUrl);
+            var rendererUrl = ResolveInitialUrl();
             initialUrl = RendererUrl.ForMain(rendererUrl);
-            _permissions = new WebViewPermissionHandler(
-                _kirie,
-                rendererUrl,
-                _microphonePermissions);
+            _permissions = isAndroid
+                ? new WebViewPermissionHandler(_kirie, rendererUrl, _androidPermissions!)
+                : new WebViewPermissionHandler(_kirie, rendererUrl, _microphonePermissions);
             _developerTools = new DeveloperToolsService(
                 this,
                 GetWindow(),
@@ -160,6 +160,7 @@ public partial class Main : Node
         _permissions?.Dispose();
         _microphonePermissions?.Dispose();
         _microphonePermissionRegistration?.Dispose();
+        _androidPermissions?.Dispose();
         _platform?.Dispose();
         _eventa?.Dispose();
         _kirie?.Dispose();
@@ -171,21 +172,7 @@ public partial class Main : Node
         _microphonePermissions?.Process();
     }
 
-    private void StartAndroid()
-    {
-        _kirie = KirieClient.FromNode(GetNode("KirieNode"));
-        if (!_kirie.IsAvailable)
-        {
-            GD.PushError("Kirie is unavailable on Android.");
-            return;
-        }
-
-        var initialUrl = ResolveInitialUrl(AndroidPageUrl);
-        GD.Print($"configure_android_webview initial_url={initialUrl}");
-        Engine.GetSingleton("AiriAndroid").Call("loadBrowserUrl", initialUrl);
-    }
-
-    private string ResolveInitialUrl(string defaultUrl)
+    private string ResolveInitialUrl()
     {
         var launchUrl = _kirie!.GetLaunchOption(DevWebUrlOption).Trim();
         if (launchUrl.Length > 0)
@@ -194,7 +181,7 @@ public partial class Main : Node
         }
 
         var environmentUrl = OS.GetEnvironment("KIRIE_WEB_URL").Trim();
-        return environmentUrl.Length > 0 ? environmentUrl : defaultUrl;
+        return environmentUrl.Length > 0 ? environmentUrl : PageUrl;
     }
 
     private static void OnWebViewReady()

@@ -1,7 +1,11 @@
 # Android WebView behavior
 
 The AIRI Android export plugin aligns Kirie's native WebView with stage-pocket's Capacitor host.
-The shared stage-pocket renderer supplies the Android pages.
+Kirie loads its universal `src-web` renderer on Android.
+Stage-pocket supplies the behavior reference and no Kirie Web assets.
+
+Recordings before the universal renderer correction used a packaged stage-pocket build.
+They can support isolated native host observations, but they do not establish renderer parity.
 
 ## WebSettings initialization
 

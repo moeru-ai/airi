@@ -24,9 +24,6 @@ import App from './App.vue'
 
 import { installDeepLinks } from './modules/deep-links'
 import { i18n } from './modules/i18n'
-import { openKirieAndroidAuthorization } from './modules/kirie-android-authentication'
-import { isKirieAndroid } from './modules/kirie-android-eventa'
-import { installKirieAndroidNavigation } from './modules/kirie-android-navigation'
 import { WebAuthentication } from './modules/web-authentication'
 
 import '@proj-airi/font-cjkfonts-allseto/index.css'
@@ -60,15 +57,6 @@ if (Capacitor.isNativePlatform()) {
     })
   })
 }
-else if (isKirieAndroid) {
-  registerAuthorizationHandler(async ({ authorizationUrl, provider }) => {
-    const url = new URL(authorizationUrl)
-    if (provider)
-      url.searchParams.set('provider', provider)
-
-    await openKirieAndroidAuthorization(url.toString())
-  })
-}
 else {
   registerAuthorizationHandler(browserAuthorizationHandler)
 }
@@ -81,7 +69,7 @@ pinia.use(synced.pinia)
 const routeRecords = setupLayouts(routes as RouteRecordRaw[])
 
 let router: Router
-if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE) || import.meta.env.MODE === 'kirie-android')
+if (isEnvTruthy(import.meta.env.VITE_APP_TARGET_HUGGINGFACE_SPACE))
   router = createRouter({ routes: routeRecords, history: createWebHashHistory() })
 else
   router = createRouter({ routes: routeRecords, history: createWebHistory() })
@@ -94,9 +82,6 @@ router.beforeEach((to, from) => {
 router.afterEach(() => {
   NProgress.done()
 })
-
-if (isKirieAndroid)
-  installKirieAndroidNavigation(router)
 
 window.addEventListener('unhandledrejection', (event) => {
   console.warn('Unhandled rejection:', event.reason)
