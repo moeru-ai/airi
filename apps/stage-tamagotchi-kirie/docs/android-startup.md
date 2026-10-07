@@ -60,6 +60,19 @@ The same APK crashed after WebView creation on Android API 36 with WebView 133.
 API 35 remained alive during the complete recording.
 This WebView 133 failure needs a separate native investigation.
 
+### Provider selection
+
+Kirie Android disables the desktop-only NVIDIA provider at runtime.
+The desktop renderer keeps NVIDIA available.
+
+The fixed timeline starts recording at second 0 and launches each app at second 4.
+It clicks `Setup with your provider` at second 12 and ends at second 18.
+Both apps display the same provider order after the click.
+The visible order ends with Groq and OpenRouter on the first screen.
+
+The Kirie debug APK SHA-256 was `2b675fd0af969cd1bf0919bd451fbf43685bdc9d3d740bf4ece4010a04e5df81`.
+Temporary evidence is in `recordings-android/provider-selection-521db9de1-2026-10-07/`.
+
 ## Reference boundary
 
 Stage-pocket supplies the Android behavior reference for native and Web interactions.
