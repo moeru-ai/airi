@@ -92,15 +92,18 @@ function finishSettingsClose() {
         {{ t('stage.mobile-tools.appearance') }}
       </h3>
       <div :class="['overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
-        <div :class="['min-h-13 flex items-center gap-3 px-4 py-3']">
+        <div :class="['min-h-13 flex flex-wrap items-center gap-3 px-4 py-3']">
           <span aria-hidden="true" :class="['i-lucide:contrast size-5 shrink-0 text-neutral-400']" />
           <span :class="['shrink-0 text-sm']">{{ t('stage.theme.title') }}</span>
-          <!-- The tabs share the rest of the row equally, so the indicator covers the selected one. -->
+          <!--
+            The indicator takes an equal share of the tabs, so the tabs must be equal.
+            On a narrow screen they move below the title instead of shrinking.
+          -->
           <SelectTab
             v-model="themeMode"
             size="xs"
             tab-space="compact"
-            :class="['flex-1']"
+            :class="['flex-1 basis-48', '[&_[role=radio]]:min-w-0']"
             :aria-label="t('stage.theme.title')"
             :options="[
               { value: 'auto', label: t('stage.theme.system') },
