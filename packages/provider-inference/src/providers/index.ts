@@ -4,7 +4,6 @@ import { provider302AI } from './cloud/302-ai'
 import { providerAIHubMix } from './cloud/aihubmix'
 import { providerAmazonBedrock } from './cloud/amazon-bedrock'
 import { providerAnthropic } from './cloud/anthropic'
-import { providerApiRoute } from './cloud/api-route'
 import { providerAtlasCloud } from './cloud/atlascloud'
 import { providerAzureAIFoundry } from './cloud/azure-ai-foundry'
 import { providerAzureOpenAI } from './cloud/azure-openai'
@@ -90,7 +89,6 @@ export const portableProviderDefinitions = eraseProviderDefinitions(
   providerAIHubMix,
   providerAmazonBedrock,
   providerAnthropic,
-  providerApiRoute,
   providerAtlasCloud,
   providerAzureAIFoundry,
   providerAzureOpenAI,

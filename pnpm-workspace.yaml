@@ -2,19 +2,19 @@ catalogMode: prefer
 minimumReleaseAge: 4320
 minimumReleaseAgeExclude:
   # NOTICE:
-  # AUV 0.0.27 is the requested upgrade.
+  # AUV 0.0.28 is the requested upgrade.
   # pnpm blocks these packages during the 72-hour release-age window.
-  # Source: pnpm registry metadata for the AUV 0.0.27 packages.
-  # Remove these exceptions after 2026-10-07 17:37 UTC.
-  - '@auv-js/api-client@0.0.27'
-  - '@auv-js/cli-darwin-arm64@0.0.27'
-  - '@auv-js/cli-darwin-x64@0.0.27'
-  - '@auv-js/cli-linux-arm64-gnu@0.0.27'
-  - '@auv-js/cli-linux-x64-gnu@0.0.27'
-  - '@auv-js/cli-win32-arm64-msvc@0.0.27'
-  - '@auv-js/cli-win32-x64-msvc@0.0.27'
-  - '@auv-js/cli@0.0.27'
-  - '@auv-js/sdk@0.0.27'
+  # Source: pnpm registry metadata for the AUV 0.0.28 packages.
+  # Remove these exceptions after 2026-10-07 21:21 UTC.
+  - '@auv-js/api-client@0.0.28'
+  - '@auv-js/cli-darwin-arm64@0.0.28'
+  - '@auv-js/cli-darwin-x64@0.0.28'
+  - '@auv-js/cli-linux-arm64-gnu@0.0.28'
+  - '@auv-js/cli-linux-x64-gnu@0.0.28'
+  - '@auv-js/cli-win32-arm64-msvc@0.0.28'
+  - '@auv-js/cli-win32-x64-msvc@0.0.28'
+  - '@auv-js/cli@0.0.28'
+  - '@auv-js/sdk@0.0.28'
   # NOTICE:
   # logg 1.2.12 preserves nested Error cause details in logs.
   # pnpm blocks packages published within the last 72 hours.
@@ -107,8 +107,8 @@ catalog:
   '@anthropic-ai/claude-code': ^2.1.241
   '@apple/app-store-server-library': ^3.1.0
   '@arethetypeswrong/core': ^0.18.5
-  '@auv-js/cli': 0.0.27
-  '@auv-js/sdk': 0.0.27
+  '@auv-js/cli': 0.0.28
+  '@auv-js/sdk': 0.0.28
   '@aws-sdk/client-s3': ^3.1135.0
   '@aws-sdk/s3-request-presigner': ^3.1135.0
   '@ax-llm/ax': ^24.0.5
@@ -176,8 +176,6 @@ catalog:
   '@iconify/vue': ^5.0.1
   '@intlify/core': ^11.4.9
   '@intlify/unplugin-vue-i18n': ^11.2.5
-  '@langfuse/otel': ^5.10.1
-  '@langfuse/tracing': ^5.10.1
   '@laplace.live/event-bridge-sdk': ^1.1.0
   '@laplace.live/event-types': ^2.0.21
   '@lemonneko/crop-empty-pixels': 0.1.1

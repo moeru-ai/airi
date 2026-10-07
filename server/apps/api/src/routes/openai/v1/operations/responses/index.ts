@@ -119,15 +119,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
     const attempts = deps.requestLogService.observeAttempts(input.userId, requestId)
     let routeCtx = newRouteContext()
     const span = telemetry.startGenerationSpan({ model, stream: input.policy.stream, operation: 'responses' })
-    const startTrace = () => deps.llmTracing.startChatGeneration({
-      protocol: 'responses',
-      input: input.policy.input,
-      model: routeCtx.upstreamModel ?? model,
-      requestId,
-      stream: input.policy.stream,
-      userId: input.userId,
-      sessionId: input.sessionId,
-    })
     let upstream: Response
     try {
       const routed = await telemetry.runWithSpan(span, () => routeModelAliasCandidates({
@@ -152,14 +143,12 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       else if (error instanceof ApiError)
         status = error.statusCode
       telemetry.failSpan(span, 'Responses routing failed')
-      startTrace().fail('Responses routing failed')
       const durationMs = Date.now() - startedAt
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
       telemetry.recordRequestLog({ userId: input.userId, requestId, model, requestedModel: input.policy.model, protocol: 'responses', stream: input.policy.stream, sessionId: input.sessionId, gateway: routeCtx.provider, upstreamModel: routeCtx.upstreamModel, status, durationMs, errorBody: captureErrorMessage(error) })
       throw error
     }
 
-    const generation = startTrace()
     // One request has one terminal outcome. A delivered terminal frame owns settlement;
     // cancellation before delivery and unexpected EOF own the failure path.
     let terminal = false
@@ -187,7 +176,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       if (input.policy.stream && upstream.ok)
         observation.completion = content.snapshot(receivedTerminal)
       const durationMs = Date.now() - startedAt
-      generation.fail(message)
       telemetry.failSpan(span, message)
       telemetry.recordMetrics({ model, status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: 0 })
       telemetry.recordRequestLog({ ...observation, ...lastUsage, timeToFirstTokenMs, userId: input.userId, requestId, model, status, durationMs })
@@ -220,7 +208,6 @@ export function responsesCreate(deps: V1RouteDeps): GatewayCallback<'responses.c
       }
       telemetry.recordUsageOnSpan(span, { ...usage, fluxConsumed: feeFlux })
       telemetry.endSpan(span)
-      generation.succeed({ ...usage, output: response.output, fluxConsumed: feeFlux })
       telemetry.recordMetrics({ ...usage, model, status: upstream.status, type: 'responses', provider: routeCtx.provider, durationMs, fluxConsumed: feeFlux })
       telemetry.recordRequestLog({ ...observation, ...usage, timeToFirstTokenMs, userId: input.userId, requestId, model, status: upstream.status, durationMs })
     }

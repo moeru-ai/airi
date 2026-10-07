@@ -28,11 +28,11 @@ catalogs:
       specifier: ^0.18.5
       version: 0.18.5
     '@auv-js/cli':
-      specifier: 0.0.27
-      version: 0.0.27
+      specifier: 0.0.28
+      version: 0.0.28
     '@auv-js/sdk':
-      specifier: 0.0.27
-      version: 0.0.27
+      specifier: 0.0.28
+      version: 0.0.28
     '@aws-sdk/client-s3':
       specifier: ^3.1135.0
       version: 3.1139.0
@@ -234,12 +234,6 @@ catalogs:
     '@intlify/unplugin-vue-i18n':
       specifier: ^11.2.5
       version: 11.2.5
-    '@langfuse/otel':
-      specifier: ^5.10.1
-      version: 5.10.1
-    '@langfuse/tracing':
-      specifier: ^5.10.1
-      version: 5.10.1
     '@laplace.live/event-bridge-sdk':
       specifier: ^1.1.0
       version: 1.1.0
@@ -1893,10 +1887,10 @@ importers:
     dependencies:
       '@auv-js/cli':
         specifier: 'catalog:'
-        version: 0.0.27
+        version: 0.0.28
       '@auv-js/sdk':
         specifier: 'catalog:'
-        version: 0.0.27
+        version: 0.0.28
       '@date-fns/utc':
         specifier: 'catalog:'
         version: 2.1.1
@@ -4053,6 +4047,15 @@ importers:
       '@moeru/std':
         specifier: 'catalog:'
         version: 0.1.0-beta.17
+      '@proj-airi/pipelines-audio':
+        specifier: workspace:*
+        version: link:../pipelines-audio
+      mediabunny:
+        specifier: 'catalog:'
+        version: 1.55.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
     devDependencies:
       '@types/audioworklet':
         specifier: 'catalog:'
@@ -4410,6 +4413,9 @@ importers:
       clustr:
         specifier: 'catalog:'
         version: 1.0.2
+      nanoid:
+        specifier: 'catalog:'
+        version: 6.0.1
 
   packages/plugin-protocol:
     dependencies:
@@ -6220,12 +6226,6 @@ importers:
       '@hono/otel':
         specifier: 'catalog:'
         version: 1.1.2(hono@4.13.3)
-      '@langfuse/otel':
-        specifier: 'catalog:'
-        version: 5.10.1(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))
-      '@langfuse/tracing':
-        specifier: 'catalog:'
-        version: 5.10.1(@opentelemetry/api@1.9.1)
       '@moeru/eventa':
         specifier: 'catalog:'
         version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
@@ -6749,53 +6749,53 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@auv-js/api-client@0.0.27':
-    resolution: {integrity: sha512-CwTETNuAKaxZ++dgSky0YRLSiG00fV6VtlShzaD4gMLk47Xgl3UMDvUxggMAVOYsrTy3ZuTILxOucrfgk5j2Og==}
+  '@auv-js/api-client@0.0.28':
+    resolution: {integrity: sha512-dM/41Bymh9AeK+ePORUF+IJ9d1U2eguOO1ywyFYmAsDdLZqm2/C6mAkiqNFXj3UKYuNo2eL8z+pQNrmS3BSoFg==}
 
-  '@auv-js/cli-darwin-arm64@0.0.27':
-    resolution: {integrity: sha512-EUvnv115WWZCFbBOaXFKaGPUHKO41CukoZ1B5wm/F/oDpOamAeC6ZxVgVNGXWvUG+Cxw4IjmSglWTcIhRmDT4A==}
+  '@auv-js/cli-darwin-arm64@0.0.28':
+    resolution: {integrity: sha512-mgwnJuzHeAX3KfQSrcR0sniZBCRmXU/FSoBH6dF5jTm+uzeRY37EPJY7YwxvZXsS6TAHLDIjA9JpAzKN1HzRKQ==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [darwin]
 
-  '@auv-js/cli-darwin-x64@0.0.27':
-    resolution: {integrity: sha512-k45BT907lqR3OJHNpSfMUuWvub+p2h120lkAf2rBiNfRDeeNuHFwGsN/pz+zMEj6QoImuBlel9Mv24Yd2XOzFg==}
+  '@auv-js/cli-darwin-x64@0.0.28':
+    resolution: {integrity: sha512-3ZSziSCV2AZF/F1hUauu7fYVlChQ96+4oHgp/fv7OZobAq+/EiAQqyrbatvYE4O27NcjamiNDdMq6SBdcJCvOw==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [darwin]
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.27':
-    resolution: {integrity: sha512-F06lArmBhrM0ghw25pPMj/v4hu3txDjAcW7CMXLSjPIPjgaikC7oNYENabIaUZVmeLI1Wr6YYgNwawFUa52P0Q==}
+  '@auv-js/cli-linux-arm64-gnu@0.0.28':
+    resolution: {integrity: sha512-x4WVMjqysLyqFZlBfSQI7d5pWBeiY48twodcYaBa49c8xagzfSs1adrJfXqYDW6hptPhtooKRsdFU3HbLsrkgQ==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-linux-x64-gnu@0.0.27':
-    resolution: {integrity: sha512-EZnA48V00QKqdncdg0wsd772ioLy26gu9OdYxTbw3WDgRhMp4fJ3hTmyN+Sy/KmDqlQrmuTIUD6qBbb0EhaqdQ==}
+  '@auv-js/cli-linux-x64-gnu@0.0.28':
+    resolution: {integrity: sha512-rvKrKQ+C/K/JetZef8WroXsC3ZZThv96Szjye/w15+vvJVPujNOcoGeiRc112MrJ6PktKsxbJQXC+B4krZkFWQ==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@auv-js/cli-win32-arm64-msvc@0.0.27':
-    resolution: {integrity: sha512-hyyX+TkUxOkqdROJMmHUICihtVk8+AhQtFTopxq2SkIrDTD4n78KmT5Zp9WrWE0u+CzrwJ40fembm1TMtC89RA==}
+  '@auv-js/cli-win32-arm64-msvc@0.0.28':
+    resolution: {integrity: sha512-R9Nu9TUT2heshiDWbaDOZiuXs/H4yd0RQdatuX/uKSsTnEhgPfKmdYj7hpGqtJf6b52pENbdvUs8ZlOyV5rRJQ==}
     engines: {node: '>=20.19.0'}
     cpu: [arm64]
     os: [win32]
 
-  '@auv-js/cli-win32-x64-msvc@0.0.27':
-    resolution: {integrity: sha512-ukGsHP4RScru5ZqIKfVgepXM/Klqdt3MlaRj+cE0evV3mUVLZWe298zWC1kDA8oZFD9sQ/ger9q7M1wTGRYDCA==}
+  '@auv-js/cli-win32-x64-msvc@0.0.28':
+    resolution: {integrity: sha512-AwVXaJBqfqidq8VWdQNXfmvkhXDKu4ZwmljBG4y4KxD74zHWVGRPDO3ANRE72HBZuU0sSEP3a8LDUCSo5Ycz2w==}
     engines: {node: '>=20.19.0'}
     cpu: [x64]
     os: [win32]
 
-  '@auv-js/cli@0.0.27':
-    resolution: {integrity: sha512-lj6VFUFXsfjQxR72t7hfk6eNgbAhSKFEhpcpe3KfnAXEfGVR25UtK9pByPkdGcbqaNCgbdXqMJ9bp2qT6DstOQ==}
+  '@auv-js/cli@0.0.28':
+    resolution: {integrity: sha512-ZgLD6e0ruwjaxObls1yldzYFiyiXnwrv5Uoo2vOi6nnycxcHGcYa6C/3Paq9R+48QnDzH1HaLZMXbrPLbFRfLA==}
     hasBin: true
 
-  '@auv-js/sdk@0.0.27':
-    resolution: {integrity: sha512-RdBpo7+0kSWytVE+CvUItCStzkwUAQl0B16tIiVLWc7uRFjkdA0N1Lp7eidBW+FqSHEWgZi/+i38Doyu/2aUjw==}
+  '@auv-js/sdk@0.0.28':
+    resolution: {integrity: sha512-Moknh7kgfTH5eaLqbny1X5u4oDxvJrxhRwQHhaUARo1a6FrdWbwsG821VbXPcYlyUJWD+7XItchdt7o0Rqu0Rw==}
 
   '@aws-sdk/checksums@3.1001.1':
     resolution: {integrity: sha512-x12Q17KYlJAd3nKf8LV5LV0vt8sh8/6YfQLGPtrGnQf/tW4jqxPGq5GPpuVitpQYM3eUR4XB7CbxZf751NMbLw==}
@@ -9093,26 +9093,6 @@ packages:
 
   '@kwsites/promise-deferred@1.1.1':
     resolution: {integrity: sha512-GaHYm+c0O9MjZRu0ongGBRbinu8gVAMd2UZjji6jVmqKtZluZnptXGWhz1E8j8D2HJ3f/yMxKAUC0b+57wncIw==}
-
-  '@langfuse/core@5.10.1':
-    resolution: {integrity: sha512-W8UArizWSy1DdeLGTsTwJwl7bkA7OQQcGZW8RtoopXyJZ93O0rwG7wzzeiZjhjpj5OtWOUTEaJuNkwOrF31UDw==}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-
-  '@langfuse/otel@5.10.1':
-    resolution: {integrity: sha512-F2153e4PoJ1cN+5tM/xnsS44aQCQwK3p0nPk4NEpITV5pMTqiQVyvpkAvly8GKQ5Qjjr7heJ1dFtghW43ysyPQ==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
-      '@opentelemetry/core': ^2.0.1
-      '@opentelemetry/exporter-trace-otlp-http': '>=0.202.0 <1.0.0'
-      '@opentelemetry/sdk-trace-base': ^2.0.1
-
-  '@langfuse/tracing@5.10.1':
-    resolution: {integrity: sha512-m2kK4D0MsH8g4Og6KpnlYk8NLdQTYe0JR5M4KKpfNj99XXLlbdpXE/g3uJSqkcrWFhpiIb+3cyS9+uV6wQ6WtA==}
-    engines: {node: '>=20'}
-    peerDependencies:
-      '@opentelemetry/api': ^1.9.0
 
   '@laplace.live/event-bridge-sdk@1.1.0':
     resolution: {integrity: sha512-cqvh8JCGmplIHed8WkzdEbPvzJMlfUWecDyBHdHyEYOAg5sWaSWB0Nsq5EjzxqPYUvpVIMka4v8ijLDVQHbeUQ==}
@@ -21307,40 +21287,40 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@auv-js/api-client@0.0.27': {}
+  '@auv-js/api-client@0.0.28': {}
 
-  '@auv-js/cli-darwin-arm64@0.0.27':
+  '@auv-js/cli-darwin-arm64@0.0.28':
     optional: true
 
-  '@auv-js/cli-darwin-x64@0.0.27':
+  '@auv-js/cli-darwin-x64@0.0.28':
     optional: true
 
-  '@auv-js/cli-linux-arm64-gnu@0.0.27':
+  '@auv-js/cli-linux-arm64-gnu@0.0.28':
     optional: true
 
-  '@auv-js/cli-linux-x64-gnu@0.0.27':
+  '@auv-js/cli-linux-x64-gnu@0.0.28':
     optional: true
 
-  '@auv-js/cli-win32-arm64-msvc@0.0.27':
+  '@auv-js/cli-win32-arm64-msvc@0.0.28':
     optional: true
 
-  '@auv-js/cli-win32-x64-msvc@0.0.27':
+  '@auv-js/cli-win32-x64-msvc@0.0.28':
     optional: true
 
-  '@auv-js/cli@0.0.27':
+  '@auv-js/cli@0.0.28':
     dependencies:
       std-env: 4.2.0
     optionalDependencies:
-      '@auv-js/cli-darwin-arm64': 0.0.27
-      '@auv-js/cli-darwin-x64': 0.0.27
-      '@auv-js/cli-linux-arm64-gnu': 0.0.27
-      '@auv-js/cli-linux-x64-gnu': 0.0.27
-      '@auv-js/cli-win32-arm64-msvc': 0.0.27
-      '@auv-js/cli-win32-x64-msvc': 0.0.27
+      '@auv-js/cli-darwin-arm64': 0.0.28
+      '@auv-js/cli-darwin-x64': 0.0.28
+      '@auv-js/cli-linux-arm64-gnu': 0.0.28
+      '@auv-js/cli-linux-x64-gnu': 0.0.28
+      '@auv-js/cli-win32-arm64-msvc': 0.0.28
+      '@auv-js/cli-win32-x64-msvc': 0.0.28
 
-  '@auv-js/sdk@0.0.27':
+  '@auv-js/sdk@0.0.28':
     dependencies:
-      '@auv-js/api-client': 0.0.27
+      '@auv-js/api-client': 0.0.28
       '@bufbuild/protobuf': 2.13.0
       '@grpc/grpc-js': 1.14.4
       '@moeru/std': 0.1.0-beta.20
@@ -24015,23 +23995,6 @@ snapshots:
       - supports-color
 
   '@kwsites/promise-deferred@1.1.1': {}
-
-  '@langfuse/core@5.10.1(@opentelemetry/api@1.9.1)':
-    dependencies:
-      '@opentelemetry/api': 1.9.1
-
-  '@langfuse/otel@5.10.1(@opentelemetry/api@1.9.1)(@opentelemetry/core@2.10.0(@opentelemetry/api@1.9.1))(@opentelemetry/exporter-trace-otlp-http@0.221.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.10.0(@opentelemetry/api@1.9.1))':
-    dependencies:
-      '@langfuse/core': 5.10.1(@opentelemetry/api@1.9.1)
-      '@opentelemetry/api': 1.9.1
-      '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/exporter-trace-otlp-http': 0.221.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-trace-base': 2.10.0(@opentelemetry/api@1.9.1)
-
-  '@langfuse/tracing@5.10.1(@opentelemetry/api@1.9.1)':
-    dependencies:
-      '@langfuse/core': 5.10.1(@opentelemetry/api@1.9.1)
-      '@opentelemetry/api': 1.9.1
 
   '@laplace.live/event-bridge-sdk@1.1.0(typescript@6.0.3)':
     dependencies:

@@ -346,6 +346,68 @@ pages:
         error:
           fallback: 无法开始删除操作，请稍后重试。
   card:
+    sync:
+      notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
+      off_notice: 你已登录，但角色卡同步还没有打开。
+      off_notice_link: 去实验性特性里打开。
+      state:
+        synced: 已同步到账号
+        pending: 等待上传
+        refused: 未上传。账号里没有空间再存角色卡，这张卡只保留在这台设备。
+      conflict_copy_name: '{name}（冲突副本）'
+      conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
+      history:
+        tab: 历史版本
+        empty: 这张角色卡还没有历史版本。
+        loading: 正在加载历史版本……
+        load_failed: 无法加载这张角色卡的历史版本。
+        current: 当前版本
+        changed_label: 改动
+        removed_label: 移除
+        fields:
+          name: 名称
+          nickname: 昵称
+          version: 版本
+          creator: 作者
+          description: 描述
+          personality: 性格
+          scenario: 场景
+          systemPrompt: 系统提示词
+          postHistoryInstructions: 历史后指令
+          notes: 创作者备注
+          greetings: 问候语
+          tags: 标签
+          metadata: 元数据
+          assets: 资源
+          characterBook: 世界书
+          source: 来源
+          wakeWords: 唤醒词
+          agents: 智能体
+          consciousness: 意识模型
+          vision: 视觉模型
+          speech: 语音模型
+          vrm: VRM 模型
+          live2d: Live2D 模型
+          displayModelId: 展示模型
+          activeBackgroundId: 固定背景
+          artistry: 绘画
+        restore: 恢复到此版本
+        restore_confirm_title: 恢复到此版本？
+        restore_confirm_body: 这会用 {date} 的内容替换 {name} 当前的内容。
+        restore_confirm_confirm: 恢复
+        restore_confirm_cancel: 取消
+        restore_success: 已将 {name} 恢复到较早的版本。
+        restore_failed: 无法恢复到此版本，服务端可能已不再保留它。
+      deleted:
+        title: 最近删除
+        empty: 没有最近删除的角色卡。
+        loading: 正在加载最近删除的角色卡……
+        load_failed: 无法加载最近删除的角色卡。
+        deleted_when: '删除于 {when}'
+        days_left: '还可恢复，剩余 {days} 天'
+        restore: 恢复
+        restore_success: 已恢复 {name}。
+        restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
@@ -926,7 +988,7 @@ pages:
         airi-tired: 疲惫
         airi-affectionate: 喜欢
         airi-awkward: 尴尬
-        airi-agree: 赞同
+        airi-agree: '赞同'
         airi-disagree: 拒绝
     web-search:
       title: 网络搜索
@@ -1214,19 +1276,6 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
-      minimax-speech:
-        description: minimax.io
-        errors:
-          provider-initialization-failed: 初始化 MiniMax 语音提供程序失败。
-        fields:
-          field:
-            model:
-              description: 选择用于生成语音的 MiniMax 文本转语音模型。
-              label: 模型
-              placeholder: 选择一个 MiniMax 模型...
-        playground:
-          default-text: 您好！这是 MiniMax 语音合成测试。
-        title: MiniMax Speech
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:
@@ -1474,6 +1523,17 @@ pages:
       index-tts-vllm:
         callout_indextts2_unavailable_title: 暂不支持
         callout_indextts2_unavailable: 目前尚未支持 IndexTTS2，请使用 IndexTTS。
+      minimax-speech:
+        errors:
+          provider-initialization-failed: 初始化 MiniMax 语音提供程序失败。
+        fields:
+          field:
+            model:
+              description: 选择用于生成语音的 MiniMax 文本转语音模型。
+              label: 模型
+              placeholder: 选择一个 MiniMax 模型...
+        playground:
+          default-text: 您好！这是 MiniMax 语音合成测试。
       moonshot:
         description: Moonshot.ai
         title: 月之暗面
@@ -1562,6 +1622,24 @@ pages:
         title: 二维码扫描失败
         failed: 扫描或连接二维码失败。
   system:
+    experimental:
+      refresh: 刷新策略
+      title: 实验性特性
+      description: 体验开发中的功能，管理你的实验选择。
+      notice: 实验性特性可能变更或移除。你的选择仅保存在此设备上。
+      empty-title: 暂无可用实验
+      load-error: 云端功能暂不可用，本地功能不受影响。
+      retry: 重试
+      reset: 使用默认值
+      sources:
+        default: 应用默认值
+        local: 此设备的选择
+        global: 已向登录账户开放
+        account: 已向你的账户开放
+      features:
+        character_card_sync:
+          title: 角色卡云同步
+          description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

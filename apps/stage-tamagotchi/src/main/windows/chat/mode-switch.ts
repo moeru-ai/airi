@@ -16,8 +16,9 @@ interface ChatModeWindow {
   /** Closes the window of this mode, including one that is still being created. */
   close: () => void
   /**
-   * The unsent draft of this mode's window, or `undefined` when the window is
-   * closed or its composer is empty. Rejects when the window cannot answer.
+   * The conversation and unsent draft of this mode's window, or `undefined`
+   * when the window is closed or shows no conversation. Rejects when the
+   * window cannot answer.
    */
   collectDraft: () => Promise<ChatDraftHandover | undefined>
 }
