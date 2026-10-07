@@ -3,18 +3,27 @@ import AccountSettingsPage from '@proj-airi/stage-pages/pages/settings/account/a
 
 import { useHostAuth } from '@proj-airi/stage-host-context'
 import { signOut } from '@proj-airi/stage-ui/libs/auth'
+import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useRouter } from 'vue-router'
 
+import { isAndroidRenderer } from '../../../window-context'
+
 const router = useRouter()
+const authStore = useAuthStore()
 const { logout, startLogin } = useHostAuth()
 
 async function handleLogin() {
+  if (isAndroidRenderer()) {
+    await authStore.requestLogin()
+    return
+  }
   await startLogin()
 }
 
 async function handleLogout() {
   await signOut()
-  await logout()
+  if (!isAndroidRenderer())
+    await logout()
   router.push('/settings')
 }
 </script>

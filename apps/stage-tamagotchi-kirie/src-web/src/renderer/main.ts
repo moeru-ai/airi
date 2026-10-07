@@ -19,8 +19,9 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 import App from './App.vue'
 
 import { disposeHostContext, initializeHostContext, installExternalNavigation } from './host-context'
+import { openAndroidAuthorization } from './host-context/android-authentication'
 import { i18n } from './modules/i18n'
-import { resolveRendererWindowContext } from './window-context'
+import { isAndroidRenderer, resolveRendererWindowContext } from './window-context'
 
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
@@ -46,7 +47,14 @@ configureAnalyticsAdapter(async (options) => {
   const { createOpenpanelAdapter } = await import('@proj-airi/stage-ui/libs/product-signals/openpanel')
   return createOpenpanelAdapter(options)
 })
-registerAuthorizationHandler(browserAuthorizationHandler)
+registerAuthorizationHandler(isAndroidRenderer()
+  ? async ({ authorizationUrl, provider }) => {
+    const url = new URL(authorizationUrl)
+    if (provider)
+      url.searchParams.set('provider', provider)
+    await openAndroidAuthorization(url.toString())
+  }
+  : browserAuthorizationHandler)
 
 const hostContext = initializeHostContext()
 const disposeExternalNavigation = installExternalNavigation()

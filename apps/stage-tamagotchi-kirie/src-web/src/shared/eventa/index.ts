@@ -122,6 +122,12 @@ export const airiAndroidNotificationEventIds = {
   schedule: 'eventa:invoke:airi:android:notification:schedule',
 } as const
 
+export const airiAndroidAuthenticationEventIds = {
+  consumeUrlOpen: 'eventa:invoke:airi:android:app:url-open:consume',
+  open: 'eventa:invoke:airi:android:authentication:open',
+  urlOpen: 'eventa:event:airi:android:app:url-open',
+} as const
+
 export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
