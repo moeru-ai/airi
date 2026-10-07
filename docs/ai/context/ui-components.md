@@ -269,10 +269,12 @@ items and their business actions.
 | `align` | `DropdownMenuContentProps['align']?` | `'start'` | Preferred content alignment before collision handling |
 | `contentClass` | `string \| string[]?` | — | Additional classes for the content surface |
 | `disabled` | `boolean?` | `false` | Disables the trigger |
+| `modal` | `boolean?` | `true` | A non-modal menu leaves the rest of the page interactive while it is open |
 | `side` | `DropdownMenuContentProps['side']?` | `'bottom'` | Preferred content side before collision handling |
 | `sideOffset` | `number?` | `6` | Offset between the trigger and content |
 | `variant` | `'blurry' \| 'default'?` | `'default'` | Selects a translucent or opaque content surface |
 
+**Models**: `open` (`boolean`, default `false`). Bind it to open the menu from code, for example after a hover delay.
 **Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
 
 ### DoubleCheckButton

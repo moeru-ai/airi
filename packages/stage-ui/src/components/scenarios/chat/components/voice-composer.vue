@@ -54,7 +54,7 @@ const voice = useVoiceComposer({
   onSent: () => emit('sent'),
   onError: message => toast.error(t('stage.chat.voice-composer.failed'), { description: message }),
 })
-const { phase, transcript, level, startedAt, unsent } = voice
+const { phase, transcript, level, startedAt, pending } = voice
 const active = computed(() => phase.value !== 'idle')
 /** The mode of the open recording. The stored preference can change only while no recording is open. */
 const activeMode = computed(() => voice.mode.value ?? mode.value)
@@ -248,15 +248,15 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div v-if="unsent.length" :class="['flex shrink-0 items-center gap-1']">
+  <div v-if="pending.length" :class="['flex shrink-0 items-center gap-1']">
     <BasicButton
       data-testid="voice-retry-send"
       size="unset"
       type="button"
       :aria-label="t('stage.chat.voice-composer.retry')"
-      :title="unsent[0].error"
+      :title="pending[0].error"
       :class="['size-10 rounded-full bg-primary-100/90 text-primary-600 dark:bg-primary-900/90 dark:text-primary-200']"
-      @click="voice.retry(unsent[0].id)"
+      @click="voice.send(pending[0].id)"
     >
       <span :class="['i-solar:refresh-linear size-5']" aria-hidden="true" />
     </BasicButton>
@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
       :aria-label="t('stage.chat.voice-composer.discard')"
       :title="t('stage.chat.voice-composer.discard')"
       :class="['size-10 rounded-full text-neutral-500 dark:text-neutral-300']"
-      @click="voice.discard(unsent[0].id)"
+      @click="voice.discard(pending[0].id)"
     >
       <span :class="['i-solar:close-circle-linear size-5']" aria-hidden="true" />
     </BasicButton>

@@ -48,7 +48,8 @@ Consumers subscribe to the microphone input with their own abort signal. The las
 - `useVoiceStore` owns application routing, drafts, responses, and host command registration.
 - `useVoiceController` binds public controller state to Vue and moves the controller to the input of the selected device.
 - `useVoiceInput` maps hold and release controls to host commands.
-- `VoiceComposer` is the voice control in each chat composer. Hold it to record. Click it to switch between a voice message and dictation. A voice message is sent on release. Dictation inserts its transcript into the composer text and creates no voice draft.
+- `VoiceInputButton` is the voice control of desktop and web composers. Click it to start, and click again to stop. Hover or right-click it for the mode, Auto send, the microphone, and continuous listening. Its status bar shows the waveform and time, and keeps a voice message that waits to be sent. Dictation writes its live transcript into the composer text and creates no voice draft.
+- `VoiceComposer` is the touch voice control of mobile composers. Hold it to record, slide left to cancel, and slide up to lock. A voice message is sent on release.
 - `useVoiceMessagesStore` owns voice message recordings and their attachment submission.
 - Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
 - Speech preserves existing chunked synthesis and bidirectional provider output.

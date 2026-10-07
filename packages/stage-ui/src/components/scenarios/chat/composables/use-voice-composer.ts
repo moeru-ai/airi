@@ -36,7 +36,7 @@ export interface UseVoiceComposerOptions {
 
 /** The recording that this control started. The host identifies it by `id`. */
 type ActiveRecording
-  = { mode: 'audio', id: string, finishing: boolean, seen: boolean }
+  = { mode: 'audio', id: string, finishing: boolean, seen: boolean, send: boolean }
     | { mode: 'transcription', id: string, finishing: boolean }
 
 /**
@@ -83,8 +83,12 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     return 'starting'
   })
 
-  /** Voice messages that this session could not send. Each one keeps its recording until the user retries or discards it. */
-  const unsent = computed(() => controls.messages.filter(item => item.sessionId === options.sessionId() && item.phase === 'ready' && item.error && item.id !== active.value?.id))
+  /**
+   * Recorded voice messages of this session that wait for the user.
+   * A message waits when it finished without sending, or when its send failed. Then `error` is set.
+   * Each one keeps its recording until the user sends or discards it.
+   */
+  const pending = computed(() => controls.messages.filter(item => item.sessionId === options.sessionId() && item.phase === 'ready' && item.id !== active.value?.id))
 
   const transcript = computed(() => input.value?.text ?? '')
   const level = computed(() => phase.value === 'recording' ? controls.level : 0)
@@ -112,6 +116,10 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
         options.onError(snapshot.error)
         active.value = undefined
       }
+      // A recording finished without sending becomes a pending message. The control is free for the next recording.
+      else if (snapshot.phase === 'ready' && recording.finishing && !recording.send) {
+        active.value = undefined
+      }
       return
     }
     if (recording.seen) {
@@ -134,7 +142,7 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     const id = nanoid()
     const sessionId = options.sessionId()
     if (mode === 'audio') {
-      active.value = { mode, id, finishing: false, seen: false }
+      active.value = { mode, id, finishing: false, seen: false, send: true }
       const replyToMessageId = options.replyToMessageId?.()
       const tools = options.tools?.()
       await controls.messageCommand({ type: 'record', id, sessionId, ...(replyToMessageId ? { replyToMessageId } : {}), ...(tools ? { tools: [...tools] } : {}) })
@@ -149,20 +157,27 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
 
   /**
    * Ends the recording normally.
-   * A voice message is sent after encoding. Dictation text goes to `onTranscript`.
+   * A voice message is sent after encoding when `send` is true. Otherwise it waits in `pending`.
+   * Dictation text goes to `onTranscript`.
    * A recording that has not captured audio yet is discarded, because it has nothing to send.
    */
-  async function finish() {
+  async function finish(finishOptions: {
+    /**
+     * Sends a voice message after encoding. Dictation ignores it.
+     * @default true
+     */
+    send?: boolean
+  } = {}) {
     const recording = active.value
     if (!recording || recording.finishing)
       return
     if (phase.value === 'starting')
       return cancel()
 
-    recording.finishing = true
-    active.value = { ...recording }
+    const sendAfterEncoding = finishOptions.send ?? true
+    active.value = recording.mode === 'audio' ? { ...recording, finishing: true, send: sendAfterEncoding } : { ...recording, finishing: true }
     if (recording.mode === 'audio') {
-      await controls.messageCommand({ type: 'finish', id: recording.id, send: true })
+      await controls.messageCommand({ type: 'finish', id: recording.id, send: sendAfterEncoding })
         .catch(cause => fail(cause, 'Could not finish recording'))
       return
     }
@@ -192,7 +207,8 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
       await controls.command({ type: 'cancel', requestId: recording.id }).catch(() => {})
   }
 
-  async function retry(id: string) {
+  /** Sends a pending voice message, or sends a failed one again. */
+  async function send(id: string) {
     await controls.messageCommand({ type: 'send', id }).then(() => options.onSent?.()).catch(cause => options.onError(errorMessageFrom(cause) ?? 'Could not send voice message'))
   }
 
@@ -214,11 +230,11 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     transcript,
     level,
     startedAt,
-    unsent,
+    pending,
     start,
     finish,
     cancel,
-    retry,
+    send,
     discard,
   }
 }

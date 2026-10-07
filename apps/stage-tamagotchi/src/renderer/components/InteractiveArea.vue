@@ -8,8 +8,8 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -18,8 +18,6 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicButton, BasicTextarea, Callout, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
@@ -67,13 +65,12 @@ const composerFolded = defineModel<boolean>('composerFolded', { default: false }
 const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
-const voiceInput = useTemplateRef<HTMLDivElement>('voice-input')
-/** Recording UI covers the text input. Text, reply, and send stay hidden and inactive until it closes. */
+const voiceStatus = useTemplateRef<HTMLDivElement>('voice-status')
+/** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
 // Each request captures this composer selection, including retries and tool reruns.
 const computerUseEnabled = ref(true)
-const hearingDialogOpen = shallowRef(false)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -81,8 +78,6 @@ const chatStream = useChatStreamStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
-const { autoSendEnabled } = storeToRefs(useHearingStore())
-const { enabled: microphoneEnabled, permissionGranted: microphonePermissionGranted } = storeToRefs(useSettingsAudioDevice())
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
@@ -449,6 +444,8 @@ defineExpose({
             ],
         ]"
       >
+        <!-- The voice status bar sits at the top of the composer while a recording is open or waits to be sent. -->
+        <div ref="voice-status" :class="['shrink-0 empty:hidden']" />
         <div
           data-testid="chat-composer-previews"
           :class="[
@@ -505,15 +502,15 @@ defineExpose({
         <p v-if="pendingImages" role="status" :class="['px-2 text-sm text-neutral-500']">
           {{ t('stage.chat.images.reading') }}
         </p>
-        <div ref="voice-input" :class="['relative w-full shrink-0 overflow-hidden bg-transparent']">
+        <div :class="['w-full shrink-0 overflow-hidden bg-transparent']">
           <ChatReplyPreview
             :target="replyTarget"
-            :class="[voiceActive && 'invisible']"
             @cancel="handleCancelReply"
           />
           <BasicTextarea
             v-model="messageInput"
             :submit-on-enter="false"
+            :readonly="voiceActive"
             :placeholder="t('stage.message')"
             :class="[
               'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent px-2 font-medium outline-none [scrollbar-gutter:stable]',
@@ -521,7 +518,6 @@ defineExpose({
               props.floating ? 'min-h-[2lh] py-2' : 'min-h-[1lh] py-1',
               'text-neutral-700 placeholder:text-neutral-400 dark:text-neutral-200 dark:placeholder:text-neutral-500',
               'transition-colors duration-200 ease-out motion-reduce:transition-none',
-              voiceActive && 'invisible',
             ]"
             @compositionstart="isComposing = true"
             @compositionend="isComposing = false"
@@ -539,18 +535,6 @@ defineExpose({
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
-          <HearingConfigDialog v-model:show="hearingDialogOpen" v-model:auto-send="autoSendEnabled" :granted="microphonePermissionGranted">
-            <GhostButton
-              data-testid="voice-input-button"
-              size="unset"
-              :class="['size-9']"
-              :active="microphoneEnabled"
-              :title="t('stage.chat.voice-input')"
-              :aria-label="t('stage.chat.voice-input')"
-            >
-              <span :class="[microphoneEnabled ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
-            </GhostButton>
-          </HearingConfigDialog>
           <GhostButton
             data-testid="computer-use-toggle"
             size="unset"
@@ -611,18 +595,19 @@ defineExpose({
           </DropdownMenuRoot>
 
           <div :class="['ml-auto flex items-center gap-1']">
-            <VoiceComposer
+            <VoiceInputButton
               v-model="messageInput"
-              :input-element="voiceInput"
+              :status-element="voiceStatus"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
               :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
               @recording-change="voiceActive = $event"
               @sent="composer.clearReply()"
+              @submit="handleSend"
               @configure="openSettings({ route: '/settings/modules/hearing' })"
             />
             <GhostButton
-              v-if="showStopAction && !voiceActive"
+              v-if="showStopAction"
               size="unset"
               :class="['size-9 rounded-full']"
               data-testid="stop-speaking-button"
@@ -634,11 +619,11 @@ defineExpose({
             </GhostButton>
 
             <BasicButton
-              v-else-if="!voiceActive"
+              v-else
               size="unset"
               :aria-label="t('stage.chat.actions.send')"
               :title="t('stage.chat.actions.send')"
-              :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+              :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
               :class="[
                 'size-9 rounded-full bg-primary-500 text-white',
                 'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',

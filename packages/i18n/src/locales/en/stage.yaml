@@ -45,6 +45,18 @@ chat:
     configure-title: Set up Hearing
     configure-description: Select a transcription provider and model in Hearing to use dictation.
     configure-action: Open Hearing
+    mode: Voice input
+    auto-send: Send when recording stops
+    input-device: Microphone
+    system-default: System default
+    listen: Listen continuously
+    hearing-settings: Hearing settings…
+    options-hint: Hover or right-click for options
+    recording: Recording
+    stop: Stop recording
+    stop-send: Stop and send
+    play: Play recording
+    pause: Pause
   voice-preview:
     processing: Finishing transcription
     device: Audio input device
