@@ -105,6 +105,21 @@ The Kirie debug APK SHA-256 was `358e179bb78b45dae2e13afc8b8e70b17e742f84e6ab3a3
 Temporary evidence is in `recordings-android/api36-startup-52c4b4038-2026-10-07/`.
 The comparison places stage-pocket on the left and Kirie on the right.
 
+### Onboarding permissions
+
+The comparison used Android API 36 and WebView 133.0.6943.137.
+Both apps displayed the same OpenAI validation failure for the test key.
+`Continue Anyway` opened `Permission management` in both apps.
+
+Both pages displayed matching notification and microphone cards.
+Each request button opened the matching Android permission dialog.
+Kirie sends these requests through its Android WebMessage channel.
+The universal `src-web` renderer remains the packaged page.
+
+The Kirie debug APK SHA-256 was `c4cd7e4926b90bc1dddeb71cfed9135505da6df01fb428bac517e8ef7b6df322`.
+Temporary evidence is in `recordings-android/onboarding-permissions-cc34b1b61-2026-10-07/`.
+The comparison places stage-pocket on the left and Kirie on the right.
+
 ## Reference boundary
 
 Stage-pocket supplies the Android behavior reference for native and Web interactions.
