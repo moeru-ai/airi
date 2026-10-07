@@ -32,6 +32,12 @@ html.dark {
   color-scheme: dark;
 }
 
+html.android-renderer,
+html.android-renderer body,
+html.android-renderer #app {
+  background: var(--bg-color);
+}
+
 html.spotlight-window,
 html.spotlight-window body,
 html.spotlight-window #app {

@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostSettings } from '@proj-airi/stage-host-context'
 import { ProfileSwitcherPopover } from '@proj-airi/stage-ui/components'
 import { computed } from 'vue'
 
-import { electronOpenSettings } from '../../../../shared/eventa'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
 
 defineOptions({ inheritAttrs: false })
@@ -13,7 +12,7 @@ const emit = defineEmits<{ interactionChange: [active: boolean] }>()
 
 const open = defineModel<boolean>('open', { default: false })
 
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostSettings()
 const { isLeft, isTop } = useControlsIslandPlacement()
 const contentSide = computed(() => isTop.value ? 'bottom' : 'top')
 const contentAlign = computed(() => isLeft.value ? 'start' : 'end')

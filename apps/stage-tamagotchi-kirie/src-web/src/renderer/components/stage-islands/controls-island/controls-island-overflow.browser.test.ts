@@ -20,7 +20,6 @@ import { createI18n } from 'vue-i18n'
 
 import ControlsIsland from './index.vue'
 
-import { electronOpenSettings } from '../../../../shared/eventa'
 import { controlsIslandPlacementKey } from './use-controls-island-placement'
 
 import '@unocss/reset/tailwind.css'
@@ -43,7 +42,7 @@ vi.mock('@proj-airi/stage-host-context', () => ({
   useHostAppQuit: () => vi.fn().mockResolvedValue(undefined),
   useHostAuth: () => ({ startLogin: vi.fn().mockResolvedValue(undefined) }),
   useHostChat: () => vi.fn().mockResolvedValue(undefined),
-  useHostEventaInvoke: (event: unknown) => event === electronOpenSettings ? openSettings : vi.fn().mockResolvedValue(false),
+  useHostSettings: () => openSettings,
   useHostMicrophonePermission: () => ({
     refresh: vi.fn().mockResolvedValue('granted'),
     reset: vi.fn().mockResolvedValue(undefined),

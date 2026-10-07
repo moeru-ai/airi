@@ -65,6 +65,9 @@ const microphonePermissionBusy = shallowRef(false)
 const { t } = useI18n()
 let stopSpotlightShortcut: (() => void) | undefined
 
+if (isAndroidRenderer())
+  document.documentElement.classList.add('android-renderer')
+
 if (isSpotlightWindow)
   document.documentElement.classList.add('spotlight-window')
 

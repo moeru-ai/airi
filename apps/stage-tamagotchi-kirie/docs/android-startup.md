@@ -58,7 +58,7 @@ The evidence directory remains untracked.
 
 That onboarding APK crashed after WebView creation on Android API 36 with WebView 133.
 API 35 remained alive during the complete recording.
-The later hardware-layer build closes this failure.
+The later hardware-layer build passed one run, but later cold starts reproduced the failure.
 
 ### Provider selection
 
@@ -75,8 +75,9 @@ Temporary evidence is in `recordings-android/provider-selection-521db9de1-2026-1
 
 ### OpenAI configuration
 
-Kirie now assigns a hardware layer to the Android WebView.
-This layer keeps transparent WebView tiles on the GPU above the animated Godot surface.
+The tested APK assigned a hardware layer to the Android WebView.
+This layer kept transparent WebView tiles above the animated Godot surface during this comparison.
+The API 36 stability fix below replaces this behavior.
 
 The comparison used Android API 35 and WebView 124.
 The emulator used the host NVIDIA GeForce RTX 3060 through Vulkan 1.3.
@@ -91,6 +92,27 @@ The final videos use settled screenshots with the same event times.
 The Kirie debug APK SHA-256 was `358e179bb78b45dae2e13afc8b8e70b17e742f84e6ab3a38dc044cdeb0310435`.
 Temporary evidence is in `recordings-android/openai-config-103fbd5b6-2026-10-07/`.
 The comparison places stage-pocket on the left and Kirie on the right.
+
+### API 36 GPU stability
+
+The final check used Android API 36 and WebView 133.0.6943.137.
+The emulator used the host NVIDIA GeForce RTX 3060 through OpenGL ES 3.1.
+Godot stayed GPU accelerated with the compatibility renderer.
+
+WebView 133 aborted its GPU thread beside Godot's active OpenGL surface.
+The abort ended the complete Kirie process during cold startup.
+Pocket remained stable on the same emulator and WebView.
+
+Kirie now uses a software layer for the overlay WebView.
+This avoids the WebView GPU-process conflict while Godot keeps host GPU acceleration.
+The renderer also gives the Android page an opaque application background.
+
+Two cold starts remained alive for 20 seconds.
+Both runs loaded WebView 133 and reported the RTX 3060 for Godot rendering.
+Neither run logged a fatal signal, FORTIFY abort, or Vulkan device loss.
+
+The Kirie debug APK SHA-256 was `8b81266bacd22650ceef4b6c045e01d9f11af633a2e15a5e462743cb6732e516`.
+Temporary evidence is in `recordings-android/api36-gpu-webview-2026-10-07/`.
 
 ### Android 16 startup
 

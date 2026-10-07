@@ -14,6 +14,7 @@ export { useHostOnboarding } from './onboarding'
 export * from './owner'
 export * from './pointer'
 export { useHostScreenCapture } from './screen-capture'
+export { useHostSettings } from './settings'
 export {
   startHostOwnedSpotlightShortcut,
   useHostSpotlightShortcut,

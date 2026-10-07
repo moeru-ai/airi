@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostEventaInvoke } from '@proj-airi/stage-host-context'
+import { useHostSettings } from '@proj-airi/stage-host-context'
 import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
 import { lampFlickerAnimationClass } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
@@ -9,8 +9,6 @@ import { useI18n } from 'vue-i18n'
 import ControlButtonTooltip from '../controls-island/control-button-tooltip.vue'
 import ControlButton from '../controls-island/control-button.vue'
 
-import { electronOpenSettings } from '../../../../shared/eventa'
-
 const props = defineProps<{
   buttonStyle: string
   iconClass: string
@@ -18,7 +16,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const { connected } = storeToRefs(useModsServerChannelStore())
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostSettings()
 
 const iconClasses = computed(() => {
   return [
