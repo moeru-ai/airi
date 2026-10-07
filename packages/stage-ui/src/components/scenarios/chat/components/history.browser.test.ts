@@ -510,6 +510,25 @@ describe('chat history', () => {
     expect(expiredItem?.classList.contains('opacity-100')).toBe(true)
   })
 
+  it('hides the time label of an expired message with it', async () => {
+    const createdAt = new Date('2026-10-05T12:00:00Z').getTime()
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'first question', createdAt }] satisfies ChatHistoryItem[],
+        expiredBefore: 0,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await expect.element(screen.getByText('first question')).toBeInTheDocument()
+    const label = screen.container.querySelector('time')?.closest('.w-full')
+    expect(label).not.toBeNull()
+
+    await screen.rerender({ expiredBefore: 1 })
+    expect(label?.classList.contains('invisible')).toBe(true)
+  })
+
   // Hidden messages keep their space, so a feed that stayed scrolled up to
   // them would show only empty space.
   it('returns to the newest message when more messages hide', async () => {

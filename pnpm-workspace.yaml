@@ -165,8 +165,6 @@ catalog:
   '@iconify/vue': ^5.0.1
   '@intlify/core': ^11.4.9
   '@intlify/unplugin-vue-i18n': ^11.2.5
-  '@langfuse/otel': ^5.10.1
-  '@langfuse/tracing': ^5.10.1
   '@laplace.live/event-bridge-sdk': ^1.1.0
   '@laplace.live/event-types': ^2.0.21
   '@lemonneko/crop-empty-pixels': 0.1.1
