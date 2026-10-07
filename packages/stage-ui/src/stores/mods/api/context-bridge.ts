@@ -6,6 +6,7 @@ import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat
 import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { errorMessageFrom } from '@moeru/std'
+import { encodeBase64 } from '@moeru/std/base64'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
@@ -13,6 +14,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowReactive, toRaw, watch } from 'vue'
 
+import { readChatAsset } from '../../../libs/chat-assets'
 import { getSpeechBusContext, voiceGenerationEnded } from '../../../services/speech/bus'
 import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
 import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
@@ -652,6 +654,22 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
           textPreview: contextMessage.text,
           sourceLabel: getMetadataSourceLabel(event.metadata?.source) ?? event.source,
           details: contextMessage,
+        })
+      }))
+
+      // Chat events reference images and recordings. A module reads their bytes here. Every stage window that holds
+      // the channel answers, and the module keeps the first answer.
+      disposeHookFns.value.push(serverChannelStore.onEvent('asset:get:request', async (event) => {
+        const { ref } = event.data
+        const answer = await readChatAsset(ref).then(
+          async record => ({ ref, mimeType: record.mimeType, data: encodeBase64(new Uint8Array(await record.blob.arrayBuffer())) }),
+          (error: unknown) => ({ ref, error: errorMessageFrom(error) ?? 'Could not read the asset' }),
+        )
+        serverChannelStore.send({
+          type: 'asset:get:response',
+          data: answer,
+          metadata: { event: { parentId: event.metadata.event.id } },
+          route: { destinations: [`instance:${event.metadata.source.id}`] },
         })
       }))
 

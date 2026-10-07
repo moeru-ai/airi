@@ -5,6 +5,8 @@ import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 
+import { chatAssetsRepo } from '../../../database/repos/chat-assets.repo'
+import { storeChatAsset } from '../../../libs/chat-assets'
 import { CHAT_STREAM_CHANNEL_NAME, CONTEXT_CHANNEL_NAME } from '../../chat/constants'
 import { useConsciousnessStore } from '../../modules/consciousness'
 import { useConsciousnessSettingsStore } from '../../modules/consciousness-settings'
@@ -316,6 +318,37 @@ describe('context bridge contract', () => {
     disposePinia(pinia)
     vi.restoreAllMocks()
     localStorage.clear()
+  })
+
+  it('answers an asset read to the asking module only', async () => {
+    const ref = await storeChatAsset(new Uint8Array([82, 73, 70, 70]), 'audio/wav', 'session-1')
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-1' } },
+    })
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref: 'airi-asset:missing' },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-2' } },
+    })
+
+    const answers = () => serverSendMock.mock.calls.filter(([event]) => event.type === 'asset:get:response')
+    await vi.waitFor(() => expect(answers()).toHaveLength(2))
+    expect(serverSendMock).toHaveBeenCalledWith({
+      type: 'asset:get:response',
+      data: { ref, mimeType: 'audio/wav', data: 'UklGRg==' },
+      metadata: { event: { parentId: 'request-1' } },
+      route: { destinations: ['instance:discord-1'] },
+    })
+    expect(serverSendMock).toHaveBeenCalledWith(expect.objectContaining({
+      data: { ref: 'airi-asset:missing', error: expect.stringContaining('missing') },
+      metadata: { event: { parentId: 'request-2' } },
+    }))
+    await chatAssetsRepo.clear()
   })
 
   it('records core ingest result for broadcast context updates', async () => {

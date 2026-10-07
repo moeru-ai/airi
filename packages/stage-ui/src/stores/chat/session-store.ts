@@ -14,6 +14,7 @@ import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { authedFetch } from '../../libs/auth-fetch'
+import { inlineChatAssets } from '../../libs/chat-assets'
 import {
   applyCreateActions,
   createChatWsClient,
@@ -1577,15 +1578,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const sessions: Record<string, ChatSessionRecord> = {}
     for (const character of Object.values(index.value.characters)) {
       for (const sessionId of Object.keys(character.sessions)) {
+        // An export leaves the device, so it carries the bytes of each image and recording in place of asset references.
         const stored = await chatSessionsRepo.getSession(sessionId)
         if (stored) {
-          sessions[sessionId] = stored
+          sessions[sessionId] = { ...stored, messages: await inlineChatAssets(stored.messages) }
           continue
         }
         const meta = sessionMetas.value[sessionId]
         const messages = sessionMessages.value[sessionId]
         if (meta && messages)
-          sessions[sessionId] = { meta, messages }
+          sessions[sessionId] = { meta, messages: await inlineChatAssets(messages) }
       }
     }
 

@@ -38,6 +38,29 @@ Useful runtime helpers:
 - `client.isReady` tells you whether the client has completed authentication + announce
 - `client.send()` returns `false` instead of silently dropping messages when the socket is unavailable
 - `client.sendOrThrow()` is available when you want strict delivery semantics
+
+### Read chat images and recordings
+
+Chat events, such as `output:gen-ai:chat:message`, do not carry image or audio bytes. A message part holds a reference such as `airi-asset:<id>` in place of them. Read the bytes with `getAsset`:
+
+```typescript
+import { ASSET_REF_PREFIX } from '@proj-airi/server-sdk'
+
+client.onEvent('output:gen-ai:chat:message', async (event) => {
+  const content = event.data['gen-ai:chat']?.message.content
+  if (!Array.isArray(content))
+    return
+
+  for (const part of content) {
+    if (part.type === 'input_audio' && part.input_audio.data.startsWith(ASSET_REF_PREFIX)) {
+      const { mimeType, data } = await client.getAsset(part.input_audio.data)
+      console.info(mimeType, data.byteLength)
+    }
+  }
+})
+```
+
+The stage answers the request. `getAsset` rejects when the asset is missing, or when no stage answers within 10 seconds.
 - `client.onEvent()` returns an unsubscribe function
 
 ## License
