@@ -3,11 +3,15 @@ import { useHostEventaContext, useHostLocale } from '@proj-airi/stage-host-conte
 import { themeColorFromValue, useThemeColor } from '@proj-airi/stage-layouts/composables/theme-color'
 import { ToasterRoot } from '@proj-airi/stage-ui/components'
 import { useInferencePreload } from '@proj-airi/stage-ui/composables'
+import { getHostWebSocketConnector } from '@proj-airi/stage-ui/libs/host-websocket-bridge'
 import { usePiniaSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { initializeAnalytics } from '@proj-airi/stage-ui/libs/product-signals'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
+import { useCharacterOrchestratorStore } from '@proj-airi/stage-ui/stores/character'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
+import { useModsServerChannelStore } from '@proj-airi/stage-ui/stores/mods/api/channel-server'
+import { useContextBridgeStore } from '@proj-airi/stage-ui/stores/mods/api/context-bridge'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
@@ -110,6 +114,9 @@ function createFullStageRuntime() {
   const authStore = useAuthStore()
   const onboardingStore = useOnboardingStore()
   const displayModelsStore = useDisplayModelsStore()
+  const serverChannelStore = useModsServerChannelStore()
+  const contextBridgeStore = useContextBridgeStore()
+  const characterOrchestratorStore = useCharacterOrchestratorStore()
   const cardStore = useAiriCardStore()
   const inferencePreload = useInferencePreload()
   const providerStore = useProviderStore()
@@ -167,6 +174,15 @@ function createFullStageRuntime() {
       await displayModelsStore.loadDisplayModelsFromIndexedDB()
       await settingsStore.initializeStageModel()
       await settingsAudioDeviceStore.initialize()
+
+      if (isAndroidRenderer()) {
+        void serverChannelStore.initialize({
+          possibleEvents: ['ui:configure'],
+          connector: getHostWebSocketConnector,
+        }).catch(error => console.error('Mods server initialization failed:', error))
+        contextBridgeStore.initialize()
+        characterOrchestratorStore.initialize()
+      }
 
       if (!isMainRenderer)
         return
