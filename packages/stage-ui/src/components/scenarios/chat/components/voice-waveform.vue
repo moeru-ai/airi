@@ -2,20 +2,21 @@
 import { useElementSize } from '@vueuse/core'
 import { useTemplateRef, watch } from 'vue'
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   /** The newest microphone level, from 0 to 1. Each new value adds one bar while `active` is true. */
   level: number
   active: boolean
-  /**
-   * Number of bars. At the host's 20 Hz level rate, 40 bars show about 2 seconds.
-   * @default 40
-   */
-  bars?: number
-}>(), { bars: 40 })
+}>()
+
+/** Bars keep this width and gap at any canvas width. A wider canvas shows more history, not wider bars. */
+const BAR_WIDTH = 3
+const BAR_GAP = 2
+/** Levels kept for a wide canvas. At the host's 20 Hz level rate, 240 levels are 12 seconds. */
+const HISTORY_LIMIT = 240
 
 const canvas = useTemplateRef<HTMLCanvasElement>('canvas')
 const { width, height } = useElementSize(canvas)
-let history: number[] = Array.from<number>({ length: props.bars }).fill(0)
+let history: number[] = []
 
 /**
  * Draws the bars on one canvas.
@@ -33,29 +34,32 @@ function draw() {
   context.scale(ratio, ratio)
   context.fillStyle = getComputedStyle(element).color
 
-  const gap = 2
-  const barWidth = Math.max(2, (width.value - gap * (props.bars - 1)) / props.bars)
-  history.forEach((value, index) => {
+  // The newest level is at the right edge. Slots without a level yet show silence.
+  const slots = Math.floor((width.value + BAR_GAP) / (BAR_WIDTH + BAR_GAP))
+  const visible = history.slice(-slots)
+  const offset = slots - visible.length
+  for (let slot = 0; slot < slots; slot++) {
+    const value = slot < offset ? 0 : visible[slot - offset]
     // Silence keeps a dot, so the row still reads as a waveform. Level 1 fills the height.
-    const barHeight = Math.max(barWidth, value * height.value)
+    const barHeight = Math.max(BAR_WIDTH, value * height.value)
     context.globalAlpha = 0.35 + value * 0.65
     context.beginPath()
-    context.roundRect(index * (barWidth + gap), (height.value - barHeight) / 2, barWidth, barHeight, barWidth / 2)
+    context.roundRect(slot * (BAR_WIDTH + BAR_GAP), (height.value - barHeight) / 2, BAR_WIDTH, barHeight, BAR_WIDTH / 2)
     context.fill()
-  })
+  }
 }
 
 // Each new level adds one bar. The host sends about 20 levels per second, so an identical repeat is rare and only skips one bar.
 watch(() => [props.level, props.active] as const, ([level, active]) => {
   if (!active)
     return
-  history = [...history.slice(1 - props.bars), level]
+  history = [...history.slice(1 - HISTORY_LIMIT), level]
   draw()
 })
 
 watch(() => props.active, (active) => {
   if (active)
-    history = Array.from<number>({ length: props.bars }).fill(0)
+    history = []
   draw()
 })
 
