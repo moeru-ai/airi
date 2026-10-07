@@ -685,6 +685,54 @@ describe('airi-card store', () => {
       expect(cardStore.cards.get('luna')?.name).toBe('Luna')
     })
 
+    // Found in the review of https://github.com/moeru-ai/airi/pull/2817
+    // ROOT CAUSE:
+    //
+    // The store rejected an unreadable remote card but still made its conflict
+    // copy. The sync state did not change, so each round made one more copy.
+    //
+    // We fixed this by making copies only for cards that were not rejected.
+    it('creates no conflict copy for a card that it rejects', async () => {
+      const cardStore = useAiriCardStore()
+      await cardStore.initialize()
+      const cardId = await cardStore.addCard({ name: 'Luna', version: '1.0.0', description: 'Local version' }, 'scratch')
+      const localFields = splitCard(cardStore.cards.get(cardId)!)
+
+      const { rejected } = cardStore.applySynchronizedCards({
+        upserts: { [cardId]: { '/description': 'No name' } },
+        removals: [],
+        conflictCopies: [{ documentId: cardId, fields: localFields }],
+      })
+
+      expect(rejected).toEqual([cardId])
+      expect([...cardStore.cards.keys()]).toEqual(['default', cardId])
+      expect(cardStore.cards.get(cardId)?.description).toBe('Local version')
+    })
+
+    // Found in the review of https://github.com/moeru-ai/airi/pull/2817
+    // ROOT CAUSE:
+    //
+    // An unreadable copy threw after the upsert replaced the local card. The
+    // next run found no conflict, so the local edit was lost.
+    //
+    // We fixed this by reading every card before the first write.
+    it('keeps the local card when its conflict copy cannot be read', async () => {
+      const cardStore = useAiriCardStore()
+      await cardStore.initialize()
+      const cardId = await cardStore.addCard({ name: 'Luna', version: '1.0.0', description: 'Local version' }, 'scratch')
+      const remoteFields = splitCard({ ...cardStore.cards.get(cardId)!, description: 'Remote version' })
+
+      const { rejected } = cardStore.applySynchronizedCards({
+        upserts: { [cardId]: remoteFields },
+        removals: [],
+        conflictCopies: [{ documentId: cardId, fields: { '/description': 'No name' } }],
+      })
+
+      expect(rejected).toEqual([cardId])
+      expect([...cardStore.cards.keys()]).toEqual(['default', cardId])
+      expect(cardStore.cards.get(cardId)?.description).toBe('Local version')
+    })
+
     // Each device creates the built-in card in its own language. Only the edits travel between devices.
     describe('the built-in card', () => {
       it('shows the built-in parts that the remote edits do not replace', async () => {
