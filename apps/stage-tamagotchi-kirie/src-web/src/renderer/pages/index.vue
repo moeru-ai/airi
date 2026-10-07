@@ -57,6 +57,7 @@ import { isAndroidRenderer } from '../window-context'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const mobileInteractiveArea = ref<InstanceType<typeof MobileInteractiveArea>>()
+const mobileSettingsOpen = ref(false)
 const controlsIslandInteractionActive = shallowRef(false)
 const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -842,7 +843,7 @@ const cursorPosition = computed(() => ({
           h-full w-full
           flex-1
           :cursor-position="cursorPosition"
-          :paused="stagePaused"
+          :paused="stagePaused || mobileSettingsOpen"
         />
         <HoloCoupon />
         <ControlsIslandRoot v-if="!isAndroidRenderer()" :frozen="controlsIslandInteractionActive">
@@ -882,6 +883,7 @@ const cursorPosition = computed(() => ({
     <MobileInteractiveArea
       v-if="isAndroidRenderer()"
       ref="mobileInteractiveArea"
+      @settings-open="mobileSettingsOpen = $event"
     />
   </Teleport>
   <OnboardingDialog
