@@ -373,6 +373,7 @@ pages:
           fallback: Could not start deletion. Try again later.
   card:
     sync:
+      title: Cloud sync
       notice: Character cards sync to your account. A deleted card stays restorable for 30 days.
       off_notice: You are signed in, but character card sync is off.
       off_notice_link: Turn it on in Experimental Features.

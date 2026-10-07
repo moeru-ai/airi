@@ -347,6 +347,7 @@ pages:
           fallback: 无法开始删除操作，请稍后重试。
   card:
     sync:
+      title: 云同步
       notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
       off_notice: 你已登录，但角色卡同步还没有打开。
       off_notice_link: 去实验性特性里打开。

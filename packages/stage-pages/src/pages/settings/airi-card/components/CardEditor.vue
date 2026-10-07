@@ -424,16 +424,18 @@ const isSaving = ref<boolean>(false)
 
 // Initialize card data - load from existing card if in edit mode
 function createCardDraft(): Card {
+  // Creation starts from empty fields. Each field shows its default as the
+  // placeholder, and handleSave substitutes the default for a blank field.
   return {
-    name: t('settings.pages.card.creation.defaults.name'),
+    name: '',
     nickname: undefined,
     version: '1.0',
     description: '',
     notes: undefined,
-    personality: t('settings.pages.card.creation.defaults.personality'),
-    scenario: t('settings.pages.card.creation.defaults.scenario'),
-    systemPrompt: t('settings.pages.card.creation.defaults.systemprompt'),
-    postHistoryInstructions: t('settings.pages.card.creation.defaults.posthistoryinstructions'),
+    personality: '',
+    scenario: '',
+    systemPrompt: '',
+    postHistoryInstructions: '',
     greetings: [],
     messageExample: [],
   }
@@ -615,6 +617,31 @@ function getDefaultPlaceholder(): string {
   return t('settings.pages.card.creation.inherit_global_settings')
 }
 
+// Creation-mode defaults. A blank field shows its default as the placeholder
+// and handleSave substitutes the default before validation.
+type CreationDefaultKey = 'name' | 'personality' | 'scenario' | 'systemprompt' | 'posthistoryinstructions'
+
+function creationDefault(key: CreationDefaultKey): string {
+  return t(`settings.pages.card.creation.defaults.${key}`)
+}
+
+function creationPlaceholder(key: CreationDefaultKey): string | undefined {
+  // Edit mode applies no fallback on save, so a default hint would mislead.
+  return isEditMode.value ? undefined : creationDefault(key)
+}
+
+function withCreationDefaults(draft: Card): Card {
+  const fallback = (value: string | undefined, key: CreationDefaultKey) => value?.trim() ? value : creationDefault(key)
+  return {
+    ...draft,
+    name: fallback(draft.name, 'name'),
+    personality: fallback(draft.personality, 'personality'),
+    scenario: fallback(draft.scenario, 'scenario'),
+    systemPrompt: fallback(draft.systemPrompt, 'systemprompt'),
+    postHistoryInstructions: fallback(draft.postHistoryInstructions, 'posthistoryinstructions'),
+  }
+}
+
 const cardNotFound = computed(() => isEditMode.value && !!props.cardId && !cardStore.getCard(props.cardId))
 const editorTitle = computed(() => {
   if (!isEditMode.value)
@@ -643,7 +670,10 @@ async function handleSave(activate: boolean) {
       }
     }
 
-    const draftResult = safeParseAiriCardDraft(toRaw(card.value), selectedArtistryConfigStr.value)
+    // In creation mode a blank field falls back to the default its placeholder
+    // shows. Edit mode keeps blanks, so clearing a field stays deliberate.
+    const draftCard = isEditMode.value ? toRaw(card.value) : withCreationDefaults(toRaw(card.value))
+    const draftResult = safeParseAiriCardDraft(draftCard, selectedArtistryConfigStr.value)
     if (!draftResult.success) {
       showError.value = true
       errorMessage.value = t(`settings.pages.card.creation.errors.${draftResult.error}`)
@@ -887,7 +917,7 @@ function handleBack() {
               </p>
 
               <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
-                <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
+                <FieldInput v-model="cardName" :label="t('settings.pages.card.creation.name')" :placeholder="creationPlaceholder('name')" :description="t('settings.pages.card.creation.fields_info.name')" :required="true" />
                 <FieldInput v-model="cardNickname" :label="t('settings.pages.card.creation.nickname')" :description="t('settings.pages.card.creation.fields_info.nickname')" />
               </div>
 
@@ -899,8 +929,8 @@ function handleBack() {
             <!-- Behavior -->
             <div v-else-if="activeSection === 'behavior'" :class="['flex flex-col gap-5']">
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
-                <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.personality')" :input-class="editorLongTextareaClass" />
-                <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.scenario')" :input-class="editorLongTextareaClass" />
+                <FieldInput v-model="cardPersonality" :label="t('settings.pages.card.personality')" :single-line="false" :placeholder="creationPlaceholder('personality')" :description="t('settings.pages.card.creation.fields_info.personality')" :input-class="editorLongTextareaClass" />
+                <FieldInput v-model="cardScenario" :label="t('settings.pages.card.scenario')" :single-line="false" :placeholder="creationPlaceholder('scenario')" :description="t('settings.pages.card.creation.fields_info.scenario')" :input-class="editorLongTextareaClass" />
               </div>
               <FieldValues v-model="cardGreetings" :label="t('settings.pages.card.creation.greetings')" :description="t('settings.pages.card.creation.fields_info.greetings')" :required="false" />
             </div>
@@ -1039,8 +1069,8 @@ function handleBack() {
             <!-- Settings -->
             <div v-else-if="activeSection === 'settings'" :class="['flex flex-col gap-5']">
               <div :class="['grid grid-cols-1 gap-5', 'xl:grid-cols-2']">
-                <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.systemprompt')" :input-class="editorLongTextareaClass" />
-                <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" :input-class="editorLongTextareaClass" />
+                <FieldInput v-model="cardSystemPrompt" :label="t('settings.pages.card.systemprompt')" :single-line="false" :placeholder="creationPlaceholder('systemprompt')" :description="t('settings.pages.card.creation.fields_info.systemprompt')" :input-class="editorLongTextareaClass" />
+                <FieldInput v-model="cardPostHistoryInstructions" :label="t('settings.pages.card.posthistoryinstructions')" :single-line="false" :placeholder="creationPlaceholder('posthistoryinstructions')" :description="t('settings.pages.card.creation.fields_info.posthistoryinstructions')" :input-class="editorLongTextareaClass" />
               </div>
               <div :class="['grid grid-cols-1 gap-5', 'sm:grid-cols-2']">
                 <FieldInput v-model="cardVersion" :label="t('settings.pages.card.creation.version')" :required="true" :description="t('settings.pages.card.creation.fields_info.version')" />

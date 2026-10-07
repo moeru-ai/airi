@@ -4,7 +4,7 @@ import { AiriCardPackageError, importAiriCardPackage } from '@proj-airi/stage-ui
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { useDisplayModelsStore } from '@proj-airi/stage-ui/stores/display-models'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
-import { Button, InputFileCard } from '@proj-airi/ui'
+import { Button, Callout, Input, InputFileCard } from '@proj-airi/ui'
 import { ComboboxSelect } from '@proj-airi/ui/components/form'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
@@ -289,114 +289,109 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
 </script>
 
 <template>
-  <div rounded-xl p-4 flex="~ col gap-4">
+  <div :class="['rounded-xl p-4', 'flex flex-col gap-4']">
     <!-- Disclosure: signed-in users upload their cards -->
-    <div
+    <Callout
       v-if="isAuthenticated && cloudSyncEnabled"
-      :class="[
-        'flex flex-col gap-3 rounded-xl px-4 py-3',
-        'border border-primary-200/60 dark:border-primary-800/40',
-        'bg-primary-50/50 dark:bg-primary-950/30',
-      ]"
+      theme="primary"
+      :label="t('settings.pages.card.sync.title')"
     >
-      <div :class="['flex flex-row flex-wrap items-center justify-between gap-2']">
-        <p :class="['flex items-center gap-2 text-sm', 'text-neutral-600 dark:text-neutral-300']">
-          <span i-solar:cloud-check-outline :class="['shrink-0', 'text-primary-500 dark:text-primary-400']" />
-          {{ t('settings.pages.card.sync.notice') }}
-        </p>
-        <button
-          type="button"
-          :class="[
-            'flex flex-row shrink-0 items-center gap-1 text-sm',
-            'text-primary-600 dark:text-primary-400',
-            'hover:underline',
-          ]"
-          @click="toggleDeletedPanel"
-        >
-          <div i-solar:trash-bin-minimalistic-linear />
-          {{ t('settings.pages.card.sync.deleted.title') }}
-          <div :class="showDeletedPanel ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear'" />
-        </button>
-      </div>
+      <div :class="['flex flex-col gap-2']">
+        <div :class="['flex flex-row flex-wrap items-center justify-between gap-2']">
+          <p :class="['text-sm']">
+            {{ t('settings.pages.card.sync.notice') }}
+          </p>
+          <button
+            type="button"
+            :class="[
+              'flex shrink-0 items-center gap-1 text-sm',
+              'text-primary-600 dark:text-primary-400',
+              'hover:underline',
+            ]"
+            @click="toggleDeletedPanel"
+          >
+            <div i-solar:trash-bin-minimalistic-linear />
+            {{ t('settings.pages.card.sync.deleted.title') }}
+            <div :class="showDeletedPanel ? 'i-solar:alt-arrow-up-linear' : 'i-solar:alt-arrow-down-linear'" />
+          </button>
+        </div>
 
-      <div
-        v-if="showDeletedPanel"
-        :class="[
-          'flex flex-col gap-2 rounded-lg p-3',
-          'bg-white/60 dark:bg-black/30',
-          'border border-neutral-200/50 dark:border-neutral-700/30',
-        ]"
-      >
-        <div v-if="isLoadingDeleted" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
-          {{ t('settings.pages.card.sync.deleted.loading') }}
-        </div>
-        <div v-else-if="deletedLoadFailed" class="py-4 text-center text-sm text-red-500 dark:text-red-400">
-          {{ t('settings.pages.card.sync.deleted.load_failed') }}
-        </div>
-        <div v-else-if="deletedCardsList.length === 0" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
-          {{ t('settings.pages.card.sync.deleted.empty') }}
-        </div>
         <div
-          v-for="card in deletedCardsList"
-          :key="card.id"
+          v-if="showDeletedPanel"
           :class="[
-            'flex flex-row items-center justify-between gap-3 rounded-lg p-3',
-            'bg-white dark:bg-neutral-900',
+            'flex flex-col gap-2 rounded-lg p-3',
+            'bg-white/60 dark:bg-black/30',
             'border border-neutral-200/50 dark:border-neutral-700/30',
           ]"
         >
-          <div :class="['flex min-w-0 flex-col gap-0.5']">
-            <span :class="['truncate text-sm font-medium']">{{ card.name }}</span>
-            <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']" :title="new Date(card.deletedAt).toLocaleString(locale)">
-              {{ t('settings.pages.card.sync.deleted.deleted_when', { when: formatDeletedRelative(card.deletedAt) }) }}
-              ·
-              {{ t('settings.pages.card.sync.deleted.days_left', { days: restorableDays(card.deletedAt) }) }}
-            </span>
+          <div v-if="isLoadingDeleted" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.pages.card.sync.deleted.loading') }}
           </div>
-          <Button
-            size="sm"
-            shrink-0
-            icon="i-solar:restart-line-duotone"
-            :label="t('settings.pages.card.sync.deleted.restore')"
-            :disabled="restoringDeletedId === card.id"
-            @click="handleRestoreDeletedCard(card)"
-          />
+          <div v-else-if="deletedLoadFailed" class="py-4 text-center text-sm text-red-500 dark:text-red-400">
+            {{ t('settings.pages.card.sync.deleted.load_failed') }}
+          </div>
+          <div v-else-if="deletedCardsList.length === 0" class="py-4 text-center text-sm text-neutral-500 dark:text-neutral-400">
+            {{ t('settings.pages.card.sync.deleted.empty') }}
+          </div>
+          <div
+            v-for="card in deletedCardsList"
+            :key="card.id"
+            :class="[
+              'flex flex-row items-center justify-between gap-3 rounded-lg p-3',
+              'bg-white dark:bg-neutral-900',
+              'border border-neutral-200/50 dark:border-neutral-700/30',
+            ]"
+          >
+            <div :class="['flex min-w-0 flex-col gap-0.5']">
+              <span :class="['truncate text-sm font-medium']">{{ card.name }}</span>
+              <span :class="['text-xs', 'text-neutral-500 dark:text-neutral-400']" :title="new Date(card.deletedAt).toLocaleString(locale)">
+                {{ t('settings.pages.card.sync.deleted.deleted_when', { when: formatDeletedRelative(card.deletedAt) }) }}
+                ·
+                {{ t('settings.pages.card.sync.deleted.days_left', { days: restorableDays(card.deletedAt) }) }}
+              </span>
+            </div>
+            <Button
+              size="sm"
+              shrink-0
+              icon="i-solar:restart-line-duotone"
+              :label="t('settings.pages.card.sync.deleted.restore')"
+              :disabled="restoringDeletedId === card.id"
+              @click="handleRestoreDeletedCard(card)"
+            />
+          </div>
         </div>
       </div>
-    </div>
+    </Callout>
 
     <!-- Disclosure: a signed-in user who has not turned cloud sync on -->
-    <p v-else-if="isAuthenticated" flex items-center gap-2 text-sm text="neutral-500 dark:neutral-400">
-      <span i-solar:cloud-cross-outline shrink-0 />
+    <p v-else-if="isAuthenticated" :class="['flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400']">
+      <span i-solar:cloud-cross-outline :class="['shrink-0']" />
       {{ t('settings.pages.card.sync.off_notice') }}
       <RouterLink to="/settings/system/experimental" class="text-primary-600 dark:text-primary-400 hover:underline">
         {{ t('settings.pages.card.sync.off_notice_link') }}
       </RouterLink>
     </p>
 
-    <!-- Toolbar with search and filters -->
-    <div flex="~ row" flex-wrap items-center justify-between gap-4>
+    <!-- Toolbar with search and sort -->
+    <div :class="['flex flex-wrap items-center gap-3']">
       <!-- Search bar -->
-      <div class="relative min-w-[200px] flex-1" inline-flex="~" w-full items-center>
-        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <div i-solar:magnifer-line-duotone class="text-neutral-500 dark:text-neutral-400" />
+      <div :class="['relative min-w-[200px] flex-1']">
+        <div :class="['pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3']">
+          <div i-solar:magnifer-line-duotone :class="['text-neutral-400 dark:text-neutral-500']" />
         </div>
-        <input
+        <Input
           v-model="searchQuery"
           type="search"
-          class="w-full rounded-xl p-2.5 pl-10 text-sm outline-none"
-          border="focus:primary-100 dark:focus:primary-400/50 2 solid neutral-200 dark:neutral-800"
-          transition="all duration-200 ease-in-out"
-          bg="white dark:neutral-900"
+          class="pl-9!"
           :placeholder="t('settings.pages.card.search')"
-        >
+        />
       </div>
 
       <!-- Sort options -->
-      <div class="relative flex flex-row justify-start gap-2 lg:flex-col">
-        <div class="top-[-32px] whitespace-nowrap text-sm text-neutral-500 leading-10 lg:absolute dark:text-neutral-400">
+      <div :class="['flex items-center gap-2']">
+        <span :class="['whitespace-nowrap text-sm text-neutral-500 dark:text-neutral-400']">
           {{ t('settings.pages.card.sort_by') }}:
-        </div>
+        </span>
         <ComboboxSelect
           v-model="sortOption"
           :options="[
@@ -404,7 +399,7 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
             { value: 'nameDesc', label: t('settings.pages.card.name_desc') },
             { value: 'recent', label: t('settings.pages.card.recent') },
           ]"
-          placeholder="Select sort option"
+          :placeholder="t('settings.pages.card.sort_by')"
           class="min-w-[150px]"
         />
       </div>
@@ -415,33 +410,36 @@ function getModuleShortName(id: string, module: 'consciousness' | 'voice') {
       class="mt-4"
       :class="{ 'grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4 grid-auto-rows-[minmax(min-content,max-content)] grid-auto-flow-dense sm:grid-cols-[repeat(auto-fill,minmax(240px,1fr))] sm:gap-5 md:grid-cols-[repeat(auto-fill,minmax(220px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(250px,1fr))]': cards.size > 0 }"
     >
-      <!-- Upload card -->
-      <InputFileCard v-model="inputFiles" accept=".zip">
-        <template #default="{ isDragging }">
-          <template v-if="!isDragging">
-            <div flex flex-col items-center>
-              <div i-solar:upload-square-line-duotone mb-4 text-5xl text="neutral-400 dark:neutral-500" />
-              <p font-medium text="neutral-600 dark:neutral-300">
-                {{ t('settings.pages.card.upload') }}
-              </p>
-              <p text="neutral-500 dark:neutral-400" mt-2 text-sm>
-                {{ t('settings.pages.card.upload_desc') }}
-              </p>
-            </div>
+      <!-- Upload and create stay compact side by side on narrow screens. -->
+      <div :class="['col-span-full grid grid-cols-2 gap-4 sm:contents']">
+        <!-- Upload card -->
+        <InputFileCard v-model="inputFiles" accept=".zip">
+          <template #default="{ isDragging }">
+            <template v-if="!isDragging">
+              <div :class="['flex flex-col items-center text-center']">
+                <div i-solar:upload-square-line-duotone :class="['mb-1 text-3xl text-neutral-400 sm:mb-4 sm:text-5xl dark:text-neutral-500']" />
+                <p :class="['text-sm font-medium text-neutral-600 sm:text-base dark:text-neutral-300']">
+                  {{ t('settings.pages.card.upload') }}
+                </p>
+                <p :class="['mt-2 hidden text-sm text-neutral-500 sm:block dark:text-neutral-400']">
+                  {{ t('settings.pages.card.upload_desc') }}
+                </p>
+              </div>
+            </template>
+            <template v-else>
+              <div :class="['flex flex-col items-center text-center']">
+                <div i-solar:upload-minimalistic-bold :class="['mb-1 text-3xl text-primary-500 sm:mb-2 sm:text-5xl dark:text-primary-400']" />
+                <p :class="['text-sm font-medium text-primary-600 sm:text-base dark:text-primary-300']">
+                  {{ t('settings.pages.card.drop_here') }}
+                </p>
+              </div>
+            </template>
           </template>
-          <template v-else>
-            <div flex flex-col items-center>
-              <div i-solar:upload-minimalistic-bold class="mb-2 text-5xl text-primary-500 dark:text-primary-400" />
-              <p font-medium text="primary-600 dark:primary-300">
-                {{ t('settings.pages.card.drop_here') }}
-              </p>
-            </div>
-          </template>
-        </template>
-      </InputFileCard>
+        </InputFileCard>
 
-      <!-- Create card -->
-      <CardCreate @click="handleCardCreationDialog" />
+        <!-- Create card -->
+        <CardCreate @click="handleCardCreationDialog" />
+      </div>
 
       <!-- Card Items -->
       <template v-if="cards.size > 0">
