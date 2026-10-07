@@ -1,10 +1,26 @@
 import type { TranscriptEdit, VoicePlugin } from '@proj-airi/core-agent'
 
+import { array, parse, string } from 'valibot'
+
+const rephrasedSegmentsSchema = array(string())
+
+/**
+ * Reads the JSON array of rewritten segments from a model reply.
+ * Some models wrap JSON in a Markdown code fence. Any other shape throws.
+ */
+export function parseRephrasedSegments(reply: string): string[] {
+  const json = reply.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '')
+  return parse(rephrasedSegmentsSchema, JSON.parse(json))
+}
+
 export interface VoiceRephraseOptions {
   /** Reads the setting when an input starts. A disabled input submits the provider text unchanged. */
   enabled: () => boolean
-  /** Returns the rewritten text. An empty result keeps the provider text. */
-  rephrase: (text: string, signal: AbortSignal) => Promise<string>
+  /**
+   * Returns one rewritten text for each segment, in the same order.
+   * A result with another length leaves the transcript unchanged.
+   */
+  rephrase: (segments: readonly string[], signal: AbortSignal) => Promise<readonly string[]>
   /** The longest time a rewrite can delay submission. After it, the input submits the provider text. */
   timeoutMs: number
 }
@@ -14,6 +30,7 @@ export interface VoiceRephraseOptions {
  *
  * The rewrite is a checked transcript patch. The raw provider text stays in the transcript history.
  * Interim text is not rewritten, because the provider can still revise it.
+ * Each segment keeps its own rewrite, so segment-level evidence, such as speaker labels, stays aligned.
  *
  * Use when:
  * - Install it on a controller with the `transcript-patch` grant.
@@ -34,18 +51,21 @@ export function createVoiceRephrasePlugin(options: VoiceRephraseOptions): VoiceP
           if (!segments.length || segments.some(segment => !segment.final) || !text.trim())
             return
 
-          const rewritten = (await options.rephrase(text, ctx.signal)).trim()
-          if (!rewritten || rewritten === text.trim())
+          const rewritten = await options.rephrase(segments.map(segment => segment.text), ctx.signal)
+          // A merged or split answer cannot keep segment boundaries, so the provider text stays.
+          if (rewritten.length !== segments.length)
             return
 
-          // The first segment carries the complete rewrite. The other segments become empty.
-          const edits: TranscriptEdit[] = segments.map((segment, index) => ({
-            segmentId: segment.id,
-            range: { kind: 'segment' },
-            expectedText: segment.text,
-            replacement: index === 0 ? rewritten : '',
-          }))
-          ctx.patch({ edits, evidenceIds: [] })
+          // Segment texts join without a separator, so each replacement keeps its segment's outer whitespace.
+          const edits: TranscriptEdit[] = segments.flatMap((segment, index) => {
+            const content = rewritten[index].trim()
+            if (content === segment.text.trim())
+              return []
+            const replacement = content ? `${/^\s*/.exec(segment.text)![0]}${content}${/\s*$/.exec(segment.text)![0]}` : ''
+            return [{ segmentId: segment.id, range: { kind: 'segment' as const }, expectedText: segment.text, replacement }]
+          })
+          if (edits.length)
+            ctx.patch({ edits, evidenceIds: [] })
         })
         return undefined
       })
