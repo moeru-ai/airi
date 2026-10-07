@@ -15,6 +15,7 @@ import { useSpeechStore } from '@proj-airi/stage-ui/stores/modules/speech'
 import { useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useOnboardingStore } from '@proj-airi/stage-ui/stores/onboarding'
 import { usePerfTracerBridgeStore } from '@proj-airi/stage-ui/stores/perf-tracer-bridge'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { useSettingsStageModel } from '@proj-airi/stage-ui/stores/settings/stage-model'
 import { ErrorBoundary, useTheme } from '@proj-airi/ui'
@@ -108,6 +109,7 @@ function createFullStageRuntime() {
   const displayModelsStore = useDisplayModelsStore()
   const cardStore = useAiriCardStore()
   const inferencePreload = useInferencePreload()
+  const providerStore = useProviderStore()
   const stageWindowLifecycleStore = useStageWindowLifecycleStore()
   const settingsAudioDeviceStore = useSettingsAudioDevice()
   useConsciousnessStore()
@@ -149,6 +151,9 @@ function createFullStageRuntime() {
   return {
     async initialize() {
       initializeAnalytics()
+      if (isAndroidRenderer())
+        providerStore.setProviderAvailabilityOverride('nvidia', false)
+
       await authStore.initialize()
       await displayModelsStore.initialize()
       await cardStore.initialize()
