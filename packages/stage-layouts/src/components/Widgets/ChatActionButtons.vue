@@ -11,7 +11,7 @@ import ChatToolbarButton from './ChatToolbarButton.vue'
 
 import { BackgroundDialogPicker } from '../Backgrounds'
 
-const { themeMode, nextThemeMode, cycleThemeMode } = useTheme()
+const { themeMode, switchToNextTheme } = useTheme()
 const { t } = useI18n()
 
 // The button shows the current theme, and its label tells what a press selects.
@@ -20,11 +20,11 @@ const themeIcons = {
   dark: 'i-solar:moon-outline',
   auto: 'i-lucide:contrast',
 } as const
-const nextThemeLabel = computed(() => ({
-  light: t('stage.theme.switch-to-light'),
-  dark: t('stage.theme.switch-to-dark'),
-  auto: t('stage.theme.switch-to-system'),
-})[nextThemeMode.value])
+const themeLabel = computed(() => ({
+  light: t('stage.theme.switch-to-dark'),
+  dark: t('stage.theme.switch-to-system'),
+  auto: t('stage.theme.switch-to-light'),
+})[themeMode.value])
 
 const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
 type SendMode = (typeof SEND_MODES)[number]
@@ -90,9 +90,9 @@ const sendModeLabels = computed<Record<SendMode, string>>(() => ({
       </DropdownMenuPortal>
     </DropdownMenuRoot>
     <ChatToolbarButton
-      :title="nextThemeLabel"
-      :aria-label="nextThemeLabel"
-      @click="cycleThemeMode"
+      :title="themeLabel"
+      :aria-label="themeLabel"
+      @click="switchToNextTheme"
     >
       <Transition name="fade" mode="out-in">
         <div :key="themeMode" :class="[themeIcons[themeMode], 'size-5']" />

@@ -1,12 +1,7 @@
-import type { BasicColorSchema } from '@vueuse/core'
-
 import { useColorMode, useToggle } from '@vueuse/core'
 import { computed } from 'vue'
 
 import { LocalStorageShim } from '../utils'
-
-/** The theme that the user chose. `auto` follows the color scheme of the system. */
-export type ThemeMode = BasicColorSchema
 
 // The classes are the ones of `useDark`: `dark` on the root element, and none for light.
 const colorMode = useColorMode({
@@ -30,18 +25,9 @@ const isDark = computed({
 
 const toggleDark = useToggle(isDark)
 
-/** The theme that a three-state theme control selects next. */
-const nextThemeModes = {
-  light: 'dark',
-  dark: 'auto',
-  auto: 'light',
-} as const satisfies Record<ThemeMode, ThemeMode>
-
-const nextThemeMode = computed(() => nextThemeModes[colorMode.store.value])
-
 /** Selects the next theme: light, dark, then the system scheme. */
-function cycleThemeMode() {
-  colorMode.store.value = nextThemeMode.value
+function switchToNextTheme() {
+  colorMode.store.value = ({ light: 'dark', dark: 'auto', auto: 'light' } as const)[colorMode.store.value]
 }
 
 export function useTheme() {
@@ -50,8 +36,6 @@ export function useTheme() {
     toggleDark,
     /** The chosen theme, which a three-state control reads and writes. */
     themeMode: colorMode.store,
-    /** The theme that {@link cycleThemeMode} selects. */
-    nextThemeMode,
-    cycleThemeMode,
+    switchToNextTheme,
   }
 }
