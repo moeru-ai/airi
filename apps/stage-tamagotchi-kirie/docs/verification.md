@@ -113,6 +113,31 @@ The evidence directory is `recordings-android/voice-permission-drawer-aea95f68d-
 It contains both raw recordings, trimmed recordings, contact sheets, and the side-by-side comparison.
 All evidence files remain untracked, and no ignore rule changed.
 
+### Android experimental feature verification on 2026-10-07
+
+Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
+The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
+Both applications started with the same skipped-onboarding fixture and an empty `settings/feature-flags` value.
+
+Native taps opened Settings, All settings, System, and Experimental Features.
+Both pages displayed the disabled character card cloud sync switch and the `App default` source.
+Native taps enabled the switch, returned to System, and reopened Experimental Features.
+Both reopened pages displayed the enabled switch, `Your device choice`, and `Use default`.
+
+Each application then received a complete process stop and launcher restart.
+Native taps repeated the full navigation path from the stage.
+Both applications retained `{"[\"character-card-sync\",null]":true}` and displayed the enabled switch.
+
+The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
+The Kirie APK SHA-256 is `c7131b5e6828fa791b896576872e71c99e6f286b3c97bd3c11e1ce0496a31410`.
+The Pocket raw hashes are `1651e2f8cd1fa2fc802d83b8a83d5768f1a82bb2dce99b5e895d808f64f2aac9` and `a2d106bcb614d14295395b1a00fac9a2f7b76209e9c05c0fc22471f673caf31e`.
+The Kirie raw hashes are `26a5627ba6d1414ee54d88cdbf9e80fb2a30099f60a1a0a9eebbc6445201e437` and `900f37cbfae86bd4dbb6ffe6d3c43c0428b7d0fb721b646719298229292d7b16`.
+The event-aligned comparison hash is `7c9db6a57bceec92ec6a9d51d8bd3de3df890a4b27f4db1283cde943abc77bb8`.
+
+The evidence directory is `recordings-android/experimental-feature-persistence-9c5bcb87b-2026-10-07/`.
+It contains four raw recordings, an alignment contact sheet, and the side-by-side comparison.
+All evidence files remain untracked, and no ignore rule changed.
+
 ## Windows acceptance evidence
 
 The session used Godot 4.7.2 Mono, Kirie 0.6.5, CEF 1.16.1, and an NVIDIA RTX 4060 Laptop GPU.
