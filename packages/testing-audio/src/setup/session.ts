@@ -85,8 +85,11 @@ export function createSession(options: {
         turn = createTurnObservation(await session.completedSpans())
       }
 
-      if (!turn)
-        throw new Error('Timed out waiting for a completed LLM and speech turn.')
+      if (!turn) {
+        // The turn joins SpeechTurn and LLMInference spans by TurnId. List what did complete, so a missing span or a mismatched ID is visible.
+        const completed = (await session.completedSpans()).map(span => `${span.name}${span.attributes[IOAttributes.TurnId] ? ` [${String(span.attributes[IOAttributes.TurnId])}]` : ''}`)
+        throw new Error(`Timed out waiting for a completed LLM and speech turn. Completed spans: ${completed.join(', ') || 'none'}`)
+      }
 
       turn.chat.messages = await readChatMessages(session.page)
       return turn

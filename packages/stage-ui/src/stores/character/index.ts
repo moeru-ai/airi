@@ -1,12 +1,13 @@
-import type { IntentHandle } from '@proj-airi/pipelines-audio'
+import type { SpeechClient } from '../../services/speech/speech-client'
 
 import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, reactive, ref } from 'vue'
 
 import { useLlmmarkerParser } from '../../composables/llm-marker-parser'
+import { SpeechClient as Speech } from '../../services/speech/speech-client'
+import { useChatSessionStore } from '../chat/session-store'
 import { useAiriCardStore } from '../modules'
-import { useSpeechRuntimeStore } from '../speech-runtime'
 
 export * from './notebook'
 export * from './orchestrator'
@@ -21,7 +22,7 @@ export interface CharacterSparkNotifyReaction {
 
 interface StreamingReactionState {
   reaction: CharacterSparkNotifyReaction
-  intent: IntentHandle
+  speech: SpeechClient
   parser: ReturnType<ParserFactory>
 }
 
@@ -37,35 +38,30 @@ export const useCharacterStore = defineStore('character', () => {
   const { activeCard, systemPrompt } = storeToRefs(useAiriCardStore())
 
   const name = computed(() => activeCard.value?.name ?? '')
-  const ownerId = computed(() => activeCard.value?.name ?? 'default')
 
   const reactions = ref<CharacterSparkNotifyReaction[]>([])
   const streamingReactions = ref<Map<string, StreamingReactionState>>(new Map())
-  const speechRuntimeStore = useSpeechRuntimeStore()
+  const sessions = useChatSessionStore()
 
   async function emitTextOutput(text: string) {
-    const intent = speechRuntimeStore.openIntent({
-      ownerId: ownerId.value,
-      priority: 'normal',
-      behavior: 'queue',
-    })
+    const speech = new Speech({ sessionId: sessions.activeSessionId, turnId: nanoid() }, 'read-aloud')
 
     const parser = parserFactory({
       onLiteral: async (literal) => {
         if (literal)
-          intent.writeLiteral(literal)
+          await speech.write(literal)
       },
       onSpecial: async (special) => {
         if (special)
-          intent.writeSpecial(special)
+          await speech.special(special)
       },
     })
 
     await parser.consume(text)
     await parser.end()
 
-    intent.writeFlush()
-    intent.end()
+    await speech.end()
+    void speech.finish().catch(error => console.error('Speech output failed', error))
   }
 
   function onSparkNotifyReactionStreamEvent(sparkEventId: string, chunk: string, options?: { metadata?: Record<string, unknown> }) {
@@ -78,26 +74,20 @@ export const useCharacterStore = defineStore('character', () => {
         metadata: options?.metadata,
       }) satisfies CharacterSparkNotifyReaction
 
-      const intent = speechRuntimeStore.openIntent({
-        turnId: `spark:${sparkEventId}`,
-        intentId: `spark:${sparkEventId}`,
-        ownerId: ownerId.value,
-        priority: 'high',
-        behavior: 'interrupt',
-      })
+      const speech = new Speech({ sessionId: sessions.activeSessionId, turnId: `spark:${sparkEventId}` }, 'notification')
 
       const parser = parserFactory({
         onLiteral: async (literal) => {
           if (literal)
-            intent.writeLiteral(literal)
+            await speech.write(literal)
         },
         onSpecial: async (special) => {
           if (special)
-            intent.writeSpecial(special)
+            await speech.special(special)
         },
       })
 
-      streamingReactions.value.set(sparkEventId, { reaction: newReaction, intent, parser })
+      streamingReactions.value.set(sparkEventId, { reaction: newReaction, speech, parser })
     }
 
     const state = streamingReactions.value.get(sparkEventId)!
@@ -113,11 +103,11 @@ export const useCharacterStore = defineStore('character', () => {
     state.reaction.message = fullText
     recordSparkNotifyReaction(sparkEventId, fullText, { metadata: options?.metadata })
 
-    void state.parser.end().then(() => {
-      state.intent.writeFlush()
-      state.intent.end()
+    void state.parser.end().then(async () => {
+      await state.speech.end()
       streamingReactions.value.delete(sparkEventId)
-    })
+      await state.speech.finish()
+    }).catch(error => console.error('Notification speech failed', error))
   }
 
   function recordSparkNotifyReaction(sparkEventId: string, message: string, options?: { metadata?: Record<string, unknown> }) {

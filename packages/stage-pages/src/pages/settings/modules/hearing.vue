@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import type { VoicePluginHandle } from '@proj-airi/core-agent'
+
 import { errorMessageFrom } from '@moeru/std'
+import { encodeWav } from '@proj-airi/audio/encoding'
 import { Alert, ErrorContainer, LevelMeter, RadioCardManySelect, RadioCardSimple, TestDummyMarker, ThresholdMeter, TimeSeriesChart } from '@proj-airi/stage-ui/components'
-import { useAnalytics, useAudioAnalyzer, useHearingPlaygroundSegments, useVoiceInputSession } from '@proj-airi/stage-ui/composables'
+import { useAnalytics, useHearingPlaygroundSegments } from '@proj-airi/stage-ui/composables'
+import { useVoiceController } from '@proj-airi/stage-ui/composables/audio/voice-controller'
 import { hearingProviderViewContextKey } from '@proj-airi/stage-ui/libs'
-import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
-import { CONFIDENCE_THRESHOLD_DISABLED, useHearingSpeechInputPipeline, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
+import { createVoiceActivityPlugin } from '@proj-airi/stage-ui/libs/voice/voice-activity-plugin'
+import { CONFIDENCE_THRESHOLD_DISABLED, useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
 import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
@@ -38,26 +43,9 @@ const { moduleTranscriptionProvidersMetadata } = storeToRefs(providersStore)
 
 const { trackProviderClick } = useAnalytics()
 const settingsAudioDeviceStore = useSettingsAudioDevice()
-const { askPermission, stopStream, startStream } = settingsAudioDeviceStore
-const { audioInputOptions, selectedAudioInput, stream } = storeToRefs(settingsAudioDeviceStore)
-const { startAnalyzer, stopAnalyzer, onAnalyzerUpdate, volumeLevel } = useAudioAnalyzer()
-const { audioContext } = storeToRefs(useAudioContext())
-const hearingSpeechInputPipeline = useHearingSpeechInputPipeline()
-const {
-  transcribeForMediaStream,
-  removeStreamingTranscriptionConsumer,
-  stopStreamingTranscription,
-} = hearingSpeechInputPipeline
-const {
-  supportsStreamInput,
-  error: transcriptionPipelineError,
-} = storeToRefs(hearingSpeechInputPipeline)
-const hearingPlaygroundTranscriptionConsumerId = 'hearing-playground'
-
-// This page owns one monitoring session. Stop closes the microphone and analyzer first,
-// then cancels the recorder and transcription Provider.
-let volumeSpeechEndTimer: ReturnType<typeof setTimeout> | undefined
-
+const { askPermission } = settingsAudioDeviceStore
+const { audioInputOptions, selectedAudioInput } = storeToRefs(settingsAudioDeviceStore)
+const supportsStreamInput = computed(() => providersStore.getTranscriptionFeatures(activeTranscriptionProvider.value).supportsStreamInput)
 const error = shallowRef('')
 const isMonitoring = shallowRef(false)
 const activeProviderConfig = computed(() => {
@@ -77,7 +65,6 @@ const {
   finishStreaming,
   startRecording,
   finishRecording,
-  finishEmpty,
   finishError,
   clear: clearPlaygroundSegments,
 } = useHearingPlaygroundSegments()
@@ -86,7 +73,6 @@ const useVADThreshold = shallowRef(0.6) // 0.1 - 0.9
 const useVolumeThreshold = shallowRef(10) // 1 - 80
 const useVADMinSilenceDurationMs = shallowRef(800)
 const useVADModel = shallowRef(true) // Toggle between VAD and volume-based detection
-const shouldUseStreamInput = computed(() => supportsStreamInput.value && !!stream.value)
 const sortedProviderModels = computed(() => {
   return providerModels.value.toSorted((left, right) => {
     if (left.id === activeTranscriptionModel.value)
@@ -101,125 +87,116 @@ function formatVADThreshold(value: number) {
   return value.toFixed(2)
 }
 
-const {
-  isSpeechVAD,
-  isSpeechProb,
-  isSpeechHistory,
-  vadError: vadModelError,
-  vadLoaded: loadedVAD,
-  vadLoading: loadingVAD,
-  startSegment,
-  stopSegment,
-  startAutoSegmentation,
-  stop: stopVoiceInputSession,
-} = useVoiceInputSession(stream, {
-  shouldUseStreamInput,
-  vad: {
-    threshold: useVADThreshold,
-    minSilenceDurationMs: useVADMinSilenceDurationMs,
+const isSpeechProb = shallowRef(0)
+const isSpeechHistory = shallowRef<number[]>([])
+const volumeLevel = shallowRef(0)
+const loadedVAD = shallowRef(false)
+const loadingVAD = shallowRef(false)
+const vadModelError = shallowRef('')
+/** A WAV preview per input, encoded from a copy of the PCM that the provider receives. */
+const recordings = new Map<string, Promise<ReturnType<typeof startRecording> | undefined>>()
+let listening: VoicePluginHandle | undefined
+let monitoringStartup: AbortController | undefined
+const { controller, state: inputState, snapshot, error: transcriptionPipelineError } = useVoiceController({
+  transcriber: () => {
+    const transcriber = hearingStore.createTranscriber()
+    const id = controller.activeInput!.id
+    return { transcribe: (request) => {
+      const [audio, preview] = request.audio.tee()
+      recordings.set(id, encodeWav(preview, { sampleRate: 16000, channels: 1 }, request.signal).then(startRecording, () => undefined))
+      return transcriber.transcribe({ ...request, audio })
+    } }
   },
-  volumeFallback: {
-    enabled: false,
-  },
-  onRecordingReady: ({ recording }) => {
-    if (!recording)
-      return
-
-    return startRecording(recording)
-  },
-  onTranscriptionResult: ({ metadata, text }) => {
-    finishRecording(metadata, text)
+  submit: async (submission) => {
+    const recording = await recordings.get(submission.submissionId)
+    if (recording)
+      finishRecording(recording, submission.text)
+    else
+      finishStreaming(submission.text)
+    recordings.delete(submission.submissionId)
     error.value = ''
-  },
-  onTranscriptionEmpty: ({ metadata }) => {
-    finishEmpty(metadata)
-  },
-  onTranscriptionError: ({ metadata, error: cause }) => {
-    const message = errorMessageFrom(cause) ?? t('settings.pages.modules.hearing.sections.section.playground.transcription-failed')
-    finishError(metadata, message)
-    error.value = message
+    return { status: 'drafted', draftId: submission.submissionId }
   },
 })
-
-const isSpeechVolume = shallowRef(false) // Volume-based speaking detection
-const isSpeech = computed(() => {
-  if (useVADModel.value && loadedVAD.value) {
-    return isSpeechVAD.value
-  }
-
-  return isSpeechVolume.value
+controller.onInput((attempt) => {
+  void attempt.done.then(async (outcome) => {
+    const recording = await recordings.get(attempt.id)
+    if (outcome.status === 'failed')
+      finishError(recording, errorMessageFrom(outcome.error) ?? 'Transcription failed')
+    recordings.delete(attempt.id)
+  })
 })
+watch(snapshot, value => replaceStreamingText(value?.transcript.text ?? ''))
+const isSpeech = computed(() => inputState.value?.phase === 'capturing')
+const isSpeechVolume = isSpeech
 
 async function setupAudioMonitoring() {
+  const stopped = stopAudioMonitoring()
+  const startup = new AbortController()
+  monitoringStartup = startup
+  isMonitoring.value = true
   try {
-    if (!selectedAudioInput.value) {
-      console.warn('No audio input device selected')
-      return false
-    }
-
-    await stopAudioMonitoring()
-
-    await startStream()
-    if (!stream.value) {
-      console.warn('No audio stream available')
-      return false
-    }
-
-    if (supportsStreamInput.value) {
-      // The Hearing pipeline owns speech segmentation and the provider session.
-      // The page VAD below only drives the visualization for streaming providers.
-      await transcribeForMediaStream(stream.value, {
-        consumerId: hearingPlaygroundTranscriptionConsumerId,
-        onSpeechEnd: finishStreaming,
-        onTranscriptionUpdate: replaceStreamingText,
-      })
-    }
-
-    const source = audioContext.value.createMediaStreamSource(stream.value)
-
-    // Fallback speaking detection (when VAD model is not used)
-    const analyzer = startAnalyzer(audioContext.value)
-    onAnalyzerUpdate((volumeLevel) => {
-      if (!useVADModel.value || !loadedVAD.value) {
-        isSpeechVolume.value = volumeLevel > useVolumeThreshold.value
-      }
+    await stopped
+    if (startup.signal.aborted)
+      return
+    // Surface a denied or missing microphone before the detector starts. The plugin then subscribes by itself.
+    if (!await settingsAudioDeviceStore.askPermission())
+      throw new Error(settingsAudioDeviceStore.error || 'Microphone access was denied')
+    if (startup.signal.aborted)
+      return
+    const model = useVADModel.value ? new SileroVad() : undefined
+    loadingVAD.value = !!model
+    loadedVAD.value = false
+    const policy = createVoiceActivityPlugin({
+      target: () => ({ sessionId: 'hearing-preview', interruptTurns: [] }),
+      get threshold() { return model ? useVADThreshold.value : 0.5 },
+      get silenceMs() { return useVADMinSilenceDurationMs.value },
+      detect: async (window, signal) => {
+        let square = 0
+        for (const sample of window.channels[0])
+          square += sample * sample
+        volumeLevel.value = Math.min(100, Math.sqrt(square / window.channels[0].length) * 300)
+        const score = model ? await model.score(window, signal) : Number(volumeLevel.value > useVolumeThreshold.value)
+        signal.throwIfAborted()
+        loadingVAD.value = false
+        loadedVAD.value = !!model
+        isSpeechProb.value = score
+        isSpeechHistory.value = [...isSpeechHistory.value.slice(-49), score]
+        return score
+      },
     })
-    if (analyzer)
-      source.connect(analyzer)
-
-    if (useVADModel.value) {
-      await startAutoSegmentation()
-    }
-
+    listening = controller.use({ ...policy, setup(scope) {
+      policy.setup(scope)
+      scope.onDispose(() => model?.close())
+      return undefined
+    } }, { grants: ['input-control', 'cancel-input'], onError: (event) => {
+      vadModelError.value = errorMessageFrom(event.error) ?? 'Speech detection failed'
+      error.value = vadModelError.value
+    } })
     error.value = ''
-    return true
   }
   catch (cause) {
-    console.error('Error setting up audio monitoring:', cause)
+    if (startup.signal.aborted)
+      return
     error.value = errorMessageFrom(cause) ?? t('settings.pages.modules.hearing.sections.section.playground.transcription-failed')
-    return false
+    await stopAudioMonitoring()
   }
 }
 
-async function stopAudioMonitoring(disposeProviderId = activeTranscriptionProvider.value) {
-  if (volumeSpeechEndTimer) {
-    clearTimeout(volumeSpeechEndTimer)
-    volumeSpeechEndTimer = undefined
-  }
-
-  stopAnalyzer()
-  if (stream.value)
-    stopStream()
-
-  await stopVoiceInputSession({ flushActiveRecording: false })
-  removeStreamingTranscriptionConsumer(hearingPlaygroundTranscriptionConsumerId)
-  await stopStreamingTranscription(true, disposeProviderId)
+async function stopAudioMonitoring() {
+  monitoringStartup?.abort('Monitoring replaced or stopped')
+  monitoringStartup = undefined
+  isMonitoring.value = false
+  const previous = listening
+  listening = undefined
+  controller.activeInput?.cancel('Hearing preview stopped')
+  await previous?.dispose()
 }
 
 // Monitoring toggle
 async function toggleMonitoring() {
   if (!isMonitoring.value) {
-    isMonitoring.value = await setupAudioMonitoring()
+    await setupAudioMonitoring()
   }
   else {
     isMonitoring.value = false
@@ -286,7 +263,7 @@ async function updateActiveProviderConfig(patch: Record<string, unknown>) {
 
     if (shouldRestartMonitoring) {
       isMonitoring.value = false
-      await stopAudioMonitoring(providerId)
+      await stopAudioMonitoring()
     }
 
     await update
@@ -296,7 +273,7 @@ async function updateActiveProviderConfig(patch: Record<string, unknown>) {
     // The selected Provider can change while a remote configuration save is pending.
     // Only restart the monitoring session for the Provider that requested the save.
     if (shouldRestartMonitoring && activeTranscriptionProvider.value === providerId)
-      isMonitoring.value = await setupAudioMonitoring()
+      await setupAudioMonitoring()
   }
   catch (cause) {
     error.value = errorMessageFrom(cause) ?? t('settings.pages.providers.catalog.edit.config.save-error')
@@ -332,36 +309,15 @@ watch([selectedAudioInput, useVADModel], async () => {
   if (!isMonitoring.value)
     return
 
-  isMonitoring.value = await setupAudioMonitoring()
+  await setupAudioMonitoring()
 })
 
-watch(isSpeechVolume, (speaking) => {
-  if (useVADModel.value)
-    return
-
-  if (volumeSpeechEndTimer) {
-    clearTimeout(volumeSpeechEndTimer)
-    volumeSpeechEndTimer = undefined
-  }
-
-  if (speaking) {
-    void startSegment('volume')
-    return
-  }
-
-  volumeSpeechEndTimer = setTimeout(() => {
-    volumeSpeechEndTimer = undefined
-    if (!useVADModel.value && !isSpeechVolume.value)
-      void stopSegment('volume')
-  }, useVADMinSilenceDurationMs.value)
-})
-
-watch(activeTranscriptionProvider, async (provider, previousProvider) => {
+watch(activeTranscriptionProvider, async (provider) => {
   const shouldRestartMonitoring = isMonitoring.value
 
   if (shouldRestartMonitoring) {
     isMonitoring.value = false
-    await stopAudioMonitoring(previousProvider)
+    await stopAudioMonitoring()
   }
 
   clearPlaygroundSegments()
@@ -377,7 +333,7 @@ watch(activeTranscriptionProvider, async (provider, previousProvider) => {
     activeTranscriptionModel.value = models[0].id
 
   if (shouldRestartMonitoring)
-    isMonitoring.value = await setupAudioMonitoring()
+    await setupAudioMonitoring()
 }, { immediate: true })
 
 onMounted(async () => {

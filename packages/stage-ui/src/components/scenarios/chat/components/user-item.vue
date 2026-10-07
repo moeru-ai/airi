@@ -51,6 +51,9 @@ const emptyImages: readonly string[] = Object.freeze([])
 const images = computed(() => typeof props.message.content === 'string'
   ? emptyImages
   : props.message.content.filter(part => part.type === 'image_url').map(part => part.image_url.url))
+const audio = computed(() => typeof props.message.content === 'string'
+  ? []
+  : props.message.content.filter(part => part.type === 'input_audio').map(part => `data:audio/${part.input_audio.format === 'mp3' ? 'mpeg' : 'wav'};base64,${part.input_audio.data}`))
 
 const containerClasses = computed(() => [
   'flex',
@@ -106,6 +109,7 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
             :content="content as string"
             class="break-words"
           />
+          <audio v-for="(source, index) in audio" :key="index" :src="source" controls :aria-label="t('stage.chat.voice-message.preview')" :class="['my-2 max-w-full']" />
         </div>
       </template>
     </ChatActionMenu>
