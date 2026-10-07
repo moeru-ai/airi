@@ -2,6 +2,8 @@
 import type { CaptionChannelEvent, HearingInputChannelEvent } from '@proj-airi/stage-shared'
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
+import MobileInteractiveArea from '@proj-airi/stage-layouts/components/Layouts/MobileInteractiveArea.vue'
+
 import { errorMessageFrom, tryCatch } from '@moeru/std'
 import { createTranscriptBuffer } from '@proj-airi/pipelines-audio'
 import {
@@ -54,6 +56,7 @@ import {
 import { isAndroidRenderer } from '../window-context'
 
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
+const mobileInteractiveArea = ref<InstanceType<typeof MobileInteractiveArea>>()
 const controlsIslandInteractionActive = shallowRef(false)
 const controlsIslandElement = toRef(() => controlsIslandRef.value?.element)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
@@ -554,6 +557,11 @@ function postSpeakerCaption(text: string, operation: NonNullable<CaptionChannelE
  * Sends buffered voice input text to the active chat session.
  */
 async function sendVoiceInputTextToChat(text: string) {
+  if (isAndroidRenderer()) {
+    mobileInteractiveArea.value?.receiveTranscription(text)
+    return
+  }
+
   try {
     await chatStore.send({
       sessionId: chatSession.activeSessionId,
@@ -827,7 +835,7 @@ const cursorPosition = computed(() => ({
           'transition-opacity duration-250 ease-in-out',
         ]"
       >
-        <ResourceStatusIsland />
+        <ResourceStatusIsland v-if="!isAndroidRenderer()" />
         <WidgetStage
           ref="widgetStageRef"
           v-model:state="componentStateStage"
@@ -837,7 +845,7 @@ const cursorPosition = computed(() => ({
           :paused="stagePaused"
         />
         <HoloCoupon />
-        <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
+        <ControlsIslandRoot v-if="!isAndroidRenderer()" :frozen="controlsIslandInteractionActive">
           <ControlsIsland
             ref="controlsIslandRef"
             @interaction-change="controlsIslandInteractionActive = $event"
@@ -870,6 +878,12 @@ const cursorPosition = computed(() => ({
       </div>
     </div>
   </div>
+  <Teleport to="body">
+    <MobileInteractiveArea
+      v-if="isAndroidRenderer()"
+      ref="mobileInteractiveArea"
+    />
+  </Teleport>
   <OnboardingDialog
     v-if="isAndroidRenderer()"
     v-model="showingSetup"
