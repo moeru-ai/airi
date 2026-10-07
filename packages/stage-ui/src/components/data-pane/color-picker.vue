@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Input, Select } from '@proj-airi/ui'
 import { useEventListener } from '@vueuse/core'
 import { convertHsvToRgb, convertRgbToHsv, formatHex8 } from 'culori'
 import { PopoverContent, PopoverPortal, PopoverRoot, PopoverTrigger } from 'reka-ui'
@@ -344,20 +345,50 @@ watch([hue, saturation, value, alphaValue], () => {
 
 <template>
   <PopoverRoot>
-    <PopoverTrigger class="grid grid-col-span-3 grid-cols-3 h-fit items-center">
-      <div :style="{ backgroundColor: modelValue }" grid-col-span-2 min-h-5 rounded-md />
-      <div grid-col-span-1 font-mono text="[10px] right">
+    <PopoverTrigger
+      :class="[
+        'grid grid-col-span-3 grid-cols-3 h-fit items-center',
+      ]"
+    >
+      <div
+        :style="{ backgroundColor: modelValue }"
+        :class="[
+          'grid-col-span-2 min-h-5 rounded-md',
+        ]"
+      />
+      <div
+        :class="[
+          'grid-col-span-1 font-mono text-[10px] text-right',
+        ]"
+      >
         {{ modelValue }}
       </div>
     </PopoverTrigger>
     <PopoverPortal>
-      <PopoverContent align="start" class="relative z-20">
-        <div class="z-20 mt-2 space-y-2" bg="white/90 dark:neutral-900/90" rounded-xl p-1>
+      <PopoverContent
+        align="start"
+        :class="[
+          'relative z-20',
+        ]"
+      >
+        <div
+          :class="[
+            'z-20 mt-2 space-y-2 bg-white/90 dark:bg-neutral-900/90',
+            'rounded-xl p-1',
+          ]"
+        >
           <!-- Color Map -->
-          <div class="relative h-48 w-full select-none overflow-hidden rounded-lg">
+          <div
+            :class="[
+              'relative h-48 w-full select-none overflow-hidden',
+              'rounded-lg',
+            ]"
+          >
             <div
               ref="colorMapRef"
-              class="relative h-full w-full cursor-crosshair"
+              :class="[
+                'relative h-full w-full cursor-crosshair',
+              ]"
               :style="[
                 colorMapBackground,
                 { cursor: isDragging && dragType === 'map' ? 'none' : 'crosshair' },
@@ -366,10 +397,17 @@ watch([hue, saturation, value, alphaValue], () => {
               @touchstart="handleColorMapStart"
             >
               <!-- Brightness overlay -->
-              <div class="absolute inset-0" style="background: linear-gradient(to bottom, transparent, black);" />
+              <div
+                :class="[
+                  'absolute inset-0',
+                ]" style="background: linear-gradient(to bottom, transparent, black);"
+              />
               <!-- Color picker circle -->
               <div
-                class="pointer-events-none absolute h-4 w-4 border-2 border-white rounded-full shadow-lg transition-transform"
+                :class="[
+                  'pointer-events-none absolute h-4 w-4 border-2',
+                  'border-white rounded-full shadow-lg transition-transform',
+                ]"
                 :style="[
                   pickerPosition,
                   {
@@ -382,17 +420,28 @@ watch([hue, saturation, value, alphaValue], () => {
           </div>
 
           <!-- Hue Slider -->
-          <div class="relative h-6 w-full select-none overflow-hidden rounded-lg">
+          <div
+            :class="[
+              'relative h-6 w-full select-none overflow-hidden',
+              'rounded-lg',
+            ]"
+          >
             <div
               ref="hueSliderRef"
-              class="hue-slider h-full w-full cursor-pointer"
+              :class="[
+                'hue-slider h-full w-full cursor-pointer',
+              ]"
               style="background: linear-gradient(to right, #ff0000, #ffff00, #00ff00, #00ffff, #0000ff, #ff00ff, #ff0000);"
               :style="{ cursor: isDragging && dragType === 'hue' ? 'none' : 'pointer' }"
               @mousedown="handleHueStart"
               @touchstart="handleHueStart"
             >
               <div
-                class="pointer-events-none absolute top-0 h-14 w-1 cursor-pointer cursor-col-resize appearance-none bg-white shadow-lg transition-colors,transform,width,height duration-200 hover:h-13 hover:w-2 hover:bg-neutral-800"
+                :class="[
+                  'pointer-events-none absolute top-0 h-14 w-1',
+                  'cursor-pointer cursor-col-resize appearance-none bg-white shadow-lg',
+                  'transition-colors,transform,width,height duration-200 hover:h-13 hover:w-2 hover:bg-neutral-800',
+                ]"
                 :style="[
                   huePosition,
                   {
@@ -404,10 +453,18 @@ watch([hue, saturation, value, alphaValue], () => {
           </div>
 
           <!-- Alpha Slider -->
-          <div v-if="alpha" class="relative h-6 w-full select-none overflow-hidden rounded-lg">
+          <div
+            v-if="alpha"
+            :class="[
+              'relative h-6 w-full select-none overflow-hidden',
+              'rounded-lg',
+            ]"
+          >
             <!-- Checkerboard background -->
             <div
-              class="alpha-slider absolute inset-0 opacity-50"
+              :class="[
+                'alpha-slider absolute inset-0 opacity-50',
+              ]"
               style="
                 background-image:
                   linear-gradient(45deg, #ccc 25%, transparent 25%),
@@ -420,7 +477,9 @@ watch([hue, saturation, value, alphaValue], () => {
             />
             <div
               ref="alphaSliderRef"
-              class="relative h-full w-full cursor-pointer"
+              :class="[
+                'relative h-full w-full cursor-pointer',
+              ]"
               :style="[
                 alphaSliderBackground,
                 { cursor: isDragging && dragType === 'alpha' ? 'none' : 'pointer' },
@@ -429,7 +488,11 @@ watch([hue, saturation, value, alphaValue], () => {
               @touchstart="handleAlphaStart"
             >
               <div
-                class="pointer-events-none absolute top-0 h-14 w-1 cursor-pointer cursor-col-resize appearance-none bg-white shadow-lg transition-colors,transform,width,height duration-200 hover:h-13 hover:w-2 hover:bg-neutral-800"
+                :class="[
+                  'pointer-events-none absolute top-0 h-14 w-1',
+                  'cursor-pointer cursor-col-resize appearance-none bg-white shadow-lg',
+                  'transition-colors,transform,width,height duration-200 hover:h-13 hover:w-2 hover:bg-neutral-800',
+                ]"
                 :style="[
                   alphaPosition,
                   {
@@ -441,124 +504,171 @@ watch([hue, saturation, value, alphaValue], () => {
           </div>
 
           <!-- Color Inputs -->
-          <div class="flex justify-center gap-2">
-            <div class="flex gap-2">
-              <select
+          <div
+            :class="[
+              'flex justify-center gap-2',
+            ]"
+          >
+            <div
+              :class="[
+                'flex gap-2',
+              ]"
+            >
+              <Select
                 v-model="colorSpace"
-                class="flex-shrink-0 border rounded-lg px-2 py-1 text-sm"
-              >
-                <option value="hex">
-                  HEX
-                </option>
-                <option value="rgb">
-                  RGB
-                </option>
-                <option value="hsv">
-                  HSV
-                </option>
-              </select>
+                :disabled="props.disabled"
+                :options="[{ label: 'HEX', value: 'hex' }, { label: 'RGB', value: 'rgb' }, { label: 'HSV', value: 'hsv' }]"
+                :class="['w-24! shrink-0']"
+              />
             </div>
 
             <!-- HEX Input -->
-            <div v-if="colorSpace === 'hex'" class="flex gap-2">
-              <input
-                :value="currentColorHex"
-                class="flex-1 border rounded-lg px-2 py-1 text-sm font-mono"
+            <div
+              v-if="colorSpace === 'hex'"
+              :class="[
+                'flex gap-2',
+              ]"
+            >
+              <Input
+                :model-value="currentColorHex"
+                :class="[
+                  'min-w-0 flex-1 font-mono',
+                ]"
                 placeholder="#000000"
+                :disabled="props.disabled"
                 @input="handleHexInput(($event?.target as HTMLInputElement).value)"
-              >
-              <input
+              />
+              <Input
                 v-if="alpha"
                 type="number"
-                :value="Math.round(alphaValue * 100)"
+                :model-value="Math.round(alphaValue * 100)"
                 min="0"
                 max="100"
-                class="w-16 border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'w-16! shrink-0',
+                ]"
                 placeholder="A%"
+                :disabled="props.disabled"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
             </div>
 
             <!-- RGB Inputs -->
-            <div v-else-if="colorSpace === 'rgb'" class="grid gap-2" :class="alpha ? 'grid-cols-4' : 'grid-cols-3'">
-              <input
+            <div
+              v-else-if="colorSpace === 'rgb'"
+              :class="[
+                'grid gap-2',
+                (alpha ? 'grid-cols-4' : 'grid-cols-3'),
+              ]"
+            >
+              <Input
                 type="number"
-                :value="currentColorRgb.r"
+                :model-value="currentColorRgb.r"
                 min="0"
                 max="255"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="R"
+                :disabled="props.disabled"
                 @input="handleRgbInput('r', Number(($event?.target as HTMLInputElement).value))"
-              >
-              <input
+              />
+              <Input
                 type="number"
-                :value="currentColorRgb.g"
+                :model-value="currentColorRgb.g"
                 min="0"
                 max="255"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="G"
+                :disabled="props.disabled"
                 @input="handleRgbInput('g', Number(($event?.target as HTMLInputElement).value))"
-              >
-              <input
+              />
+              <Input
                 type="number"
-                :value="currentColorRgb.b"
+                :model-value="currentColorRgb.b"
                 min="0"
                 max="255"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="B"
+                :disabled="props.disabled"
                 @input="handleRgbInput('b', Number(($event?.target as HTMLInputElement).value))"
-              >
-              <input
+              />
+              <Input
                 v-if="alpha"
                 type="number"
-                :value="Math.round(alphaValue * 100)"
+                :model-value="Math.round(alphaValue * 100)"
                 min="0"
                 max="100"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="A%"
+                :disabled="props.disabled"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
             </div>
 
             <!-- HSV Inputs -->
-            <div v-else-if="colorSpace === 'hsv'" class="grid gap-2" :class="alpha ? 'grid-cols-4' : 'grid-cols-3'">
-              <input
+            <div
+              v-else-if="colorSpace === 'hsv'"
+              :class="[
+                'grid gap-2',
+                (alpha ? 'grid-cols-4' : 'grid-cols-3'),
+              ]"
+            >
+              <Input
                 type="number"
-                :value="Math.round(hue)"
+                :model-value="Math.round(hue)"
                 min="0"
                 max="360"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="H°"
+                :disabled="props.disabled"
                 @input="handleHsvInput('h', Number(($event?.target as HTMLInputElement).value))"
-              >
-              <input
+              />
+              <Input
                 type="number"
-                :value="Math.round(saturation)"
+                :model-value="Math.round(saturation)"
                 min="0"
                 max="100"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="S%"
+                :disabled="props.disabled"
                 @input="handleHsvInput('s', Number(($event?.target as HTMLInputElement).value))"
-              >
-              <input
+              />
+              <Input
                 type="number"
-                :value="Math.round(value)"
+                :model-value="Math.round(value)"
                 min="0"
                 max="100"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="V%"
+                :disabled="props.disabled"
                 @input="handleHsvInput('v', Number(($event?.target as HTMLInputElement).value))"
-              >
-              <input
+              />
+              <Input
                 v-if="alpha"
                 type="number"
-                :value="Math.round(alphaValue * 100)"
+                :model-value="Math.round(alphaValue * 100)"
                 min="0"
                 max="100"
-                class="border border-neutral-200 rounded-lg px-2 py-1 text-sm dark:border-neutral-700"
+                :class="[
+                  'min-w-0',
+                ]"
                 placeholder="A%"
+                :disabled="props.disabled"
                 @input="handleAlphaInput(Number(($event?.target as HTMLInputElement).value))"
-              >
+              />
             </div>
           </div>
         </div>

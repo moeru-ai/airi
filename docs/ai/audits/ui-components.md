@@ -1,6 +1,6 @@
 # UI component audit
 
-Snapshot: 2026-10-08. Base: b8b508014 on origin/main. This snapshot excludes unrelated changes from the original working tree.
+Snapshot: 2026-10-08. Story baseline: b8b508014 on origin/main. Consumer consolidation follows PR #2854. This snapshot excludes unrelated changes from the original working tree.
 
 ## Scope and method
 
@@ -30,33 +30,34 @@ Review that export before adding a showcase or removing it. This batch does not 
 | Area | Source SFCs | Render shared component imports | Files with raw controls |
 | --- | ---: | ---: | ---: |
 | `apps/stage-web/` | 26 | 16 | 7 |
-| `apps/stage-pocket/` | 23 | 13 | 5 |
-| `apps/stage-tamagotchi/` | 91 | 50 | 14 |
+| `apps/stage-pocket/` | 23 | 14 | 4 |
+| `apps/stage-tamagotchi/` | 91 | 51 | 13 |
 | `apps/stage-tamagotchi-kirie/` | 76 | 42 | 13 |
-| `packages/stage-layouts/` | 33 | 12 | 5 |
-| `packages/stage-pages/` | 129 | 105 | 37 |
-| `packages/stage-ui/` | 153 | 82 | 40 |
+| `packages/stage-layouts/` | 33 | 13 | 4 |
+| `packages/stage-pages/` | 129 | 105 | 36 |
+| `packages/stage-ui/` | 153 | 89 | 33 |
 
 The Kirie application repeats several desktop control implementations. Treat these as a separate migration scope.
 
 ## Reviewed consolidation candidates
 
-| Source | Finding | Direction |
+| Source | Before | After |
 | --- | --- | --- |
-| [packages/stage-layouts/src/components/Widgets/ChatToolbarButton.vue:12](../../../packages/stage-layouts/src/components/Widgets/ChatToolbarButton.vue#L12) | A local button owns size, surface, active state, focus, and press feedback. | Compose GhostButton or BasicButton. Preserve its active surface and slot contract. |
-| [apps/stage-tamagotchi/src/renderer/components/chat-window/chat-speech-mute-button.vue:22](../../../apps/stage-tamagotchi/src/renderer/components/chat-window/chat-speech-mute-button.vue#L22) | A native icon button duplicates shared focus and press behavior. | Keep speech state local. Use GhostButton or IconButton for the control. |
-| [packages/stage-ui/src/components/scenarios/chat/components/image-attachment-preview.vue:14](../../../packages/stage-ui/src/components/scenarios/chat/components/image-attachment-preview.vue#L14) | A native delete button owns an overlay surface and interaction styles. | Use IconButton. Preserve the circular overlay, accessible name, and stopped click propagation. |
-| [packages/stage-ui/src/components/layouts/page-header.vue:82](../../../packages/stage-ui/src/components/layouts/page-header.vue#L82) | The back action uses a native button without its own accessible label. | Use IconButton and provide a localized accessible name. |
-| [packages/stage-ui/src/components/scenarios/providers/provider-validation-alerts.vue:34](../../../packages/stage-ui/src/components/scenarios/providers/provider-validation-alerts.vue#L34) | Validation actions use multiple native buttons. | Use Button or GhostButton. Retain the validation state and action handlers. |
-| [packages/stage-pages/src/pages/settings/providers/index.vue:223](../../../packages/stage-pages/src/pages/settings/providers/index.vue#L223) | Category and filter controls use native buttons. | Compare SelectTab and GhostButton. Preserve selected state and navigation. |
-| [apps/stage-pocket/src/components/websocket-status-button.vue:59](../../../apps/stage-pocket/src/components/websocket-status-button.vue#L59) | Connection state owns a custom surface and native button. | Build the status surface on BasicButton. Preserve connection labels and state colors. |
-| [packages/stage-ui/src/components/scenarios/chat/components/tool-call-shell.vue:33](../../../packages/stage-ui/src/components/scenarios/chat/components/tool-call-shell.vue#L33) | A local trigger button sits inside shared Collapsible. | Use GhostButton or BasicButton. Keep the collapsible contract. |
-| [packages/stage-ui/src/components/misc/steppers/steppers.vue:125](../../../packages/stage-ui/src/components/misc/steppers/steppers.vue#L125) | Stepper actions use native buttons. | Compare Button and GhostButton for the action surface. |
-| [packages/stage-ui/src/components/data-pane/property-number.vue:159](../../../packages/stage-ui/src/components/data-pane/property-number.vue#L159) | Numeric controls include custom drag and pointer behavior. | Retain the domain interaction. Evaluate shared Input only after comparing behavior. |
-| [packages/stage-ui/src/components/menu/radio-card-many-select.vue:164](../../../packages/stage-ui/src/components/menu/radio-card-many-select.vue#L164) | Selection cards own their custom composition. | Compare Radio and Reka selection contracts. A direct replacement needs behavior verification. |
-| [packages/stage-ui/src/components/data-pane/color-picker.vue:446](../../../packages/stage-ui/src/components/data-pane/color-picker.vue#L446) | The color editor combines native selectors and channel inputs. | Evaluate Select and Input. Preserve color conversion and channel editing. |
+| [packages/stage-layouts/src/components/Widgets/ChatToolbarButton.vue:14](../../../packages/stage-layouts/src/components/Widgets/ChatToolbarButton.vue#L14) | A local button owns size, surface, active state, focus, and press feedback. | Uses BasicButton. Active surface, slot, attributes, and disabled actions stay local. |
+| [apps/stage-tamagotchi/src/renderer/components/chat-window/chat-speech-mute-button.vue:23](../../../apps/stage-tamagotchi/src/renderer/components/chat-window/chat-speech-mute-button.vue#L23) | A native icon button duplicates shared focus and press behavior. | Uses IconButton. Speech state and output-host lookup stay local. |
+| [packages/stage-ui/src/components/scenarios/chat/components/image-attachment-preview.vue:18](../../../packages/stage-ui/src/components/scenarios/chat/components/image-attachment-preview.vue#L18) | A native delete button owns an overlay surface and interaction styles. | Uses IconButton. Removal keeps its label and stopped click propagation. |
+| [packages/stage-ui/src/components/layouts/page-header.vue:87](../../../packages/stage-ui/src/components/layouts/page-header.vue#L87) | The back action uses a native button without its own accessible label. | Uses IconButton. Back has a localized label. Hidden and disabled navigation cannot activate. |
+| [packages/stage-ui/src/components/scenarios/providers/provider-validation-alerts.vue:35](../../../packages/stage-ui/src/components/scenarios/providers/provider-validation-alerts.vue#L35) | Validation actions use multiple native buttons. | Uses BasicButton. Existing action callbacks and pending states remain. |
+| [packages/stage-pages/src/pages/settings/providers/index.vue:253](../../../packages/stage-pages/src/pages/settings/providers/index.vue#L253) | Category and filter controls use native buttons. | Uses GhostButton for categories and SelectTab for pricing and deployment filters. |
+| [apps/stage-pocket/src/components/websocket-status-button.vue:59](../../../apps/stage-pocket/src/components/websocket-status-button.vue#L59) | Connection state owns a custom surface and native button. | Uses BasicButton. Connection labels, colors, and settings navigation remain. |
+| [packages/stage-ui/src/components/scenarios/chat/components/tool-call-shell.vue:33](../../../packages/stage-ui/src/components/scenarios/chat/components/tool-call-shell.vue#L33) | A local trigger button sits inside shared Collapsible. | Uses BasicButton. Trigger exposes aria-expanded. Separate action slots do not toggle content. |
+| [packages/stage-ui/src/components/misc/steppers/steppers.vue:170](../../../packages/stage-ui/src/components/misc/steppers/steppers.vue#L170) | Stepper actions use native buttons. | Uses BasicButton. Back, next, and finish keep their state transitions. Step keys no longer use any. |
+| [packages/stage-ui/src/components/data-pane/property-number.vue:200](../../../packages/stage-ui/src/components/data-pane/property-number.vue#L200) | Numeric controls include custom drag and pointer behavior. | Uses Input for numeric entry. Native range retains custom progress styling and drag behavior. |
+| [packages/stage-ui/src/components/menu/radio-card-many-select.vue:174](../../../packages/stage-ui/src/components/menu/radio-card-many-select.vue#L174) | Selection cards own their custom composition. | Uses Input for search and BasicButton for expansion. RadioCardDetail keeps its selection contract. |
+| [packages/stage-ui/src/components/data-pane/color-picker.vue:517](../../../packages/stage-ui/src/components/data-pane/color-picker.vue#L517) | The color editor combines native selectors and channel inputs. | Uses Select and Input for color space and channels. Disabled channel controls prevent editing. |
 
-These are source-reviewed candidates. This audit does not migrate their runtime behavior.
+All 12 reviewed components now use shared primitives for their general controls. Specialized slider and radio-card composition remain in their owners.
+The CSV reflects this consolidation. The adoption table reflects the current consumer source.
 
 ## Shared business components without a direct story
 
@@ -66,15 +67,15 @@ The following table contains every stage-ui component without direct coverage. C
 | --- | --- |
 | [animations/Replayable.vue](../../../packages/stage-ui/src/components/animations/Replayable.vue) | Needs a dedicated scenario and fixture |
 | [auth/SignInPanel.vue](../../../packages/stage-ui/src/components/auth/SignInPanel.vue) | Needs a dedicated scenario and fixture |
-| [data-pane/color-picker.vue](../../../packages/stage-ui/src/components/data-pane/color-picker.vue) | Composed in an existing story |
+| [data-pane/color-picker.vue](../../../packages/stage-ui/src/components/data-pane/color-picker.vue) | Uses Select and Input for color space and channels. Disabled channel controls prevent editing. |
 | [data-pane/container.vue](../../../packages/stage-ui/src/components/data-pane/container.vue) | Needs a dedicated scenario and fixture |
 | [data-pane/pane.vue](../../../packages/stage-ui/src/components/data-pane/pane.vue) | Needs a dedicated scenario and fixture |
 | [data-pane/property-point.vue](../../../packages/stage-ui/src/components/data-pane/property-point.vue) | Needs a dedicated scenario and fixture |
 | [gestures/swipeable.vue](../../../packages/stage-ui/src/components/gestures/swipeable.vue) | Composed in an existing story |
 | [layouts/backgrounds/background-gradient-overlay.vue](../../../packages/stage-ui/src/components/layouts/backgrounds/background-gradient-overlay.vue) | Needs a dedicated scenario and fixture |
-| [layouts/page-header.vue](../../../packages/stage-ui/src/components/layouts/page-header.vue) | Needs a dedicated scenario and fixture |
+| [layouts/page-header.vue](../../../packages/stage-ui/src/components/layouts/page-header.vue) | Uses IconButton. Back has a localized label. Hidden and disabled navigation cannot activate. |
 | [layouts/splitpanes/pane-area.vue](../../../packages/stage-ui/src/components/layouts/splitpanes/pane-area.vue) | Needs a dedicated scenario and fixture |
-| [menu/radio-card-many-select.vue](../../../packages/stage-ui/src/components/menu/radio-card-many-select.vue) | Needs a dedicated scenario and fixture |
+| [menu/radio-card-many-select.vue](../../../packages/stage-ui/src/components/menu/radio-card-many-select.vue) | Uses Input for search and BasicButton for expansion. RadioCardDetail keeps its selection contract. |
 | [misc/character-switcher-drawer.vue](../../../packages/stage-ui/src/components/misc/character-switcher-drawer.vue) | Needs a dedicated scenario and fixture |
 | [misc/profile-switcher-popover.vue](../../../packages/stage-ui/src/components/misc/profile-switcher-popover.vue) | Needs a dedicated scenario and fixture |
 | [modules/GamingFactorio.vue](../../../packages/stage-ui/src/components/modules/GamingFactorio.vue) | Needs a dedicated scenario and fixture |
@@ -92,7 +93,7 @@ The following table contains every stage-ui component without direct coverage. C
 | [scenarios/chat/components/error-item.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/error-item.vue) | Composed in an existing story |
 | [scenarios/chat/components/history-message-frame.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/history-message-frame.vue) | Composed in an existing story |
 | [scenarios/chat/components/history-time-separator.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/history-time-separator.vue) | Composed in an existing story |
-| [scenarios/chat/components/image-attachment-preview.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/image-attachment-preview.vue) | Needs a dedicated scenario and fixture |
+| [scenarios/chat/components/image-attachment-preview.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/image-attachment-preview.vue) | Uses IconButton. Removal keeps its label and stopped click propagation. |
 | [scenarios/chat/components/reply-preview.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/reply-preview.vue) | Needs a dedicated scenario and fixture |
 | [scenarios/chat/components/reply-quote.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/reply-quote.vue) | Composed in an existing story |
 | [scenarios/chat/components/response-citations.vue](../../../packages/stage-ui/src/components/scenarios/chat/components/response-citations.vue) | Composed in an existing story |
@@ -130,7 +131,7 @@ The following table contains every stage-ui component without direct coverage. C
 | [scenarios/hologram/holo-coupon.vue](../../../packages/stage-ui/src/components/scenarios/hologram/holo-coupon.vue) | Needs a dedicated scenario and fixture |
 | [scenarios/providers/provider-download-model.vue](../../../packages/stage-ui/src/components/scenarios/providers/provider-download-model.vue) | Needs a dedicated scenario and fixture |
 | [scenarios/providers/provider-generation-settings.vue](../../../packages/stage-ui/src/components/scenarios/providers/provider-generation-settings.vue) | Needs a dedicated scenario and fixture |
-| [scenarios/providers/provider-validation-alerts.vue](../../../packages/stage-ui/src/components/scenarios/providers/provider-validation-alerts.vue) | Needs a dedicated scenario and fixture |
+| [scenarios/providers/provider-validation-alerts.vue](../../../packages/stage-ui/src/components/scenarios/providers/provider-validation-alerts.vue) | Uses BasicButton. Existing action callbacks and pending states remain. |
 | [scenarios/providers/speech-playground-openai-compatible.vue](../../../packages/stage-ui/src/components/scenarios/providers/speech-playground-openai-compatible.vue) | Needs a dedicated scenario and fixture |
 | [scenarios/providers/speech-playground.vue](../../../packages/stage-ui/src/components/scenarios/providers/speech-playground.vue) | Needs a dedicated scenario and fixture |
 | [scenarios/providers/speech-provider-settings.vue](../../../packages/stage-ui/src/components/scenarios/providers/speech-provider-settings.vue) | Needs a dedicated scenario and fixture |
@@ -187,3 +188,18 @@ Checks in this section refer to the isolated PR branch. Results from the origina
 - Vishot rendered all 15 real story components in a disposable browser gallery. Initial variants were captured and inspected.
 
 The browser gallery uses Story and Variant wrappers. Screenshots prove the captured initial states, not every interaction or Histoire navigation.
+
+## Consumer consolidation verification
+
+- `NODE_OPTIONS=--no-experimental-webstorage pnpm -F @proj-airi/stage-ui exec vitest run`: 192 files and 1265 tests passed.
+- `pnpm -F @proj-airi/stage-ui exec vitest run src/components/shared-controls.browser.test.ts`: 13 browser interaction tests passed.
+- `pnpm -F @proj-airi/stage-pages exec vitest run`: 7 files and 21 tests passed.
+- `pnpm -F @proj-airi/stage-layouts exec vitest run`: 10 tests passed. Seven tests failed because native Node localStorage was unavailable.
+- `NODE_OPTIONS=--no-experimental-webstorage pnpm -F @proj-airi/stage-layouts exec vitest run src/composables/use-chat-interruption.test.ts`: all seven failed tests passed.
+- `pnpm -F @proj-airi/stage-tamagotchi exec vitest run --config vitest.node.config.ts src/renderer/components/stage-islands/controls-island/controls-island-speech-mute.test.ts`: 3 tests passed.
+- `pnpm typecheck`: all 55 workspace tasks passed.
+- `pnpm -F @proj-airi/stage-ui typecheck`: passed after the final navigation update.
+- `pnpm lint`: passed with 650 existing warnings.
+- Vishot captured and inspected 12 before and after component states in a browser fixture at 1000×1200, light theme.
+
+Desktop and Pocket controls were exercised in Chromium with real components and stores. Native Electron and Capacitor acceptance was not performed.

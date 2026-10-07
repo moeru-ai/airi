@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { BasicButton, Input } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 
 import Alert from '../misc/alert.vue'
@@ -158,19 +159,24 @@ function updateCustomValue(value: string) {
       v-if="searchable"
       :class="['relative inline-flex w-full flex-shrink-0 items-center']"
     >
-      <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-        <div class="i-solar:magnifer-line-duotone text-neutral-500 dark:text-neutral-400" />
+      <div
+        :class="[
+          'pointer-events-none absolute inset-y-0 left-0 flex',
+          'items-center pl-3',
+        ]"
+      >
+        <div
+          :class="[
+            'i-solar:magnifer-line-duotone text-neutral-500 dark:text-neutral-400',
+          ]"
+        />
       </div>
-      <input
+      <Input
         v-model="searchQuery"
         type="search"
-        :class="[
-          'w-full rounded-xl border-2 border-solid border-neutral-200 bg-white p-2.5 pl-10 text-sm outline-none',
-          'transition-all duration-200 ease-in-out',
-          'focus:border-primary-100 dark:border-neutral-800 dark:bg-neutral-900 dark:focus:border-primary-400/50',
-        ]"
+        :class="['rounded-xl! p-2.5! pl-10!']"
         :placeholder="searchPlaceholder"
-      >
+      />
     </div>
 
     <!-- Items list with search results info -->
@@ -181,7 +187,12 @@ function updateCustomValue(value: string) {
       ]"
     >
       <!-- Search results info -->
-      <div v-if="searchQuery" class="text-sm text-neutral-500 dark:text-neutral-400">
+      <div
+        v-if="searchQuery"
+        :class="[
+          'text-sm text-neutral-500 dark:text-neutral-400',
+        ]"
+      >
         {{ searchResultsText.replace('{count}', filteredItems.length.toString()).replace('{total}', items.length.toString()) }}
       </div>
 
@@ -196,12 +207,19 @@ function updateCustomValue(value: string) {
       </Alert>
 
       <!-- Items grid -->
-      <div class="relative" :class="layout.gridArea">
+      <div
+        :class="[
+          'relative',
+          (layout.gridArea),
+        ]"
+      >
         <!-- Scroll container wraps the grid to avoid display:grid + flex-1 overflow rendering bugs -->
         <div :class="layout.scrollContainer">
           <div
-            :class="layout.grid"
-            class="transition-all duration-200 ease-in-out"
+            :class="[
+              'transition-all duration-200 ease-in-out',
+              (layout.grid),
+            ]"
             :style="{ '--cols': props.columns }"
           >
             <RadioCardDetail
@@ -234,7 +252,10 @@ function updateCustomValue(value: string) {
             layout.expandWrapper,
           ]"
         >
-          <button
+          <BasicButton
+            type="button"
+            size="unset"
+            :aria-expanded="isListExpanded"
             :class="[
               'w-full flex items-center justify-center gap-2 rounded-lg py-2',
               'transition-all duration-200 ease-in-out',
@@ -252,7 +273,7 @@ function updateCustomValue(value: string) {
                 isListExpanded ? 'rotate-180' : '',
               ]"
             />
-          </button>
+          </BasicButton>
         </div>
       </div>
     </div>
