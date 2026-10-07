@@ -37,8 +37,20 @@ function createModelSettings(json: JSONObject, url: string): ModelSettings {
   return settings
 }
 
-async function selectZipSettings(reader: JSZip) {
-  const paths = Object.keys(reader.files).filter(isLive2DSettingsFile)
+// Raw ZIP entries include directories and macOS AppleDouble sidecars. A sidecar
+// copies the name of a real file but holds binary data. Every ZIP step reads this
+// list, which applies the validator's filter, so a sidecar never counts as a model file.
+function listModelPaths(reader: JSZip): string[] {
+  const paths: string[] = []
+  reader.forEach((relativePath, file) => {
+    if (!file.dir && !shouldIgnoreLive2DArchiveEntry(relativePath))
+      paths.push(relativePath)
+  })
+  return paths
+}
+
+async function selectZipSettings(reader: JSZip, modelPaths: string[]) {
+  const paths = modelPaths.filter(isLive2DSettingsFile)
   const candidates = await Promise.all(paths.map(async path => ({
     path,
     json: JSON.parse(await reader.file(path)!.async('text')) as JSONObject,
@@ -161,18 +173,13 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
   ZipLoader.zipReader = (data: Blob) => JSZip.loadAsync(data, { decodeFileName: decodeZipFileName })
 
   ZipLoader.createSettings = async (reader: JSZip) => {
-    const filePaths = Object.keys(reader.files)
-    const selected = await selectZipSettings(reader)
+    const filePaths = listModelPaths(reader)
+    const selected = await selectZipSettings(reader, filePaths)
     const settings = selected
       ? createModelSettings(selected.json, selected.path)
       : createCubism4FakeSettings(runtime, filePaths)
-    // Raw ZIP entries still include macOS AppleDouble sidecars, which carry a
-    // binary payload under a JSON-looking name. OPFS strips them before the
-    // File[] path below ever sees one.
     Object.assign(settings, await collectMetadata(
-      filePaths
-        .filter(path => !shouldIgnoreLive2DArchiveEntry(path))
-        .map(path => ({ path, readText: () => reader.file(path)!.async('text') })),
+      filePaths.map(path => ({ path, readText: () => reader.file(path)!.async('text') })),
     ))
 
     return settings
@@ -190,14 +197,7 @@ export function configureLive2DLoaders(runtime: Live2DRuntime): void {
     return JSON.stringify(selected.loader.sanitizeSettings(json))
   }
 
-  ZipLoader.getFilePaths = async (reader: JSZip) => {
-    const paths: string[] = []
-    reader.forEach((relativePath, file) => {
-      if (!file.dir && !shouldIgnoreLive2DArchiveEntry(relativePath))
-        paths.push(relativePath)
-    })
-    return paths
-  }
+  ZipLoader.getFilePaths = async (reader: JSZip) => listModelPaths(reader)
 
   ZipLoader.getFiles = (reader: JSZip, paths: string[]) =>
     Promise.all(paths.map(async (path) => {

@@ -2,6 +2,8 @@ import JSZip from 'jszip'
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { validateLive2DZip } from './live2d-validator'
+
 function blobFromBytes(data: Uint8Array): Blob {
   const buffer = new ArrayBuffer(data.byteLength)
   new Uint8Array(buffer).set(data)
@@ -287,6 +289,36 @@ describe('live2d zip loader settings sanitization', () => {
 
     expect(settings.moc).toBe('loose/avatar.moc3')
     expect(settings.textures).toEqual(['loose/textures/avatar.png'])
+  })
+
+  // https://github.com/moeru-ai/airi/pull/2197
+  // ROOT CAUSE:
+  //
+  // Settings creation read the raw ZIP entries, so `._avatar.moc3` counted as a
+  // second MOC and the import failed. The validator skipped the sidecar and accepted the archive.
+  //
+  // We fixed this. Settings creation now reads the same filtered paths as `ZipLoader.getFilePaths`.
+  it('loads a loose Cubism 3 archive that the validator accepts when macOS AppleDouble sidecars are present', async () => {
+    const { ZipLoader } = await import('pixi-live2d-display/cubism4')
+    const zip = new JSZip()
+    zip.file('loose/avatar.moc3', new Uint8Array([77, 79, 67, 51, 5]))
+    zip.file('loose/textures/avatar.png', new Uint8Array([1, 2, 3]))
+    zip.file('__MACOSX/loose/._avatar.moc3', appleDoubleHeader)
+    zip.file('__MACOSX/loose/textures/._avatar.png', appleDoubleHeader)
+    const zipBytes = await zip.generateAsync({ type: 'uint8array' })
+
+    const report = await validateLive2DZip(blobFromBytes(zipBytes), async () => ({ supportsCubism2: false }))
+    const reader = await JSZip.loadAsync(await blobFromBytes(zipBytes).arrayBuffer())
+    const settings = await ZipLoader.createSettings(reader)
+    const files = await ZipLoader.unzip(reader, settings)
+
+    expect(report.status).toBe('VALID')
+    expect(settings.moc).toBe('loose/avatar.moc3')
+    expect(settings.textures).toEqual(['loose/textures/avatar.png'])
+    expect(files.map(file => file.webkitRelativePath).sort()).toEqual([
+      'loose/avatar.moc3',
+      'loose/textures/avatar.png',
+    ])
   })
 
   it('keeps loose Cubism 3 importable after FileLoader replay', async () => {
