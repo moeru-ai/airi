@@ -163,6 +163,32 @@ The evidence directory is `recordings-android/session-draft-delete-8f8939c7e-202
 It contains both raw recordings, an alignment contact sheet, and the side-by-side comparison.
 All evidence files remain untracked, and no ignore rule changed.
 
+### Android root drawer Back verification on 2026-10-07
+
+Pocket and Kirie used the same Android 16 API 36 emulator and WebView 133.0.6943.137.
+The emulator used KVM and host GPU rendering on an NVIDIA RTX 3060.
+Each application started on the first history entry with the voice drawer closed.
+
+Before correction, Android system Back reloaded Kirie's first route and closed the open drawer.
+Pocket kept the route and drawer unchanged because its WebView history had no earlier entry.
+The Kirie navigation adapter now ignores system Back when its mirrored history position is zero.
+Later matched routes retain Pocket's reload behavior, and catch-all routes remain unchanged.
+
+Native taps opened the voice drawer in each application.
+Android system Back left both drawers open with the same controls and backdrop.
+A final native tap on the backdrop closed both drawers.
+The seven-second comparison aligns all three events and removes extra leading and trailing frames.
+
+The Pocket APK SHA-256 is `720df8f2a96f3862755b1dbaedb8cfc990d305cb9d2d20205051c8a5c02a2f48`.
+The Kirie APK SHA-256 is `3c93c9404b1bcb1cd692b4de92e926dcb1ccaa0789c4a28fa2ffb35a5f37b2b1`.
+The Pocket raw recording hash is `0798ed2ee8644b842a15df9b5ef438cd8aa5767e16a1dc0ca8c1a7eeaed41fef`.
+The Kirie raw recording hash is `efd074cc8dd3ed1d84940db8f9f5ce624557eb3f9b270e2bc3583e66b3099bb9`.
+The event-aligned comparison hash is `cdf707c4b0447091a4bb2c22637e33a7a184875ea9569f877445653116e924dc`.
+
+The evidence directory is `recordings-android/voice-drawer-system-back-0ac49dcb4-2026-10-07/`.
+It contains both raw recordings, contact sheets, and the labeled side-by-side comparison.
+All evidence files remain untracked, and no ignore rule changed.
+
 ## Windows acceptance evidence
 
 The session used Godot 4.7.2 Mono, Kirie 0.6.5, CEF 1.16.1, and an NVIDIA RTX 4060 Laptop GPU.
