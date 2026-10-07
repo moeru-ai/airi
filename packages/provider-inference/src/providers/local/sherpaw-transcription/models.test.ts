@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatSherpawLanguageName, formatSherpawModelName, paraformerBilingualZhEn, selectSherpawModel, sherpawModelArtifactUrl, sherpawModels, sherpawModelsForLanguage, xAsrBilingualZhEnInt8, zipformerMultilingual } from './models'
+import { defaultSherpawModelEndpoint, formatSherpawLanguageName, formatSherpawModelName, paraformerBilingualZhEn, selectSherpawModel, sherpawModelArtifactUrl, sherpawModels, sherpawModelsForLanguage, xAsrBilingualZhEnInt8, zipformerMultilingual } from './models'
 
 describe('sherpaw model catalogue', () => {
   it('keeps the model name separate from its localized language list', () => {
@@ -28,6 +28,24 @@ describe('sherpaw model catalogue', () => {
     expect(selectSherpawModel(models, 'zh')?.id).toBe(xAsrBilingualZhEnInt8.id)
     expect(selectSherpawModel(models, 'zh', { isMobile: true })?.id).toBe(paraformerBilingualZhEn.id)
     expect(selectSherpawModel(models, 'ja')?.id).toBe(zipformerMultilingual.id)
+  })
+
+  it('serves the same pinned artifacts from a configured endpoint', () => {
+    const expected = `https://hf-mirror.com/${xAsrBilingualZhEnInt8.repository}/resolve/${xAsrBilingualZhEnInt8.revision}/${xAsrBilingualZhEnInt8.directory}/preload.data`
+
+    expect(sherpawModelArtifactUrl(xAsrBilingualZhEnInt8, 'preload.data', 'https://hf-mirror.com')).toBe(expected)
+    // A mirror URL commonly arrives with a trailing slash, and one slash too many
+    // would turn the repository into a relative path.
+    expect(sherpawModelArtifactUrl(xAsrBilingualZhEnInt8, 'preload.data', 'https://hf-mirror.com/')).toBe(expected)
+    expect(sherpawModelArtifactUrl(xAsrBilingualZhEnInt8, 'preload.data', '  https://hf-mirror.com//  ')).toBe(expected)
+  })
+
+  it('keeps the Hub when the endpoint is missing or blank', () => {
+    for (const endpoint of [undefined, defaultSherpawModelEndpoint, '', '   ', '///']) {
+      expect(sherpawModelArtifactUrl(xAsrBilingualZhEnInt8, 'preload.data', endpoint)).toBe(
+        `https://huggingface.co/${xAsrBilingualZhEnInt8.repository}/resolve/${xAsrBilingualZhEnInt8.revision}/${xAsrBilingualZhEnInt8.directory}/preload.data`,
+      )
+    }
   })
 
   it('keeps a compatible current model when the language changes', () => {

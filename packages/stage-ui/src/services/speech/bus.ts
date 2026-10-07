@@ -80,6 +80,8 @@ export interface VoiceHostSnapshot {
     readonly sessionId: string
     readonly phase: 'pending' | 'capturing' | 'finalizing' | 'settled'
     readonly text: string
+    /** Corrected transcript segments in spoken order. A segment that is not final can still change. */
+    readonly segments: readonly { readonly id: string, readonly text: string, readonly final: boolean }[]
   }
   readonly drafts: readonly VoiceDraft[]
   readonly frontDraftId?: string

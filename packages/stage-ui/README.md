@@ -51,6 +51,10 @@ Consumers subscribe to the microphone input with their own abort signal. The las
 - `useVoiceMessagesStore` owns independent recording previews and explicit attachment submission.
 - Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
 - Speech preserves existing chunked synthesis and bidirectional provider output.
+- `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
+
+The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them read-only below the draft while speech is transcribed. Final text uses the body color. Earlier interim text uses a pale theme color, and the newest interim segment uses a stronger one. The draft stays editable while live speech appears below it.
+Rephrasing is off by default. A failure or a 10-second timeout submits the provider text.
 
 Recording completion never sends an attachment. Failed submission retains its preview and stable message identity.
 Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
