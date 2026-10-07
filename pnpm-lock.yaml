@@ -420,9 +420,6 @@ catalogs:
     '@radix-ui/colors':
       specifier: ^3.0.0
       version: 3.0.0
-    '@ricky0123/vad-web':
-      specifier: ^0.0.30
-      version: 0.0.30
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
@@ -2682,9 +2679,6 @@ importers:
       mediabunny:
         specifier: 'catalog:'
         version: 1.55.2
-      nanoid:
-        specifier: 'catalog:'
-        version: 6.0.1
       node-vibrant:
         specifier: 'catalog:'
         version: 4.0.4
@@ -4522,6 +4516,9 @@ importers:
       unspeech:
         specifier: catalog:xsai
         version: 0.1.16
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
       xsschema:
         specifier: 'catalog:'
         version: 0.5.1(@valibot/to-json-schema@1.7.1(valibot@1.4.2(typescript@6.0.3)))(zod-to-json-schema@3.25.2(zod@4.4.3))(zod@4.4.3)
@@ -4798,6 +4795,9 @@ importers:
       '@proj-airi/ccc':
         specifier: workspace:*
         version: link:../ccc
+      '@proj-airi/core-agent':
+        specifier: workspace:^
+        version: link:../core-agent
       '@proj-airi/i18n':
         specifier: workspace:*
         version: link:../i18n
@@ -5088,9 +5088,6 @@ importers:
       '@proj-airi/vite-plugin-sherpaw':
         specifier: workspace:^
         version: link:../vite-plugin-sherpaw
-      '@ricky0123/vad-web':
-        specifier: 'catalog:'
-        version: 0.0.30
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
         version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
@@ -11450,9 +11447,6 @@ packages:
 
   '@radix-ui/colors@3.0.0':
     resolution: {integrity: sha512-FUOsGBkHrYJwCSEtWRCIfQbZG7q1e6DgxCIOe1SUQzDe/7rXXeA47s8yCn6fuTNQAj1Zq4oTFi9Yjp3wzElcxg==}
-
-  '@ricky0123/vad-web@0.0.30':
-    resolution: {integrity: sha512-cJyYrh4YeeUBJcbR9Bic/bFDyB9qBkAepvpuWM3vLxnAi7bC3VHzf51UeNdT+OtY4D7MLAgV8iJMc4z41ZnaWg==}
 
   '@rive-app/canvas-lite@2.40.1':
     resolution: {integrity: sha512-gnlvjeI344tC9vBqYW8lV9o9g8FJPtaTq6UjmFmn4q9wLXloN/u3XqdXHsdU/5uBgCd8G6fFFQh7TqtnwzRSfA==}
@@ -26031,10 +26025,6 @@ snapshots:
       quansync: 1.0.0
 
   '@radix-ui/colors@3.0.0': {}
-
-  '@ricky0123/vad-web@0.0.30':
-    dependencies:
-      onnxruntime-web: 1.27.0
 
   '@rive-app/canvas-lite@2.40.1': {}
 

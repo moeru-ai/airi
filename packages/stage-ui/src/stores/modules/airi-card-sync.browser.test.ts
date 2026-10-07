@@ -240,6 +240,30 @@ describe('card synchronization across windows', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
+  // Found in the review of https://github.com/moeru-ai/airi/pull/2817
+  // ROOT CAUSE:
+  //
+  // Each run assigned new cloud state objects. The leader published the store,
+  // the follower wrote a new cards Map, and its cards watcher requested another run.
+  //
+  // We fixed this by keeping the objects when their content is equal.
+  it('stops running after the cards match the server while a follower is open', async () => {
+    const { leader, follower, onError } = await createWindows()
+    signIn(leader.auth, accountId())
+    await expect.poll(() => follower.auth.userId).toBe(leader.auth.userId)
+    const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
+    await expect.poll(() => follower.cards.cardSyncStates[cardId], { timeout: 8000 }).toBe('synced')
+    // Let the run that the card change requested finish.
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    const listsAfterSync = server.requests.list
+
+    // Two debounce periods of the cards watcher.
+    await new Promise(resolve => setTimeout(resolve, 3500))
+
+    expect(server.requests.list).toBe(listsAfterSync)
+    expect(onError).not.toHaveBeenCalled()
+  })
+
   it('does not publish a follower state proposal after a remote card arrives', async () => {
     const { leader, follower, onError } = await createWindows()
     server.seed('remote', { '/name': 'Remote', '/version': '1.0.0' })
@@ -303,21 +327,29 @@ describe('card synchronization across windows', () => {
     expect(onError).not.toHaveBeenCalled()
   })
 
+  // Found in the review of https://github.com/moeru-ai/airi/pull/2817
+  // ROOT CAUSE:
+  //
+  // A push waits 1500 ms for the cards watcher, but the polls waited 1000 ms.
+  // The restore also merged the snapshot, so later fields stayed.
+  //
+  // We fixed this with a longer poll timeout and a full card replace.
   it('restores a card to the content it had at a past revision', async () => {
     const { leader, follower, onError } = await createWindows()
     signIn(leader.auth, accountId())
     await expect.poll(() => follower.auth.userId).toBe(leader.auth.userId)
     const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
-    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Luna')
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Luna')
     const firstRevision = server.documents.get(cardId)!.history.find(entry => entry.key === '/name')!.revision
 
-    await leader.cards.updateCard(cardId, { ...leader.cards.cards.get(cardId)!, name: 'Nova' })
-    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Nova')
+    await leader.cards.updateCard(cardId, { ...leader.cards.cards.get(cardId)!, name: 'Nova', scenario: 'A rainy city' })
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Nova')
 
     const restored = await leader.cards.restoreCardVersion(cardId, firstRevision)
 
     expect(restored).toBe(true)
     expect(leader.cards.cards.get(cardId)?.name).toBe('Luna')
+    expect(leader.cards.cards.get(cardId)?.scenario).toBeUndefined()
     expect(onError).not.toHaveBeenCalled()
   })
 
@@ -325,7 +357,7 @@ describe('card synchronization across windows', () => {
     const { leader, onError } = await createWindows()
     signIn(leader.auth, accountId())
     const cardId = await leader.cards.addCard({ name: 'Luna', version: '1.0.0' }, 'scratch')
-    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value).toBe('Luna')
+    await expect.poll(() => server.documents.get(cardId)?.fields.get('/name')?.value, { timeout: 8000 }).toBe('Luna')
 
     expect(await leader.cards.restoreCardVersion(cardId, 999)).toBe(false)
     expect(onError).not.toHaveBeenCalled()

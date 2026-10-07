@@ -63,6 +63,7 @@ export async function setupMainWindow(params: {
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
   ioTraceRecording: IOTraceRecordingService
+  inlayWindow: () => Promise<BrowserWindow>
 }) {
   const {
     setup: setupConfig,
@@ -188,6 +189,7 @@ export async function setupMainWindow(params: {
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
     ioTraceRecording: params.ioTraceRecording,
+    inlayWindow: params.inlayWindow,
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {

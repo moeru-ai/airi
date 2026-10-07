@@ -109,13 +109,14 @@ async function resolveSparkCommandTools(sparkCommandTools?: ToolSource): Promise
 
   const modsServerChannelStore = useModsServerChannelStore()
   const sendSparkCommand = (command: WebSocketEvents['spark:command']) => {
-    // TODO(@nekomeowww): instruct the LLM to understand what destination is.
-    // Currently without skill like prompt injection, many issues occur.
-    // destination mostly are wrong or hallucinated, we need to find a way to make it more reliable.
+    // TODO(@nekomeowww): instruct the LLM what a destination is. It hallucinates them, so drop
+    // the value and broadcast.
     //
-    // For now, since destinations as array will always broadcast to all connected modules/agents, we can set it to
-    // empty array to avoid wrong routing.
-    command.destinations = []
+    // NOTICE:
+    // An explicit empty `destinations` array reaches no peer since a5d45bdd7 (#1635). Delete the
+    // field to broadcast. Emptying it dropped every spark:command for five months.
+    // Removal: route on real names from `registry:modules:sync`.
+    delete command.destinations
 
     modsServerChannelStore.send({
       type: 'spark:command',
