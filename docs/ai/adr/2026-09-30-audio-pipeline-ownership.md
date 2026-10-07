@@ -2,7 +2,7 @@
 
 Read **the two-minute overview** first. If you need more detail, open the matching section.
 
-**Status: historical design reference.** The implementation is in `packages/pipelines-audio` and `packages/core-agent`. The adjacent declarations describe the design, not the installed package exports.
+**Status: implemented.** #2769, #2770, and #2772 implement this design in `packages/pipelines-audio`, `packages/audio`, `packages/core-agent`, and `packages/stage-ui`. When this record and the code differ, the code is correct.
 The [version 4 plugin contract](../specs/voice-plugin-api.md) covers growing windows, memory lookup, transcript corrections, and scoped lifecycle tasks.
 
 ## Two-minute overview
@@ -45,7 +45,7 @@ The extension guide defines memory lookup and text corrections during step 3, an
 **First migration:** share the microphone owner and capture implementation across settings recording and the voice-message composer.
 Existing encoders, VAD adapters, and TTS chunking remain useful.
 
-**Not yet proven:** browser timing, resource cleanup, reliable notification delivery, and production behavior of the proposed extension APIs.
+**Not yet proven in production:** browser timing, resource cleanup, reliable notification delivery, and the extension APIs under real models.
 The detail sections retain the requirements for those checks.
 
 ## Choose one detail section
@@ -112,7 +112,7 @@ One shared audio input supplies separate capture and detector handles.
 Each handle owns its work and its stop operation.
 Native streams carry media. Typed messages carry control requests.
 The input module does not select transcription providers or control conversations.
-The public [caller guide](../specs/audio-pipeline-api.md) and [declarations](../specs/audio-pipeline-api.d.ts) define operations, ownership, bounds, and failure behavior.
+The public [caller guide](../specs/audio-pipeline-api.md) defines operations, ownership, bounds, and failure behavior. The types are in `packages/pipelines-audio/src/index.ts` and `packages/core-agent/src/voice/index.ts`.
 
 ```mermaid
 flowchart LR
@@ -147,20 +147,20 @@ Audio modules own sample buffers and browser nodes.
 
 | Location | Responsibility | Excluded responsibility |
 | --- | --- | --- |
-| `packages/pipelines-audio/src/input.ts` | AudioInput, capture handles, independent reader streams, detector scheduling | Vue, provider selection, chat, device permission |
-| `packages/pipelines-audio/src/managers/playback-manager.ts` | Existing queues, playback groups that stay closed after stop, stop results | Agent notifications and VAD decisions |
+| `packages/pipelines-audio/src/audio-input.ts`, `capture.ts`, `observe.ts` | AudioInput, capture handles, independent reader streams, detector scheduling | Vue, provider selection, chat, device permission |
+| `packages/pipelines-audio/src/playback.ts` | Playback groups that stay closed after stop, stop receipts on the driver clock | Agent notifications and VAD decisions |
 | `packages/audio` browser entry | Shared context, microphone adapter, worklet transport, native stream output, playback gain envelopes | Session and character routing |
-| `packages/audio/encoding` | Existing WAV path and future codec adapters | Recording policy and Hearing state |
+| `packages/audio/src/encoding` | WAV encoding, file decoding, PCM16 encoding, and future codec adapters | Recording policy and Hearing state |
 
 **Conversation and UI**
 
 | Location | Responsibility | Excluded responsibility |
 | --- | --- | --- |
-| `packages/core-agent/src/runtime/voice-controller.ts` | Accept input, track turns, finish transcripts, record interruptions | Browser APIs, sample buffers, UI refs |
+| `packages/core-agent/src/voice/` (`controller.ts`, `input/`, `output/`, `plugins/`) | Accept input, track turns, finish transcripts, record interruptions | Browser APIs, sample buffers, UI refs |
 | Stage application setup | Device settings, model runtimes, storage, Eventa transport, character snapshots | Duplicate recording state machines |
 | Stage composables and components | Subscribe to snapshots, render controls, invoke domain operations | Own providers, retry loops, device generations, or playback queues |
 
-These paths describe the target, not files created by this design task.
+These are the merged locations.
 The core-agent package already depends on pipelines-audio. The reverse dependency remains forbidden.
 Application setup connects external adapters through injeca.
 Internal helpers call each other directly. They do not receive artificial sibling-service dependency objects.

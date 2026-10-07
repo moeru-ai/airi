@@ -1,6 +1,6 @@
 # Schedule playback on the driver clock
 
-Status: proposed. #2769 implements the clock in decision 1. Decisions 2 and 3 have no implementation.
+Status: decision 1 is implemented. #2769 added the driver clock (`nowMs`) and `startAtMs`. Decisions 2 and 3 are proposed and have no implementation.
 
 ## Context
 

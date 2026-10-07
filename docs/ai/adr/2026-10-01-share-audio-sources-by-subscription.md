@@ -1,6 +1,6 @@
 # Share audio sources by subscription
 
-Status: accepted
+Status: accepted, implemented in #2769. The source types are `AudioSource` and `LiveAudioSource` in `packages/pipelines-audio/src/audio-input.ts`.
 
 ## Context
 

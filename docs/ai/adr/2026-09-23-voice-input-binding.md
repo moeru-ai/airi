@@ -1,6 +1,8 @@
 # Voice input binding follows the microphone stream
 
-Status: Proposed
+Status: superseded by [Audio and voice design](2026-09-30-audio-pipeline-ownership.md) and [Share audio sources by subscription](2026-10-01-share-audio-sources-by-subscription.md).
+
+PR #2772 removed the page-level voice bindings that this record describes. `useVoiceStore` now owns voice input, and every consumer subscribes to one shared `AudioInput`. This record stays as history.
 
 ## Context
 

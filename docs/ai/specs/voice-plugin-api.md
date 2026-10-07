@@ -1,8 +1,10 @@
 # Voice plugin API
 
-Read **the five operations** first, about 2 minutes. The examples show proposed calls, not installed package exports.
+Read **the five operations** first, about 2 minutes.
 
-**Status: version 4, revision 5. Resource quotas removed after user review.** This document and [the declarations](voice-plugin-api.d.ts) supersede the earlier plugin sketches.
+**Status: implemented, version 4, revision 5.** #2770 added this plugin API to `@proj-airi/core-agent`. The public types are in `packages/core-agent/src/voice/index.ts`. When this guide and the code differ, the code is correct. This document supersedes the earlier plugin sketches.
+
+The examples show the call shape. Application adapters, such as `memory` and `rewriteAgent`, are examples and are not package exports. `voice-rephrase` in `packages/stage-ui/src/libs/voice` is a real plugin that uses `subscribe` and `patch`.
 The [base contract](audio-pipeline-api.md) still defines audio capture and turn interruption.
 
 ## Five operations

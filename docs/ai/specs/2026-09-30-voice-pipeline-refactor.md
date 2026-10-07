@@ -1,5 +1,7 @@
 # Refactor audio capture, voice control, and trusted plugins
 
+Status: implemented. #2743 was split into #2766, #2768, #2769, #2770, #2771, #2772, and #2773. #2761 added live transcripts and the first trusted plugin. This specification records the requirements as they were written before implementation.
+
 ## Problem Statement
 
 AIRI users need reliable voice input, editable drafts, and immediate interruption across Web, Desktop, and Pocket.

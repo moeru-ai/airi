@@ -2,10 +2,10 @@
 
 Read **the four use cases** first, about 1 minute. Then open the section that matches your question.
 
-**Status: proposed version 4, revision 5. Resource quotas removed.** Read the [plugin API](../specs/voice-plugin-api.md) for the current contract and [declarations](../specs/voice-plugin-api.d.ts).
+**Status: implemented, version 4, revision 5.** #2770 implements these interfaces in `packages/core-agent/src/voice`. Read the [plugin API](../specs/voice-plugin-api.md) for the contract. The types are in `packages/core-agent/src/voice/index.ts`.
 
-- The snippets describe proposed interfaces. They are not existing package exports.
-- Sequence diagrams describe proposed behavior. Arrow labels name operations, not additional exported methods.
+- The snippets use the exported interfaces. Models and search services in them, such as `speakerModel` and `rewriteAgent`, are application examples.
+- Sequence diagrams describe behavior. Arrow labels name operations, not additional exported methods.
 
 ## Four use cases
 
@@ -106,13 +106,13 @@ sequenceDiagram
   Note over Policy: Check thresholds without changing an accepted input's session
 ```
 
-- The example durations describe the proposed growing-window behavior.
+- The example durations describe the growing-window behavior.
 - Stateful wake-word detection uses ordered frame blocks. It does not use this replaceable-window schedule.
 
-**Proposed addition**
+**Growing windows**
 
 - A fixed full-window observer can already wait for enough samples and then slide its window.
-- Version 4 adds `minWindowMs` through the plugin audio subscription.
+- Version 4 adds `minWindowMs` through the plugin audio subscription. `observe` in `pipelines-audio` implements it.
 
 ```ts
 plugin.observeAudio(

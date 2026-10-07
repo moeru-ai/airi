@@ -2,14 +2,20 @@
 
 The [version 4 plugin contract](voice-plugin-api.md) builds on this base capture and interruption API.
 Its VoiceResponse replaces the base response surface with ordered SpeechStreams. It does not expose a direct playback bypass.
-Both contracts are proposals, not installed package exports.
 
-
-Status: design reference, version 3.2. The runtime APIs are in `packages/pipelines-audio` and `packages/core-agent`.
+Status: implemented, version 3.2. #2769 added the audio primitives, #2770 the voice controller, and #2772 the application migration.
+The public types are in `packages/pipelines-audio/src/index.ts` and `packages/core-agent/src/voice/index.ts`. When this guide and the code differ, the code is correct.
 Version 3.2 replaces device leases and capture delivery formats with shared sources and subscriptions.
 `VoiceController` is the current name. The input and response guide uses `SpeechInput` for one accepted voice input.
-The adjacent [TypeScript declarations](audio-pipeline-api.d.ts) are the complete surface for these exercises.
-Consumers need this document and those declarations. They do not need runtime internals or research notes.
+
+## Changes during implementation
+
+- `AudioInput` accepts only a `LiveAudioSource`. `fileSource` returns an `AudioSource`, which a caller reads directly.
+- `Outcome` has no `range`. A finished capture reports its interval as `value`. `capture.started` resolves `false` when no audio arrived.
+- `AudioInput.retain(signal)` returns a `HistoryLease`. The holder calls `hold(position)` as its work completes.
+- `subscribe`, `capture`, and `ordered` observers take `maxBufferedMs`, 60 seconds by default. Only the slow reader fails.
+- `PlaybackReceipt` is a union. Only a `failed` receipt has `error`. Playback groups keep their `label`.
+- `voice.openResponse(turn)` returns a `VoiceResponse`. The design name `ResponseHandle` does not exist.
 
 ## Quick start
 
