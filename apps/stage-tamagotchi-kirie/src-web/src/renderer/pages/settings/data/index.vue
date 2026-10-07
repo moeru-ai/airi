@@ -12,6 +12,8 @@ import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-sto
 import DesktopFolderSection from './components/desktop-folder-section.vue'
 import DesktopResetSection from './components/desktop-reset-section.vue'
 
+import { isAndroidRenderer } from '../../../window-context'
+
 const { statusMessage, statusTone, handleStatus } = createDataSettingsStatusState()
 const chatSession = useChatSessionStore()
 
@@ -23,10 +25,10 @@ async function syncImportedChats(payload: ChatSessionsExport) {
 <template>
   <div :class="['flex flex-col gap-4 pb-4']">
     <StatusBanner v-if="statusMessage" :message="statusMessage" :tone="statusTone" />
-    <DesktopFolderSection @status="handleStatus" />
-    <ChatsSection :sync-imported-chats="syncImportedChats" @status="handleStatus" />
+    <DesktopFolderSection v-if="!isAndroidRenderer()" @status="handleStatus" />
+    <ChatsSection :sync-imported-chats="isAndroidRenderer() ? undefined : syncImportedChats" @status="handleStatus" />
     <ModelsModulesSection @status="handleStatus" />
-    <DesktopResetSection @status="handleStatus" />
+    <DesktopResetSection v-if="!isAndroidRenderer()" @status="handleStatus" />
     <DangerSection @status="handleStatus" />
   </div>
 </template>
