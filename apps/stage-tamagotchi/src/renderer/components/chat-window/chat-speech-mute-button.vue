@@ -2,6 +2,7 @@
 import { defineInvoke } from '@moeru/eventa'
 import { useStopSpeakingButton } from '@proj-airi/stage-layouts/composables/useStopSpeakingButton'
 import { getSpeechBusContext, speechOutputGetPlaybackState } from '@proj-airi/stage-ui/services/speech/bus'
+import { IconButton } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 const getOutputPlaybackState = defineInvoke(getSpeechBusContext(), speechOutputGetPlaybackState)
@@ -19,12 +20,13 @@ const { t } = useI18n()
 </script>
 
 <template>
-  <button
+  <IconButton
+    type="button"
     data-testid="speech-mute-button"
     :class="[
       'h-7 w-7 flex items-center justify-center rounded-md outline-none',
       'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300',
-      'text-base transition-colors transition-transform active:scale-95',
+      'text-base',
       speechMuted
         ? 'bg-primary-100 text-primary-600 dark:bg-primary-900/40 dark:text-primary-300'
         : 'text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400',
@@ -34,7 +36,17 @@ const { t } = useI18n()
     :aria-pressed="speechMuted"
     @click="toggleSpeechMuted"
   >
-    <div v-if="speechMuted" class="i-solar:volume-cross-bold-duotone" />
-    <div v-else class="i-solar:volume-loud-bold-duotone" />
-  </button>
+    <div
+      v-if="speechMuted"
+      :class="[
+        'i-solar:volume-cross-bold-duotone',
+      ]"
+    />
+    <div
+      v-else
+      :class="[
+        'i-solar:volume-loud-bold-duotone',
+      ]"
+    />
+  </IconButton>
 </template>

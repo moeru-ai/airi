@@ -9,6 +9,7 @@ import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-g
 import { useArtistryStore } from '@proj-airi/stage-ui/stores/modules/artistry'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
+import { GhostButton, SelectTab } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -202,16 +203,41 @@ const providerBlocks = computed(() => {
 
 <template>
   <div :class="['mb-6', 'flex', 'flex-col', 'gap-5', 'pb-10']">
-    <div bg="primary-500/10 dark:primary-800/25" rounded-lg p-4>
-      <div mb-2 text-xl font-normal text="primary-800 dark:primary-100">
+    <div
+      :class="[
+        'bg-primary-500/10 dark:bg-primary-800/25 rounded-lg p-4',
+      ]"
+    >
+      <div
+        :class="[
+          'mb-2 text-xl font-normal text-primary-800 dark:text-primary-100',
+        ]"
+      >
         {{ $t('settings.pages.providers.helpinfo.title') }}
       </div>
-      <div text="primary-700 dark:primary-300">
+      <div
+        :class="[
+          'text-primary-700 dark:text-primary-300',
+        ]"
+      >
         <i18n-t keypath="settings.pages.providers.helpinfo.description">
           <template #chat>
-            <div bg="primary-500/10 dark:primary-800/25" inline-flex items-center gap-1 rounded-lg px-2 py-0.5 translate-y="[0.25lh]">
-              <div i-solar:chat-square-like-bold-duotone />
-              <strong class="font-normal">Chat</strong>
+            <div
+              :class="[
+                'bg-primary-500/10 dark:bg-primary-800/25 inline-flex items-center gap-1',
+                'rounded-lg px-2 py-0.5 translate-y-[0.25lh]',
+              ]"
+            >
+              <div
+                :class="[
+                  'i-solar:chat-square-like-bold-duotone',
+                ]"
+              />
+              <strong
+                :class="[
+                  'font-normal',
+                ]"
+              >Chat</strong>
             </div>
           </template>
         </i18n-t>
@@ -219,49 +245,74 @@ const providerBlocks = computed(() => {
     </div>
 
     <!-- Tabs Container -->
-    <div class="flex flex-row flex-wrap gap-2 pb-2">
-      <button
+    <div
+      :class="[
+        'flex flex-row flex-wrap gap-2 pb-2',
+      ]"
+    >
+      <GhostButton
         v-for="block in providerBlocksConfig"
         :key="block.id"
-        class="flex items-center gap-2 rounded-xl px-4 py-2 outline-none transition-colors duration-200"
-        :class="activeTabId === block.id ? 'bg-primary-500/15 text-primary-700 dark:bg-primary-500/20 dark:text-primary-300 font-semibold' : 'hover:bg-neutral-200/50 dark:hover:bg-neutral-800 text-neutral-500 dark:text-neutral-400'"
+        type="button"
+        size="unset"
+        :active="activeTabId === block.id"
+        :aria-pressed="activeTabId === block.id"
+        :class="['gap-2 rounded-xl! px-4 py-2']"
         @click="setActiveTab(block.id)"
       >
-        <div :class="block.icon" class="text-xl" />
+        <div
+          :class="[
+            'text-xl',
+            (block.icon),
+          ]"
+        />
         {{ block.title }}
-      </button>
+      </GhostButton>
     </div>
 
     <!-- Filters Container -->
-    <div flex="~ row items-center gap-4 wrap" pb-2 text-xs>
-      <div flex="~ row items-center gap-2">
-        <span text="neutral-400 dark:neutral-500" font-medium>{{ $t('settings.pages.providers.filters.pricing') }}:</span>
-        <div flex="~ row items-center gap-1" bg="neutral-100 dark:neutral-800" rounded-lg p-0.5>
-          <button
-            v-for="opt in ['all', 'free', 'paid'] as const"
-            :key="opt"
-            rounded-md px-2 py-0.5 transition-all
-            :class="filterPricing === opt ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-semibold' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="filterPricing = opt"
-          >
-            {{ $t(`settings.pages.providers.filters.${opt}`) }}
-          </button>
-        </div>
+    <div
+      :class="[
+        'flex flex-row items-center gap-4 flex-wrap',
+        'pb-2 text-xs',
+      ]"
+    >
+      <div
+        :class="[
+          'flex flex-row items-center gap-2',
+        ]"
+      >
+        <span
+          :class="[
+            'text-neutral-400 dark:text-neutral-500 font-medium',
+          ]"
+        >{{ $t('settings.pages.providers.filters.pricing') }}:</span>
+        <SelectTab
+          v-model="filterPricing"
+          :aria-label="$t('settings.pages.providers.filters.pricing')"
+          :options="[{ value: 'all', label: $t('settings.pages.providers.filters.all') }, { value: 'free', label: $t('settings.pages.providers.filters.free') }, { value: 'paid', label: $t('settings.pages.providers.filters.paid') }]"
+          size="xs"
+          tab-space="compact"
+        />
       </div>
 
-      <div flex="~ row items-center gap-2">
-        <span text="neutral-400 dark:neutral-500" font-medium>{{ $t('settings.pages.providers.filters.deployment') }}:</span>
-        <div flex="~ row items-center gap-1" bg="neutral-100 dark:neutral-800" rounded-lg p-0.5>
-          <button
-            v-for="opt in ['all', 'local', 'cloud'] as const"
-            :key="opt"
-            rounded-md px-2 py-0.5 transition-all
-            :class="filterDeployment === opt ? 'bg-white dark:bg-neutral-700 shadow-sm text-primary-600 dark:text-primary-400 font-semibold' : 'text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300'"
-            @click="filterDeployment = opt"
-          >
-            {{ $t(`settings.pages.providers.filters.${opt}`) }}
-          </button>
-        </div>
+      <div
+        :class="[
+          'flex flex-row items-center gap-2',
+        ]"
+      >
+        <span
+          :class="[
+            'text-neutral-400 dark:text-neutral-500 font-medium',
+          ]"
+        >{{ $t('settings.pages.providers.filters.deployment') }}:</span>
+        <SelectTab
+          v-model="filterDeployment"
+          :aria-label="$t('settings.pages.providers.filters.deployment')"
+          :options="[{ value: 'all', label: $t('settings.pages.providers.filters.all') }, { value: 'local', label: $t('settings.pages.providers.filters.local') }, { value: 'cloud', label: $t('settings.pages.providers.filters.cloud') }]"
+          size="xs"
+          tab-space="compact"
+        />
       </div>
     </div>
 
@@ -273,13 +324,31 @@ const providerBlocks = computed(() => {
       @item-click="({ globalIndex }) => setLastClickedIndex(globalIndex)"
     >
       <template #header="{ section: block }">
-        <div flex="~ row items-center gap-2">
-          <div :id="block.id" :class="block.icon" text="neutral-500 dark:neutral-400 4xl" />
+        <div
+          :class="[
+            'flex flex-row items-center gap-2',
+          ]"
+        >
+          <div
+            :id="block.id"
+            :class="[
+              'text-neutral-500 dark:text-neutral-400 text-4xl',
+              (block.icon),
+            ]"
+          />
           <div>
             <div>
-              <span text="neutral-300 dark:neutral-500 sm sm:base">{{ block.description }}</span>
+              <span
+                :class="[
+                  'text-neutral-300 dark:text-neutral-500 text-sm sm:text-base',
+                ]"
+              >{{ block.description }}</span>
             </div>
-            <div flex text-nowrap text="2xl sm:3xl" font-normal>
+            <div
+              :class="[
+                'flex text-nowrap text-2xl sm:text-3xl font-normal',
+              ]"
+            >
               <div>
                 {{ block.title }}
               </div>
@@ -308,15 +377,21 @@ const providerBlocks = computed(() => {
   </div>
   <div
     v-motion
-    text="neutral-500/5 dark:neutral-600/20" pointer-events-none
-    fixed top="[calc(100dvh-15rem)]" bottom-0 right--5 z--1
+    :class="[
+      'text-neutral-500/5 dark:text-neutral-600/20 pointer-events-none fixed top-[calc(100dvh-15rem)]',
+      'bottom-0 right--5 z--1 size-60 flex',
+      'items-center justify-center',
+    ]"
+
     :initial="{ scale: 0.9, opacity: 0, y: 20 }"
     :enter="{ scale: 1, opacity: 1, y: 0 }"
     :duration="500"
-    size-60
-    flex items-center justify-center
   >
-    <div text="60" i-solar:box-minimalistic-bold-duotone />
+    <div
+      :class="[
+        'text-60 i-solar:box-minimalistic-bold-duotone',
+      ]"
+    />
   </div>
 </template>
 
