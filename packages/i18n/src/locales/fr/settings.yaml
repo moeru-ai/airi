@@ -648,19 +648,6 @@ pages:
               label: Vitesse
             volume:
               description: Ajuster le volume de la parole
-      minimax-speech:
-        description: minimax.io
-        errors:
-          provider-initialization-failed: Échec de l'initialisation du fournisseur vocal MiniMax.
-        fields:
-          field:
-            model:
-              description: Sélectionnez le modèle TTS MiniMax à utiliser pour générer la voix.
-              label: Modèle
-              placeholder: Sélectionnez un modèle MiniMax...
-        playground:
-          default-text: Bonjour ! Voici un test de synthèse vocale MiniMax.
-        title: MiniMax Speech
       speech-noop:
         title: Aucun
         description: Aucune sortie vocale.
@@ -733,6 +720,17 @@ pages:
       index-tts-vllm:
         callout_indextts2_unavailable_title: Support limité
         callout_indextts2_unavailable: Le support pour IndexTTS2 est actuellement indisponible. Veuillez utiliser IndexTTS.
+      minimax-speech:
+        errors:
+          provider-initialization-failed: Échec de l'initialisation du fournisseur vocal MiniMax.
+        fields:
+          field:
+            model:
+              description: Sélectionnez le modèle TTS MiniMax à utiliser pour générer la voix.
+              label: Modèle
+              placeholder: Sélectionnez un modèle MiniMax...
+        playground:
+          default-text: Bonjour ! Voici un test de synthèse vocale MiniMax.
       azure-openai:
         description: API Azure OpenAI
       openai-compatible:
