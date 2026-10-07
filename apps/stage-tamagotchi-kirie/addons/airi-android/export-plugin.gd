@@ -535,6 +535,12 @@ public final class AiriAndroidPlugin extends GodotPlugin {
             }
 
             browserWebView = webView;
+            // NOTICE:
+            // Transparent WebView tiles can disappear over the animated Godot surface.
+            // An explicit hardware layer keeps WebView content in a dedicated GPU layer.
+            // Context: Android onboarding input comparison on WebView 124.
+            // Remove this after gd-kirie creates Android WebViews with a hardware layer.
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
             installImeInsetHandler(activity);
             installExternalNavigation(activity, webView);
             hostWebSocketBridge = new HostWebSocketBridge(webView);
