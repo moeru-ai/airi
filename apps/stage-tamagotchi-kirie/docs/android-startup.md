@@ -56,9 +56,9 @@ Temporary evidence is in `recordings-android/fresh-onboarding-812397724-2026-10-
 The comparison places stage-pocket on the left and Kirie on the right.
 The evidence directory remains untracked.
 
-The same APK crashed after WebView creation on Android API 36 with WebView 133.
+That onboarding APK crashed after WebView creation on Android API 36 with WebView 133.
 API 35 remained alive during the complete recording.
-This WebView 133 failure needs a separate native investigation.
+The later hardware-layer build closes this failure.
 
 ### Provider selection
 
@@ -90,6 +90,19 @@ The final videos use settled screenshots with the same event times.
 
 The Kirie debug APK SHA-256 was `358e179bb78b45dae2e13afc8b8e70b17e742f84e6ab3a38dc044cdeb0310435`.
 Temporary evidence is in `recordings-android/openai-config-103fbd5b6-2026-10-07/`.
+The comparison places stage-pocket on the left and Kirie on the right.
+
+### Android 16 startup
+
+The final comparison used Android API 36 and WebView 133.0.6943.137.
+The emulator used the host NVIDIA GeForce RTX 3060 through Vulkan 1.3.
+Both apps displayed the Welcome page after 15 seconds.
+Both processes remained alive for 45 seconds before the provider click.
+Both apps displayed the same provider list at second 50.
+
+The Kirie log contained no fatal exception, native signal, or tombstone.
+The Kirie debug APK SHA-256 was `358e179bb78b45dae2e13afc8b8e70b17e742f84e6ab3a38dc044cdeb0310435`.
+Temporary evidence is in `recordings-android/api36-startup-52c4b4038-2026-10-07/`.
 The comparison places stage-pocket on the left and Kirie on the right.
 
 ## Reference boundary
