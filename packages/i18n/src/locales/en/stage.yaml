@@ -10,7 +10,6 @@ mobile-tools:
   character-voice: Character voice
   title: Settings
   appearance: Appearance
-  dark-mode: Dark mode
   application: Application
   more: More
   background: Background
@@ -105,6 +104,14 @@ startup:
     route: page
     model: character model
 message: Say something...
+theme:
+  title: Theme
+  system: System
+  light: Light
+  dark: Dark
+  switch-to-light: Switch to the light theme
+  switch-to-dark: Switch to the dark theme
+  switch-to-system: Follow the system theme
 send-mode:
   title: Send key
   enter: Enter

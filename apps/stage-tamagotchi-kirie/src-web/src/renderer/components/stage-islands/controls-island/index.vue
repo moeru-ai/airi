@@ -31,8 +31,25 @@ interface Emits {
 
 const emit = defineEmits<Emits>()
 
-const { isDark, toggleDark } = useTheme()
+const { themeMode, nextThemeMode, cycleThemeMode } = useTheme()
 const { t } = useI18n()
+
+// The button shows the current theme, and its label tells what a press selects.
+const themeIcons = {
+  light: 'i-solar:sun-2-outline',
+  dark: 'i-solar:moon-outline',
+  auto: 'i-lucide:contrast',
+} as const
+const themeActions = {
+  light: 'switch_to_light_mode',
+  dark: 'switch_to_dark_mode',
+  auto: 'switch_to_system_mode',
+} as const
+const nextThemeLabel = computed(() => ({
+  light: t('tamagotchi.stage.controls-island.switch-to-light-mode'),
+  dark: t('tamagotchi.stage.controls-island.switch-to-dark-mode'),
+  auto: t('tamagotchi.stage.controls-island.switch-to-system-mode'),
+})[nextThemeMode.value])
 const placement = useControlsIslandPlacement()
 const { dock, isLeft, isTop, motionPhase } = placement
 
@@ -362,19 +379,18 @@ function resetMainWindowPosition() {
                     <ControlButton
                       v-track-button="{
                         name: 'controls_island_action',
-                        action: isDark ? 'switch_to_light_mode' : 'switch_to_dark_mode',
+                        action: themeActions[nextThemeMode],
                       }"
                       :button-style="adjustStyleClasses.button"
-                      :aria-label="isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode')"
-                      @click="() => toggleDark()"
+                      :aria-label="nextThemeLabel"
+                      @click="cycleThemeMode"
                     >
                       <Transition name="fade" mode="out-in">
-                        <div v-if="isDark" i-solar:moon-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
-                        <div v-else i-solar:sun-2-outline :class="adjustStyleClasses.icon" text="neutral-800 dark:neutral-300" />
+                        <div :key="themeMode" :class="[themeIcons[themeMode], adjustStyleClasses.icon]" text="neutral-800 dark:neutral-300" />
                       </Transition>
                     </ControlButton>
                     <template #tooltip>
-                      {{ isDark ? t('tamagotchi.stage.controls-island.switch-to-light-mode') : t('tamagotchi.stage.controls-island.switch-to-dark-mode') }}
+                      {{ nextThemeLabel }}
                     </template>
                   </ControlButtonTooltip>
 

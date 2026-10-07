@@ -23,6 +23,7 @@ docs:
   'unmute': 取消静音
   'switch-to-light-mode': 切换到亮色模式
   'switch-to-dark-mode': 切换到暗色模式
+  'switch-to-system-mode': 跟随系统主题
   'pin-on-top': 置顶窗口
   'unpin-from-top': 取消置顶
   'switch-profile': 切换角色
