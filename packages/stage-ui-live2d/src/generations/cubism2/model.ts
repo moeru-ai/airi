@@ -110,14 +110,10 @@ export function initializeCubism2Model(
   cubism2Model.updateWebGLContext(cubism2Renderer.gl, cubism2Renderer.CONTEXT_UID)
 
   // NOTICE:
-  // Cubism 2 does not calculate deformer output while loading the `.moc`.
-  // The first draw can therefore expose raw, detached ArtMesh positions when
-  // AIRI's application ticker renders before `Live2DModel`'s shared ticker.
-  // Source/context: `Cubism2InternalModel.update()` calls `model.update()` in
-  // `node_modules/pixi-live2d-display/dist/cubism2.es.js`; the core itself logs
-  // `call update() before draw()` for this ordering violation.
-  // Removal condition: the runtime initializes core deformer output before the
-  // first draw, or AIRI updates every model on the renderer's own ticker.
+  // Cubism 2 does not calculate deformer output while it loads the `.moc`, so a
+  // draw before the first `update()` shows detached ArtMeshes. The AIRI ticker can draw first.
+  // Source/context: `Cubism2InternalModel.update()` in `pixi-live2d-display/dist/cubism2.es.js`.
+  // Removal condition: the runtime updates the core before its first draw.
   cubism2Model.coreModel.update()
 }
 
@@ -201,20 +197,10 @@ export function adaptInternalModel<TInternalModel extends AdaptableInternalModel
     defaults.set(id, compatibleCore.getParamFloat(id))
 
   // NOTICE:
-  // Cubism 2 has no reachable per-parameter default. `Live2DModelWebGL` exposes
-  // no default accessor or parameter enumeration, and the obfuscated model
-  // context only surfaces rendering state.
-  //
-  // Observed failure: capturing on first read returned a mid-animation value,
-  // because Model.vue awaits initExpressionController inside `finally` after the
-  // model is already ticking, which made Add-blend expressions anchor to noise.
-  //
-  // The eager snapshot above is taken while the values still equal the pose that
-  // Cubism2InternalModel.init() froze via coreModel.saveParam(), so it is the
-  // model default. This branch only
-  // covers ids first requested after that point; its value is the first observed
-  // value, not the model default.
-  //
+  // Cubism 2 exposes no parameter defaults. A first-read capture got mid-animation
+  // values, so the eager snapshot above reads the pose that `init()` froze with
+  // `saveParam()` before the model ticks. Ids first read later keep their first
+  // observed value.
   // Removal condition: the Cubism 2 core exposes ParamDefSet defaults.
   const captureFirstObserved = (resolvedId: string, value: number) => {
     if (!defaults.has(resolvedId))
@@ -237,29 +223,12 @@ export function adaptInternalModel<TInternalModel extends AdaptableInternalModel
   }
 
   // NOTICE:
-  // Cubism 2's built-in eye blink is unusable, so AIRI's own timer blink owns
-  // blinking on this generation. Nulling the field is the whole fix: the
-  // existing `!ctx.internalModel.eyeBlink` guards route the model to
-  // `updateForcedBlink`, so no generation branch is needed there.
-  //
-  // Two independent defects exist in the upstream Cubism 2 runtime:
-  //
-  // 1. Signature mismatch. AIRI calls `eyeBlink.updateParameters(model,
-  //    seconds)`, but `Live2DEyeBlink` only defines `update(dtMs)`. The
-  //    resulting TypeError is thrown inside motionManager.update ->
-  //    Cubism2InternalModel.update -> the PIXI render loop, where Canvas.vue's
-  //    render guard catches it and stops the ticker, freezing the model.
-  //
-  // 2. It can never blink. The closing state calls
-  //    `setEyeParams(this.eyeParamValue + dt / this.closingDuration)` and then
-  //    waits for `this.eyeParamValue <= 0`, while `setEyeParams` clamps to
-  //    [0, 1]. Adding a positive delta to a
-  //    value pinned at 1 never reaches 0, so the eyes stay open forever. The
-  //    sign is wrong in dist/cubism2.es.js, dist/cubism2.min.js and upstream
-  //    master alike.
-  //
-  // Removal condition: upstream fixes both the closing-state sign and the
-  // `updateParameters(model, seconds)` signature.
+  // The Cubism 2 `Live2DEyeBlink` has `update(dtMs)` only, so the AIRI call to
+  // `updateParameters(model, seconds)` throws and stops the ticker. Its closing
+  // state also adds a positive delta, so the eyes never close. A null `eyeBlink`
+  // routes the model to `updateForcedBlink`.
+  // Source/context: `pixi-live2d-display/dist/cubism2.es.js`.
+  // Removal condition: upstream fixes both defects.
   const blinkHost = internalModel as { eyeBlink?: unknown }
   blinkHost.eyeBlink = null
 

@@ -370,20 +370,11 @@ describe('live2d zip loader settings sanitization', () => {
 })
 
 // NOTICE:
-// The combined `pixi-live2d-display` bundle asserts both Cubism cores at module
-// evaluation time and immediately patches the Cubism 2 core's globals, so it
-// cannot be imported at all without a core present.
-//
-// Root cause: `dist/index.es.js:1549` throws on a missing `window.Live2D`, then
-// line 1552 reads `Live2DMotion.prototype.updateParam`, line 1560 declares
-// `class Live2DExpression extends AMotion`, and lines 1949-1956 read
-// `PhysicsHair.Src.*` — all at module scope. The real `live2d.min.js` supplying
-// those globals is proprietary and is never committed or downloaded, so these
-// stubs stand in for the load-bearing surface the bundle touches during import.
-// They are never called: this suite only exercises settings parsing.
-//
-// Removal condition: pixi-live2d-display (0.4.0 today) stops requiring the
-// Cubism 2 core at module scope, or AIRI can ship a redistributable core.
+// The combined `pixi-live2d-display` bundle reads `Live2D`, `Live2DMotion`, `AMotion`,
+// and `PhysicsHair` at module scope. The proprietary core is never committed, so
+// these stubs let the import finish. This suite only parses settings.
+// Source/context: `pixi-live2d-display/dist/index.es.js` (0.4.0).
+// Removal condition: the bundle stops requiring the Cubism 2 core at import.
 class Cubism2CoreStub {
   static Src = { SRC_TO_X: 0, SRC_TO_Y: 1, SRC_TO_G_ANGLE: 2 }
   updateParam(): void {}

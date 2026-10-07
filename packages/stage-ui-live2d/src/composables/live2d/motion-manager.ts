@@ -151,21 +151,11 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
   } = options
 
   // NOTICE:
-  // `motionManager.update(model, now)` is handed elapsed *milliseconds* on
-  // Cubism 2 but elapsed *seconds* on Cubism 4: `Cubism4InternalModel.update`
-  // runs `dt /= 1e3; now /= 1e3` before delegating, while
-  // `Cubism2InternalModel.update` forwards the values it received from
-  // `Live2DModel._render` untouched.
-  //
-  // Every constant in the plugins below was originally calibrated against the
-  // Cubism 4 seconds, which made each of them 1000x off once the same hook
-  // started serving Cubism 2 models. Normalizing once here keeps that decision
-  // in one place instead of asking every plugin to guess its own unit.
-  //
-  // Source/context: `node_modules/pixi-live2d-display/dist/cubism4.es.js` and
-  // `dist/cubism2.es.js`, both `update(dt, now)`.
-  //
-  // Removal condition: upstream passes the same unit to both generations.
+  // `motionManager.update(model, now)` gets milliseconds on Cubism 2 and seconds
+  // on Cubism 4, because only `Cubism4InternalModel.update` divides by 1e3. The
+  // generation loader converts both to milliseconds here, so every plugin reads one unit.
+  // Source/context: `update(dt, now)` in `pixi-live2d-display/dist/cubism{2,4}.es.js`.
+  // Removal condition: upstream passes one unit to both generations.
   const generationLoader = loaderForModel(internalModel)
 
   const prePlugins: MotionManagerPlugin[] = []
@@ -247,23 +237,19 @@ export function useLive2DMotionManagerUpdate(options: UseLive2DMotionManagerUpda
 
 export function useMotionUpdatePluginBeatSync(beatSync: BeatSyncController): MotionManagerPlugin {
   return (ctx) => {
-    // Beat segments are stamped by `scheduleBeat` off the audio pipeline, on the
-    // page clock the controller owns; evaluating them has to read that same
-    // clock. `ctx.nowMs` is the model's own elapsed time, which trails page time
-    // by the model's load duration plus every clamped frame since, so segment
-    // starts would sit permanently in its future and the head would never move.
+    // `scheduleBeat` stamps segments on the page clock that the controller owns,
+    // so evaluation reads that clock too. `ctx.nowMs` is model elapsed time. It
+    // trails page time by the load duration and clamped frames, so segments never start on it.
     beatSync.updateTargets()
 
     // Semi-implicit Euler approach
     const stiffness = 120 // Higher -> Snappier
     const damping = 16 // Higher -> Less bounce
     const mass = 1
-    // The spring integrates against the render loop, so it keeps using the
-    // generation-normalized frame delta rather than the beat clock. Both
-    // coefficients are per-second, so the step has to be seconds too:
-    // integrating with a millisecond step puts it far past the explicit-Euler
-    // stability limit (~2/sqrt(stiffness) = 0.18s) and it diverges within a
-    // couple of frames instead of settling on the target.
+    // The spring follows the render loop, so it uses the generation-normalized
+    // frame delta, not the beat clock. Both coefficients are per second. A
+    // millisecond step exceeds the explicit-Euler stability limit
+    // (~2/sqrt(stiffness) = 0.18s), and the spring diverges.
     const dt = ctx.deltaMs / 1000
 
     let paramAngleX = ctx.model.getParameterValueById('ParamAngleX') as number
@@ -473,9 +459,8 @@ export function useMotionUpdatePluginAutoEyeBlink(
         return
 
       // A claimed frame belongs to the SDK motion pass, which on a model with a
-      // live `eyeBlink` also owns blinking. Models whose unusable SDK eyeBlink
-      // was nulled (Cubism 2) have no such owner, so an active idle motion would
-      // otherwise stall the replacement timer below for as long as it plays.
+      // live `eyeBlink` also owns blinking. Cubism 2 models have a null `eyeBlink`
+      // and no such owner. Without this check, an idle motion stalls the replacement timer below.
       const ownsReplacementBlink = ctx.internalModel.eyeBlink == null && ctx.live2dAutoBlinkEnabled.value
       if (ctx.handled && !ownsReplacementBlink && !ctx.live2dForceAutoBlinkEnabled.value)
         return
