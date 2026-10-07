@@ -3,6 +3,7 @@ import type { MaybeElementRef } from '@vueuse/core'
 import { defaultWindow, tryOnMounted, unrefElement, useEventListener, useMutationObserver, useResizeObserver } from '@vueuse/core'
 import { computed, shallowRef, watch } from 'vue'
 
+import { isAndroidRenderer } from '../window-context'
 import { initializeHostContext } from './owner'
 
 const pointerX = shallowRef(0)
@@ -58,7 +59,7 @@ async function pollKiriePointer() {
 }
 
 function startTracking() {
-  if (trackingStarted)
+  if (trackingStarted || isAndroidRenderer())
     return
 
   trackingStarted = true
@@ -172,5 +173,8 @@ export function useHostMouseAroundWindowBorder(
 }
 
 export function useHostPointerPassthrough() {
+  if (isAndroidRenderer())
+    return async () => {}
+
   return initializeHostContext().platform.hostWindow.setPointerPassthrough
 }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useHostAlwaysOnTop, useHostAppQuit, useHostChat, useHostEventaInvoke, useHostMouseInElement, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
+import { useHostAlwaysOnTop, useHostAppQuit, useHostChat, useHostMouseInElement, useHostSettings, useHostWindowCenter, useHostWindowMove } from '@proj-airi/stage-host-context'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { ScrollableArea, useTheme } from '@proj-airi/ui'
@@ -18,9 +18,6 @@ import ControlsIslandProfilePicker from './controls-island-profile-picker.vue'
 import ControlsIslandStopSpeaking from './controls-island-stop-speaking.vue'
 import IndicatorMicVolume from './indicator-mic-volume.vue'
 
-import {
-  electronOpenSettings,
-} from '../../../../shared/eventa'
 import { useControlsIslandLayout } from './use-controls-island-layout'
 import { useControlsIslandPlacement } from './use-controls-island-placement'
 
@@ -40,7 +37,7 @@ const settingsAudioDeviceStore = useSettingsAudioDevice()
 const settingsStore = useSettings()
 const { enabled } = storeToRefs(settingsAudioDeviceStore)
 const { alwaysOnTop, controlsIslandIconSize } = storeToRefs(settingsStore)
-const openSettings = useHostEventaInvoke(electronOpenSettings)
+const openSettings = useHostSettings()
 const openChat = useHostChat()
 const quitApp = useHostAppQuit()
 const setAlwaysOnTop = useHostAlwaysOnTop()

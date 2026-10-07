@@ -27,7 +27,7 @@ vi.mock('@proj-airi/stage-host-context', () => ({
     on: subscriptions.on,
   }),
   useHostAuth: () => ({ startLogin: invokes.startLogin }),
-  useHostEventaInvoke: () => invokes.openSettings,
+  useHostSettings: () => invokes.openSettings,
 }))
 
 vi.mock('vue-i18n', () => ({
