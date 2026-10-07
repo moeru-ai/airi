@@ -73,6 +73,25 @@ The visible order ends with Groq and OpenRouter on the first screen.
 The Kirie debug APK SHA-256 was `2b675fd0af969cd1bf0919bd451fbf43685bdc9d3d740bf4ece4010a04e5df81`.
 Temporary evidence is in `recordings-android/provider-selection-521db9de1-2026-10-07/`.
 
+### OpenAI configuration
+
+Kirie now assigns a hardware layer to the Android WebView.
+This layer keeps transparent WebView tiles on the GPU above the animated Godot surface.
+
+The comparison used Android API 35 and WebView 124.
+The emulator used the host NVIDIA GeForce RTX 3060 through Vulkan 1.3.
+Both videos show the enabled state from seconds 0 through 3.
+They show the disabled state from seconds 3 through 6.
+They show the enabled state from seconds 6 through 9.
+
+Each state shows the complete title, notice, input values, switch label, and Next button.
+Android screen recording disturbed the transparent WebView composition in both apps.
+The final videos use settled screenshots with the same event times.
+
+The Kirie debug APK SHA-256 was `358e179bb78b45dae2e13afc8b8e70b17e742f84e6ab3a38dc044cdeb0310435`.
+Temporary evidence is in `recordings-android/openai-config-103fbd5b6-2026-10-07/`.
+The comparison places stage-pocket on the left and Kirie on the right.
+
 ## Reference boundary
 
 Stage-pocket supplies the Android behavior reference for native and Web interactions.

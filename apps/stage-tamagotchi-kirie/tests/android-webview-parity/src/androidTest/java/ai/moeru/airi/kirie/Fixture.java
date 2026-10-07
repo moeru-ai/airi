@@ -26,7 +26,6 @@ final class Fixture implements AutoCloseable {
         plugin = new AiriAndroidPlugin(null);
         WebChromeClient[] clients = new WebChromeClient[2];
         onMain(() -> {
-            set(plugin, "browserHost", activity.host);
             call(plugin, "installBrowserChannel", new Class<?>[] { Activity.class, int.class }, activity, 1);
             clients[0] = activity.webView.getWebChromeClient();
             clients[1] = new BridgeWebChromeClient(new Bridge(activity));

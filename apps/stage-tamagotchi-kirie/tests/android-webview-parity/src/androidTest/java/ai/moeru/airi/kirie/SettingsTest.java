@@ -1,5 +1,6 @@
 package ai.moeru.airi.kirie;
 
+import android.view.View;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import com.getcapacitor.SettingsReference;
@@ -8,6 +9,12 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public final class SettingsTest {
+    @Test public void webViewUsesHardwareLayer() {
+        try (Fixture f = new Fixture()) {
+            Fixture.onMain(() -> assertEquals(View.LAYER_TYPE_HARDWARE, f.activity.webView.getLayerType()));
+        }
+    }
+
     @Test public void navigationAndInputDefaultsMatchLoadedCapacitorConfiguration() {
         try (Fixture f = new Fixture()) {
             Fixture.onMain(() -> {
