@@ -51,8 +51,8 @@ export function useDataMaintenance() {
   const airiCardStore = useAiriCardStore()
 
   async function deleteAllModels() {
-    await displayModelsStore.resetDisplayModels()
-    await airiCardStore.retainAvailableAvatarModels(displayModelsStore.displayModels.map(model => model.id))
+    const removedIds = await displayModelsStore.resetDisplayModels()
+    await airiCardStore.removeDeletedAvatarModels(removedIds, displayModelsStore.displayModels.map(model => model.id))
     await settingsStore.updateStageModel()
   }
 

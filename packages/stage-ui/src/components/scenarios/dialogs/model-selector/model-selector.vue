@@ -34,7 +34,7 @@ const { t } = useI18n()
 
 async function handleRemoveModel(model: DisplayModel) {
   await displayModelStore.removeDisplayModel(model.id)
-  await airiCardStore.retainAvailableAvatarModels(displayModels.value.map(available => available.id))
+  await airiCardStore.removeDeletedAvatarModels([model.id], displayModels.value.map(available => available.id))
 }
 
 const highlightDisplayModelCard = ref<string | undefined>(props.selectedModel?.id)

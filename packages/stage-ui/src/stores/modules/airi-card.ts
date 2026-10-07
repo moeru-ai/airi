@@ -79,6 +79,8 @@ const builtInDescriptions = Object.values(localeMessages).flatMap((messages) => 
 /** The members that every card needs before `newAiriCard` can normalize it. */
 const synchronizedCardSchema = looseObject({ name: string(), version: string() })
 
+/** Every device can load this Display Model, because it is bundled and not stored. */
+const BUILT_IN_DISPLAY_MODEL_ID = 'preset-live2d-1'
 const emptyAvatarModels: readonly CharacterAvatarModelReference[] = Object.freeze([])
 const emptyLive2DExpressions: readonly Live2DExpressionControl[] = Object.freeze([])
 const emptyLive2DMotions: readonly Live2DMotionControl[] = Object.freeze([])
@@ -122,6 +124,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   // windows, but the Character configuration remains its only durable owner.
   const selectedAvatarModelId = shallowRef<string>()
   const activeLive2DModelControls = shallowRef<Live2DModelControls>(emptyLive2DModelControls)
+  let avatarModelApplyGeneration = 0
   let live2DControlLoadGeneration = 0
   let initialized = false
 
@@ -492,19 +495,26 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return selectAvatarModel(avatarModelId)
   }
 
-  /** Removes deleted resources from every Character and selects an available default. */
-  async function retainAvailableAvatarModels(availableDisplayModelIds: string[]) {
-    const available = new Set(availableDisplayModelIds)
+  /**
+   * Removes the references to deleted Display Models from every Character and
+   * selects an available default.
+   *
+   * Only the deleted IDs are removed. A synchronized card can reference a
+   * Display Model that only another device stores. That reference must stay,
+   * or the removal syncs to that device and deletes its link to the model.
+   */
+  async function removeDeletedAvatarModels(deletedDisplayModelIds: readonly string[], availableDisplayModelIds: readonly string[]) {
+    const deleted = new Set(deletedDisplayModelIds)
     for (const [characterId, storedCard] of cards.value) {
       const card = toRaw(storedCard)
       const extension = card.extensions.airi
-      const avatarModels = extension.avatarModels.filter(model => available.has(model.displayModelId))
+      const avatarModels = extension.avatarModels.filter(model => !deleted.has(model.displayModelId))
       if (avatarModels.length === extension.avatarModels.length)
         continue
 
       let defaultAvatarModelId = extension.defaultAvatarModelId
       if (defaultAvatarModelId && !avatarModels.some(model => model.id === defaultAvatarModelId)) {
-        let fallback = avatarModels.find(model => model.displayModelId === 'preset-live2d-1') ?? avatarModels[0]
+        let fallback = avatarModels.find(model => model.displayModelId === BUILT_IN_DISPLAY_MODEL_ID) ?? avatarModels[0]
         if (!fallback) {
           for (const displayModelId of availableDisplayModelIds) {
             const displayModel = await displayModels.getDisplayModel(displayModelId)
@@ -1184,9 +1194,22 @@ export const useAiriCardStore = defineStore('airi-card', () => {
   }
 
   async function applyActiveAvatarModel() {
+    const generation = ++avatarModelApplyGeneration
     const stageModel = useSettingsStageModel()
     const avatarModel = selectedAvatarModel.value
-    stageModel.stageModelSelected = avatarModel?.displayModelId ?? ''
+    let displayModelId = ''
+    if (avatarModel) {
+      // A synchronized card can select a Display Model that only another
+      // device stores. The stage shows the built-in model instead, and the
+      // card keeps its reference, so the other device still shows its model.
+      const stored = await displayModels.getDisplayModel(avatarModel.displayModelId)
+      displayModelId = stored ? avatarModel.displayModelId : BUILT_IN_DISPLAY_MODEL_ID
+    }
+    // A later selection started while this one waited for the lookup.
+    if (generation !== avatarModelApplyGeneration)
+      return
+
+    stageModel.stageModelSelected = displayModelId
     await loadActiveLive2DModelControls()
   }
 
@@ -1347,7 +1370,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     deletedCards,
     updateActiveCardConsciousness,
     setActiveCardDefaultAvatarModel,
-    retainAvailableAvatarModels,
+    removeDeletedAvatarModels,
     updateActiveCardSpeech,
     updateActiveCardVision,
     selectActiveCardVisionProvider,
@@ -1407,7 +1430,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
       'selectAvatarModel',
       'updateActiveCardConsciousness',
       'setActiveCardDefaultAvatarModel',
-      'retainAvailableAvatarModels',
+      'removeDeletedAvatarModels',
       'updateActiveCardSpeech',
       'updateActiveCardVision',
       'selectActiveCardVisionProvider',

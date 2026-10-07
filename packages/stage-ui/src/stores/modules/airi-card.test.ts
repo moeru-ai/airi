@@ -459,7 +459,7 @@ describe('airi-card store', () => {
     await cardStore.activateCard(cardId)
     expect(cardStore.selectedAvatarModel?.displayModelId).toBe('display-model-imported')
 
-    await cardStore.retainAvailableAvatarModels(['preset-live2d-1', 'preset-vrm-1'])
+    await cardStore.removeDeletedAvatarModels(['display-model-imported'], ['preset-live2d-1', 'preset-vrm-1'])
 
     expect(cardStore.activeCard?.extensions.airi.avatarModels.some(model => model.displayModelId === 'display-model-imported')).toBe(false)
     expect(cardStore.getCard(inactiveCardId)?.extensions.airi.avatarModels.some(model => model.displayModelId === 'display-model-imported')).toBe(false)
@@ -477,11 +477,55 @@ describe('airi-card store', () => {
     await cardStore.initialize()
     expect(cardStore.selectedAvatarModel?.displayModelId).toBe('preset-live2d-1')
 
-    await cardStore.retainAvailableAvatarModels(['preset-live2d-2', 'preset-vrm-1'])
+    await cardStore.removeDeletedAvatarModels(['preset-live2d-1'], ['preset-live2d-2', 'preset-vrm-1'])
 
     expect(cardStore.activeCard?.extensions.airi.avatarModels.some(model => model.displayModelId === 'preset-live2d-1')).toBe(false)
     expect(cardStore.selectedAvatarModel?.displayModelId).toBe('preset-live2d-2')
     expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-2')
+  })
+
+  // ROOT CAUSE:
+  //
+  // Card sync copies Avatar Model references to every device, but a Display
+  // Model file stays on one device. The cleanup removed every reference that
+  // this device could not load, and sync removed them on the other devices.
+  //
+  // We fixed this by removing only the deleted IDs.
+  it('keeps references to Display Models that only another device stores', async () => {
+    const cardStore = useAiriCardStore()
+    await cardStore.initialize()
+
+    const cardId = await cardStore.addCard({
+      name: 'Synchronized Character',
+      version: '1.0.0',
+      description: '',
+      extensions: {
+        airi: {
+          avatarModels: [
+            { id: 'remote-avatar', displayModelId: 'display-model-on-other-device', type: 'vrm', config: {} },
+            { id: 'local-avatar', displayModelId: 'display-model-local', type: 'vrm', config: {} },
+          ],
+          defaultAvatarModelId: 'remote-avatar',
+          modules: {
+            consciousness: { provider: '', model: '' },
+            vision: { provider: '', model: '' },
+            speech: { provider: '', model: '', voice_id: '' },
+          },
+          agents: {},
+        },
+      },
+    }, 'import')
+    await cardStore.activateCard(cardId)
+
+    expect(cardStore.selectedAvatarModel?.displayModelId).toBe('display-model-on-other-device')
+    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-1')
+
+    await cardStore.removeDeletedAvatarModels(['display-model-local'], ['preset-live2d-1', 'preset-vrm-1'])
+
+    expect(cardStore.getCard(cardId)?.extensions.airi.avatarModels.map(model => model.id)).toEqual(['remote-avatar'])
+    expect(cardStore.getCard(cardId)?.extensions.airi.defaultAvatarModelId).toBe('remote-avatar')
+    expect(cardStore.selectedAvatarModelId).toBe('remote-avatar')
+    expect(useSettingsStageModel().stageModelSelected).toBe('preset-live2d-1')
   })
 
   it('does not infer a default Avatar Model from other available references', async () => {
