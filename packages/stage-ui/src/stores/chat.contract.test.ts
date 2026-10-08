@@ -86,6 +86,7 @@ const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metada
 const activeSessionIdRef = ref('session-1')
 const activeProviderRef = ref('mock-provider')
 const cardSelections = new Map<string, { provider: string, model: string }>()
+const sessionSystemPrompts = new Map<string, string>()
 const activeModelRef = ref('gpt-test')
 const chatReadyRef = computed(() => !!activeProviderRef.value && !!activeModelRef.value)
 const streamingMessageRef = ref<any>({ role: 'assistant', content: '', slices: [], tool_results: [] })
@@ -206,6 +207,7 @@ vi.mock('./chat/session-store', () => ({
     },
     sessionMetas: { 'session-1': { characterId: 'alice' }, 'session-2': { characterId: 'bob' }, 'session-b': { characterId: 'bob' }, 'session-forked': { characterId: 'alice' } },
     getSessionMessages: (sessionId: string) => sessionMessages[sessionId] ?? [],
+    getSessionSystemPrompt: (sessionId: string) => sessionSystemPrompts.get(sessionId) ?? 'system prompt',
     getSessionMessagesIfLoaded: (sessionId: string) => sessionMessages[sessionId],
     loadSession: loadSessionMock,
     deleteSession: deleteSessionMock,
@@ -366,6 +368,7 @@ describe('chat store contract', () => {
     activeSessionIdRef.value = 'session-1'
     activeProviderRef.value = 'mock-provider'
     cardSelections.clear()
+    sessionSystemPrompts.clear()
     streamingMessageRef.value = { role: 'assistant', content: '', slices: [], tool_results: [] }
     currentGeneration = 1
 
@@ -446,6 +449,67 @@ describe('chat store contract', () => {
     expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('mock-provider', expect.anything())
     expect(llmStreamMock.mock.calls[0]?.[0]).toBe('bob-model')
     expect(activeSessionIdRef.value).toBe('session-1')
+  })
+
+  it('keeps a queued typed turn on its session character after the active card changes', async () => {
+    cardSelections.set('alice', { provider: 'alice-provider', model: 'alice-model' })
+    const firstStream = Promise.withResolvers<void>()
+    const steps: Array<{ model: string, providerId: string }> = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      if (llmStreamMock.mock.calls.length === 1)
+        await firstStream.promise
+      const step = await options.resolveStep!()
+      steps.push({ model: step.model, providerId: step.providerId })
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    const first = store.send({ sessionId: 'session-1', text: 'First' })
+    await vi.waitFor(() => expect(llmStreamMock).toHaveBeenCalledOnce())
+    const queued = store.send({ sessionId: 'session-1', text: 'Queued' })
+    await vi.waitFor(() => expect(store.pendingQueuedSendCount).toBe(1))
+
+    // Selecting another card writes its selection into the active consciousness settings.
+    activeProviderRef.value = 'selected-card-provider'
+    activeModelRef.value = 'selected-card-model'
+    try {
+      firstStream.resolve()
+      await Promise.all([first, queued])
+    }
+    finally {
+      activeModelRef.value = 'gpt-test'
+    }
+
+    expect(llmStreamMock.mock.calls[1]?.[0]).toBe('alice-model')
+    expect(steps).toEqual([
+      { model: 'alice-model', providerId: 'alice-provider' },
+      { model: 'alice-model', providerId: 'alice-provider' },
+    ])
+    expect(getChatProviderInstanceMock).not.toHaveBeenCalledWith('selected-card-provider', expect.anything())
+  })
+
+  it('reads the session character settings and prompt again before each model step', async () => {
+    cardSelections.set('alice', { provider: 'alice-provider', model: 'alice-model' })
+    sessionSystemPrompts.set('session-1', 'Alice prompt')
+    const steps: Awaited<ReturnType<NonNullable<StreamOptions['resolveStep']>>>[] = []
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      steps.push(await options.resolveStep!())
+      // A tool round edits the character before the next model request.
+      cardSelections.set('alice', { provider: 'official-provider', model: 'chat-auto' })
+      sessionSystemPrompts.set('session-1', 'Edited Alice prompt')
+      steps.push(await options.resolveStep!())
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.send({ sessionId: 'session-1', text: 'Use a tool' })
+
+    expect(steps[0]).toMatchObject({ model: 'alice-model', providerId: 'alice-provider', systemPrompt: 'Alice prompt\n\nPlugin toolset guidance.' })
+    expect(steps[0]?.headers).not.toHaveProperty(AIRI_CHAT_SESSION_ID_HEADER)
+    expect(steps[1]).toMatchObject({ model: 'chat-auto', providerId: 'official-provider', systemPrompt: 'Edited Alice prompt\n\nPlugin toolset guidance.' })
+    expect(steps[1]?.headers).toMatchObject({
+      [AIRI_CHAT_SESSION_ID_HEADER]: 'session-1',
+      [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
+    })
+    expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('official-provider', { reasoning: 'disabled' })
   })
 
   it('uses the target character settings for a voice submission', async () => {

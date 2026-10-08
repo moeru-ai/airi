@@ -283,6 +283,18 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
   })
 
+  it('sends the request tools with each resolved step', async () => {
+    streamTextMock.mockImplementation(() => createMockStreamResult())
+
+    await useLLM().stream('model-a', provider, helloTurns, {
+      tools: [customTool],
+      resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+    })
+
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('custom-tool')
+    expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
+  })
+
   it('merges runtime-registered tools from the llm-tools store into the builtin tool resolver', async () => {
     const store = useLLM()
     const llmToolsStore = useLlmToolsStore()

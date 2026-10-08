@@ -310,12 +310,15 @@ export const useChatStore = defineStore('chat', () => {
     let llmTextLength = 0
     let llmOutputChunkCount = 0
     const llmOutputChunkLengths: number[] = []
-    const headers = { ...options?.headers }
-
-    if (getProviderMode(options?.providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
-      headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
-      headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
-      headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+    // Analytics correlation goes only to the official provider. A resolved step can change the provider, so each request rebuilds it.
+    function requestHeaders(providerId: string | undefined) {
+      const headers = { ...options?.headers }
+      if (getProviderMode(providerId ?? activeProvider.value) === 'official' && options?.requestCorrelation) {
+        headers[AIRI_CHAT_SESSION_ID_HEADER] = options.requestCorrelation.conversationId
+        headers[AIRI_CHAT_ROUND_ID_HEADER] = options.requestCorrelation.turnId
+        headers[AIRI_CHAT_APP_SURFACE_HEADER] = getConversationAnalyticsSurface()
+      }
+      return headers
     }
 
     const hadExistingTurn = !!activeTurnSpan.value
@@ -465,6 +468,8 @@ export const useChatStore = defineStore('chat', () => {
     if (options?.requestCorrelation?.conversationId)
       contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, providerMessages)
 
+    const resolveStep = options?.resolveStep
+
     const llmSpan = startSpan(IOSpanNames.LLMInference, activeTurnSpan.value, {
       [IOAttributes.Subsystem]: IOSubsystems.LLM,
       [IOAttributes.GenAIRequestModel]: model,
@@ -480,7 +485,13 @@ export const useChatStore = defineStore('chat', () => {
       await llmStore.stream(model, chatProvider, providerContext, {
         ...options,
         prepareStringContent: prepareTextOnlyAudioContext,
-        headers,
+        headers: requestHeaders(options?.providerId),
+        resolveStep: resolveStep
+          ? async () => {
+            const step = await resolveStep()
+            return { ...step, headers: requestHeaders(step.providerId) }
+          }
+          : undefined,
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
@@ -809,10 +820,34 @@ export const useChatStore = defineStore('chat', () => {
     const selectedModel = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
     const supportsAudioInput = selectedModel?.inputModalities?.includes('audio') === true && chatProvider.generation(modelId).protocol === 'chat-completions'
 
+    /**
+     * Reads the session character's current consciousness settings and prompt before each model request.
+     * A tool step that edits the character changes the next request. Card selection does not.
+     */
+    const resolveStep = async () => {
+      const selection = cardStore.getModules(characterId).consciousness
+      if (!isChatSelectionReady(selection.provider, selection.model))
+        throw new Error('No chat provider or model configured for this character')
+
+      const stepProvider = await consciousnessStore.getChatProviderInstance(selection.provider)
+      if (!stepProvider)
+        throw new Error(`Failed to resolve chat provider "${selection.provider}"`)
+
+      return {
+        model: selection.model,
+        chatProvider: stepProvider,
+        providerId: selection.provider,
+        systemPrompt: chatSession.getSessionSystemPrompt(payload.sessionId),
+        temperature,
+        topP,
+      }
+    }
+
     return {
       providerId,
       supportsAudioInput,
       supportsVisionInput: selectedModel?.metadata?.abilities?.vision === true,
+      resolveStep,
       signal,
       model: modelId,
       chatProvider,

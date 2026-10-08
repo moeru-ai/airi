@@ -143,6 +143,8 @@ in the editor; importing or saving an unrelated card field does not change it.
 
 Each chat session belongs to one character. A send reads the provider, model, and system prompt of that character, not the selected card.
 Selecting another card while a turn waits in the queue does not change the turn.
+Before each model request, the turn reads its character's settings again. A tool that edits the character changes the next request.
+Each request rebuilds the analytics correlation headers for its provider.
 Session resets and autonomous artistry hooks also use the session character.
 
 ## Button analytics

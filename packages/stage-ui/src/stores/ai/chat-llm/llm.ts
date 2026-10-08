@@ -28,6 +28,7 @@ export const useLLM = defineStore('llm', () => {
     let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
     const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const resolveStep = streamOptions.resolveStep
 
     const runStream = () => coreStreamFrom({
       model,
@@ -35,6 +36,10 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        // Core uses only the tools of a resolved step, so each step carries the complete tool list.
+        resolveStep: resolveStep
+          ? async () => ({ ...await resolveStep(), tools: await resolveLlmTools({ customTools, describeImage: describeToolImage }) })
+          : undefined,
         onStreamEvent: async (event) => {
           if (event.type === 'tool-call')
             toolExecutionStarted = true
