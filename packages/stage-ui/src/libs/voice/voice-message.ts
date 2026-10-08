@@ -16,6 +16,13 @@ export interface VoiceMessageSnapshot {
 /** The longest time a send waits for the transcript after the recording ends. A later transcript is not used. */
 const TRANSCRIPT_WAIT_MS = 8000
 
+/** A send found no speech in the recording. Sending it again cannot succeed. */
+class NoSpeechError extends Error {
+  constructor() {
+    super('No speech was recognized in the recording')
+  }
+}
+
 /**
  * A voice attachment recorded as 16 kHz mono WAV. It does not depend on Hearing mode.
  *
@@ -26,7 +33,7 @@ const TRANSCRIPT_WAIT_MS = 8000
  * omitted, and the chat then transcribes the file.
  *
  * `transcribe` resolves with an empty string when it completed and recognized no speech. Then the send fails and the
- * recording stays ready, so a silent recording never enters the chat.
+ * recording is cancelled, so a silent recording never enters the chat and is not offered again.
  */
 export class VoiceMessage {
   private readonly listeners = new Set<() => void>()
@@ -111,7 +118,7 @@ export class VoiceMessage {
     // Defer transport invocation until the in-flight promise is installed. Synchronous adapters cannot bypass deduplication.
     this.sending = Promise.resolve().then(() => this.waitForTranscript().then((transcript) => {
       if (transcript === '')
-        throw new Error('No speech was recognized in the recording')
+        throw new NoSpeechError()
       return this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text, ...(transcript ? { transcript } : {}) })
     })).then((receipt) => {
       if (receipt.messageId !== this.id)
@@ -120,7 +127,10 @@ export class VoiceMessage {
       this.change({ id: this.id, sessionId: this.sessionId, phase: 'sent' })
       return receipt
     }).catch((error: unknown) => {
-      this.change({ ...this.current, phase: 'ready', error: errorMessageFrom(error) ?? 'Voice message submission failed' })
+      if (error instanceof NoSpeechError)
+        this.change({ id: this.id, sessionId: this.sessionId, phase: 'cancelled', error: error.message })
+      else
+        this.change({ ...this.current, phase: 'ready', error: errorMessageFrom(error) ?? 'Voice message submission failed' })
       throw error
     }).finally(() => { this.sending = undefined })
     return this.sending

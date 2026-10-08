@@ -102,5 +102,6 @@ it('does not send a recording in which the transcriber recognized no speech', as
   await expect(message.send('see this')).rejects.toThrow('No speech')
 
   expect(submit).not.toHaveBeenCalled()
-  expect(message.snapshot).toMatchObject({ phase: 'ready', error: 'No speech was recognized in the recording' })
+  expect(message.snapshot).toMatchObject({ phase: 'cancelled', error: 'No speech was recognized in the recording' })
+  expect(message.snapshot.audio).toBeUndefined()
 })

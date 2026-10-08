@@ -183,8 +183,14 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
     const sendAfterEncoding = finishOptions.send ?? true
     active.value = recording.mode === 'audio' ? { ...recording, finishing: true, send: sendAfterEncoding } : { ...recording, finishing: true }
     if (recording.mode === 'audio') {
-      await controls.messageCommand({ type: 'finish', id: recording.id, send: sendAfterEncoding })
-        .catch(cause => fail(cause, 'Could not finish recording'))
+      // The control can already be free when an auto send fails, for example on a recording without speech.
+      // Then a newer recording keeps the control, and only the error is reported.
+      await controls.messageCommand({ type: 'finish', id: recording.id, send: sendAfterEncoding }).catch((cause) => {
+        if (active.value?.id === recording.id)
+          fail(cause, 'Could not finish recording')
+        else
+          options.onError(errorMessageFrom(cause) ?? 'Could not finish recording')
+      })
       return
     }
 

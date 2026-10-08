@@ -258,7 +258,7 @@ onBeforeUnmount(() => {
       :class="['size-10 rounded-full bg-primary-100/90 text-primary-600 dark:bg-primary-900/90 dark:text-primary-200']"
       @click="voice.send(pending[0].id)"
     >
-      <span :class="['i-solar:refresh-linear size-5']" aria-hidden="true" />
+      <span :class="['i-solar:arrow-up-outline size-5']" aria-hidden="true" />
     </BasicButton>
     <BasicButton
       data-testid="voice-discard-send"

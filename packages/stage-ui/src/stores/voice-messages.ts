@@ -104,8 +104,13 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
             if (command.send) {
               await encoded(message)
               // A failed send keeps the message `ready` with its error. The snapshot reports it, and the control can retry.
-              if (message.snapshot.phase === 'ready')
-                await message.send().catch(() => {})
+              // A recording without speech is cancelled and leaves the list, so only the command result can report it.
+              if (message.snapshot.phase === 'ready') {
+                await message.send().catch((error: unknown) => {
+                  if (message.snapshot.phase === 'cancelled')
+                    throw error
+                })
+              }
             }
             break
           case 'send':
