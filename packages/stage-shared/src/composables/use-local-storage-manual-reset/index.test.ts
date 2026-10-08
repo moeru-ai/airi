@@ -43,8 +43,9 @@ describe('useLocalStorageManualReset', () => {
   //
   // refManualReset<T>(localStorageState)
   //
-  // We fixed this by making a copy of the initial value the reset source.
-  // refManualReset<T>(copyInitialValue)
+  // We fixed this by writing a copy of the default to the storage ref before
+  // the manual reset reads it.
+  // localStorageState.value = copyInitialValue()
   it('restores the initial value and stores it when reset', async () => {
     const state = useLocalStorageManualReset('provider', 'default')
 
@@ -88,5 +89,45 @@ describe('useLocalStorageManualReset', () => {
 
     expect(state.value).toEqual({ x: 0, y: 0 })
     expect(localStorage.getItem('offset')).toBe('{"x":0,"y":0}')
+  })
+
+  // ROOT CAUSE:
+  //
+  // `reset()` put a plain copy of the default into the state. In-place writes
+  // to it skipped the storage proxy, so storage and deep watchers missed them.
+  //
+  // We fixed this by writing the default to the storage ref first. The state
+  // then reads the proxy back.
+  it('stores in-place writes made after a reset', async () => {
+    const state = useLocalStorageManualReset('offset', { x: 0, y: 0 })
+    let changes = 0
+    const stop = watch(state, () => {
+      changes += 1
+    }, { deep: true, flush: 'sync' })
+
+    state.reset()
+    await nextTick()
+    changes = 0
+
+    state.value.x = 7
+    await nextTick()
+
+    expect(changes).toBe(1)
+    expect(localStorage.getItem('offset')).toBe('{"x":7,"y":0}')
+    stop()
+  })
+
+  it('stores Map writes made after a reset', async () => {
+    const state = useLocalStorageManualReset('cards', new Map<string, string>(), {
+      listenToStorageChanges: false,
+    })
+
+    state.reset()
+    await nextTick()
+
+    state.value.set('card-1', 'ReLU')
+    await nextTick()
+
+    expect(JSON.parse(localStorage.getItem('cards')!)).toEqual([['card-1', 'ReLU']])
   })
 })

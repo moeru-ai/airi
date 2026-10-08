@@ -10,15 +10,23 @@ export function useLocalStorageManualReset<T>(
   options?: UseStorageOptions<T> & WatchOptions,
 ): ManualResetRefReturn<T> {
   // The storage ref wraps its default in a deep reactive proxy, so in-place
-  // writes such as `state.value.x = 1` change that object. Each call returns a
-  // new copy, so `reset()` always gets the value the caller passed in.
-  const copyInitialValue = () => structuredClone(toRaw(toValue(initialValue)))
+  // writes such as `state.value.x = 1` change that object. A getter returns a
+  // new value on each call. Other values are copied.
+  const copyInitialValue = (): T => typeof initialValue === 'function'
+    ? toValue(initialValue)
+    : structuredClone(toRaw(toValue(initialValue)))
 
   const localStorageState = useLocalStorage<T>(key, copyInitialValue(), options)
-  // `reset()` reads its source again. The source must be the default, not the
-  // storage ref, because the storage ref already holds the current value.
-  const state = refManualReset<T>(copyInitialValue)
-  state.value = localStorageState.value
+  const state = refManualReset<T>(localStorageState)
+
+  // `refManualReset` resets to its source, and the source is the storage ref.
+  // So write the default to storage first. The state then reads the reactive
+  // proxy back, and later in-place writes still reach storage.
+  const resetToStoredValue = state.reset
+  state.reset = () => {
+    localStorageState.value = copyInitialValue()
+    resetToStoredValue()
+  }
 
   const { resume, pause } = watch(state, newValue => localStorageState.value = newValue, options)
   if (options?.listenToStorageChanges !== false) {
