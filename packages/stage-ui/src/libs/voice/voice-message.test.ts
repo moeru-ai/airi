@@ -86,3 +86,21 @@ it('sends without a transcript when transcription fails', async () => {
 
   expect(submit.mock.calls[0][0]).not.toHaveProperty('transcript')
 })
+
+it('does not send a recording in which the transcriber recognized no speech', async () => {
+  const source = createPushStream<PcmBlock>()
+  const submit = vi.fn(async (draft: { messageId: string }) => ({ messageId: draft.messageId }))
+  const message = new VoiceMessage('quiet', 'alice', new AudioInput({ live: true, open: () => source.stream }), submit, async (audio) => {
+    await audio.pipeTo(new WritableStream())
+    return ''
+  })
+  source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 1600 }, sampleRate: 16000, channels: [new Float32Array(1600)] })
+  await expect.poll(() => message.snapshot.phase).toBe('capturing')
+  await message.finish()
+  await expect.poll(() => message.snapshot.phase).toBe('ready')
+
+  await expect(message.send('see this')).rejects.toThrow('No speech')
+
+  expect(submit).not.toHaveBeenCalled()
+  expect(message.snapshot).toMatchObject({ phase: 'ready', error: 'No speech was recognized in the recording' })
+})

@@ -49,13 +49,17 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
    * Transcribes a recording while it is captured, with the Hearing provider of this moment.
    * The last update holds the full text. A recording without speech gives no transcript.
    */
+  /** Resolves with an empty string when the transcriber completed without speech, and with nothing when it did not complete. */
   async function transcribeRecording(audio: ReadableStream<PcmBlock>, signal: AbortSignal) {
     let text = ''
+    let completed = false
     for await (const event of hearing.createTranscriber().transcribe({ audio, signal })) {
       if (event.type === 'update')
         text = event.segments.map(segment => segment.text).join('')
+      else
+        completed = true
     }
-    return text.trim() || undefined
+    return completed ? text.trim() : (text.trim() || undefined)
   }
 
   function record(command: Extract<VoiceMessageCommand, { type: 'record' }>) {

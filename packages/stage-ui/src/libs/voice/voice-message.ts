@@ -24,6 +24,9 @@ const TRANSCRIPT_WAIT_MS = 8000
  * With `transcribe`, the same captured audio is also transcribed while it records. The send carries the transcript, so a
  * model without audio input reads it instead of transcribing the stored file later. A failed or late transcript is
  * omitted, and the chat then transcribes the file.
+ *
+ * `transcribe` resolves with an empty string when it completed and recognized no speech. Then the send fails and the
+ * recording stays ready, so a silent recording never enters the chat.
  */
 export class VoiceMessage {
   private readonly listeners = new Set<() => void>()
@@ -106,7 +109,11 @@ export class VoiceMessage {
       return Promise.reject(new Error('Voice message is not ready'))
     this.change({ ...this.current, phase: 'sending', error: undefined })
     // Defer transport invocation until the in-flight promise is installed. Synchronous adapters cannot bypass deduplication.
-    this.sending = Promise.resolve().then(() => this.waitForTranscript().then(transcript => this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text, ...(transcript ? { transcript } : {}) }))).then((receipt) => {
+    this.sending = Promise.resolve().then(() => this.waitForTranscript().then((transcript) => {
+      if (transcript === '')
+        throw new Error('No speech was recognized in the recording')
+      return this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text, ...(transcript ? { transcript } : {}) })
+    })).then((receipt) => {
       if (receipt.messageId !== this.id)
         throw new Error('Voice message receipt has a different identity')
       this.receipt = receipt
@@ -119,7 +126,7 @@ export class VoiceMessage {
     return this.sending
   }
 
-  /** Resolves with the transcript, or with nothing once {@link TRANSCRIPT_WAIT_MS} passes. */
+  /** Resolves with the transcript, or with nothing after a failure or once {@link TRANSCRIPT_WAIT_MS} passes. */
   private async waitForTranscript() {
     if (!this.transcript)
       return undefined
