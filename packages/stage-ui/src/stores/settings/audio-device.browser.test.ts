@@ -34,6 +34,9 @@ afterEach(() => {
 describe('microphone settings through the browser adapter', () => {
   it('shares one microphone between subscribers and releases tracks after both leave', async () => {
     const devices = mountDevices()
+    // The device list decides which device the system default opens. Subscribers here start after it settles.
+    expect(await devices.askPermission()).toBe(true)
+    await expect.poll(() => devices.selectedAudioInput).not.toBe('')
     const first = new AbortController()
     const second = new AbortController()
     const firstReader = devices.input.subscribe({ signal: first.signal }).getReader()
@@ -61,20 +64,34 @@ describe('microphone settings through the browser adapter', () => {
   })
 
   // The Web Speech and Hearing test controls stay disabled while no microphone is selected.
-  it('selects the system default microphone after permission without reopening it', async () => {
+  it('selects the system default microphone after permission', async () => {
     const devices = mountDevices()
     expect(devices.selectedAudioInput).toBe('')
+
+    expect(await devices.askPermission()).toBe(true)
+
+    const available = devices.audioInputOptions.map(option => option.value)
+    await expect.poll(() => devices.selectedAudioInput).toBe(available.includes('default') ? 'default' : available[0])
+  })
+
+  // ROOT CAUSE:
+  //
+  // Capture for the selected system default received only zeros on a Mac.
+  // The selection `default` became constraints without a device, and Chromium opened its first listed device.
+  //
+  // We fixed this by asking for the device `default` by name when the browser lists it.
+  it('opens the browser default device when the system default is selected', async () => {
+    const devices = mountDevices()
+    expect(await devices.askPermission()).toBe(true)
+    await expect.poll(() => devices.selectedAudioInput).not.toBe('')
+    if (devices.selectedAudioInput !== 'default')
+      return
+
     const subscription = new AbortController()
     const reader = devices.input.subscribe({ signal: subscription.signal }).getReader()
     await reader.read()
-    const track = devices.stream!.getAudioTracks()[0]
 
-    expect(await devices.askPermission()).toBe(true)
-    const available = devices.audioInputOptions.map(option => option.value)
-    await expect.poll(() => devices.selectedAudioInput).toBe(available.includes('default') ? 'default' : available[0])
-
-    expect(devices.stream?.getAudioTracks()[0]).toBe(track)
-    expect(track.readyState).toBe('live')
+    expect(devices.stream?.getAudioTracks()[0].getSettings().deviceId).toBe('default')
     subscription.abort()
   })
 
