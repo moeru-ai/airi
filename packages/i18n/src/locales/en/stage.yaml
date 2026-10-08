@@ -14,7 +14,7 @@ mobile-tools:
   application: Application
   more: More
   background: Background
-  settings: All settings
+  settings: Settings
   about: About
   view: View
   close-view: Save and close view controls

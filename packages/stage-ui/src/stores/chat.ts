@@ -835,19 +835,43 @@ export const useChatStore = defineStore('chat', () => {
     if (!retryContent)
       throw new Error('Retry target has no retriable user message')
 
-    chatSession.setSessionMessages(payload.sessionId, currentMessages.slice(0, sourceIndex))
+    // The new turn must not see the source turn or its replies, so the history ends before the source while it runs.
+    const retryHistory = currentMessages.slice(0, sourceIndex)
+    chatSession.setSessionMessages(payload.sessionId, retryHistory)
+    const request = startSend({
+      sessionId: payload.sessionId,
+      ...retryContent,
+      replyToMessageId: sourceMessage?.replyToMessageId,
+      tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
+    })
 
     try {
-      return await executeSend({
-        sessionId: payload.sessionId,
-        ...retryContent,
-        replyToMessageId: sourceMessage?.replyToMessageId,
-        tools: payload.tools ?? sourceMessage?.tools?.filter(tool => !requiresToolSelection(tool.name)),
-      })
+      await request.accepted
+    }
+    catch (error) {
+      // The new turn was never stored. The source turn can hold the only copy of a recording or image, so it comes back.
+      // The session store replaces the array on every change, so the same array means that nothing else changed the history.
+      if (toRaw(chatSession.getSessionMessagesIfLoaded(payload.sessionId)) === retryHistory)
+        chatSession.setSessionMessages(payload.sessionId, currentMessages)
+      appendSendError(payload.sessionId, error)
+      throw error
+    }
+
+    try {
+      await request.done
     }
     catch (error) {
       appendSendError(payload.sessionId, error)
       throw error
+    }
+
+    const completedMessages = chatSession.getSessionMessagesIfLoaded(payload.sessionId)
+    if (!completedMessages)
+      throw new Error('Chat session was removed before send completed')
+
+    return {
+      messages: completedMessages.slice(sourceIndex).map(message => structuredClone(toRaw(message))),
+      sessionId: payload.sessionId,
     }
   }
 
