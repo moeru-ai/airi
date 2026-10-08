@@ -50,3 +50,58 @@ it('cancels a recording that is still waiting for audio without submitting or cr
   expect(submit).not.toHaveBeenCalled()
   await expect.poll(() => released.mock.calls.length).toBe(1)
 })
+
+it('sends the transcript that was recognized while recording', async () => {
+  const source = createPushStream<PcmBlock>()
+  const submit = vi.fn(async (draft: { messageId: string }) => ({ messageId: draft.messageId }))
+  const transcribe = vi.fn(async (audio: ReadableStream<PcmBlock>) => {
+    let frames = 0
+    for await (const block of audio)
+      frames += block.channels[0].length
+    return frames ? 'hello there' : undefined
+  })
+  const message = new VoiceMessage('spoken', 'alice', new AudioInput({ live: true, open: () => source.stream }), submit, transcribe)
+  source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 1600 }, sampleRate: 16000, channels: [new Float32Array(1600).fill(0.25)] })
+  await expect.poll(() => message.snapshot.phase).toBe('capturing')
+  await message.finish()
+  await expect.poll(() => message.snapshot.phase).toBe('ready')
+
+  await message.send('see this')
+
+  expect(submit).toHaveBeenCalledWith(expect.objectContaining({ messageId: 'spoken', text: 'see this', transcript: 'hello there' }))
+})
+
+it('sends without a transcript when transcription fails', async () => {
+  const source = createPushStream<PcmBlock>()
+  const submit = vi.fn(async (draft: { messageId: string }) => ({ messageId: draft.messageId }))
+  const message = new VoiceMessage('silent', 'alice', new AudioInput({ live: true, open: () => source.stream }), submit, async () => {
+    throw new Error('Provider unavailable')
+  })
+  source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 1600 }, sampleRate: 16000, channels: [new Float32Array(1600).fill(0.25)] })
+  await expect.poll(() => message.snapshot.phase).toBe('capturing')
+  await message.finish()
+  await expect.poll(() => message.snapshot.phase).toBe('ready')
+
+  await message.send()
+
+  expect(submit.mock.calls[0][0]).not.toHaveProperty('transcript')
+})
+
+it('does not send a recording in which the transcriber recognized no speech', async () => {
+  const source = createPushStream<PcmBlock>()
+  const submit = vi.fn(async (draft: { messageId: string }) => ({ messageId: draft.messageId }))
+  const message = new VoiceMessage('quiet', 'alice', new AudioInput({ live: true, open: () => source.stream }), submit, async (audio) => {
+    await audio.pipeTo(new WritableStream())
+    return ''
+  })
+  source.write({ range: { sourceId: 'mic', startFrame: 0, endFrame: 1600 }, sampleRate: 16000, channels: [new Float32Array(1600)] })
+  await expect.poll(() => message.snapshot.phase).toBe('capturing')
+  await message.finish()
+  await expect.poll(() => message.snapshot.phase).toBe('ready')
+
+  await expect(message.send('see this')).rejects.toThrow('No speech')
+
+  expect(submit).not.toHaveBeenCalled()
+  expect(message.snapshot).toMatchObject({ phase: 'cancelled', error: 'No speech was recognized in the recording' })
+  expect(message.snapshot.audio).toBeUndefined()
+})

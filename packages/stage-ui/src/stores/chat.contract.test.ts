@@ -466,6 +466,39 @@ describe('chat store contract', () => {
     ])
   })
 
+  // ROOT CAUSE:
+  //
+  // A retry that failed before storage lost its source turn and recording.
+  // Retry cut the history, then only appended an error:
+  //
+  // setSessionMessages(sessionId, currentMessages.slice(0, sourceIndex))
+  //
+  // We fixed this by restoring the history when the storage receipt rejects.
+  it('keeps the source turn when a retry fails before its new turn is stored', async () => {
+    const recording = {
+      role: 'user',
+      content: [{ type: 'input_audio', input_audio: { data: 'UklGRg==', format: 'wav' } }],
+      id: 'user-recording',
+    }
+    sessionMessages['session-1'] = [
+      { role: 'system', content: 'system prompt', createdAt: 1, id: 'system' },
+      recording,
+      { role: 'error', content: 'Provider failed' },
+    ]
+    getChatProviderInstanceMock.mockResolvedValueOnce(undefined)
+
+    const store = useChatStore()
+    await expect(store.retry({ sessionId: 'session-1', index: 2 })).rejects.toThrow('Failed to resolve chat provider')
+
+    expect(sessionMessages['session-1']).toMatchObject([
+      { role: 'system', id: 'system' },
+      recording,
+      { role: 'error', content: 'Provider failed' },
+      { role: 'error', content: 'Failed to resolve chat provider "mock-provider"' },
+    ])
+    expect(llmStreamMock).not.toHaveBeenCalled()
+  })
+
   it('cancels vision preprocessing when its chat turn is cancelled', async () => {
     visionMocks.configured = true
     let visionSignal: AbortSignal | undefined
