@@ -130,7 +130,6 @@ function commandPreview(s: ServerForm) {
   return previewServerCommand(s)
 }
 
-const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
 const CARD_PRIMARY = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-primary-100 bg-primary-50/50 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-primary-900/60 dark:bg-primary-900/10 dark:hover:border-primary-400/30'
 const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-neutral-50/60 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-900 dark:bg-neutral-900/30 dark:hover:border-primary-400/30'
 
@@ -337,7 +336,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <SettingsCard>
+  <div flex="~ col gap-4">
     <Callout v-if="errorMessage" theme="orange" :label="tn('error-title')">
       {{ errorMessage }}
     </Callout>
@@ -345,7 +344,7 @@ onMounted(async () => {
       {{ infoMessage }}
     </Callout>
 
-    <section :class="PANEL">
+    <SettingsCard>
       <p class="text-sm text-neutral-500 dark:text-neutral-400">
         {{ tn('description') }}
       </p>
@@ -360,7 +359,7 @@ onMounted(async () => {
           @click="toggleJsonPanel"
         />
       </div>
-    </section>
+    </SettingsCard>
 
     <TransitionVertical>
       <McpJsonEditor
@@ -375,7 +374,7 @@ onMounted(async () => {
       />
     </TransitionVertical>
 
-    <section :class="PANEL">
+    <SettingsCard>
       <div flex="~ col gap-1">
         <div class="flex items-center justify-between gap-2">
           <h3 class="text-sm font-semibold">
@@ -439,9 +438,9 @@ onMounted(async () => {
           </div>
         </TransitionVertical>
       </article>
-    </section>
+    </SettingsCard>
 
-    <section :class="PANEL">
+    <SettingsCard>
       <div flex="~ col gap-1">
         <h3 class="text-sm font-semibold">
           {{ tn('add.title') }}
@@ -475,7 +474,7 @@ onMounted(async () => {
         icon="i-solar:add-circle-bold-duotone" :label="tn('actions.add-server')"
         @click="addServer"
       />
-    </section>
+    </SettingsCard>
 
     <Button
       size="md" block :disabled="isBusy" :loading="isBusy"
@@ -491,7 +490,7 @@ onMounted(async () => {
       @test="runConnectionTest"
     />
 
-    <section v-if="runtime?.servers?.length" :class="PANEL">
+    <SettingsCard v-if="runtime?.servers?.length">
       <div class="text-sm font-semibold">
         {{ tn('runtime-title') }}
       </div>
@@ -513,8 +512,8 @@ onMounted(async () => {
           </div>
         </li>
       </ul>
-    </section>
-  </SettingsCard>
+    </SettingsCard>
+  </div>
 </template>
 
 <route lang="yaml">
