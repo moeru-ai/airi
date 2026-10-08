@@ -17,6 +17,7 @@ import {
 } from '../../../shared/eventa'
 import { onAppBeforeQuit, onAppWindowAllClosed } from '../../libs/bootkit/lifecycle'
 import { resizeWindowByDelta, setWindowAlwaysOnTop } from '../../windows/shared/window'
+import { getKWinCursorBridge } from './kwin-cursor-bridge'
 
 export function createWindowService(params: { context: ReturnType<typeof createContext>['context'], window: BrowserWindow }) {
   function getWindowLifecycleState(reason: ElectronWindowLifecycleState['reason']): ElectronWindowLifecycleState {
@@ -36,7 +37,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
   const { start, stop } = createRendererLoop({
     window: params.window,
     run: () => {
-      params.context.emit(bounds, params.window.getBounds())
+      params.context.emit(bounds, getWindowBounds())
     },
   })
 
@@ -62,7 +63,7 @@ export function createWindowService(params: { context: ReturnType<typeof createC
 
   defineInvokeHandler(params.context, electron.window.getBounds, (_, options) => {
     if (params.window.webContents.id === options?.raw.ipcMainEvent.sender.id) {
-      return params.window.getBounds()
+      return getWindowBounds()
     }
 
     return {
@@ -121,4 +122,8 @@ export function createWindowService(params: { context: ReturnType<typeof createC
       safeClose(params.window)
     }
   })
+
+  function getWindowBounds() {
+    return getKWinCursorBridge()?.getWindowBounds(params.window.getTitle()) ?? params.window.getBounds()
+  }
 }
