@@ -1496,8 +1496,10 @@ export interface ProtocolEvents<C = undefined> {
    * - A module needs the media of a chat message, which holds `airi-asset:<id>` in place of bytes
    *
    * Expectations:
-   * - The stage answers with `asset:get:response` to the asking module only
-   * - Knowing a reference is enough to read it. References are SHA-256 IDs of the bytes and appear only in chat events
+   * - The stage answers only a connection that announced a module. It reads the server-set `metadata.sender`, not `metadata.source`
+   * - The answer goes to the asking connection only, through the destination `peer:<peerId>`
+   * - Assets are at most 50 MB. A larger one answers with an error
+   * - A module that can ask can read any reference. References are SHA-256 IDs of the bytes and appear only in chat events
    */
   'asset:get:request': AssetGetRequestEvent
   /**

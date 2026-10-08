@@ -8,7 +8,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { chatAssetsRepo } from '../database/repos/chat-assets.repo'
 import { chatSessionsRepo } from '../database/repos/chat-sessions.repo'
 import { storage } from '../database/storage'
-import { chatAssetIdFrom, inlineChatAssets, inlineConversationAssets, storeChatAttachments } from './chat-assets'
+import { chatAssetIdFrom, inlineChatAssets, inlineConversationAssets, MAX_CHAT_ASSET_BYTES, storeChatAsset, storeChatAttachments } from './chat-assets'
 
 const meta: ChatSessionRecord['meta'] = { sessionId: 'a', userId: 'local', characterId: 'airi', createdAt: 1, updatedAt: 1 }
 
@@ -72,5 +72,20 @@ describe('chat assets', () => {
 
     await chatSessionsRepo.deleteSession('fork')
     expect(await chatAssetsRepo.get(id)).toBeNull()
+  })
+
+  it('releases only the assets that a session gives up', async () => {
+    const shared = await storeChatAsset(new Uint8Array([1]), 'audio/wav', 'a')
+    const dropped = await storeChatAsset(new Uint8Array([2]), 'audio/wav', 'a')
+    await chatAssetsRepo.retain([chatAssetIdFrom(shared)!], 'b')
+
+    await chatSessionsRepo.releaseAssets('a', [chatAssetIdFrom(shared)!, chatAssetIdFrom(dropped)!])
+
+    expect((await chatAssetsRepo.get(chatAssetIdFrom(shared)!))?.owners).toEqual(['b'])
+    expect(await chatAssetsRepo.get(chatAssetIdFrom(dropped)!)).toBeNull()
+  })
+
+  it('refuses an attachment larger than 50 MB', async () => {
+    await expect(storeChatAsset(new Uint8Array(MAX_CHAT_ASSET_BYTES + 1), 'audio/wav', 'a')).rejects.toThrow('at most 50 MB')
   })
 })

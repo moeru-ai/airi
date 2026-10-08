@@ -320,6 +320,28 @@ describe('context bridge contract', () => {
     localStorage.clear()
   })
 
+  it('ignores an asset read that the server did not attribute to a module', async () => {
+    const ref = await storeChatAsset(new Uint8Array([82, 73, 70, 70]), 'audio/wav', 'session-1')
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    // The source claims a module, but the server-stamped sender names no announced module.
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-3' }, sender: { peerId: 'peer-8', modules: [] } },
+    })
+    await emitServerEvent('asset:get:request', {
+      type: 'asset:get:request',
+      data: { ref },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-4' } },
+    })
+
+    await new Promise(resolve => setTimeout(resolve, 50))
+    expect(serverSendMock.mock.calls.filter(([event]) => event.type === 'asset:get:response')).toEqual([])
+    await chatAssetsRepo.clear()
+  })
+
   it('answers an asset read to the asking module only', async () => {
     const ref = await storeChatAsset(new Uint8Array([82, 73, 70, 70]), 'audio/wav', 'session-1')
     const store = useContextBridgeStore()
@@ -328,12 +350,12 @@ describe('context bridge contract', () => {
     await emitServerEvent('asset:get:request', {
       type: 'asset:get:request',
       data: { ref },
-      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-1' } },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-1' }, sender: { peerId: 'peer-7', modules: ['discord'] } },
     })
     await emitServerEvent('asset:get:request', {
       type: 'asset:get:request',
       data: { ref: 'airi-asset:missing' },
-      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-2' } },
+      metadata: { ...createMetadata('discord', 'discord-1'), event: { id: 'request-2' }, sender: { peerId: 'peer-7', modules: ['discord'] } },
     })
 
     const answers = () => serverSendMock.mock.calls.filter(([event]) => event.type === 'asset:get:response')
@@ -342,7 +364,7 @@ describe('context bridge contract', () => {
       type: 'asset:get:response',
       data: { ref, mimeType: 'audio/wav', data: 'UklGRg==' },
       metadata: { event: { parentId: 'request-1' } },
-      route: { destinations: ['instance:discord-1'] },
+      route: { destinations: ['peer:peer-7'] },
     })
     expect(serverSendMock).toHaveBeenCalledWith(expect.objectContaining({
       data: { ref: 'airi-asset:missing', error: expect.stringContaining('missing') },

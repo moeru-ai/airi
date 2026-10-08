@@ -17,6 +17,15 @@ export function chatAssetIdFrom(value: string) {
   return value.startsWith(ASSET_REF_PREFIX) ? value.slice(ASSET_REF_PREFIX.length) : undefined
 }
 
+/** The largest image or recording that a chat stores or sends to a module. */
+export const MAX_CHAT_ASSET_BYTES = 50 * 1024 * 1024
+
+export class ChatAssetTooLargeError extends Error {
+  constructor(bytes: number) {
+    super(`The attachment is ${(bytes / 1024 / 1024).toFixed(1)} MB. Attachments can be at most 50 MB.`)
+  }
+}
+
 async function contentId(bytes: Uint8Array<ArrayBuffer>) {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
   return Array.from(digest, byte => byte.toString(16).padStart(2, '0')).join('')
@@ -24,6 +33,8 @@ async function contentId(bytes: Uint8Array<ArrayBuffer>) {
 
 /** Stores the bytes for `owner` and returns their reference. The same bytes share one asset. */
 export async function storeChatAsset(bytes: Uint8Array, mimeType: string, owner: string) {
+  if (bytes.byteLength > MAX_CHAT_ASSET_BYTES)
+    throw new ChatAssetTooLargeError(bytes.byteLength)
   const copy = new Uint8Array(bytes)
   const id = await contentId(copy)
   await chatAssetsRepo.put(id, new Blob([copy], { type: mimeType }), mimeType, owner)

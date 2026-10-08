@@ -53,6 +53,22 @@ export const chatAssetsRepo = {
     })
   },
 
+  /** Removes `owner` from the listed assets, and deletes the ones that no session owns any more. */
+  async release(ids: Iterable<string>, owner: string) {
+    await navigator.locks.request(WRITE_LOCK, async () => {
+      for (const id of new Set(ids)) {
+        const existing = await assets().getItem<ChatAssetRecord>(id)
+        if (!existing?.owners.includes(owner))
+          continue
+        const owners = existing.owners.filter(item => item !== owner)
+        if (owners.length)
+          await assets().setItem<ChatAssetRecord>(id, { ...existing, owners })
+        else
+          await assets().removeItem(id)
+      }
+    })
+  },
+
   /** Removes `owner` from every asset, and deletes the assets that no session owns any more. */
   async releaseOwner(owner: string) {
     await navigator.locks.request(WRITE_LOCK, async () => {

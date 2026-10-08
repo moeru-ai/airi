@@ -20,6 +20,18 @@ export const chatAssetsRepo = {
         assets.set(id, { ...existing, owners: [...existing.owners, owner] })
     }
   },
+  async release(ids: Iterable<string>, owner: string) {
+    for (const id of new Set(ids)) {
+      const record = assets.get(id)
+      if (!record?.owners.includes(owner))
+        continue
+      const owners = record.owners.filter(item => item !== owner)
+      if (owners.length)
+        assets.set(id, { ...record, owners })
+      else
+        assets.delete(id)
+    }
+  },
   async releaseOwner(owner: string) {
     for (const [id, record] of assets) {
       const owners = record.owners.filter(item => item !== owner)

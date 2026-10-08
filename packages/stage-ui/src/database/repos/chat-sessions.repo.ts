@@ -76,6 +76,18 @@ export const chatSessionsRepo = {
     await storage.setItemRaw(key, record)
   },
 
+  /**
+   * The session stops owning the listed assets, for example after one of its messages is deleted.
+   * An asset that no other session owns is deleted.
+   */
+  async releaseAssets(sessionId: string, ids: Iterable<string>) {
+    const released = [...ids]
+    if (!released.length)
+      return
+    await chatAssetsRepo.release(released, sessionId)
+    released.forEach(id => ownedAssets.get(sessionId)?.delete(id))
+  },
+
   // Cleanup
   /** Assets that no other session owns are deleted with the session. */
   async deleteSession(sessionId: string) {

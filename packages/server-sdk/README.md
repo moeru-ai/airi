@@ -60,7 +60,9 @@ client.onEvent('output:gen-ai:chat:message', async (event) => {
 })
 ```
 
-The stage answers the request. `getAsset` rejects when the asset is missing, or when no stage answers within 10 seconds.
+The stage answers the request. `getAsset` rejects when the asset is missing, when it is larger than 50 MB, or when no stage answers within 10 seconds.
+
+The stage answers only a client that announced a module. The server tells the stage which connection asked, and the answer goes back to that connection only.
 - `client.onEvent()` returns an unsubscribe function
 
 ## License
