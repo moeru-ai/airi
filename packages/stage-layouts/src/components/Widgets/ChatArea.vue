@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatImages, VoiceDrafts, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSendButton, useChatImages, VoiceDrafts, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
@@ -226,19 +226,14 @@ watch(replyTarget, async (target) => {
           >
             <div class="i-solar:stop-outline size-5" />
           </button>
-          <button
+          <!-- Hover or right-click the send button to choose the send key. -->
+          <ChatSendButton
             v-else
-            type="button"
-            :aria-label="t('stage.chat.actions.send')"
+            v-model:send-mode="sendMode"
             :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length && !voicePending) || isComposing"
-            :class="[
-              composerActionButtonClass,
-              'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',
-            ]"
-            @click="handleSend"
-          >
-            <span :class="['i-solar:arrow-up-outline size-5']" />
-          </button>
+            :button-class="[composerActionButtonClass, 'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40']"
+            @send="handleSend"
+          />
         </div>
       </div>
     </div>

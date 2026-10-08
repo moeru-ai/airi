@@ -3,7 +3,7 @@ import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
 import { BasicButton, DropdownMenu } from '@proj-airi/ui'
-import { useEventListener, useIntervalFn, useLocalStorage, useNow, useObjectUrl, useTimeoutFn } from '@vueuse/core'
+import { useEventListener, useIntervalFn, useLocalStorage, useNow, useObjectUrl } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import {
   DropdownMenuCheckboxItem,
@@ -27,6 +27,7 @@ import VoiceWaveform from './voice-waveform.vue'
 import { useHearingStore } from '../../../../stores/modules/hearing'
 import { useSettingsAudioDevice } from '../../../../stores/settings/audio-device'
 import { useVoiceControlsStore } from '../../../../stores/voice-controls'
+import { useHoverMenu } from '../composables/use-hover-menu'
 import { useVoiceComposer } from '../composables/use-voice-composer'
 
 const props = defineProps<{
@@ -55,10 +56,6 @@ const emit = defineEmits<{
 }>()
 const draft = defineModel<string>({ required: true })
 
-/** Hovering the button this long opens the options menu. A shorter pass over the button does nothing. */
-const MENU_HOVER_DELAY_MS = 600
-/** The menu closes after the pointer leaves the button and the menu for this long. */
-const MENU_LEAVE_DELAY_MS = 300
 /** The open menu renews its level meter request this often. Each request lasts a little longer, so the meter does not gap. */
 const LEVEL_MONITOR_RENEW_MS = 1000
 
@@ -67,7 +64,6 @@ const mode = useLocalStorage<VoiceComposerMode>('ui/chat/voice-mode', 'audio')
 const { autoSendEnabled } = storeToRefs(useHearingStore())
 const devices = useSettingsAudioDevice()
 const { audioInputOptions, selectedAudioInput, enabled: listening } = storeToRefs(devices)
-const menuOpen = shallowRef(false)
 const controls = useVoiceControlsStore()
 
 /** Composer text before dictation started. The live transcript is shown after it until the input ends. */
@@ -90,6 +86,9 @@ const voice = useVoiceComposer({
 })
 const { phase, transcript, level, startedAt, pending } = voice
 const active = computed(() => phase.value !== 'idle')
+/** The options menu opens on hover, a right-click, or the up arrow. It stays closed while a recording runs. */
+const menu = useHoverMenu({ enabled: () => !active.value })
+const menuOpen = menu.open
 const activeMode = computed(() => voice.mode.value ?? mode.value)
 const now = useNow({ interval: 250 })
 const stoppedAt = shallowRef(0)
@@ -115,7 +114,7 @@ watch(transcript, (text) => {
 
 /** Triggering workflow: button click -> toggle -> start, or finish with the Auto send setting. */
 async function toggle() {
-  closeMenu()
+  menu.close()
   if (!active.value) {
     if (mode.value === 'transcription' && !voice.transcriptionConfigured.value) {
       toast(t('stage.chat.voice-composer.configure-title'), {
@@ -152,37 +151,6 @@ useEventListener(window, 'keydown', (event: KeyboardEvent) => {
   if (event.key === 'Escape' && active.value)
     void cancel()
 })
-
-const hoverOpen = useTimeoutFn(() => {
-  if (!active.value)
-    menuOpen.value = true
-}, MENU_HOVER_DELAY_MS, { immediate: false })
-const leaveClose = useTimeoutFn(() => menuOpen.value = false, MENU_LEAVE_DELAY_MS, { immediate: false })
-
-function pointerEnter() {
-  leaveClose.stop()
-  if (!menuOpen.value)
-    hoverOpen.start()
-}
-
-function pointerLeave() {
-  hoverOpen.stop()
-  if (menuOpen.value)
-    leaveClose.start()
-}
-
-function closeMenu() {
-  hoverOpen.stop()
-  leaveClose.stop()
-  menuOpen.value = false
-}
-
-function openMenu() {
-  if (active.value)
-    return
-  hoverOpen.stop()
-  menuOpen.value = true
-}
 
 // NOTICE:
 // A browser resumes the microphone AudioContext only after a user activation, and a hover is none.
@@ -308,7 +276,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
 </script>
 
 <template>
-  <div :class="['relative shrink-0']" @pointerenter="pointerEnter" @pointerleave="pointerLeave">
+  <div :class="['relative shrink-0']" @pointerenter="menu.enter()" @pointerleave="menu.leave()">
     <BasicButton
       size="unset"
       type="button"
@@ -325,8 +293,8 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
           : 'bg-primary-100/90 text-primary-600 hover:bg-primary-200/90 dark:bg-primary-900/90 dark:text-primary-200 dark:hover:bg-primary-800/90',
       ]"
       @click="toggle"
-      @contextmenu.prevent="openMenu"
-      @keydown.up.prevent="openMenu"
+      @contextmenu.prevent="menu.openNow()"
+      @keydown.up.prevent="menu.openNow()"
     >
       <span :class="[iconClass, 'size-5']" aria-hidden="true" />
     </BasicButton>
@@ -335,7 +303,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         <!-- The menu anchors to the button area. The button keeps its click for recording, so this anchor takes no pointer input. -->
         <span aria-hidden="true" tabindex="-1" :class="['pointer-events-none absolute inset-0']" />
       </template>
-      <div @pointerenter="leaveClose.stop()" @pointerleave="pointerLeave">
+      <div @pointerenter="menu.enter()" @pointerleave="menu.leave()">
         <DropdownMenuLabel :class="labelClasses">
           {{ t('stage.chat.voice-composer.mode') }}
         </DropdownMenuLabel>
@@ -382,7 +350,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
                 'z-[10001] max-h-72 min-w-[220px] overflow-y-auto rounded-xl border p-1 shadow-lg outline-none backdrop-blur-md',
                 'border-neutral-100/80 bg-neutral-100/90 dark:border-neutral-800/60 dark:bg-neutral-800/90',
               ]"
-              @pointerenter="leaveClose.stop()"
+              @pointerenter="menu.enter()"
             >
               <DropdownMenuRadioGroup v-model="selectedAudioInput">
                 <DropdownMenuRadioItem

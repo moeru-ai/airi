@@ -9,7 +9,7 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
 import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -22,7 +22,6 @@ import { BasicButton, BasicTextarea, Callout, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
-import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -119,18 +118,12 @@ const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
-const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
-type SendMode = (typeof SEND_MODES)[number]
+type SendMode = 'enter' | 'ctrl-enter' | 'double-enter'
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
-const sendModeLabels = computed<Record<SendMode, string>>(() => ({
-  'enter': t('stage.send-mode.enter'),
-  'ctrl-enter': t('stage.send-mode.ctrl-enter'),
-  'double-enter': t('stage.send-mode.double-enter'),
-}))
 const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
@@ -560,51 +553,6 @@ defineExpose({
           >
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
           </GhostButton>
-          <span aria-hidden="true" :class="['mx-1 h-5 w-px bg-neutral-300/70 dark:bg-neutral-700/70']" />
-          <DropdownMenuRoot>
-            <DropdownMenuTrigger as-child>
-              <GhostButton
-                size="unset"
-                :class="['size-9']"
-                :title="t('stage.send-mode.title')"
-                :aria-label="t('stage.send-mode.title')"
-              >
-                <span :class="['i-solar:keyboard-bold-duotone h-5 w-5']" />
-              </GhostButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent
-                align="end"
-                side="top"
-                :side-offset="8"
-                :class="[
-                  'z-50 min-w-[180px] rounded-xl p-1 shadow',
-                  'bg-white dark:bg-neutral-800',
-                  'flex flex-col gap-1',
-                  'data-[side=top]:animate-slideDownAndFade',
-                  'data-[side=left]:animate-none',
-                  'data-[side=bottom]:animate-none',
-                  'data-[side=right]:animate-none',
-                ]"
-              >
-                <DropdownMenuItem
-                  v-for="mode in SEND_MODES"
-                  :key="mode"
-                  :class="[
-                    'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
-                    'hover:bg-primary-50 dark:hover:bg-primary-900/20',
-                    sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
-                  ]"
-                  @select="sendMode = mode"
-                >
-                  <div class="mr-2 h-4 w-4 flex shrink-0 items-center justify-center">
-                    <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
-                  </div>
-                  <span>{{ sendModeLabels[mode] }}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenuRoot>
 
           <!-- The voice control shows its recording status here, so the composer keeps its height. -->
           <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
@@ -635,20 +583,17 @@ defineExpose({
               <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
             </GhostButton>
 
-            <BasicButton
+            <!-- Hover or right-click the send button to choose the send key. -->
+            <ChatSendButton
               v-else
-              size="unset"
-              :aria-label="t('stage.chat.actions.send')"
-              :title="t('stage.chat.actions.send')"
+              v-model:send-mode="sendMode"
               :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length && !voicePending) || isComposing"
-              :class="[
+              :button-class="[
                 'size-9 rounded-full bg-primary-500 text-white',
                 'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
               ]"
-              @click="handleSend"
-            >
-              <span :class="['i-solar:arrow-up-outline h-5 w-5']" />
-            </BasicButton>
+              @send="handleSend"
+            />
           </div>
           <input
             ref="fileInput"
