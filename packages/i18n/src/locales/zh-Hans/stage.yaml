@@ -74,8 +74,8 @@ chat:
     failed: 音频操作失败。
   voice-draft:
     title: 语音草稿
-    select: '查看草稿 {number}'
     discard: 丢弃草稿
+    listening: 正在聆听
     finalizing: 正在整理……
   voice-input: 语音输入
   error-details:
