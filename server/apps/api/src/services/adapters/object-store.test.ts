@@ -25,6 +25,20 @@ describe('s3 object store', () => {
     expect(createS3ObjectStore({})).toBeUndefined()
   })
 
+  it('signs the checksum and write-once headers for a direct upload', async () => {
+    const store = createS3ObjectStore(config)!
+    try {
+      const checksum = Buffer.alloc(32, 1).toString('base64')
+      const target = await store.createUploadTarget({ Key: 'models/one', ChecksumSHA256: checksum, IfNoneMatch: '*' })
+      const url = new URL(target.url)
+      expect(target.headers).toEqual({ 'x-amz-checksum-sha256': checksum, 'if-none-match': '*' })
+      expect(url.searchParams.get('X-Amz-SignedHeaders')?.split(';')).toEqual(['host', 'if-none-match', 'x-amz-checksum-sha256'])
+    }
+    finally {
+      store.dispose()
+    }
+  })
+
   it('signs the content type and metadata headers for a direct upload', async () => {
     const store = createS3ObjectStore({ ...config, S3_ENDPOINT: 'https://objects.example.com', S3_FORCE_PATH_STYLE: true })!
     try {

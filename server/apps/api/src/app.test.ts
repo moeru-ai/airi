@@ -29,6 +29,7 @@ function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
     speechBilling: {} as never,
     requestLogService: {} as never,
     voicePackService: {} as never,
+    displayModelService: undefined,
     providerCatalogService: {} as never,
     productEventService: {
       track: vi.fn(async () => undefined),

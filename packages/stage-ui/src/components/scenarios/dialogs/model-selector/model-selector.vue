@@ -10,7 +10,7 @@ import { Button } from '@proj-airi/ui'
 import { useFileDialog } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger, EditableArea, EditableEditTrigger, EditableInput, EditablePreview, EditableRoot, EditableSubmitTrigger } from 'reka-ui'
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import Live2DReportModal from './reports/live2d/modal.vue'
@@ -27,10 +27,15 @@ const emits = defineEmits<{
 }>()
 
 const displayModelStore = useDisplayModelsStore()
-const { displayModelsFromIndexedDBLoading, displayModels } = storeToRefs(displayModelStore)
+const { displayModelsFromIndexedDBLoading, displayModels, cloudOnlyModels, syncStatuses, syncErrors } = storeToRefs(displayModelStore)
 const { t } = useI18n()
 
-function handleRemoveModel(model: DisplayModel) {
+const listedModels = computed(() => [
+  ...displayModels.value.map(model => ({ id: model.id, name: model.name, format: model.format, previewImage: model.previewImage, cloudOnly: false })),
+  ...cloudOnlyModels.value.map(model => ({ id: model.id, name: model.name, format: model.format as DisplayModelFormat, previewImage: undefined, cloudOnly: true })),
+])
+
+function handleRemoveModel(model: { id: string }) {
   const wasActive = props.selectedModel?.id === model.id
   displayModelStore.removeDisplayModel(model.id)
   // Removing the model that is currently on stage must also take it off the
@@ -117,15 +122,27 @@ async function confirmTachieImport() {
   tachieValidationReport.value = null
 }
 
-function handlePick(m: DisplayModel) {
+async function pickById(id: string | undefined) {
+  if (!id)
+    return emits('pick', undefined)
+
+  try {
+    // A cloud-only model downloads here. The dialog stays open on failure and shows the error.
+    emits('pick', await displayModelStore.ensureDisplayModelAvailable(id))
+    emits('close', undefined)
+  }
+  catch (error) {
+    console.error('[model-selector] failed to download the selected model:', error)
+  }
+}
+
+function handlePick(m: { id: string }) {
   highlightDisplayModelCard.value = m.id
-  emits('pick', m)
-  emits('close', undefined)
+  return pickById(m.id)
 }
 
 function handleMobilePick() {
-  emits('pick', displayModels.value.find(model => model.id === highlightDisplayModelCard.value))
-  emits('close', undefined)
+  return pickById(highlightDisplayModelCard.value)
 }
 
 async function handleAddVRMModel(file: FileList | null) {
@@ -319,7 +336,7 @@ mmdDialog.onChange(handleAddMMDModel)
     <div class="flex-1 overflow-x-auto overflow-y-hidden md:flex-none sm:overflow-x-hidden sm:overflow-y-scroll" h-full w-full>
       <div class="w-full flex gap-2 md:grid lg:grid-cols-2 md:grid-cols-1 lg:max-h-80dvh">
         <div
-          v-for="(model) of displayModels"
+          v-for="(model) of listedModels"
           :key="model.id"
           v-auto-animate
           relative gap-2
@@ -359,9 +376,41 @@ mmdDialog.onChange(handleAddMMDModel)
                     ]"
                     transition="colors duration-200 ease-in-out"
                   >
-                    <button flex items-center gap-1 outline-none @click="handleRemoveModel(model)">
+                    <button v-if="!model.cloudOnly" flex items-center gap-1 outline-none @click="handleRemoveModel(model)">
                       <div i-solar:trash-bin-minimalistic-bold-duotone />
                       <div>{{ t('settings.model-select.select-model.remove') }}</div>
+                    </button>
+                    <button v-else flex items-center gap-1 outline-none @click="displayModelStore.deleteCloudDisplayModel(model.id)">
+                      <div i-solar:cloud-cross-bold-duotone />
+                      <div>{{ t('settings.model-select.select-model.sync.delete-cloud') }}</div>
+                    </button>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    v-if="syncStatuses[model.id] === 'local-only' || syncStatuses[model.id] === 'failed'"
+                    :class="[
+                      'relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none sm:text-sm',
+                      'data-[highlighted]:bg-neutral-100/20',
+                      'text-white dark:text-white',
+                    ]"
+                    transition="colors duration-200 ease-in-out"
+                  >
+                    <button flex items-center gap-1 outline-none @click="displayModelStore.uploadDisplayModel(model.id)">
+                      <div i-solar:cloud-upload-bold-duotone />
+                      <div>{{ t('settings.model-select.select-model.sync.upload') }}</div>
+                    </button>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    v-if="syncStatuses[model.id] === 'synced' && !model.cloudOnly"
+                    :class="[
+                      'relative flex cursor-pointer select-none items-center rounded-md px-3 py-2 text-base leading-none outline-none data-[disabled]:pointer-events-none sm:text-sm',
+                      'data-[highlighted]:bg-red-900/20 dark:data-[highlighted]:bg-red-100/20',
+                      'text-white dark:text-white data-[highlighted]:text-red-200 dark:data-[highlighted]:text-red-200',
+                    ]"
+                    transition="colors duration-200 ease-in-out"
+                  >
+                    <button flex items-center gap-1 outline-none @click="displayModelStore.deleteCloudDisplayModel(model.id)">
+                      <div i-solar:cloud-cross-bold-duotone />
+                      <div>{{ t('settings.model-select.select-model.sync.delete-cloud') }}</div>
                     </button>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -423,6 +472,13 @@ mmdDialog.onChange(handleAddMMDModel)
               <div flex items-center gap-1 text="neutral-400 dark:neutral-600">
                 <div i-solar:tag-horizontal-bold />
                 <div>{{ mapFormatRenderer[model.format] }}</div>
+              </div>
+              <div v-if="syncStatuses[model.id]" flex items-center gap-1 text="xs neutral-400 dark:neutral-600">
+                <div i-solar:cloud-bold />
+                <div>{{ t(`settings.model-select.select-model.sync.status.${syncStatuses[model.id]}`) }}</div>
+              </div>
+              <div v-if="syncErrors[model.id]" text="xs red-500" class="line-clamp-2">
+                {{ syncErrors[model.id] }}
               </div>
             </div>
             <Button class="hidden md:block" @click="handlePick(model)">

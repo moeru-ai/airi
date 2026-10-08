@@ -116,6 +116,17 @@ model-select:
     select: 选择
     import: 导入
     remove: 移除
+    sync:
+      upload: 上传到云端
+      delete-cloud: 从云端删除
+      status:
+        local-only: 仅在本设备
+        queued: 等待上传
+        uploading: 上传中
+        synced: 已同步到云端
+        cloud-only: 在云端，未下载
+        downloading: 下载中
+        failed: 同步失败
     confirm: 确认
   live2d-report:
     title: 导入前检查
@@ -1690,6 +1701,9 @@ pages:
         character_card_sync:
           title: 角色卡云同步
           description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
+        display_model_sync:
+          title: 模型云同步
+          description: 登录后把导入的 Live2D 和 VRM 模型上传到账号，方便在其他设备上使用。默认关闭。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

@@ -130,6 +130,17 @@ model-select:
     select: Pick
     import: Import
     remove: Remove
+    sync:
+      upload: Upload to cloud
+      delete-cloud: Delete from cloud
+      status:
+        local-only: This device only
+        queued: Waiting to upload
+        uploading: Uploading
+        synced: Synced to cloud
+        cloud-only: In cloud, not downloaded
+        downloading: Downloading
+        failed: Sync failed
     confirm: Confirm
   live2d-report:
     title: Before import
@@ -1907,6 +1918,9 @@ pages:
         character_card_sync:
           title: Character card cloud sync
           description: Sync your character cards to your account when you are signed in, so they reach your other devices. Off by default. A card you delete stays in your account history for 30 days.
+        display_model_sync:
+          title: Model cloud sync
+          description: Upload imported Live2D and VRM models to your account when you are signed in, so you can use them on other devices. Off by default.
     color-scheme:
       description: Change the color scheme of the stage.
       title: Color Scheme

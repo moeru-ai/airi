@@ -9,6 +9,7 @@ import type { LlmBillingService } from './services/domain/billing/llm-billing'
 import type { CharacterCardService } from './services/domain/character-cards'
 import type { CharacterService } from './services/domain/characters'
 import type { ChatService } from './services/domain/chats'
+import type { DisplayModelService } from './services/domain/display-models'
 import type { FluxService } from './services/domain/flux'
 import type { FluxTransactionService } from './services/domain/flux-transaction'
 import type { LlmRouterService } from './services/domain/llm-router'
@@ -58,6 +59,7 @@ import { createChatWsV1Handlers } from './routes/chat-ws/v1'
 import { createChatWsV2Handlers } from './routes/chat-ws/v2'
 import { createChatWsPayloadLimit } from './routes/chat-ws/v2/payload-limit'
 import { createChatRoutes } from './routes/chats'
+import { createDisplayModelRoutes } from './routes/display-models'
 import { createFluxRoutes } from './routes/flux'
 import { createInternalAuthRoutes } from './routes/internal-auth'
 import { createLlmRequestRoutes } from './routes/llm-requests'
@@ -75,6 +77,7 @@ import { SpeechBilling } from './services/domain/billing/speech-billing'
 import { createCharacterCardService } from './services/domain/character-cards'
 import { createCharacterService } from './services/domain/characters'
 import { createChatService } from './services/domain/chats'
+import { createDisplayModelService } from './services/domain/display-models'
 import { createFluxService } from './services/domain/flux'
 import { createFluxTransactionService } from './services/domain/flux-transaction'
 import { createConcurrencyLedger, createConfigSyncSubscriber, createLlmRouterService } from './services/domain/llm-router'
@@ -83,6 +86,7 @@ import { createProductEventService } from './services/domain/product-events'
 import { createProviderCatalogService } from './services/domain/provider-catalog'
 import { createProviderService } from './services/domain/providers'
 import { createRequestLogService } from './services/domain/request-log'
+import { createUploadSessionService } from './services/domain/upload-sessions'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
@@ -106,6 +110,7 @@ interface AppDeps {
   speechBilling: SpeechBilling
   requestLogService: RequestLogService
   voicePackService: VoicePackService
+  displayModelService: DisplayModelService | undefined
   productEventService: ProductEventService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
@@ -410,6 +415,11 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/character-cards', createCharacterCardRoutes(deps.characterCardService))
 
     /**
+     * Display model routes sync imported Live2D and VRM originals through private object storage.
+     */
+    .route('/api/v1/display-models', createDisplayModelRoutes(deps.displayModelService))
+
+    /**
      * Provider routes are handled by the provider service.
      */
     .route('/api/v1/providers', createProviderRoutes(deps.providerService))
@@ -701,6 +711,13 @@ export async function createApp() {
     build: ({ dependsOn }) => createVoicePackService(dependsOn.db),
   })
 
+  const displayModelService = injeca.provide('services:displayModel', {
+    dependsOn: { db, objectStore },
+    build: ({ dependsOn }) => dependsOn.objectStore
+      ? createDisplayModelService(dependsOn.db, dependsOn.objectStore, createUploadSessionService(dependsOn.objectStore))
+      : undefined,
+  })
+
   const providerCatalogService = injeca.provide('services:providerCatalog', {
     dependsOn: { db },
     build: ({ dependsOn }) => createProviderCatalogService(dependsOn.db),
@@ -778,6 +795,7 @@ export async function createApp() {
     fluxTransactionService,
     requestLogService,
     voicePackService,
+    displayModelService,
     productEventService,
     paymentService,
     appleIapVerifier,
@@ -812,6 +830,7 @@ export async function createApp() {
     appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,
+    displayModelService: resolved.displayModelService,
     billingService: resolved.billingService,
     llmBilling: resolved.llmBilling,
     speechBilling: resolved.speechBilling,
