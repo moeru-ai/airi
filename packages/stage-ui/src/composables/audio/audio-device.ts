@@ -54,9 +54,17 @@ export function useAudioDevice(selectedAudioInput: Ref<string> = ref('')) {
   const { devices, audioInputs } = useDevicesList({ requestPermissions: false })
   const permissionGranted = ref(false)
   const audioInputOptions = computed(() => audioInputs.value.filter(device => device.deviceId).map(device => ({ label: device.label || device.deviceId, value: device.deviceId })))
-  // An empty selection and `default` both mean the system default. Filling the empty selection
-  // with `default` then keeps the same device and does not reopen the microphone.
-  const capturedDeviceId = computed(() => selectedAudioInput.value === 'default' ? '' : selectedAudioInput.value)
+  // An empty selection and `default` both mean the system default.
+  // Chromium lists the system default as the device `default`, but opens its first listed device when the constraints
+  // name no device. On a Mac whose first device is a silent built-in microphone, capture then received only zeros.
+  // So the system default asks for `default` by name whenever the browser lists it. Other browsers keep no constraint.
+  const listsDefault = computed(() => audioInputs.value.some(device => device.deviceId === 'default'))
+  const capturedDeviceId = computed(() => {
+    const selected = selectedAudioInput.value
+    if (selected === '' || selected === 'default')
+      return listsDefault.value ? 'default' : ''
+    return selected
+  })
   const deviceConstraints = computed<MediaStreamConstraints>(() => ({ audio: {
     ...(capturedDeviceId.value ? { deviceId: { exact: capturedDeviceId.value } } : {}),
     autoGainControl: true,
