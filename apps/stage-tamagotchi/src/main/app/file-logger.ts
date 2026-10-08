@@ -173,12 +173,14 @@ export async function setupFileLogger(): Promise<FileLoggerHandle> {
 
       try {
         await fileHandle.close()
-        isFileClosed = true
         console.info('[FileLogger] File closed successfully')
       }
       catch (error) {
         const message = getErrorMessage(error)
         console.error(`[FileLogger] Failed to close log file: ${message}`)
+      }
+      finally {
+        isFileClosed = true
       }
 
       const size = await getLogFileSize(logFilePath)
