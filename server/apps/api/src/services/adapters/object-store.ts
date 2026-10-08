@@ -31,25 +31,33 @@ export function createS3ObjectStore(config: S3Environment) {
       return client.send(new PutObjectCommand({ ...input, Bucket: bucket }))
     },
 
-    /** Returns a live SDK response stream. The caller must consume or destroy its Body. */
-    async getObject(objectKey: string) {
-      return client.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey }))
+    /** Returns a live SDK response stream. The caller must consume or destroy its Body. `range` is an HTTP Range value such as `bytes=0-3`. */
+    async getObject(objectKey: string, range?: string) {
+      return client.send(new GetObjectCommand({ Bucket: bucket, Key: objectKey, Range: range }))
     },
 
-    /** Reads current object metadata. A missing object rejects with the SDK error. */
+    /** Reads current object metadata, including the stored SHA-256 checksum. A missing object rejects with the SDK error. */
     async inspectObject(objectKey: string) {
-      return client.send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey }))
+      return client.send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey, ChecksumMode: 'ENABLED' }))
     },
 
     async deleteObject(objectKey: string) {
       await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: objectKey }))
     },
 
-    /** Signs a PUT and returns the headers the uploader must send unchanged. */
-    async createUploadTarget(input: Pick<PutObjectCommandInput, 'Key' | 'ContentType' | 'Metadata'>) {
+    /**
+     * Signs a PUT and returns the headers the uploader must send unchanged.
+     * `ChecksumSHA256` (base64) makes the store reject bytes that do not match.
+     * `IfNoneMatch: '*'` makes the store reject a write to an existing key.
+     */
+    async createUploadTarget(input: Pick<PutObjectCommandInput, 'Key' | 'ContentType' | 'Metadata' | 'ChecksumSHA256' | 'IfNoneMatch'>) {
       const headers: Record<string, string> = {}
       if (input.ContentType)
         headers['content-type'] = input.ContentType
+      if (input.ChecksumSHA256)
+        headers['x-amz-checksum-sha256'] = input.ChecksumSHA256
+      if (input.IfNoneMatch)
+        headers['if-none-match'] = input.IfNoneMatch
       if (input.Metadata) {
         for (const [key, value] of Object.entries(input.Metadata))
           headers[`x-amz-meta-${key.toLowerCase()}`] = value
