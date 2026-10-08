@@ -8,7 +8,7 @@ import { defineStore } from 'pinia'
 import { onScopeDispose, shallowRef } from 'vue'
 
 import { VoiceMessage } from '../libs/voice/voice-message'
-import { getSpeechBusContext, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages } from '../services/speech/bus'
+import { getSpeechBusContext, voiceMessageCommand, voiceMessageDropped, voiceMessagesChanged, voiceRequestMessages } from '../services/speech/bus'
 import { useChatStore } from './chat'
 import { useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
@@ -47,9 +47,8 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
 
   /**
    * Transcribes a recording while it is captured, with the Hearing provider of this moment.
-   * The last update holds the full text. A recording without speech gives no transcript.
+   * Resolves with an empty string when the transcriber completed without speech, and with nothing when it did not complete.
    */
-  /** Resolves with an empty string when the transcriber completed without speech, and with nothing when it did not complete. */
   async function transcribeRecording(audio: ReadableStream<PcmBlock>, signal: AbortSignal) {
     let text = ''
     let completed = false
@@ -73,15 +72,22 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
         messageId: draft.messageId,
         text: draft.text,
         attachments: [{ type: 'audio', mimeType: 'audio/wav', data, ...(draft.transcript ? { transcript: draft.transcript } : {}) }],
+        audioTranscriptPending: draft.transcriptPending,
         replyToMessageId: command.replyToMessageId,
         tools: command.tools,
       })
-    }, hearing.configured ? transcribeRecording : undefined)
+    }, hearing.configured ? transcribeRecording : undefined, draft => chat.settleAudioTranscript(draft))
     messages.set(command.id, message)
+    let submitted = false
     const stop = message.subscribe(() => {
-      if (message.snapshot.phase === 'sent' || message.snapshot.phase === 'cancelled') {
+      const { phase, error } = message.snapshot
+      submitted ||= phase === 'transcribing'
+      if (phase === 'sent' || phase === 'cancelled') {
         messages.delete(command.id)
         stop()
+        // A message that left the chat again is gone from the list. The event lets its control report why.
+        if (phase === 'cancelled' && submitted && error)
+          bus.emit(voiceMessageDropped, { id: command.id, sessionId: command.sessionId, error })
       }
       publish()
     })

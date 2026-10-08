@@ -28,6 +28,8 @@ chat:
     recording: 正在录制
     starting: 正在启动麦克风
     preview: 已录制的语音消息
+    transcribing: 正在转写…
+    no-speech: 没有识别到说话，语音消息没有发送。
   voice-composer:
     audio: 语音消息
     transcription: 语音转文字

@@ -28,6 +28,8 @@ chat:
     recording: Recording
     starting: Starting microphone
     preview: Recorded voice message
+    transcribing: Transcribing…
+    no-speech: No speech was recognized, so the voice message was not sent.
   voice-composer:
     audio: Voice message
     transcription: Dictation

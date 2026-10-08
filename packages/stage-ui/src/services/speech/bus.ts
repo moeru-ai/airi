@@ -162,3 +162,8 @@ export type VoiceMessageCommand
 export const voiceMessageCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceMessageCommand>('eventa:voice:message-command')
 export const voiceMessagesChanged = defineEventa<readonly VoiceMessageSnapshot[]>('eventa:voice:messages-changed')
 export const voiceRequestMessages = defineEventa('eventa:voice:request-messages')
+/**
+ * A voice message left the chat after its submit, because the transcriber recognized no speech in it.
+ * The control that recorded it reports `error`.
+ */
+export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string, error: string }>('eventa:voice:message-dropped')
