@@ -5,6 +5,7 @@ import type { EngagementMetrics } from '../../otel'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
+import { groupBy } from 'es-toolkit'
 
 import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
@@ -137,7 +138,17 @@ export function createChatService(db: Database, metrics?: EngagementMetrics | nu
           isNull(schema.chats.deletedAt),
         ))
 
-      return rows.map(r => r.chat)
+      if (rows.length === 0)
+        return []
+
+      // A second device reads the character of each chat from its members.
+      const members = await db
+        .select()
+        .from(schema.chatMembers)
+        .where(inArray(schema.chatMembers.chatId, rows.map(r => r.chat.id)))
+      const membersByChatId = groupBy(members, member => member.chatId)
+
+      return rows.map(r => ({ ...r.chat, members: membersByChatId[r.chat.id] }))
     },
 
     async updateChat(userId: string, chatId: string, updates: { title?: string }) {

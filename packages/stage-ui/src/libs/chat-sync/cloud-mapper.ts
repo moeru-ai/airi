@@ -14,12 +14,23 @@ const RemoteChatSchema = v.object({
   updatedAt: v.string(),
 })
 
-const ListChatsResponseSchema = v.object({
-  chats: v.array(RemoteChatSchema),
+const ListedRemoteChatSchema = v.object({
+  ...RemoteChatSchema.entries,
+  members: v.array(v.object({
+    memberType: v.picklist(['user', 'character', 'bot']),
+    characterId: v.nullable(v.string()),
+  })),
 })
 
-/** Minimal shape of a chat returned by `GET /api/v1/chats`. */
+const ListChatsResponseSchema = v.object({
+  chats: v.array(ListedRemoteChatSchema),
+})
+
+/** A chat as `POST /api/v1/chats` returns it. The response does not include the members. */
 export type RemoteChat = v.InferOutput<typeof RemoteChatSchema>
+
+/** A chat as `GET /api/v1/chats` returns it, with the members that tell which character the chat belongs to. */
+export type ListedRemoteChat = v.InferOutput<typeof ListedRemoteChatSchema>
 
 export interface CreateRemoteChatInput {
   id?: string
@@ -57,7 +68,7 @@ export interface CreateCloudChatMapperOptions {
 
 export interface CloudChatMapper {
   /** GET /api/v1/chats — returns the full list for the current user. */
-  listChats: () => Promise<RemoteChat[]>
+  listChats: () => Promise<ListedRemoteChat[]>
   /**
    * POST /api/v1/chats — server may auto-generate id if not provided. A
    * 409 Conflict (id already exists) is treated as an idempotent claim and
@@ -199,11 +210,26 @@ export function createCloudChatMapper(options: CreateCloudChatMapperOptions): Cl
  *   POST `/api/v1/chats` to mint a chat for it.
  * - `adopt`: remote chat exists with no local session at all; need to create
  *   a local session shell so future `pullMessages` can populate it.
+ * - `reassign`: local session and remote chat are the same chat, but the
+ *   local session is under another character than the remote chat.
  */
 export interface ReconcilePlan {
   claim: Array<{ sessionId: string, cloudChatId: string }>
   create: Array<{ sessionId: string, characterId: string }>
-  adopt: RemoteChat[]
+  adopt: ListedRemoteChat[]
+  reassign: Array<{ sessionId: string, characterId: string }>
+}
+
+/**
+ * Returns the character that a remote chat belongs to.
+ *
+ * Every chat that this client creates has one character member. The result is
+ * `undefined` for a chat with no character member or with many, because a
+ * local session holds one character.
+ */
+export function characterIdOfRemoteChat(chat: ListedRemoteChat): string | undefined {
+  const characterIds = chat.members.flatMap(member => member.memberType === 'character' && member.characterId ? [member.characterId] : [])
+  return characterIds.length === 1 ? characterIds[0] : undefined
 }
 
 /**
@@ -219,14 +245,14 @@ export interface ReconcilePlan {
  *   out by the caller before reconcile — they are not cloud-eligible.
  *
  * Returns:
- * - A plan of three lists. The caller applies them in any order; `create`
- *   actions need the network, `claim` / `adopt` are pure store mutations.
+ * - A plan of four lists. The caller applies them in any order; `create`
+ *   actions need the network, the other lists are pure store mutations.
  */
 export function reconcileLocalAndRemote(
   localSessions: ChatSessionMeta[],
-  remoteChats: RemoteChat[],
+  remoteChats: ListedRemoteChat[],
 ): ReconcilePlan {
-  const remoteById = new Map<string, RemoteChat>()
+  const remoteById = new Map<string, ListedRemoteChat>()
   for (const chat of remoteChats)
     remoteById.set(chat.id, chat)
 
@@ -261,7 +287,7 @@ export function reconcileLocalAndRemote(
     create.push({ sessionId: meta.sessionId, characterId: meta.characterId })
   }
 
-  const adopt: RemoteChat[] = []
+  const adopt: ListedRemoteChat[] = []
   for (const chat of remoteChats) {
     if (localByCloudId.has(chat.id))
       continue
@@ -270,7 +296,18 @@ export function reconcileLocalAndRemote(
     adopt.push(chat)
   }
 
-  return { claim, create, adopt }
+  // The character of a chat does not change after the chat exists, so a
+  // difference means that an earlier version put a received chat under
+  // `default`. The server holds the character that the creating device sent.
+  const reassign: ReconcilePlan['reassign'] = []
+  for (const meta of localSessions) {
+    const remote = remoteById.get(meta.cloudChatId ?? meta.sessionId)
+    const characterId = remote && characterIdOfRemoteChat(remote)
+    if (characterId && characterId !== meta.characterId)
+      reassign.push({ sessionId: meta.sessionId, characterId })
+  }
+
+  return { claim, create, adopt, reassign }
 }
 
 /**
