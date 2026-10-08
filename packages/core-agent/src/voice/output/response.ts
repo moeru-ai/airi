@@ -1,15 +1,70 @@
 import type { AudioPlayback, IntentHandle, PcmBlock, PlaybackGroup, PlaybackItem, PlaybackReceipt, SpeechPipelineEvents, SpeechPipelineOptions } from '@proj-airi/pipelines-audio'
-
 import type { Outcome } from '@proj-airi/stream-kit'
 
 import type { TurnRef } from '../turn'
 
+import { errorMessageFrom } from '@moeru/std'
 import { createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { createPushStream } from '@proj-airi/stream-kit'
+import { APICallError } from '@xsai/shared'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
 import { toSpeechText } from './speech-text'
+
+/** Complete clips have not reached playback yet, so a rejected request can repeat without repeating local audio. */
+const synthesisRetry = {
+  /** Two retries keep temporary outages from ending a producer; normal requests have no added delay. */
+  backoffMs: [300, 600],
+  /** A longer provider wait fails the producer instead of leaving its reserved playback slot pending. */
+  maxRetryAfterMs: 30_000,
+}
+
+function synthesisRetryDelayMs(cause: unknown, attempt: number): number | undefined {
+  const backoffMs = synthesisRetry.backoffMs[attempt]
+  if (backoffMs === undefined)
+    return undefined
+
+  if (cause instanceof APICallError) {
+    if (![408, 425, 429, 500, 502, 503, 504].includes(cause.statusCode))
+      return undefined
+
+    // Use the provider's wait when browsers expose it. Otherwise use the short
+    // local backoff; error text cannot override an explicit permanent status.
+    const retryAfter = cause.responseHeaders['retry-after']
+    if (!retryAfter)
+      return backoffMs
+    const seconds = Number(retryAfter)
+    const delayMs = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now()
+    if (!Number.isFinite(delayMs))
+      return backoffMs
+    return delayMs <= synthesisRetry.maxRetryAfterMs ? Math.max(delayMs, 0) : undefined
+  }
+
+  // Fetch rejects transport failures as TypeError. Do not retry unrelated
+  // TypeErrors, aborts, or arbitrary provider messages that contain a status.
+  if (cause instanceof TypeError && /failed to fetch|fetch failed|network error/i.test(errorMessageFrom(cause) ?? ''))
+    return backoffMs
+  return undefined
+}
+
+function waitForSynthesisRetry(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason)
+      return
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, delayMs)
+    signal.addEventListener('abort', onAbort, { once: true })
+    function onAbort() {
+      clearTimeout(timer)
+      reject(signal.reason)
+    }
+  })
+}
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
@@ -44,6 +99,7 @@ export type SpeechOutput = {
   /** Runs once for each started clip after playback ends, stops, or fails. */
   readonly onPlaybackEnd?: (clip: SpeechClip, end: SpeechClipEnd) => void
 } & ({
+  /** Rejected complete-clip requests can retry twice before the producer fails; `null` means intentional silence. */
   readonly synthesize: SpeechPipelineOptions<Blob>['tts']
 } | {
   /** The provider consumes text and emits audio parts concurrently. Its adapter owns decoding and source coordinates. */
@@ -119,8 +175,23 @@ export class SpeechStream {
     const pipeline = createSpeechPipeline<Blob>({
       tts: async (request, signal) => {
         try {
-          const audio = await output.synthesize(request, AbortSignal.any([signal, this.signal, response.signal]))
-          return this.signal.aborted || response.signal.aborted ? null : audio
+          const synthesisSignal = AbortSignal.any([signal, this.signal, response.signal])
+          // Retain this request's segment identity and combined cancellation
+          // scope across attempts. Only a terminal failure closes the producer.
+          for (let attempt = 0; ; attempt++) {
+            synthesisSignal.throwIfAborted()
+            try {
+              const audio = await output.synthesize(request, synthesisSignal)
+              synthesisSignal.throwIfAborted()
+              return audio
+            }
+            catch (cause) {
+              const delayMs = synthesisSignal.aborted ? undefined : synthesisRetryDelayMs(cause, attempt)
+              if (delayMs === undefined)
+                throw cause
+              await waitForSynthesisRetry(delayMs, synthesisSignal)
+            }
+          }
         }
         catch (cause) {
           this.fail(errorFromCause(cause, 'Speech synthesis failed'))
@@ -133,38 +204,39 @@ export class SpeechStream {
           const clip = { id: item.segmentId, text: item.text }
           let started = false
           void Promise.race([previous, this.done])
-          .then(async () => {
-            if (this.signal.aborted || response.signal.aborted)
-              return 'stopped' as const
+            .then(async () => {
+              if (this.signal.aborted || response.signal.aborted)
+                return 'stopped' as const
 
-            return response.playback.enqueue({
-              id: item.id,
-              audio: item.audio,
-              signal: this.signal,
-              onStart: () => {
-                started = true
-                listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
-                output.onPlaybackStart?.(clip)
-            } })
-          })
-          .then((result) => {
-            if (started)
-              output.onPlaybackEnd?.(clip, this.clipEnd(result))
+              return response.playback.enqueue({
+                id: item.id,
+                audio: item.audio,
+                signal: this.signal,
+                onStart: () => {
+                  started = true
+                  listeners.start.forEach(listener => listener({ item, startedAt: Date.now() }))
+                  output.onPlaybackStart?.(clip)
+                },
+              })
+            })
+            .then((result) => {
+              if (started)
+                output.onPlaybackEnd?.(clip, this.clipEnd(result))
 
-            if (!pending.delete(item))
-              return
+              if (!pending.delete(item))
+                return
 
-            if (result === 'ended')
-              listeners.end.forEach(listener => listener({ item, endedAt: Date.now() }))
-            else
-              listeners.interrupt.forEach(listener => listener({ item, interruptedAt: Date.now(), reason: result }))
+              if (result === 'ended')
+                listeners.end.forEach(listener => listener({ item, endedAt: Date.now() }))
+              else
+                listeners.interrupt.forEach(listener => listener({ item, interruptedAt: Date.now(), reason: result }))
 
-            // REVIEW: can we have more manage-able error handling
-            // across our pipelines?
-            if (result === 'failed')
-              this.fail(new Error('Speech playback failed'))
+              // REVIEW: can we have more manage-able error handling
+              // across our pipelines?
+              if (result === 'failed')
+                this.fail(new Error('Speech playback failed'))
             // REVIEW: must we do this here?
-          }, cause => this.fail(errorFromCause(cause, 'Speech playback failed')))
+            }, cause => this.fail(errorFromCause(cause, 'Speech playback failed')))
         },
         stopByIntent: (_id, reason) => {
           for (const item of pending)
