@@ -3,7 +3,7 @@ import type { ChatToolReference } from '../../../../types/chat'
 import type { VoiceComposerMode } from '../composables/use-voice-composer'
 
 import { BasicButton, DropdownMenu } from '@proj-airi/ui'
-import { useEventListener, useIntervalFn, useLocalStorage, useNow, useObjectUrl } from '@vueuse/core'
+import { useEventListener, useIntervalFn, useLocalStorage, useNow } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import {
   DropdownMenuCheckboxItem,
@@ -18,10 +18,11 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from 'reka-ui'
-import { computed, nextTick, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import VoiceMessagePlayer from './voice-message-player.vue'
 import VoiceWaveform from './voice-waveform.vue'
 
 import { useHearingStore } from '../../../../stores/modules/hearing'
@@ -212,21 +213,6 @@ async function sendPending(text: string): Promise<'none' | 'sent' | 'failed'> {
 }
 
 defineExpose({ sendPending })
-const pendingUrl = useObjectUrl(computed(() => pendingMessage.value?.audio))
-const player = useTemplateRef<HTMLAudioElement>('player')
-const playing = shallowRef(false)
-const playedSeconds = shallowRef(0)
-const durationSeconds = shallowRef(0)
-
-function togglePlayback() {
-  if (!player.value)
-    return
-  if (player.value.paused)
-    void player.value.play()
-  else
-    player.value.pause()
-}
-
 const iconClass = computed(() => {
   if (phase.value === 'starting' || phase.value === 'processing')
     return 'i-svg-spinners:ring-resize'
@@ -432,52 +418,26 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
   </Teleport>
   <!-- A recorded voice message that waits for the host's send button: Auto send was off, or the send failed. -->
   <Teleport v-if="attachmentElement" :to="attachmentElement">
-    <div
+    <VoiceMessagePlayer
       v-if="pendingMessage"
       data-testid="voice-pending-card"
-      :class="[
-        'max-w-full w-72 h-10 flex items-center gap-1 rounded-xl px-1',
-        'bg-neutral-900/5 text-neutral-600 dark:bg-white/8 dark:text-neutral-300',
-        pendingMessage.error && 'ring-1 ring-red-500/60',
-        'animate-fadeIn motion-reduce:animate-none',
-      ]"
+      :audio="pendingMessage.audio"
+      :class="[pendingMessage.error && 'ring-1 ring-red-500/60', 'animate-fadeIn motion-reduce:animate-none']"
     >
-      <audio
-        ref="player"
-        :src="pendingUrl"
-        preload="metadata"
-        :class="['hidden']"
-        @play="playing = true"
-        @pause="playing = false"
-        @ended="playing = false"
-        @timeupdate="playedSeconds = ($event.target as HTMLAudioElement).currentTime"
-        @loadedmetadata="durationSeconds = ($event.target as HTMLAudioElement).duration"
-      />
-      <BasicButton
-        size="unset"
-        type="button"
-        :aria-label="t(playing ? 'stage.chat.voice-composer.pause' : 'stage.chat.voice-composer.play')"
-        :class="[statusButtonClasses, 'text-primary-600 dark:text-primary-300']"
-        @click="togglePlayback"
-      >
-        <span :class="[playing ? 'i-solar:pause-bold' : 'i-solar:play-bold', 'size-4']" aria-hidden="true" />
-      </BasicButton>
-      <div :class="['h-1 min-w-0 flex-1 overflow-hidden rounded-full bg-neutral-900/10 dark:bg-white/10']">
-        <div :class="['h-full rounded-full bg-primary-500']" :style="{ width: `${durationSeconds ? Math.min(100, playedSeconds / durationSeconds * 100) : 0}%` }" />
-      </div>
-      <span :class="['shrink-0 px-1 text-xs tabular-nums']">{{ formatDuration(playing ? playedSeconds : durationSeconds) }}</span>
-      <span v-if="pendingMessage.error" role="alert" :title="pendingMessage.error" :class="['i-solar:danger-triangle-linear size-4 shrink-0 text-red-500']" />
-      <BasicButton
-        size="unset"
-        type="button"
-        data-testid="voice-pending-discard"
-        :aria-label="t('stage.chat.voice-composer.discard')"
-        :title="t('stage.chat.voice-composer.discard')"
-        :class="statusButtonClasses"
-        @click="voice.discard(pendingMessage.id)"
-      >
-        <span :class="['i-solar:close-circle-linear size-4.5']" aria-hidden="true" />
-      </BasicButton>
-    </div>
+      <template #actions>
+        <span v-if="pendingMessage.error" role="alert" :title="pendingMessage.error" :class="['i-solar:danger-triangle-linear size-4 shrink-0 text-red-500']" />
+        <BasicButton
+          size="unset"
+          type="button"
+          data-testid="voice-pending-discard"
+          :aria-label="t('stage.chat.voice-composer.discard')"
+          :title="t('stage.chat.voice-composer.discard')"
+          :class="statusButtonClasses"
+          @click="voice.discard(pendingMessage.id)"
+        >
+          <span :class="['i-solar:close-circle-linear size-4.5']" aria-hidden="true" />
+        </BasicButton>
+      </template>
+    </VoiceMessagePlayer>
   </Teleport>
 </template>

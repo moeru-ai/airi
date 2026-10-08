@@ -1,3 +1,5 @@
+import type { PcmBlock } from '@proj-airi/pipelines-audio'
+
 import type { VoiceMessageCommand } from '../services/speech/bus'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -8,6 +10,7 @@ import { onScopeDispose, shallowRef } from 'vue'
 import { VoiceMessage } from '../libs/voice/voice-message'
 import { getSpeechBusContext, voiceMessageCommand, voiceMessagesChanged, voiceRequestMessages } from '../services/speech/bus'
 import { useChatStore } from './chat'
+import { useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
 
 /** Resolves when encoding ends. A ready message can then be sent. A failed or discarded one cannot. */
@@ -30,6 +33,7 @@ function encoded(message: VoiceMessage) {
 export const useVoiceMessagesStore = defineStore('voice-messages', () => {
   const devices = useSettingsAudioDevice()
   const chat = useChatStore()
+  const hearing = useHearingStore()
   const messages = new Map<string, VoiceMessage>()
   const opened = new Set<string>()
   const isRecording = shallowRef(false)
@@ -39,6 +43,19 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
     const snapshots = [...messages.values()].map(message => message.snapshot)
     isRecording.value = snapshots.some(message => message.phase === 'pending' || message.phase === 'capturing')
     bus.emit(voiceMessagesChanged, snapshots)
+  }
+
+  /**
+   * Transcribes a recording while it is captured, with the Hearing provider of this moment.
+   * The last update holds the full text. A recording without speech gives no transcript.
+   */
+  async function transcribeRecording(audio: ReadableStream<PcmBlock>, signal: AbortSignal) {
+    let text = ''
+    for await (const event of hearing.createTranscriber().transcribe({ audio, signal })) {
+      if (event.type === 'update')
+        text = event.segments.map(segment => segment.text).join('')
+    }
+    return text.trim() || undefined
   }
 
   function record(command: Extract<VoiceMessageCommand, { type: 'record' }>) {
@@ -51,11 +68,11 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
         sessionId: draft.sessionId,
         messageId: draft.messageId,
         text: draft.text,
-        attachments: [{ type: 'audio', mimeType: 'audio/wav', data }],
+        attachments: [{ type: 'audio', mimeType: 'audio/wav', data, ...(draft.transcript ? { transcript: draft.transcript } : {}) }],
         replyToMessageId: command.replyToMessageId,
         tools: command.tools,
       })
-    })
+    }, hearing.configured ? transcribeRecording : undefined)
     messages.set(command.id, message)
     const stop = message.subscribe(() => {
       if (message.snapshot.phase === 'sent' || message.snapshot.phase === 'cancelled') {

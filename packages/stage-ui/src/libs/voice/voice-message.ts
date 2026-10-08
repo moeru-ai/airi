@@ -1,4 +1,4 @@
-import type { AudioInput } from '@proj-airi/pipelines-audio'
+import type { AudioInput, PcmBlock } from '@proj-airi/pipelines-audio'
 
 import { errorMessageFrom } from '@moeru/std'
 import { encodeWav } from '@proj-airi/audio/encoding'
@@ -13,10 +13,17 @@ export interface VoiceMessageSnapshot {
   readonly error?: string
 }
 
+/** The longest time a send waits for the transcript after the recording ends. A later transcript is not used. */
+const TRANSCRIPT_WAIT_MS = 8000
+
 /**
- * A voice attachment recorded as 16 kHz mono WAV. It does not depend on transcription or Hearing mode.
+ * A voice attachment recorded as 16 kHz mono WAV. It does not depend on Hearing mode.
  *
  * Phases: pending until audio arrives, capturing, finalizing after finish, then ready with the file.
+ *
+ * With `transcribe`, the same captured audio is also transcribed while it records. The send carries the transcript, so a
+ * model without audio input reads it instead of transcribing the stored file later. A failed or late transcript is
+ * omitted, and the chat then transcribes the file.
  */
 export class VoiceMessage {
   private readonly listeners = new Set<() => void>()
@@ -24,16 +31,27 @@ export class VoiceMessage {
   private sending: Promise<{ messageId: string }> | undefined
   private receipt: { messageId: string } | undefined
   private readonly recording: ReturnType<typeof capture>
+  private readonly transcription = new AbortController()
+  private transcript: Promise<string | undefined> | undefined
 
   constructor(
     readonly id: string,
     readonly sessionId: string,
     input: AudioInput,
-    private readonly submit: (draft: { messageId: string, sessionId: string, audio: Blob, text: string }) => Promise<{ messageId: string }>,
+    private readonly submit: (draft: { messageId: string, sessionId: string, audio: Blob, text: string, transcript?: string }) => Promise<{ messageId: string }>,
+    transcribe?: (audio: ReadableStream<PcmBlock>, signal: AbortSignal) => Promise<string | undefined>,
   ) {
     this.current = { id, sessionId, phase: 'pending' }
     this.recording = capture(input)
-    const encoding = encodeWav(this.recording.stream, { sampleRate: 16000, channels: 1 })
+    const [encoded, recognized] = transcribe ? this.recording.stream.tee() : [this.recording.stream]
+    if (transcribe && recognized) {
+      this.transcript = transcribe(recognized, this.transcription.signal).catch(() => undefined)
+      void this.recording.done.then((outcome) => {
+        if (outcome.status !== 'finished')
+          this.transcription.abort('Voice message ended without audio')
+      })
+    }
+    const encoding = encodeWav(encoded, { sampleRate: 16000, channels: 1 })
     // Cancellation and capture failure also reject encoding. The done handler reports those outcomes instead.
     void encoding.catch(() => {})
     void this.recording.started.then((started) => {
@@ -72,6 +90,7 @@ export class VoiceMessage {
     if (this.sending || this.receipt)
       return 'closed'
     this.recording.cancel('Voice message discarded')
+    this.transcription.abort('Voice message discarded')
     this.change({ id: this.id, sessionId: this.sessionId, phase: 'cancelled' })
     return 'cancelled'
   }
@@ -87,7 +106,7 @@ export class VoiceMessage {
       return Promise.reject(new Error('Voice message is not ready'))
     this.change({ ...this.current, phase: 'sending', error: undefined })
     // Defer transport invocation until the in-flight promise is installed. Synchronous adapters cannot bypass deduplication.
-    this.sending = Promise.resolve().then(() => this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text })).then((receipt) => {
+    this.sending = Promise.resolve().then(() => this.waitForTranscript().then(transcript => this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text, ...(transcript ? { transcript } : {}) }))).then((receipt) => {
       if (receipt.messageId !== this.id)
         throw new Error('Voice message receipt has a different identity')
       this.receipt = receipt
@@ -98,6 +117,22 @@ export class VoiceMessage {
       throw error
     }).finally(() => { this.sending = undefined })
     return this.sending
+  }
+
+  /** Resolves with the transcript, or with nothing once {@link TRANSCRIPT_WAIT_MS} passes. */
+  private async waitForTranscript() {
+    if (!this.transcript)
+      return undefined
+    let timer: Parameters<typeof clearTimeout>[0]
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(resolve, TRANSCRIPT_WAIT_MS)
+    })
+    try {
+      return await Promise.race([this.transcript, timeout])
+    }
+    finally {
+      clearTimeout(timer)
+    }
   }
 
   /** Moves forward only from the expected phase, so late recording events cannot undo a newer state. */
