@@ -20,7 +20,7 @@ afterEach(() => {
 })
 
 /** Mounts the button against a scripted voice host. `afterFinish` is the message state the host reports after `finish`. */
-async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot>, dictation?: string } = {}) {
+async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot>, dictation?: string, queued?: boolean } = {}) {
   const commands: Array<VoiceInputCommand | VoiceMessageCommand> = []
   const context = getSpeechBusContext()
   const connected: VoiceHostSnapshot = { connected: true, drafts: [] }
@@ -29,8 +29,10 @@ async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot
     commands.push(command)
     if (command.type === 'record')
       context.emit(voiceMessagesChanged, [{ id: command.id, sessionId: command.sessionId, phase: 'capturing' }])
-    if (command.type === 'finish')
-      context.emit(voiceMessagesChanged, command.send ? [] : [{ id: command.id, sessionId: 'alice', phase: 'ready', audio: new Blob(['wav'], { type: 'audio/wav' }), ...options.afterFinish }])
+    if (command.type === 'finish' && command.send)
+      context.emit(voiceMessagesChanged, options.queued ? [{ id: command.id, sessionId: 'alice', phase: 'sending' }] : [])
+    else if (command.type === 'finish')
+      context.emit(voiceMessagesChanged, [{ id: command.id, sessionId: 'alice', phase: 'ready', audio: new Blob(['wav'], { type: 'audio/wav' }), ...options.afterFinish }])
     if (command.type === 'discard' || command.type === 'send')
       context.emit(voiceMessagesChanged, [])
     return { status: 'accepted' }
@@ -90,6 +92,19 @@ describe('voiceInputButton', () => {
 
     await expect.poll(() => commands[1]).toMatchObject({ type: 'finish', send: true })
     await expect.element(screen.getByTestId('voice-pending-bar')).not.toBeInTheDocument()
+  })
+
+  // The chat queues a voice message behind a running reply. The control used to spin until that reply ended.
+  it('frees the control while a sent voice message waits in the chat queue', async () => {
+    localStorage.setItem('settings/hearing/auto-send-enabled', 'true')
+    const { screen } = await mountButton({ queued: true })
+    const button = screen.getByTestId('voice-input-button')
+    await button.click()
+    await expect.element(screen.getByTestId('voice-status-bar')).toBeInTheDocument()
+    await button.click()
+
+    await expect.element(screen.getByTestId('voice-status-bar')).not.toBeInTheDocument()
+    await expect.element(button).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('cancels from the status bar without sending', async () => {

@@ -23,7 +23,7 @@ const props = defineProps<{
   tools?: ChatToolReference[]
 }>()
 const emit = defineEmits<{
-  /** A voice message reached chat storage. */
+  /** The host started to send a voice message. */
   sent: []
   /** Recording UI opened or closed. The host hides its own input content while it is open. */
   recordingChange: [active: boolean]

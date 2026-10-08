@@ -28,7 +28,7 @@ export interface UseVoiceComposerOptions {
   tools?: () => ChatToolReference[] | undefined
   /** Receives the final dictation text. */
   onTranscript: (text: string) => void
-  /** Receives a voice message that the host accepted for the chat. */
+  /** Receives a voice message that the host started to send. */
   onSent?: () => void
   /** Receives start, capture, and send failures. */
   onError: (message: string) => void
@@ -118,6 +118,12 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
       }
       // A recording finished without sending becomes a pending message. The control is free for the next recording.
       else if (snapshot.phase === 'ready' && recording.finishing && !recording.send) {
+        active.value = undefined
+      }
+      // The host owns a message that it sends. The send can wait in the session queue behind a reply, so the control
+      // does not wait for it. A failed send returns the message to `pending` with its error.
+      else if (snapshot.phase === 'sending' && recording.finishing) {
+        options.onSent?.()
         active.value = undefined
       }
       return
