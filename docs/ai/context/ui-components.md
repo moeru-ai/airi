@@ -127,6 +127,7 @@ starts only on the handle, so action buttons and scrolling do not dismiss it.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `title` | `string` | required | Visible and accessible title |
+| `hideTitle` | `boolean` | `false` | Hides the heading visually and preserves the accessible dialog name |
 | `minimumHeight` | `'content' \| 'half'` | `'content'` | Uses content height or at least half of the viewport height |
 
 Dismiss with the handle, overlay, or Escape. There is no close button.
@@ -137,6 +138,7 @@ Dismiss with the handle, overlay, or Escape. There is no close button.
 
 **Emits**: `afterClose()` after the dismissal animation;
 `closeAutoFocus(event)` to prevent focus restoration when another modal opens.
+`openAutoFocus(event)` lets the consumer set the initial focus target.
 
 Use for mobile action menus and settings panels. Desktop dialogs and panels
 that need snap points use their own surface.
