@@ -7,6 +7,7 @@ import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { IOTraceRecordingService } from '../../services/airi/io-trace-recording'
 import type { McpManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
+import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
 import type { EditorWindowManager } from '../editor'
 import type { NoticeWindowManager } from '../notice'
@@ -63,6 +64,7 @@ export async function setupMainWindow(params: {
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
   ioTraceRecording: IOTraceRecordingService
+  globalShortcut: GlobalShortcutService
   inlayWindow: () => Promise<BrowserWindow>
 }) {
   const {
@@ -190,6 +192,7 @@ export async function setupMainWindow(params: {
     onboardingWindowManager: params.onboardingWindowManager,
     ioTraceRecording: params.ioTraceRecording,
     inlayWindow: params.inlayWindow,
+    globalShortcut: params.globalShortcut,
   })
 
   await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/', {

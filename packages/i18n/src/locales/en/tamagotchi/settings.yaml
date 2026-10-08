@@ -44,6 +44,10 @@ pages:
       spotlight:
         title: Spotlight shortcut
         description: Click the shortcut, then press a new shortcut. Press Esc to cancel.
+      push-to-talk:
+        title: Push to Talk shortcut
+        description: Hold this shortcut in any app while you speak to AIRI. Click the shortcut, then press a new shortcut. Press Esc to cancel.
+        inactive: This shortcut works only when the Hearing input mode is Push to Talk and the microphone is on.
       actions:
         recording: Press keys
         reset: Reset
@@ -52,6 +56,9 @@ pages:
         conflict: Shortcut already in use.
         failed: Failed to update shortcut
         requiresModifier: Use at least one of Cmd, Ctrl, Alt, or Super.
+        requiresHoldModifier: Use a modifier key, or a function key such as F13.
+        denied: AIRI cannot read global keys. Allow AIRI in Accessibility settings, then try again.
+        unsupported: This system cannot detect when you release a global shortcut.
       toggle-move:
         label: Toggle Move
       toggle-resize:
