@@ -577,6 +577,7 @@ pages:
         title: Downloaded speech models
         description: Sherpaw model files stored on this device.
         empty: No speech models are downloaded.
+        wake-word-model: Wake word model
         refresh: Refresh
       modules:
         title: Modules

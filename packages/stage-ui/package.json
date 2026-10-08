@@ -110,6 +110,7 @@
     "@proj-airi/ui": "workspace:^",
     "@proj-airi/ui-loading-screens": "workspace:^",
     "@proj-airi/vite-plugin-sherpaw": "workspace:^",
+    "@sherpaw/kws": "catalog:",
     "@sherpaw/xsai-transcription": "catalog:",
     "@shikijs/rehype": "catalog:",
     "@shopify/draggable": "catalog:",

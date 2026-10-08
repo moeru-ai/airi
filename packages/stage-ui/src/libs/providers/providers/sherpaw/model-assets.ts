@@ -1,12 +1,23 @@
 import type { ModelAsset, ModelAssetStatus } from '@proj-airi/stage-shared/model-assets'
 
 import { ModelAssetRepository } from '@proj-airi/stage-shared/model-assets'
+import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'
 
 import { updateModelAssetStatus } from '../../../../composables/use-model-asset-status'
 import { OpfsModelAssetStorage } from '../../../inference/model-assets-opfs'
+import { kwsModel } from '../../../voice/kws-model-info'
 import { sherpawModelResources } from './model-resources'
 
-const models: ModelAsset[] = sherpawModelResources.map(({ model, files }) => ({
+/**
+ * Every Sherpaw preload pack that the host exposes.
+ * The wake word pack shares the repository, so its download status, cancellation, and deletion follow the transcription models.
+ */
+const packs = [
+  ...sherpawModelResources,
+  ...(assets[kwsModel.id] ? [{ model: kwsModel, files: assets[kwsModel.id]! }] : []),
+]
+
+const models: ModelAsset[] = packs.map(({ model, files }) => ({
   id: model.id,
   revision: model.revision,
   source: files.source,

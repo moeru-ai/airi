@@ -546,6 +546,7 @@ pages:
         title: 已下载的语音模型
         description: 管理保存在此设备上的 Sherpaw 模型文件。
         empty: 尚无已下载的语音模型。
+        wake-word-model: 唤醒词模型
         refresh: 刷新
       modules:
         title: 模块

@@ -4,6 +4,7 @@ import type { DataSettingsStatusEmits } from '../status'
 import { sherpawModels } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { useModelAssetStatus } from '@proj-airi/stage-ui/composables/use-model-asset-status'
 import { cancelSherpawModelAssets, isSherpawModelBundled, listSherpawModelAssets, removeSherpawModelAssets } from '@proj-airi/stage-ui/libs/providers/providers/sherpaw/model-assets'
+import { kwsModel } from '@proj-airi/stage-ui/libs/voice/kws-model-info'
 import { DoubleCheckButton, GhostButton } from '@proj-airi/ui'
 import { computed, onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -16,7 +17,8 @@ const { emitStatus, handleActionError } = createDataSettingsStatusHelpers(emit)
 const { models } = useModelAssetStatus()
 const names = new Map<string, string>(Object.values(sherpawModels).map(model => [model.id, model.name]))
 const downloads = computed(() => models.value.flatMap((status) => {
-  const name = names.get(status.id)
+  // Transcription presets show their recognizer family. The wake word pack has no family name users know.
+  const name = status.id === kwsModel.id ? t('settings.pages.data.sections.model-downloads.wake-word-model') : names.get(status.id)
   if (!name || isSherpawModelBundled(status.id) || (status.state !== 'installed' && status.state !== 'downloading'))
     return []
   return [{ ...status, name }]
