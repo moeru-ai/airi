@@ -92,14 +92,26 @@ The mode does not fall back to `always-on`, because that opens the microphone al
 | stage-web | Only with a fine pointer, `(any-pointer: fine)`. Space is the only trigger, and no Web API reports a hardware keyboard. |
 | stage-pocket, stage-tamagotchi-kirie | No. They provide nothing. |
 
-### External wake-word adapters
+### Wake words
 
 `useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
 Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
 `setWords` returns conflicts for tools or settings to present. It does not invent a model or a keyword-management UI.
 
-An external KWS adapter supplies `detectWakeWord` to `voice.startListening`.
-After catalog matching, it calls `voice.resolveWakeTarget(characterId, signal)` to select a session without navigating the chat window.
+The `configure_wake_words` tool edits the wake words of the character that owns the turn's session.
+It validates tokens against the pinned KWS vocabulary in `libs/voice/kws-model`. It returns `saved` with conflicts, or `rejected` with a reason.
+
+`voice.startListening` runs the built-in KWS detection when the host passes no `detectWakeWord`.
+`WakeWordDetector` reads the same ordered 32 ms windows as VAD. It does not open a microphone or an AudioContext.
+It sends 100 ms batches of finite mono samples to a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
+A match maps through the active catalog to `voice.resolveWakeTarget(characterId, signal)`. This selects a session without navigating the chat window.
+Catalog changes rebuild the spotter keywords. A result after a stop or an aborted window is discarded.
+
+`useWakeWordDetectionStore().preparation` reports `unconfigured`, `preparing`, `ready`, or `error` for UI.
+The model loads only when the catalog has a pronunciation for the pinned model. Until the model is ready, detection returns no wake.
+While no listener runs, the preparation is `unconfigured`.
+
+A host can pass its own `detectWakeWord` to `voice.startListening`. Then the built-in detection does not start.
 The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
 The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
 Model selection, acoustic echo classification, and enrollment remain external integrations.
