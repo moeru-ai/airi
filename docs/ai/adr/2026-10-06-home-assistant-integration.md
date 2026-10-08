@@ -7,12 +7,13 @@ Status: accepted
 Issue #1491 asks AIRI to read and control Home Assistant. A user wants to say
 "turn off the living room light" and have AIRI do it.
 
-`plugins/airi-plugin-homeassistant` is a scaffold. Commit `4401b96c9`
+`plugins/airi-plugin-homeassistant` was a scaffold. Commit `4401b96c9`
 (2025-12-29) added a `package.json`, a `tsconfig.json`, a tsdown config, and a
-single `src/index.ts` that holds `console.warn('WIP')`. The scaffold depends on
+single `src/index.ts` that held `console.warn('WIP')`. The scaffold depended on
 `@proj-airi/server-sdk`, which suggests a channel plugin was the starting idea.
 `plugins/airi-plugin-bilibili-laplace` arrived the same day in the same shape.
-Nothing imports the package.
+Nothing imported the package, and this work removes it, because the integration
+lives in the application instead of in a process of its own.
 
 ## Decision
 
@@ -144,8 +145,8 @@ than a second client.
 
 - No entity allowlist and no per-entity permission model in the first phase.
 - No Stage Web work.
-- No change to `plugins/airi-plugin-homeassistant`. Its stub stays until a
-  decision on that package.
+- No channel plugin. The scaffold under `plugins/` is gone, and a later Stage Web
+  change adds a package back if it needs one.
 - No event subscription. The first phase reads and writes on request. A device
   that changes state on its own is a later feature.
 
