@@ -37,6 +37,11 @@ export interface StreamOptions {
     headers?: Record<string, string>
     temperature?: number
     topP?: number
+    /**
+     * Overrides the caller's per-request output token cap.
+     * @default undefined - use the caller's cap.
+     */
+    maxTokens?: number
     tools?: Tool[]
   }>
   /** Internal turn identity reused after a protocol change. */
@@ -72,6 +77,12 @@ export interface StreamOptions {
    * the tokens comprising the top 10% probability mass are considered.
    */
   topP?: number
+  /**
+   * Provider-enforced output token cap for each model request, including tool continuations.
+   * This is not a total turn budget. Providers define how reasoning tokens count.
+   * @default undefined - use the provider's default limit.
+   */
+  maxTokens?: number
   toolsCompatibility?: Map<string, boolean>
   supportsTools?: boolean
   waitForTools?: boolean
