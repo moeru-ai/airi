@@ -44,10 +44,12 @@ After a wake, the plugin starts an input with `after-silence`. The same characte
 Recognition accuracy depends on model token pronunciations that the character writes. No text-to-token conversion exists.
 A new model revision requires a new vocabulary file and a decision about cards that store the old `modelId`.
 
-## Follow-up
+## Input modes
 
-The Push to Talk work adds `inputMode` to the hearing store. A later change adds `wake-word` to that mode.
-In `wake-word` mode, the voice store `target()` option returns undefined. Then VAD alone cannot start an input, and only a wake can.
-The listener gating moves next to the mode selection in `voice.startListening`.
+The Hearing input mode `wake-word` keeps the microphone open. The voice store `target()` option returns undefined in this mode.
+Then VAD alone cannot start an input, and only a wake can. `startsInputOnSpeech` in the hearing store owns this rule.
+`always-on` also runs wake word detection, so a wake moves the next input to the matched character. `push-to-talk` does not listen continuously and runs no detection.
+
+## Follow-up
 
 Score and threshold settings per pronunciation are not in the card schema. Add them only if real recordings show false wakes or missed wakes.

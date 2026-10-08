@@ -282,8 +282,9 @@ export function resolveTranscriptionProviderOptions(providerConfig?: Record<stri
  *
  * - `always-on`: voice activity detection starts an input when the user speaks. The microphone stays open.
  * - `push-to-talk`: an input starts only while the user holds the Push to Talk key. The microphone opens only during the hold.
+ * - `wake-word`: the microphone stays open, but only a character's wake word starts an input. Speech alone does not.
  */
-export type HearingInputMode = 'always-on' | 'push-to-talk'
+export type HearingInputMode = 'always-on' | 'push-to-talk' | 'wake-word'
 
 /**
  * Tells if a mode keeps the microphone open and runs voice activity detection.
@@ -292,10 +293,20 @@ export type HearingInputMode = 'always-on' | 'push-to-talk'
 export function listensContinuously(mode: HearingInputMode): boolean {
   switch (mode) {
     case 'always-on':
+    case 'wake-word':
       return true
     case 'push-to-talk':
       return false
   }
+}
+
+/**
+ * Tells if speech that voice activity detection finds starts an input without a wake word.
+ * The voice store reads this on every window, so a mode change applies without restarting the listener.
+ * Wake word detection runs in every mode that {@link listensContinuously}. A wake always starts an input for its character.
+ */
+export function startsInputOnSpeech(mode: HearingInputMode): boolean {
+  return mode === 'always-on'
 }
 
 export const useHearingStore = defineStore('hearing-store', () => {

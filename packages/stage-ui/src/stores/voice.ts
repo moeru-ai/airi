@@ -22,7 +22,7 @@ import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from './audio'
 import { useChatStore } from './chat'
 import { useChatSessionStore } from './chat/session-store'
-import { useHearingStore } from './modules/hearing'
+import { startsInputOnSpeech, useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceMessagesStore } from './voice-messages'
 import { useWakeWordDetectionStore } from './wake-word-detection'
@@ -106,6 +106,7 @@ export const useVoiceStore = defineStore('voice', () => {
     const snapshot: VoiceHostSnapshot = {
       connected: true,
       microphone: { enabled: devices.enabled, ready: !!devices.stream, error: devices.error },
+      wakeWords: { preparation: wakeWordDetection.preparation, ...(wakeWordDetection.error ? { error: wakeWordDetection.error } : {}) },
       drafts: drafts.value.map(draft => ({ ...draft })),
       frontDraftId: frontDraftId.value,
       error: error.value,
@@ -123,7 +124,7 @@ export const useVoiceStore = defineStore('voice', () => {
     getSpeechBusContext().emit(voiceSnapshotChanged, snapshot)
   }
 
-  watch([state, transcript, frontDraftId, error, microphoneStream, microphoneEnabled, microphoneError], publishSnapshot)
+  watch([state, transcript, frontDraftId, error, microphoneStream, microphoneEnabled, microphoneError, () => wakeWordDetection.preparation, () => wakeWordDetection.error], publishSnapshot)
   watch(drafts, publishSnapshot, { deep: true })
 
   function beginInput(options: BeginSpeechInput) {
@@ -421,7 +422,8 @@ export const useVoiceStore = defineStore('voice', () => {
       enabled: () => !voiceMessages.isRecording,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
       acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
-      target: () => sessions.activeSessionId && hearing.configured
+      // Wake word mode returns no target, so VAD alone cannot start an input. A wake supplies its own target.
+      target: () => sessions.activeSessionId && hearing.configured && startsInputOnSpeech(hearing.inputMode)
         ? { sessionId: sessions.activeSessionId, interruptTurns: activeTurns.value.filter(turn => turn.sessionId === sessions.activeSessionId) }
         : undefined,
     })

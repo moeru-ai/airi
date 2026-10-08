@@ -70,10 +70,15 @@ The Hearing store keeps `inputMode`. The microphone switch (`useSettingsAudioDev
 
 - `always-on` keeps the microphone open and runs voice activity detection. This is the default.
 - `push-to-talk` starts a speech input only while the user holds a key. The microphone opens only during the hold.
+- `wake-word` keeps the microphone open and runs voice activity detection and wake word detection. Only a wake starts an input.
+
+`startsInputOnSpeech(mode)` decides if VAD alone starts an input. In `wake-word` mode, the voice store's speech target is undefined.
+Wake word detection runs in every mode that listens continuously. In `always-on` mode, a wake also moves the input to the matched character's session.
+The voice host publishes the detector preparation in its snapshot as `wakeWords`, so a settings window can show it.
 
 Each stage page calls `useVoiceListening` once. It is the one place that starts or stops continuous listening.
 `listensContinuously(mode)` in `stores/modules/hearing.ts` decides which modes run detection and keep the microphone open.
-To add a mode, extend `HearingInputMode`, `listensContinuously`, and `useVoiceListening`.
+To add a mode, extend `HearingInputMode`, `listensContinuously`, `startsInputOnSpeech`, and `useVoiceListening`.
 
 `useVoicePushToTalk` connects a hold to `voice.beginManual`. The press captures the active session, so a session switch during the hold does not move the speech.
 `useVoiceHold` owns the hold lifecycle: it ignores key repeats, cancels a tap shorter than 300 ms, and cancels on disable or disposal.
