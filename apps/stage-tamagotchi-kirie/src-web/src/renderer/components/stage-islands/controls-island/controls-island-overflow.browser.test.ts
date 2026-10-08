@@ -33,6 +33,8 @@ const authState = vi.hoisted(() => ({
   isAuthenticated: { value: false },
   needsLogin: { value: false },
   user: { value: null as { createdAt: Date, email: string, emailVerified: boolean, id: string, name: string, updatedAt: Date } | null },
+  // The card store reads the account id to synchronize the cards. Without an account it is `local`.
+  userId: { value: 'local' },
 }))
 
 vi.mock('@proj-airi/stage-host-context', () => ({
@@ -66,6 +68,7 @@ vi.mock('@proj-airi/stage-ui/stores/auth', async () => {
   authState.isAuthenticated = ref(false)
   authState.needsLogin = ref(false)
   authState.user = ref(null)
+  authState.userId = ref('local')
 
   return { useAuthStore: () => authState }
 })

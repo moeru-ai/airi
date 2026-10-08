@@ -5,18 +5,10 @@ import type { LlmBillingService } from '../../../services/domain/billing/llm-bil
 import type { SpeechBilling } from '../../../services/domain/billing/speech-billing'
 import type { FluxService } from '../../../services/domain/flux'
 import type { LlmRouterService } from '../../../services/domain/llm-router'
-import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/domain/llm-tracing'
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { RequestLogService } from '../../../services/domain/request-log'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
-
-import { startChatGeneration, startTtsGeneration } from '../../../services/domain/llm-tracing'
-
-export interface LlmTracingDeps {
-  startChatGeneration: (input: Parameters<typeof startChatGeneration>[0]) => ChatGenerationTrace
-  startTtsGeneration: (input: Parameters<typeof startTtsGeneration>[0]) => TtsGenerationTrace
-}
 
 export interface V1RouteDeps {
   fluxService: FluxService
@@ -32,10 +24,4 @@ export interface V1RouteDeps {
   genAi?: GenAiMetrics | null
   revenue?: RevenueMetrics | null
   rateLimitMetrics?: RateLimitMetrics | null
-  llmTracing: LlmTracingDeps
-}
-
-export const defaultLlmTracing: LlmTracingDeps = {
-  startChatGeneration,
-  startTtsGeneration,
 }

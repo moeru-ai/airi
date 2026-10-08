@@ -17,6 +17,8 @@ const props = withDefaults(defineProps<{
   align?: DropdownMenuContentProps['align']
   contentClass?: string | string[]
   disabled?: DropdownMenuTriggerProps['disabled']
+  /** A non-modal menu leaves the rest of the page interactive while it is open. */
+  modal?: boolean
   side?: DropdownMenuContentProps['side']
   sideOffset?: DropdownMenuContentProps['sideOffset']
   variant?: 'blurry' | 'default'
@@ -24,14 +26,18 @@ const props = withDefaults(defineProps<{
   align: 'start',
   contentClass: undefined,
   disabled: false,
+  modal: true,
   side: 'bottom',
   sideOffset: 6,
   variant: 'default',
 })
+
+/** The open state. Bind it to open the menu from code, for example after a hover delay. */
+const open = defineModel<boolean>('open', { default: false })
 </script>
 
 <template>
-  <DropdownMenuRoot>
+  <DropdownMenuRoot v-model:open="open" :modal="props.modal">
     <DropdownMenuTrigger
       as-child
       :disabled="props.disabled"

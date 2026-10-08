@@ -9,6 +9,8 @@ Sherpaw model metadata and recognition logic live in `provider-inference/src/pro
 The Vite plugin exposes every configured model to the runtime. A model can use a pinned remote URL or a local URL.
 `developmentModels` selects local development files. `bundledModels` selects production build files. Both lists are subsets of `models`.
 
+Model artifact URLs come from `https://huggingface.co` by default. The plugin accepts an `endpoint` option and reads `HF_ENDPOINT`, so a deployment can serve the same pinned revisions from a mirror. The configured endpoint applies to both the download and the URL that a remote model keeps at runtime. Artifact paths and revisions do not change.
+
 Web builds expose remote models and download the selected model when recognition starts.
 Desktop development downloads all three models to the shared repository cache before Vite starts. Ordinary CI keeps them remote.
 Desktop release workflows set `SHERPAW_BUNDLE_MODELS=true` and package all three models.

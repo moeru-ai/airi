@@ -38,9 +38,9 @@ vi.mock('../../../../composables/audio', async () => {
         stream: shallowRef<MediaStream>(),
         deviceConstraints: computed(() => ({ audio: true })),
         permissionGranted,
+        source: shallowRef(),
+        input: shallowRef({ subscribe: () => new ReadableStream() }),
         askPermission: audioDeviceMocks.storeAskPermission,
-        startStream: vi.fn().mockResolvedValue(undefined),
-        stopStream: vi.fn(),
       }
     },
   }
@@ -101,6 +101,7 @@ describe('hearing config audio device ownership', () => {
   })
 
   it('renders the microphone selected by the settings store', () => {
+    localStorage.setItem('settings/audio/input', 'store-microphone')
     const { app, host } = mountHearingConfig()
 
     expect(host.querySelector<HTMLInputElement>('input[role="combobox"]')?.value).toBe('Store microphone')
