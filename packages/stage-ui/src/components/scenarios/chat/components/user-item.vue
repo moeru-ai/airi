@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ChatHistoryItem, ChatMessage } from '../../../../types/chat'
+import type { ChatHistoryItem } from '../../../../types/chat'
 import type { ChatHistoryReplyPayload } from '../reply'
 
 import { isStageCapacitor, isStageWeb } from '@proj-airi/stage-shared'
@@ -7,13 +7,14 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import ChatReplyQuote from './reply-quote.vue'
+import VoiceMessagePlayer from './voice-message-player.vue'
 
 import { MarkdownRenderer } from '../../../markdown'
 import { ChatActionMenu } from '../components/action-menu'
 import { getChatHistoryItemCopyText } from '../utils'
 
 const props = withDefaults(defineProps<{
-  message: Extract<ChatMessage, { role: 'user' }>
+  message: Extract<ChatHistoryItem, { role: 'user' }>
   label: string
   replyTarget?: ChatHistoryReplyPayload
   canReply?: boolean
@@ -51,9 +52,13 @@ const emptyImages: readonly string[] = Object.freeze([])
 const images = computed(() => typeof props.message.content === 'string'
   ? emptyImages
   : props.message.content.filter(part => part.type === 'image_url').map(part => part.image_url.url))
+/** Each recording with its transcript, when one was stored. Transcripts follow the audio part order. */
 const audio = computed(() => typeof props.message.content === 'string'
   ? []
-  : props.message.content.filter(part => part.type === 'input_audio').map(part => `data:audio/${part.input_audio.format === 'mp3' ? 'mpeg' : 'wav'};base64,${part.input_audio.data}`))
+  : props.message.content.filter(part => part.type === 'input_audio').map((part, index) => ({
+      source: `data:audio/${part.input_audio.format === 'mp3' ? 'mpeg' : 'wav'};base64,${part.input_audio.data}`,
+      transcript: props.message.audioTranscripts?.[index]?.trim(),
+    })))
 
 const containerClasses = computed(() => [
   'flex',
@@ -72,7 +77,7 @@ const boxClasses = computed(() => {
       : 'bg-neutral-100/80 dark:bg-neutral-800/80',
   ]
 })
-const copyText = computed(() => getChatHistoryItemCopyText(props.message as ChatHistoryItem))
+const copyText = computed(() => getChatHistoryItemCopyText(props.message))
 </script>
 
 <template>
@@ -105,11 +110,17 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message as Chat
           <div v-if="images.length" :class="['flex flex-wrap gap-2 py-2']">
             <img v-for="(image, index) in images" :key="index" :src="image" :alt="t('stage.chat.images.description')" :class="['max-h-64 max-w-full rounded-xl object-contain']">
           </div>
+          <div v-for="(recording, index) in audio" :key="index" :class="['flex flex-col gap-1 py-1']">
+            <VoiceMessagePlayer :audio="recording.source" :aria-label="t('stage.chat.voice-message.preview')" />
+            <p v-if="recording.transcript" :class="['m-0 px-1 text-sm opacity-75']">
+              {{ recording.transcript }}
+            </p>
+          </div>
           <MarkdownRenderer
+            v-if="content"
             :content="content as string"
             class="break-words"
           />
-          <audio v-for="(source, index) in audio" :key="index" :src="source" controls :aria-label="t('stage.chat.voice-message.preview')" :class="['my-2 max-w-full']" />
         </div>
       </template>
     </ChatActionMenu>
