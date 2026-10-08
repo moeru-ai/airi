@@ -13,7 +13,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
-import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -32,6 +32,7 @@ const {
   supportsModelListing,
   transcriptionModelSearchQuery,
   activeCustomModelName,
+  inputMode,
   autoSendEnabled,
   autoSendDelay,
   confidenceThreshold,
@@ -40,6 +41,11 @@ const {
   rephraseModel,
   verboseJsonNotSupported,
 } = storeToRefs(hearingStore)
+const inputModeOptions = computed(() => (['always-on', 'push-to-talk'] as const).map(mode => ({
+  value: mode,
+  label: t(`settings.pages.modules.hearing.sections.section.input-mode.${mode}`),
+  description: t(`settings.pages.modules.hearing.sections.section.input-mode.${mode}-description`),
+})))
 const providersStore = useProviderStore()
 const { configuredChatProvidersMetadata } = storeToRefs(providersStore)
 const rephraseProviderOptions = computed(() => [
@@ -555,6 +561,25 @@ onUnmounted(() => {
             <div i-solar:warning-circle-line-duotone class="shrink-0" />
             {{ t('settings.pages.modules.hearing.sections.section.confidence-threshold.verbose-json-unsupported') }}
           </div>
+        </div>
+
+        <div class="border-t border-neutral-200 pt-4 dark:border-neutral-700">
+          <div class="mb-4">
+            <h2 class="text-lg text-neutral-500 md:text-2xl dark:text-neutral-500">
+              {{ t('settings.pages.modules.hearing.sections.section.input-mode.title') }}
+            </h2>
+            <div text="neutral-400 dark:neutral-400">
+              {{ t('settings.pages.modules.hearing.sections.section.input-mode.description') }}
+            </div>
+          </div>
+
+          <FieldSelect
+            v-model="inputMode"
+            data-testid="hearing-input-mode"
+            :label="t('settings.pages.modules.hearing.sections.section.input-mode.label')"
+            :options="inputModeOptions"
+            layout="vertical"
+          />
         </div>
 
         <!-- Auto-send settings -->

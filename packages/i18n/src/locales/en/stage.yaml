@@ -52,6 +52,7 @@ chat:
     input-device: Microphone
     system-default: System default
     listen: Listen continuously
+    push-to-talk: Push to Talk
     hearing-settings: More Hearing settings…
     options-hint: Hover or right-click for options
     recording: Recording
