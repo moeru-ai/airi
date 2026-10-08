@@ -66,6 +66,50 @@ describe('audio input pipeline', () => {
 
 A case can independently choose its VAD behavior, ASR, LLM, and TTS configuration. A configuration callback can read its own environment, write local storage, use another persistence mechanism, or deliberately leave onboarding incomplete.
 
+## Test wake word detection
+
+Use `configureWakeWord` to add one AIRI Card with a wake word. The callback also turns on the microphone and selects the `wake-word` Hearing input mode. The case does not need an ASR Provider.
+
+Set `pipelines: ['kws']`. Then the Web runner downloads and verifies the pinned KWS model before the file microphone starts. The Web page gets the model from the workspace cache, not from the network. Electron uses its bundled model.
+
+```ts
+import { describe, expect, it } from '../../src'
+import { configureOnboarding, configureWakeWord } from '../shared/configurations'
+import { readSessionCharacterId } from '../shared/interactions'
+
+describe('wake word detection', () => {
+  it('begins a voice input for the character', {
+    input: new URL('./input.test.wav', import.meta.url),
+    pipelines: ['kws'],
+    preflight: [
+      configureOnboarding(() => ({ completed: true })),
+      configureWakeWord(() => ({
+        targetCardId: 'testing-audio-wake-word',
+        text: 'Light up',
+        tokens: ['L', 'AY1', 'T', 'AH1', 'P'],
+      })),
+    ],
+  }, async ({ audio }) => {
+    const input = await audio.waitForVoiceInput({ timeout: 90_000 })
+    await expect(readSessionCharacterId(audio, input.sessionId)).resolves.toBe('testing-audio-wake-word')
+  })
+})
+```
+
+A wake does not change the active card. It begins a voice input in the chat session of the matched character. `waitForVoiceInput` reads that input from the voice host snapshot on the speech bus. `readSessionCharacterId` reads the session owner from the stored chat session index.
+
+In the `wake-word` mode, speech alone does not begin an input. Thus the first voice input of the case comes from a wake.
+
+The recording starts with 35 seconds of silence. This gives the detector time to start before speech begins. The fixture repeats "Light up" three times in 16 kHz mono PCM. The speech was generated with the macOS Samantha voice.
+
+Run the case on both hosts:
+
+```bash
+pnpm -F @proj-airi/testing-audio test:run cases/wake-word/case.audio.test.ts
+```
+
+For one host, build its app and select `--project audio-web` or `--project audio-electron`.
+
 ## Provider environment
 
 Each case selects its environment variables. `loadCaseEnvironment` uses Vite test mode to read repository, `packages/stage-ui`, and package environment files. Process variables have the highest priority.
