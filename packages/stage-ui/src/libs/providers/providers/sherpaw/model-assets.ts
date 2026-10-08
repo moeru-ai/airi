@@ -22,6 +22,16 @@ sherpawModelAssets.subscribe(updateModelAssetStatus)
 for (const status of sherpawModelAssets.list())
   updateModelAssetStatus(status)
 
+// NOTICE:
+// Before the model asset repository, Sherpaw cached remote model files in Cache Storage.
+// Nothing reads, measures, or clears that `sherpaw-models` entry now, so delete it once at startup.
+// Source: `fetchCachedModel` in packages/stage-ui/src/libs/inference/cache-utils.ts before PR #2696.
+// Remove when the release that includes PR #2696 is six months old.
+if (typeof caches !== 'undefined') {
+  void caches.delete('sherpaw-models')
+    .catch(error => console.warn('Failed to delete the old Sherpaw model cache:', error))
+}
+
 export function isSherpawModelBundled(id: string): boolean {
   return models.find(model => model.id === id)?.source === 'bundled'
 }
