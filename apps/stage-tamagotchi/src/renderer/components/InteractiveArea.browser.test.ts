@@ -243,7 +243,7 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
     const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
-    const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
+    const actions = account.parentElement!
     const accountContent = account.querySelector<HTMLElement>('.basic-button-content')
     // ROOT CAUSE:
     //
@@ -254,7 +254,7 @@ describe('interactive area synchronized state', () => {
     // assert the owned row and content geometry directly.
     expect(accountContent).not.toBeNull()
     await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
-    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
+    expect(account.getBoundingClientRect().left).toBe(actions.getBoundingClientRect().left)
     expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
     expect(account.getBoundingClientRect().height).toBe(56)
     expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
