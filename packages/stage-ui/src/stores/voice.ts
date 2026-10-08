@@ -25,6 +25,7 @@ import { useChatSessionStore } from './chat/session-store'
 import { useHearingStore } from './modules/hearing'
 import { useSettingsAudioDevice } from './settings/audio-device'
 import { useVoiceMessagesStore } from './voice-messages'
+import { useWakeWordDetectionStore } from './wake-word-detection'
 
 /** The longest time a chat model rewrite can delay a voice submission. */
 const VOICE_REPHRASE_TIMEOUT_MS = 10_000
@@ -38,6 +39,7 @@ export const useVoiceStore = defineStore('voice', () => {
   const voiceMessages = useVoiceMessagesStore()
   const speaking = useSpeakingStore()
   const streamingControl = useLlmStreamingControlStore()
+  const wakeWordDetection = useWakeWordDetectionStore()
   const { stream: microphoneStream, enabled: microphoneEnabled, error: microphoneError } = storeToRefs(devices)
   const { drafts, frontDraftId, acceptSpeech, sendDraft, discardDraft, editDraft, selectDraft } = useVoiceDrafts(report)
   const activeTurns = shallowRef<readonly TurnRef[]>([])
@@ -410,9 +412,12 @@ export const useVoiceStore = defineStore('voice', () => {
 
     detectorOptions = options
     const model = new SileroVad()
+    // The built-in KWS detection runs unless the host supplies its own adapter.
+    // It returns no wake until the device catalog has an active pronunciation and the model is ready.
+    const wakeWords = options.detectWakeWord ? undefined : wakeWordDetection.start({ resolveTarget: resolveWakeTarget, onError: report })
     const plugin = createVoiceActivityPlugin({
       detect: (window, signal) => model.score(window, signal),
-      detectWakeWord: options.detectWakeWord,
+      detectWakeWord: options.detectWakeWord ?? wakeWords?.detect,
       enabled: () => !voiceMessages.isRecording,
       // Automatic barge-in requires platform echo cancellation or an external echo classifier.
       acceptSpeech: options.acceptSpeech ?? (async () => !speaking.nowSpeaking || devices.source.echoCancellation),
@@ -423,7 +428,10 @@ export const useVoiceStore = defineStore('voice', () => {
 
     listening = controller.use({ ...plugin, setup(scope) {
       plugin.setup(scope)
-      scope.onDispose(() => model.close())
+      scope.onDispose(() => {
+        wakeWords?.stop()
+        return model.close()
+      })
       return undefined
     } }, { grants: ['input-control', 'cancel-input'], onError: event => report(event.error) })
   }
