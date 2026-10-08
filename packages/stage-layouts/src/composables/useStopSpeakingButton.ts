@@ -1,5 +1,6 @@
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useSpeakingStore } from '@proj-airi/stage-ui/stores/audio'
+import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
 import { useSpeechOutputControlStore } from '@proj-airi/stage-ui/stores/speech-output-control'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
@@ -7,8 +8,7 @@ import { computed } from 'vue'
 /**
  * Connects chat speech controls to the active Stage output host.
  *
- * Manual speech stops affect current playback. The chat interruption control
- * combines them with generation cancellation when the user stops a response.
+ * Manual interruption stops generation and playback, then records an agent control event.
  * Mute is persisted by the shared store and also blocks future TTS sessions.
  */
 export function useStopSpeakingButton(options: {
@@ -20,24 +20,25 @@ export function useStopSpeakingButton(options: {
   resolveSpeakingState?: () => boolean | Promise<boolean>
 } = {}) {
   const { nowSpeaking } = storeToRefs(useSpeakingStore())
+  const sessions = useChatSessionStore()
   const speechOutputControlStore = useSpeechOutputControlStore()
   const { speechMuted } = storeToRefs(speechOutputControlStore)
   const { trackSpeechMuteToggled, trackTtsStopClicked } = useAnalytics()
 
-  const showStopSpeakingButton = computed(() => nowSpeaking.value)
+  const showStopSpeakingButton = computed(() => speechOutputControlStore.activeTurns.some(turn => turn.sessionId === sessions.activeSessionId))
 
-  function stopSpeakingFromChat() {
+  function stopSpeakingFromChat(sessionId = sessions.activeSessionId) {
     trackTtsStopClicked({ reason: 'manual-chat' })
-    speechOutputControlStore.requestStopSpeaking('manual-chat')
+    return speechOutputControlStore.requestStopSpeaking({ reason: 'manual-chat', sessionId })
   }
 
-  function interruptSpeakingFromChat() {
-    speechOutputControlStore.requestStopSpeaking('manual-chat')
+  function interruptSpeakingFromChat(sessionId = sessions.activeSessionId) {
+    return speechOutputControlStore.requestStopSpeaking({ reason: 'manual-chat', sessionId })
   }
 
   function stopAllSpeaking() {
     trackTtsStopClicked({ reason: 'manual-all' })
-    speechOutputControlStore.requestStopSpeaking('manual-all')
+    return speechOutputControlStore.requestStopSpeaking({ reason: 'manual-all' })
   }
 
   async function toggleSpeechMuted() {

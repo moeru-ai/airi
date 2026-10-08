@@ -39,6 +39,39 @@ The home page reports when its character model is ready or fails. A failed model
 If the model fails, the user can retry the app or continue without a character.
 The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
 
+## Voice integration
+
+The audio host owns one VoiceController and one shared microphone input.
+Other windows send Eventa commands and render snapshots. They do not create competing capture or playback runtimes.
+Consumers subscribe to the microphone input with their own abort signal. The last subscriber to leave releases the device.
+
+- `useVoiceStore` owns application routing, drafts, responses, and host command registration.
+- `useVoiceController` binds public controller state to Vue and moves the controller to the input of the selected device.
+- `useVoiceInput` maps hold and release controls to host commands.
+- `useVoiceMessagesStore` owns independent recording previews and explicit attachment submission.
+- Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
+- Speech preserves existing chunked synthesis and bidirectional provider output.
+- `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
+
+The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them read-only below the draft while speech is transcribed. Final text uses the body color. Earlier interim text uses a pale theme color, and the newest interim segment uses a stronger one. The draft stays editable while live speech appears below it.
+Rephrasing is off by default. A failure or a 10-second timeout submits the provider text.
+
+Recording completion never sends an attachment. Failed submission retains its preview and stable message identity.
+Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
+Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
+
+### External wake-word adapters
+
+`useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
+Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
+`setWords` returns conflicts for tools or settings to present. It does not invent a model or a keyword-management UI.
+
+An external KWS adapter supplies `detectWakeWord` to `voice.startListening`.
+After catalog matching, it calls `voice.resolveWakeTarget(characterId, signal)` to select a session without navigating the chat window.
+The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
+The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
+Model selection, acoustic echo classification, and enrollment remain external integrations.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off

@@ -275,8 +275,10 @@ function emitToolCallRerun(
             :now="now.getTime()"
             :class="['transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none', index < expiredBefore ? 'invisible opacity-0' : '']"
           />
+          <!-- Audio end-to-end tests read rendered messages through data-chat-message-role. -->
           <ChatHistoryMessageFrame
             :key="getChatHistoryItemKey(message, index)"
+            :data-chat-message-role="message.role"
             :variant="variant"
             :scroll-container="chatHistoryRef"
             :reply-enabled="canReplyToMessage(message)"
