@@ -1,14 +1,320 @@
-import type { TtsRequest } from '@proj-airi/pipelines-audio'
+import type { PlaybackDriver, SpeechPipelineOptions, TtsRequest } from '@proj-airi/pipelines-audio'
 
 import type { SpeechAudio, StreamingTranscriber, TranscriptionEvent } from '../../index'
 
 import { AudioInput, createPushStream, Playback } from '@proj-airi/pipelines-audio'
-import { describe, expect, it, vi } from 'vitest'
+import { APICallError } from '@xsai/shared'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { VoiceController } from '../../index'
 import { keepOpen, pcmSource } from '../../testing/audio'
 
+function synthesisFailure(status: number, headers?: HeadersInit) {
+  return new APICallError(`Remote sent ${status} response`, {
+    response: new Response('unavailable', { status, headers }),
+    responseBody: 'unavailable',
+  })
+}
+
+function synthesisHarness(synthesize: SpeechPipelineOptions<Blob>['tts']) {
+  const play = vi.fn<PlaybackDriver['play']>(() => ({
+    done: Promise.resolve({ throughMs: 1 }),
+    stop: async () => ({ throughMs: 0 }),
+  }))
+  const playback = new Playback({ nowMs: () => 0, play })
+  const controller = new VoiceController({ speech: () => ({ playback, synthesize }) })
+  const response = controller.openResponse({ sessionId: 'alice', turnId: 'retry' })
+  const speech = response.openSpeech({ purpose: 'answer' })
+  return { controller, response, speech, play }
+}
+
 describe('voiceController output', () => {
+  describe('transient synthesis failures', () => {
+    beforeEach(() => vi.useFakeTimers())
+    afterEach(() => vi.useRealTimers())
+
+    it('retries a rejected segment before failing its producer', async () => {
+      // ROOT CAUSE:
+      // A provider rejection used to call SpeechStream.fail immediately, which
+      // cancelled its intent before the segment could recover. Retry before
+      // that terminal transition, using the same request and cancellation scope.
+      const audio = new Blob(['Hello.'])
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>()
+        .mockRejectedValueOnce(synthesisFailure(503))
+        .mockResolvedValue(audio)
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      expect(harness.speech.signal.aborted).toBe(false)
+      await vi.advanceTimersByTimeAsync(299)
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(await harness.response.finish()).toBe('finished')
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      expect(synthesize.mock.calls[1][0]).toBe(synthesize.mock.calls[0][0])
+      expect(synthesize.mock.calls[1][1]).toBe(synthesize.mock.calls[0][1])
+      expect(harness.play).toHaveBeenCalledTimes(1)
+      expect(harness.play.mock.calls[0][0].audio).toBe(audio)
+      await harness.controller.close()
+    })
+
+    it('fails after three attempts with the final provider error', async () => {
+      const error = synthesisFailure(503)
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>()
+        .mockRejectedValueOnce(synthesisFailure(502))
+        .mockRejectedValueOnce(synthesisFailure(504))
+        .mockRejectedValue(error)
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(599)
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(await harness.speech.done).toEqual({ status: 'failed', error })
+      expect(harness.speech.signal.reason).toBe(error)
+      expect(await harness.response.finish()).toBe('failed')
+      expect(synthesize).toHaveBeenCalledTimes(3)
+      expect(harness.play).not.toHaveBeenCalled()
+      await harness.controller.close()
+    })
+
+    it('does not retry a permanent request failure', async () => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>().mockRejectedValue(synthesisFailure(401))
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(await harness.response.finish()).toBe('failed')
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      expect(harness.play).not.toHaveBeenCalled()
+      await harness.controller.close()
+    })
+
+    it.each([408, 425, 429, 500, 502, 504])('recovers from HTTP %i before playback', async (status) => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>()
+        .mockRejectedValueOnce(synthesisFailure(status))
+        .mockResolvedValue(new Blob(['Hello.']))
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(await harness.response.finish()).toBe('finished')
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      expect(harness.play).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+      await harness.controller.close()
+    })
+
+    it('retries a fetch transport failure', async () => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>()
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValue(new Blob(['Hello.']))
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(await harness.response.finish()).toBe('finished')
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      await harness.controller.close()
+    })
+
+    it.each([
+      new TypeError('Cannot read properties of undefined'),
+      new Error('Unknown model 503'),
+      new DOMException('Request cancelled', 'AbortError'),
+      synthesisFailure(400),
+      synthesisFailure(404),
+      synthesisFailure(501),
+    ])('fails without retrying %s', async (error) => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>().mockRejectedValue(error)
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(await harness.response.finish()).toBe('failed')
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      expect(harness.play).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+      await harness.controller.close()
+    })
+
+    it.each([
+      { header: '2', delayMs: 2_000 },
+      { header: 'Thu, 01 Jan 2026 00:00:02 GMT', delayMs: 2_000 },
+      { header: 'invalid', delayMs: 300 },
+    ])('uses the provider wait for Retry-After: $header', async ({ header, delayMs }) => {
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>()
+        .mockRejectedValueOnce(synthesisFailure(429, { 'retry-after': header }))
+        .mockResolvedValue(new Blob(['Hello.']))
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(delayMs - 1)
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      await vi.advanceTimersByTimeAsync(1)
+      expect(await harness.response.finish()).toBe('finished')
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      await harness.controller.close()
+    })
+
+    it('fails instead of reserving playback for a provider wait above thirty seconds', async () => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>()
+        .mockRejectedValue(synthesisFailure(429, { 'retry-after': '31' }))
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(await harness.response.finish()).toBe('failed')
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      expect(vi.getTimerCount()).toBe(0)
+      await harness.controller.close()
+    })
+
+    it('treats a null synthesis result as intentional silence, not a retryable failure', async () => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>().mockResolvedValue(null)
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(await harness.response.finish()).toBe('finished')
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      expect(harness.play).not.toHaveBeenCalled()
+      await harness.controller.close()
+    })
+
+    it('cancels a pending retry without another provider call', async () => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>().mockRejectedValue(synthesisFailure(503))
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(0)
+      harness.response.cancel('User cancelled')
+      expect(await harness.response.finish()).toBe('cancelled')
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      expect(synthesize.mock.calls[0][1].aborted).toBe(true)
+      expect(harness.play).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+      await harness.controller.close()
+    })
+
+    it('cancels the retry wait when the producer deadline ends', async () => {
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>().mockRejectedValue(synthesisFailure(503))
+      const harness = synthesisHarness(synthesize)
+      harness.speech.cancel('Use a producer with a deadline')
+      const speech = harness.response.openSpeech({ purpose: 'short acknowledgment', deadlineMs: 100 })
+      await speech.write('Hello.')
+      speech.end()
+      await vi.advanceTimersByTimeAsync(100)
+      expect(await speech.done).toEqual({ status: 'cancelled', reason: 'Speech deadline ended' })
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(synthesize).toHaveBeenCalledTimes(1)
+      expect(harness.play).not.toHaveBeenCalled()
+      expect(vi.getTimerCount()).toBe(0)
+      await harness.response.finish()
+      await harness.controller.close()
+    })
+
+    it('does not play audio returned by an in-flight retry after cancellation', async () => {
+      const pending = Promise.withResolvers<Blob>()
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>()
+        .mockRejectedValueOnce(synthesisFailure(503))
+        .mockImplementation(() => pending.promise)
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('Hello.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      harness.response.cancel('User cancelled')
+      expect(await harness.response.finish()).toBe('cancelled')
+      pending.resolve(new Blob(['Late audio']))
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      expect(harness.play).not.toHaveBeenCalled()
+      await harness.controller.close()
+    })
+
+    it('does not retry a bidirectional provider that fails after emitting audio', async () => {
+      const play = vi.fn<PlaybackDriver['play']>(() => ({
+        done: Promise.resolve({ throughMs: 1 }),
+        stop: async () => ({ throughMs: 0 }),
+      }))
+      const playback = new Playback({ nowMs: () => 0, play })
+      const output = createPushStream<SpeechAudio>()
+      const stream = vi.fn(async () => output.stream)
+      const controller = new VoiceController({ speech: () => ({ playback, stream }) })
+      const response = controller.openResponse({ sessionId: 'alice', turnId: 'streaming' })
+      const speech = response.openSpeech({ purpose: 'answer' })
+      await speech.write('Hello.')
+      output.write({ audio: new Blob(['Partial audio']) })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(play).toHaveBeenCalledTimes(1)
+      output.error(synthesisFailure(503))
+      await vi.advanceTimersByTimeAsync(1_000)
+      expect(await response.finish()).toBe('failed')
+      expect(stream).toHaveBeenCalledTimes(1)
+      expect(play).toHaveBeenCalledTimes(1)
+      await controller.close()
+    })
+
+    it('keeps later speech behind a producer whose synthesis is retrying', async () => {
+      const first = new Blob(['First.'])
+      const last = new Blob(['Last.'])
+      let firstAttempts = 0
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>(async (request) => {
+        if (request.text === 'First.') {
+          if (++firstAttempts === 1)
+            throw synthesisFailure(503)
+          return first
+        }
+        return last
+      })
+      const harness = synthesisHarness(synthesize)
+      const later = harness.response.openSpeech({ purpose: 'later' })
+      await harness.speech.write('First.')
+      harness.speech.end()
+      await later.write('Last.')
+      later.end()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(synthesize).toHaveBeenCalledTimes(2)
+      expect(harness.play).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(await harness.response.finish()).toBe('finished')
+      expect(harness.play.mock.calls.map(([clip]) => clip.audio)).toEqual([first, last])
+      await harness.controller.close()
+    })
+
+    it('keeps concurrent segments in text order while an earlier segment retries', async () => {
+      const first = new Blob(['First.'])
+      const last = new Blob(['Last.'])
+      let firstAttempts = 0
+      const synthesize = vi.fn<SpeechPipelineOptions<Blob>['tts']>(async (request) => {
+        if (request.text === 'First.') {
+          if (++firstAttempts === 1)
+            throw synthesisFailure(503)
+          return first
+        }
+        return last
+      })
+      const harness = synthesisHarness(synthesize)
+      await harness.speech.write('First. Last.')
+      harness.speech.end()
+      await vi.advanceTimersByTimeAsync(0)
+      expect(synthesize.mock.calls.map(([request]) => request.text)).toEqual(['First.', 'Last.'])
+      expect(harness.play).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(await harness.response.finish()).toBe('finished')
+      expect(harness.play.mock.calls.map(([clip]) => clip.audio)).toEqual([first, last])
+      expect(synthesize.mock.calls[2][0].segmentId).toBe(synthesize.mock.calls[0][0].segmentId)
+      await harness.controller.close()
+    })
+  })
+
   it('ends the speaking indicator only after cancelled audio becomes silent', async () => {
     const silence = Promise.withResolvers<{ throughMs: number }>()
     const started = vi.fn()
