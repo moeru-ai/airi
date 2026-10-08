@@ -91,9 +91,10 @@ It validates tokens against the pinned KWS vocabulary in `libs/voice/kws-model`.
 
 `voice.startListening` runs the built-in KWS detection when the host passes no `detectWakeWord`.
 `WakeWordDetector` reads the same ordered 32 ms windows as VAD. It does not open a microphone or an AudioContext.
-It sends 100 ms batches of finite mono samples to a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
+It queues 100 ms batches of finite mono samples for a Sherpaw keyword spotter Worker. Sherpa-ONNX resamples them to the model rate.
+The window callback does not wait for the Worker. A wake arrives on a later window. A backlog over 1 second is dropped.
 A match maps through the active catalog to `voice.resolveWakeTarget(characterId, signal)`. This selects a session without navigating the chat window.
-Catalog changes rebuild the spotter keywords. A result after a stop or an aborted window is discarded.
+Catalog changes rebuild the spotter keywords. A result after a stop or a keyword rebuild is discarded.
 
 `useWakeWordDetectionStore().preparation` reports `unconfigured`, `preparing`, `ready`, or `error` for UI.
 The model loads only when the catalog has a pronunciation for the pinned model. Until the model is ready, detection returns no wake.
