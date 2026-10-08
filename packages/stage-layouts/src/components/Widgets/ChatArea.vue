@@ -176,7 +176,7 @@ watch(replyTarget, async (target) => {
         :readonly="voiceActive"
         :placeholder="t('stage.message')"
         :class="[
-          'max-h-[300px] min-h-[100px] w-full p-4 pb-[60px] font-medium outline-none',
+          'max-h-[300px] min-h-[82px] w-full px-3 pb-12 pt-2.5 font-medium outline-none',
           'bg-transparent text-primary-600 dark:text-primary-100',
           'placeholder:text-primary-500 dark:placeholder:text-primary-200',
           'transition-all duration-250 ease-in-out placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out',
@@ -188,7 +188,7 @@ watch(replyTarget, async (target) => {
         @compositionend="isComposing = false"
       />
 
-      <div :class="['absolute inset-x-2 bottom-2 z-10 flex items-center gap-2']">
+      <div :class="['absolute inset-x-1.5 bottom-1.5 z-10 flex items-center gap-2']">
         <button
           type="button"
           :aria-label="t('stage.chat.images.attach')"
