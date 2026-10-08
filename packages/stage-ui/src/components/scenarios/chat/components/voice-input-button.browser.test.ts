@@ -5,7 +5,7 @@ import { defineInvokeHandler } from '@moeru/eventa'
 import { createPinia, disposePinia } from 'pinia'
 import { afterEach, describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, ref, shallowRef } from 'vue'
 import { createI18n } from 'vue-i18n'
 
 import VoiceInputButton from './voice-input-button.vue'
@@ -51,35 +51,41 @@ async function mountButton(options: { afterFinish?: Partial<VoiceMessageSnapshot
   const draft = ref('Hello')
   const submitted: unknown[] = []
   const status = document.body.appendChild(document.createElement('div'))
-  cleanups.push(() => status.remove())
+  const attachment = document.body.appendChild(document.createElement('div'))
+  cleanups.push(() => status.remove(), () => attachment.remove())
+  const button = shallowRef<{ sendPending: (text: string) => Promise<'none' | 'sent' | 'failed'> }>()
   const component = defineComponent({ setup() {
     return () => h(VoiceInputButton, {
       'modelValue': draft.value,
       'onUpdate:modelValue': (value: string) => draft.value = value,
+      'ref': button,
       'statusElement': status,
+      'attachmentElement': attachment,
       'sessionId': 'alice',
       'onSubmit': () => submitted.push(true),
     })
   } })
   const screen = await render(component, { global: { plugins: [pinia, createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false })] } })
   cleanups.push(() => screen.unmount())
-  return { screen, commands, draft, submitted }
+  return { screen, commands, draft, submitted, button }
 }
 
 describe('voiceInputButton', () => {
-  it('keeps a voice message pending when Auto send is off, and sends it from the status bar', async () => {
-    const { screen, commands } = await mountButton()
-    const button = screen.getByTestId('voice-input-button')
-    await expect.element(button).toBeEnabled()
+  it('keeps a voice message pending when Auto send is off, and sends it with the composer text', async () => {
+    const { screen, commands, button } = await mountButton()
+    const control = screen.getByTestId('voice-input-button')
+    await expect.element(control).toBeEnabled()
 
-    await button.click()
+    await control.click()
     await expect.element(screen.getByTestId('voice-status-bar')).toHaveAttribute('data-phase', 'recording')
-    await button.click()
+    await control.click()
 
     const record = commands[0] as Extract<VoiceMessageCommand, { type: 'record' }>
     await expect.poll(() => commands[1]).toEqual({ type: 'finish', id: record.id, send: false })
-    await screen.getByTestId('voice-pending-send').click()
-    await expect.poll(() => commands.at(-1)).toEqual({ type: 'send', id: record.id })
+    await expect.element(screen.getByTestId('voice-pending-card')).toBeVisible()
+    expect(await button.value?.sendPending('see the attached clip')).toBe('sent')
+    await expect.poll(() => commands.at(-1)).toEqual({ type: 'send', id: record.id, text: 'see the attached clip' })
+    await expect.element(screen.getByTestId('voice-pending-card')).not.toBeInTheDocument()
   })
 
   it('sends the voice message when the recording stops with Auto send on', async () => {
@@ -91,7 +97,7 @@ describe('voiceInputButton', () => {
     await button.click()
 
     await expect.poll(() => commands[1]).toMatchObject({ type: 'finish', send: true })
-    await expect.element(screen.getByTestId('voice-pending-bar')).not.toBeInTheDocument()
+    await expect.element(screen.getByTestId('voice-pending-card')).not.toBeInTheDocument()
   })
 
   it('hides the cancel button when Auto send is off, because stopping does not send', async () => {

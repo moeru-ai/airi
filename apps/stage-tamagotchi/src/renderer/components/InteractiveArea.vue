@@ -66,6 +66,10 @@ const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
 const voiceStatus = useTemplateRef<HTMLDivElement>('voice-status')
+const voiceAttachment = useTemplateRef<HTMLDivElement>('voice-attachment')
+const voiceButton = useTemplateRef<InstanceType<typeof VoiceInputButton>>('voice-button')
+/** A recorded voice message waits for the send button. It can be sent without text. */
+const voicePending = shallowRef(false)
 /** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
@@ -152,8 +156,17 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 
 async function handleSend() {
   // The draft stays in the composer while the setup callout is shown.
-  if (!voiceActive.value && !pendingImages.value && chatReady.value)
-    await submitInterruptingResponse()
+  if (voiceActive.value || pendingImages.value || !chatReady.value)
+    return
+
+  // A waiting voice message takes the composer text into the same user message.
+  const voice = await voiceButton.value?.sendPending(messageInput.value)
+  if (voice === 'sent')
+    messageInput.value = ''
+  if (voice === 'sent' || voice === 'failed')
+    return
+
+  await submitInterruptingResponse()
 }
 
 function sendFromKeyboard() {
@@ -450,6 +463,7 @@ defineExpose({
             'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
           <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
             <div
@@ -596,12 +610,15 @@ defineExpose({
           <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
           <div :class="['flex shrink-0 items-center gap-1']">
             <VoiceInputButton
+              ref="voice-button"
               v-model="messageInput"
               :status-element="voiceStatus"
+              :attachment-element="voiceAttachment"
               :session-id="activeSessionId"
               :reply-to-message-id="replyTarget?.message.id"
               :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
               @recording-change="voiceActive = $event"
+              @pending-change="voicePending = $event"
               @sent="composer.clearReply()"
               @submit="handleSend"
               @configure="openSettings({ route: '/settings/modules/hearing' })"
@@ -623,7 +640,7 @@ defineExpose({
               size="unset"
               :aria-label="t('stage.chat.actions.send')"
               :title="t('stage.chat.actions.send')"
-              :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+              :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length && !voicePending) || isComposing"
               :class="[
                 'size-9 rounded-full bg-primary-500 text-white',
                 'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',

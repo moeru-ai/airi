@@ -50,7 +50,7 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
       return chat.submit({
         sessionId: draft.sessionId,
         messageId: draft.messageId,
-        text: '',
+        text: draft.text,
         attachments: [{ type: 'audio', mimeType: 'audio/wav', data }],
         replyToMessageId: command.replyToMessageId,
         tools: command.tools,
@@ -88,7 +88,7 @@ export const useVoiceMessagesStore = defineStore('voice-messages', () => {
             }
             break
           case 'send':
-            await message.send()
+            await message.send(command.text)
             break
           case 'discard': return { status: message.cancel() === 'cancelled' ? 'accepted' : 'closed' }
         }

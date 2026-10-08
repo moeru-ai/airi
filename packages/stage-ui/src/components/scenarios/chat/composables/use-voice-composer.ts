@@ -213,9 +213,20 @@ export function useVoiceComposer(options: UseVoiceComposerOptions) {
       await controls.command({ type: 'cancel', requestId: recording.id }).catch(() => {})
   }
 
-  /** Sends a pending voice message, or sends a failed one again. */
-  async function send(id: string) {
-    await controls.messageCommand({ type: 'send', id }).then(() => options.onSent?.()).catch(cause => options.onError(errorMessageFrom(cause) ?? 'Could not send voice message'))
+  /**
+   * Sends a pending voice message, or sends a failed one again. `text` goes into the same user message.
+   * Returns whether the chat accepted it. A failure is reported through `onError` and keeps the message pending.
+   */
+  async function send(id: string, text?: string) {
+    try {
+      await controls.messageCommand({ type: 'send', id, ...(text?.trim() ? { text } : {}) })
+      options.onSent?.()
+      return true
+    }
+    catch (cause) {
+      options.onError(errorMessageFrom(cause) ?? 'Could not send voice message')
+      return false
+    }
   }
 
   async function discard(id: string) {

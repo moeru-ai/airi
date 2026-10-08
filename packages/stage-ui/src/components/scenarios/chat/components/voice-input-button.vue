@@ -33,8 +33,13 @@ const props = defineProps<{
   sessionId: string
   replyToMessageId?: string
   tools?: ChatToolReference[]
-  /** A flexible slot in the composer action row. The recording status and a waiting voice message show there. */
+  /** A flexible slot in the composer action row. The recording status shows there. */
   statusElement: HTMLElement | null
+  /**
+   * A slot above the composer text, next to other attachments. A recorded voice message that waits to be sent shows there.
+   * The host's send button sends it through `sendPending`.
+   */
+  attachmentElement: HTMLElement | null
 }>()
 const emit = defineEmits<{
   /** The host started to send a voice message. */
@@ -45,6 +50,8 @@ const emit = defineEmits<{
   submit: []
   /** The user asked for Hearing settings. The host opens them in its own window or route. */
   configure: []
+  /** A recorded voice message waits to be sent, or not any more. The host enables its send button while one waits. */
+  pendingChange: [pending: boolean]
 }>()
 const draft = defineModel<string>({ required: true })
 
@@ -222,6 +229,21 @@ async function setListening(value: boolean) {
 
 /** The newest pending voice message. Older ones stay pending until this one is sent or discarded. */
 const pendingMessage = computed(() => pending.value.at(-1))
+watch(() => !!pendingMessage.value, value => emit('pendingChange', value), { immediate: true })
+
+/**
+ * Sends the waiting voice message with the composer text in one user message.
+ * `none` means that no voice message waits, so the host sends its composer as usual.
+ * The host clears its text only on `sent`. On `failed` the text and the recording stay for a retry.
+ */
+async function sendPending(text: string): Promise<'none' | 'sent' | 'failed'> {
+  const message = pendingMessage.value
+  if (!message)
+    return 'none'
+  return await voice.send(message.id, text) ? 'sent' : 'failed'
+}
+
+defineExpose({ sendPending })
 const pendingUrl = useObjectUrl(computed(() => pendingMessage.value?.audio))
 const player = useTemplateRef<HTMLAudioElement>('player')
 const playing = shallowRef(false)
@@ -439,11 +461,18 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         <span :class="['i-solar:close-circle-linear size-5']" aria-hidden="true" />
       </BasicButton>
     </div>
-    <!-- A voice message that waits for the user: Auto send was off, or the send failed. -->
+  </Teleport>
+  <!-- A recorded voice message that waits for the host's send button: Auto send was off, or the send failed. -->
+  <Teleport v-if="attachmentElement" :to="attachmentElement">
     <div
-      v-else-if="pendingMessage"
-      data-testid="voice-pending-bar"
-      :class="['h-8 min-w-0 flex flex-1 items-center gap-1 text-neutral-600 dark:text-neutral-300', 'animate-fadeIn motion-reduce:animate-none']"
+      v-if="pendingMessage"
+      data-testid="voice-pending-card"
+      :class="[
+        'max-w-full w-72 h-10 flex items-center gap-1 rounded-xl px-1',
+        'bg-neutral-900/5 text-neutral-600 dark:bg-white/8 dark:text-neutral-300',
+        pendingMessage.error && 'ring-1 ring-red-500/60',
+        'animate-fadeIn motion-reduce:animate-none',
+      ]"
     >
       <audio
         ref="player"
@@ -479,18 +508,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
         :class="statusButtonClasses"
         @click="voice.discard(pendingMessage.id)"
       >
-        <span :class="['i-solar:trash-bin-minimalistic-linear size-4']" aria-hidden="true" />
-      </BasicButton>
-      <BasicButton
-        size="unset"
-        type="button"
-        data-testid="voice-pending-send"
-        :aria-label="t(pendingMessage.error ? 'stage.chat.voice-composer.retry' : 'stage.chat.voice-composer.send')"
-        :title="t(pendingMessage.error ? 'stage.chat.voice-composer.retry' : 'stage.chat.voice-composer.send')"
-        :class="[statusButtonClasses, 'bg-primary-500 text-white hover:bg-primary-600 dark:text-white dark:hover:bg-primary-600']"
-        @click="voice.send(pendingMessage.id)"
-      >
-        <span :class="[pendingMessage.error ? 'i-solar:refresh-linear' : 'i-solar:arrow-up-outline', 'size-4']" aria-hidden="true" />
+        <span :class="['i-solar:close-circle-linear size-4.5']" aria-hidden="true" />
       </BasicButton>
     </div>
   </Teleport>

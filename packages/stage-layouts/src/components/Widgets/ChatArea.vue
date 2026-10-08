@@ -20,6 +20,10 @@ const props = defineProps<{
 
 const composerRoot = useTemplateRef<HTMLDivElement>('composer')
 const voiceStatus = useTemplateRef<HTMLDivElement>('voiceStatus')
+const voiceAttachment = useTemplateRef<HTMLDivElement>('voiceAttachment')
+const voiceButton = useTemplateRef<InstanceType<typeof VoiceInputButton>>('voiceButton')
+/** A recorded voice message waits for the send button. It can be sent without text. */
+const voicePending = shallowRef(false)
 /** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
 const voiceActive = shallowRef(false)
 const router = useRouter()
@@ -67,8 +71,17 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  if (!voiceActive.value && !pendingImages.value)
-    await submitInterruptingResponse()
+  if (voiceActive.value || pendingImages.value)
+    return
+
+  // A waiting voice message takes the composer text into the same user message.
+  const voice = await voiceButton.value?.sendPending(messageInput.value)
+  if (voice === 'sent')
+    messageInput.value = ''
+  if (voice === 'sent' || voice === 'failed')
+    return
+
+  await submitInterruptingResponse()
 }
 
 async function handleCancelReply() {
@@ -154,6 +167,8 @@ watch(replyTarget, async (target) => {
         {{ t('stage.chat.images.reading') }}
       </p>
 
+      <div ref="voiceAttachment" :class="['px-2 pt-2 empty:hidden']" />
+
       <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
       <BasicTextarea
         v-model="messageInput"
@@ -186,11 +201,14 @@ watch(replyTarget, async (target) => {
         <div ref="voiceStatus" :class="['min-w-0 flex flex-1 items-center']" />
         <div :class="['flex shrink-0 items-center gap-1']">
           <VoiceInputButton
+            ref="voiceButton"
             v-model="messageInput"
             :status-element="voiceStatus"
+            :attachment-element="voiceAttachment"
             :session-id="chatSession.activeSessionId"
             :reply-to-message-id="replyTarget?.message.id"
             @recording-change="voiceActive = $event"
+            @pending-change="voicePending = $event"
             @sent="props.composer.clearReply()"
             @submit="handleSend"
             @configure="router.push('/settings/modules/hearing')"
@@ -212,7 +230,7 @@ watch(replyTarget, async (target) => {
             v-else
             type="button"
             :aria-label="t('stage.chat.actions.send')"
-            :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
+            :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length && !voicePending) || isComposing"
             :class="[
               composerActionButtonClass,
               'bg-primary-500 text-white hover:bg-primary-600 disabled:opacity-40',

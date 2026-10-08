@@ -29,7 +29,7 @@ export class VoiceMessage {
     readonly id: string,
     readonly sessionId: string,
     input: AudioInput,
-    private readonly submit: (draft: { messageId: string, sessionId: string, audio: Blob }) => Promise<{ messageId: string }>,
+    private readonly submit: (draft: { messageId: string, sessionId: string, audio: Blob, text: string }) => Promise<{ messageId: string }>,
   ) {
     this.current = { id, sessionId, phase: 'pending' }
     this.recording = capture(input)
@@ -76,7 +76,8 @@ export class VoiceMessage {
     return 'cancelled'
   }
 
-  send(): Promise<{ messageId: string }> {
+  /** `text` goes into the same user message as the recording. A retry while a send runs keeps the first text. */
+  send(text = ''): Promise<{ messageId: string }> {
     if (this.receipt)
       return Promise.resolve(this.receipt)
     if (this.sending)
@@ -86,7 +87,7 @@ export class VoiceMessage {
       return Promise.reject(new Error('Voice message is not ready'))
     this.change({ ...this.current, phase: 'sending', error: undefined })
     // Defer transport invocation until the in-flight promise is installed. Synchronous adapters cannot bypass deduplication.
-    this.sending = Promise.resolve().then(() => this.submit({ messageId: this.id, sessionId: this.sessionId, audio })).then((receipt) => {
+    this.sending = Promise.resolve().then(() => this.submit({ messageId: this.id, sessionId: this.sessionId, audio, text })).then((receipt) => {
       if (receipt.messageId !== this.id)
         throw new Error('Voice message receipt has a different identity')
       this.receipt = receipt

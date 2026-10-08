@@ -148,7 +148,13 @@ export type VoiceMessageCommand
      */
     send?: boolean
   }
-  | { type: 'discard' | 'send', id: string }
+  | {
+    type: 'send'
+    id: string
+    /** Composer text that goes into the same user message as the recording. */
+    text?: string
+  }
+  | { type: 'discard', id: string }
 
 /** Completed media uses structured cloning. Live PCM stays on the audio host's source channel. */
 export const voiceMessageCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceMessageCommand>('eventa:voice:message-command')
