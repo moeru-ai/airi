@@ -1,10 +1,17 @@
-/** Bars keep this width and gap at any canvas width. A wider canvas shows more bars, not wider ones. */
-export const WAVEFORM_BAR_WIDTH = 3
-export const WAVEFORM_BAR_GAP = 2
+/** Bar width and gap in CSS pixels. Bars keep them at any canvas width, so a wider canvas shows more bars. */
+export interface WaveformBars {
+  width: number
+  gap: number
+}
+
+/** The live waveform of a recording in progress. */
+export const RECORDING_WAVEFORM_BARS: WaveformBars = { width: 3, gap: 2 }
+/** A recorded message next to its transcript. Thin bars match the weight of the text. */
+export const MESSAGE_WAVEFORM_BARS: WaveformBars = { width: 2, gap: 2 }
 
 /** How many bars fit in `width` CSS pixels. */
-export function waveformSlots(width: number) {
-  return Math.max(0, Math.floor((width + WAVEFORM_BAR_GAP) / (WAVEFORM_BAR_WIDTH + WAVEFORM_BAR_GAP)))
+export function waveformSlots(width: number, bars: WaveformBars) {
+  return Math.max(0, Math.floor((width + bars.gap) / (bars.width + bars.gap)))
 }
 
 /**
@@ -40,6 +47,7 @@ export function drawWaveformBars(
   size: { width: number, height: number },
   levels: readonly number[],
   paint: (slot: number, level: number) => { color: string, alpha: number },
+  bars: WaveformBars,
 ) {
   const context = canvas.getContext('2d')
   if (!context || !size.width || !size.height)
@@ -52,11 +60,11 @@ export function drawWaveformBars(
 
   for (const [slot, level] of levels.entries()) {
     const { color, alpha } = paint(slot, level)
-    const barHeight = Math.max(WAVEFORM_BAR_WIDTH, level * size.height)
+    const barHeight = Math.max(bars.width, level * size.height)
     context.fillStyle = color
     context.globalAlpha = alpha
     context.beginPath()
-    context.roundRect(slot * (WAVEFORM_BAR_WIDTH + WAVEFORM_BAR_GAP), (size.height - barHeight) / 2, WAVEFORM_BAR_WIDTH, barHeight, WAVEFORM_BAR_WIDTH / 2)
+    context.roundRect(slot * (bars.width + bars.gap), (size.height - barHeight) / 2, bars.width, barHeight, bars.width / 2)
     context.fill()
   }
 }

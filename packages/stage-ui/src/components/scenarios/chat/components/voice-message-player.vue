@@ -4,7 +4,7 @@ import { useElementSize, useObjectUrl, useRafFn } from '@vueuse/core'
 import { computed, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { drawWaveformBars, waveformPeaks, waveformSlots } from '../../../../libs/voice/waveform'
+import { drawWaveformBars, MESSAGE_WAVEFORM_BARS, waveformPeaks, waveformSlots } from '../../../../libs/voice/waveform'
 
 const props = withDefaults(defineProps<{
   /** The recording. A Blob gets an object URL for its lifetime. A string is used as the URL, for example a data URL. */
@@ -71,13 +71,11 @@ function draw() {
   const element = canvas.value
   if (!element)
     return
-  const slots = waveformSlots(width.value)
+  const slots = waveformSlots(width.value, MESSAGE_WAVEFORM_BARS)
   const levels = envelope.value?.length ? waveformPeaks(envelope.value, slots) : Array.from<number>({ length: slots }).fill(0)
-  const played = getComputedStyle(element).color
-  const rest = getComputedStyle(element.parentElement ?? element).color
-  drawWaveformBars(element, { width: width.value, height: height.value }, levels, slot => (slot + 0.5) / slots <= progress.value
-    ? { color: played, alpha: 1 }
-    : { color: rest, alpha: 0.6 })
+  // Bars use the host text color. Played bars are as strong as the text. The rest is faint.
+  const color = getComputedStyle(element).color
+  drawWaveformBars(element, { width: width.value, height: height.value }, levels, slot => ({ color, alpha: (slot + 0.5) / slots <= progress.value ? 0.9 : 0.3 }), MESSAGE_WAVEFORM_BARS)
 }
 
 watch([width, height, envelope, progress], draw)
@@ -154,8 +152,7 @@ function formatTime(seconds: number) {
     data-testid="voice-message-player"
     :class="[
       'flex w-fit max-w-full items-center gap-2',
-      'text-neutral-400 dark:text-neutral-500',
-      props.surface === 'card' && 'h-10 rounded-xl px-1.5 bg-neutral-900/5 dark:bg-white/8',
+      props.surface === 'card' && 'h-10 rounded-xl px-1.5 bg-neutral-900/5 text-neutral-700 dark:bg-white/8 dark:text-neutral-200',
     ]"
   >
     <audio
@@ -173,8 +170,7 @@ function formatTime(seconds: number) {
       :aria-label="t(playing ? 'stage.chat.voice-composer.pause' : 'stage.chat.voice-composer.play')"
       :class="[
         'size-6 shrink-0 flex items-center justify-center rounded-full outline-none',
-        'bg-primary-500 text-white hover:bg-primary-600',
-        'dark:bg-primary-400 dark:text-neutral-900 dark:hover:bg-primary-300',
+        'bg-neutral-900/8 hover:bg-neutral-900/14 dark:bg-white/12 dark:hover:bg-white/20',
         'focus-visible:ring-2 focus-visible:ring-primary-300',
       ]"
       @click="togglePlayback"
@@ -192,7 +188,7 @@ function formatTime(seconds: number) {
       :aria-valuetext="`${formatTime(progress * duration)} / ${formatTime(duration)}`"
       :style="{ width: waveformWidth }"
       :class="[
-        'h-6 min-w-0 shrink cursor-pointer touch-none select-none rounded outline-none',
+        'h-5 min-w-0 shrink cursor-pointer touch-none select-none rounded outline-none',
         'focus-visible:ring-2 focus-visible:ring-primary-300',
       ]"
       @pointerdown="startDrag"
@@ -201,7 +197,7 @@ function formatTime(seconds: number) {
       @pointercancel="endDrag"
       @keydown="seekByKey"
     >
-      <canvas ref="canvas" aria-hidden="true" :class="['block h-full w-full', 'text-primary-500 dark:text-primary-400']" />
+      <canvas ref="canvas" aria-hidden="true" :class="['block h-full w-full']" />
     </div>
     <!-- Trailing controls of the host, such as an error mark or a discard button. -->
     <slot name="actions" />

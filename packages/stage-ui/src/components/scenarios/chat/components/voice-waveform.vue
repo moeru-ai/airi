@@ -2,7 +2,7 @@
 import { useElementSize } from '@vueuse/core'
 import { useTemplateRef, watch } from 'vue'
 
-import { drawWaveformBars, waveformSlots } from '../../../../libs/voice/waveform'
+import { drawWaveformBars, RECORDING_WAVEFORM_BARS, waveformSlots } from '../../../../libs/voice/waveform'
 
 const props = defineProps<{
   /** The newest microphone level, from 0 to 1. Each new value adds one bar while `active` is true. */
@@ -26,11 +26,11 @@ function draw() {
   if (!element)
     return
 
-  const slots = waveformSlots(width.value)
+  const slots = waveformSlots(width.value, RECORDING_WAVEFORM_BARS)
   const visible = history.slice(-slots)
   const levels = [...Array.from<number>({ length: slots - visible.length }).fill(0), ...visible]
   const color = getComputedStyle(element).color
-  drawWaveformBars(element, { width: width.value, height: height.value }, levels, (_, level) => ({ color, alpha: 0.35 + level * 0.65 }))
+  drawWaveformBars(element, { width: width.value, height: height.value }, levels, (_, level) => ({ color, alpha: 0.35 + level * 0.65 }), RECORDING_WAVEFORM_BARS)
 }
 
 // Each new level adds one bar. The host sends about 20 levels per second, so an identical repeat is rare and only skips one bar.

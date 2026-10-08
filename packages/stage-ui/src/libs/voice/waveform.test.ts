@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { waveformPeaks, waveformSlots } from './waveform'
+import { MESSAGE_WAVEFORM_BARS, RECORDING_WAVEFORM_BARS, waveformPeaks, waveformSlots } from './waveform'
 
 describe('waveformPeaks', () => {
   it('keeps the peak of each bucket, scaled to the loudest one', () => {
@@ -17,9 +17,10 @@ describe('waveformPeaks', () => {
 })
 
 describe('waveformSlots', () => {
-  it('fits 3px bars with 2px gaps', () => {
-    expect(waveformSlots(3)).toBe(1)
-    expect(waveformSlots(23)).toBe(5)
-    expect(waveformSlots(0)).toBe(0)
+  it('fits bars with their gaps', () => {
+    expect(waveformSlots(3, RECORDING_WAVEFORM_BARS)).toBe(1)
+    expect(waveformSlots(23, RECORDING_WAVEFORM_BARS)).toBe(5)
+    expect(waveformSlots(18, MESSAGE_WAVEFORM_BARS)).toBe(5)
+    expect(waveformSlots(0, MESSAGE_WAVEFORM_BARS)).toBe(0)
   })
 })
