@@ -111,7 +111,13 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
 /** Encoded attachments belong to one user message. Media capture and storage stay outside chat orchestration. */
 export type ChatAttachment
   = { type: 'image', data: string, mimeType: string }
-    | { type: 'audio', data: string, mimeType: 'audio/wav' | 'audio/mpeg' }
+    | {
+      type: 'audio'
+      data: string
+      mimeType: 'audio/wav' | 'audio/mpeg'
+      /** Speech recognized while the recording was captured. Text-only models receive it instead of the audio. */
+      transcript?: string
+    }
 
 /** Options accepted by the chat orchestrator runtime for one user send. */
 export interface ChatOrchestratorSendOptions {
@@ -700,6 +706,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+      // Transcripts follow audio part order, which is the cache key that text-only projection reads.
+      const audioTranscripts = options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript ?? '')
       if (!streamingMessageContext.input) {
         streamingMessageContext.input = {
           type: 'input:text',
@@ -728,6 +736,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+        ...(audioTranscripts?.some(Boolean) ? { audioTranscripts } : {}),
       }
       const receipt = await deps.session.commitUserMessage(sessionId, userMessage)
       accepted.resolve({ sessionId, messageId: receipt.messageId })

@@ -237,6 +237,20 @@ describe('createChatOrchestratorRuntime', () => {
     expect(user?.content).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
   })
 
+  it('stores the transcript of a voice attachment for text-only projection', async () => {
+    const harness = createHarness()
+    const request = harness.runtime.submit('', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      messageId: 'spoken',
+      attachments: [{ type: 'audio' as const, data: 'YXVkaW8=', mimeType: 'audio/wav' as const, transcript: 'hello there' }],
+    }, 'session-1')
+    await request.done
+
+    const stored = harness.sessionMessages['session-1'].find(message => message.id === 'spoken')
+    expect(stored).toMatchObject({ role: 'user', audioTranscripts: ['hello there'] })
+  })
+
   it('acknowledges persistence before generation and reuses a retried message identity', async () => {
     const harness = createHarness()
     const generation = Promise.withResolvers<void>()
