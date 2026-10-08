@@ -24,9 +24,9 @@ watch(profileId, (value) => {
 /** Persists production settings for the MAGIC Live2D motion driver. */
 export const useLive2DMotionMagicSettings = defineStore('settings-live2d-motion-magic', () => {
   function resetState() {
-    profileId.value = defaultLive2DMotionMagicProfileId
-    skipMouthOpen.value = true
-    forceViewTarget.value = true
+    profileId.reset()
+    skipMouthOpen.reset()
+    forceViewTarget.reset()
   }
 
   return {
