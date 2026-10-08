@@ -9,7 +9,7 @@ import type { ServerForm } from './mcp-config'
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
-import { Button, Callout, Checkbox, GhostButton, TransitionVertical } from '@proj-airi/ui'
+import { Button, Callout, Checkbox, GhostButton, SettingsCard, TransitionVertical } from '@proj-airi/ui'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -337,7 +337,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div flex="~ col gap-4">
+  <SettingsCard>
     <Callout v-if="errorMessage" theme="orange" :label="tn('error-title')">
       {{ errorMessage }}
     </Callout>
@@ -514,7 +514,7 @@ onMounted(async () => {
         </li>
       </ul>
     </section>
-  </div>
+  </SettingsCard>
 </template>
 
 <route lang="yaml">

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Callout } from '@proj-airi/ui'
+import { Callout, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -54,13 +54,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div
-    :class="[
-      'h-fit w-full',
-      'flex flex-col gap-4',
-      'rounded-xl bg-neutral-100 p-4 dark:bg-[rgba(0,0,0,0.3)]',
-    ]"
-  >
+  <SettingsCard>
     <Callout :theme="statusTheme" :label="statusLabel">
       <div :class="['flex flex-col gap-2 text-sm']">
         <div>
@@ -133,5 +127,5 @@ onMounted(() => {
         </div>
       </div>
     </div>
-  </div>
+  </SettingsCard>
 </template>

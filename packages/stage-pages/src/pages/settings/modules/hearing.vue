@@ -13,7 +13,7 @@ import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/con
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { SileroVad } from '@proj-airi/stage-ui/workers/vad/silero-vad'
-import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldCombobox, FieldInput, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, onMounted, onUnmounted, provide, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -364,7 +364,7 @@ onUnmounted(() => {
 
 <template>
   <div flex="~ col md:row gap-6">
-    <div bg="neutral-100 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4" class="h-fit w-full md:w-[40%]">
+    <SettingsCard class="md:w-[40%]">
       <div flex="~ col gap-4">
         <!-- Audio Input Selection -->
         <div>
@@ -632,7 +632,7 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
     <div flex="~ col gap-6" class="w-full md:w-[60%]">
       <!-- Audio Monitoring Section -->
