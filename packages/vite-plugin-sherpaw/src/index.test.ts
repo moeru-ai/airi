@@ -10,6 +10,13 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { resolveModelEndpoint, Sherpaw } from './index'
 
 const models = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
+/** A keyword spotting pack has no recognizer metadata. Hosts list it with the transcription presets. */
+const keywordPack = {
+  id: 'kws-zh-en',
+  repository: 'moeru-ai/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20',
+  revision: 'pinned-kws-revision',
+  directory: 'install/bin/wasm',
+}
 let root: string
 let cacheDir: string
 
@@ -21,7 +28,7 @@ beforeEach(async () => {
   await mkdir(join(root, 'public'), { recursive: true })
   await writeFile(join(root, 'index.html'), '<script type="module" src="/main.js"></script>')
   await writeFile(join(root, 'main.js'), `import { assets } from '@proj-airi/vite-plugin-sherpaw/assets'; globalThis.modelAssets = assets`)
-  for (const [index, model] of models.entries()) {
+  for (const [index, model] of [...models, keywordPack].entries()) {
     const cache = join(cacheDir, sherpawModelPath(model))
     await mkdir(cache, { recursive: true })
     await writeFile(join(cache, 'preload.data'), new Uint8Array(index + 1).fill(index + 1))
@@ -75,6 +82,43 @@ it('bundles only the explicit bundled model subset', async () => {
   expect(code).toContain('bundled')
   expect(code).toContain(zipformerMultilingual.revision)
   expect(code).toContain(xAsrBilingualZhEnInt8.revision)
+})
+
+it('bundles a keyword spotting pack while transcription models stay remote', async () => {
+  await build({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [Sherpaw({ models: [...models, keywordPack], bundledModels: [keywordPack], cacheDir })],
+  })
+  const directory = join(root, 'dist', 'assets')
+  const files = await readdir(directory)
+  const data = files.filter(file => file.endsWith('.data'))
+  expect(data).toHaveLength(1)
+  expect([...await readFile(join(directory, data[0]))]).toEqual(Array.from({ length: models.length + 1 }).fill(models.length + 1))
+  expect(files.filter(file => file.endsWith('.metadata'))).toHaveLength(1)
+  const script = files.find(file => file.endsWith('.js'))!
+  const code = await readFile(join(directory, script), 'utf8')
+  expect(code).toContain(keywordPack.id)
+  expect(code).toContain('bundled')
+  expect(code).not.toContain(keywordPack.revision)
+  for (const model of models)
+    expect(code).toContain(model.revision)
+})
+
+it('exposes a keyword spotting pack remotely when the host does not bundle it', async () => {
+  await build({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [Sherpaw({ models: [...models, keywordPack], cacheDir })],
+  })
+  const directory = join(root, 'dist', 'assets')
+  const files = await readdir(directory)
+  expect(files.filter(file => /\.(?:data|metadata)$/.test(file))).toEqual([])
+  const script = files.find(file => file.endsWith('.js'))!
+  const code = await readFile(join(directory, script), 'utf8')
+  expect(code).toContain(`/${keywordPack.repository}/resolve/${keywordPack.revision}/${keywordPack.directory}/preload.data`)
 })
 
 it('rejects a bundled model that the runtime catalogue does not expose', async () => {
