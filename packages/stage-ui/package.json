@@ -42,6 +42,7 @@
     "./models/*": "./src/models/*.ts",
     "./services/*": "./src/services/*.ts",
     "./tools/mcp": "./src/tools/mcp.ts",
+    "./tools/home-assistant": "./src/tools/home-assistant.ts",
     "./stores/character": "./src/stores/character/index.ts",
     "./stores/settings/analytics": "./src/stores/settings/analytics.ts",
     "./stores/settings/stage-model": "./src/stores/settings/stage-model.ts",

@@ -1053,6 +1053,29 @@ pages:
         airi-awkward: Awkward
         airi-agree: 'Yes'
         airi-disagree: No thanks
+    home-assistant:
+      title: Home Assistant
+      description: Let AIRI read and control your Home Assistant devices.
+      enable: Enable Home Assistant
+      enable-description: Allow AIRI to read and control your devices
+      base-url:
+        label: Address
+        placeholder: http://homeassistant.local:8123
+        description: The address of your Home Assistant instance.
+      token:
+        label: Long-lived access token
+        placeholder: Paste a token from your Home Assistant profile
+        description: Create one in your Home Assistant profile, under Security.
+        saved: A token is stored. Leave the field empty to keep it.
+      note: The token stays on this device. It does not sync to your account.
+      actions:
+        save: Save
+        test: Test
+      status:
+        saved: Saved.
+        testing: Testing the connection...
+        reachable: 'Connected. Home Assistant reported {count} entities.'
+        failed: 'Could not connect. {message}'
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information
