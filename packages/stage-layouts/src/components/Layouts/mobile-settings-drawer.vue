@@ -91,22 +91,33 @@ function finishSettingsClose() {
       </BasicButton>
     </template>
     <div :class="['mobile-settings-actions select-none', keyboardNavigation && 'keyboard-navigation']">
-      <GhostButton
-        block size="unset"
-        :class="[
-          'mobile-tool-row rounded-2xl',
-          '[&_.basic-button-content]:w-full [&_.basic-button-content]:gap-3 [&_[aria-hidden]]:shrink-0',
-          isAuthenticated ? 'mobile-tool-row-authenticated mb-4 min-h-16' : 'mobile-tool-row-anonymous mb-3 min-h-14',
-        ]"
-        @click="openPanel('account')"
-      >
-        <Avatar v-if="isAuthenticated" :src="user?.image" :class="['size-12 shrink-0 rounded-full bg-neutral-200 text-neutral-500 dark:bg-neutral-700']" />
-        <span :class="['min-w-0 flex-1 text-left']">
-          <span :class="['block truncate text-base font-semibold']">{{ isAuthenticated ? user?.name : t('stage.mobile-tools.sign-in') }}</span>
-          <span :class="['block text-xs text-neutral-500 dark:text-neutral-400']">{{ t('stage.mobile-tools.account-description') }}</span>
-        </span>
-        <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
-      </GhostButton>
+      <div :class="['mb-4 overflow-hidden rounded-2xl bg-white dark:bg-neutral-800/60']">
+        <GhostButton
+          block size="unset"
+          :class="[
+            'mobile-tool-row min-h-16 rounded-none px-4 py-3',
+            '[&_.basic-button-content]:w-full [&_.basic-button-content]:gap-3 [&_[aria-hidden]]:shrink-0',
+          ]"
+          @click="openPanel('account')"
+        >
+          <Avatar
+            :src="isAuthenticated ? user?.image : null"
+            :class="[
+              'size-12 shrink-0 rounded-full',
+              isAuthenticated ? 'bg-neutral-200 text-neutral-500 dark:bg-neutral-700' : 'bg-primary-500/10 text-primary-500',
+            ]"
+          >
+            <template #fallback>
+              <span :class="['i-solar:user-rounded-outline size-6']" />
+            </template>
+          </Avatar>
+          <span :class="['min-w-0 flex-1 text-left']">
+            <span :class="['block truncate text-base font-semibold']">{{ isAuthenticated ? user?.name : t('stage.mobile-tools.sign-in') }}</span>
+            <span :class="['block text-xs text-neutral-500 dark:text-neutral-400']">{{ t('stage.mobile-tools.account-description') }}</span>
+          </span>
+          <span aria-hidden="true" :class="['i-solar:alt-arrow-right-outline size-4 shrink-0 text-neutral-400']" />
+        </GhostButton>
+      </div>
       <section :class="['mb-4']">
         <h3 :class="['mb-2 px-1 text-xs font-semibold text-neutral-500 dark:text-neutral-400']">
           {{ t('stage.mobile-tools.appearance') }}
@@ -228,13 +239,5 @@ function finishSettingsClose() {
 
 .mobile-tool-row :deep([aria-hidden]) {
   flex-shrink: 0;
-}
-
-.mobile-tool-row.mobile-tool-row-authenticated {
-  padding: 0.75rem 1rem !important;
-}
-
-.mobile-tool-row.mobile-tool-row-anonymous {
-  padding: 0.5rem 0 !important;
 }
 </style>
