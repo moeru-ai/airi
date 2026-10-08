@@ -1,6 +1,7 @@
 import type { TurnRef } from '@proj-airi/core-agent'
 
 import type { VoiceMessageSnapshot } from '../../libs/voice/voice-message'
+import type { ChatToolReference } from '../../types/chat'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 import { createContext as createBroadcastChannelContext } from '@moeru/eventa/adapters/broadcast-channel'
@@ -90,20 +91,70 @@ export interface VoiceHostSnapshot {
 
 /** A request ID identifies one recording control. Draft commands use a separate draft ID. */
 export type VoiceInputCommand
-  = { type: 'begin', requestId: string, sessionId: string }
-    | { type: 'end' | 'cancel', requestId: string }
-    | { type: 'edit-draft', draftId: string, text: string }
-    | { type: 'send-draft' | 'discard-draft' | 'select-draft', draftId: string }
+  = {
+    type: 'begin'
+    requestId: string
+    sessionId: string
+    /**
+     * Where the final transcript goes.
+     * `draft` creates a voice draft, or sends it when Auto send is on.
+     * `composer` creates no draft. The `end` result returns the text to the control that began the input.
+     * @default 'draft'
+     */
+    target?: 'draft' | 'composer'
+  }
+  | { type: 'end' | 'cancel', requestId: string }
+  | { type: 'edit-draft', draftId: string, text: string }
+  | { type: 'send-draft' | 'discard-draft' | 'select-draft', draftId: string }
 
-/** The input host owns attempts and drafts. A follower cannot end another control's recording. */
-export const voiceInputCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceInputCommand>('eventa:voice:input-command')
+/**
+ * The input host owns attempts and drafts. A follower cannot end another control's recording.
+ * `text` is present only for `end` of a `composer` input that produced a transcript.
+ */
+export const voiceInputCommand = defineInvokeEventa<{ status: 'accepted' | 'closed', text?: string }, VoiceInputCommand>('eventa:voice:input-command')
 export const voiceRequestSnapshot = defineEventa('eventa:voice:request-snapshot')
 export const voiceSnapshotChanged = defineEventa<VoiceHostSnapshot>('eventa:voice:snapshot-changed')
 
+/**
+ * Microphone level while a control records or dictates, from 0 (silence) to 1 (full scale).
+ * The host publishes it at the observation hop rate and stops when no control captures audio.
+ */
+export const voiceInputLevel = defineEventa<{ level: number }>('eventa:voice:input-level')
+
+/**
+ * A control asks the host to publish `voiceInputLevel` without recording, for example for a level meter in a menu.
+ * The request lasts until `until`, a Unix time in milliseconds. The control renews it while the meter is visible,
+ * so a closed window cannot keep the microphone open.
+ */
+export const voiceLevelMonitor = defineEventa<{ until: number }>('eventa:voice:level-monitor')
+
 /** Recording commands address one session-owned voice message draft. */
 export type VoiceMessageCommand
-  = { type: 'record', id: string, sessionId: string }
-    | { type: 'finish' | 'discard' | 'send', id: string }
+  = {
+    type: 'record'
+    id: string
+    sessionId: string
+    /** Message that the voice message replies to. The host captures it when recording starts. */
+    replyToMessageId?: string
+    /** Request tools of the window that started the recording. */
+    tools?: ChatToolReference[]
+  }
+  | {
+    type: 'finish'
+    id: string
+    /**
+     * Sends the recording after encoding. A failed send keeps the recording `ready` with an error for retry.
+     * @default false
+     */
+    send?: boolean
+  }
+  | {
+    type: 'send'
+    id: string
+    /** Composer text that goes into the same user message as the recording. */
+    text?: string
+  }
+  | { type: 'discard', id: string }
 
 /** Completed media uses structured cloning. Live PCM stays on the audio host's source channel. */
 export const voiceMessageCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceMessageCommand>('eventa:voice:message-command')

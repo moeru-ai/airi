@@ -13,9 +13,10 @@ import { useVoiceController } from '../composables/audio/voice-controller'
 import { traceSpeechOutput } from '../composables/speech-output-trace'
 import { useVoiceDrafts } from '../composables/voice-drafts'
 import { useVoiceRephrase } from '../composables/voice-rephrase'
+import { observeInputLevel } from '../libs/voice/input-level'
 import { createVoiceActivityPlugin } from '../libs/voice/voice-activity-plugin'
 import { createVoiceRephrasePlugin } from '../libs/voice/voice-rephrase-plugin'
-import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInterrupt, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
+import { getSpeechBusContext, voiceGenerationEnded, voiceGetTurns, voiceInputCommand, voiceInputLevel, voiceInterrupt, voiceLevelMonitor, voiceRequestSnapshot, voiceRequestTurns, voiceSnapshotChanged, voiceSpeechCommand, voiceTurnsChanged } from '../services/speech/bus'
 import { SileroVad } from '../workers/vad/silero-vad'
 import { useLlmStreamingControlStore } from './ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from './audio'
@@ -48,6 +49,11 @@ export const useVoiceStore = defineStore('voice', () => {
   let listening: VoicePluginHandle | undefined
   let detectorOptions: Pick<VoiceActivityOptions, 'detectWakeWord' | 'acceptSpeech'> = {}
   const inputRequests = new Map<string, SpeechInputAttempt>()
+  /**
+   * Inputs that a composer began, keyed by attempt ID. Submission stores the final text here instead of creating a draft.
+   * The `end` command returns the text and removes the entry. A settled attempt removes it too.
+   */
+  const composerInputs = new Map<string, string | undefined>()
   let presentedInput: { requestId: string, attempt: SpeechInputAttempt } | undefined
 
   const { controller, state, snapshot: transcript, error } = useVoiceController({
@@ -60,7 +66,14 @@ export const useVoiceStore = defineStore('voice', () => {
       speechTraces.set(turnKey(turn), trace)
       return trace.output
     },
-    submit: acceptSpeech,
+    submit: async (submission, signal) => {
+      if (!composerInputs.has(submission.submissionId))
+        return acceptSpeech(submission, signal)
+
+      // The composer owns this text as its own draft. No voice draft or message is created.
+      composerInputs.set(submission.submissionId, submission.text)
+      return { status: 'drafted', draftId: submission.submissionId }
+    },
     recordInterruption: async (event) => {
       const { groupId, played, status } = event.playback
       const errorMessage = event.playback.status === 'failed' ? errorMessageFrom(event.playback.error) : undefined
@@ -192,6 +205,47 @@ export const useVoiceStore = defineStore('voice', () => {
     return result
   }
 
+  /**
+   * Publishes the microphone level while a voice message records, a speech input captures, or a control monitors the level.
+   * A device change or the end of capture stops the current observation. The returned function stops publication.
+   */
+  function publishInputLevel() {
+    let observation: AbortController | undefined
+    /** A control shows a level meter. It turns off when the newest request expires. */
+    const monitoring = shallowRef(false)
+    let monitorTimer: ReturnType<typeof setTimeout> | undefined
+    const stopMonitor = getSpeechBusContext().on(voiceLevelMonitor, ({ body }) => {
+      if (!body)
+        return
+      clearTimeout(monitorTimer)
+      const remaining = body.until - Date.now()
+      monitoring.value = remaining > 0
+      if (remaining > 0)
+        monitorTimer = setTimeout(() => monitoring.value = false, remaining)
+    })
+    const stop = watch(
+      [() => voiceMessages.isRecording || state.value?.phase === 'capturing' || monitoring.value, () => devices.input],
+      ([capturing, input]) => {
+        observation?.abort('Voice capture changed')
+        observation = undefined
+        if (!capturing)
+          return
+
+        const current = new AbortController()
+        observation = current
+        observeInputLevel(input, current.signal, level => getSpeechBusContext().emit(voiceInputLevel, { level }))
+      },
+      { immediate: true },
+    )
+
+    return () => {
+      stop()
+      stopMonitor()
+      clearTimeout(monitorTimer)
+      observation?.abort('Voice output host detached')
+    }
+  }
+
   function interrupt(turns: readonly TurnRef[], cause: string) {
     return controller.interrupt({ turns, cause })
   }
@@ -207,6 +261,7 @@ export const useVoiceStore = defineStore('voice', () => {
     const opened = new Set<string>()
     const stops = [
       voiceMessages.connect(),
+      publishInputLevel(),
       context.on(voiceGenerationEnded, ({ body }) => {
         if (!body)
           return
@@ -225,9 +280,14 @@ export const useVoiceStore = defineStore('voice', () => {
 
             const attempt = beginManual(command.sessionId)
             inputRequests.set(command.requestId, attempt)
-            void attempt.done.then(() => {
+            if (command.target === 'composer')
+              composerInputs.set(attempt.id, undefined)
+            void attempt.done.then((outcome) => {
               if (inputRequests.get(command.requestId) === attempt)
                 inputRequests.delete(command.requestId)
+              // A drafted composer input keeps its text until `end` reads it. Other outcomes have no text to return.
+              if (outcome.status !== 'drafted')
+                composerInputs.delete(attempt.id)
             })
             presentedInput = { requestId: command.requestId, attempt }
             publishSnapshot()
@@ -240,7 +300,13 @@ export const useVoiceStore = defineStore('voice', () => {
               return { status: 'closed' }
 
             await attempt.end()
-            break
+            if (!composerInputs.has(attempt.id))
+              break
+
+            const text = composerInputs.get(attempt.id)
+            composerInputs.delete(attempt.id)
+            publishSnapshot()
+            return { status: 'accepted', ...(text ? { text } : {}) }
           }
           case 'cancel': {
             const attempt = inputRequests.get(command.requestId)
