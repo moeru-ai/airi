@@ -94,6 +94,14 @@ describe('voiceInputButton', () => {
     await expect.element(screen.getByTestId('voice-pending-bar')).not.toBeInTheDocument()
   })
 
+  it('hides the cancel button when Auto send is off, because stopping does not send', async () => {
+    const { screen } = await mountButton()
+    await screen.getByTestId('voice-input-button').click()
+    await expect.element(screen.getByTestId('voice-status-bar')).toBeInTheDocument()
+
+    expect(screen.getByTestId('voice-status-cancel').query()).toBeNull()
+  })
+
   // The chat queues a voice message behind a running reply. The control used to spin until that reply ended.
   it('frees the control while a sent voice message waits in the chat queue', async () => {
     localStorage.setItem('settings/hearing/auto-send-enabled', 'true')
@@ -107,7 +115,8 @@ describe('voiceInputButton', () => {
     await expect.element(button).toHaveAttribute('aria-pressed', 'false')
   })
 
-  it('cancels from the status bar without sending', async () => {
+  it('cancels from the status bar without sending when Auto send is on', async () => {
+    localStorage.setItem('settings/hearing/auto-send-enabled', 'true')
     const { screen, commands } = await mountButton()
     await screen.getByTestId('voice-input-button').click()
     await screen.getByTestId('voice-status-cancel').click()

@@ -408,7 +408,7 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
       A CSS animation fades the status in. Vue's Transition advances on animation frames, which a throttled window can
       stop, and then the leaving status stayed on screen.
     -->
-    <!-- Recording: level waveform, elapsed time, and cancel. Dictation text goes into the composer, not here. -->
+    <!-- Recording: level waveform and elapsed time. The red stop button shows that recording is on. -->
     <div
       v-if="active"
       data-testid="voice-status-bar"
@@ -417,13 +417,17 @@ const separatorClasses = ['mx-2 my-1 h-px bg-neutral-200/80 dark:bg-neutral-700/
       :data-phase="phase"
       :class="['h-8 min-w-0 flex flex-1 items-center gap-2 px-1 text-neutral-600 dark:text-neutral-300', 'animate-fadeIn motion-reduce:animate-none']"
     >
-      <span :class="['size-2 shrink-0 rounded-full bg-red-500', phase === 'recording' && 'animate-pulse motion-reduce:animate-none']" aria-hidden="true" />
       <span v-if="phase === 'processing'" :class="['min-w-0 flex-1 truncate text-xs text-neutral-500 dark:text-neutral-400']">
         {{ t('stage.chat.voice-composer.processing') }}
       </span>
       <VoiceWaveform v-else :level="level" :active="phase === 'recording'" :class="['text-primary-500 dark:text-primary-300']" />
       <span data-testid="voice-status-time" :class="['shrink-0 text-xs tabular-nums']">{{ elapsed }}</span>
+      <!--
+        Discard is needed only with Auto send, where stopping sends at once. Without it, a voice message waits in the
+        pending bar with its own discard, and dictated text stays editable. Escape always discards.
+      -->
       <BasicButton
+        v-if="autoSendEnabled"
         size="unset"
         type="button"
         data-testid="voice-status-cancel"
