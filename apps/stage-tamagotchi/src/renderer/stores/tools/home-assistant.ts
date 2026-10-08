@@ -57,14 +57,13 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
   async function refresh() {
     llmToolsStore.removeToolsByIds(...registeredToolIds())
 
-    if (!settings.enabled)
-      return
-
     const config = await getConfig()
-    // The leader also records the mirror, so the module card shows its state
-    // after a restart without waiting for the settings page to open.
+    // The credential state is recorded whatever the switch says. Gating this
+    // read on the switch leaves the mirror false after a cold start, and a user
+    // who then turns the switch on changes nothing the watcher can see.
     settings.setHasCredentials(Boolean(config.baseUrl) && config.hasToken)
-    if (!config.baseUrl || !config.hasToken)
+
+    if (!settings.enabled || !config.baseUrl || !config.hasToken)
       return
 
     const tools = await createHomeAssistantTools(createClient())
