@@ -15,7 +15,10 @@ import { RouterView, useRouter } from 'vue-router'
 const { t } = useI18n()
 const router = useRouter()
 const providerStore = useProviderConfigStore()
-const { availableProvidersMetadata } = storeToRefs(useProviderStore())
+const providersStore = useProviderStore()
+const { availableProvidersMetadata } = storeToRefs(providersStore)
+const listedProviders = computed(() => Object.entries(providerStore.listedProviders)
+  .filter(([id]) => providersStore.findProviderDefinition(id)))
 
 const availableProviderSearchQuery = ref('')
 const availableProviderSearchQueryDebounced = refDebounced(availableProviderSearchQuery, 250)
@@ -115,7 +118,7 @@ function handleClick(providerId: string) {
                 </DropdownMenuRoot>
               </div>
 
-              <div v-if="Object.keys(providerStore.listedProviders).length === 0" class="text-neutral-500 <lg:px-4" flex flex-1 flex-col items-center justify-center gap-2>
+              <div v-if="listedProviders.length === 0" class="text-neutral-500 <lg:px-4" flex flex-1 flex-col items-center justify-center gap-2>
                 <div i-ph:rectangle-dashed-light text-4xl />
                 <div flex items-center justify-center gap-2>
                   <span>No providers</span>
@@ -124,7 +127,7 @@ function handleClick(providerId: string) {
 
               <div v-auto-animate gap="0.5" h-fit max-h="[calc(100dvh-12.5rem)]" flex flex-col overflow-y-scroll>
                 <div
-                  v-for="(providerEntry, index) in Object.entries(providerStore.listedProviders)"
+                  v-for="(providerEntry, index) in listedProviders"
                   :key="index"
                   @click="() => handleClick(providerEntry[0])"
                 >

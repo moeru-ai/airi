@@ -1,5 +1,6 @@
 import type { Tool, ToolExecuteOptions } from '@xsai/shared-chat'
 
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { rawTool } from '@xsai/tool'
 import { toJsonSchema } from 'xsschema'
 import { z } from 'zod/v4'
@@ -200,6 +201,9 @@ function formatResults(query: string, results: SearchResult[]): string {
  * `options.timeoutMs` bounds the outbound request (default 15000ms).
  */
 export async function createWebSearchTools(options: { apiKey: string, timeoutMs?: number }): Promise<Tool[]> {
+  if (isSteamDistribution())
+    return []
+
   const { apiKey, timeoutMs = DEFAULT_TIMEOUT_MS } = options
 
   // Keep the generated JSON Schema provider-neutral. Each provider adapter

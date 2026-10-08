@@ -102,7 +102,29 @@ describe('createStreamingTtsPipeline', () => {
     server = undefined
   })
   afterEach(async () => {
+    vi.unstubAllEnvs()
     await server?.stop()
+  })
+
+  it('blocks authenticated Steam chat speech before opening a socket', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    server = await startMockServer(ws => ws.send(JSON.stringify({ event: 'session.finished' })))
+    const onError = vi.fn()
+    const onDone = vi.fn()
+    const handle = createStreamingTtsPipeline({
+      serverUrl: server.url,
+      token: 'test-token',
+      model: 'streaming-model',
+      voice: 'voice',
+      audioContext: makeStubAudioContext(),
+      onSentence: vi.fn(),
+      onError,
+      onDone,
+    })
+    await vi.waitFor(() => expect(onDone).toHaveBeenCalledOnce())
+    handle.cancel()
+    expect(onError).toHaveBeenCalledWith(new Error('This provider is not available in the Steam edition.'))
+    expect(server.observedVoiceTypes).toEqual([])
   })
 
   it('forwards appendText / finish frames and chunks audio per sentence.end', async () => {

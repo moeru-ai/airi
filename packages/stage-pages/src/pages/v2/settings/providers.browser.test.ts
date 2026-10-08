@@ -2,8 +2,9 @@ import en from '@proj-airi/i18n/locales/en'
 
 import { PiniaColada } from '@pinia/colada'
 import { registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
+import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { createPinia, disposePinia } from 'pinia'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { page } from 'vitest/browser'
 import { createI18n } from 'vue-i18n'
@@ -26,8 +27,27 @@ describe('v2 providers catalog availability (Issue #2559)', () => {
   })
 
   afterEach(() => {
+    vi.unstubAllEnvs()
     disposePinia(pinia)
     localStorage.clear()
+  })
+
+  it('hides persisted cloud ASR entries in Steam while retaining local ASR', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const config = useProviderConfigStore(pinia)
+    await config.ensureProvider('legacy-cloud', 'official-provider-transcription', {})
+    await config.markProviderAdded('legacy-cloud')
+    await config.ensureProvider('saved-openai', 'openai', {})
+    await config.markProviderAdded('saved-openai')
+    await config.ensureProvider('saved-streaming', 'official-provider-speech-streaming', {})
+    await config.markProviderAdded('saved-streaming')
+    await config.ensureProvider('sherpaw-transcription', 'sherpaw-transcription', {})
+    await config.markProviderAdded('sherpaw-transcription')
+    const screen = await renderCatalog()
+    await expect.element(screen.getByText('Sherpaw', { exact: true })).toBeVisible()
+    expect((await screen.getByText('Official Transcription Provider', { exact: true }).all())).toHaveLength(0)
+    expect((await screen.getByText('OpenAI', { exact: true }).all())).toHaveLength(0)
+    expect(document.body.textContent).not.toContain('Official Streaming Speech Provider')
   })
 
   async function renderCatalog() {

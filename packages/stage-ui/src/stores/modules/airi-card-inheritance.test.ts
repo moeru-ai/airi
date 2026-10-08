@@ -55,7 +55,24 @@ describe('card inheritance with real module stores', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ recommended: {}, voices: [], data: [] }))))
   })
 
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
+
+  // ROOT CAUSE: Steam removed image tools but still injected instructions
+  // telling the model to generate images, including from imported cards.
+  it('excludes image generation instructions from Steam chat', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const cards = useAiriCardStore()
+    await cards.initialize()
+    expect(cards.systemPrompt).not.toContain(DEFAULT_ARTISTRY_WIDGET_SPAWNING_PROMPT)
+    const imported = card()
+    imported.extensions.airi.modules.artistry = { widgetInstruction: 'IMPORTED_IMAGE_TOOL_INSTRUCTION' }
+    const id = await cards.addCard(imported, 'import')
+    await cards.activateCard(id)
+    expect(cards.systemPrompt).not.toContain('IMPORTED_IMAGE_TOOL_INSTRUCTION')
+  })
 
   // https://github.com/moeru-ai/airi/pull/2332
   // ROOT CAUSE:

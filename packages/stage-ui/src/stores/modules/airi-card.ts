@@ -4,6 +4,7 @@ import type { CardModuleDefaults } from '../../services/airi-card-modules'
 import type { AiriCard, AiriExtension } from '../../types/airiCard'
 
 import { errorMessageFrom } from '@moeru/std'
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { StorageSerializers } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -38,7 +39,7 @@ function resolveSystemPrompt(card: AiriCard | undefined): string {
     card.description,
     card.personality,
     card.scenario,
-    card.extensions.airi.modules.artistry?.widgetInstruction,
+    isSteamDistribution() ? undefined : card.extensions.airi.modules.artistry?.widgetInstruction,
   ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
 
   return systemPromptParts.join('\n\n')

@@ -65,6 +65,40 @@ async function createSyncedPair() {
 }
 
 describe('speech synchronization', () => {
+  // ROOT CAUSE: Hiding the streaming provider did not replace selections
+  // restored from disk before the first chat or from synchronized cards.
+  it('replaces saved streaming settings before Steam speech starts', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    localStorage.setItem('settings/speech/active-provider', 'official-provider-speech-streaming')
+    localStorage.setItem('settings/speech/active-model', 'streaming-model')
+    localStorage.setItem('settings/speech/voice', 'streaming-voice')
+    const { speechStore } = createSyncedContext(`steam:${crypto.randomUUID()}`, 'leader-only')
+    expect(speechStore.activeSpeechProvider).toBe('official-provider-speech')
+    expect(speechStore.activeSpeechModel).toBe('')
+    expect(speechStore.activeSpeechVoiceId).toBe('')
+  })
+
+  it('defaults fresh Steam speech settings to the ordinary official provider', () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const { speechStore } = createSyncedContext(`steam:${crypto.randomUUID()}`, 'leader-only')
+    expect(speechStore.activeSpeechProvider).toBe('official-provider-speech')
+  })
+
+  it('preserves an explicit no-op speech selection in Steam', () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    localStorage.setItem('settings/speech/active-provider', 'speech-noop')
+    const { speechStore } = createSyncedContext(`steam:${crypto.randomUUID()}`, 'leader-only')
+    expect(speechStore.activeSpeechProvider).toBe('speech-noop')
+  })
+
+  it('normalizes a follower streaming selection through the Steam leader', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const { leader, follower } = await createSyncedPair()
+    await follower.speechStore.selectProviderModel('official-provider-speech-streaming', 'streaming-model', 'streaming-voice')
+    expect(leader.speechStore.activeSpeechProvider).toBe('official-provider-speech')
+    await vi.waitFor(() => expect(follower.speechStore.activeSpeechProvider).toBe('official-provider-speech'))
+    expect(leader.speechStore.activeSpeechVoiceId).not.toBe('streaming-voice')
+  })
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3967949219
   // ROOT CAUSE: Catalog invalidation erased the voice just applied by a card.
   // The selection command must discard the old catalog before setting the override.
@@ -160,6 +194,7 @@ describe('speech synchronization', () => {
     }
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
     localStorage.clear()
   })
 

@@ -10,9 +10,14 @@ export function isEnvTruthy(value: string | undefined | null): boolean {
 }
 
 export function isFluxPurchaseDisabled(): boolean {
-  return isEnvTruthy(import.meta.env.VITE_DISABLE_FLUX_PURCHASE)
+  return isSteamDistribution() || isEnvTruthy(import.meta.env.VITE_DISABLE_FLUX_PURCHASE)
 }
 
 export function isCustomProvidersDisabled(): boolean {
-  return isEnvTruthy(import.meta.env.VITE_DISABLE_CUSTOM_PROVIDERS)
+  return isSteamDistribution() || isEnvTruthy(import.meta.env.VITE_DISABLE_CUSTOM_PROVIDERS)
+}
+
+/** Steam ships only managed AI services; saved settings cannot enable external services. */
+export function isSteamDistribution(): boolean {
+  return import.meta.env.VITE_DISTRIBUTION === 'steam'
 }

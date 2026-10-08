@@ -69,7 +69,17 @@ describe('streamingSynthesize', () => {
     server = undefined
   })
   afterEach(async () => {
+    vi.unstubAllEnvs()
     await server?.stop()
+  })
+
+  it('blocks authenticated Steam previews before opening a socket', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    server = await startMockServer(ws => ws.send(JSON.stringify({ event: 'session.finished' })))
+    await expect(streamingSynthesize({ serverUrl: server.url, token: 'test-token', model: 'streaming-model', voice: 'voice', input: 'hello' }))
+      .rejects
+      .toThrow('This provider is not available in the Steam edition.')
+    expect(server.observedTokens).toEqual([])
   })
 
   it('resolves with concatenated audio when session.finished arrives', async () => {

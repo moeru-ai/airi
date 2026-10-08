@@ -325,6 +325,9 @@ onMounted(() => {
 })
 
 async function handleBuy(stripePriceId: string) {
+  if (fluxPurchaseDisabled)
+    return
+
   // OpenPanel funnel step 2: user picked a plan. price_minor_unit lives on
   // the Stripe webhook (server-side `payment_completed`); we deliberately
   // don't send a formatted-string price from the SPA so funnels don't get

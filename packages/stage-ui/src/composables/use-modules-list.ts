@@ -1,5 +1,6 @@
 import type { BeatSyncDetectorState } from '@proj-airi/stage-shared/beat-sync'
 
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { getBeatSyncState, isBeatSyncSupported, listenBeatSyncStateChange } from '@proj-airi/stage-shared/beat-sync'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -188,7 +189,7 @@ export function useModulesList() {
           category: 'essential',
         }]
       : []),
-  ])
+  ].filter(module => !isSteamDistribution() || !['web-search', 'artistry', 'messaging-discord', 'x'].includes(module.id)))
 
   const categorizedModules = computed(() => {
     return modulesList.value.reduce((categories, module) => {

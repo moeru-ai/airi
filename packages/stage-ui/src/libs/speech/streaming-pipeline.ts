@@ -1,4 +1,6 @@
 import { getAuthToken } from '../auth'
+import { isProviderAllowedInDistribution } from '../providers/distribution'
+import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../providers/providers/official/constants'
 import { SERVER_URL } from '../server'
 
 /**
@@ -112,6 +114,15 @@ export interface StreamingTtsPipelineHandle {
  *   AudioBuffers are emitted via `options.onSentence` in arrival order.
  */
 export function createStreamingTtsPipeline(options: StreamingTtsPipelineOptions): StreamingTtsPipelineHandle {
+  // Chat opens this transport directly, without the provider instance factory.
+  if (!isProviderAllowedInDistribution(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)) {
+    queueMicrotask(() => {
+      options.onError?.(new Error('This provider is not available in the Steam edition.'))
+      options.onDone?.()
+    })
+    return noopHandle()
+  }
+
   const token = options.token ?? getAuthToken()
   if (!token) {
     const err = new Error('streaming-pipeline: not authenticated')

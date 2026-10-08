@@ -2,7 +2,7 @@
 import type { ProviderDeployment, ProviderPricing } from '@proj-airi/stage-ui/libs/providers/attributes'
 import type { Ref } from 'vue'
 
-import { isCustomProvidersDisabled } from '@proj-airi/stage-shared'
+import { isCustomProvidersDisabled, isSteamDistribution } from '@proj-airi/stage-shared'
 import { IconStatusItem, RippleGrid } from '@proj-airi/stage-ui/components'
 import { useAnalytics } from '@proj-airi/stage-ui/composables'
 import { useRippleGridState } from '@proj-airi/stage-ui/composables/use-ripple-grid-state'
@@ -57,6 +57,8 @@ const {
 const { replicaSyncState } = storeToRefs(providerConfigStore)
 
 const allArtistryProvidersMetadata = computed<ProviderSourceCard[]>((): ProviderSourceCard[] => {
+  if (isSteamDistribution())
+    return []
   return [
     {
       id: 'comfyui',

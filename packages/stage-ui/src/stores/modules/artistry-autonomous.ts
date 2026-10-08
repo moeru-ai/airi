@@ -3,7 +3,7 @@ import type { Message } from '@xsai/shared-chat'
 import { defineInvoke, defineInvokeEventa } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/renderer'
 import { chatMessagesToTurns, streamFrom } from '@proj-airi/core-agent'
-import { artistryGenerateHeadless } from '@proj-airi/stage-shared'
+import { artistryGenerateHeadless, isSteamDistribution } from '@proj-airi/stage-shared'
 import { defineStore } from 'pinia'
 import { ref, toRaw } from 'vue'
 import { toast } from 'vue-sonner'
@@ -49,6 +49,9 @@ export const useAutonomousArtistryStore = defineStore('artistry-autonomous', () 
    * Analyzes the context in parallel and triggers a visual if threshold is met.
    */
   async function runArtistTask(inputText: string, history: Message[] = [], targetOverride?: 'user' | 'assistant') {
+    if (isSteamDistribution())
+      return
+
     if (isProcessing.value) {
       artistLog('Skipping task: Already processing another task.')
       return

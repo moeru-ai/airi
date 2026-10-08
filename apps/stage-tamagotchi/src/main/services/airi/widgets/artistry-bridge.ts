@@ -114,6 +114,9 @@ export async function generateHeadless(params: {
   options?: Record<string, any>
   globals?: Record<string, any>
 }): Promise<{ imageUrl?: string, base64?: string, error?: string }> {
+  if (import.meta.env.VITE_DISTRIBUTION === 'steam')
+    return { error: 'Image generation is not available in the Steam edition.' }
+
   // Resolve config and effective globals early to secure the deduplication fingerprint
   const { config: artistryConfig } = await injeca.resolve({ config: 'configs:artistry' } as { config: ProvidedBy<Config<typeof artistryConfigSchema>> })
   const activeGlobals = (params.globals || artistryConfig.get()?.artistryGlobals || {}) as Record<string, any>
@@ -266,6 +269,9 @@ async function handleArtistryTrigger(params: {
   componentProps?: unknown
   widgetsManager: WidgetsWindowManager
 }) {
+  if (import.meta.env.VITE_DISTRIBUTION === 'steam')
+    return
+
   if (params.componentName !== 'comfy' && params.componentName !== 'artistry')
     return
 
@@ -463,6 +469,9 @@ export async function setupArtistryBridge(params: {
     })
 
     defineInvokeHandler(params.context, artistrySyncConfig, (payload) => {
+      if (import.meta.env.VITE_DISTRIBUTION === 'steam')
+        return
+
       log.log(`🔄 Syncing artistry config to main. Provider: ${payload.provider}`)
       params.artistryConfig.update({
         artistryProvider: payload.provider || params.artistryConfig.get()?.artistryProvider || DEFAULT_ARTISTRY_PROVIDER,
@@ -489,6 +498,9 @@ export async function setupArtistryBridge(params: {
     })
 
     defineInvokeHandler(params.context, artistryTestComfyUIConnection, async (payload) => {
+      if (import.meta.env.VITE_DISTRIBUTION === 'steam')
+        return { ok: false, info: 'Image generation is not available in the Steam edition.' }
+
       log.log(`🔌 Testing ComfyUI connection at: ${payload.url}`)
       try {
         const url = payload.url.replace(/\/+$/, '')

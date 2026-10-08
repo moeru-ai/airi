@@ -1,5 +1,6 @@
 import type {} from 'pinia-plugin-synced'
 
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, isRef, ref, watch } from 'vue'
@@ -130,6 +131,9 @@ export const useArtistryStore = defineStore('artistry', () => {
   watch(globalPromptPrefix, val => defaultPromptPrefix.value = val)
 
   const configured = computed(() => {
+    if (isSteamDistribution())
+      return false
+
     if (!activeProvider.value)
       return false
 

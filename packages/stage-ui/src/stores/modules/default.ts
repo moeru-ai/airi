@@ -1,4 +1,6 @@
 import { OFFICIAL_CHAT_PROVIDER_ID, OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID, OFFICIAL_VISION_PROVIDER_ID } from '../../libs/providers/providers/official/constants'
+import { SHERPAW_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/sherpaw'
+import { usesSteamLocalAsr } from '../../libs/providers/transcription-policy'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
 import { useConsciousnessStore } from './consciousness'
@@ -15,10 +17,10 @@ const officialModuleDefaults = {
 } as const
 
 /**
- * Applies official defaults to empty inference modules.
+ * Applies defaults to empty inference modules, with local ASR for Steam.
  *
  * The caller must own synchronized Pinia leadership. This command keeps the
- * configuration of each custom provider unchanged. It configures the official
+ * configuration of each custom provider unchanged outside Steam ASR. It configures the official
  * choice for every module, then applies it only to empty or incomplete
  * official selections. Provider setup completes before module selections
  * become visible to other windows.
@@ -31,11 +33,16 @@ export async function configureAsDefaultsIfEmpty(): Promise<boolean> {
   const speechStore = useSpeechStore()
   const visionStore = useVisionStore()
 
+  const hearingDefault = usesSteamLocalAsr()
+    ? { provider: SHERPAW_TRANSCRIPTION_PROVIDER_ID, model: 'sherpaw' }
+    : officialModuleDefaults.hearing
+
   const needsConsciousnessDefault = !consciousnessStore.activeProvider
   const usesOfficialConsciousness = consciousnessStore.activeProvider === officialModuleDefaults.consciousness.provider
   const needsHearingDefault = !hearingStore.activeTranscriptionProvider
-  const usesOfficialHearing = hearingStore.activeTranscriptionProvider === officialModuleDefaults.hearing.provider
-  const needsSpeechDefault = !speechStore.activeSpeechProvider || speechStore.activeSpeechProvider === 'speech-noop'
+    || (usesSteamLocalAsr() && hearingStore.activeTranscriptionProvider !== hearingDefault.provider)
+  const usesOfficialHearing = hearingStore.activeTranscriptionProvider === hearingDefault.provider
+  const needsSpeechDefault = !speechStore.activeSpeechProvider || (!usesSteamLocalAsr() && speechStore.activeSpeechProvider === 'speech-noop')
   const usesOfficialSpeech = speechStore.activeSpeechProvider === officialModuleDefaults.speech.provider
   const needsVisionDefault = !visionStore.activeProvider
   const usesOfficialVision = visionStore.activeProvider === officialModuleDefaults.vision.provider
@@ -43,6 +50,10 @@ export async function configureAsDefaultsIfEmpty(): Promise<boolean> {
   const providerStore = useProviderStore()
   const providerConfigStore = useProviderConfigStore()
   const managedOfficialProviders = new Set<string>(Object.values(officialModuleDefaults).map(module => module.provider))
+  if (usesSteamLocalAsr()) {
+    managedOfficialProviders.delete(OFFICIAL_TRANSCRIPTION_PROVIDER_ID)
+    managedOfficialProviders.add(hearingDefault.provider)
+  }
 
   let changed = false
   for (const provider of managedOfficialProviders) {
@@ -68,13 +79,13 @@ export async function configureAsDefaultsIfEmpty(): Promise<boolean> {
 
   if (needsHearingDefault) {
     hearingStore.activeCustomModelName = ''
-    hearingStore.activeTranscriptionProvider = officialModuleDefaults.hearing.provider
-    hearingStore.activeTranscriptionModel = officialModuleDefaults.hearing.model
+    hearingStore.activeTranscriptionProvider = hearingDefault.provider
+    hearingStore.activeTranscriptionModel = hearingDefault.model
     changed = true
   }
   else if (usesOfficialHearing && !hearingStore.activeTranscriptionModel) {
     hearingStore.activeCustomModelName = ''
-    hearingStore.activeTranscriptionModel = officialModuleDefaults.hearing.model
+    hearingStore.activeTranscriptionModel = hearingDefault.model
     changed = true
   }
 
@@ -109,8 +120,8 @@ export async function configureAsDefaultsIfEmpty(): Promise<boolean> {
  * Removes provider state that is valid only during an authenticated session.
  *
  * The caller must own synchronized Pinia leadership. Custom module selections
- * remain unchanged. An official speech selection falls back to No Speech so
- * the speech pipeline keeps its account-free disabled state after logout.
+ * remain unchanged. Steam clears authenticated speech selection on logout.
+ * Other distributions select No Speech. Explicit silence remains unchanged.
  *
  * @returns `true` when the command changes module or provider state.
  */
@@ -138,7 +149,7 @@ export async function unconfigureAuthenticationProviders(): Promise<boolean> {
   }
 
   if (providerConfigStore.providers[speechStore.activeSpeechProvider]?.configuredBy === 'authentication') {
-    speechStore.activeSpeechProvider = 'speech-noop'
+    speechStore.activeSpeechProvider = usesSteamLocalAsr() ? '' : 'speech-noop'
     speechStore.activeSpeechModel = ''
     speechStore.activeSpeechVoiceId = ''
     speechStore.activeSpeechVoice = undefined

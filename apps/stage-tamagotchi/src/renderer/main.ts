@@ -9,6 +9,7 @@ import { trackButtonPlugin } from '@proj-airi/stage-ui/directives/track-button'
 import { browserAuthorizationHandler, registerAuthorizationHandler } from '@proj-airi/stage-ui/libs/auth'
 import { piniaPluginTracing, setupSynced } from '@proj-airi/stage-ui/libs/pinia'
 import { configureAnalyticsAdapter } from '@proj-airi/stage-ui/libs/product-signals'
+import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
 import { MotionPlugin } from '@vueuse/motion'
 import { createPinia } from 'pinia'
 import { setupLayouts } from 'virtual:generated-layouts'
@@ -19,6 +20,7 @@ import { handleHotUpdate, routes } from 'vue-router/auto-routes'
 import App from './App.vue'
 
 import { i18n } from './modules/i18n'
+import { resolveSteamAsrRedirect } from './steam-asr-navigation'
 import { resolveRendererWindowContext } from './window-context'
 
 import '@unocss/reset/tailwind.css'
@@ -60,6 +62,8 @@ const router = createRouter({
   // TODO: vite-plugin-vue-layouts is long deprecated, replace with another layout solution
   routes: setupLayouts(routes as RouteRecordRaw[]),
 })
+
+router.beforeEach(to => resolveSteamAsrRedirect(to.path, id => !!useProviderStore(pinia).findProviderDefinition(id)))
 
 if (import.meta.hot) {
   handleHotUpdate(router, (updatedRoutes) => {

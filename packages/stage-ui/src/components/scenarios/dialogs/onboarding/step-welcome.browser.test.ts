@@ -94,6 +94,13 @@ describe('desktop onboarding sign-in', () => {
 })
 
 describe('onboarding public links', () => {
+  it('hides pricing in Steam while retaining terms', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const screen = await renderWelcomeStep(false)
+    expect(document.querySelector(`a[href="${AIRI_FLUX_URL}"]`)).toBeNull()
+    await expect.element(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', AIRI_TERMS_URL)
+  })
+
   it('links to public pricing and terms without requiring sign-in', async () => {
     const screen = await renderWelcomeStep(true)
 

@@ -26,6 +26,7 @@ import { OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers'
 import { APPLE_SPEECH_TRANSCRIPTION_PROVIDER_ID, executeAppleSpeechStream } from '../../libs/providers/providers/apple-speech'
 import { executeSherpawStream, SHERPAW_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/sherpaw'
 import { streamTranscription } from '../../libs/providers/stream-transcription'
+import { isTranscriptionProviderAllowed, usesSteamLocalAsr } from '../../libs/providers/transcription-policy'
 import { useVAD } from '../ai/models/vad'
 import { useProviderConfigStore } from '../providers/config'
 import { useProviderStore } from '../providers/provider'
@@ -268,6 +269,9 @@ export function resolveStreamTranscriptionExecutor(providerId: string): StreamTr
  * - A setup error when no provider is selected, otherwise `undefined`.
  */
 export function resolveActiveTranscriptionProviderError(providerId: string): string | undefined {
+  if (!isTranscriptionProviderAllowed(providerId))
+    return 'Steam requires local Sherpaw speech recognition.'
+
   if (providerId)
     return undefined
 
@@ -338,9 +342,16 @@ export const useHearingStore = defineStore('hearing-store', () => {
   const persistenceOptions = { listenToStorageChanges: false }
 
   // State
-  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', '', persistenceOptions)
-  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', '', persistenceOptions)
+  const activeTranscriptionProvider = useLocalStorageManualReset('settings/hearing/active-provider', usesSteamLocalAsr() ? SHERPAW_TRANSCRIPTION_PROVIDER_ID : '', persistenceOptions)
+  const activeTranscriptionModel = useLocalStorageManualReset('settings/hearing/active-model', usesSteamLocalAsr() ? 'sherpaw' : '', persistenceOptions)
   const activeCustomModelName = useLocalStorageManualReset('settings/hearing/active-custom-model', '', persistenceOptions)
+  // Normalize persisted state before synchronized Pinia hydration. Live updates
+  // remain leader-owned; remote snapshots must never trigger a migration watcher.
+  if (usesSteamLocalAsr() && (!isTranscriptionProviderAllowed(activeTranscriptionProvider.value) || activeTranscriptionModel.value !== 'sherpaw')) {
+    activeTranscriptionProvider.value = SHERPAW_TRANSCRIPTION_PROVIDER_ID
+    activeTranscriptionModel.value = 'sherpaw'
+    activeCustomModelName.value = ''
+  }
   const transcriptionModelSearchQuery = refManualReset<string>('')
   const autoSendEnabled = useLocalStorageManualReset<boolean>('settings/hearing/auto-send-enabled', false, persistenceOptions)
   const autoSendDelay = useLocalStorageManualReset<number>('settings/hearing/auto-send-delay', 2000, persistenceOptions) // Default 2 seconds
@@ -389,6 +400,9 @@ export const useHearingStore = defineStore('hearing-store', () => {
   }
 
   const configured = computed(() => {
+    if (!isTranscriptionProviderAllowed(activeTranscriptionProvider.value))
+      return false
+
     if (!activeTranscriptionProvider.value)
       return false
 
@@ -426,6 +440,10 @@ export const useHearingStore = defineStore('hearing-store', () => {
     format?: 'json' | 'verbose_json',
     options?: HearingTranscriptionInvokeOptions,
   ): Promise<HearingTranscriptionResult> {
+    const providerError = resolveActiveTranscriptionProviderError(providerId)
+    if (providerError)
+      throw new Error(providerError)
+
     const normalizedInput = (input instanceof File ? { file: input } : input ?? {}) as {
       file?: File
       fileName?: string

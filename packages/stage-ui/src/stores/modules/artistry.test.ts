@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { useArtistryStore } from './artistry'
@@ -9,6 +9,18 @@ import { useArtistryStore } from './artistry'
  * describe('artistry store', () => {})
  */
 describe('artistry store', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  // ROOT CAUSE: Steam retained ComfyUI despite disabling custom providers.
+  // Imported cards and saved settings must not re-enable image generation.
+  it('keeps Steam image generation disabled with a saved provider', () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    setActivePinia(createPinia())
+    const store = useArtistryStore()
+    store.activeProvider = 'comfyui'
+    expect(store.configured).toBe(false)
+  })
+
   beforeEach(() => {
     setActivePinia(createPinia())
   })

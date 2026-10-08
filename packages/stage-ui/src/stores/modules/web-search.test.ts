@@ -1,5 +1,5 @@
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { WEB_SEARCH_TOOLSET_PROMPT } from '../../tools/web-search'
@@ -7,6 +7,21 @@ import { useLlmToolsetPromptsStore } from '../ai/chat-llm/toolset-prompts'
 import { useWebSearchStore } from './web-search'
 
 describe('useWebSearchStore', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  // ROOT CAUSE: Steam hid provider credentials but still exposed Tavily through
+  // its separate module. Saved keys must not activate this unsupported service.
+  it('keeps Steam web search disabled with a saved key', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    setActivePinia(createPinia())
+    const store = useWebSearchStore()
+    store.enabled = true
+    store.apiKey = 'saved-key'
+    await nextTick()
+    expect(store.configured).toBe(false)
+    expect(useLlmToolsetPromptsStore().activeToolsetPrompt).not.toContain(WEB_SEARCH_TOOLSET_PROMPT)
+  })
+
   beforeEach(() => {
     setActivePinia(createPinia())
   })

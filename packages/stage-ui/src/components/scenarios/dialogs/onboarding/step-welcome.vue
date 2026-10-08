@@ -2,6 +2,7 @@
 import type { OnboardingStepNextHandler } from './types'
 
 import { all } from '@proj-airi/i18n'
+import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { Button, DropdownMenu } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuItem } from 'reka-ui'
@@ -157,6 +158,7 @@ function handleLocalSetup() {
       ]"
     >
       <a
+        v-if="!isFluxPurchaseDisabled()"
         :href="AIRI_FLUX_URL"
         target="_blank"
         rel="noopener noreferrer"
@@ -164,7 +166,7 @@ function handleLocalSetup() {
       >
         {{ t('settings.dialogs.onboarding.pricingLink') }}
       </a>
-      <span aria-hidden="true" :class="['size-0.5 rounded-full bg-current']" />
+      <span v-if="!isFluxPurchaseDisabled()" aria-hidden="true" :class="['size-0.5 rounded-full bg-current']" />
       <a
         :href="AIRI_TERMS_URL"
         target="_blank"

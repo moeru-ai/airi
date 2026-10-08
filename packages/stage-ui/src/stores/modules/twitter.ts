@@ -1,3 +1,4 @@
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
@@ -26,7 +27,7 @@ export const useTwitterStore = defineStore('twitter', () => {
   }
 
   const configured = computed(() => {
-    return !!(apiKey.value.trim() && apiSecret.value.trim() && accessToken.value.trim() && accessTokenSecret.value.trim())
+    return !isSteamDistribution() && !!(apiKey.value.trim() && apiSecret.value.trim() && accessToken.value.trim() && accessTokenSecret.value.trim())
   })
 
   function resetState() {

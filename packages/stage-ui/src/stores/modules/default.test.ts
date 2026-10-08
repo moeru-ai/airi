@@ -29,6 +29,25 @@ vi.mock('vue-i18n', () => ({
 }))
 
 describe('official provider module defaults', () => {
+  it('preserves an explicit Steam silence selection when applying authenticated defaults', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const speech = useSpeechStore()
+    speech.activeSpeechProvider = 'speech-noop'
+    await configureAsDefaultsIfEmpty()
+    expect(speech.activeSpeechProvider).toBe('speech-noop')
+  })
+
+  it('restores ordinary Steam speech after logout without treating it as explicit silence', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    await configureAsDefaultsIfEmpty()
+    const speech = useSpeechStore()
+    expect(speech.activeSpeechProvider).toBe(OFFICIAL_SPEECH_PROVIDER_ID)
+    await unconfigureAuthenticationProviders()
+    expect(speech.activeSpeechProvider).toBe('')
+    await configureAsDefaultsIfEmpty()
+    expect(speech.activeSpeechProvider).toBe(OFFICIAL_SPEECH_PROVIDER_ID)
+    expect(speech.activeSpeechModel).toBe('auto')
+  })
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
@@ -42,6 +61,45 @@ describe('official provider module defaults', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
+
+  it.each(['', OFFICIAL_TRANSCRIPTION_PROVIDER_ID, 'browser-web-speech-api', 'openai-compatible-audio-transcription'])('uses local ASR in Steam instead of %s after login', async (previousProvider) => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const hearing = useHearingStore()
+    hearing.activeTranscriptionProvider = previousProvider
+    hearing.activeTranscriptionModel = 'old-cloud-model'
+    hearing.activeCustomModelName = 'old-custom-model'
+
+    await configureAsDefaultsIfEmpty()
+
+    expect(hearing.activeTranscriptionProvider).toBe('sherpaw-transcription')
+    expect(hearing.activeTranscriptionModel).toBe('sherpaw')
+    expect(hearing.activeCustomModelName).toBe('')
+    expect(useProviderConfigStore().addedProviders[OFFICIAL_TRANSCRIPTION_PROVIDER_ID]).not.toBe(true)
+    await unconfigureAuthenticationProviders()
+    expect(hearing.activeTranscriptionProvider).toBe('sherpaw-transcription')
+  })
+
+  it('starts and resets Steam Hearing with local ASR before login', () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const hearing = useHearingStore()
+    expect(hearing.activeTranscriptionProvider).toBe('sherpaw-transcription')
+    expect(hearing.activeTranscriptionModel).toBe('sherpaw')
+    hearing.resetState()
+    expect(hearing.activeTranscriptionProvider).toBe('sherpaw-transcription')
+  })
+
+  it('rejects a cloud ASR instance passed directly to Steam Hearing', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const transcription = vi.fn(() => ({ baseURL: 'https://example.invalid', apiKey: '', model: 'auto' }))
+    await expect(useHearingStore().transcription(
+      OFFICIAL_TRANSCRIPTION_PROVIDER_ID,
+      { transcription },
+      'auto',
+      new File(['audio'], 'recording.wav'),
+    )).rejects.toThrow('Steam requires local Sherpaw')
+    expect(transcription).not.toHaveBeenCalled()
   })
 
   // ROOT CAUSE:

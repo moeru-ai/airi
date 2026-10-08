@@ -1,3 +1,4 @@
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed } from 'vue'
@@ -19,7 +20,7 @@ export const useDiscordStore = defineStore('discord', () => {
   }
 
   const configured = computed(() => {
-    return !!token.value.trim()
+    return !isSteamDistribution() && !!token.value.trim()
   })
 
   function resetState() {

@@ -50,6 +50,28 @@ describe('speech store helpers', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
+
+  // ROOT CAUSE: Cards could restore streaming models and voices after the
+  // provider disappeared from settings. Selection must enforce distribution policy.
+  it('replaces a streaming card selection with ordinary speech in Steam', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([])
+    const store = useSpeechStore()
+    await store.selectProviderModel(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, 'streaming-model', 'streaming-voice')
+    expect(store.activeSpeechProvider).toBe(OFFICIAL_SPEECH_PROVIDER_ID)
+    expect(store.activeSpeechModel).not.toBe('streaming-model')
+    expect(store.activeSpeechVoiceId).not.toBe('streaming-voice')
+  })
+
+  it('preserves a streaming card selection outside Steam', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', '')
+    vi.spyOn(useProviderStore(), 'listProviderVoices').mockResolvedValue([])
+    const store = useSpeechStore()
+    await store.selectProviderModel(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, 'streaming-model', 'streaming-voice')
+    expect(store.activeSpeechProvider).toBe(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID)
+    expect(store.activeSpeechVoiceId).toBe('streaming-voice')
   })
 
   it('formats positive percentages with a plus sign', () => {

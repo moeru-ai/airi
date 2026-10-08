@@ -4,7 +4,7 @@ import { useAudioAnalyzer, useAudioContextFromStream } from '@proj-airi/stage-ui
 import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
 import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { storeToRefs } from 'pinia'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onUnmounted, watch } from 'vue'
 
 const show = defineModel('show', { type: Boolean, default: false })
 
@@ -26,24 +26,36 @@ const { volumeLevel, startAnalyzer, stopAnalyzer } = useAudioAnalyzer()
 // That produced the "VAD still works, but no transcript arrives" failure after retoggling the mic.
 //
 // This component should only react to the current stream to drive analyzer UI state.
-watch([enabled, stream], ([isEnabled, currentStream]) => {
-  if (isEnabled && currentStream) {
-    initialize().then(() => {
-      if (audioContext.value)
-        return startAnalyzer(audioContext.value)
-    })
-  }
-  else {
+watch([enabled, stream], async ([isEnabled, currentStream], _, onCleanup) => {
+  let cancelled = false
+  let source: MediaStreamAudioSourceNode | undefined
+  onCleanup(() => {
+    cancelled = true
+    source?.disconnect()
     stopAnalyzer()
     pause()
-  }
-}, { immediate: true })
+  })
 
-onMounted(async () => {
-  if (audioContext.value) {
-    await startAnalyzer(audioContext.value)
-  }
-})
+  if (!isEnabled || !currentStream)
+    return
+
+  await initialize()
+  const context = audioContext.value
+  if (cancelled || !context)
+    return
+
+  await context.resume()
+  if (cancelled)
+    return
+
+  const analyzer = startAnalyzer(context)
+  if (!analyzer)
+    return
+
+  // An unconnected analyzer writes silence into the shared microphone meter.
+  source = context.createMediaStreamSource(currentStream)
+  source.connect(analyzer)
+}, { immediate: true })
 
 onUnmounted(async () => {
   await stopAnalyzer()

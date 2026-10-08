@@ -4,6 +4,7 @@ import type {} from 'pinia-plugin-synced'
 import type { VoiceCatalogConfiguration, VoiceCatalogIdentity, VoiceInfo } from '../providers/provider'
 
 import { errorMessageFrom } from '@moeru/std'
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { refManualReset } from '@vueuse/core'
 import { generateSpeech } from '@xsai/generate-speech'
@@ -79,10 +80,19 @@ export const useSpeechStore = defineStore('speech', () => {
   const persistenceOptions = { listenToStorageChanges: false }
 
   // State
-  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', 'speech-noop', persistenceOptions)
+  const defaultSpeechProvider = isSteamDistribution() ? OFFICIAL_SPEECH_PROVIDER_ID : 'speech-noop'
+  const activeSpeechProvider = useLocalStorageManualReset<string>('settings/speech/active-provider', defaultSpeechProvider, persistenceOptions)
   const activeSpeechModel = useLocalStorageManualReset<string>('settings/speech/active-model', '', persistenceOptions)
   const activeSpeechVoiceId = useLocalStorageManualReset<string>('settings/speech/voice', '', persistenceOptions)
   const activeSpeechVoice = refManualReset<VoiceInfo | undefined>(undefined)
+
+  // Apply the distribution policy to disk state before watchers start discovery
+  // or Pinia begins snapshot replication. Preserve an explicit no-op selection.
+  if (isSteamDistribution() && activeSpeechProvider.value === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID) {
+    activeSpeechProvider.value = OFFICIAL_SPEECH_PROVIDER_ID
+    activeSpeechModel.value = ''
+    activeSpeechVoiceId.value = ''
+  }
 
   const pitch = useLocalStorageManualReset<number>('settings/speech/pitch', 0, persistenceOptions)
   const rate = useLocalStorageManualReset<number>('settings/speech/rate', 1, persistenceOptions)
@@ -405,6 +415,13 @@ export const useSpeechStore = defineStore('speech', () => {
   async function selectProviderModel(provider: string, model: string, voiceId?: string) {
     if (disposed)
       return
+    // Cards can retain streaming settings even when the provider UI is hidden.
+    // The ordinary catalog must choose its own model and voice in the leader.
+    if (isSteamDistribution() && provider === OFFICIAL_SPEECH_STREAMING_PROVIDER_ID) {
+      provider = OFFICIAL_SPEECH_PROVIDER_ID
+      model = ''
+      voiceId = undefined
+    }
     const changed = activeSpeechProvider.value !== provider || activeSpeechModel.value !== model
     activeSpeechProvider.value = provider
     activeSpeechModel.value = model
@@ -445,7 +462,7 @@ export const useSpeechStore = defineStore('speech', () => {
   })
 
   if (!activeSpeechProvider.value) {
-    activeSpeechProvider.value = 'speech-noop'
+    activeSpeechProvider.value = defaultSpeechProvider
   }
 
   // Snapshots may wake every renderer. Only the leader may apply the selection

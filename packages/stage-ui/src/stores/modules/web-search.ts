@@ -1,3 +1,4 @@
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { useLocalStorageManualReset } from '@proj-airi/stage-shared/composables'
 import { defineStore } from 'pinia'
 import { computed, watch } from 'vue'
@@ -21,7 +22,7 @@ export const useWebSearchStore = defineStore('web-search', () => {
   const enabled = useLocalStorageManualReset<boolean>('settings/web-search/enabled', false)
   const apiKey = useLocalStorageManualReset<string>('settings/web-search/api-key', '')
 
-  const configured = computed(() => enabled.value && apiKey.value.trim().length > 0)
+  const configured = computed(() => !isSteamDistribution() && enabled.value && apiKey.value.trim().length > 0)
 
   // Keep the safety/when-to-search guidance mounted iff the tool is mounted.
   // Clauses must key off the same `configured` gate the tool does, never a raw

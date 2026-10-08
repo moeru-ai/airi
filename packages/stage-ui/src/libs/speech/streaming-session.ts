@@ -1,4 +1,6 @@
 import { getAuthToken } from '../auth'
+import { isProviderAllowedInDistribution } from '../providers/distribution'
+import { OFFICIAL_SPEECH_STREAMING_PROVIDER_ID } from '../providers/providers/official/constants'
 import { SERVER_URL } from '../server'
 
 /**
@@ -86,6 +88,9 @@ const DEFAULT_RESPONSE_FORMAT = 'mp3' as const
  * - Rejects with the abort reason on signal abort.
  */
 export async function streamingSynthesize(options: StreamingTtsSessionOptions): Promise<StreamingTtsSessionResult> {
+  if (!isProviderAllowedInDistribution(OFFICIAL_SPEECH_STREAMING_PROVIDER_ID))
+    throw new Error('This provider is not available in the Steam edition.')
+
   const token = options.token ?? getAuthToken()
   if (!token)
     throw new Error('streaming-tts: not authenticated')

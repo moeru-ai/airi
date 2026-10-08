@@ -2,7 +2,7 @@ import type { Session, User } from 'better-auth'
 
 import { isGenerationProvider } from '@proj-airi/provider-inference'
 import { createPinia, setActivePinia } from 'pinia'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick } from 'vue'
 
 import { OFFICIAL_SPEECH_PROVIDER_ID, OFFICIAL_SPEECH_STREAMING_PROVIDER_ID, OFFICIAL_TRANSCRIPTION_PROVIDER_ID } from '../../libs/providers/providers/official'
@@ -77,6 +77,40 @@ function stubOpenAiReplica(config: Record<string, unknown>) {
 }
 
 describe('provider store synchronization boundary', () => {
+  it.each(['official-provider-speech-streaming', 'kokoro-local', 'openai'])('rejects unmanaged Steam definition %s before factory and cache access', async (id) => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const store = useProviderStore()
+    store.providerRuntimeState[id] = { models: [{ id: 'cached', name: 'Cached', provider: id }], defaultModel: 'cached', modelStatus: 'ready', modelError: null }
+    expect(store.findProviderDefinition(id)).toBeUndefined()
+    expect(store.getModelsForProvider(id)).toEqual([])
+    expect(store.getDefaultModelForProvider(id)).toBeNull()
+    await expect(store.getProviderInstance(id)).rejects.toThrow()
+    expect((await store.fetchModelsForProvider(id)).models).toEqual([])
+  })
+
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each([OFFICIAL_TRANSCRIPTION_PROVIDER_ID, 'browser-web-speech-api', 'openai-audio-transcription', 'openai-compatible-audio-transcription'])('blocks Steam ASR catalog, cache and factory for %s', async (providerId) => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const store = useProviderStore()
+    store.providerRuntimeState[providerId] = {
+      models: [{ id: 'old-cloud-model', name: 'Old model', provider: providerId }],
+      defaultModel: 'old-cloud-model',
+      modelStatus: 'ready',
+      modelError: null,
+    }
+    await store.initializeProvider('sherpaw-transcription')
+
+    expect(store.availableProvidersMetadata.some(provider => provider.id === providerId)).toBe(false)
+    expect(store.findProviderDefinition(providerId)).toBeUndefined()
+    expect(store.getModelsForProvider(providerId)).toEqual([])
+    expect(store.getDefaultModelForProvider(providerId)).toBeNull()
+    await expect(store.fetchModelsForProvider(providerId)).resolves.toEqual({ models: [] })
+    await expect(store.getProviderInstance(providerId)).rejects.toThrow('not found')
+    expect(store.findProviderDefinition('sherpaw-transcription')).toBeDefined()
+    expect(store.findProviderDefinition('official-provider')).toBeDefined()
+    expect(store.findProviderDefinition(OFFICIAL_SPEECH_PROVIDER_ID)).toBeDefined()
+  })
   beforeEach(() => {
     setActivePinia(createPinia())
     mocks.updateCredits.mockClear()

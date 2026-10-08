@@ -1,6 +1,7 @@
 import type { ExecutableTool } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import type { ChatToolReference } from '@proj-airi/stage-ui/types/chat'
 
+import { isSteamDistribution } from '@proj-airi/stage-shared'
 import { useLlmToolsStore } from '@proj-airi/stage-ui/stores/ai/chat-llm/tools'
 import { defineStore } from 'pinia'
 
@@ -36,7 +37,7 @@ export const useTamagotchiBuiltinToolsStore = defineStore('tamagotchi-builtin-to
 
   async function refresh() {
     const tools = (await Promise.all([
-      imageJournalTools(),
+      ...(isSteamDistribution() ? [] : [imageJournalTools()]),
       widgetsTools(),
       weatherTools(),
       computerUseTools(),

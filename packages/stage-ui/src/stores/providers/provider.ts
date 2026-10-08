@@ -22,7 +22,9 @@ import {
   listProviders as listDefinedProviders,
   validateProvider as runProviderValidation,
 } from '../../libs/providers'
-import { selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { isProviderAllowedInDistribution } from '../../libs/providers/distribution'
+import { getProviderCategory, selectProviderMetadata, selectProvidersMetadata } from '../../libs/providers/metadata'
+import { isTranscriptionProviderAllowed } from '../../libs/providers/transcription-policy'
 import { getSchemaDefault } from '../../libs/zod'
 import { useAuthStore } from '../auth'
 import { useProviderConfigStore } from './config'
@@ -217,7 +219,12 @@ export const useProviderStore = defineStore('provider', () => {
   function findProviderDefinition(providerId: string) {
     if (!providerId)
       return undefined
-    return providerDefinitions[getProviderDefinitionId(providerId)]
+    const definition = providerDefinitions[getProviderDefinitionId(providerId)]
+    if (definition && !isProviderAllowedInDistribution(definition.id))
+      return undefined
+    if (definition && getProviderCategory(definition.tasks) === 'transcription' && !isTranscriptionProviderAllowed(providerId))
+      return undefined
+    return definition
   }
 
   function getProviderDefinition(providerId: string) {
@@ -803,10 +810,14 @@ export const useProviderStore = defineStore('provider', () => {
 
   // Get models for a specific provider
   function getModelsForProvider(providerId: string) {
+    if (!findProviderDefinition(providerId))
+      return emptyProviderModels
     return providerRuntimeState.value[providerId]?.models ?? emptyProviderModels
   }
 
   const getDefaultModelForProvider = computed(() => (providerId: string) => {
+    if (!findProviderDefinition(providerId))
+      return null
     return providerRuntimeState.value[providerId]?.defaultModel ?? null
   })
 
@@ -844,6 +855,8 @@ export const useProviderStore = defineStore('provider', () => {
   }
 
   function projectProvider(providerId: string): ProviderMetadata | undefined {
+    if (!findProviderDefinition(providerId))
+      return undefined
     const configuredProvider = providerConfigStore.providers[providerId]
     const metadata = providerMetadata.value[providerId]
       ?? providerMetadata.value[configuredProvider?.definitionId ?? '']
@@ -980,7 +993,9 @@ export const useProviderStore = defineStore('provider', () => {
       if (overrides[provider.id] === false)
         continue
 
-      const definition = getProviderDefinition(provider.id)
+      const definition = findProviderDefinition(provider.id)
+      if (!definition)
+        continue
       if (isCustomProvidersDisabled() && definition.requiresCredentials !== false)
         continue
 

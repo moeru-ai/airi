@@ -40,7 +40,15 @@ function bodyOfCall(fetchMock: ReturnType<typeof vi.fn>, index = 0): Record<stri
 describe('createWebSearchTools', () => {
   afterEach(() => {
     vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
+  })
+
+  it('rejects direct Steam tool creation without sending a saved credential', async () => {
+    vi.stubEnv('VITE_DISTRIBUTION', 'steam')
+    const fetchMock = stubTavily({ results: [] })
+    expect(await createWebSearchTools({ apiKey: 'invalid-test-credential' })).toEqual([])
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('sends a Tavily request and formats results with source citations', async () => {
