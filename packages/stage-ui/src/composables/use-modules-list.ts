@@ -169,6 +169,15 @@ export function useModulesList() {
       category: 'gaming',
     },
     {
+      id: 'home-assistant',
+      name: t('settings.pages.modules.home-assistant.title'),
+      description: t('settings.pages.modules.home-assistant.description'),
+      icon: 'i-solar:home-smile-bold-duotone',
+      to: '/settings/modules/home-assistant',
+      configured: false,
+      category: 'essential',
+    },
+    {
       id: 'mcp-server',
       name: t('settings.pages.modules.mcp-server.title'),
       description: t('settings.pages.modules.mcp-server.description'),

@@ -1000,6 +1000,27 @@ pages:
         airi-awkward: 尴尬
         airi-agree: '赞同'
         airi-disagree: 拒绝
+    home-assistant:
+      title: Home Assistant
+      description: 让 AIRI 读取和控制你的 Home Assistant 设备。
+      base-url:
+        label: 地址
+        placeholder: http://homeassistant.local:8123
+        description: 你的 Home Assistant 实例地址。
+      token:
+        label: 长期访问令牌
+        placeholder: 粘贴 Home Assistant 个人资料里的令牌
+        description: 在 Home Assistant 个人资料的「安全」里创建一个。
+        saved: 已保存令牌。留空则保持不变。
+      note: 令牌只保存在这台设备上，不会同步到你的账号。
+      actions:
+        save: 保存
+        test: 测试
+      status:
+        saved: 已保存。
+        testing: 正在测试连接……
+        reachable: 已连接。Home Assistant 报告了 {count} 个实体。
+        failed: 无法连接。{message}
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
