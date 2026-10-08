@@ -139,6 +139,12 @@ Existing `speech-noop` selections are preserved because they may represent
 intentional silence. Users can explicitly choose **Inherit global settings**
 in the editor; importing or saving an unrelated card field does not change it.
 
+## Character sessions
+
+Each chat session belongs to one character. A send reads the provider, model, and system prompt of that character, not the selected card.
+Selecting another card while a turn waits in the queue does not change the turn.
+Session resets and autonomous artistry hooks also use the session character.
+
 ## Button analytics
 
 Register the shared plugin once in each Vue application:

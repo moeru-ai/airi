@@ -138,6 +138,11 @@ function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal) {
   })
 }
 
+/** Whether a consciousness selection can send. The `prompt-api` provider runs without a selected model. */
+function isChatSelectionReady(providerId: string, modelId: string) {
+  return !!providerId && (!!modelId || providerId === 'prompt-api')
+}
+
 function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'text'> | null {
   if (!message || message.role !== 'user')
     return null
@@ -225,7 +230,7 @@ export const useChatStore = defineStore('chat', () => {
   const consciousnessStore = useConsciousnessStore()
   const chatVision = useChatVision()
   const artistryAutonomousStore = useAutonomousArtistryStore()
-  const { activeProvider, activeModel, chatReady } = storeToRefs(consciousnessStore)
+  const { activeProvider, activeModel } = storeToRefs(consciousnessStore)
   const chatSession = useChatSessionStore()
   const chatStream = useChatStreamStore()
   const chatContext = useChatContextStore()
@@ -523,6 +528,12 @@ export const useChatStore = defineStore('chat', () => {
     ownedActiveTurnSpan = undefined
   }
 
+  /** The character that owns a session. A queued turn keeps it when another window selects a different card. */
+  function sessionCard(sessionId: string) {
+    const characterId = chatSession.sessionMetas[sessionId]?.characterId
+    return characterId ? cardStore.getCard(characterId) : undefined
+  }
+
   function getImageDescription(sessionId: string, turnId: string, imageIndex: number) {
     return chatSession.getSessionMessages(sessionId)
       .find(message => ownsProjectedTurn(message, turnId))
@@ -627,13 +638,13 @@ export const useChatStore = defineStore('chat', () => {
         })
       }
     },
-    onUserTurnReady: ({ messageText, sessionMessages }) => {
-      const autonomousTarget = cardStore.activeCard?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
+    onUserTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      const autonomousTarget = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry?.autonomousTarget || 'user'
       if (autonomousTarget === 'user')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
-    onAssistantTurnReady: ({ messageText, sessionMessages }) => {
-      const artistry = cardStore.activeCard?.extensions?.airi?.modules?.artistry
+    onAssistantTurnReady: ({ sessionId, messageText, sessionMessages }) => {
+      const artistry = sessionCard(sessionId)?.extensions?.airi?.modules?.artistry
       if (artistry?.autonomousEnabled && artistry?.autonomousTarget === 'assistant')
         void artistryAutonomousStore.runArtistTask(messageText, toProviderHistory(sessionMessages))
     },
@@ -761,17 +772,13 @@ export const useChatStore = defineStore('chat', () => {
 
     signal.throwIfAborted()
 
-    let providerId = activeProvider.value
-    let modelId = activeModel.value
-    if (voice) {
-      const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
-      if (!characterId)
-        throw new Error('The target session has no character')
+    // Typed and voice turns use the character that owns the session, not the selected card.
+    // Selecting another card while this turn waits in the queue cannot redirect it.
+    const characterId = chatSession.sessionMetas[payload.sessionId]?.characterId
+    if (!characterId)
+      throw new Error('The target session has no character')
 
-      const selection = cardStore.getModules(characterId).consciousness
-      providerId = selection.provider
-      modelId = selection.model
-    }
+    const { provider: providerId, model: modelId } = cardStore.getModules(characterId).consciousness
 
     const temperature = payload.temperature ?? consciousnessStore.activeTemperature
     const topP = payload.topP ?? consciousnessStore.activeTopP
@@ -786,10 +793,9 @@ export const useChatStore = defineStore('chat', () => {
 
     const systemPromptSupplement = supplements.filter(Boolean).join('\n\n')
 
-    // Voice turns use the session character's selection, which the active-selection readiness check does not cover.
-    const ready = voice ? !!providerId && (!!modelId || providerId === 'prompt-api') : chatReady.value
-    if (!ready)
-      throw new Error('No active chat provider or model configured')
+    // The active-selection readiness check does not cover the session character's selection.
+    if (!isChatSelectionReady(providerId, modelId))
+      throw new Error('No chat provider or model configured for this character')
 
     const stickers = await stickersStore.selectCatalogForReply()
     signal.throwIfAborted()
