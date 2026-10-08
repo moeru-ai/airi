@@ -78,6 +78,7 @@ The failure remains visible. The Provider does not switch to another model.
 
 Switching models rejects or finishes in-flight recognition before disposing the old runtime. A partial download is not installed.
 Revision changes create a new asset identity and do not overwrite a working older revision before validation succeeds.
+After the new revision commits, storage removes the older revisions of that model. Removing a model removes all of its revisions.
 
 ## Non-goals
 

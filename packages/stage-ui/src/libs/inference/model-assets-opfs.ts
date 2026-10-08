@@ -50,7 +50,7 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
   }
 
   async install(model: ModelAsset, onProgress: (progress: ModelAssetProgress) => void, signal: AbortSignal): Promise<void> {
-    await this.remove(model)
+    await this.removeRevision(model)
     const directory = await this.modelDirectory(model, true)
     const sizes: Record<string, number> = {}
     try {
@@ -110,9 +110,22 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
       await writable.close()
     }
     catch (error) {
-      await this.remove(model)
+      await this.removeRevision(model)
       throw error
     }
+
+    // A release can pin a new revision. Reclaim the revisions it supersedes.
+    const parent = await this.parentDirectory(model)
+    if (!parent)
+      return
+    const current = encodeURIComponent(model.revision)
+    const superseded: string[] = []
+    for await (const name of parent.keys()) {
+      if (name !== current)
+        superseded.push(name)
+    }
+    for (const name of superseded)
+      await parent.removeEntry(name, { recursive: true })
   }
 
   async open(model: ModelAsset, file: ModelAssetFile): Promise<Response> {
@@ -121,23 +134,38 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
     return new Response(stored)
   }
 
+  /** Removes every stored revision of the model. */
   async remove(model: ModelAsset): Promise<void> {
     const root = await this.rootDirectory()
-    let modelDirectory: FileSystemDirectoryHandle
     try {
-      modelDirectory = await root.getDirectoryHandle(encodeURIComponent(model.id))
-    }
-    catch (error) {
-      if (isMissing(error))
-        return
-      throw error
-    }
-    try {
-      await modelDirectory.removeEntry(encodeURIComponent(model.revision), { recursive: true })
+      await root.removeEntry(encodeURIComponent(model.id), { recursive: true })
     }
     catch (error) {
       if (!isMissing(error))
         throw error
+    }
+  }
+
+  private async removeRevision(model: ModelAsset): Promise<void> {
+    const parent = await this.parentDirectory(model)
+    try {
+      await parent?.removeEntry(encodeURIComponent(model.revision), { recursive: true })
+    }
+    catch (error) {
+      if (!isMissing(error))
+        throw error
+    }
+  }
+
+  private async parentDirectory(model: ModelAsset): Promise<FileSystemDirectoryHandle | undefined> {
+    const root = await this.rootDirectory()
+    try {
+      return await root.getDirectoryHandle(encodeURIComponent(model.id))
+    }
+    catch (error) {
+      if (isMissing(error))
+        return undefined
+      throw error
     }
   }
 

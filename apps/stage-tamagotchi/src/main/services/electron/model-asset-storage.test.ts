@@ -69,4 +69,29 @@ describe('electron model asset storage', () => {
     expect(await readdir(join(directory, 'speech'))).toEqual(['v1'])
     expect(await store.has(model)).toBe(true)
   })
+
+  it('reclaims superseded revisions after a new revision commits', async () => {
+    const download = vi.fn(async (input: RequestInfo | URL) => new Response(String(input)))
+    const { directory, store } = await storage(download)
+    await store.install(model, () => {}, new AbortController().signal)
+
+    const next: ModelAsset = { ...model, revision: 'v2' }
+    await store.install(next, () => {}, new AbortController().signal)
+
+    expect(await readdir(join(directory, 'speech'))).toEqual(['v2'])
+    expect(await store.has(next)).toBe(true)
+    expect(await store.has(model)).toBe(false)
+  })
+
+  it('removes every revision of a model', async () => {
+    const download = vi.fn(async (input: RequestInfo | URL) => new Response(String(input)))
+    const { directory, store } = await storage(download)
+    await mkdir(join(directory, 'speech', 'v0'), { recursive: true })
+    await store.install(model, () => {}, new AbortController().signal)
+    await mkdir(join(directory, 'speech', 'v0'), { recursive: true })
+
+    await store.remove(model)
+
+    expect(await readdir(directory)).toEqual([])
+  })
 })

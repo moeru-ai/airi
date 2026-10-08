@@ -24,6 +24,21 @@ function asset(metadataUrl: string): ModelAsset {
   return model
 }
 
+async function revisionNames(model: ModelAsset): Promise<string[] | undefined> {
+  const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('airi-model-assets')
+  let parent: FileSystemDirectoryHandle
+  try {
+    parent = await root.getDirectoryHandle(encodeURIComponent(model.id))
+  }
+  catch {
+    return undefined
+  }
+  const names: string[] = []
+  for await (const name of parent.keys())
+    names.push(name)
+  return names.sort()
+}
+
 afterEach(async () => {
   await Promise.all(ids.splice(0).map(model => storage.remove(model)))
   urls.splice(0).forEach(url => URL.revokeObjectURL(url))
@@ -49,5 +64,31 @@ describe('origin private model asset storage', () => {
 
     await expect(storage.install(model, () => {}, new AbortController().signal)).rejects.toThrow()
     expect(await storage.has(model)).toBe(false)
+  })
+
+  it('reclaims superseded revisions after a new revision commits', async () => {
+    const metadataUrl = URL.createObjectURL(new Blob(['metadata']))
+    urls.push(metadataUrl)
+    const model = asset(metadataUrl)
+    await storage.install(model, () => {}, new AbortController().signal)
+
+    const next: ModelAsset = { ...model, revision: 'v2' }
+    await storage.install(next, () => {}, new AbortController().signal)
+
+    expect(await storage.has(next)).toBe(true)
+    expect(await revisionNames(model)).toEqual(['v2'])
+  })
+
+  it('removes every revision of a model', async () => {
+    const metadataUrl = URL.createObjectURL(new Blob(['metadata']))
+    urls.push(metadataUrl)
+    const model = asset(metadataUrl)
+    await storage.install(model, () => {}, new AbortController().signal)
+    const root = await (await navigator.storage.getDirectory()).getDirectoryHandle('airi-model-assets')
+    await (await root.getDirectoryHandle(encodeURIComponent(model.id))).getDirectoryHandle('v0', { create: true })
+
+    await storage.remove(model)
+
+    expect(await revisionNames(model)).toBeUndefined()
   })
 })

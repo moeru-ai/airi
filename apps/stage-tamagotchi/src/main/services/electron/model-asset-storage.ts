@@ -97,6 +97,11 @@ export class FileModelAssetStorage implements ModelAssetStorage {
       const installed = this.modelDirectory(model)
       await rm(installed, { recursive: true, force: true })
       await rename(temporary, installed)
+      // A release can pin a new revision. Reclaim the revisions it supersedes.
+      for (const entry of await readdir(parent)) {
+        if (entry !== encodeURIComponent(model.revision))
+          await rm(join(parent, entry), { recursive: true, force: true })
+      }
     }
     finally {
       await rm(temporary, { recursive: true, force: true })
@@ -107,8 +112,9 @@ export class FileModelAssetStorage implements ModelAssetStorage {
     return net.fetch(pathToFileURL(join(this.modelDirectory(model), file.name)).href)
   }
 
+  /** Removes every stored revision of the model. */
   async remove(model: ModelAsset): Promise<void> {
-    await rm(this.modelDirectory(model), { recursive: true, force: true })
+    await rm(join(this.directory, encodeURIComponent(model.id)), { recursive: true, force: true })
   }
 
   private modelDirectory(model: ModelAsset): string {
