@@ -1,6 +1,7 @@
 import { createPinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApp, nextTick } from 'vue'
+import { createI18n } from 'vue-i18n'
 
 import HearingConfig from './hearing-config.vue'
 
@@ -73,7 +74,8 @@ function mountHearingConfig(beforeEnable?: () => Promise<void>) {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const app = createApp(HearingConfig, { beforeEnable })
-  app.use(createPinia())
+  // The microphone settings store reads the Hearing input mode. The Hearing store loads provider metadata, which needs i18n.
+  app.use(createPinia()).use(createI18n({ legacy: false, locale: 'en', missingWarn: false, fallbackWarn: false }))
   app.mount(host)
 
   return { app, host }
