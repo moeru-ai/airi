@@ -600,29 +600,42 @@ export const useAiriCardStore = defineStore('airi-card', () => {
    * The built-in card is the only card that synchronization keeps as its edits
    * alone. The parts that the changes lack come from the built-in card.
    *
-   * @returns `activeCardChanged` is `true` when the content of the selected card changed, or another device deleted it. The caller must then call `activateCard`. `rejected` lists the cards that another device wrote and that this device cannot read.
+   * @returns `activeCardChanged` is `true` when the content of the selected card changed, or another device deleted it. The caller must then call `activateCard`. `rejected` lists the cards that this device cannot read, from the server or from the local side of a conflict. A rejected card keeps its local content and gets no conflict copy.
    */
   function applySynchronizedCards(changes: LocalDocumentChanges) {
     const previousActiveCardId = activeCardId.value
-    const rejected: string[] = []
+    const rejected = new Set<string>()
     let activeCardChanged = false
 
-    for (const [id, fields] of Object.entries(changes.upserts)) {
-      // Another device wrote this content. A card that this device cannot read
-      // must not stop the other cards, and the run must not treat it as deleted.
+    // A card that this device cannot read must not stop the other cards, and
+    // the run must not treat it as deleted.
+    function readCard(id: string, fields: DocumentFields) {
       try {
-        const card = parse(synchronizedCardSchema, joinCard(fields, builtInFor(id)))
-        cards.value.set(id, newAiriCard(card))
-        activeCardChanged ||= id === previousActiveCardId
+        return newAiriCard(parse(synchronizedCardSchema, joinCard(fields, builtInFor(id))))
       }
       catch (error) {
-        console.warn('[character-card-sync] Ignored a card from the server that this device cannot read:', id, errorMessageFrom(error))
-        rejected.push(id)
+        console.warn('[character-card-sync] Ignored a card that this device cannot read:', id, errorMessageFrom(error))
+        rejected.add(id)
       }
     }
 
-    for (const { documentId, fields } of changes.conflictCopies) {
-      const card = parse(synchronizedCardSchema, joinCard(fields, builtInFor(documentId)))
+    // Read every card before the first write. If either side of a conflict
+    // cannot be read, the card keeps its local content and its earlier sync
+    // state. Each round then finds the same conflict, so a rejected card gets
+    // no copy.
+    const upserts = Object.entries(changes.upserts).map(([id, fields]) => ({ id, card: readCard(id, fields) }))
+    const copies = changes.conflictCopies.map(({ documentId, fields }) => ({ id: documentId, card: readCard(documentId, fields) }))
+
+    for (const { id, card } of upserts) {
+      if (!card || rejected.has(id))
+        continue
+      cards.value.set(id, card)
+      activeCardChanged ||= id === previousActiveCardId
+    }
+
+    for (const { id, card } of copies) {
+      if (!card || rejected.has(id))
+        continue
       cards.value.set(nanoid(), newAiriCard({ ...card, name: t('settings.pages.card.sync.conflict_copy_name', { name: card.name }) }))
     }
 
@@ -635,7 +648,7 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!cards.value.has(activeCardId.value))
       activeCardId.value = 'default'
 
-    return { activeCardChanged: activeCardChanged || activeCardId.value !== previousActiveCardId, rejected }
+    return { activeCardChanged: activeCardChanged || activeCardId.value !== previousActiveCardId, rejected: [...rejected] }
   }
 
   let syncClient: DocumentSyncClient | undefined
@@ -712,8 +725,14 @@ export const useAiriCardStore = defineStore('airi-card', () => {
 
     if (userId.value !== ownerId)
       return
-    syncedCardFields.value = syncedValues(state)
-    refusedCardIds.value = refused
+    // A new object changes the store even when its content is equal. The leader
+    // then publishes the whole store, each follower writes a new cards Map, and
+    // the deep cards watcher requests another run. Keep the objects when nothing changed.
+    const syncedFields = syncedValues(state)
+    if (!isEqual(syncedFields, syncedCardFields.value))
+      syncedCardFields.value = syncedFields
+    if (!isEqual(refused, refusedCardIds.value))
+      refusedCardIds.value = refused
     if (refused.length > 0)
       console.warn('[character-card-sync] The server refused these cards. They stay on this device:', refused)
   }
@@ -737,8 +756,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     if (!snapshot)
       return false
 
-    const card = parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id)))
-    return updateCard(id, card)
+    await pendingAuthenticationSetup
+    if (!cards.value.has(id))
+      return false
+
+    // Every card field synchronizes, so the snapshot is the whole card at that
+    // revision. Replace the card instead of merging it with `updateCard`. A
+    // merge keeps the fields that were added after the revision.
+    const card = newAiriCard(parse(synchronizedCardSchema, joinCard(fieldsOfSnapshot(snapshot), builtInFor(id))))
+    cards.value.set(id, card)
+    if (id === activeCardId.value)
+      await applyActiveCardSettings(card)
+    return true
   }
 
   /**
@@ -884,24 +913,18 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     return true
   }
 
-  async function applyActiveCardSettings(newCard = activeCard.value) {
-    rememberInheritedSettings()
-    const artistry = useArtistryStore()
-
-    artistry.resetToGlobal()
-
-    if (!newCard)
-      return
-
-    // TODO: Minecraft Agent, etc
-    const extension = resolveAiriExtension(newCard)
-    if (!extension)
-      return
-
+  /** Resolve the named character without changing the character selected by any window. */
+  function getModules(characterId: string): CardModuleDefaults {
+    const card = cards.value.get(characterId)
+    if (!card)
+      throw new Error('The session character is unavailable')
     const defaults = moduleDefaults.value
     if (!defaults)
-      return
-    const modules = extension.modules
+      throw new Error('Character defaults are not initialized')
+    return resolveModules(card.extensions.airi.modules, defaults)
+  }
+
+  function resolveModules(modules: AiriExtension['modules'], defaults: CardModuleDefaults): CardModuleDefaults {
     const speechSelection = resolveModuleSelection(modules.speech, defaults.speech)
     const resolved: CardModuleDefaults = {
       consciousness: resolveModuleSelection(modules.consciousness, defaults.consciousness),
@@ -927,6 +950,32 @@ export const useAiriCardStore = defineStore('airi-card', () => {
           resolved.speech.voice_id = ''
       }
     }
+    return resolved
+  }
+
+  function getSystemPrompt(characterId: string) {
+    return resolveSystemPrompt(cards.value.get(characterId))
+  }
+
+  async function applyActiveCardSettings(newCard = activeCard.value) {
+    rememberInheritedSettings()
+    const artistry = useArtistryStore()
+
+    artistry.resetToGlobal()
+
+    if (!newCard)
+      return
+
+    // TODO: Minecraft Agent, etc
+    const extension = resolveAiriExtension(newCard)
+    if (!extension)
+      return
+
+    const defaults = moduleDefaults.value
+    if (!defaults)
+      return
+    const modules = extension.modules
+    const resolved = resolveModules(modules, defaults)
     await writeRuntimeModules(resolved)
     appliedModules = modules
 
@@ -980,6 +1029,8 @@ export const useAiriCardStore = defineStore('airi-card', () => {
     updateActiveCardVision,
     selectActiveCardVisionProvider,
     getCard,
+    getModules,
+    getSystemPrompt,
     resetState,
     initialize,
     activateCard,

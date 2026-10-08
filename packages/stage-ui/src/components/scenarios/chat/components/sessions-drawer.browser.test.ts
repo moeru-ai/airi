@@ -2,7 +2,7 @@ import type { ChatSessionMeta } from '../../../../types/chat-session'
 
 import { PiniaColada } from '@pinia/colada'
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -75,9 +75,25 @@ function createSessionsPinia() {
   return pinia
 }
 
+// ROOT CAUSE:
+//
+// From 00:00 to 02:00, `Date.now() - 2 hours` falls on the previous day.
+// `intlFormatDistance` then shows "yesterday", not "2 hours ago".
+//
+// We fixed this by faking only `Date` at a fixed local noon. Polling timers stay real.
+function useFixedNoon() {
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(2026, 0, 15, 12))
+  return Date.now()
+}
+
 describe('sessions drawer orchestration', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('orders and labels chats by message time, not session saves', async () => {
-    const now = Date.now()
+    const now = useFixedNoon()
     const pinia = createSessionsPinia()
     const screen = await render(SessionsDrawer, {
       props: { modelValue: false },
@@ -117,7 +133,7 @@ describe('sessions drawer orchestration', () => {
   })
 
   it('uses creation time when no conversation message has a valid date', async () => {
-    const now = Date.now()
+    const now = useFixedNoon()
     const pinia = createSessionsPinia()
     const screen = await render(SessionsDrawer, {
       props: { modelValue: false },

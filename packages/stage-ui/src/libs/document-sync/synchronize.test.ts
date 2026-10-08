@@ -120,6 +120,29 @@ describe('synchronize', () => {
     expect(remove).not.toHaveBeenCalled()
   })
 
+  // A rejected document keeps its earlier state, so another round finds the
+  // same conflict and the caller rejects it again. Only a copy that the caller
+  // kept is a new local document for the next round to send.
+  it('runs no extra round for the conflict of a rejected document', async () => {
+    const { client, list } = createClient({ documents: [{ id: 'luna', revision: 2, deletedAt: null, fields: [{ key: '/name', revision: 2, value: 'Broken' }] }] })
+    let applied: LocalDocumentChanges | undefined
+
+    await synchronize({
+      client,
+      state: { documents: { luna: { revision: 1, fields: { '/name': { revision: 1, value: 'Luna' } } } } },
+      isCurrent: () => true,
+      saveState: async () => {},
+      readLocal: () => ({ luna: { '/name': 'Mine' } }),
+      applyLocal: async (changes) => {
+        applied = changes
+        return { rejected: ['luna'] }
+      },
+    })
+
+    expect(applied?.conflictCopies.map(copy => copy.documentId)).toEqual(['luna'])
+    expect(list).toHaveBeenCalledTimes(1)
+  })
+
   // The server returns a field that another device wrote after this run read the list.
   // The state keeps the older document revision, so the run reads the server again.
   it('runs another round when a push result has a field that this run did not merge', async () => {
