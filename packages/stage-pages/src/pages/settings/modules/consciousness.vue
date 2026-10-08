@@ -6,7 +6,7 @@ import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consci
 import { useConsciousnessSettingsStore } from '@proj-airi/stage-ui/stores/modules/consciousness-settings'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -78,7 +78,7 @@ async function updateTopPEnabled(value: boolean) {
 </script>
 
 <template>
-  <div bg="neutral-50 dark:[rgba(0,0,0,0.3)]" rounded-xl p-4 flex="~ col gap-4">
+  <SettingsCard>
     <div>
       <div flex="~ col gap-4">
         <div>
@@ -313,9 +313,9 @@ async function updateTopPEnabled(value: boolean) {
         @update:model-value="updateReasoning"
       />
     </section>
-  </div>
+  </SettingsCard>
 
-  <div v-if="activeProvider" :class="['bg-neutral-50 dark:bg-[rgba(0,0,0,0.3)]', 'rounded-xl', 'p-4', 'flex flex-col gap-4', 'mt-4']">
+  <SettingsCard v-if="activeProvider" class="mt-4">
     <div :class="['flex flex-col gap-4']">
       <FieldCheckbox
         :model-value="temperatureEnabled"
@@ -350,7 +350,7 @@ async function updateTopPEnabled(value: boolean) {
         :format-value="value => value.toFixed(1)"
       />
     </div>
-  </div>
+  </SettingsCard>
 
   <div
     v-motion

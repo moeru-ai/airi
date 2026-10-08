@@ -5,7 +5,7 @@ import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useVisionActivityStore, useVisionProcessingStore, useVisionStore } from '@proj-airi/stage-ui/stores/modules/vision'
 import { useProviderConfigStore } from '@proj-airi/stage-ui/stores/providers/config'
 import { useProviderStore } from '@proj-airi/stage-ui/stores/providers/provider'
-import { FieldCheckbox, FieldRange } from '@proj-airi/ui'
+import { FieldCheckbox, FieldRange, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -103,18 +103,20 @@ function formatRelativeTime(timestamp: number | null) {
 
 <template>
   <div :class="['flex', 'flex-col', 'gap-6']">
-    <FieldCheckbox
-      v-model="useForChat"
-      :label="t('stage.chat.images.use-vision')"
-      :description="t('stage.chat.images.use-vision-description')"
-    />
-    <FieldCheckbox
-      v-model="useForToolImages"
-      :label="t('settings.pages.modules.vision.tool-images.label')"
-      :description="t('settings.pages.modules.vision.tool-images.description')"
-    />
+    <SettingsCard>
+      <FieldCheckbox
+        v-model="useForChat"
+        :label="t('stage.chat.images.use-vision')"
+        :description="t('stage.chat.images.use-vision-description')"
+      />
+      <FieldCheckbox
+        v-model="useForToolImages"
+        :label="t('settings.pages.modules.vision.tool-images.label')"
+        :description="t('settings.pages.modules.vision.tool-images.description')"
+      />
+    </SettingsCard>
 
-    <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard>
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-500']">
@@ -244,9 +246,9 @@ function formatRelativeTime(timestamp: number | null) {
           </div>
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div v-if="activeProvider && supportsModelListing" :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard v-if="activeProvider && supportsModelListing">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'md:text-2xl']">
@@ -301,9 +303,9 @@ function formatRelativeTime(timestamp: number | null) {
           />
         </template>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div v-else-if="activeProvider && !supportsModelListing" :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard v-else-if="activeProvider && !supportsModelListing">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
@@ -362,9 +364,9 @@ function formatRelativeTime(timestamp: number | null) {
           >
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']">
+    <SettingsCard>
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
@@ -463,12 +465,9 @@ function formatRelativeTime(timestamp: number | null) {
           </div>
         </div>
       </div>
-    </div>
+    </SettingsCard>
 
-    <div
-      v-if="isOllamaVisionProvider"
-      :class="['rounded-xl', 'bg-neutral-50', 'p-4', 'dark:bg-[rgba(0,0,0,0.3)]']"
-    >
+    <SettingsCard v-if="isOllamaVisionProvider">
       <div :class="['flex', 'flex-col', 'gap-4']">
         <div>
           <h2 :class="['text-lg', 'text-neutral-500', 'md:text-2xl', 'dark:text-neutral-400']">
@@ -485,7 +484,7 @@ function formatRelativeTime(timestamp: number | null) {
           :description="t('settings.pages.modules.vision.ollama.thinking.description')"
         />
       </div>
-    </div>
+    </SettingsCard>
   </div>
 </template>
 
