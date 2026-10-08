@@ -801,6 +801,14 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          input-mode:
+            title: 输入模式
+            description: 选择麦克风开启时 AIRI 如何开始聆听。
+            label: 开始聆听
+            always-on: 持续聆听
+            always-on-description: AIRI 一直聆听，你说话时就会回应。
+            push-to-talk: 按住说话
+            push-to-talk-description: 只有按住「按住说话」按键时 AIRI 才会聆听。麦克风只在按住期间开启。
           rephrase:
             title: 转写改写
             description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。

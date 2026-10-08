@@ -846,6 +846,14 @@ pages:
         section:
           provider-selection:
             description: Select the suitable speech recognition provider
+          input-mode:
+            title: Input mode
+            description: Choose how AIRI starts to listen while the microphone is on.
+            label: Start listening
+            always-on: Always on
+            always-on-description: AIRI listens all the time and replies when you speak.
+            push-to-talk: Push to Talk
+            push-to-talk-description: AIRI listens only while you hold the Push to Talk key. The microphone is open only during the hold.
           rephrase:
             title: Transcript rewrite
             description: A chat model fixes recognition errors and removes filler words before a transcript becomes a draft. The original text is kept.
