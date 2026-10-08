@@ -911,7 +911,7 @@ async function handleConfirmDelete(event: Event) {
 
     <template v-else>
       <div :class="['flex flex-col items-center gap-6', 'rounded-xl p-8', 'bg-neutral-50 dark:bg-neutral-900']">
-        <div :class="['i-solar:user-circle-bold-duotone', 'size-16 text-neutral-300 dark:text-neutral-600']" />
+        <div :class="['i-solar:user-rounded-outline', 'size-16 text-neutral-300 dark:text-neutral-600']" />
         <p :class="['text-sm text-neutral-500 dark:text-neutral-400', 'text-center max-w-xs']">
           {{ t('settings.pages.account.notLoggedIn') }}
         </p>

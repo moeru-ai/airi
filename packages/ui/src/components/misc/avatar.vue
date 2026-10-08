@@ -51,7 +51,7 @@ const props = withDefaults(defineProps<AvatarProps>(), {
       :class="['size-full flex items-center justify-center']"
     >
       <slot name="fallback">
-        <div :class="['i-solar:user-circle-bold-duotone', 'size-1/2 text-neutral-400']" />
+        <div :class="['i-solar:user-rounded-outline', 'size-1/2 text-neutral-400']" />
       </slot>
     </AvatarFallback>
   </AvatarRoot>

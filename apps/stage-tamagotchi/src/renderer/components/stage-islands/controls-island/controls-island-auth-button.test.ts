@@ -104,7 +104,7 @@ describe('controlsIslandAuthButton', () => {
 
     const fallback = host.querySelector('[data-avatar-fallback]')
     expect(fallback).toBeTruthy()
-    expect(fallback?.firstElementChild?.classList.contains('i-solar:user-circle-bold-duotone')).toBe(true)
+    expect(fallback?.firstElementChild?.classList.contains('i-solar:user-rounded-outline')).toBe(true)
   })
 
   it('tries the next avatar URL after the authenticated user changes', async () => {

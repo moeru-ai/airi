@@ -62,7 +62,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
               'bg-neutral-200 text-neutral-500 dark:bg-neutral-700 dark:text-neutral-300',
             ]"
           >
-            <span :class="['i-solar:user-bold-duotone size-4']" aria-hidden="true" />
+            <span :class="['i-solar:user-rounded-outline size-4']" aria-hidden="true" />
           </span>
 
           <span
