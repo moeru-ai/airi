@@ -117,6 +117,10 @@ export class FileModelAssetStorage implements ModelAssetStorage {
     await rm(join(this.directory, encodeURIComponent(model.id)), { recursive: true, force: true })
   }
 
+  async clear(): Promise<void> {
+    await rm(this.directory, { recursive: true, force: true })
+  }
+
   private modelDirectory(model: ModelAsset): string {
     return join(this.directory, encodeURIComponent(model.id), encodeURIComponent(model.revision))
   }

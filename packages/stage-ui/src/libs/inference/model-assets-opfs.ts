@@ -146,6 +146,17 @@ export class OpfsModelAssetStorage implements ModelAssetStorage {
     }
   }
 
+  async clear(): Promise<void> {
+    const origin = await navigator.storage.getDirectory()
+    try {
+      await origin.removeEntry(DIRECTORY_NAME, { recursive: true })
+    }
+    catch (error) {
+      if (!isMissing(error))
+        throw error
+    }
+  }
+
   private async removeRevision(model: ModelAsset): Promise<void> {
     const parent = await this.parentDirectory(model)
     try {

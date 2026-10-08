@@ -32,6 +32,7 @@ interface HostModelAssets {
   ensure: (id: string) => Promise<void>
   cancel: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
+  clear: () => Promise<void>
 }
 
 let host: HostModelAssets | undefined
@@ -70,6 +71,13 @@ export async function removeSherpawModelAssets(id: string): Promise<void> {
   if (host && !isSherpawModelBundled(id))
     return host.remove(id)
   return sherpawModelAssets.remove(id)
+}
+
+/** Removes every downloaded Sherpaw model. Bundled models stay in the application package. */
+export async function clearSherpawModelAssets(): Promise<void> {
+  if (host)
+    return host.clear()
+  return sherpawModelAssets.clear()
 }
 
 /** Resolves pinned Sherpaw URLs through the installed model pair. */

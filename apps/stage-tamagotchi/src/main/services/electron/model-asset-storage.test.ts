@@ -94,4 +94,15 @@ describe('electron model asset storage', () => {
 
     expect(await readdir(directory)).toEqual([])
   })
+
+  it('clears every stored model', async () => {
+    const download = vi.fn(async (input: RequestInfo | URL) => new Response(String(input)))
+    const { directory, store } = await storage(download)
+    await store.install(model, () => {}, new AbortController().signal)
+    await mkdir(join(directory, 'retired', 'v0'), { recursive: true })
+
+    await store.clear()
+
+    await expect(readdir(directory)).rejects.toThrow('ENOENT')
+  })
 })

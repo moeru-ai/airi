@@ -26,6 +26,7 @@ function createStorage() {
     install,
     open: async (_model, file) => new Response(file.name),
     remove: async (model) => { installed.delete(`${model.id}@${model.revision}`) },
+    clear: async () => { installed.clear() },
   }
   return { installed, install, storage }
 }
@@ -158,5 +159,26 @@ describe('model asset repository', () => {
 
     expect(installs).toBe(2)
     expect(repository.list()[0]?.state).toBe('installed')
+  })
+
+  it('cancels active downloads and removes every stored model on clear', async () => {
+    const { installed, storage } = createStorage()
+    installed.add('retired@v0')
+    let started!: () => void
+    const running = new Promise<void>(resolve => started = resolve)
+    storage.install = async (_model, _onProgress, signal) => {
+      started()
+      await new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }))
+    }
+    const repository = new ModelAssetRepository([remote], storage)
+    const download = repository.ensureAvailable('speech')
+    void download.catch(() => {})
+    await running
+
+    await repository.clear()
+
+    await expect(download).rejects.toThrow()
+    expect(installed.size).toBe(0)
+    expect(repository.list()[0]?.state).toBe('missing')
   })
 })

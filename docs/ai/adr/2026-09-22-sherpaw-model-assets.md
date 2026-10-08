@@ -48,11 +48,13 @@ remove(modelId)
 ensureAvailable(modelId)
 open(modelId, fileName)
 cancel(modelId)
+clear()
 subscribe(listener)
 dispose()
 ```
 
 The repository publishes storage status. Inference adapters publish Worker status separately.
+Delete all data in Data settings calls `clear()`. It removes every stored model, including models that the catalogue no longer lists.
 Desktop's Resource Status Island and Sherpaw settings read storage status.
 Downloaded file pairs become installed only after both files and a version marker are stored.
 

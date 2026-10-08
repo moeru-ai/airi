@@ -36,6 +36,8 @@ export interface ModelAssetStorage {
   install: (model: ModelAsset, onProgress: (progress: ModelAssetProgress) => void, signal: AbortSignal) => Promise<void>
   open: (model: ModelAsset, file: ModelAssetFile) => Promise<Response>
   remove: (model: ModelAsset) => Promise<void>
+  /** Removes every stored model, including models that the catalogue no longer lists. */
+  clear: () => Promise<void>
 }
 
 /** Owns model-level download, status, and cancellation across one host. */
@@ -164,6 +166,20 @@ export class ModelAssetRepository {
     }
     await this.storage.remove(model)
     this.update(id, { state: 'missing', progress: undefined, error: undefined })
+  }
+
+  /** Cancels active downloads and removes every stored model. */
+  async clear(): Promise<void> {
+    const active = [...this.downloads.values()]
+    for (const download of active)
+      download.controller.abort()
+    // The canceled transfers leave no installed model, so their errors do not matter here.
+    await Promise.allSettled(active.map(download => download.promise))
+    await this.storage.clear()
+    for (const model of this.models.values()) {
+      if (model.source === 'remote')
+        this.update(model.id, { state: 'missing', progress: undefined, error: undefined })
+    }
   }
 
   async open(id: string, fileName: string, signal?: AbortSignal): Promise<Response> {

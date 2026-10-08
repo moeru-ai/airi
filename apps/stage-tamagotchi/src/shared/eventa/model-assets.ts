@@ -6,4 +6,5 @@ export const electronModelAssetsList = defineInvokeEventa<ModelAssetStatus[]>('e
 export const electronModelAssetEnsure = defineInvokeEventa<void, string>('eventa:invoke:electron:model-assets:ensure')
 export const electronModelAssetCancel = defineInvokeEventa<void, string>('eventa:invoke:electron:model-assets:cancel')
 export const electronModelAssetRemove = defineInvokeEventa<void, string>('eventa:invoke:electron:model-assets:remove')
+export const electronModelAssetsClear = defineInvokeEventa<void>('eventa:invoke:electron:model-assets:clear')
 export const electronModelAssetStatusChanged = defineEventa<ModelAssetStatus>('eventa:event:electron:model-assets:status-changed')

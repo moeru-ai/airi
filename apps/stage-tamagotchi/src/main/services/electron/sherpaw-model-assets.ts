@@ -12,6 +12,7 @@ import {
   electronModelAssetCancel,
   electronModelAssetEnsure,
   electronModelAssetRemove,
+  electronModelAssetsClear,
   electronModelAssetsList,
   electronModelAssetStatusChanged,
 } from '../../../shared/eventa/model-assets'
@@ -69,6 +70,7 @@ export function setupSherpawModelAssets(context: ReturnType<typeof createContext
   defineInvokeHandler(context, electronModelAssetEnsure, id => repository.ensureAvailable(id))
   defineInvokeHandler(context, electronModelAssetCancel, id => repository.cancel(id))
   defineInvokeHandler(context, electronModelAssetRemove, id => repository.remove(id))
+  defineInvokeHandler(context, electronModelAssetsClear, () => repository.clear())
 
   protocol.handle('airi-model', async (request) => {
     const url = new URL(request.url)
