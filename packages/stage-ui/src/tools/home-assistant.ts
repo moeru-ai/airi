@@ -53,6 +53,26 @@ function parseServiceData(raw: string | undefined) {
 }
 
 /**
+ * Extracts state changes from a service call response.
+ *
+ * Home Assistant answers a service call with the states it changed. Anything
+ * else means the call is complete but reports no state change.
+ */
+function parseServiceResponse(response: unknown) {
+  if (!Array.isArray(response))
+    return []
+
+  return response.flatMap((entry) => {
+    if (typeof entry !== 'object' || entry === null)
+      return []
+    const candidate = entry as Partial<HomeAssistantEntity> & { entity_id?: unknown, state?: unknown }
+    return typeof candidate.entity_id === 'string' && typeof candidate.state === 'string'
+      ? [{ entityId: candidate.entity_id, state: candidate.state }]
+      : []
+  })
+}
+
+/**
  * Builds the Home Assistant tools over one client.
  *
  * Use when:
@@ -79,12 +99,7 @@ export async function createHomeAssistantTools(
   return await Promise.all([
     tool({
       name: 'home_assistant_list_entities',
-      description: [
-        'List Home Assistant entities and their current states, so you can find the entity id of a device the user named.',
-        'Call this before a service call when you do not know the exact entity id.',
-        'Pass a domain such as "light" or "climate" to narrow the list.',
-        'The result is capped, so it can be incomplete on a large installation.',
-      ].join(' '),
+      description: 'List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to filter. Results are capped; use domain filtering on large installations.',
       execute: async ({ domain }) => {
         const entities = await client.listEntities()
         const matching = domain ? entities.filter(entity => entity.entityId.startsWith(`${domain}.`)) : entities
@@ -103,10 +118,7 @@ export async function createHomeAssistantTools(
     }),
     tool({
       name: 'home_assistant_get_state',
-      description: [
-        'Read the current state and attributes of one Home Assistant entity.',
-        'Use this to answer questions about a device, or to check a value before you change it.',
-      ].join(' '),
+      description: 'Read the current state and attributes of one Home Assistant entity. Use this to answer questions about a device or check a value before changing it.',
       execute: async ({ entity_id: entityId }) => {
         const entity = await client.getState(entityId)
         return JSON.stringify({ ...toSummary(entity), attributes: entity.attributes })
@@ -117,31 +129,16 @@ export async function createHomeAssistantTools(
     }),
     tool({
       name: 'home_assistant_call_service',
-      description: [
-        'Call one Home Assistant service, which is how you turn devices on and off, set brightness, and change a thermostat.',
-        'The domain and service come from Home Assistant, for example "light" with "turn_on".',
-        'Report the returned state to the user, because it is what Home Assistant actually did.',
-      ].join(' '),
+      description: 'Call a Home Assistant service to control devices (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id. Report the returned state changes to the user.',
       execute: async ({ domain, service, entity_id: entityId, data }) => {
-        const changed = await client.callService({
+        const response = await client.callService({
           domain,
           service,
           entityId,
           data: parseServiceData(data),
         })
 
-        // Home Assistant answers a service call with the states it changed.
-        // Anything else means the call is complete but reports no state change.
-        return Array.isArray(changed)
-          ? JSON.stringify({ changed: changed.flatMap((entry) => {
-              if (typeof entry !== 'object' || entry === null)
-                return []
-              const candidate = entry as Partial<HomeAssistantEntity> & { entity_id?: unknown, state?: unknown }
-              return typeof candidate.entity_id === 'string' && typeof candidate.state === 'string'
-                ? [{ entityId: candidate.entity_id, state: candidate.state }]
-                : []
-            }) })
-          : JSON.stringify({ changed: [] })
+        return JSON.stringify({ changed: parseServiceResponse(response) })
       },
       parameters: z.object({
         domain: z.string().describe('Service domain, for example "light".'),

@@ -157,4 +157,35 @@ describe('home assistant tools', () => {
     // A malformed payload must never reach Home Assistant.
     expect(callService).not.toHaveBeenCalled()
   })
+
+  it('handles service responses that are not state arrays', async () => {
+    const callService = vi.fn(async () => 'ok')
+    const mounted = await tools(createClient({ callService }))
+
+    const result = await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'script',
+      service: 'reload',
+    })
+
+    expect(JSON.parse(result as string)).toEqual({ changed: [] })
+  })
+
+  it('filters out malformed state entries from service response', async () => {
+    const callService = vi.fn(async () => [
+      { entity_id: 'light.kitchen', state: 'on' },
+      { entity_id: 'light.invalid' }, // missing state
+      'invalid', // not an object
+      { state: 'on' }, // missing entity_id
+    ])
+    const mounted = await tools(createClient({ callService }))
+
+    const result = await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+    })
+
+    expect(JSON.parse(result as string)).toEqual({
+      changed: [{ entityId: 'light.kitchen', state: 'on' }],
+    })
+  })
 })
