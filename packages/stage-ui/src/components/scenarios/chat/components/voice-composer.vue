@@ -266,7 +266,11 @@ onBeforeUnmount(() => {
       type="button"
       :aria-label="t('stage.chat.voice-composer.discard')"
       :title="t('stage.chat.voice-composer.discard')"
-      :class="['size-10 rounded-full text-neutral-500 dark:text-neutral-300']"
+      :class="[
+        'size-10 rounded-full',
+        'bg-neutral-100/90 text-neutral-600 dark:bg-neutral-800/90 dark:text-neutral-200',
+        'hover:bg-neutral-200/90 dark:hover:bg-neutral-700/90',
+      ]"
       @click="voice.discard(pending[0].id)"
     >
       <span :class="['i-solar:close-circle-linear size-5']" aria-hidden="true" />
