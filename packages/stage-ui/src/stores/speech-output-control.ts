@@ -1,79 +1,55 @@
-import { useBroadcastChannel, useLocalStorage } from '@vueuse/core'
+import type { TurnRef } from '@proj-airi/core-agent'
+
+import { defineInvoke } from '@moeru/eventa'
+import { useLocalStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { onScopeDispose, shallowRef } from 'vue'
 
-export type SpeechOutputStopReason = 'manual-chat' | 'manual-all' | 'muted'
+import { getSpeechBusContext, voiceGetTurns, voiceInterrupt, voiceRequestTurns, voiceSnapshotChanged, voiceTurnsChanged } from '../services/speech/bus'
 
-/**
- * Represents a user-requested stop-speaking command for the stage output host.
- */
-export interface SpeechOutputStopRequest {
-  /** Monotonic sequence number so repeated requests with the same reason still notify watchers. */
-  id: number
-  /** Source of the stop-speaking request. */
-  reason: SpeechOutputStopReason
-}
+export type SpeechOutputStopReason = 'manual-chat' | 'manual-all'
+export type SpeechOutputStopRequest = { reason: 'manual-chat', sessionId: string } | { reason: 'manual-all' }
 
+/** Settings control future speech. External interruption targets identities supplied by the audio host. */
 export const useSpeechOutputControlStore = defineStore('speech-output-control', () => {
-  const speechMuted = useLocalStorage('settings/speech/output-muted', false, {
-    window: typeof window === 'undefined' ? undefined : window,
+  const speechMuted = useLocalStorage('settings/speech/output-muted', false)
+  const activeTurns = shallowRef<readonly TurnRef[]>([])
+  const lifetime = new AbortController()
+  let connection = new AbortController()
+  const context = getSpeechBusContext()
+  const stop = context.on(voiceTurnsChanged, ({ body }) => {
+    if (body)
+      activeTurns.value = body
   })
-  const latestStopRequest = ref<SpeechOutputStopRequest>()
-  const { data: incomingStopRequest, post: broadcastStopRequest } = useBroadcastChannel<SpeechOutputStopRequest, SpeechOutputStopRequest>({
-    name: 'airi-speech-output-control',
+  const stopConnection = context.on(voiceSnapshotChanged, ({ body }) => {
+    if (!body)
+      return
+    if (!body.connected)
+      connection.abort('Speech host disconnected')
+    else if (connection.signal.aborted)
+      connection = new AbortController()
   })
-  let nextRequestId = 1
+  context.emit(voiceRequestTurns, undefined)
+  onScopeDispose(() => {
+    stop()
+    stopConnection()
+    lifetime.abort('Speech controls disposed')
+  })
 
-  watch(incomingStopRequest, (request) => {
-    if (request)
-      latestStopRequest.value = request
-  })
-
-  /**
-   * Requests that the active speech output host stops assistant audio playback.
-   *
-   * Use when:
-   * - A UI control should stop TTS playback without cancelling chat text generation.
-   *
-   * Expects:
-   * - A mounted Stage host is watching {@link latestStopRequest}.
-   *
-   * Returns:
-   * - Nothing. The latest request is published for the Stage host to consume.
-   */
-  function requestStopSpeaking(reason: SpeechOutputStopReason) {
-    const request = {
-      id: nextRequestId++,
-      reason,
-    }
-    latestStopRequest.value = request
-    broadcastStopRequest(request)
+  async function requestStopSpeaking(request: SpeechOutputStopRequest) {
+    const signal = AbortSignal.any([lifetime.signal, connection.signal])
+    const turns = await defineInvoke(context, voiceGetTurns)(undefined, { signal })
+    const targets = request.reason === 'manual-all' ? turns : turns.filter(turn => turn.sessionId === request.sessionId)
+    return defineInvoke(context, voiceInterrupt)({ turns: targets, cause: request.reason }, { signal })
   }
 
-  /**
-   * Enables or disables automatic assistant speech output.
-   *
-   * Enabling mute also publishes a stop request so an active Stage host can
-   * cancel synthesis, streaming transport, queued audio, and current playback.
-   */
   function setSpeechMuted(muted: boolean) {
-    if (speechMuted.value === muted)
-      return
-
     speechMuted.value = muted
-    if (muted)
-      requestStopSpeaking('muted')
   }
 
   function toggleSpeechMuted() {
     setSpeechMuted(!speechMuted.value)
   }
 
-  return {
-    latestStopRequest,
-    speechMuted,
-    requestStopSpeaking,
-    setSpeechMuted,
-    toggleSpeechMuted,
-  }
+  return { speechMuted, activeTurns, requestStopSpeaking, setSpeechMuted, toggleSpeechMuted }
 })

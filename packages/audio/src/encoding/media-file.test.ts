@@ -1,6 +1,7 @@
 import type { AudioInput, PcmBlock } from '@proj-airi/pipelines-audio'
 
-import { expect, expectTypeOf, it } from 'vitest'
+import { AudioSample, AudioSampleSource } from 'mediabunny'
+import { expect, expectTypeOf, it, vi } from 'vitest'
 
 import { encodeWav, fileSource } from './media-file'
 
@@ -60,4 +61,29 @@ it('releases the decoder and errors the stream when the connection aborts before
 // https://github.com/moeru-ai/airi/pull/2769#discussion_r4180881988
 it('cannot be shared through AudioInput, because its reader sets the decode speed', () => {
   expectTypeOf(fileSource).returns.not.toExtend<ConstructorParameters<typeof AudioInput>[0]>()
+})
+
+// Mediabunny closes a sample only when it resamples. Input at the output rate kept its samples open until garbage
+// collection, and the browser logged "An AudioSample was garbage collected without first being closed".
+it('closes each audio sample when the input already has the output sample rate', async () => {
+  const close = vi.spyOn(AudioSample.prototype, 'close')
+  const add = vi.spyOn(AudioSampleSource.prototype, 'add')
+  try {
+    const block = (startFrame: number): PcmBlock => ({ range: { sourceId: 'mic', startFrame, endFrame: startFrame + 1600 }, sampleRate: 16000, channels: [new Float32Array(1600).fill(0.5)] })
+    await encodeWav(new ReadableStream({
+      start(output) {
+        output.enqueue(block(0))
+        output.enqueue(block(1600))
+        output.close()
+      },
+    }), { sampleRate: 16000, channels: 1 })
+
+    const added = add.mock.calls.map(([sample]) => sample)
+    expect(added).toHaveLength(2)
+    expect(added.every(sample => close.mock.contexts.includes(sample))).toBe(true)
+  }
+  finally {
+    close.mockRestore()
+    add.mockRestore()
+  }
 })

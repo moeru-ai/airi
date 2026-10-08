@@ -23,6 +23,7 @@ import {
   electronGetChatButtonState,
   electronOpenChat,
   electronOpenEditor,
+  electronOpenInlay,
   electronOpenMainDevtools,
   electronOpenSettings,
   noticeWindowEventa,
@@ -51,6 +52,7 @@ export async function setupMainWindowElectronInvokes(params: {
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
   ioTraceRecording: IOTraceRecordingService
+  inlayWindow: () => Promise<BrowserWindow>
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -72,6 +74,12 @@ export async function setupMainWindowElectronInvokes(params: {
   defineInvokeHandler(context, electronCenterMainWindow, () => centerWindowOnDisplay(params.window))
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
+  // Speech opens the inlay without focus, so the user can keep working in another app while speaking.
+  defineInvokeHandler(context, electronOpenInlay, async () => {
+    const inlay = await params.inlayWindow()
+    if (!inlay.isDestroyed() && !inlay.isVisible())
+      inlay.showInactive()
+  })
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())

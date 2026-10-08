@@ -17,7 +17,6 @@ import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-previ
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
-import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, nextTick, onMounted, ref, useTemplateRef, watch } from 'vue'
@@ -47,7 +46,7 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
-type ChatImageAttachment = NonNullable<ChatSendPayload['attachments']>[number]
+type ChatImageAttachment = Extract<NonNullable<ChatSendPayload['attachments']>[number], { type: 'image' }>
 
 interface ImageComposerAttachment extends ChatImageAttachment {
   file: File
@@ -182,7 +181,7 @@ async function handleFilePaste(files: File[]) {
             data: base64Data,
             mimeType: file.type,
             file,
-            previewId: nanoid(),
+            previewId: crypto.randomUUID(),
           })
         }
       }
@@ -389,7 +388,7 @@ async function handleToolCallRerun(payload: ChatToolCallRerunEvent) {
             transition-colors transition-transform active:scale-95
             title="Stop speaking"
             aria-label="Stop speaking"
-            @click="stopSpeakingFromChat"
+            @click="stopSpeakingFromChat()"
           >
             <div class="i-solar:stop-circle-bold-duotone" />
           </button>

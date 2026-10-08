@@ -2,6 +2,30 @@
 
 Shared core for stage
 
+## Experimental features
+
+Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
+Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.
+Cloud decides whether each granted Cloud flag allows account opt-in or uses direct control. Client registrations do not duplicate this mode.
+`cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They start disabled and retain choices per account on this device.
+`cloud-controlled` flags follow Cloud grants directly and never expose a switch.
+Missing Cloud grants disable Cloud features. Refresh failures and account changes clear grants, not local choices.
+`useCloudFetch()` in `composables/cloud.ts` shares the Cloud origin and authenticated fetch boundary. The store reads `GET /v1/feature-flags`.
+Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
+Keep authorization checks on the server.
+
+## Message times
+
+Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
+Timestamps use stored message times, the interface locale, and the device timezone. Messages without valid timestamps have no separator.
+Today's separators show only the time. Yesterday and the day before use relative labels.
+Older separators show the month and day. Dates outside the current year also show the year.
+Click a separator to toggle its full date and time. Relative labels refresh every minute while the history is open.
+`date-fns` handles calendar comparisons and localized formatting through `intlFormat` and `intlFormatDistance`.
+The session list displays and sorts by the latest valid user or assistant message timestamp.
+Sessions without dated conversation messages use their creation time. Loading messages updates the list from the stored history.
+Saving or synchronizing a session does not change its displayed activity time unless its messages change.
+
 ## Startup progress
 
 `useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
@@ -14,6 +38,42 @@ Each app's HTML shows the first splash before Vue mounts. CSS hides it when Vue 
 The home page reports when its character model is ready or fails. A failed model keeps the overlay visible.
 If the model fails, the user can retry the app or continue without a character.
 The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
+
+## Voice integration
+
+The audio host owns one VoiceController and one shared microphone input.
+Other windows send Eventa commands and render snapshots. They do not create competing capture or playback runtimes.
+Consumers subscribe to the microphone input with their own abort signal. The last subscriber to leave releases the device.
+
+- `useVoiceStore` owns application routing, drafts, responses, and host command registration.
+- `useVoiceController` binds public controller state to Vue and moves the controller to the input of the selected device.
+- `useVoiceInput` maps hold and release controls to host commands.
+- `VoiceInputButton` is the voice control of desktop and web composers. Click it to start, and click again to stop. Hover or right-click it for the mode, Auto send, the microphone, and continuous listening. Its status bar shows the waveform and time, and keeps a voice message that waits to be sent. Dictation writes its live transcript into the composer text and creates no voice draft.
+- `VoiceComposer` is the touch voice control of mobile composers. Hold it to record, slide left to cancel, and slide up to lock. A voice message is sent on release.
+- `useVoiceMessagesStore` owns voice message recordings and their attachment submission.
+- Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
+- Speech preserves existing chunked synthesis and bidirectional provider output.
+- `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
+
+The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them read-only below the draft while speech is transcribed. Final text uses the body color. Earlier interim text uses a pale theme color, and the newest interim segment uses a stronger one. The draft stays editable while live speech appears below it.
+Rephrasing is off by default. A failure or a 10-second timeout submits the provider text.
+
+A recording is sent only when its control asks for it with `finish` and `send: true`, or with an explicit `send`. A failed send keeps the recording and its message identity, so the control can send it again or discard it.
+While a control records or dictates, the host publishes the microphone level on `voiceInputLevel`.
+Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
+Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
+
+### External wake-word adapters
+
+`useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
+Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
+`setWords` returns conflicts for tools or settings to present. It does not invent a model or a keyword-management UI.
+
+An external KWS adapter supplies `detectWakeWord` to `voice.startListening`.
+After catalog matching, it calls `voice.resolveWakeTarget(characterId, signal)` to select a session without navigating the chat window.
+The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
+The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
+Model selection, acoustic echo classification, and enrollment remain external integrations.
 
 ## Chat sampling
 

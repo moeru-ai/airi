@@ -19,7 +19,7 @@ export async function enableChatMicrophone(
     if (!app)
       throw new Error('The Electron audio session does not expose its application.')
 
-    const existingChatPage = app.windows().find(page => page.url().includes('index.html#/chat'))
+    const existingChatPage = app.windows().find(page => page.url().includes('#/chat'))
     if (existingChatPage) {
       runtime.activatePage(existingChatPage)
     }
@@ -30,6 +30,12 @@ export async function enableChatMicrophone(
       await chatButton.waitFor({ state: 'visible', timeout: 30_000 })
       runtime.activatePage(await openElectronChat(app, chatButton))
     }
+  }
+
+  if (runtime.target === 'web') {
+    // The startup screen covers the page until its exit animation ends.
+    // A click before that point lands on the startup screen and does not open the hearing popover.
+    await runtime.page.locator('.startup-screen').waitFor({ state: 'detached', timeout: 60_000 })
   }
 
   const { page } = runtime
@@ -52,7 +58,7 @@ export async function enableChatMicrophone(
     await enableButton.waitFor({ state: 'visible', timeout: 15_000 })
     const inputReady = options.readiness === 'streaming-transcription'
       ? runtime.waitForStreamingTranscriptionReady()
-      : runtime.waitForVadReady()
+      : undefined
     await enableButton.click({ force: true })
     const disableButton = runtime.runtimePage.locator('button[aria-label="Disable microphone input"]')
     await disableButton.waitFor({ state: 'visible', timeout: 15_000 })
@@ -60,14 +66,14 @@ export async function enableChatMicrophone(
     return
   }
 
-  const microphoneTrigger = page.locator('button').filter({ has: page.locator('.i-ph\\:microphone-slash') }).first()
+  const microphoneTrigger = page.getByRole('button', { name: 'Hearing' }).first()
   await microphoneTrigger.click({ force: true })
 
   const enableButton = page.locator('button[aria-label="Enable microphone input"]')
   await enableButton.waitFor({ state: 'visible' })
   const inputReady = options.readiness === 'streaming-transcription'
     ? runtime.waitForStreamingTranscriptionReady()
-    : runtime.waitForVadReady()
+    : undefined
   await enableButton.click()
   await page.locator('button[aria-label="Disable microphone input"]').waitFor({ state: 'visible' })
   await inputReady
@@ -94,7 +100,7 @@ async function openElectronChat(
   for (let attempt = 0; attempt < 10; attempt++) {
     await chatButton.click({ force: true })
     try {
-      return await waitForElectronPage(app, page => page.url().includes('index.html#/chat'), 3_000)
+      return await waitForElectronPage(app, page => page.url().includes('#/chat'), 3_000)
     }
     catch (error) {
       lastError = error

@@ -1249,16 +1249,16 @@ pages:
         callout_indextts2_unavailable_title: 限定的なサポート
         callout_indextts2_unavailable: IndexTTS2 は現在未対応です。IndexTTS をご利用ください。
       minimax-speech:
-        playground:
-          default-text: こんにちは！これは MiniMax 音声合成のテストです。
+        errors:
+          provider-initialization-failed: MiniMax 音声プロバイダーの初期化に失敗しました。
         fields:
           field:
             model:
               description: 音声生成に使用する MiniMax TTS モデルを選択します。
               label: モデル
               placeholder: MiniMax モデルを選択...
-        errors:
-          provider-initialization-failed: MiniMax 音声プロバイダーの初期化に失敗しました。
+        playground:
+          default-text: こんにちは！これは MiniMax 音声合成のテストです。
         title: MiniMax 音声
       openai-compatible:
         description: OpenAI互換

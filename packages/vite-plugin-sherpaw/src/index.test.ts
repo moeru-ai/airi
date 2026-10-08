@@ -33,6 +33,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  vi.unstubAllEnvs()
   await rm(root, { recursive: true, force: true })
 })
 
@@ -178,4 +179,36 @@ it('serves development models from the local cache and leaves other models remot
   finally {
     await server.close()
   }
+})
+
+it('serves remote models from a configured endpoint', async () => {
+  await build({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [Sherpaw({ models, cacheDir, endpoint: 'https://mirror.example.test/' })],
+  })
+  const directory = join(root, 'dist', 'assets')
+  const script = (await readdir(directory)).find(file => file.endsWith('.js'))!
+  const code = await readFile(join(directory, script), 'utf8')
+
+  expect(code).toContain(`https://mirror.example.test/${paraformerBilingualZhEn.repository}/resolve/${paraformerBilingualZhEn.revision}`)
+  expect(code).not.toContain('https://huggingface.co/')
+})
+
+it('reads the endpoint from HF_ENDPOINT', async () => {
+  vi.stubEnv('HF_ENDPOINT', 'https://env-mirror.example.test')
+
+  await build({
+    root,
+    configFile: false,
+    logLevel: 'silent',
+    plugins: [Sherpaw({ models, cacheDir })],
+  })
+  const directory = join(root, 'dist', 'assets')
+  const script = (await readdir(directory)).find(file => file.endsWith('.js'))!
+  const code = await readFile(join(directory, script), 'utf8')
+
+  expect(code).toContain(`https://env-mirror.example.test/${xAsrBilingualZhEnInt8.repository}/resolve/${xAsrBilingualZhEnInt8.revision}`)
+  expect(code).not.toContain('https://huggingface.co/')
 })

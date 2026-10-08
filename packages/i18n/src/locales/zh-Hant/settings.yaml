@@ -790,19 +790,6 @@ pages:
             volume:
               description: 調整語音的響度
               label: 響度
-      minimax-speech:
-        description: minimax.io
-        errors:
-          provider-initialization-failed: 初始化 MiniMax 語音供應者失敗。
-        fields:
-          field:
-            model:
-              description: 選擇用於生成語音的 MiniMax 文字轉語音模型。
-              label: 模型
-              placeholder: 選擇一個 MiniMax 模型...
-        playground:
-          default-text: 您好！這是 MiniMax 語音合成測試。
-        title: MiniMax Speech
       speech-noop:
         title: 無
         description: 無語音輸出。
@@ -885,6 +872,17 @@ pages:
       index-tts-vllm:
         callout_indextts2_unavailable_title: 有限支援
         callout_indextts2_unavailable: IndexTTS2 目前尚未支援，請改用 IndexTTS。
+      minimax-speech:
+        errors:
+          provider-initialization-failed: 初始化 MiniMax 語音供應者失敗。
+        fields:
+          field:
+            model:
+              description: 選擇用於生成語音的 MiniMax 文字轉語音模型。
+              label: 模型
+              placeholder: 選擇一個 MiniMax 模型...
+        playground:
+          default-text: 您好！這是 MiniMax 語音合成測試。
       moonshot:
         description: Moonshot.ai
         title: 月之暗面

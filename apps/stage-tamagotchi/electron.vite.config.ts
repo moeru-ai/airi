@@ -236,6 +236,7 @@ export default defineConfig({
               '**/settings/data/index.vue',
               '**/settings/models/index.vue',
               '**/settings/system/general.vue',
+              '**/settings/modules/home-assistant.vue',
               '**/settings/modules/mcp.vue',
               '**/devtools/index.vue',
               '**/settings/index.vue',

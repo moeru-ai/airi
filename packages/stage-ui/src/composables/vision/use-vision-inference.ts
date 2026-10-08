@@ -20,6 +20,8 @@ export interface VisionInferenceInput {
   promptOverride?: string
   /** Cancels this read when its owning chat turn ends. */
   abortSignal?: AbortSignal
+  /** Background chat supplies its character's vision selection. Other callers use the current module settings. */
+  selection?: { provider: string, model: string }
 }
 
 // TODO: this should be configurable
@@ -53,6 +55,7 @@ export function useVisionInference() {
 
   /** Reads one image with the given vision provider and returns the trimmed text. */
   async function describeImage(providerId: string, modelId: string, input: VisionInferenceInput) {
+    const thinking = ollamaThinkingEnabled.value
     const provider = await providersStore.getChatProviderInstance(providerId)
     const workload = getVisionWorkload(input.workloadId)
     const prompt = input.promptOverride ?? workload.prompt
@@ -63,7 +66,7 @@ export function useVisionInference() {
             const request = provider.generation(model)
             if (request.protocol !== 'chat-completions')
               return request
-            return { ...request, config: { ...request.config, think: ollamaThinkingEnabled.value } }
+            return { ...request, config: { ...request.config, think: thinking } }
           },
         }
       : provider
@@ -109,11 +112,10 @@ export function useVisionInference() {
   }
 
   async function runVisionInference(input: VisionInferenceInput) {
-    if (!activeProvider.value || !activeModel.value)
+    const providerId = input.selection?.provider ?? activeProvider.value
+    const modelId = input.selection?.model ?? activeModel.value
+    if (!providerId || !modelId)
       throw new Error('Vision provider/model not configured')
-
-    const providerId = activeProvider.value
-    const modelId = activeModel.value
 
     const concurrentReads = providersStore.findProviderDefinition(providerId)?.capabilities?.vision?.concurrentReads
     const release = await visionReadQueue.acquire(providerId, concurrentReads ?? DEFAULT_CONCURRENT_VISION_READS, input.abortSignal)

@@ -73,7 +73,6 @@ watch(microphonePermission.status, (state, previousState) => {
 
   const settingsAudioDeviceStore = useSettingsAudioDevice()
   settingsAudioDeviceStore.enabled = false
-  settingsAudioDeviceStore.stopStream()
 })
 
 async function resolveMicrophonePermission(decision: 'granted' | 'denied') {

@@ -1,170 +1,121 @@
 <script setup lang="ts">
-import type { HearingTranscriptionResult } from '../../../stores/modules/hearing'
+import type { Capture } from '@proj-airi/pipelines-audio'
 
-import { errorMessageFromValue } from '@proj-airi/stage-shared'
+import type { HearingTranscriptionResult } from '../../../libs/providers/transcription-types'
+
+import { errorMessageFrom } from '@moeru/std'
+import { encodeWav } from '@proj-airi/audio/encoding'
+import { capture as captureAudio, observe } from '@proj-airi/pipelines-audio'
 import { Button, FieldCombobox, FieldRange } from '@proj-airi/ui'
-import { until } from '@vueuse/core'
-import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { useAudioDevice } from '../../../composables/audio'
-import { useAudioAnalyzer } from '../../../composables/audio/audio-analyzer'
-import { useAudioRecorder } from '../../../composables/audio/audio-recorder'
+import { useAudioDevice } from '../../../composables/audio/audio-device'
 import { LevelMeter, TestDummyMarker, ThresholdMeter } from '../../gadgets'
 
 const props = defineProps<{
-  // Provider-specific handlers (provided from parent)
   generateTranscription: (input: File) => Promise<HearingTranscriptionResult>
-  // Current state
   apiKeyConfigured?: boolean
 }>()
 
 const { t } = useI18n()
-const { audioInputs, audioInputOptions, selectedAudioInput, stream, stopStream, startStream } = useAudioDevice()
-const { volumeLevel, stopAnalyzer, startAnalyzer } = useAudioAnalyzer()
-const { startRecord, stopRecord, onStopRecord } = useAudioRecorder(stream)
-
-const speakingThreshold = ref(25) // 0-100 (for volume-based fallback)
+const devices = useAudioDevice()
+const { audioInputOptions, selectedAudioInput } = devices
+const speakingThreshold = ref(25)
 const isMonitoring = ref(false)
-const isSpeaking = ref(false)
+const volumeLevel = ref(0)
+const isSpeaking = computed(() => volumeLevel.value >= speakingThreshold.value)
+const errorMessage = ref('')
+const recordings = ref<{ url: string, text: string }[]>([])
+/** One recording and its level meter. Aborting the session ends both and releases the microphone. */
+let session: { recording: Capture, wav: Promise<Blob>, meter: AbortController } | undefined
+let disposed = false
 
-const errorMessage = ref<string>('')
+function reportFailure(cause: unknown) {
+  if (!disposed && (!(cause instanceof DOMException) || cause.name !== 'AbortError'))
+    errorMessage.value = errorMessageFrom(cause) ?? t('stage.chat.voice-preview.failed')
+}
 
-const audioContext = shallowRef<AudioContext>()
-const dataArray = ref<Uint8Array<ArrayBuffer>>()
-const animationFrame = ref<number>()
+function discard(reason: string) {
+  session?.meter.abort(reason)
+  session?.recording.cancel(reason)
+  session = undefined
+  isMonitoring.value = false
+  volumeLevel.value = 0
+}
 
-const audios = ref<Blob[]>([])
-const audioCleanups = ref<(() => void)[]>([])
-const audioURLs = computed(() => {
-  return audios.value.map((blob) => {
-    const url = URL.createObjectURL(blob)
-    audioCleanups.value.push(() => URL.revokeObjectURL(url))
-    return url
+watch(devices.input, () => discard('Audio device replaced'))
+
+function start() {
+  errorMessage.value = ''
+  isMonitoring.value = true
+  const input = devices.input.value
+  const recording = captureAudio(input)
+  const wav = encodeWav(recording.stream, { sampleRate: 16000, channels: 1 })
+  const meter = new AbortController()
+  session = { recording, wav, meter }
+  void wav.catch(() => {})
+  observe(input, { windowMs: 32, hopMs: 32, signal: meter.signal }, async (window) => {
+    const samples = window.channels[0]
+    return Math.sqrt(samples.reduce((sum, sample) => sum + sample * sample, 0) / samples.length) * 100
+  }, (result) => { volumeLevel.value = result.value })
+  void recording.done.then((outcome) => {
+    if (outcome.status !== 'failed' || session?.recording !== recording)
+      return
+    discard('Recording failed')
+    reportFailure(outcome.error)
   })
-})
-const transcriptions = ref<string[]>([])
+}
 
-watch(selectedAudioInput, async () => {
-  if (isMonitoring.value) {
-    await setupAudioMonitoring()
-  }
-})
+async function finish() {
+  const current = session
+  session = undefined
+  isMonitoring.value = false
+  current?.meter.abort('Recording finished')
+  volumeLevel.value = 0
+  if (!current)
+    return
 
-watch(audioInputs, () => {
-  if (!selectedAudioInput.value && audioInputs.value.length > 0) {
-    selectedAudioInput.value = audioInputs.value.find(input => input.deviceId === 'default')?.deviceId || audioInputs.value[0].deviceId
-  }
-})
-
-async function setupAudioMonitoring() {
   try {
-    await stopAudioMonitoring()
-
-    await startStream()
-    await until(stream).toBeTruthy()
-
-    // Create audio context
-    audioContext.value = new AudioContext()
-    const source = audioContext.value.createMediaStreamSource(stream.value!)
-    const analyzer = startAnalyzer(audioContext.value)
-    source.connect(analyzer!)
-
-    // Set up data array for analysis
-    const bufferLength = analyzer!.frequencyBinCount
-    dataArray.value = new Uint8Array(bufferLength)
+    const outcome = await current.recording.finish()
+    if (outcome.status !== 'finished' || disposed)
+      return
+    const audio = await current.wav
+    const entry = { url: URL.createObjectURL(audio), text: '' }
+    recordings.value.push(entry)
+    const result = await props.generateTranscription(new File([audio], 'recording.wav', { type: audio.type }))
+    const text = await result.text
+    const displayed = recordings.value.find(recording => recording.url === entry.url)
+    if (!disposed && displayed)
+      displayed.text = text
   }
-  catch (error) {
-    console.error('Error setting up audio monitoring:', error)
-    errorMessage.value = errorMessageFromValue(error)
+  catch (cause) {
+    reportFailure(cause)
   }
 }
 
-async function stopAudioMonitoring() {
-  // Stop animation frame
-  if (animationFrame.value) {
-    cancelAnimationFrame(animationFrame.value)
-    animationFrame.value = undefined
-  }
-  if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop())
-    stream.value = undefined
-  }
-  if (audioContext.value) {
-    await audioContext.value.close()
-    audioContext.value = undefined
-  }
-
-  await stopRecord()
-  await stopStream()
-  await stopAnalyzer()
-
-  dataArray.value = undefined
-  isSpeaking.value = false
-}
-
-onStopRecord(async (recording) => {
-  try {
-    if (recording && recording.size > 0) {
-      audios.value.push(recording)
-      // Clear any previous error message
-      errorMessage.value = ''
-      const result = await props.generateTranscription(new File([recording], 'recording.wav'))
-      const text = result.mode === 'stream'
-        ? await result.text
-        : result.text
-      transcriptions.value.push(text)
-      // Clear error message on success
-      errorMessage.value = ''
-    }
-  }
-  catch (err) {
-    errorMessage.value = errorMessageFromValue(err)
-    console.error('Error generating transcription:', errorMessage.value)
-  }
-})
-
-// Monitoring toggle
 async function toggleMonitoring() {
-  if (!isMonitoring.value) {
-    // Clear previous recordings and transcriptions when starting a new monitoring session
-    // Clean up previous audio URLs
-    audioCleanups.value.forEach(cleanup => cleanup())
-    audioCleanups.value = []
-    audios.value = []
-    transcriptions.value = []
-    // Clear any previous error messages
-    errorMessage.value = ''
-
-    await setupAudioMonitoring()
-    await startRecord()
-    isMonitoring.value = true
-  }
-  else {
-    await stopAudioMonitoring()
-    await stopRecord()
-
-    isMonitoring.value = false
-  }
+  if (isMonitoring.value)
+    await finish()
+  else
+    start()
 }
 
-// Speaking indicator with enhanced VAD visualization
-const speakingIndicatorClass = computed(() => {
-  // Volume-based: simple green/white
-  return isSpeaking.value
-    ? 'bg-green-500 shadow-lg shadow-green-500/50'
-    : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600'
-})
+const speakingIndicatorClass = computed(() => isSpeaking.value
+  ? 'bg-green-500 shadow-lg shadow-green-500/50'
+  : 'bg-white dark:bg-neutral-900 border-2 border-neutral-300 dark:border-neutral-600')
 
-onUnmounted(() => {
-  stopAudioMonitoring()
+onScopeDispose(() => {
+  disposed = true
+  discard('Playground disposed')
+  recordings.value.forEach(recording => URL.revokeObjectURL(recording.url))
 })
 </script>
 
 <template>
-  <div w-full pt-1>
-    <h2 class="mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400" w-full>
-      <div class="inline-flex items-center gap-4">
+  <div :class="['w-full pt-1']">
+    <h2 :class="['mb-4 text-lg text-neutral-500 md:text-2xl dark:text-neutral-400']">
+      <div :class="['inline-flex items-center gap-4']">
         <TestDummyMarker />
         <div>
           {{ t('settings.pages.providers.provider.transcriptions.playground.title') }}
@@ -173,59 +124,59 @@ onUnmounted(() => {
     </h2>
 
     <!-- Audio Input Selection -->
-    <div mb-2>
+    <div :class="['mb-2']">
       <FieldCombobox
         v-model="selectedAudioInput"
-        label="Audio Input Device"
-        description="Select the audio input device for your hearing module."
+        :label="t('stage.chat.voice-preview.device')"
+        :description="t('stage.chat.voice-preview.device-description')"
         :options="audioInputOptions"
-        placeholder="Select an audio input device"
+        :placeholder="t('stage.chat.voice-preview.device-placeholder')"
         layout="vertical"
-        h-fit w-full
+        :class="['h-fit w-full']"
       />
     </div>
 
-    <Button class="my-4" w-full @click="toggleMonitoring">
-      {{ isMonitoring ? 'Stop Monitoring' : 'Start Monitoring' }}
+    <Button :class="['my-4 w-full']" @click="toggleMonitoring">
+      {{ t(isMonitoring ? 'stage.chat.voice-preview.stop' : 'stage.chat.voice-preview.start') }}
     </Button>
 
     <!-- Error message display -->
-    <div v-if="errorMessage" class="mb-4 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20">
-      <div class="flex items-center gap-2 text-red-700 dark:text-red-400">
-        <div i-solar:warning-circle-line-duotone class="text-lg" />
-        <span class="text-sm font-medium">{{ errorMessage }}</span>
+    <div v-if="errorMessage" :class="['mb-4 border border-red-200 rounded-lg bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20']">
+      <div :class="['flex items-center gap-2 text-red-700 dark:text-red-400']">
+        <div :class="['i-solar:warning-circle-line-duotone text-lg']" />
+        <span :class="['text-sm font-medium']">{{ errorMessage }}</span>
       </div>
     </div>
 
     <div>
-      <div v-for="(audio, index) in audioURLs" :key="index" class="mb-2">
-        <audio :src="audio" controls class="w-full" />
-        <div v-if="transcriptions[index]" class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-          {{ transcriptions[index] }}
+      <div v-for="recording in recordings" :key="recording.url" :class="['mb-2']">
+        <audio :src="recording.url" controls :class="['w-full']" />
+        <div v-if="recording.text" :class="['mt-2 text-sm text-neutral-500 dark:text-neutral-400']">
+          {{ recording.text }}
         </div>
       </div>
     </div>
 
     <!-- Audio Level Visualization -->
-    <div class="space-y-3">
+    <div :class="['space-y-3']">
       <!-- Volume Meter -->
-      <LevelMeter :level="volumeLevel" label="Input Level" />
+      <LevelMeter :level="volumeLevel" :label="t('stage.chat.voice-preview.level')" />
 
       <!-- VAD Probability Meter (when VAD model is active) -->
       <ThresholdMeter
         :value="volumeLevel / 100"
         :threshold="speakingThreshold / 100"
-        label="Probability of Speech"
-        below-label="Silence"
-        above-label="Speech"
-        threshold-label="Detection threshold"
+        :label="t('stage.chat.voice-preview.activity')"
+        :below-label="t('stage.chat.voice-preview.silence')"
+        :above-label="t('stage.chat.voice-preview.speech')"
+        :threshold-label="t('stage.chat.voice-preview.threshold')"
       />
 
-      <div class="space-y-3">
+      <div :class="['space-y-3']">
         <FieldRange
           v-model="speakingThreshold"
-          label="Sensitivity"
-          description="Adjust the threshold for speech detection"
+          :label="t('stage.chat.voice-preview.sensitivity')"
+          :description="t('stage.chat.voice-preview.sensitivity-description')"
           :min="1"
           :max="80"
           :step="1"
@@ -234,13 +185,12 @@ onUnmounted(() => {
       </div>
 
       <!-- Speaking Indicator -->
-      <div class="flex items-center gap-3">
+      <div :class="['flex items-center gap-3']">
         <div
-          class="h-4 w-4 rounded-full transition-all duration-200"
-          :class="speakingIndicatorClass"
+          :class="['h-4 w-4 rounded-full transition-all duration-200', speakingIndicatorClass]"
         />
-        <span class="text-sm font-medium">
-          {{ isSpeaking ? 'Speaking Detected' : 'Silence' }}
+        <span :class="['text-sm font-medium']">
+          {{ t(isSpeaking ? 'stage.chat.voice-preview.speech' : 'stage.chat.voice-preview.silence') }}
         </span>
       </div>
     </div>

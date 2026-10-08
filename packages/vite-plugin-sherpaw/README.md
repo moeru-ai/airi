@@ -39,6 +39,28 @@ Sherpaw({
 })
 ```
 
+### Mirrors
+
+Model artifacts come from `https://huggingface.co` by default. A host that cannot reach the Hub sets `HF_ENDPOINT`, the same variable `huggingface_hub` reads, and every application picks it up without a change:
+
+```shell
+HF_ENDPOINT=https://hf-mirror.com pnpm dev:tamagotchi
+```
+
+Pass `endpoint` to set the base URL in one Vite config instead:
+
+```ts
+Sherpaw({
+  models: [paraformerBilingualZhEn],
+  developmentModels: [paraformerBilingualZhEn],
+  endpoint: 'https://hf-mirror.com',
+})
+```
+
+The option wins over the variable. A trailing slash is accepted either way.
+
+The endpoint covers both downloads and the URL that a remote model keeps at runtime. Artifact paths keep the pinned `moeru-ai` repository and revision, so a mirror only has to serve the same layout.
+
 All presets use published data and metadata pairs from pinned Hugging Face revisions in the `moeru-ai` repositories.
 The plugin copies these pairs without repacking ONNX files. Model licenses remain those of their source repositories.
 

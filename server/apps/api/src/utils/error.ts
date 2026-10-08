@@ -48,6 +48,13 @@ export function createNotFoundError(message = 'Not Found', details?: unknown) {
 }
 
 /**
+ * Creates a payload too large error (413)
+ */
+export function createPayloadTooLargeError(message: string, errorCode = 'PAYLOAD_TOO_LARGE', details?: unknown) {
+  return new ApiError(413, errorCode, message, details)
+}
+
+/**
  * Creates a payment required error (402)
  */
 export function createPaymentRequiredError(message: string, details?: unknown) {

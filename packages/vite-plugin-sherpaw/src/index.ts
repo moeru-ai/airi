@@ -3,8 +3,9 @@ import type { Plugin } from 'vite'
 
 import { rm } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import { env } from 'node:process'
 
-import { sherpawModelArtifactUrl, sherpawModelPath } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { defaultSherpawModelEndpoint, sherpawModelArtifactUrl, sherpawModelPath } from '@proj-airi/provider-inference/sherpaw-transcription/models'
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { normalizePath } from 'vite'
 
@@ -18,6 +19,22 @@ export interface SherpawOptions {
   bundledModels?: readonly SherpawModel[]
   /** Shared download cache, resolved against the Vite root. @default '.cache' */
   cacheDir?: string
+  /**
+   * Base URL that serves the model artifacts.
+   *
+   * @default process.env.HF_ENDPOINT, or 'https://huggingface.co'
+   */
+  endpoint?: string
+}
+
+/**
+ * Resolves the base URL for model artifacts.
+ *
+ * `HF_ENDPOINT` is the variable `huggingface_hub` reads, so a mirror that other
+ * tooling already uses applies to these downloads without extra configuration.
+ */
+function resolveEndpoint(endpoint?: string) {
+  return endpoint?.trim() || env.HF_ENDPOINT?.trim() || defaultSherpawModelEndpoint
 }
 
 /**
@@ -40,12 +57,13 @@ export function Sherpaw(options: SherpawOptions): Plugin {
         ? options.developmentModels ?? []
         : options.bundledModels ?? []
 
+      const endpoint = resolveEndpoint(options.endpoint)
       const cacheDirectory = resolve(config.root, options.cacheDir ?? '.cache')
       if (config.publicDir)
         await rm(join(config.publicDir, 'sherpaw'), { recursive: true, force: true })
 
       const imports: string[] = []
-      const entries = new Map(options.models.map(model => [model.id, `${JSON.stringify(model.id)}: { data: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.data'))}, metadata: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.js.metadata'))}, source: 'remote' }`]))
+      const entries = new Map(options.models.map(model => [model.id, `${JSON.stringify(model.id)}: { data: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.data', endpoint))}, metadata: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.js.metadata', endpoint))}, source: 'remote' }`]))
 
       for (const [index, model] of localModels.entries()) {
         if (!entries.has(model.id))
@@ -53,7 +71,7 @@ export function Sherpaw(options: SherpawOptions): Plugin {
 
         const outputPath = sherpawModelPath(model)
         const downloads = (['preload.data', 'preload.js.metadata'] as const).map(filename => Download(
-          sherpawModelArtifactUrl(model, filename),
+          sherpawModelArtifactUrl(model, filename, endpoint),
           filename,
           outputPath,
           { cacheDir: cacheDirectory, parentDir: cacheDirectory },

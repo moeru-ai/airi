@@ -3,26 +3,15 @@ import type { CaptionChannelEvent } from '@proj-airi/stage-shared'
 
 import { BILINGUAL_LANGUAGES } from '@proj-airi/pipelines-audio'
 
-/** Minimal playback item shape the bus needs from either TTS transport. */
-export interface BilingualCaptionPlaybackItem {
-  /** Turn id stamped on REST pipeline items. */
-  turnId?: string
-  /** Intent id used to resolve streaming items that lack a turn id. */
-  intentId: string
-}
-
 // Positional binder between UST pairs and TTS playback. The model writes
-// `<spoken sentence> [<translation>]`; prompt boundaries and the flush
-// marker make TTS emit one playback item per pair, so the Nth reached
-// playback boundary reveals the Nth translation. One translation event
-// arrives per pair (full text, at bracket close), in pair order. Pair
-// ingest and playback reveal live in this one process (the Stage
-// renderer) and post to the caption window over a BroadcastChannel.
+// `<spoken sentence> [<translation>]`; the flush channel makes TTS emit one
+// clip per pair, so the Nth started clip reveals that translation. Ingest
+// and reveal both run in the Stage renderer and post over BroadcastChannel.
 
 interface TurnState {
   /** Translation text by pair id, present once the bracket closes. */
   translations: Map<number, PairTranslation>
-  /** Playback boundaries reached (sentences that started playing). */
+  /** Number of playback clips that started. */
   boundaries: number
   /** Number of consecutive pairs already revealed, FIFO order. */
   revealed: number
@@ -42,11 +31,8 @@ function eventFor(pair: PairTranslation): CaptionChannelEvent {
 const RESET_EVENT: CaptionChannelEvent = { operation: 'replace', text: '', type: 'caption-assistant-translation' }
 
 export interface BilingualCaptionBus {
-  mapIntentToTurn: (intentId: string, turnId: string) => void
   ingestTranslation: (turnId: string, payload: TokenTranslationPayload) => void
-  routePlaybackItem: (item: BilingualCaptionPlaybackItem) => void
   advancePlayback: (turnId: string) => void
-  flushIntent: (intentId: string, turnId?: string) => void
   flushTurn: (turnId: string) => void
   resetTurn: (turnId: string) => void
   resetAll: () => void
@@ -54,7 +40,6 @@ export interface BilingualCaptionBus {
 
 function createBus(): BilingualCaptionBus {
   const turns = new Map<string, TurnState>()
-  const intentTurns = new Map<string, string>()
 
   let post: ((event: CaptionChannelEvent) => void) | undefined
 
@@ -87,10 +72,9 @@ function createBus(): BilingualCaptionBus {
       events.forEach(send)
   }
 
-  // Reveal consecutive pairs whose playback boundary was reached and
-  // whose translation has arrived. A missing head pair blocks later
-  // pairs; it reveals itself when its translation arrives, so no polling
-  // is needed.
+  // Reveal consecutive pairs whose playback clip started and whose
+  // translation has arrived. A missing head pair blocks later pairs; it
+  // reveals itself when its translation arrives, so no polling is needed.
   function revealReady(turn: TurnState): CaptionChannelEvent[] {
     const events: CaptionChannelEvent[] = []
     while (turn.revealed < turn.boundaries) {
@@ -104,9 +88,6 @@ function createBus(): BilingualCaptionBus {
   }
 
   return {
-    mapIntentToTurn(intentId, turnId) {
-      intentTurns.set(intentId, turnId)
-    },
     ingestTranslation(turnId, payload) {
       if (!payload.text)
         return
@@ -122,23 +103,12 @@ function createBus(): BilingualCaptionBus {
     advancePlayback(turnId) {
       let turn = turns.get(turnId)
       if (!turn) {
-        // Boundary can precede every translation event of the turn.
+        // Clip start can precede every translation event of the turn.
         turn = { translations: new Map(), boundaries: 0, revealed: 0, flushed: false }
         turns.set(turnId, turn)
       }
       turn.boundaries += 1
       emit(revealReady(turn))
-    },
-    routePlaybackItem(item) {
-      const turnId = item.turnId ?? intentTurns.get(item.intentId)
-      if (turnId)
-        this.advancePlayback(turnId)
-    },
-    // Idempotent: onTurnEnd and onIntentDrained both flush a turn.
-    flushIntent(intentId, turnId?) {
-      const resolved = turnId ?? intentTurns.get(intentId)
-      if (resolved)
-        this.flushTurn(resolved)
     },
     flushTurn(turnId) {
       const turn = turns.get(turnId)
@@ -146,10 +116,6 @@ function createBus(): BilingualCaptionBus {
         return
       turn.flushed = true
       turns.delete(turnId)
-      intentTurns.forEach((mapped, intentId) => {
-        if (mapped === turnId)
-          intentTurns.delete(intentId)
-      })
       // Publish pairs playback never reached (muted turn, no audio,
       // trailing translation) as ONE multi-line replace, in pair order.
       const pending = [...turn.translations.entries()]
@@ -168,17 +134,12 @@ function createBus(): BilingualCaptionBus {
     resetTurn(turnId) {
       if (!turns.delete(turnId))
         return
-      intentTurns.forEach((mapped, intentId) => {
-        if (mapped === turnId)
-          intentTurns.delete(intentId)
-      })
       emit([RESET_EVENT])
     },
     resetAll() {
       if (turns.size === 0)
         return
       turns.clear()
-      intentTurns.clear()
       emit([RESET_EVENT])
     },
   }
@@ -193,4 +154,50 @@ let sharedBus: BilingualCaptionBus | undefined
 export function useBilingualCaptionBus(): BilingualCaptionBus {
   sharedBus ??= createBus()
   return sharedBus
+}
+
+// Per-turn speech flags shared between the speech producers (chat hooks,
+// spark reactions) and the Stage output factory. All of them run in the
+// Stage renderer process, so module-local sets are sufficient.
+
+/** Turns whose REST chunker must cut only on explicit flush markers. */
+const flushBoundaryTurns = new Set<string>()
+
+/** Turns whose active speech session buffers the whole audio. */
+const bufferedTurns = new Set<string>()
+
+/** Opts one turn into flush-only sentence boundaries for its REST session. */
+export function enableFlushBoundaryTurn(turnId: string): void {
+  flushBoundaryTurns.add(turnId)
+}
+
+/** Whether the turn opted into flush-only sentence boundaries. */
+export function isFlushBoundaryTurn(turnId: string): boolean {
+  return flushBoundaryTurns.has(turnId)
+}
+
+/**
+ * Marks one turn's session as whole-session buffered. Sentence frames
+ * arrive during synthesis there, so translation captions cannot align to
+ * playback and the turn skips them.
+ */
+export function markBufferedSpeechTurn(turnId: string): void {
+  bufferedTurns.add(turnId)
+}
+
+/** Whether the turn's speech session buffers the whole audio. */
+export function isBufferedSpeechTurn(turnId: string): boolean {
+  return bufferedTurns.has(turnId)
+}
+
+/** Clears one turn's flush and buffered flags. Call after the turn ends. */
+export function clearSpeechTurnFlags(turnId: string): void {
+  flushBoundaryTurns.delete(turnId)
+  bufferedTurns.delete(turnId)
+}
+
+/** Clears every turn flag. Call when the speech surface resets. */
+export function resetSpeechTurnFlags(): void {
+  flushBoundaryTurns.clear()
+  bufferedTurns.clear()
 }

@@ -14,7 +14,7 @@ mobile-tools:
   application: Application
   more: More
   background: Background
-  settings: All settings
+  settings: Settings
   about: About
   view: View
   close-view: Save and close view controls
@@ -24,6 +24,59 @@ chat:
     title: Chat provider isn't configured
     description: Choose and validate a provider in Settings before sending a message.
     action: Open provider settings
+  voice-message:
+    recording: Recording
+    starting: Starting microphone
+    preview: Recorded voice message
+  voice-composer:
+    audio: Voice message
+    transcription: Dictation
+    hold-hint: Hold to record. Click to switch between voice message and dictation. Press Enter to record without holding.
+    listening: Listening…
+    lock: Slide up to lock
+    cancel-hint: Slide left to cancel
+    processing: Finishing…
+    cancel: Cancel
+    send: Send voice message
+    insert: Insert text
+    retry: Send voice message again
+    discard: Discard voice message
+    failed: Voice input failed
+    configure-title: Set up Hearing
+    configure-description: Select a transcription provider and model in Hearing to use dictation.
+    configure-action: Open Hearing
+    mode: Voice input
+    auto-send: Send when recording stops
+    input-device: Microphone
+    system-default: System default
+    listen: Listen continuously
+    hearing-settings: More Hearing settings…
+    options-hint: Hover or right-click for options
+    recording: Recording
+    stop: Stop recording
+    stop-send: Stop and send
+    play: Play recording
+    pause: Pause
+  voice-preview:
+    processing: Finishing transcription
+    device: Audio input device
+    device-description: Select the microphone for this recording.
+    device-placeholder: Select a microphone
+    level: Input level
+    activity: Speech activity
+    silence: Silence
+    speech: Speech
+    threshold: Detection threshold
+    sensitivity: Sensitivity
+    sensitivity-description: Adjust the speech indicator threshold.
+    start: Start recording
+    stop: Finish recording
+    failed: The audio operation failed.
+  voice-draft:
+    title: Voice draft
+    select: 'Show draft {number}'
+    discard: Discard draft
+    finalizing: Finishing…
   voice-input: Voice input
   error-details:
     show: Show details

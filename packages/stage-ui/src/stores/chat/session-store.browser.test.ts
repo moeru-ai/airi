@@ -2,38 +2,15 @@ import type { LeadershipMode, SyncedPiniaRuntime } from 'pinia-plugin-synced'
 
 import type { ChatSessionMeta } from '../../types/chat-session'
 
-import { createPinia, defineStore, disposePinia, setActivePinia } from 'pinia'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
 import { createSyncedPiniaPlugin } from 'pinia-plugin-synced'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createApp, ref } from 'vue'
+import { createApp, defineComponent, h } from 'vue'
+import { createI18n } from 'vue-i18n'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
-
-const useTestAuthStore = defineStore('auth', () => {
-  const userId = ref('local')
-  const token = ref<string | null>(null)
-  return { userId, token }
-}, {
-  synced: { state: true },
-})
-
-const useTestAiriCardStore = defineStore('airi-card', () => {
-  const activeCardId = ref('default')
-  const systemPrompt = ref('')
-  return { activeCardId, systemPrompt }
-})
-
-vi.doMock('../auth', () => {
-  return {
-    useAuthStore: useTestAuthStore,
-  }
-})
-
-vi.doMock('../modules/airi-card', () => {
-  return {
-    useAiriCardStore: useTestAiriCardStore,
-  }
-})
+import { useAuthStore } from '../auth'
+import { useAiriCardStore } from '../modules/airi-card'
 
 vi.mock('../../database/repos/chat-sessions.repo', () => ({
   chatSessionsRepo: {
@@ -55,6 +32,10 @@ vi.mock('../../database/repos/chat-sessions.repo', () => ({
 
 vi.mock('../../libs/product-signals', () => ({
   captureAnalyticsEvent: vi.fn(),
+  enableAnalytics: vi.fn(() => false),
+  getAnalytics: vi.fn(),
+  getAnalyticsPrivacyPolicyUrl: vi.fn(),
+  isAnalyticsAvailableInBuild: vi.fn(() => false),
 }))
 
 vi.mock('../../libs/auth-fetch', () => ({
@@ -72,10 +53,11 @@ const chatSyncMocks = vi.hoisted(() => ({
   }>,
 }))
 
-vi.mock('../../libs/chat-sync', () => ({
-  applyCreateActions: vi.fn().mockResolvedValue([]),
+vi.mock('../../libs/chat-sync', async importOriginal => ({
+  ...await importOriginal<typeof import('../../libs/chat-sync')>(),
   createCloudChatMapper: () => ({
     deleteChat: vi.fn().mockResolvedValue(undefined),
+    createChat: async (options: { id: string }) => ({ id: options.id, type: 'bot', title: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }),
     listChats: vi.fn().mockResolvedValue([]),
   }),
   createChatWsClient: () => {
@@ -92,10 +74,6 @@ vi.mock('../../libs/chat-sync', () => ({
     chatSyncMocks.clients.push(client)
     return client
   },
-  extractMessageText: () => '',
-  isCloudSyncableMessage: () => false,
-  mergeCloudMessagesIntoLocal: () => ({ dirty: false, messages: [], maxSeq: 0 }),
-  reconcileLocalAndRemote: () => ({ adopt: [], claim: [], create: [] }),
 }))
 
 const { useChatSessionStore } = await import('./session-store')
@@ -103,6 +81,8 @@ const { useChatSessionStore } = await import('./session-store')
 const syncedContexts: Array<{
   pinia: ReturnType<typeof createPinia>
   runtime: SyncedPiniaRuntime
+  app: ReturnType<typeof createApp>
+  container: HTMLDivElement
 }> = []
 
 function createSyncedContext(namespace: string, leadership: LeadershipMode) {
@@ -113,20 +93,106 @@ function createSyncedContext(namespace: string, leadership: LeadershipMode) {
     namespace,
   })
   pinia.use(runtime.plugin)
-  createApp({}).use(pinia)
-  syncedContexts.push({ pinia, runtime })
+  const card = {
+    name: 'Character',
+    version: '1.0',
+    extensions: { airi: { agents: {}, modules: {
+      consciousness: { provider: '', model: '' },
+      vision: { provider: '', model: '' },
+      speech: { provider: '', model: '', voice_id: '' },
+    } } },
+  }
+  localStorage.setItem('airi-cards', JSON.stringify([['default', card], ['background-character', card]]))
+  const app = createApp(defineComponent({ setup() {
+    useAuthStore()
+    useAiriCardStore()
+    return () => h('div')
+  } }))
+  app.use(pinia).use(createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false }))
+  const container = document.createElement('div')
+  document.body.append(container)
+  app.mount(container)
+  syncedContexts.push({ pinia, runtime, app, container })
   return { pinia, runtime }
 }
 
 afterEach(() => {
   for (const context of syncedContexts.splice(0)) {
+    context.app.unmount()
+    context.container.remove()
     context.runtime.dispose()
     disposePinia(context.pinia)
   }
   chatSyncMocks.clients.length = 0
+  localStorage.clear()
 })
 
 describe('chat session synchronization', () => {
+  it('routes concurrent follower wake requests to one character session without navigating either window', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
+    const leaderStore = useChatSessionStore()
+    await leaderStore.initialize()
+    const foreground = leaderStore.activeSessionId
+    const follower = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(follower.pinia)
+    const followerStore = useChatSessionStore()
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await followerStore.initialize()
+    const [first, second] = await Promise.all([
+      followerStore.ensureCharacterSession('background-character'),
+      followerStore.ensureCharacterSession('background-character'),
+    ])
+    expect(first).toBe(second)
+    expect(leaderStore.sessionMetas[first]?.characterId).toBe('background-character')
+    expect(leaderStore.activeSessionId).toBe(foreground)
+    expect(followerStore.activeSessionId).toBe(foreground)
+    await expect(followerStore.ensureCharacterSession('missing')).rejects.toThrow('unavailable')
+  })
+
+  it('persists follower interruption retries once and preserves the first control event', async () => {
+    const namespace = `chat-session:${crypto.randomUUID()}`
+    const leader = createSyncedContext(namespace, 'leader-only')
+    await vi.waitFor(() => expect(leader.runtime.isLeader()).toBe(true))
+    setActivePinia(leader.pinia)
+    const leaderStore = useChatSessionStore()
+    await leaderStore.initialize()
+    const follower = createSyncedContext(namespace, 'follower-only')
+    setActivePinia(follower.pinia)
+    const followerStore = useChatSessionStore()
+    await vi.waitFor(() => expect(follower.runtime.getLeaderId()).toBe(leader.runtime.participantId))
+    await followerStore.initialize()
+    const sessionId = followerStore.activeSessionId
+    const before = leaderStore.getSessionMessages(sessionId).length
+    const event = { eventId: 'interrupt-once', turn: { sessionId, turnId: 'reply' }, cause: 'button', playback: { groupId: 'audio', status: 'silent' as const, played: [] } }
+    const persisted = Promise.withResolvers<void>()
+    let cloneError: unknown
+    vi.mocked(chatSessionsRepo.saveSession).mockImplementationOnce((_sessionId, record) => {
+      try {
+        structuredClone(record)
+      }
+      catch (error) {
+        cloneError = error
+      }
+      return persisted.promise
+    })
+    let settled = false
+    const receiving = followerStore.recordInterruption(event).then(() => {
+      settled = true
+    })
+    await vi.waitFor(() => expect(leaderStore.sessionMetas[sessionId]?.controlEvents).toHaveLength(1))
+    expect(settled).toBe(false)
+    persisted.resolve()
+    await receiving
+    expect(cloneError).toBeUndefined()
+    await followerStore.recordInterruption({ ...event, cause: 'retry' })
+    expect(leaderStore.sessionMetas[sessionId]?.controlEvents).toEqual([event])
+    expect(leaderStore.getSessionMessages(sessionId)).toHaveLength(before)
+    await vi.waitFor(() => expect(followerStore.sessionMetas[sessionId]?.controlEvents).toEqual([event]))
+  })
+
   it('acknowledges a follower submission after storage and deduplicates its retry', async () => {
     const namespace = `chat-session:${crypto.randomUUID()}`
     const leader = createSyncedContext(namespace, 'leader-only')
@@ -143,7 +209,7 @@ describe('chat session synchronization', () => {
     const stored = Promise.withResolvers<void>()
     const saving = vi.mocked(chatSessionsRepo.saveSession).mockImplementationOnce(async () => stored.promise)
     const priorWrites = saving.mock.calls.length
-    const message = { id: 'retried-submission', role: 'user' as const, content: 'Retried message' }
+    const message = { id: 'voice-submission', role: 'user' as const, content: 'Voice message' }
     let acknowledged = false
     const request = followerStore.commitUserMessage(sessionId, message).then((receipt) => {
       acknowledged = true
@@ -156,8 +222,8 @@ describe('chat session synchronization', () => {
     finally {
       stored.resolve()
     }
-    expect(await request).toEqual({ status: 'inserted', messageId: 'retried-submission' })
-    expect(await followerStore.commitUserMessage(sessionId, message)).toEqual({ status: 'existing', messageId: 'retried-submission' })
+    expect(await request).toEqual({ status: 'inserted', messageId: 'voice-submission' })
+    expect(await followerStore.commitUserMessage(sessionId, message)).toEqual({ status: 'existing', messageId: 'voice-submission' })
     expect(leaderStore.getSessionMessages(sessionId).filter(item => item.id === message.id)).toHaveLength(1)
     await vi.waitFor(() => expect(followerStore.getSessionMessages(sessionId).filter(item => item.id === message.id)).toHaveLength(1))
   })
@@ -186,16 +252,7 @@ describe('chat session synchronization', () => {
   })
 
   it('initializes a follower through the canonical session action', async () => {
-    // ROOT CAUSE:
-    //
-    // Chat initialization used the local leadership value before the Web Lock
-    // election finished. A renderer that started as a follower skipped both
-    // session loading and session creation. A later leadership update only
-    // started cloud sync, so anonymous chat kept an empty session id.
-    //
-    // Initialization now calls a synchronized action. The plugin routes the
-    // stateful work to the leader and returns the canonical session id. Each
-    // window stores that id as its local selection.
+    // ROOT CAUSE: Initialization before leader election left followers without a session. Initialization now invokes the synchronized session action and stores its canonical result as the local selection.
     const namespace = `chat-session:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
@@ -255,21 +312,14 @@ describe('chat session synchronization', () => {
   })
 
   it('keeps the leader chat snapshot when new followers receive the auth identity', async () => {
-    // ROOT CAUSE:
-    //
-    // A new settings renderer received the synchronized auth identity after
-    // its chat-session store was created. Its local userId watcher cleared the
-    // synchronized chat state and proposed that empty snapshot to the leader.
-    //
-    // The follower routes its observed auth transition to the synchronized
-    // identity action. The leader keeps its matching snapshot unchanged.
+    // ROOT CAUSE: A follower cleared shared state after receiving auth identity. The identity watcher now invokes the synchronized action, which retains matching leader data.
     const namespace = `chat-session:${crypto.randomUUID()}`
     const leaderContext = createSyncedContext(namespace, 'leader-only')
     await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
 
     setActivePinia(leaderContext.pinia)
-    const leaderAuthStore = useTestAuthStore()
-    leaderAuthStore.userId = 'cloud-user'
+    const leaderAuthStore = useAuthStore()
+    leaderAuthStore.user = { id: 'cloud-user', name: 'User', email: 'user@example.test', emailVerified: true, createdAt: new Date(0), updatedAt: new Date(0) }
     const leaderChatStore = useChatSessionStore()
 
     const session: ChatSessionMeta = {
@@ -306,7 +356,7 @@ describe('chat session synchronization', () => {
     const followerContext = createSyncedContext(namespace, 'follower-only')
     setActivePinia(followerContext.pinia)
     const followerChatStore = useChatSessionStore()
-    const followerAuthStore = useTestAuthStore()
+    const followerAuthStore = useAuthStore()
     await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
     await vi.waitFor(() => expect(followerAuthStore.userId).toBe('cloud-user'))
     await vi.waitFor(() => expect(followerChatStore.sessionMessages['session-a']).toHaveLength(1))
@@ -314,7 +364,7 @@ describe('chat session synchronization', () => {
     const secondFollowerContext = createSyncedContext(namespace, 'follower-only')
     setActivePinia(secondFollowerContext.pinia)
     const secondFollowerChatStore = useChatSessionStore()
-    const secondFollowerAuthStore = useTestAuthStore()
+    const secondFollowerAuthStore = useAuthStore()
     await vi.waitFor(() => expect(secondFollowerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
     await vi.waitFor(() => expect(secondFollowerAuthStore.userId).toBe('cloud-user'))
     await vi.waitFor(() => expect(secondFollowerChatStore.sessionMessages['session-a']).toHaveLength(1))
@@ -379,8 +429,8 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(leaderContext.runtime.isLeader()).toBe(true))
 
     setActivePinia(leaderContext.pinia)
-    const leaderAuthStore = useTestAuthStore()
-    leaderAuthStore.userId = 'cloud-user'
+    const leaderAuthStore = useAuthStore()
+    leaderAuthStore.user = { id: 'cloud-user', name: 'User', email: 'user@example.test', emailVerified: true, createdAt: new Date(0), updatedAt: new Date(0) }
     leaderAuthStore.token = 'cloud-token'
     const leaderChatStore = useChatSessionStore()
     await leaderChatStore.initialize()
@@ -388,7 +438,7 @@ describe('chat session synchronization', () => {
 
     const followerContext = createSyncedContext(namespace, 'follower-preferred')
     setActivePinia(followerContext.pinia)
-    const followerAuthStore = useTestAuthStore()
+    const followerAuthStore = useAuthStore()
     const followerChatStore = useChatSessionStore()
     await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
     await vi.waitFor(() => expect(followerAuthStore.userId).toBe('cloud-user'))

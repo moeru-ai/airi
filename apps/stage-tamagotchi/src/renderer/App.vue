@@ -70,6 +70,7 @@ import { useServerChannelSettingsStore } from './stores/settings/server-channel'
 import { useStageWindowLifecycleStore } from './stores/stage-window-lifecycle'
 import {
   useTamagotchiBuiltinToolsStore,
+  useTamagotchiHomeAssistantStore,
   useTamagotchiMcpToolsStore,
   useTamagotchiPluginToolsStore,
 } from './stores/tools'
@@ -87,6 +88,7 @@ const windowContext = resolveRendererWindowContext()
 const initialRoutePath = resolveInitialRendererRoutePath(route.path)
 const chatStore = useChatStore()
 const builtinToolsStore = useTamagotchiBuiltinToolsStore()
+const homeAssistantStore = useTamagotchiHomeAssistantStore()
 const mcpToolsStore = useTamagotchiMcpToolsStore()
 const pluginToolsStore = useTamagotchiPluginToolsStore()
 const syncedPinia = usePiniaSynced()
@@ -118,6 +120,9 @@ const stopLeadershipListener = syncedPinia.onLeadershipChange((isLeader) => {
   })
   void mcpToolsStore.refresh().catch((error) => {
     console.warn('[App] Failed to refresh MCP runtime tools:', error)
+  })
+  void homeAssistantStore.refresh().catch((error) => {
+    console.warn('[App] Failed to refresh Home Assistant tools:', error)
   })
   void refreshPluginRuntimeTools()
 })

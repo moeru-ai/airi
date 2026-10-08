@@ -245,9 +245,7 @@ export const providerOfficialSpeechStreaming = defineProvider({
   icon: OFFICIAL_ICON,
   requiresCredentials: false,
   configuredBy: 'authentication',
-  // Mark this provider as speaking the bidirectional ws TTS protocol so the
-  // session adapter (`tts-session.ts`) picks the streaming path without
-  // hard-coding provider id. Default for every other provider is `'rest'`.
+  // The speech adapter selects the WebSocket transport from this capability.
   capabilities: {
     speech: { transport: 'bidirectional-ws' },
   },

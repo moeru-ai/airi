@@ -57,6 +57,7 @@
     "is-network-error": "catalog:",
     "model-bank": "catalog:",
     "unspeech": "catalog:xsai",
+    "valibot": "catalog:",
     "xsschema": "catalog:",
     "zod": "catalog:"
   },

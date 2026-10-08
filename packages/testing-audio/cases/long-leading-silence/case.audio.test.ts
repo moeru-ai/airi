@@ -6,7 +6,7 @@ import { aliyunNlsAsr, openaiAsr } from '../shared/providers'
 describe('audio input pipeline', () => {
   // The fixture uses the repository recording at docs/content/en/blog/DevLog-2025.03.20/assets/ashley-pitch-test.mp3.
   // It has 20 seconds of leading silence and 4 seconds of trailing silence in mono 16 kHz PCM WAV format.
-  it('does not preserve the complete phrase after long leading silence', {
+  it('preserves the complete phrase after long leading silence', {
     input: new URL('./input.test.wav', import.meta.url),
     // This regression isolates AIRI's default VAD and one explicit ASR Provider.
     preflight: [
@@ -39,14 +39,13 @@ describe('audio input pipeline', () => {
       })
     }
 
-    // The VAD upload currently drops part of the sentence before it sends the recording to ASR.
-    await expect(audio).not.toHaveTranscriptions([
+    await expect(audio).toHaveTranscriptions([
       ['There is no meaning to your existence, just let go.'],
     ])
-    await expect(audio).toHaveCompletedTranscription()
+    await audio.runtimePage.getByRole('region', { name: 'Voice draft', includeHidden: true }).waitFor({ state: 'attached', timeout: 30_000 })
   })
 
-  it('does not preserve the complete phrase with Aliyun NLS', {
+  it('still truncates the phrase with Aliyun NLS', {
     input: new URL('./input.test.wav', import.meta.url),
     preflight: [
       configureOnboarding(() => ({ completed: true })),
@@ -76,9 +75,12 @@ describe('audio input pipeline', () => {
       count: 1,
       minimumBytes: 8000,
     })
+    await expect(audio).toHaveTranscriptions([
+      ['There is no meaning to your existence.'],
+    ], { match: 'contains' })
     await expect(audio).not.toHaveTranscriptions([
       ['There is no meaning to your existence, just let go.'],
     ])
-    await expect(audio).toHaveCompletedTranscription()
+    await audio.runtimePage.getByRole('region', { name: 'Voice draft', includeHidden: true }).waitFor({ state: 'attached', timeout: 30_000 })
   })
 })

@@ -1,5 +1,7 @@
 import type { OIDCFlowParams, TokenResponse } from './auth-oidc'
 
+import { readonly, shallowRef } from 'vue'
+
 import { useAuthStore } from '../stores/auth'
 import { authClient } from './auth-client'
 import { OIDC_CLIENT_ID, OIDC_REDIRECT_URI } from './auth-config'
@@ -25,6 +27,11 @@ export interface AuthorizationResult {
 export type AuthorizationHandler = (request: AuthorizationRequest) => Promise<AuthorizationResult | void>
 
 let authorizationHandler: AuthorizationHandler | undefined
+
+const signingIn = shallowRef(false)
+
+/** True from the start of `triggerSignIn` until it settles. It is local to this renderer. */
+export const isSigningIn = readonly(signingIn)
 
 /** Registers the authorization handler owned by the active app runtime. */
 export function registerAuthorizationHandler(handler: AuthorizationHandler): void {
@@ -71,6 +78,9 @@ export async function signOut() {
 export const browserAuthorizationHandler: AuthorizationHandler = async ({ authorizationUrl, provider }) => {
   if (!provider) {
     window.location.href = authorizationUrl
+    // Assigning `href` returns before the browser leaves the page. Stay pending
+    // until the page hides so `isSigningIn` covers the wait for the login page.
+    await new Promise<void>(resolve => window.addEventListener('pagehide', () => resolve(), { once: true }))
     return
   }
 
@@ -149,9 +159,15 @@ export async function signInOIDC(params: OIDCFlowParams) {
  * (ui-server-auth) where the user can choose email/password or social.
  */
 export async function triggerSignIn(opts?: { provider?: OAuthProvider }): Promise<void> {
-  await signInOIDC({
-    clientId: OIDC_CLIENT_ID,
-    redirectUri: OIDC_REDIRECT_URI,
-    ...opts,
-  })
+  signingIn.value = true
+  try {
+    await signInOIDC({
+      clientId: OIDC_CLIENT_ID,
+      redirectUri: OIDC_REDIRECT_URI,
+      ...opts,
+    })
+  }
+  finally {
+    signingIn.value = false
+  }
 }
