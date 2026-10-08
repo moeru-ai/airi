@@ -66,6 +66,7 @@ function setupController() {
   }
   const service: CharactersService = {
     buildLocal: vi.fn(() => ({ ...character, id: 'local-character' })),
+    buildDefaults: vi.fn(() => []),
     fetchRemote: vi.fn(async () => []),
     fetchRemoteById: vi.fn(async () => character),
     createRemote: vi.fn(async () => character),
@@ -114,6 +115,43 @@ describe('store characters controller', () => {
     expect(controller.characters.value.get('remote-character')).toBeDefined()
     expect(controller.characters.value.get('character-1')).toBeUndefined()
     expect(model.saveAll).toHaveBeenCalledWith([expect.objectContaining({ id: 'remote-character' })])
+  })
+
+  /**
+   * @example
+   * await controller.ensureDefaultCharacters()
+   */
+  it('adds missing built-in characters and keeps stored characters with the same id', async () => {
+    const { controller, model, service } = setupController()
+    const storedPreset = { ...character, id: 'preset-character', version: 'edited' }
+    vi.mocked(model.list).mockResolvedValueOnce([storedPreset])
+    vi.mocked(service.buildDefaults).mockReturnValue([
+      { ...character, id: 'preset-character', version: 'built-in' },
+      { ...character, id: 'other-preset-character' },
+    ])
+
+    await controller.ensureDefaultCharacters()
+
+    expect(controller.characters.value.get('preset-character')?.version).toBe('edited')
+    expect(controller.characters.value.get('other-preset-character')).toBeDefined()
+    expect(model.saveAll).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'preset-character' }),
+      expect.objectContaining({ id: 'other-preset-character' }),
+    ])
+  })
+
+  /**
+   * @example
+   * await controller.fetchList()
+   */
+  it('fetchList keeps built-in characters after remote characters replace the list', async () => {
+    const { controller, service } = setupController()
+    vi.mocked(service.buildDefaults).mockReturnValue([{ ...character, id: 'preset-character' }])
+
+    await controller.fetchList()
+
+    expect(controller.characters.value.get('remote-character')).toBeDefined()
+    expect(controller.characters.value.get('preset-character')).toBeDefined()
   })
 
   /**

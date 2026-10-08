@@ -3,6 +3,7 @@ import type { Character, CreateCharacterPayload, UpdateCharacterPayload } from '
 import { nanoid } from 'nanoid'
 import { parse as parseValibot } from 'valibot'
 
+import { defaultCharacterCardPresets, displayModelPresets } from '../stores/display-models'
 import { CharacterWithRelationsSchema } from '../types/character'
 
 interface RequestOptions {
@@ -55,6 +56,8 @@ export interface CharacterServiceOptions {
 export interface CharactersService {
   /** Builds an optimistic local character from a create payload. */
   buildLocal: (userId: string, payload: CreateCharacterPayload) => Character
+  /** Builds the built-in character cards. Each card binds one preset display model. */
+  buildDefaults: (userId: string) => Character[]
   /** Fetches and parses the remote character list. */
   fetchRemote: (client: CharactersRemoteClient, params: { all?: boolean }, options?: CharacterServiceOptions) => Promise<Character[]>
   /** Fetches and parses one remote character. */
@@ -154,6 +157,68 @@ export function createCharactersService(): CharactersService {
     })
   }
 
+  function buildDefaults(userId: string): Character[] {
+    const now = new Date()
+
+    return defaultCharacterCardPresets.map((preset) => {
+      const displayModel = displayModelPresets.find(model => model.id === preset.displayModelId)
+      const urls = displayModel ? [displayModel.url] : []
+      const avatarModelConfig = preset.avatarModelType === 'live2d'
+        ? { live2d: { urls } }
+        : { vrm: { urls } }
+
+      return parseValibot(CharacterWithRelationsSchema, {
+        id: preset.id,
+        version: '1.0.0',
+        coverUrl: preset.coverUrl,
+        avatarUrl: undefined,
+        characterAvatarUrl: preset.characterAvatarUrl,
+        coverBackgroundUrl: preset.coverBackgroundUrl,
+        creatorRole: 'system',
+        priceCredit: '0',
+        likesCount: 0,
+        bookmarksCount: 0,
+        interactionsCount: 0,
+        forksCount: 0,
+        creatorId: userId,
+        ownerId: userId,
+        characterId: preset.characterId,
+        createdAt: now,
+        updatedAt: now,
+        deletedAt: undefined,
+        capabilities: [],
+        avatarModels: [
+          {
+            id: `avatar-model-${preset.id}`,
+            characterId: preset.id,
+            name: displayModel?.name ?? preset.name,
+            type: preset.avatarModelType,
+            description: `${preset.name} default avatar model`,
+            config: avatarModelConfig,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        i18n: [
+          {
+            id: `i18n-${preset.id}`,
+            characterId: preset.id,
+            language: 'en',
+            name: preset.name,
+            tagline: preset.tagline,
+            description: preset.description,
+            tags: ['default', preset.avatarModelType],
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+        prompts: [],
+        likes: [],
+        bookmarks: [],
+      })
+    })
+  }
+
   async function fetchRemote(client: CharactersRemoteClient, params: { all?: boolean }, options?: CharacterServiceOptions): Promise<Character[]> {
     options?.abortSignal?.throwIfAborted()
     const res = await client.api.v1.characters.$get({
@@ -235,6 +300,7 @@ export function createCharactersService(): CharactersService {
 
   return {
     buildLocal,
+    buildDefaults,
     fetchRemote,
     fetchRemoteById,
     createRemote,

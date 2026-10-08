@@ -3,6 +3,7 @@ import type { InferOutput } from 'valibot'
 
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { ChatWindowManager } from '../chat'
 import type { NoticeWindowManager } from '../notice'
 import type { SettingsWindowManager } from '../settings'
 
@@ -16,7 +17,7 @@ import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { initScreenCaptureForWindow } from '@proj-airi/electron-screen-capture/main'
 import { defu } from 'defu'
 import { BrowserWindow, ipcMain } from 'electron'
-import { isLinux } from 'std-env'
+import { isLinux, isMacOS } from 'std-env'
 import { array, number, object, optional, string } from 'valibot'
 
 import icon from '../../../../resources/icon.png?asset'
@@ -24,7 +25,7 @@ import icon from '../../../../resources/icon.png?asset'
 import { electronStartDraggingWindow } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createConfig } from '../../libs/electron/persistence'
-import { protectPrivilegedWindowNavigation } from '../shared'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig } from '../shared/window'
 import { setupDashboardWindowElectronInvokes } from './rpc/index.electron'
 
 const appConfigSchema = object({
@@ -42,7 +43,7 @@ type AppConfig = InferOutput<typeof appConfigSchema>
 
 export async function setupDashboardWindow(params: {
   settingsWindow: SettingsWindowManager
-  chatWindow: () => Promise<BrowserWindow>
+  chatWindow: ChatWindowManager
   noticeWindow: NoticeWindowManager
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
@@ -74,6 +75,10 @@ export async function setupDashboardWindow(params: {
       preload: join(dirname(fileURLToPath(import.meta.url)), '../preload/index.mjs'),
       sandbox: false,
     },
+    ...spotlightLikeWindowConfig(),
+    ...(isMacOS ? { trafficLightPosition: { x: 10, y: 10 } } : {}),
+    // TODO: implement native-like custom window control UI for Windows/Linux.
+    ...(!isMacOS ? { titleBarOverlay: true } : {}),
   })
 
   if (params.onWindowCreated) {
@@ -137,7 +142,7 @@ export async function setupDashboardWindow(params: {
     serverChannel: params.serverChannel,
   })
 
-  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/dashboard', {
+  await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/v2/dashboard', {
     query: { 'synced-leader': 'false' },
   }))
 
