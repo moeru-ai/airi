@@ -78,6 +78,13 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   context?: ContextMessage
   createdAt?: number
+  /**
+   * When an assistant message stopped receiving output: at its end, or when it
+   * was interrupted. `createdAt` of an assistant message is when it started.
+   * Windows that do not run the generation read it, for example to time how
+   * long a reply shows.
+   */
+  completedAt?: number
   id?: string
   /** Vision output stored by image order so later turns can reuse it without copying the image URL. */
   imageDescriptions?: Array<{
@@ -114,4 +121,4 @@ export type ChatStreamEvent
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
 
-export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, id?: string }
+export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, completedAt?: number, id?: string }

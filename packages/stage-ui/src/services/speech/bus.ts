@@ -8,12 +8,21 @@ import { createContext as createBroadcastChannelContext } from '@moeru/eventa/ad
 
 /** Snapshot served by the renderer that owns active speech playback. */
 export interface SpeechOutputPlaybackState {
-  /** Whether the output host is currently playing assistant speech. */
+  /** Whether the output host is currently playing assistant speech. It turns false in the pause between two sentences. */
   speaking: boolean
+  /**
+   * Whether an open voice response already played audio. It stays true in the
+   * pauses between sentences, and turns false when no response is open. Muted
+   * speech, or a speech provider that returns no audio, keeps it false. The danmaku chat window keeps a spoken reply on screen until it
+   * turns false.
+   */
+  voicing: boolean
 }
 
 /** Cross-renderer request for the active speech output host's playback state. */
 export const speechOutputGetPlaybackState = defineInvokeEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:get-playback-state')
+/** The output host sends its new playback state after `speaking` or `voicing` changes. */
+export const speechOutputPlaybackStateChangedEvent = defineEventa<SpeechOutputPlaybackState>('eventa:audio:speech:output:playback-state-changed')
 
 const BUS_CHANNEL_NAME = 'proj-airi:pipelines:outputs:speech'
 
@@ -70,6 +79,8 @@ export interface VoiceDraft {
   readonly sessionId: string
   readonly rawText: string
   text: string
+  /** The host is sending the draft. A failed send clears this flag and keeps the draft. */
+  readonly sending?: boolean
 }
 
 /** A snapshot replaces earlier presentation state. Commands still target the original request or draft identity. */
@@ -160,3 +171,8 @@ export type VoiceMessageCommand
 export const voiceMessageCommand = defineInvokeEventa<{ status: 'accepted' | 'closed' }, VoiceMessageCommand>('eventa:voice:message-command')
 export const voiceMessagesChanged = defineEventa<readonly VoiceMessageSnapshot[]>('eventa:voice:messages-changed')
 export const voiceRequestMessages = defineEventa('eventa:voice:request-messages')
+/**
+ * A voice message left the chat after its submit, because the transcriber recognized no speech in it.
+ * The control that recorded it reports `error`.
+ */
+export const voiceMessageDropped = defineEventa<{ id: string, sessionId: string, error: string }>('eventa:voice:message-dropped')

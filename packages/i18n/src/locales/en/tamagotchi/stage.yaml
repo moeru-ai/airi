@@ -49,6 +49,14 @@ docs:
   composer:
     show: Show the message box
     hide: Hide the message box
+  danmaku-feed:
+    title: Message timing
+    hide-read: Hide read messages
+    hide-read-description: Messages leave once read. Spoken replies leave when the speech ends.
+    reading-speed: Reading speed
+    reading-speed-value: '{count} characters/s'
+    minimum-time: Minimum time
+    minimum-time-value: '{count} s'
 
 widgets:
   close: Close widget

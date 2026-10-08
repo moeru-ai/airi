@@ -33,7 +33,7 @@ import StageRenderError from './stage-render-error.vue'
 import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
-import { getSpeechBusContext, speechOutputGetPlaybackState } from '../../services/speech/bus'
+import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
 import { useBackgroundStore } from '../../stores/background'
@@ -134,11 +134,18 @@ const {
   spineRenderScale,
 } = storeToRefs(settingsStore)
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
+/** `voicing` of `SpeechOutputPlaybackState` in the speech bus. The voice output below keeps it. */
+const speechVoicing = shallowRef(false)
 const disposePlaybackStateHandler = defineInvokeHandler(
   getSpeechBusContext(),
   speechOutputGetPlaybackState,
-  () => ({ speaking: nowSpeaking.value }),
+  () => ({ speaking: nowSpeaking.value, voicing: speechVoicing.value }),
 )
+// Emitted at once too, so a window that kept the state of a reloaded stage
+// learns that the new stage voices nothing.
+watch([nowSpeaking, speechVoicing], ([speaking, voicing]) => {
+  getSpeechBusContext().emit(speechOutputPlaybackStateChangedEvent, { speaking, voicing })
+}, { immediate: true })
 const { audioContext } = useAudioContext()
 const currentAudioSource = ref<AudioBufferSourceNode>()
 const speechOutputControlStore = useSpeechOutputControlStore()
@@ -366,6 +373,13 @@ function resetSpeakingState() {
   mouthOpenSize.value = 0
 }
 
+// A response leaves the active turns after its playback drains, or at once
+// when it is canceled or interrupted.
+watch(() => voice.activeTurns, (turns) => {
+  if (turns.length === 0)
+    speechVoicing.value = false
+})
+
 const cards = useAiriCardStore()
 const disconnectVoiceOutput = voice.connectOutput((turn) => {
   const output = {
@@ -374,6 +388,7 @@ const disconnectVoiceOutput = voice.connectOutput((turn) => {
     onPlaybackStart: ({ text }: { text: string }) => {
       playingCount += 1
       nowSpeaking.value = true
+      speechVoicing.value = true
       assistantCaption.value += ` ${text}`
       try {
         postCaption({ type: 'caption-assistant', text })

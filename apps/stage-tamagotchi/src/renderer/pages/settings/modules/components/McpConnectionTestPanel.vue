@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import type { ElectronMcpStdioTestResult } from '../../../../../shared/eventa'
+import type { ElectronMcpTestResult } from '../../../../../shared/eventa'
 
-import { Button, Callout, FieldSelect } from '@proj-airi/ui'
+import { Button, Callout, FieldSelect, SettingsCard } from '@proj-airi/ui'
 import { useI18n } from 'vue-i18n'
 
 interface TestOption {
@@ -11,7 +11,7 @@ interface TestOption {
 
 const props = defineProps<{
   options: TestOption[]
-  result?: ElectronMcpStdioTestResult
+  result?: ElectronMcpTestResult
   running: boolean
 }>()
 
@@ -23,12 +23,10 @@ const selectedRowId = defineModel<string>({ required: true })
 
 const { t } = useI18n()
 const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.mcp-server.${key}`, params ?? {})
-
-const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-white p-4 md:p-5 dark:border-neutral-900 dark:bg-neutral-900/30'
 </script>
 
 <template>
-  <section :class="PANEL">
+  <SettingsCard>
     <div flex="~ col gap-1">
       <h3 class="text-sm font-semibold">
         {{ tn('test.title') }}
@@ -75,5 +73,5 @@ const PANEL = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutr
         </span>
       </div>
     </Callout>
-  </section>
+  </SettingsCard>
 </template>

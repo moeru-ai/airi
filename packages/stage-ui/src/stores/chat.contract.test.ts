@@ -216,6 +216,9 @@ vi.mock('./chat/session-store', () => ({
       sessionMessages[sessionId] = messages
     },
     forkSession: forkSessionMock,
+    deleteMessage: async ({ sessionId, messageId }: { sessionId: string, messageId: string }) => {
+      sessionMessages[sessionId] = (sessionMessages[sessionId] ?? []).filter(message => message.id !== messageId)
+    },
     // Cloud sync surface used by `chat.ts performSend`. Mocked as a no-op so
     // the orchestrator contract tests do not need a real WS / cloud mapper.
     pushMessageToCloud: vi.fn().mockResolvedValue(undefined),
@@ -382,6 +385,51 @@ describe('chat store contract', () => {
     await rejected
     expect(llmStreamMock).not.toHaveBeenCalled()
     expect(sessionMessages['session-1'].some(message => message.id === 'pending-input')).toBe(false)
+  })
+
+  it('waits for the transcript of a submitted voice message instead of transcribing the file', async () => {
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.submit({
+      sessionId: 'session-1',
+      messageId: 'voice-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==' }],
+      audioTranscriptPending: true,
+    })
+
+    // The message is in the chat at once. The text-only model waits for its transcript.
+    expect(sessionMessages['session-1'].some(message => message.id === 'voice-1')).toBe(true)
+    await new Promise(resolve => setTimeout(resolve, 10))
+    expect(llmStreamMock).not.toHaveBeenCalled()
+
+    await store.settleAudioTranscript({ sessionId: 'session-1', messageId: 'voice-1', transcript: 'hello there' })
+
+    await vi.waitFor(() => expect(llmStreamMock).toHaveBeenCalledTimes(1))
+    const context = llmStreamMock.mock.calls[0]![2] as Conversation
+    expect(context.turns.findLast(turn => turn.type === 'user')).toMatchObject({
+      content: expect.arrayContaining([{ type: 'text', text: 'hello there' }]),
+    })
+    expect(sessionMessages['session-1'].find(message => message.id === 'voice-1')?.audioTranscripts).toEqual(['hello there'])
+  })
+
+  it('removes a submitted voice message whose transcript has no speech', async () => {
+    const store = useChatStore()
+    await store.submit({
+      sessionId: 'session-1',
+      messageId: 'voice-silent',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==' }],
+      audioTranscriptPending: true,
+    })
+
+    await store.settleAudioTranscript({ sessionId: 'session-1', messageId: 'voice-silent', transcript: '' })
+
+    // The turn ends without a reply or an error message.
+    expect(sessionMessages['session-1']).toEqual([{ role: 'system', content: 'system prompt', createdAt: 1, id: 'system' }])
+    expect(llmStreamMock).not.toHaveBeenCalled()
   })
 
   it('uses the active provider for a text send to another session', async () => {
@@ -1225,7 +1273,7 @@ describe('chat store contract', () => {
     expect(sessionMessages['session-1']?.slice(-3)).toMatchObject([
       { role: 'user', content: 'show partial output' },
       { role: 'assistant', interrupted: true, content: 'partial ' },
-      { role: 'error', content: 'stream interrupted' },
+      { role: 'error', content: 'stream interrupted', id: expect.any(String), createdAt: expect.any(Number) },
     ])
 
     llmStreamMock.mockImplementationOnce(async (_model: string, _chatProvider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {

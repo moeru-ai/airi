@@ -57,6 +57,14 @@ const props = withDefaults(defineProps<{
    * nobody can scroll it back.
    */
   passive?: boolean
+  /**
+   * Index of the first message that the history shows. The messages before
+   * it fade out and become hidden, but keep their place, so the layout and
+   * the scroll position never move. A hidden message takes no pointer. A
+   * smaller value shows the messages again. The danmaku chat window uses it
+   * to hide read messages.
+   */
+  expiredBefore?: number
   toolCallRenderers?: ChatToolCallRendererRegistry
 }>(), {
   sending: false,
@@ -65,6 +73,7 @@ const props = withDefaults(defineProps<{
   surface: 'translucent',
   scrollbar: 'scroll',
   passive: false,
+  expiredBefore: 0,
   toolCallRenderers: () => ({}),
 })
 
@@ -170,6 +179,7 @@ useChatHistoryScroll({
   scrollToIndex,
   tailInset,
   passive: computed(() => props.passive),
+  hiddenBefore: computed(() => props.expiredBefore),
 })
 useChatHistoryTopFade({
   container: chatHistoryRef,
@@ -258,10 +268,12 @@ function emitToolCallRerun(
     >
       <template #default="{ item: message, index }">
         <div :key="getChatHistoryItemKey(message, index)">
+          <!-- An expired message takes its time label with it, so no label floats in an empty feed. -->
           <ChatHistoryTimeSeparator
             v-if="timeSeparators[index] != null"
             :timestamp="timeSeparators[index]!"
             :now="now.getTime()"
+            :class="['transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none', index < expiredBefore ? 'invisible opacity-0' : '']"
           />
           <!-- Audio end-to-end tests read rendered messages through data-chat-message-role. -->
           <ChatHistoryMessageFrame
@@ -270,6 +282,7 @@ function emitToolCallRerun(
             :variant="variant"
             :scroll-container="chatHistoryRef"
             :reply-enabled="canReplyToMessage(message)"
+            :expired="index < expiredBefore"
             @reply="emitReplyMessage(message)"
           >
             <ChatErrorItem
