@@ -146,6 +146,7 @@ Selecting another card while a turn waits in the queue does not change the turn.
 Before each model request, the turn reads its character's settings again. A tool that edits the character changes the next request.
 Each request rebuilds the analytics correlation headers for its provider.
 Session resets and autonomous artistry hooks also use the session character.
+Each concurrent turn owns its IO trace. `activeTurnSpan` points to the most recently started turn that is still running.
 
 ## Button analytics
 

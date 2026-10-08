@@ -32,7 +32,7 @@ vi.hoisted(() => {
 const ioTracerMocks = vi.hoisted(() => {
   const activeTurnSpan = { value: undefined as any }
   const spans: any[] = []
-  const startSpanMock = vi.fn((name: string) => {
+  const startSpanMock = vi.fn((name: string, _parent?: unknown) => {
     const span = {
       name,
       addEvent: vi.fn(),
@@ -1572,6 +1572,41 @@ describe('chat store contract', () => {
     await send
 
     expect(turnSpan.end).toHaveBeenCalledTimes(1)
+    expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
+  })
+
+  it('keeps a separate interaction turn span for each concurrent session', async () => {
+    const releases = new Map<string, () => void>()
+    const llmParents = new Map<string, { name: string, end: ReturnType<typeof vi.fn> }>()
+    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
+      const sessionId = options.requestCorrelation!.conversationId
+      // The LLM span starts synchronously before the stream call, so it is the latest span.
+      llmParents.set(sessionId, ioTracerMocks.startSpanMock.mock.calls.at(-1)![1] as { name: string, end: ReturnType<typeof vi.fn> })
+      await new Promise<void>(resolve => releases.set(sessionId, resolve))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    const alice = store.send({ sessionId: 'session-1', text: 'For Alice' })
+    const bob = store.send({ sessionId: 'session-2', text: 'For Bob' })
+    await vi.waitFor(() => expect(releases.size).toBe(2))
+
+    const aliceTurn = llmParents.get('session-1')
+    const bobTurn = llmParents.get('session-2')
+    expect(aliceTurn?.name).toBe(IOSpanNames.InteractionTurn)
+    expect(bobTurn?.name).toBe(IOSpanNames.InteractionTurn)
+    expect(aliceTurn).not.toBe(bobTurn)
+
+    releases.get('session-2')!()
+    await bob
+
+    expect(bobTurn?.end).toHaveBeenCalledOnce()
+    expect(aliceTurn?.end).not.toHaveBeenCalled()
+    expect(ioTracerMocks.activeTurnSpan.value).toBe(aliceTurn)
+
+    releases.get('session-1')!()
+    await alice
+
+    expect(aliceTurn?.end).toHaveBeenCalledOnce()
     expect(ioTracerMocks.activeTurnSpan.value).toBeUndefined()
   })
 
