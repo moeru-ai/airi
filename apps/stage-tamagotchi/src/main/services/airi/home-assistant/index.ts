@@ -6,7 +6,7 @@ import { object, string } from 'valibot'
 
 import { homeAssistantGetConfig, homeAssistantRequest, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { createConfig } from '../../../libs/electron/persistence'
-import { normalizeBaseUrl, readBody, requestTimeoutMs, resolveRequestUrl, toRequestError } from './request'
+import { normalizeBaseUrl, readBody, requestTimeoutMs, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
 
 const configSchema = object({
   baseUrl: string(),
@@ -44,7 +44,11 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
   }
 
   function toPublic(current: typeof defaultConfig) {
-    return { baseUrl: current.baseUrl, hasToken: Boolean(current.token) }
+    return {
+      baseUrl: current.baseUrl,
+      hasToken: Boolean(current.token),
+      tokenPreview: toTokenPreview(current.token),
+    }
   }
 
   defineInvokeHandler(context, homeAssistantGetConfig, () => toPublic(read()))

@@ -1056,6 +1056,8 @@ pages:
     home-assistant:
       title: Home Assistant
       description: Let AIRI read and control your Home Assistant devices.
+      enable: Enable Home Assistant
+      enable-description: Allow AIRI to read and control your devices
       base-url:
         label: Address
         placeholder: http://homeassistant.local:8123

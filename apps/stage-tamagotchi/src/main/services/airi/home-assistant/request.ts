@@ -68,8 +68,21 @@ export function resolveRequestUrl(baseUrl: string, path: string): URL {
   return target
 }
 
-/** Reads a response body that can be JSON, text, or empty. */
-export async function readBody(response: Response): Promise<unknown> {
+/**
+ * Builds the mask that the settings page shows in place of the stored token.
+ *
+ * The last four characters stay, so a user can tell which token is stored. The
+ * rest becomes dots, so the page never holds a usable secret.
+ */
+export function toTokenPreview(token: string): string {
+  if (!token)
+    return ''
+
+  const tail = token.slice(-4)
+  return `${'•'.repeat(8)}${tail}`
+}
+
+/** Reads a response body that can be JSON, text, or empty. */export async function readBody(response: Response): Promise<unknown> {
   const text = await response.text()
   if (!text)
     return undefined

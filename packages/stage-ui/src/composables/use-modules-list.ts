@@ -12,6 +12,7 @@ import { useDiscordStore } from '../stores/modules/discord'
 import { useFactorioStore } from '../stores/modules/gaming-factorio'
 import { useMinecraftStore } from '../stores/modules/gaming-minecraft'
 import { useHearingStore } from '../stores/modules/hearing'
+import { useHomeAssistantStore } from '../stores/modules/home-assistant'
 import { useSpeechStore } from '../stores/modules/speech'
 import { useStickersStore } from '../stores/modules/stickers'
 import { useTwitterStore } from '../stores/modules/twitter'
@@ -44,6 +45,7 @@ export function useModulesList() {
   const webSearchStore = useWebSearchStore()
   const minecraftStore = useMinecraftStore()
   const factorioStore = useFactorioStore()
+  const homeAssistantStore = useHomeAssistantStore()
   const artistryStore = useArtistryStore()
   const beatSyncState = ref<BeatSyncDetectorState>()
   const beatSyncSupported = isBeatSyncSupported()
@@ -174,7 +176,7 @@ export function useModulesList() {
       description: t('settings.pages.modules.home-assistant.description'),
       icon: 'i-solar:home-smile-bold-duotone',
       to: '/settings/modules/home-assistant',
-      configured: false,
+      configured: homeAssistantStore.configured,
       category: 'essential',
     },
     {

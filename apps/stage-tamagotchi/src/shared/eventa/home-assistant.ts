@@ -10,6 +10,13 @@ export interface HomeAssistantPublicConfig {
   /** Base URL of the Home Assistant instance, without a trailing slash. Empty when unset. */
   baseUrl: string
   hasToken: boolean
+  /**
+   * The stored token with its middle removed, for the settings placeholder.
+   *
+   * The page needs to show that a token is stored, and which one. It never needs
+   * the token itself, so the main process keeps the value and sends this mask.
+   */
+  tokenPreview: string
 }
 
 /** The settings the renderer writes. An absent token keeps the stored one. */

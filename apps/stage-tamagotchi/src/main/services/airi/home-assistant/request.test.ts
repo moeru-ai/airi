@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { assertApiPath, normalizeBaseUrl, readBody, resolveRequestUrl, toRequestError } from './request'
+import { assertApiPath, normalizeBaseUrl, readBody, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
 
 describe('normalizeBaseUrl', () => {
   it('trims the value and drops trailing slashes', () => {
@@ -67,6 +67,16 @@ describe('resolveRequestUrl', () => {
     // check honest, because the resolved path is the value the request uses.
     expect(() => resolveRequestUrl('https://example.com/ha', '/other/states')).toThrow()
     expect(resolveRequestUrl('https://example.com/ha', '/api/states').pathname).toBe('/ha/api/states')
+  })
+})
+
+describe('toTokenPreview', () => {
+  it('keeps the last four characters so a user can tell which token is stored', () => {
+    expect(toTokenPreview('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9abcd')).toBe('••••••••abcd')
+  })
+
+  it('reveals nothing when no token is stored', () => {
+    expect(toTokenPreview('')).toBe('')
   })
 })
 

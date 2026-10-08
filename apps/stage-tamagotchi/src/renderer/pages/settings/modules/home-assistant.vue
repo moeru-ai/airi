@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
-import { Button, FieldInput } from '@proj-airi/ui'
+import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
+import { Button, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -11,6 +13,8 @@ import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assi
 const { t } = useI18n()
 const tn = (key: string) => t(`settings.pages.modules.home-assistant.${key}`)
 
+const settings = useHomeAssistantStore()
+const { enabled } = storeToRefs(settings)
 const toolsStore = useTamagotchiHomeAssistantStore()
 const getConfig = useElectronEventaInvoke(homeAssistantGetConfig)
 const setConfig = useElectronEventaInvoke(homeAssistantSetConfig)
@@ -18,15 +22,23 @@ const setConfig = useElectronEventaInvoke(homeAssistantSetConfig)
 const baseUrl = ref('')
 const token = ref('')
 const hasToken = ref(false)
+const tokenPreview = ref('')
 const busy = ref(false)
 
-/** The line under the buttons. It carries a message key and its interpolation. */
+/** The line under the buttons. The key is complete, and carries its parameters. */
 const status = ref<{ key: string, params?: Record<string, unknown> } | null>(null)
+
+/** Mirrors what the main process holds, so the module card can show its state. */
+function recordCredentials(saved: { baseUrl: string, hasToken: boolean }) {
+  settings.setHasCredentials(Boolean(saved.baseUrl) && saved.hasToken)
+}
 
 onMounted(async () => {
   const config = await getConfig()
   baseUrl.value = config.baseUrl
   hasToken.value = config.hasToken
+  tokenPreview.value = config.tokenPreview
+  recordCredentials(config)
 })
 
 /**
@@ -44,6 +56,8 @@ async function save() {
   baseUrl.value = saved.baseUrl
   token.value = ''
   hasToken.value = saved.hasToken
+  tokenPreview.value = saved.tokenPreview
+  recordCredentials(saved)
   // The tools live in the leader window. This action is synchronized, so the
   // leader mounts or unmounts them without a reload.
   await toolsStore.refresh()
@@ -55,10 +69,10 @@ async function onSave() {
   busy.value = true
   try {
     await save()
-    status.value = { key: 'status.saved' }
+    status.value = { key: tn('status.saved') }
   }
   catch (error) {
-    status.value = { key: 'status.failed', params: { message: errorMessageFrom(error) ?? '' } }
+    status.value = { key: tn('status.failed'), params: { message: errorMessageFrom(error) ?? '' } }
   }
   finally {
     busy.value = false
@@ -67,14 +81,14 @@ async function onSave() {
 
 async function onTest() {
   busy.value = true
-  status.value = { key: 'status.testing' }
+  status.value = { key: tn('status.testing') }
   try {
     await save()
     const count = await toolsStore.testConnection()
-    status.value = { key: 'status.reachable', params: { count } }
+    status.value = { key: tn('status.reachable'), params: { count } }
   }
   catch (error) {
-    status.value = { key: 'status.failed', params: { message: errorMessageFrom(error) ?? '' } }
+    status.value = { key: tn('status.failed'), params: { message: errorMessageFrom(error) ?? '' } }
   }
   finally {
     busy.value = false
@@ -84,6 +98,12 @@ async function onTest() {
 
 <template>
   <div flex="~ col gap-6">
+    <FieldCheckbox
+      v-model="enabled"
+      :label="tn('enable')"
+      :description="tn('enable-description')"
+    />
+
     <FieldInput
       v-model="baseUrl"
       :label="tn('base-url.label')"
@@ -97,7 +117,7 @@ async function onTest() {
       type="password"
       :label="tn('token.label')"
       :description="hasToken ? tn('token.saved') : tn('token.description')"
-      :placeholder="tn('token.placeholder')"
+      :placeholder="hasToken ? tokenPreview : tn('token.placeholder')"
       autocomplete="off"
     />
 

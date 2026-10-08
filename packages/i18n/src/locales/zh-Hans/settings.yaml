@@ -1003,6 +1003,8 @@ pages:
     home-assistant:
       title: Home Assistant
       description: 让 AIRI 读取和控制你的 Home Assistant 设备。
+      enable: 启用 Home Assistant
+      enable-description: 允许 AIRI 读取和控制你的设备
       base-url:
         label: 地址
         placeholder: http://homeassistant.local:8123
