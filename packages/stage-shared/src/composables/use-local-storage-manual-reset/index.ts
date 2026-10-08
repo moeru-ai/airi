@@ -2,16 +2,23 @@ import type { ManualResetRefReturn, UseStorageOptions } from '@vueuse/core'
 import type { MaybeRefOrGetter, WatchOptions } from 'vue'
 
 import { refManualReset, useLocalStorage } from '@vueuse/core'
-import { toRaw, unref, watch } from 'vue'
+import { toRaw, toValue, watch } from 'vue'
 
 export function useLocalStorageManualReset<T>(
   key: MaybeRefOrGetter<string>,
   initialValue: MaybeRefOrGetter<T>,
   options?: UseStorageOptions<T> & WatchOptions,
 ): ManualResetRefReturn<T> {
-  const value = unref(initialValue)
-  const localStorageState = useLocalStorage<T>(key, value, options)
-  const state = refManualReset<T>(localStorageState)
+  // The storage ref wraps its default in a deep reactive proxy, so in-place
+  // writes such as `state.value.x = 1` change that object. Each call returns a
+  // new copy, so `reset()` always gets the value the caller passed in.
+  const copyInitialValue = () => structuredClone(toRaw(toValue(initialValue)))
+
+  const localStorageState = useLocalStorage<T>(key, copyInitialValue(), options)
+  // `reset()` reads its source again. The source must be the default, not the
+  // storage ref, because the storage ref already holds the current value.
+  const state = refManualReset<T>(copyInitialValue)
+  state.value = localStorageState.value
 
   const { resume, pause } = watch(state, newValue => localStorageState.value = newValue, options)
   if (options?.listenToStorageChanges !== false) {
