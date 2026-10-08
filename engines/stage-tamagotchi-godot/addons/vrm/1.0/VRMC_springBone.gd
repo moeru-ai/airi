@@ -284,7 +284,7 @@ static func _get_humanoid_skel(root_node: Node3D) -> Skeleton3D:
 	return humanoid_skeleton
 
 
-func _export_post(state: GLTFState):
+func _export_post(state: GLTFState) -> Error:
 	var secondary: vrm_secondary = state.get_additional_data("VRMC_springBone")
 	var collider_groups: Array[vrm_collider_group]
 	var spring_bones: Array[vrm_spring_bone] = secondary.spring_bones
@@ -434,3 +434,4 @@ func _export_post(state: GLTFState):
 		json_springs.push_back(spring)
 	sbone_extension["springs"] = json_springs
 	sbone_extension["specVersion"] = "1.0"
+	return OK
