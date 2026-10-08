@@ -172,14 +172,14 @@ function formatTime(seconds: number) {
       type="button"
       :aria-label="t(playing ? 'stage.chat.voice-composer.pause' : 'stage.chat.voice-composer.play')"
       :class="[
-        'size-7 shrink-0 flex items-center justify-center rounded-full outline-none',
+        'size-6 shrink-0 flex items-center justify-center rounded-full outline-none',
         'bg-primary-500 text-white hover:bg-primary-600',
         'dark:bg-primary-400 dark:text-neutral-900 dark:hover:bg-primary-300',
         'focus-visible:ring-2 focus-visible:ring-primary-300',
       ]"
       @click="togglePlayback"
     >
-      <span :class="[playing ? 'i-solar:pause-bold' : 'i-solar:play-bold', 'size-3.5']" aria-hidden="true" />
+      <span :class="[playing ? 'i-solar:pause-bold' : 'i-solar:play-bold', 'size-3']" aria-hidden="true" />
     </BasicButton>
     <div
       role="slider"
