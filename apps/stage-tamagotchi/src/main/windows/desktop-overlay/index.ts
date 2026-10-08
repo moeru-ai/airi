@@ -21,7 +21,7 @@
 
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
-import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { McpManager } from '../../services/airi/mcp-servers'
 
 import { join, resolve } from 'node:path'
 import { env } from 'node:process'
@@ -65,7 +65,7 @@ let overlayWindow: BrowserWindow | null = null
  * Returns null if AIRI_DESKTOP_OVERLAY is not set.
  */
 export async function setupDesktopOverlayWindow(params: {
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   serverChannel: ServerChannel
   i18n: I18n
 }): Promise<BrowserWindow | null> {
@@ -110,7 +110,7 @@ export async function setupDesktopOverlayWindow(params: {
   // the poll loop awaits each call sequentially.
   await setupDesktopOverlayElectronInvokes({
     window: overlayWindow,
-    mcpStdioManager: params.mcpStdioManager,
+    mcpManager: params.mcpManager,
     serverChannel: params.serverChannel,
     i18n: params.i18n,
   })
