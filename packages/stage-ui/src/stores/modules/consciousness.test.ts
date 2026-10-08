@@ -176,6 +176,25 @@ describe('consciousness store provider selection', () => {
     expect(enabledProvider.generation('test-model').config).not.toHaveProperty('reasoning')
   })
 
+  // https://github.com/moeru-ai/airi/issues/2816
+  // ROOT CAUSE:
+  //
+  // OpenRouter requests omit the reasoning override when the catalog has no
+  // entry for the selected model, but the settings page still showed a toggle.
+  // We fixed this by exposing the provider-default state and showing it in the UI.
+  it('uses the OpenRouter default for a model that is missing from the catalog (Issue #2816)', async () => {
+    const providerConfigStore = useProviderConfigStore()
+    providerConfigStore.ensureProvider('openrouter-ai', 'openrouter-ai', { apiKey: 'test-key' })
+    const consciousnessStore = useConsciousnessStore()
+    consciousnessStore.activeProvider = 'openrouter-ai'
+    consciousnessStore.activeModel = 'uncatalogued-model'
+
+    expect(consciousnessStore.activeModelUsesProviderReasoningDefault).toBe(true)
+
+    const provider = await consciousnessStore.getChatProviderInstance('openrouter-ai')
+    expect(provider.generation('uncatalogued-model').config).not.toHaveProperty('reasoning')
+  })
+
   // ROOT CAUSE:
   //
   // The model selection was only cleared on provider switches by a watcher in

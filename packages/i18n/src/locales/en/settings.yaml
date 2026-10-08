@@ -779,6 +779,8 @@ pages:
             title: Model options
             thinking:
               label: Thinking
+              required-description: This model requires Thinking.
+              provider-default-description: AIRI has no reasoning settings for this model. OpenRouter applies its default.
       title: Consciousness
     description: Thinking, vision, speech synthesis, gaming, etc.
     gaming-factorio:

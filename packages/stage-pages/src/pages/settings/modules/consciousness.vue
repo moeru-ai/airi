@@ -27,6 +27,8 @@ const {
   modelSearchQuery,
   supportsModelListing,
   providerModels,
+  activeModelRequiresReasoning,
+  activeModelUsesProviderReasoningDefault,
   isLoadingActiveProviderModels,
   activeProviderModelError,
   temperature,
@@ -307,9 +309,23 @@ async function updateTopPEnabled(value: boolean) {
         {{ t('settings.pages.modules.consciousness.sections.section.model-options.title') }}
       </h2>
 
+      <div
+        v-if="activeModelUsesProviderReasoningDefault"
+        :class="['flex', 'flex-col', 'gap-1']"
+      >
+        <span class="text-sm font-medium">
+          {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label') }}
+        </span>
+        <span :class="['text-xs', 'text-neutral-500', 'dark:text-neutral-400']">
+          {{ t('settings.pages.modules.consciousness.sections.section.model-options.thinking.provider-default-description') }}
+        </span>
+      </div>
       <FieldCheckbox
-        :model-value="reasoning"
+        v-else
+        :model-value="reasoning || activeModelRequiresReasoning"
         :label="t('settings.pages.modules.consciousness.sections.section.model-options.thinking.label')"
+        :description="activeModelRequiresReasoning ? t('settings.pages.modules.consciousness.sections.section.model-options.thinking.required-description') : undefined"
+        :disabled="activeModelRequiresReasoning"
         @update:model-value="updateReasoning"
       />
     </section>
