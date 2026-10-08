@@ -5,10 +5,13 @@ import { watch } from 'vue'
 const props = withDefaults(defineProps<{
   /** Names the dialog for both the visible heading and assistive technology. */
   title: string
+  /** Hides the visible heading but keeps the accessible dialog name. @default false */
+  hideTitle?: boolean
   /** Sets the minimum drawer height while content can still expand to the shared maximum. @default 'content' */
   minimumHeight?: 'content' | 'half'
 }>(), {
   minimumHeight: 'content',
+  hideTitle: false,
 })
 
 const emit = defineEmits<{
@@ -16,6 +19,8 @@ const emit = defineEmits<{
   afterClose: []
   /** Cancel when focus will move directly into another modal. */
   closeAutoFocus: [event: Event]
+  /** Lets the consumer choose the initial focus target. */
+  openAutoFocus: [event: Event]
 }>()
 
 const open = defineModel<boolean>({ default: false })
@@ -54,11 +59,12 @@ function finishAnimation(value: boolean) {
           props.minimumHeight === 'half' ? 'min-h-[50dvh]' : undefined,
         ]"
         @close-auto-focus="emit('closeAutoFocus', $event)"
+        @open-auto-focus="emit('openAutoFocus', $event)"
       >
         <div :class="['shrink-0 px-5 pt-4']">
           <DrawerHandle :class="['mb-3 bg-neutral-300 dark:bg-neutral-600']" />
-          <div :class="['mb-5 pt-2']">
-            <DrawerTitle :class="['text-xl font-semibold tracking-tight']">
+          <div :class="[props.hideTitle ? 'contents' : 'mb-5 pt-2']">
+            <DrawerTitle :class="[props.hideTitle ? 'sr-only' : 'text-xl font-semibold tracking-tight']">
               {{ props.title }}
             </DrawerTitle>
           </div>

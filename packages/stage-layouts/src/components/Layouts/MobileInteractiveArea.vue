@@ -3,8 +3,8 @@ import type { ChatHistoryReplyPayload, ChatImageAttachment } from '@proj-airi/st
 import type { ChatHistoryItem } from '@proj-airi/stage-ui/types/chat'
 
 import { useThreeViewControl } from '@proj-airi/stage-ui-three'
-import { CharacterSwitcherDrawer, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { CharacterSwitcherDrawer, ChatHistory, HearingConfig, HearingStatus, VoiceDrafts } from '@proj-airi/stage-ui/components'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSessionsDrawer, useChatComposer, useChatImages, VoiceComposer } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics, useAudioAnalyzer } from '@proj-airi/stage-ui/composables'
 import { useAudioContext } from '@proj-airi/stage-ui/stores/audio'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -18,6 +18,7 @@ import { BasicButton, BasicTextarea, BottomDrawer } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onUnmounted, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 
 import ViewControls from './InteractiveArea/Actions/ViewControls.vue'
 import MobileSettingsDrawer from './mobile-settings-drawer.vue'
@@ -68,6 +69,9 @@ const {
 } = composer
 const { addFiles, selectFiles, error: imageError, pending: pendingImages } = useChatImages(composer, () => activeSessionId.value)
 const imageInput = useTemplateRef<HTMLInputElement>('imageInput')
+/** Recording UI covers the input bubble. Text, attachments, and send stay hidden and inactive until it closes. */
+const voiceActive = shallowRef(false)
+const router = useRouter()
 const hasSubmission = computed(() => !!messageInput.value.trim() || attachments.value.length > 0)
 const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useChatInterruption({
   sessionId: activeSessionId,
@@ -260,7 +264,7 @@ async function handleSubmit() {
 }
 
 async function handleSend() {
-  if (!pendingImages.value)
+  if (!voiceActive.value && !pendingImages.value)
     await submitInterruptingResponse()
 }
 
@@ -379,7 +383,6 @@ onUnmounted(() => {
         <div :class="['flex flex-col gap-1']">
           <slot name="status" />
           <VoiceDrafts />
-          <VoiceMessageControls />
           <HearingStatus />
         </div>
       </div>
@@ -420,6 +423,28 @@ onUnmounted(() => {
         >
           <span :class="['i-solar:paperclip-bold-duotone size-5']" />
         </button>
+        <BasicButton
+          size="unset"
+          type="button"
+          data-testid="mobile-voice-button"
+          :title="t('stage.mobile-tools.hearing')"
+          :aria-label="t('stage.mobile-tools.hearing')"
+          aria-haspopup="dialog"
+          :aria-expanded="hearingOpen"
+          :class="[
+            'size-10 shrink-0 self-end rounded-full backdrop-blur-md',
+            'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-primary-600',
+            'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-primary-300',
+            'hover:bg-primary-100/80 dark:hover:bg-primary-900/60',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
+          ]"
+          @click="hearingOpen = true"
+        >
+          <span
+            aria-hidden="true"
+            :class="[enabled ? 'i-solar:soundwave-bold' : 'i-solar:soundwave-linear', 'size-5']"
+          />
+        </BasicButton>
         <input ref="imageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple :class="['hidden']" @change="selectFiles">
         <div
           ref="inputBubble"
@@ -432,10 +457,10 @@ onUnmounted(() => {
         >
           <ChatReplyPreview
             :target="replyTarget"
-            :class="['w-full']"
+            :class="['w-full', voiceActive && 'invisible']"
             @cancel="handleCancelReply"
           />
-          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2']">
+          <div v-if="attachments.length" :class="['flex gap-2 overflow-x-auto p-2', voiceActive && 'invisible']">
             <ChatImageAttachmentPreview v-for="(attachment, index) in attachments" :key="attachment.previewId" :file="attachment.file" @remove="removeAttachment(index)" />
           </div>
           <p v-if="imageError" role="alert" :class="['px-3 py-1 text-xs text-red-600 dark:text-red-400']">
@@ -460,6 +485,7 @@ onUnmounted(() => {
               'placeholder:text-[14px] placeholder:vertical-middle placeholder:leading-6 placeholder:text-neutral-400',
               'placeholder:transition-all placeholder:duration-250 placeholder:ease-in-out placeholder:hover:text-neutral-500 dark:placeholder:text-neutral-500 dark:placeholder:hover:text-neutral-400',
               themeColorsHueDynamic ? 'transition-colors-none placeholder:transition-colors-none' : undefined,
+              voiceActive && 'invisible',
             ]"
             default-height="1lh"
             @submit="handleSubmit"
@@ -470,7 +496,7 @@ onUnmounted(() => {
         </div>
         <div :class="['min-w-10 shrink-0 flex items-end justify-end gap-1']">
           <button
-            v-if="showStopAction"
+            v-if="showStopAction && !voiceActive"
             data-testid="stop-speaking-button"
             :class="[
               'size-10 flex items-center justify-center rounded-full outline-none backdrop-blur-md',
@@ -486,7 +512,7 @@ onUnmounted(() => {
             <div :class="['i-solar:stop-outline size-5']" />
           </button>
           <button
-            v-else-if="hasSubmission"
+            v-else-if="hasSubmission && !voiceActive"
             :disabled="!!pendingImages"
             :aria-label="t('stage.chat.actions.send')"
             :class="[
@@ -497,29 +523,17 @@ onUnmounted(() => {
           >
             <div :class="['i-solar:arrow-up-outline size-5']" />
           </button>
-          <BasicButton
+          <VoiceComposer
             v-else
-            size="unset"
-            type="button"
-            data-testid="mobile-voice-button"
-            :title="t('stage.chat.voice-input')"
-            :aria-label="t('stage.chat.voice-input')"
-            aria-haspopup="dialog"
-            :aria-expanded="hearingOpen"
-            :class="[
-              'size-10 shrink-0 rounded-full backdrop-blur-md',
-              'border-2 border-solid border-neutral-200/60 bg-neutral-100/80 text-primary-600',
-              'dark:border-neutral-700/60 dark:bg-neutral-950/80 dark:text-primary-300',
-              'hover:bg-primary-100/80 dark:hover:bg-primary-900/60',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500',
-            ]"
-            @click="hearingOpen = true"
-          >
-            <span
-              aria-hidden="true"
-              :class="[enabled ? 'i-solar:microphone-3-bold' : 'i-solar:microphone-3-outline', 'size-5']"
-            />
-          </BasicButton>
+            v-model="messageInput"
+            size="large"
+            :input-element="inputBubble"
+            :session-id="activeSessionId"
+            :reply-to-message-id="replyTarget?.message.id"
+            @recording-change="voiceActive = $event"
+            @sent="composer.clearReply()"
+            @configure="router.push('/settings/modules/hearing')"
+          />
         </div>
       </div>
     </div>

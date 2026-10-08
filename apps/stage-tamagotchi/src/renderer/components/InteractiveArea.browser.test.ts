@@ -243,21 +243,19 @@ describe('interactive area synchronized state', () => {
     await expect.element(screen.getByRole('dialog', { name: 'stage.mobile-tools.title' })).toBeVisible()
     await expect.element(screen.getByText('stage.mobile-tools.sign-in', { exact: true })).toBeVisible()
     const account = screen.getByRole('button', { name: 'stage.mobile-tools.sign-in stage.mobile-tools.account-description' }).element()
-    const drawerTitle = screen.getByRole('heading', { name: 'stage.mobile-tools.title' }).element()
+    const actions = account.parentElement!
     const accountContent = account.querySelector<HTMLElement>('.basic-button-content')
+    // https://github.com/moeru-ai/airi/pull/2864
     // ROOT CAUSE:
-    //
-    // The account row relied on scoped descendant CSS to stretch
-    // BasicButton's content wrapper. The combined browser bundle could leave
-    // that wrapper at its content width, centering the label inward. Comparing
-    // text coordinates was also unstable while the drawer portal animated, so
-    // assert the owned row and content geometry directly.
+    // The account card added padding and an avatar, but assertions kept the old geometry.
+    // Compare the content with the available width and retain touch-target and alignment checks.
     expect(accountContent).not.toBeNull()
-    await expect.poll(() => getComputedStyle(account).paddingLeft).toBe('0px')
-    expect(account.getBoundingClientRect().left).toBe(drawerTitle.getBoundingClientRect().left)
-    expect(accountContent!.getBoundingClientRect().width).toBe(account.clientWidth)
-    expect(account.getBoundingClientRect().height).toBe(56)
-    expect(account.querySelector('[data-avatar-fallback], [data-avatar-image]')).toBeNull()
+    const accountStyle = getComputedStyle(account)
+    const contentWidth = account.clientWidth - Number.parseFloat(accountStyle.paddingLeft) - Number.parseFloat(accountStyle.paddingRight)
+    expect(account.getBoundingClientRect().left).toBe(actions.getBoundingClientRect().left)
+    expect(accountContent!.getBoundingClientRect().width).toBe(contentWidth)
+    expect(account.getBoundingClientRect().height).toBeGreaterThanOrEqual(44)
+    expect(account.querySelector('[data-avatar-fallback]')).not.toBeNull()
     await expect.element(screen.getByText('stage.mobile-tools.cleanup', { exact: true })).not.toBeInTheDocument()
     await expect.element(screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })).toBeVisible()
     const voice = screen.getByRole('switch', { name: 'stage.mobile-tools.character-voice' })
