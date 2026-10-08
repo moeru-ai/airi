@@ -213,7 +213,7 @@ function hidePreview() {
       <!-- Controls -->
       <div flex flex-wrap items-center justify-between gap-4>
         <div flex items-center gap-3>
-          <label flex cursor-pointer items-center gap-2>
+          <label v-track-switch="'devtools.background-removal.auto-process'" flex cursor-pointer items-center gap-2>
             <Checkbox v-model="autoProcess" />
             <span text-sm>Auto process on upload</span>
           </label>

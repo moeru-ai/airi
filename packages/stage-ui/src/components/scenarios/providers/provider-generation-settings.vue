@@ -88,6 +88,7 @@ async function setField(...[key, value]: ['api', string | undefined] | ['webSear
   />
   <FieldCheckbox
     v-if="searchField"
+    v-track-switch="'providers.provider-generation-settings.web-search'"
     :model-value="webSearch"
     :disabled="searchField.meta()?.disabled === true"
     :label="t('settings.pages.providers.catalog.edit.config.common.fields.field.web-search.label')"

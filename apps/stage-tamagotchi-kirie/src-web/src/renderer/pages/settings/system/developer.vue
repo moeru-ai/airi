@@ -149,6 +149,7 @@ const openDevtoolsWindow = useHostEventaInvoke(electronOpenDevtoolsWindow)
   </ButtonBar>
   <CheckBar
     v-model="settings.disableTransitions"
+    v-track-switch="'settings.system.developer.settings-disable-transitions'"
     mb-2
     icon-on="i-solar:people-nearby-bold-duotone"
     icon-off="i-solar:running-2-line-duotone"
@@ -157,6 +158,7 @@ const openDevtoolsWindow = useHostEventaInvoke(electronOpenDevtoolsWindow)
   />
   <CheckBar
     v-model="settings.usePageSpecificTransitions"
+    v-track-switch="'settings.system.developer.settings-use-page-specific-transitions'"
     :disabled="settings.disableTransitions"
     icon-on="i-solar:running-2-line-duotone"
     icon-off="i-solar:people-nearby-bold-duotone"

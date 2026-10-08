@@ -18,6 +18,7 @@ function saveSettings() {
   <div flex="~ col gap-6">
     <FieldCheckbox
       v-model="enabled"
+      v-track-switch="'modules.messaging-discord.enabled'"
       :label="t('settings.pages.modules.messaging-discord.enable')"
       :description="t('settings.pages.modules.messaging-discord.enable-description')"
     />

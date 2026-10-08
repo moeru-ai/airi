@@ -427,7 +427,7 @@ onMounted(async () => {
             </div>
           </div>
 
-          <label class="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+          <label v-track-switch="'settings.modules.mcp.server-enabled'" class="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
             <span>{{ tn('fields.enabled.label') }}</span>
             <Checkbox v-model="server.enabled" />
           </label>
@@ -460,7 +460,7 @@ onMounted(async () => {
           <span class="rounded-full bg-primary-500/15 px-2 py-0.5 text-[10px] text-primary-700 font-medium tracking-wide uppercase dark:text-primary-300">
             {{ tn('add.pending-badge') }}
           </span>
-          <label class="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
+          <label v-track-switch="'settings.modules.mcp.server-enabled'" class="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-neutral-600 dark:text-neutral-300">
             <span>{{ tn('fields.enabled.label') }}</span>
             <Checkbox v-model="server.enabled" />
           </label>

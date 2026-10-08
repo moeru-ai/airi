@@ -197,6 +197,7 @@ watchDebounced([
         <!-- Speaker Boost checkbox - specific to ElevenLabs -->
         <FieldCheckbox
           v-model="useSpeakerBoost"
+          v-track-switch="'settings.providers.speech.elevenlabs.use-speaker-boost'"
           :label="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.label')"
           :description="t('settings.pages.providers.provider.elevenlabs.fields.field.speaker-boost.description')"
         />

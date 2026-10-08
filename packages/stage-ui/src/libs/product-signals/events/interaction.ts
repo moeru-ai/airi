@@ -1,4 +1,5 @@
 import type { ControlsIslandAction } from './controls-island'
+import type { TrackSwitchEvent } from './switch'
 
 import { getStage } from '@proj-airi/stage-shared'
 
@@ -6,6 +7,7 @@ import { useSettingsAnalytics } from '../../../stores/settings/analytics'
 import { enableAnalytics, getAnalytics, isAnalyticsAvailableInBuild } from '../index'
 import { controlsIslandActionEvent } from './controls-island'
 import { mcpServerUpdatedEvent } from './mcp'
+import { switchToggledEvent } from './switch'
 import { updateCheckClickedEvent, updateInstallClickedEvent } from './update'
 
 /** User interaction events emitted by the shared tracking directive. */
@@ -19,6 +21,14 @@ function canCapture(): boolean {
   return isAnalyticsAvailableInBuild()
     && useSettingsAnalytics().analyticsEnabled
     && enableAnalytics()
+}
+
+/** Switches share the button consent boundary and never send DOM text or dynamic record identifiers. */
+export function captureTrackSwitchEvent(event: TrackSwitchEvent): void {
+  if (!canCapture())
+    return
+
+  getAnalytics().emit(switchToggledEvent, { control: event.control, checked: event.checked, environment: getStage() })
 }
 
 /** Sends a typed interaction event through the shared consent boundary. */

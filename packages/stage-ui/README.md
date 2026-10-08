@@ -160,6 +160,20 @@ typed event without wrapping their business handler:
 Keep async outcomes, confirmed state changes, impressions, and lifecycle events
 in their owning business flows instead of attaching them to the initial click.
 
+## Switch analytics
+
+Register `trackSwitchPlugin` from `@proj-airi/stage-ui/directives/track-switch` once per application.
+Use `v-track-switch="'settings.example.enabled'"` on FieldCheckbox, CheckBar, or the element around a Checkbox.
+Each control ID is a static product name. Never use translated labels, URLs, record IDs, or user-entered values.
+
+The directive captures `switch_toggled` with `control`, requested `checked`, and `environment` through the existing analytics consent boundary.
+It consumes the UI switch event, not a DOM observer. Initial values, remote synchronization, and programmatic updates emit nothing.
+Mouse, label, Space, and Enter interactions share this path. Async saves still need separate outcome events.
+
+Application Switch consumers are marked explicitly, including settings, modules, model controls, onboarding, and devtools.
+The analytics consent switch keeps its existing event. Shared primitives, stories, playgrounds, and native checkbox inputs are not automatically instrumented.
+Dynamic provider fields and model expressions use static group identifiers, never their runtime field names or labels.
+
 ## Histoire (UI storyboard)
 
 https://histoire.dev/

@@ -91,6 +91,7 @@ function metricDescription(metric: typeof metricControls.value[number]) {
     >
       <FieldCheckbox
         v-model="allEnabled"
+        v-track-switch="'devtools.performance-visualizer.all-enabled'"
         :label="t('tamagotchi.settings.devtools.pages.performance-visualizer.controls.enable-all.label')"
         :description="t('tamagotchi.settings.devtools.pages.performance-visualizer.controls.enable-all.description')"
       />
@@ -126,6 +127,7 @@ function metricDescription(metric: typeof metricControls.value[number]) {
       >
         <FieldCheckbox
           v-model="enabled[metric.key]"
+          v-track-switch="'devtools.performance-visualizer.enabled-metric-key'"
           :label="t(metric.labelKey)"
           :description="metricDescription(metric)"
           :disabled="!metric.supported"

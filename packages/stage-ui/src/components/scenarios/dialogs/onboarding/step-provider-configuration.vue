@@ -311,6 +311,7 @@ initializeForm()
         <FieldCheckbox
           v-if="showChatCheckOption"
           v-model="enableChatCheck"
+          v-track-switch="'dialogs.onboarding.step-provider-configuration.enable-chat-check'"
           :label="t('settings.dialogs.onboarding.enableChatCheck')"
           placement="left"
         />

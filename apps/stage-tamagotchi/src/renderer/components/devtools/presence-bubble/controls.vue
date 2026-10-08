@@ -21,11 +21,13 @@ const {
   >
     <FieldCheckbox
       v-model="presenceBubbleOverrideEnabled"
+      v-track-switch="'devtools.presence-bubble.controls.presence-bubble-override-enabled'"
       :label="t('tamagotchi.settings.devtools.pages.presence-bubble.override.title')"
       :description="t('tamagotchi.settings.devtools.pages.presence-bubble.override.description')"
     />
     <FieldCheckbox
       v-model="presenceBubbleOverrideThinking"
+      v-track-switch="'devtools.presence-bubble.controls.presence-bubble-override-thinking'"
       :label="t('tamagotchi.settings.devtools.pages.presence-bubble.thinking.title')"
       :description="t('tamagotchi.settings.devtools.pages.presence-bubble.thinking.description')"
     />

@@ -109,6 +109,7 @@ const canExtractColors = computed(() => props.runtimeSnapshot.canCapturePreview)
     />
     <FieldCheckbox
       v-model="shadowEnabled"
+      v-track-switch="'settings.model-settings.tachie.shadow-enabled'"
       :label="t('settings.tachie.rendering.shadow')"
       placement="right"
     />

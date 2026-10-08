@@ -36,6 +36,7 @@ const languages = computed(() => {
   <div class="flex flex-col gap-4 rounded-lg bg-neutral-50 p-4 dark:bg-neutral-800">
     <FieldCheckbox
       v-model="dark"
+      v-track-switch="'settings-general-fields.dark'"
       v-motion
       :class="['mb-2']"
       :initial="{ opacity: 0, y: 10 }"
@@ -81,6 +82,7 @@ const languages = computed(() => {
     <FieldCheckbox
       v-if="showStreamerMode"
       v-model="settings.streamerMode"
+      v-track-switch="'settings-general-fields.settings-streamer-mode'"
       :label="t('settings.streamer-mode.title')"
       :description="t('settings.streamer-mode.description')"
     />

@@ -521,6 +521,7 @@ onBeforeUnmount(() => {
                 <div :class="['grid', 'gap-4', 'md:grid-cols-2']">
                   <FieldCheckbox
                     v-model="sendContextUpdates"
+                    v-track-switch="'devtools.vision.send-context-updates'"
                     label="Publish to character"
                     description="Send interpreted results as context updates."
                   />

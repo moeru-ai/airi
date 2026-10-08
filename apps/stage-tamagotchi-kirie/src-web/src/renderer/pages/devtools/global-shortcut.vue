@@ -191,6 +191,7 @@ onUnmounted(() => {
         />
         <FieldCheckbox
           v-model="form.receiveKeyUps"
+          v-track-switch="'devtools.global-shortcut.form-receive-key-ups'"
           label="Receive key-ups"
           description="Emit release events as well as press events. Host support depends on the desktop platform."
         />

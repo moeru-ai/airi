@@ -377,6 +377,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     <MagicMotionSettings v-if="live2dMotionDriver === 'magic'" />
     <FieldCheckbox
       v-model="live2dEyeTracking"
+      v-track-switch="'settings.model-settings.live2d.live2d-eye-tracking'"
       :label="t('settings.live2d.animation.focus.title')"
       :description="t('settings.live2d.animation.focus.description')"
       :disabled="live2dMotionDriver === 'magic'"
@@ -399,6 +400,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     </div>
     <FieldCheckbox
       v-model="live2dForceIdleEyeAnimation"
+      v-track-switch="'settings.model-settings.live2d.live2d-force-idle-eye-animation'"
       :label="t('settings.live2d.animation.force-idle-eye-animation.title')"
       :description="t('settings.live2d.animation.force-idle-eye-animation.description')"
       :disabled="live2dMotionDriver === 'magic'"
@@ -406,6 +408,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     />
     <FieldCheckbox
       v-model="live2dAutoBlinkEnabled"
+      v-track-switch="'settings.model-settings.live2d.live2d-auto-blink-enabled'"
       :label="t('settings.live2d.animation.blink-enable.title')"
       :description="t('settings.live2d.animation.blink-enable.description')"
       placement="right"
@@ -472,7 +475,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
       <SelectTab v-model="live2dMaxFps" :options="fpsOptions" size="sm" :class="['shrink-0']" />
     </label>
 
-    <div mt-4 flex items-center justify-between>
+    <div v-track-switch="'settings.model-settings.live2d.live2d-shadow-enabled'" mt-4 flex items-center justify-between>
       <span text-sm>{{ t('settings.live2d.parameters.shadow') }}</span>
       <Checkbox v-model="live2dShadowEnabled" />
     </div>
@@ -756,7 +759,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     size="sm"
     :expand="false"
   >
-    <div flex items-center justify-between>
+    <div v-track-switch="'settings.model-settings.live2d.live2d-expression-enabled'" flex items-center justify-between>
       <span text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.override-toggle') }}</span>
       <Checkbox v-model="live2dExpressionEnabled" />
     </div>
@@ -774,6 +777,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
         <div
           v-for="group in expressionSettingsSnapshot.groups"
           :key="group.name"
+          v-track-switch="'settings.model-settings.live2d.group-active'"
           flex items-center justify-between
         >
           <span text-sm text-neutral-700 dark:text-neutral-300>{{ group.name }}</span>
@@ -802,6 +806,7 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
         <div
           v-for="group in expressionSettingsSnapshot.groups"
           :key="`llm-${group.name}`"
+          v-track-switch="'settings.model-settings.live2d.group-exposed-to-llm'"
           flex items-center justify-between
         >
           <span text-xs text-neutral-600 dark:text-neutral-400>{{ group.name }}</span>

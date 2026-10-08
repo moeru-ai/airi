@@ -183,6 +183,7 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
     {{ t('tamagotchi.settings.devtools.pages.io-tracer.title') }}
   </ButtonBar>
   <CheckBar
+    v-track-switch="'settings.system.developer.io-trace-recording-enabled-false'"
     :model-value="ioTraceRecording?.enabled ?? false"
     :disabled="ioTraceRecording === undefined || ioTraceRecordingBusy"
     :class="['mb-2']"
@@ -203,11 +204,13 @@ const openEditor = useElectronEventaInvoke(electronOpenEditor)
   </ButtonBar>
   <CheckBar
     v-model="settings.disableTransitions"
+    v-track-switch="'settings.system.developer.settings-disable-transitions'"
     :class="['mb-2', 'transition-all duration-250 ease-in-out']"
     text="settings.animations.stage-transitions.title"
   />
   <CheckBar
     v-model="settings.usePageSpecificTransitions"
+    v-track-switch="'settings.system.developer.settings-use-page-specific-transitions'"
     :disabled="settings.disableTransitions"
     text="settings.animations.use-page-specific-transitions.title"
     description="settings.animations.use-page-specific-transitions.description"

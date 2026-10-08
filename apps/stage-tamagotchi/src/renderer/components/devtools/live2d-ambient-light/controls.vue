@@ -52,6 +52,7 @@ const modeOptions = computed<SelectTabOption<ScreenAmbientLightMode>[]>(() => [
   >
     <FieldCheckbox
       v-model="screenAmbientLightEnabled"
+      v-track-switch="'devtools.live2d-ambient-light.controls.screen-ambient-light-enabled'"
       :label="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.enabled.title')"
       :description="t('tamagotchi.settings.devtools.pages.live2d-ambient-light.enabled.description')"
     />
