@@ -53,10 +53,17 @@ const props = withDefaults(defineProps<{
    * newest message.
    */
   passive?: boolean
+  /**
+   * Index of the first message that the history shows. The host hides the
+   * messages before it in place, such as read messages in the danmaku feed.
+   * Hidden messages stay in the session.
+   */
+  expiredBefore?: number
 }>(), {
   floating: false,
   composerFoldable: false,
   passive: false,
+  expiredBefore: 0,
 })
 
 /** Whether a foldable composer is folded away. */
@@ -391,6 +398,7 @@ defineExpose({
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :expired-before="props.expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"

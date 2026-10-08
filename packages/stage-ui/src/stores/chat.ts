@@ -739,6 +739,8 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.appendSessionMessage(sessionId, {
       role: 'error',
       content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
+      id: nanoid(),
+      createdAt: Date.now(),
     })
   }
 

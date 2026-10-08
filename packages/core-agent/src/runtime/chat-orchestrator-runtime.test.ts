@@ -334,8 +334,10 @@ describe('createChatOrchestratorRuntime', () => {
   // caller still receives the failure and can append its normal error item.
   it('stores visible assistant output when the stream fails', async () => {
     const harness = createHarness()
+    const failedAt = new Date(2026, 3, 25, 18, 48).getTime()
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+      harness.now.set(failedAt)
       throw new Error('stream interrupted')
     })
 
@@ -349,6 +351,7 @@ describe('createChatOrchestratorRuntime', () => {
       interrupted: true,
       content: 'partial ',
       slices: [{ type: 'text', text: 'partial ' }],
+      completedAt: failedAt,
     })
     expect(harness.assistantAppended).toHaveLength(0)
     expect(harness.foregroundResets).toHaveLength(1)
@@ -1363,6 +1366,7 @@ describe('createChatOrchestratorRuntime', () => {
 
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {
     const harness = createHarness()
+    const finishedAt = new Date(2026, 3, 25, 18, 48).getTime()
     let composedMessages: Message[] = []
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = conversationToChatMessages(messages)
@@ -1379,6 +1383,7 @@ describe('createChatOrchestratorRuntime', () => {
         result: 'sunny',
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'visible reply' })
+      harness.now.set(finishedAt)
       await options?.onStreamEvent?.({ type: 'finish' })
     })
 
@@ -1413,7 +1418,9 @@ describe('createChatOrchestratorRuntime', () => {
       categorization: {
         reasoning: 'thinking',
       },
+      completedAt: finishedAt,
     })
+    expect(assistant?.createdAt).toBeLessThan(finishedAt)
     expect((assistant as StreamingAssistantMessage).slices).toEqual([
       expect.objectContaining({
         type: 'tool-call',
@@ -1498,12 +1505,15 @@ describe('responses generated turn ownership', () => {
     const send = harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
     await visibleOutput
 
+    const cancelledAt = new Date(2026, 3, 25, 18, 48).getTime()
+    harness.now.set(cancelledAt)
     harness.runtime.cancelPendingSends('session-1')
     await send
 
     expect(harness.sessionMessages['session-1']?.at(-1)).toEqual(expect.objectContaining({
       content: expect.stringContaining('partial answer'),
       interrupted: true,
+      completedAt: cancelledAt,
     }))
     expect(harness.settled).toEqual([{ sessionId: 'session-1', turnId: 'user-id', status: 'cancelled' }])
     expect(harness.foregroundResets).toHaveLength(1)
