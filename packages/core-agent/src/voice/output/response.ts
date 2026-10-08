@@ -3,13 +3,70 @@ import type { Outcome } from '@proj-airi/stream-kit'
 
 import type { TurnRef } from '../turn'
 
+import { errorMessageFrom } from '@moeru/std'
 import { createSpeechPipeline } from '@proj-airi/pipelines-audio'
 import { createPushStream } from '@proj-airi/stream-kit'
+import { APICallError } from '@xsai/shared'
+import { differenceInMilliseconds, toDate } from 'date-fns'
 import { nanoid } from 'nanoid/non-secure'
 
 import { errorFromCause, errorMessageFromValue } from '../../utils/error'
 import { toSpeechText } from './speech-transformation'
 import { MarkdownSegmenter } from './speech-transformation/segmenter'
+
+/** Complete clips have not reached playback yet, so a rejected request can repeat without repeating local audio. */
+const synthesisRetry = {
+  /** Two retries keep temporary outages from ending a producer. Normal requests have no added delay. */
+  backoffMs: [300, 600],
+  /** A longer provider wait fails the producer instead of leaving its reserved playback slot pending. */
+  maxRetryAfterMs: 30_000,
+}
+
+function synthesisRetryDelayMs(cause: unknown, attempt: number): number | undefined {
+  const backoffMs = synthesisRetry.backoffMs[attempt]
+  if (backoffMs === undefined)
+    return undefined
+
+  if (cause instanceof APICallError) {
+    if (![408, 425, 429, 500, 502, 503, 504].includes(cause.statusCode))
+      return undefined
+
+    // Use the provider's wait when browsers expose it. Otherwise use the short
+    // local backoff. Error text cannot override an explicit permanent status.
+    const retryAfter = cause.responseHeaders['retry-after']
+    if (!retryAfter)
+      return backoffMs
+    const seconds = Number(retryAfter)
+    const delayMs = Number.isFinite(seconds) ? seconds * 1000 : differenceInMilliseconds(toDate(retryAfter), new Date())
+    if (!Number.isFinite(delayMs))
+      return backoffMs
+    return delayMs <= synthesisRetry.maxRetryAfterMs ? Math.max(delayMs, 0) : undefined
+  }
+
+  // Fetch rejects transport failures as TypeError. Do not retry unrelated
+  // TypeErrors, aborts, or arbitrary provider messages that contain a status.
+  if (cause instanceof TypeError && /failed to fetch|fetch failed|network error/i.test(errorMessageFrom(cause) ?? ''))
+    return backoffMs
+  return undefined
+}
+
+function waitForSynthesisRetry(delayMs: number, signal: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal.aborted) {
+      reject(signal.reason)
+      return
+    }
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort)
+      resolve()
+    }, delayMs)
+    signal.addEventListener('abort', onAbort, { once: true })
+    function onAbort() {
+      clearTimeout(timer)
+      reject(signal.reason)
+    }
+  })
+}
 
 /** Each synthesized part carries optional display text. Audio ownership transfers to playback. */
 export interface SpeechAudio {
@@ -46,6 +103,7 @@ export type SpeechOutput = {
   /** BCP 47 code of the voice. The words around a formula or a price select its language first. */
   readonly language?: string
 } & ({
+  /** Rejected complete-clip requests can retry twice before the producer fails; `null` means intentional silence. */
   readonly synthesize: SpeechPipelineOptions<Blob>['tts']
 } | {
   /** The provider consumes text and emits audio parts concurrently. Its adapter owns decoding and source coordinates. */
@@ -168,21 +226,39 @@ export class SpeechStream {
     const pending = new Set<PlaybackItem<Blob>>()
 
     const pipeline = createSpeechPipeline<Blob>({
+      /**
+       * Triggering workflow:
+       * SpeechStream.start -> speech pipeline -> provider attempts -> response observers and ordered playback.
+       */
       tts: async (request, signal) => {
         const { segmentId } = request
         response.emit({ type: 'tts-request', segmentId, text: request.text, reason: request.reason })
         try {
-          const audio = await output.synthesize(request, AbortSignal.any([signal, this.signal, response.signal]))
-          const aborted = signal.aborted || this.signal.aborted || response.signal.aborted
-          response.emit({ type: 'tts-result', segmentId, status: aborted ? 'cancelled' : audio ? 'audio' : 'no-audio' })
-          return aborted ? null : audio
+          const synthesisSignal = AbortSignal.any([signal, this.signal, response.signal])
+          // Attempts share one normalized segment and cancellation scope. Only their terminal result reaches observers.
+          for (let attempt = 0; ; attempt++) {
+            synthesisSignal.throwIfAborted()
+            try {
+              const audio = await output.synthesize(request, synthesisSignal)
+              const aborted = synthesisSignal.aborted
+              response.emit({ type: 'tts-result', segmentId, status: aborted ? 'cancelled' : audio ? 'audio' : 'no-audio' })
+              return aborted ? null : audio
+            }
+            catch (cause) {
+              const delayMs = synthesisSignal.aborted ? undefined : synthesisRetryDelayMs(cause, attempt)
+              if (delayMs === undefined)
+                throw cause
+              await waitForSynthesisRetry(delayMs, synthesisSignal)
+            }
+          }
         }
         catch (cause) {
           const error = errorFromCause(cause, 'Speech synthesis failed')
           // A provider rejects when its signal aborts. A stop or an interruption is a cancellation, not a failure.
           const aborted = signal.aborted || this.signal.aborted || response.signal.aborted
           response.emit(aborted ? { type: 'tts-result', segmentId, status: 'cancelled' } : { type: 'tts-result', segmentId, status: 'failed', error })
-          this.fail(error)
+          if (!aborted)
+            this.fail(error)
           return null
         }
       },
