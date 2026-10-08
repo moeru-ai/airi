@@ -29,6 +29,7 @@ chat:
     starting: 正在启动麦克风
     preview: 已录制的语音消息
     transcribing: 正在转写…
+    position: 播放位置
     no-speech: 没有识别到说话，语音消息没有发送。
   voice-composer:
     audio: 语音消息
