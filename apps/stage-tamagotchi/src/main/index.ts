@@ -193,7 +193,7 @@ app.whenReady().then(async () => {
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
+          ...currentConfig,
           updateChannel: lane,
         })
       },
@@ -388,7 +388,7 @@ app.whenReady().then(async () => {
     },
   })
 
-  injeca.start().catch(err => console.error(err))
+  injeca.start().catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
   openDebugger()
