@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { Avatar, BasicButton, BottomDrawer, Checkbox, GhostButton, useTheme } from '@proj-airi/ui'
+import { useEventListener } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -25,6 +26,16 @@ const router = useRouter()
 const backgroundDialogOpen = shallowRef(false)
 const settingsOpen = shallowRef(false)
 const aboutOpen = shallowRef(false)
+const keyboardNavigation = shallowRef(false)
+
+useEventListener('keydown', (event) => {
+  if (event.key === 'Tab')
+    keyboardNavigation.value = true
+}, { capture: true })
+useEventListener('pointerdown', () => {
+  keyboardNavigation.value = false
+}, { capture: true })
+
 // Finish closing settings before opening a sibling modal, so focus and scroll locks have one owner.
 const nextPanel = shallowRef<'background' | 'about' | 'account' | 'view'>()
 
@@ -79,7 +90,7 @@ function finishSettingsClose() {
         <span aria-hidden="true" :class="['i-solar:settings-outline size-6']" />
       </BasicButton>
     </template>
-    <div :class="['mobile-settings-actions select-none']">
+    <div :class="['mobile-settings-actions select-none', keyboardNavigation && 'keyboard-navigation']">
       <GhostButton
         block size="unset"
         :class="[
@@ -185,6 +196,12 @@ function finishSettingsClose() {
 
 .mobile-settings-actions :deep(button:focus-visible),
 .mobile-settings-actions :deep(a:focus-visible) {
+  outline: none;
+}
+
+.mobile-settings-actions.keyboard-navigation :deep(button:focus-visible),
+.mobile-settings-actions.keyboard-navigation :deep(a:focus-visible) {
+  @apply rounded-lg outline outline-2 outline-neutral-500;
   outline-offset: -4px;
 }
 
