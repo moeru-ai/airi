@@ -4,6 +4,7 @@ import { defineStore } from 'pinia'
 import { onScopeDispose, ref, watch } from 'vue'
 
 import { useAudioDevice } from '../../composables/audio'
+import { listensContinuously, useHearingStore } from '../modules/hearing'
 
 function isAbort(cause: unknown) {
   return cause instanceof DOMException && cause.name === 'AbortError'
@@ -14,11 +15,14 @@ function isAbort(cause: unknown) {
  *
  * `input` is the shared input for the selected device. Consumers subscribe with their own signal.
  * The enabled preference holds one extra subscription, so later consumers start without waiting for permission.
+ * A Hearing input mode that does not listen continuously, such as Push to Talk, skips that subscription.
+ * Then the microphone opens only while a speech input or a voice message uses it.
  */
 export const useSettingsAudioDevice = defineStore('settings-audio-devices', () => {
   const selectedAudioInput = useLocalStorageManualReset<string>('settings/audio/input', '')
   const device = useAudioDevice(selectedAudioInput)
   const enabled = useLocalStorageManualReset<boolean>('settings/audio/input/enabled', false)
+  const hearing = useHearingStore()
   const error = ref<string>()
   let permissionStatus: PermissionStatus | undefined
   let disposed = false
@@ -28,7 +32,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
   /** Holds the current input open. A failure other than release turns the preference off. */
   function hold() {
     holding?.abort('Microphone hold replaced')
-    if (!enabled.value || !initialized)
+    if (!enabled.value || !listensContinuously(hearing.inputMode) || !initialized)
       return
 
     const current = new AbortController()
@@ -42,7 +46,7 @@ export const useSettingsAudioDevice = defineStore('settings-audio-devices', () =
     })
   }
 
-  watch([enabled, device.input], hold, { flush: 'sync' })
+  watch([enabled, () => hearing.inputMode, device.input], hold, { flush: 'sync' })
 
   function initialize() {
     if (initialized || disposed)

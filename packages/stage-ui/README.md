@@ -64,7 +64,22 @@ While a control records or dictates, the host publishes the microphone level on 
 Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
 Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
 
-### External wake-word adapters
+### Hearing input mode
+
+The Hearing store keeps `inputMode`. The microphone switch (`useSettingsAudioDevice().enabled`) turns the selected mode on or off.
+
+- `always-on` keeps the microphone open and runs voice activity detection. This is the default.
+- `push-to-talk` starts a speech input only while the user holds a key. The microphone opens only during the hold.
+
+Each stage page calls `useVoiceListening` once. It is the one place that starts or stops continuous listening.
+`listensContinuously(mode)` in `stores/modules/hearing.ts` decides which modes run detection and keep the microphone open.
+To add a mode, extend `HearingInputMode`, `listensContinuously`, and `useVoiceListening`.
+
+`useVoicePushToTalk` connects a hold to `voice.beginManual`. The press captures the active session, so a session switch during the hold does not move the speech.
+`useVoiceHold` owns the hold lifecycle: it ignores key repeats, cancels a tap shorter than 300 ms, and cancels on disable or disposal.
+`useVoiceHoldKey` drives a hold with an in-page key, Space by default. It ignores text fields, controls, and modified keys, and cancels when the page loses focus.
+The web stage uses Space. The desktop stage uses a configurable global shortcut.
+
 
 `useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
 Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
