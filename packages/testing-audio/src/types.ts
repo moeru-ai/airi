@@ -39,6 +39,14 @@ export interface AudioInputSnapshot {
   spans: SerializedIOSpan[]
   streamingTranscriptionUpdates: string[]
   transcriptionResults: string[]
+  voiceInputs: AudioInputVoiceInput[]
+}
+
+/** One speech input that the voice host began, from the first host snapshot that contains it. */
+export interface AudioInputVoiceInput {
+  requestId: string
+  /** Chat session that receives the transcript. A wake selects the session of the character that owns the wake word. */
+  sessionId: string
 }
 
 /** One rendered chat message from the completed turn. */
@@ -98,6 +106,17 @@ export interface AudioInputObservations {
   waitForVadReady: () => Promise<void>
   /** Waits until a streaming transcription transport accepts microphone audio. */
   waitForStreamingTranscriptionReady: () => Promise<void>
+  /**
+   * Waits until the voice host begins a speech input, and returns the first input since the page loaded.
+   *
+   * @example
+   * const input = await audio.waitForVoiceInput({ timeout: 90_000 })
+   * expect(input.sessionId).toBe(expectedSessionId)
+   */
+  waitForVoiceInput: (options?: {
+    /** @default 60000 */
+    timeout?: number
+  }) => Promise<AudioInputVoiceInput>
   /**
    * Waits for the next matching Pinia action event after this method is called.
    *
