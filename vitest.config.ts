@@ -12,6 +12,7 @@ export default defineConfig({
       'packages/cap-vite',
       'packages/ccc',
       'packages/core-agent',
+      'packages/electron-window-dock',
       'packages/i18n',
       'packages/pipelines-audio',
       'packages/input-gamepad',

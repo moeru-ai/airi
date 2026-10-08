@@ -1,4 +1,11 @@
 /**
+ * The radius around the cursor, in CSS px, that the Fade on Hover hit test reads.
+ * A painted pixel of the model inside this radius fades the stage. The region keeps the fade steady when the
+ * cursor moves along the edge of the model. The Dock Mode overlay (`dock-overlay-app.vue`) uses the same radius.
+ */
+export const FADE_ON_HOVER_REGION_RADIUS = 25
+
+/**
  * Resolves the visual fade and the native click-through state for the stage window.
  *
  * The two are independent decisions. Auto Hide (`enabled`) only chooses whether a

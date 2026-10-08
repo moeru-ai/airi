@@ -154,6 +154,7 @@
     "zod": "catalog:"
   },
   "optionalDependencies": {
+    "@proj-airi/native-window-win32": "workspace:^",
     "@xsai-apple-speech/transcription-native-darwin-arm64": "catalog:",
     "@xsai-apple-speech/transcription-native-darwin-x64": "catalog:",
     "@xsai-apple-vision/vision-native-darwin-arm64": "catalog:"
@@ -179,6 +180,7 @@
     "@proj-airi/electron-eventa": "workspace:^",
     "@proj-airi/electron-screen-capture": "workspace:^",
     "@proj-airi/electron-vueuse": "workspace:^",
+    "@proj-airi/electron-window-dock": "workspace:^",
     "@proj-airi/iconify-meteocons": "catalog:",
     "@proj-airi/lobe-icons": "catalog:",
     "@proj-airi/plugin-sdk": "workspace:^",

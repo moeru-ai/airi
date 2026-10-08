@@ -24,6 +24,7 @@ import { resolveRendererWindowContext } from './window-context'
 import '@unocss/reset/tailwind.css'
 import 'splitpanes/dist/splitpanes.css'
 import 'vue-sonner/style.css'
+import './styles/hue.css'
 import './styles/main.css'
 import 'uno.css'
 // Fonts

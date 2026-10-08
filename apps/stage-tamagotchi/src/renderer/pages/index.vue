@@ -39,7 +39,7 @@ import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
-import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
+import { FADE_ON_HOVER_REGION_RADIUS, resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
 
 const hearingStatusElement = ref<HTMLElement>()
@@ -76,13 +76,13 @@ const isTransparentByPixels = useCanvasPixelIsTransparentAtPoint(
   stageCanvas,
   relativeMouseX,
   relativeMouseY,
-  { regionRadius: 25 },
+  { regionRadius: FADE_ON_HOVER_REGION_RADIUS },
 )
 const isTransparentByThree = useThreeSceneIsTransparentAtPoint(
   widgetStageRef,
   relativeMouseX,
   relativeMouseY,
-  { regionRadius: 25 },
+  { regionRadius: FADE_ON_HOVER_REGION_RADIUS },
 )
 const isTransparentByPixelsExact = useCanvasPixelIsTransparentAtPoint(
   stageCanvas,

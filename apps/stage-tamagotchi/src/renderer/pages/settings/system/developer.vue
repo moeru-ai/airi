@@ -140,6 +140,12 @@ const menu = computed(() => [
     icon: 'i-solar:chat-line-line-duotone',
     to: '/devtools/presence-bubble',
   },
+  {
+    title: 'Window Dock (PoC)',
+    description: 'Attach AIRI overlay to a target window and inspect visibility contract',
+    icon: 'i-solar:window-frame-bold-duotone',
+    to: '/devtools/window-dock',
+  },
 ])
 
 const openDevTools = useElectronEventaInvoke(electronOpenMainDevtools)

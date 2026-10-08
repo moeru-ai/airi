@@ -94,6 +94,11 @@ export default {
     // uiohook-napi loads the selected prebuild. Its bundled libuiohook C source is
     // only used to build that binary and does not participate in runtime loading.
     '!**/node_modules/uiohook-napi/libuiohook{,/**}',
+    // native-window-win32 is a workspace package. Its Rust sources and build script are next to
+    // its loader, and a native build writes the Cargo output to `target/` there. The app loads
+    // only `index.js` and the `.node` binary. `asarUnpack` below keeps the binary unpacked.
+    '!**/node_modules/@proj-airi/native-window-win32/{Cargo.toml,Cargo.lock,build.rs}',
+    '!**/node_modules/@proj-airi/native-window-win32/{scripts,src,target}{,/**}',
     '!**/.vscode/*',
     '!src/**/*',
     '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}',

@@ -1,0 +1,19 @@
+/* Shared hue animation and CSS variable definitions for Stage renderer + overlay */
+@property --chromatic-hue {
+  syntax: '<number>';
+  initial-value: 0;
+  inherits: true;
+}
+
+@keyframes hue-anim {
+  from {
+    --chromatic-hue: 0;
+  }
+  to {
+    --chromatic-hue: 360;
+  }
+}
+
+.dynamic-hue {
+  animation: hue-anim 10s linear infinite;
+}

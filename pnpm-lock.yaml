@@ -2287,6 +2287,9 @@ importers:
       '@proj-airi/electron-vueuse':
         specifier: workspace:^
         version: link:../../packages/electron-vueuse
+      '@proj-airi/electron-window-dock':
+        specifier: workspace:^
+        version: link:../../packages/electron-window-dock
       '@proj-airi/iconify-meteocons':
         specifier: 'catalog:'
         version: 0.1.5
@@ -2426,6 +2429,9 @@ importers:
         specifier: 'catalog:'
         version: 3.4.0
     optionalDependencies:
+      '@proj-airi/native-window-win32':
+        specifier: workspace:^
+        version: link:../../packages/native-window-win32
       '@xsai-apple-speech/transcription-native-darwin-arm64':
         specifier: 'catalog:'
         version: 0.1.3
@@ -4279,6 +4285,28 @@ importers:
         specifier: 'catalog:'
         version: 3.5.41(typescript@6.0.3)
 
+  packages/electron-window-dock:
+    dependencies:
+      '@guiiai/logg':
+        specifier: '>=1 <2'
+        version: 1.2.12
+      '@moeru/eventa':
+        specifier: 'catalog:'
+        version: 1.0.2(electron@43.4.1(supports-color@10.2.2))(h3@2.0.1-rc.29(crossws@0.4.12(srvx@0.12.7)))(hono@4.13.3)(web-worker@1.5.0)
+      '@moeru/std':
+        specifier: 'catalog:'
+        version: 0.1.0-beta.17
+      electron:
+        specifier: '>=39 <44'
+        version: 43.4.1(supports-color@10.2.2)
+      valibot:
+        specifier: 'catalog:'
+        version: 1.4.2(typescript@6.0.3)
+    optionalDependencies:
+      '@proj-airi/native-window-win32':
+        specifier: workspace:*
+        version: link:../native-window-win32
+
   packages/font-chillroundm: {}
 
   packages/font-cjkfonts-allseto: {}
@@ -4397,6 +4425,15 @@ importers:
       es-toolkit:
         specifier: 'catalog:'
         version: 1.51.0
+
+  packages/native-window-win32:
+    devDependencies:
+      '@napi-rs/cli':
+        specifier: ^2.18.0
+        version: 2.18.4
+      std-env:
+        specifier: 'catalog:'
+        version: 4.2.0
 
   packages/pipelines-audio:
     dependencies:
@@ -9284,6 +9321,11 @@ packages:
   '@mrleebo/prisma-ast@0.13.1':
     resolution: {integrity: sha512-XyroGQXcHrZdvmrGJvsA9KNeOOgGMg1Vg9OlheUsBOSKznLMDl+YChxbkboRHvtFYJEMRYmlV3uoo/njCw05iw==}
     engines: {node: '>=16'}
+
+  '@napi-rs/cli@2.18.4':
+    resolution: {integrity: sha512-SgJeA4df9DE2iAEpr3M2H0OKl/yjtg1BnRI5/JyowS71tUWhrfSu2LT0V3vlHET+g1hBVlrO60PmEXwUEKp8Mg==}
+    engines: {node: '>= 10'}
+    hasBin: true
 
   '@napi-rs/image-android-arm64@1.14.0':
     resolution: {integrity: sha512-LBWu1fNR7uC6kNQy+axDqXKU7Kj1x3UdD3xGKw/bks6YAUG15m92qwSwINDEB4Jqgl29vCeSNFItJZRm3byfJQ==}
@@ -24170,6 +24212,8 @@ snapshots:
     dependencies:
       chevrotain: 10.5.0
       lilconfig: 2.1.0
+
+  '@napi-rs/cli@2.18.4': {}
 
   '@napi-rs/image-android-arm64@1.14.0':
     optional: true

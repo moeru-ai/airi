@@ -53,6 +53,7 @@ import { setupCaptionWindowManager } from './windows/caption'
 import { setupChatWindowManager } from './windows/chat'
 import { isDesktopOverlayEnabled, setupDesktopOverlayWindow } from './windows/desktop-overlay'
 import { setupDevtoolsWindow } from './windows/devtools'
+import { setupDockOverlayWindowManager } from './windows/dock-overlay'
 import { setupEditorWindowManager } from './windows/editor'
 import { setupInlayWindowReusable } from './windows/inlay'
 import { setupMainWindow } from './windows/main'
@@ -348,6 +349,12 @@ app.whenReady().then(async () => {
     }),
   })
 
+  // Registers the Dock Mode handlers. The overlay window is created only when docking starts.
+  const dockOverlayWindow = injeca.provide('windows:dock-overlay', {
+    dependsOn: { serverChannel, i18n },
+    build: ({ dependsOn }) => setupDockOverlayWindowManager(dependsOn),
+  })
+
   const captionWindow = injeca.provide('windows:caption', {
     dependsOn: { mainWindow, serverChannel, i18n },
     build: async ({ dependsOn }) => setupCaptionWindowManager(dependsOn),
@@ -375,7 +382,7 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig, dockOverlayWindow },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       setupComputerUse(context)

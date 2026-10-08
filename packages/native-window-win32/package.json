@@ -1,0 +1,42 @@
+{
+  "name": "@proj-airi/native-window-win32",
+  "type": "commonjs",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Win32 window enumeration bindings for AIRI (Node-API via napi-rs)",
+  "author": {
+    "name": "Moeru AI Project AIRI Team",
+    "email": "airi@moeru.ai",
+    "url": "https://github.com/moeru-ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moeru-ai/airi.git",
+    "directory": "packages/native-window-win32"
+  },
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "files": [
+    "*.node",
+    "README.md",
+    "index.d.ts",
+    "index.js",
+    "package.json"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node ./scripts/build-if-win32.mjs",
+    "build:native": "napi build --platform --release",
+    "build:debug": "napi build --platform"
+  },
+  "napi": {
+    "name": "native_window_win32"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.0",
+    "std-env": "catalog:"
+  }
+}

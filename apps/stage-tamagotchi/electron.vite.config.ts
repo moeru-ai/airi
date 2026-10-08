@@ -36,6 +36,9 @@ export default defineConfig({
           '@auv-js/sdk',
           '@xsai-apple-speech/transcription-native',
           '@xsai-apple-vision/vision-native',
+          // electron-vite externalizes only `dependencies` by default, and this one is optional.
+          // The bundled `@proj-airi/electron-window-dock` loads it at runtime with `createRequire`.
+          '@proj-airi/native-window-win32',
         ],
       },
     },
@@ -115,6 +118,7 @@ export default defineConfig({
       rolldownOptions: {
         input: {
           'main': resolve(join(import.meta.dirname, 'src', 'renderer', 'index.html')),
+          'dock-overlay': resolve(join(import.meta.dirname, 'src', 'renderer', 'dock-overlay.html')),
           'beat-sync': resolve(join(import.meta.dirname, 'src', 'renderer', 'beat-sync.html')),
         },
       },
@@ -127,6 +131,7 @@ export default defineConfig({
         '@proj-airi/drizzle-duckdb-wasm',
         '@proj-airi/drizzle-duckdb-wasm/*',
         '@proj-airi/electron-screen-capture',
+        '@proj-airi/electron-window-dock',
 
         // Static Assets: Models, Images, etc.
         'src/renderer/public/assets/*',

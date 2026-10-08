@@ -12,6 +12,11 @@
     "@proj-airi/electron-vueuse#build": {
       "dependsOn": ["@proj-airi/electron-eventa#build"],
       "outputs": ["dist/**"]
+    },
+    "@proj-airi/native-window-win32#build": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "passThroughEnv": ["AIRI_REQUIRE_NATIVE_WINDOW_WIN32", "CARGO", "CARGO_HOME", "RUSTUP_HOME", "RUSTUP_TOOLCHAIN"]
     }
   }
 }
