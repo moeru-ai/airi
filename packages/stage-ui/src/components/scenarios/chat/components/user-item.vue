@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n'
 import ChatReplyQuote from './reply-quote.vue'
 import VoiceMessagePlayer from './voice-message-player.vue'
 
+import { useVoiceControlsStore } from '../../../../stores/voice-controls'
 import { MarkdownRenderer } from '../../../markdown'
 import { ChatActionMenu } from '../components/action-menu'
 import { getChatHistoryItemCopyText } from '../utils'
@@ -52,6 +53,9 @@ const emptyImages: readonly string[] = Object.freeze([])
 const images = computed(() => typeof props.message.content === 'string'
   ? emptyImages
   : props.message.content.filter(part => part.type === 'image_url').map(part => part.image_url.url))
+const voiceControls = useVoiceControlsStore()
+/** The voice host still transcribes this message after its submit. */
+const transcribing = computed(() => voiceControls.messages.some(item => item.id === props.message.id && (item.phase === 'sending' || item.phase === 'transcribing')))
 /** Each recording with its transcript, when one was stored. Transcripts follow the audio part order. */
 const audio = computed(() => typeof props.message.content === 'string'
   ? []
@@ -114,6 +118,9 @@ const copyText = computed(() => getChatHistoryItemCopyText(props.message))
             <VoiceMessagePlayer :audio="recording.source" :aria-label="t('stage.chat.voice-message.preview')" />
             <p v-if="recording.transcript" :class="['m-0 px-1 text-sm opacity-75']">
               {{ recording.transcript }}
+            </p>
+            <p v-else-if="transcribing" :class="['m-0 px-1 text-sm opacity-60 animate-pulse motion-reduce:animate-none']">
+              {{ t('stage.chat.voice-message.transcribing') }}
             </p>
           </div>
           <MarkdownRenderer
