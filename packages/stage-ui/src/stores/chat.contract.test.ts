@@ -80,7 +80,7 @@ const getChatProviderInstanceMock = vi.fn()
 const getToolsByNamesMock = vi.fn<(names: string[]) => Tool[]>()
 const visionMocks = vi.hoisted(() => ({ configured: false, model: 'system', runInference: vi.fn(), useForToolImages: true }))
 /** A catalog model can omit its abilities, as most provider catalogs do. */
-interface CatalogModel { id: string, metadata: { abilities?: { vision: boolean } } }
+interface CatalogModel { id: string, inputModalities?: string[], metadata: { abilities?: { vision: boolean } } }
 const consciousnessModels = vi.hoisted(() => ({ value: [{ id: 'gpt-test', metadata: { abilities: { vision: false } } }] as CatalogModel[] }))
 
 const activeSessionIdRef = ref('session-1')
@@ -393,7 +393,9 @@ describe('chat store contract', () => {
   })
 
   it('waits for the transcript of a submitted voice message instead of transcribing the file', async () => {
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _context: Conversation, options: StreamOptions) => {
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
       await options.onStreamEvent?.({ type: 'finish' })
     })
     const store = useChatStore()
@@ -412,9 +414,8 @@ describe('chat store contract', () => {
 
     await store.settleAudioTranscript({ sessionId: 'session-1', messageId: 'voice-1', transcript: 'hello there' })
 
-    await vi.waitFor(() => expect(llmStreamMock).toHaveBeenCalledTimes(1))
-    const context = llmStreamMock.mock.calls[0]![2] as Conversation
-    expect(context.turns.findLast(turn => turn.type === 'user')).toMatchObject({
+    await vi.waitFor(() => expect(requests).toHaveLength(1))
+    expect(requests[0].turns.findLast(turn => turn.type === 'user')).toMatchObject({
       content: expect.arrayContaining([{ type: 'text', text: 'hello there' }]),
     })
     expect(sessionMessages['session-1'].find(message => message.id === 'voice-1')?.audioTranscripts).toEqual(['hello there'])
@@ -510,6 +511,38 @@ describe('chat store contract', () => {
       [AIRI_CHAT_ROUND_ID_HEADER]: expect.any(String),
     })
     expect(getChatProviderInstanceMock).toHaveBeenLastCalledWith('official-provider', { reasoning: 'disabled' })
+  })
+
+  it('projects stored audio again when a tool step changes to a text-only model', async () => {
+    cardSelections.set('alice', { provider: 'mock-provider', model: 'audio-model' })
+    consciousnessModels.value = [
+      { id: 'audio-model', inputModalities: ['text', 'audio'], metadata: {} },
+      { id: 'text-model', inputModalities: ['text'], metadata: {} },
+    ]
+    const requests: Conversation[] = []
+    llmStreamMock.mockImplementation(async (model: string, chatProvider: GenerationProvider, context: Conversation, options: LlmStreamOptions) => {
+      requests.push(await options.prepareConversation!(context, { model, providerId: options.providerId, request: chatProvider.generation(model) }))
+      // Core passes a new conversation with the completed tool round after a scope change.
+      const continued: Conversation = { turns: [...context.turns] }
+      requests.push(await options.prepareConversation!(continued, { model: 'text-model', providerId: 'mock-provider', request: chatProvider.generation('text-model') }))
+      await options.onStreamEvent?.({ type: 'finish' })
+    })
+    const store = useChatStore()
+    await store.send({
+      sessionId: 'session-1',
+      text: '',
+      attachments: [{ type: 'audio', mimeType: 'audio/wav', data: 'UklGRg==', transcript: 'spoken words' }],
+    })
+
+    expect(requests[0]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).toEqual(expect.arrayContaining([
+      { type: 'text', text: 'spoken words' },
+    ]))
+    expect(requests[1]?.turns.findLast(turn => turn.type === 'user')?.content).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ type: 'audio' }),
+    ]))
   })
 
   it('uses the target character settings for a voice submission', async () => {

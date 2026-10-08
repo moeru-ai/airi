@@ -283,6 +283,24 @@ describe('isToolRelatedError', () => {
     expect(streamTextMock.mock.calls[1]?.[0]?.tools).toBeUndefined()
   })
 
+  it('records tool incompatibility for the model that a resolved step selects', async () => {
+    const store = useLLM()
+    streamTextMock.mockImplementationOnce(() => {
+      throw new Error('model-b does not support tools')
+    })
+    await expect(store.stream('model-a', provider, helloTurns, {
+      tools: [customTool],
+      resolveStep: async () => ({ model: 'model-b', chatProvider: provider, providerId: 'test', systemPrompt: '' }),
+    })).rejects.toThrow('does not support tools')
+
+    streamTextMock.mockImplementation(() => createMockStreamResult())
+    await store.stream('model-a', provider, helloTurns, { tools: [customTool] })
+    await store.stream('model-b', provider, helloTurns, { tools: [customTool] })
+
+    expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain('custom-tool')
+    expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
+  })
+
   it('sends the request tools with each resolved step', async () => {
     streamTextMock.mockImplementation(() => createMockStreamResult())
 

@@ -1,5 +1,5 @@
 import type { ChatAttachment, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
 import type { SyncedPiniaRuntime } from 'pinia-plugin-synced'
@@ -296,6 +296,14 @@ export const useChatStore = defineStore('chat', () => {
   /** Turns that a voice message without speech removed. Their cancellation is not reported as a send error. */
   const droppedTurns = new Set<string>()
 
+  /** Audio input reaches only Chat Completions models whose catalog entry lists audio input. Other requests get transcripts. */
+  async function supportsAudioInput(providerId: string, modelId: string, request: GenerationRequest) {
+    if (request.protocol !== 'chat-completions')
+      return false
+    const model = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
+    return model?.inputModalities?.includes('audio') === true
+  }
+
   function failedImageReadsOf(sessionId: string) {
     let reads = failedImageReads.get(sessionId)
     if (!reads) {
@@ -343,9 +351,10 @@ export const useChatStore = defineStore('chat', () => {
 
     const visionStore = useVisionStore()
     // NOTICE:
-    // These decisions read the model of the first step and hold for the stream.
-    // `resolveStep` (#2709) can change the model between steps, and no stage-ui
-    // caller uses it yet. Decide for each step when one does.
+    // These image decisions read the model of the first step and hold for the stream.
+    // `resolveStep` (#2709) can change the model between steps. Audio follows each step
+    // through `prepareConversation`, but image reading runs once before the stream.
+    // Move image projection into `prepareConversation` to decide it for each step.
     const describeToolImage = chatVision.toolImageReader(model, options?.abortSignal)
     // The vision model reads new tool images, so stored ones follow the same
     // decision. Without a reader, stored tool images replay as they are.
@@ -471,10 +480,12 @@ export const useChatStore = defineStore('chat', () => {
       return projected
     }
 
-    if (!options?.supportsAudioInput)
-      providerContext = await prepareTextOnlyAudioContext(providerContext)
+    // The first request is projected before the LLM span starts, so transcription time stays outside model latency.
+    // Its transcripts are stored, so a later projection for another model reuses them.
+    const initialProjection = options?.supportsAudioInput ? providerContext : await prepareTextOnlyAudioContext(providerContext)
+    const isInitialTarget = (target: { model: string, providerId?: string }) => target.model === model && target.providerId === options?.providerId
 
-    const providerMessages = renderConversationPreview(providerContext)
+    const providerMessages = renderConversationPreview(initialProjection)
     if (options?.requestCorrelation?.conversationId)
       contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, providerMessages)
 
@@ -502,6 +513,18 @@ export const useChatStore = defineStore('chat', () => {
             return { ...step, headers: requestHeaders(step.providerId) }
           }
           : undefined,
+        // Audio projection follows the model of each request. A tool step can switch between audio and text models.
+        prepareConversation: async (conversation, target) => {
+          if (conversation === providerContext && isInitialTarget(target))
+            return initialProjection
+          if (target.providerId && await supportsAudioInput(target.providerId, target.model, target.request))
+            return conversation
+
+          const projected = await prepareTextOnlyAudioContext(conversation)
+          if (projected !== conversation && options?.requestCorrelation?.conversationId)
+            contextObservability.captureProviderPromptProjection(options.requestCorrelation.conversationId, renderConversationPreview(projected))
+          return projected
+        },
         describeToolImage,
         onStreamEvent: async (event: StreamEvent) => {
           if (isTextDelta(event)) {
@@ -831,7 +854,6 @@ export const useChatStore = defineStore('chat', () => {
       throw new Error(`Failed to resolve chat provider "${providerId}"`)
 
     const selectedModel = (await consciousnessStore.getModelsForProvider(providerId)).find(model => model.id === modelId)
-    const supportsAudioInput = selectedModel?.inputModalities?.includes('audio') === true && chatProvider.generation(modelId).protocol === 'chat-completions'
 
     /**
      * Reads the session character's current consciousness settings and prompt before each model request.
@@ -858,7 +880,7 @@ export const useChatStore = defineStore('chat', () => {
 
     return {
       providerId,
-      supportsAudioInput,
+      supportsAudioInput: await supportsAudioInput(providerId, modelId, chatProvider.generation(modelId)),
       supportsVisionInput: selectedModel?.metadata?.abilities?.vision === true,
       resolveStep,
       signal,
