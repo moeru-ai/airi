@@ -11,7 +11,14 @@ import { homeAssistantGetConfig, homeAssistantSetConfig } from '../../../../shar
 import { useTamagotchiHomeAssistantStore } from '../../../stores/tools/home-assistant'
 
 const { t } = useI18n()
-const tn = (key: string) => t(`settings.pages.modules.home-assistant.${key}`)
+/**
+ * Translates one key of this page.
+ *
+ * The status line stores a suffix rather than a translated string. Translating
+ * here and again in the template passes an already-rendered message to `t()`,
+ * which drops the interpolation parameters.
+ */
+const tn = (key: string, params?: Record<string, unknown>) => t(`settings.pages.modules.home-assistant.${key}`, params ?? {})
 
 const settings = useHomeAssistantStore()
 const { enabled } = storeToRefs(settings)
@@ -25,8 +32,8 @@ const hasToken = ref(false)
 const tokenPreview = ref('')
 const busy = ref(false)
 
-/** The line under the buttons. The key is complete, and carries its parameters. */
-const status = ref<{ key: string, params?: Record<string, unknown> } | null>(null)
+/** The line under the buttons: a key suffix, and the values that key interpolates. */
+const status = ref<{ suffix: string, params?: Record<string, unknown> } | null>(null)
 
 /** Mirrors what the main process holds, so the module card can show its state. */
 function recordCredentials(saved: { baseUrl: string, hasToken: boolean }) {
@@ -69,10 +76,10 @@ async function onSave() {
   busy.value = true
   try {
     await save()
-    status.value = { key: tn('status.saved') }
+    status.value = { suffix: 'status.saved' }
   }
   catch (error) {
-    status.value = { key: tn('status.failed'), params: { message: errorMessageFrom(error) ?? '' } }
+    status.value = { suffix: 'status.failed', params: { message: errorMessageFrom(error) ?? '' } }
   }
   finally {
     busy.value = false
@@ -81,14 +88,14 @@ async function onSave() {
 
 async function onTest() {
   busy.value = true
-  status.value = { key: tn('status.testing') }
+  status.value = { suffix: 'status.testing' }
   try {
     await save()
     const count = await toolsStore.testConnection()
-    status.value = { key: tn('status.reachable'), params: { count } }
+    status.value = { suffix: 'status.reachable', params: { count } }
   }
   catch (error) {
-    status.value = { key: tn('status.failed'), params: { message: errorMessageFrom(error) ?? '' } }
+    status.value = { suffix: 'status.failed', params: { message: errorMessageFrom(error) ?? '' } }
   }
   finally {
     busy.value = false
@@ -133,7 +140,7 @@ async function onTest() {
         {{ tn('actions.test') }}
       </Button>
       <span v-if="status" text="sm neutral-500 dark:neutral-400">
-        {{ t(status.key, status.params ?? {}) }}
+        {{ tn(status.suffix, status.params) }}
       </span>
     </div>
   </div>
