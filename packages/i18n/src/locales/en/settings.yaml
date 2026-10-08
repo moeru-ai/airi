@@ -855,6 +855,14 @@ pages:
             always-on-description: AIRI listens all the time and replies when you speak.
             push-to-talk: Push to Talk
             push-to-talk-description: AIRI listens only while you hold the Push to Talk key. The microphone is open only during the hold.
+            wake-word: Wake words
+            wake-word-description: The microphone stays on, but AIRI listens only after you say a character's wake word.
+            wake-word-status:
+              no-words: No character has wake words. Ask a character in chat to set its wake words.
+              unconfigured: Wake word detection starts when the microphone is on.
+              preparing: Preparing the wake word model…
+              ready: Wake words are ready.
+              error: 'The wake word model is not available: {error}'
           rephrase:
             title: Transcript rewrite
             description: A chat model fixes recognition errors and removes filler words before a transcript becomes a draft. The original text is kept.
