@@ -35,17 +35,15 @@ export interface ChatFluxDebitInput extends UsageInfo {
   }
 }
 
-export type ChatBillingPolicy = BillingPolicy
-
 interface ChatUsagePrice {
   amount: number
   costReceipt: ChatFluxDebitInput['costReceipt']
 }
 
 export interface OpenAiRouteBilling {
-  authorizeChat: (userId: string) => Promise<ChatBillingPolicy>
-  authorizeDispatch: (policy: ChatBillingPolicy, route: { gateway: string, model: string }) => void
-  priceChatUsage: (usage: UsageInfo, policy: ChatBillingPolicy, provider: string) => ChatUsagePrice
+  authorizeChat: (userId: string) => Promise<BillingPolicy>
+  authorizeDispatch: (policy: BillingPolicy, route: { gateway: string, model: string }) => void
+  priceChatUsage: (usage: UsageInfo, policy: BillingPolicy, provider: string) => ChatUsagePrice
   recordChatDebitFailure: (input: {
     amount: number
     model: string
@@ -68,7 +66,7 @@ export function createOpenAiRouteBilling(deps: {
     plans: deps.subscriptions,
     walletMicro: async userId => availableMicroFlux(await deps.billingService.getWallet(userId)),
   })
-  async function authorizeChat(userId: string): Promise<ChatBillingPolicy> {
+  async function authorizeChat(userId: string): Promise<BillingPolicy> {
     const costPricing = await deps.configKV.getOptional('LLM_COST_BILLING')
     const minimumBalance = await deps.configKV.getOrThrow('LLM_MINIMUM_BALANCE')
     const parsed = safeParse(billingPolicySchema, { minimumBalance, costPricing })
@@ -82,13 +80,13 @@ export function createOpenAiRouteBilling(deps: {
     return parsed.output
   }
 
-  function authorizeDispatch(policy: ChatBillingPolicy, route: { gateway: string, model: string }): void {
+  function authorizeDispatch(policy: BillingPolicy, route: { gateway: string, model: string }): void {
     const adapter = resolveProviderCostAdapter(route.gateway)
     if (!adapter || !Object.hasOwn(policy.costPricing, adapter.provider))
       throw createServiceUnavailableError('LLM cost adapter or price is missing', 'LLM_BILLING_UNAVAILABLE')
   }
 
-  function priceChatUsage(usage: UsageInfo, policy: ChatBillingPolicy, provider: string): ChatUsagePrice {
+  function priceChatUsage(usage: UsageInfo, policy: BillingPolicy, provider: string): ChatUsagePrice {
     const adapter = resolveProviderCostAdapter(provider)
     if (!adapter || !Object.hasOwn(policy.costPricing, adapter.provider))
       throw createServiceUnavailableError('LLM cost adapter or price is missing', 'LLM_BILLING_UNAVAILABLE')

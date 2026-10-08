@@ -303,12 +303,7 @@ export function createBillingService(
       })
 
       // Invalidation prevents a balance-only write from hiding confirmed outstanding fees.
-      try {
-        await invalidateBalanceCache(redis, input.userId)
-      }
-      catch {
-        logger.withFields({ userId: input.userId }).warn('Failed to invalidate flux cache after setFlux')
-      }
+      await updateRedisCache(input.userId)
 
       logger.withFields({
         userId: input.userId,

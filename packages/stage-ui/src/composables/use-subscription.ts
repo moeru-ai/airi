@@ -1,26 +1,47 @@
 import type { Package } from '@revenuecat/purchases-js'
 
 import { getRevenuecatWebKey, isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
+import { ErrorCode, Purchases, PurchasesError } from '@revenuecat/purchases-js'
 import { object, optional, pipe, record, safeParse, string, trim } from 'valibot'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { client } from './api'
-import { ensureRevenuecatConfigured, isRevenuecatUserCancelled, REVENUECAT_POLL_INTERVAL_MS, REVENUECAT_POLL_MAX_ATTEMPTS, revenuecatPackagePrice } from './revenuecat'
 
-export interface PlanSubscription {
-  entitlementId: string
-  productId: string | null
-  store: string | null
-  environment: string | null
-  status: string
-  expiresAt: string | null
+/** Delay between polls while waiting for the webhook grant to land. */
+const POLL_INTERVAL_MS = 3000
+/** Webhook grants usually land within a minute; stop polling after this many tries. */
+const POLL_MAX_ATTEMPTS = 20
+
+let configuredKey: string | null = null
+let configuredUserId: string | null = null
+
+/**
+ * Returns the shared Purchases instance for the current web key and user.
+ * Re-keys the client when either changes so concurrent accounts never share identity.
+ */
+async function ensurePurchases(userId: string) {
+  const key = getRevenuecatWebKey()
+  if (!key)
+    throw new Error('REVENUECAT_WEB_KEY_MISSING')
+
+  if (!Purchases.isConfigured()) {
+    Purchases.configure({ apiKey: key, appUserId: userId })
+    configuredKey = key
+    configuredUserId = userId
+    return Purchases.getSharedInstance()
+  }
+
+  const purchases = Purchases.getSharedInstance()
+  if (configuredKey !== key || configuredUserId !== userId) {
+    await purchases.changeUser(userId)
+    configuredKey = key
+    configuredUserId = userId
+  }
+  return purchases
 }
 
-export interface PlanAllowance {
-  entitlementId: string
-  remainingPercent: number | null
-}
+type SubscriptionStatus = Awaited<ReturnType<Awaited<ReturnType<typeof client.api.v1.subscriptions.status.$get>>['json']>>
 
 export type PlanBillingPeriod = 'month' | 'year'
 
@@ -65,34 +86,28 @@ export function planCatalogCopy(metadata: unknown, productId: string, locale: st
   }
 }
 
-/** Keeps the RevenueCat period unit. */
-export function planBillingPeriod(unit: string | null | undefined): PlanBillingPeriod | null {
+/** Only month and year packages are sold. */
+function planBillingPeriod(unit: string | null | undefined): PlanBillingPeriod | null {
   if (unit === 'month' || unit === 'year')
     return unit
   return null
-}
-
-interface PlanStatus {
-  subscriptions: PlanSubscription[]
-  allowances: PlanAllowance[]
-  fallbackToFlux: boolean
 }
 
 function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPackage | null {
   const period = planBillingPeriod(pkg.webBillingProduct.period?.unit)
   if (!period)
     return null
-  const { formattedPrice, currency } = revenuecatPackagePrice(pkg)
+  const price = pkg.webBillingProduct.price
   const copy = planCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
   return {
     packageId: pkg.identifier,
     productId: pkg.webBillingProduct.identifier,
     name: copy.name,
     benefit: copy.benefit,
-    formattedPrice,
-    currency,
+    formattedPrice: price.formattedPrice,
+    currency: price.currency,
     period,
-    amountMicros: pkg.webBillingProduct.price.amountMicros,
+    amountMicros: price.amountMicros,
   }
 }
 
@@ -104,7 +119,7 @@ export function useSubscription(options: {
   const { t, locale } = useI18n()
   const enabled = !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null
 
-  const status = ref<PlanStatus | null>(null)
+  const status = ref<SubscriptionStatus | null>(null)
   const packages = ref<PlanPackage[]>([])
   const loadingPackages = ref(false)
   const purchasingPackageId = ref<string | null>(null)
@@ -116,7 +131,7 @@ export function useSubscription(options: {
     if (!enabled)
       return
     try {
-      const purchases = await ensureRevenuecatConfigured(options.getUserId())
+      const purchases = await ensurePurchases(options.getUserId())
       managementUrl.value = (await purchases.getCustomerInfo()).managementURL
     }
     catch {
@@ -128,7 +143,7 @@ export function useSubscription(options: {
     const res = await client.api.v1.subscriptions.status.$get()
     if (!res.ok)
       throw new Error(t('settings.pages.plan.statusError'))
-    status.value = await res.json() as PlanStatus
+    status.value = await res.json()
     await options.onChanged().catch(() => undefined)
   }
 
@@ -138,7 +153,7 @@ export function useSubscription(options: {
       return
     loadingPackages.value = true
     try {
-      const purchases = await ensureRevenuecatConfigured(options.getUserId())
+      const purchases = await ensurePurchases(options.getUserId())
       const offerings = await purchases.getOfferings()
       const current = offerings.current
       if (!current)
@@ -156,7 +171,7 @@ export function useSubscription(options: {
   async function purchasePlan(packageId: string): Promise<'activated' | 'pending' | 'cancelled'> {
     purchasingPackageId.value = packageId
     try {
-      const purchases = await ensureRevenuecatConfigured(options.getUserId())
+      const purchases = await ensurePurchases(options.getUserId())
       const offerings = await purchases.getOfferings()
       const rcPackage = offerings.current?.availablePackages.find(pkg => pkg.identifier === packageId)
       if (!rcPackage)
@@ -166,7 +181,7 @@ export function useSubscription(options: {
         await purchases.purchase({ rcPackage })
       }
       catch (error) {
-        if (await isRevenuecatUserCancelled(error))
+        if (error instanceof PurchasesError && error.errorCode === ErrorCode.UserCancelledError)
           return 'cancelled'
         throw error
       }
@@ -182,12 +197,12 @@ export function useSubscription(options: {
   async function pollActivation(): Promise<boolean> {
     pendingActivation.value = true
     try {
-      for (let attempt = 0; attempt < REVENUECAT_POLL_MAX_ATTEMPTS; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, REVENUECAT_POLL_INTERVAL_MS))
+      for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
         try {
           const res = await client.api.v1.subscriptions.status.$get()
           if (res.ok) {
-            status.value = await res.json() as PlanStatus
+            status.value = await res.json()
             if (status.value.subscriptions.length > 0)
               return true
           }
@@ -207,7 +222,7 @@ export function useSubscription(options: {
     const res = await client.api.v1.subscriptions.preference.$put({ json: { fallbackToFlux } })
     if (!res.ok)
       throw new Error(t('settings.pages.plan.preferenceError'))
-    const data = await res.json() as { fallbackToFlux: boolean }
+    const data = await res.json()
     if (status.value)
       status.value = { ...status.value, fallbackToFlux: data.fallbackToFlux }
   }
