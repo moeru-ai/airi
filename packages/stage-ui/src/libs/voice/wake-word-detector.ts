@@ -38,6 +38,20 @@ export interface WakeWordDetectorOptions {
    * @default 100
    */
   readonly batchMs?: number
+  /**
+   * Recognition audio that can wait for the Worker. A larger backlog is dropped, because a wake from stale audio
+   * arrives too late to be useful, and the spotter starts a new stream.
+   *
+   * @default 1000
+   */
+  readonly maxBacklogMs?: number
+}
+
+/** A complete batch that waits for the Worker. `reset` starts a new stream before this batch. */
+interface RecognitionBatch {
+  readonly samples: Float32Array
+  readonly sampleRate: number
+  readonly reset: boolean
 }
 
 /** Sherpa-ONNX accepts finite mono PCM in [-1, 1]. */
@@ -64,10 +78,15 @@ function toMonoSamples(window: AudioWindow) {
  * Each keyword label is a {@link WakePronunciation.key}. A match maps back to the current catalog,
  * so a pronunciation that changed owner or became inactive during recognition cannot wake a character.
  *
+ * Recognition runs off the ordered window path. {@link detect} queues complete batches and returns at once,
+ * so a Worker slower than real time cannot delay VAD or make the shared observer fall behind.
+ * A match resolves its target in the background, and the next window returns it.
+ *
  * State:
  * - `pronunciations` is the latest active catalog for this model. {@link setPronunciations} replaces it.
  * - `spotter` is runtime-loaded state. It exists after the first non-empty catalog prepares.
- * - `generation` changes on {@link stop}. Work from an older generation discards its result.
+ * - `queue` holds batches for the Worker. `wake` holds a resolved target until a window returns it.
+ * - `generation` changes on {@link stop} and on keyword rebuilds. Work from an older generation discards its result.
  */
 export class WakeWordDetector {
   private pronunciations = new Map<string, WakePronunciation>()
@@ -76,10 +95,16 @@ export class WakeWordDetector {
   /** Serializes spotter creation and keyword replacement, so the Worker receives the newest list last. */
   private updates: Promise<void> = Promise.resolve()
   private generation = 0
+  /** Aborts target resolution of the current generation. */
+  private lifetime = new AbortController()
   private pending: Float32Array[] = []
   private pendingSamples = 0
+  private queue: RecognitionBatch[] = []
+  private recognizing = false
+  private wake?: WakeTarget
   /** Sherpa-ONNX resamples to the model rate internally, but the rate must stay constant within one stream. */
   private streamSampleRate?: number
+  private resetStream = false
 
   constructor(private readonly options: WakeWordDetectorOptions) {}
 
@@ -101,8 +126,9 @@ export class WakeWordDetector {
     if (unchanged)
       return this.updates
 
+    // Queued audio and a resolved wake belong to the old keywords.
+    this.invalidate()
     this.keywordsReady = false
-    this.clearPending()
     const generation = this.generation
     const keywords: KeywordEntry[] = [...next.values()].map(pronunciation => ({ label: pronunciation.key, matches: [{ tokens: [...pronunciation.tokens] }] }))
     const update = this.updates.then(async () => {
@@ -136,7 +162,9 @@ export class WakeWordDetector {
         throw error
       }
 
+      // A keyword update starts a new stream in the Worker.
       this.streamSampleRate = undefined
+      this.resetStream = false
       if (generation !== this.generation || next !== this.pronunciations)
         return
       this.keywordsReady = true
@@ -147,89 +175,136 @@ export class WakeWordDetector {
   }
 
   /**
-   * Receives each ordered window of the shared input. It returns a target only for the window that completes a batch
-   * with a match. A window that only fills the batch, or arrives before the spotter is ready, returns undefined at once.
+   * Receives each ordered window of the shared input and returns without waiting for the Worker.
+   * It returns a target when background recognition resolved a wake since the previous window.
+   * A window with an aborted signal leaves that wake for the next window.
    *
    * This method never rejects. A failure of the shared observer callback ends the whole voice activity observation,
    * so recognition failures change the preparation to `error` and target failures go to `onError`.
    */
   async detect(window: AudioWindow, signal: AbortSignal): Promise<WakeTarget | undefined> {
-    const spotter = this.spotter
-    if (!spotter || !this.ready) {
+    if (!this.ready) {
       this.clearPending()
       return undefined
     }
 
-    const generation = this.generation
-    const detections = await this.recognize(spotter, window).catch((error: unknown) => {
-      if (generation === this.generation) {
-        this.keywordsReady = false
-        this.options.onPreparationChange?.('error', errorMessageFrom(error) ?? 'Wake word recognition failed')
-      }
-      return undefined
-    })
+    this.collect(window)
+    void this.recognize(this.generation)
 
-    // A stopped detector or an abandoned window must not wake a character.
-    if (!detections || generation !== this.generation || signal.aborted)
+    const wake = this.wake
+    if (!wake || signal.aborted)
       return undefined
 
-    for (const detection of detections) {
-      // The label is a catalog key. A key outside the current catalog belongs to a replaced keyword list.
-      const pronunciation = this.pronunciations.get(detection.label)
-      if (!pronunciation)
-        continue
-
-      try {
-        const target = await this.options.resolveTarget(pronunciation.characterId, signal)
-        if (generation !== this.generation || signal.aborted)
-          return undefined
-
-        return target
-      }
-      catch (error) {
-        if (!signal.aborted && generation === this.generation)
-          this.options.onError?.(error)
-        return undefined
-      }
-    }
-
-    return undefined
+    this.wake = undefined
+    return wake
   }
 
-  /** Disposes the spotter Worker. Pending recognition from before the stop returns no target. */
+  /** Disposes the spotter Worker. Queued recognition and a resolved wake from before the stop return no target. */
   stop() {
-    this.generation++
-    this.clearPending()
+    this.invalidate()
     this.spotter?.dispose()
     this.spotter = undefined
     this.keywordsReady = false
-    this.streamSampleRate = undefined
     this.pronunciations = new Map()
   }
 
-  /** Collects the window into the current batch. It sends a complete batch to the spotter and returns its detections. */
-  private async recognize(spotter: KeywordSpotter, window: AudioWindow) {
+  /** Adds the window to the current batch, and queues the batch when it is complete. */
+  private collect(window: AudioWindow) {
     // A gap or a device change starts a new stream, so audio before it cannot complete a keyword.
     if (window.discontinuity || (this.streamSampleRate !== undefined && this.streamSampleRate !== window.sampleRate)) {
       this.clearPending()
-      this.streamSampleRate = undefined
-      await spotter.reset()
+      this.resetStream = true
     }
+    this.streamSampleRate = window.sampleRate
 
     this.pending.push(toMonoSamples(window))
     this.pendingSamples += window.channels[0]?.length ?? 0
     if (this.pendingSamples < window.sampleRate * (this.options.batchMs ?? 100) / 1000)
-      return []
+      return
 
-    const batch = new Float32Array(this.pendingSamples)
+    const samples = new Float32Array(this.pendingSamples)
     let offset = 0
-    for (const samples of this.pending) {
-      batch.set(samples, offset)
-      offset += samples.length
+    for (const part of this.pending) {
+      samples.set(part, offset)
+      offset += part.length
     }
     this.clearPending()
-    this.streamSampleRate = window.sampleRate
-    return spotter.processAudio(batch, window.sampleRate)
+    this.queue.push({ samples, sampleRate: window.sampleRate, reset: this.resetStream })
+    this.resetStream = false
+
+    const backlogMs = this.queue.reduce((total, batch) => total + batch.samples.length * 1000 / batch.sampleRate, 0)
+    if (backlogMs > (this.options.maxBacklogMs ?? 1000)) {
+      // The Worker is slower than real time. Drop the stale audio and continue from the next batch in a new stream.
+      this.queue = []
+      this.resetStream = true
+    }
+  }
+
+  /** Sends queued batches to the Worker in order. One loop runs at a time. */
+  private async recognize(generation: number) {
+    if (this.recognizing)
+      return
+
+    this.recognizing = true
+    try {
+      while (generation === this.generation && this.queue.length > 0) {
+        const spotter = this.spotter
+        const batch = this.queue.shift()!
+        if (!spotter)
+          return
+        if (batch.reset)
+          await spotter.reset()
+        const detections = await spotter.processAudio(batch.samples, batch.sampleRate)
+        // A stopped detector or a rebuilt keyword list must not wake a character.
+        if (generation !== this.generation)
+          return
+
+        const pronunciation = detections
+          // The label is a catalog key. A key outside the current catalog belongs to a replaced keyword list.
+          .map(detection => this.pronunciations.get(detection.label))
+          .find(candidate => candidate !== undefined)
+        if (pronunciation)
+          await this.resolveWake(pronunciation, generation)
+      }
+    }
+    catch (error) {
+      if (generation === this.generation) {
+        this.keywordsReady = false
+        this.queue = []
+        this.options.onPreparationChange?.('error', errorMessageFrom(error) ?? 'Wake word recognition failed')
+      }
+    }
+    finally {
+      this.recognizing = false
+    }
+    // A batch queued while an older generation finished its last Worker call still needs a loop.
+    if (generation !== this.generation && this.queue.length > 0)
+      void this.recognize(this.generation)
+  }
+
+  private async resolveWake(pronunciation: WakePronunciation, generation: number) {
+    const signal = this.lifetime.signal
+    try {
+      const target = await this.options.resolveTarget(pronunciation.characterId, signal)
+      if (generation === this.generation && !signal.aborted)
+        this.wake = target
+    }
+    catch (error) {
+      if (generation === this.generation && !signal.aborted)
+        this.options.onError?.(error)
+    }
+  }
+
+  /** Ends the current generation. Its queued audio, Worker results, and resolved wake are discarded. */
+  private invalidate() {
+    this.generation++
+    this.lifetime.abort('Wake word detection changed')
+    this.lifetime = new AbortController()
+    this.clearPending()
+    this.queue = []
+    this.wake = undefined
+    this.streamSampleRate = undefined
+    this.resetStream = false
   }
 
   private clearPending() {

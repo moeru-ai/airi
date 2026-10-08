@@ -17,11 +17,15 @@ The voice pipeline now shares one audio input between VAD, capture, and level me
 It owns one Sherpaw keyword spotter Worker. It does not own a microphone, an AudioContext, or an AudioWorklet.
 
 The detector downmixes each window to mono. It replaces non-finite samples with 0 and clamps the others to [-1, 1].
-It sends 100 ms batches to the spotter. Sherpa-ONNX resamples them to the model rate. A gap or a sample rate change resets the stream.
+It queues 100 ms batches for the spotter. Sherpa-ONNX resamples them to the model rate. A gap or a sample rate change resets the stream.
+
+Recognition runs off the ordered window path. The voice activity observer uses `ordered` scheduling and fails after 60 seconds of backlog.
+If each window waited for the Worker, a Worker slower than real time would delay VAD and then end the observation.
+The detector returns at once instead. A resolved wake arrives on a later window. A recognition backlog over 1 second is dropped, because a late wake is not useful.
 
 Each keyword label is a catalog pronunciation key. A match reads the current catalog, then calls `resolveWakeTarget`.
 A pronunciation that became inactive during recognition cannot wake a character. An owner change uses the new owner without a keyword rebuild.
-A stop or an aborted window discards a late result. Detection never rejects, because a rejection ends the shared observation.
+A stop or a keyword rebuild discards a late result. Detection never rejects, because a rejection ends the shared observation.
 
 `useWakeWordDetectionStore` owns the running detector and exposes its preparation: `unconfigured`, `preparing`, `ready`, or `error`.
 `voice.startListening` starts it when the host supplies no `detectWakeWord`. The model loads only when the catalog has a pronunciation for the pinned model.
