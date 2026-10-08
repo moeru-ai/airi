@@ -11,7 +11,7 @@ import {
 } from '@proj-airi/stage-host-context'
 import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
-import { HoloCoupon, VoiceDrafts, VoiceMessageControls } from '@proj-airi/stage-ui/components'
+import { HoloCoupon, VoiceDrafts } from '@proj-airi/stage-ui/components'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
   resolveComponentStateToRuntimePhase,
@@ -359,7 +359,6 @@ const cursorPosition = computed(() => ({
         <HoloCoupon />
         <div :class="['absolute bottom-3 left-1/2 z-30 w-fit -translate-x-1/2']">
           <VoiceDrafts />
-          <VoiceMessageControls />
         </div>
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
           <ControlsIsland
