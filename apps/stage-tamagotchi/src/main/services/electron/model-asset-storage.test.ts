@@ -1,6 +1,6 @@
 import type { ModelAsset } from '@proj-airi/stage-shared/model-assets'
 
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -25,7 +25,7 @@ const directories: string[] = []
 async function storage(download: typeof fetch) {
   const directory = await mkdtemp(join(tmpdir(), 'airi-model-assets-'))
   directories.push(directory)
-  return new FileModelAssetStorage(directory, download)
+  return { directory, store: new FileModelAssetStorage(directory, download) }
 }
 
 afterEach(async () => {
@@ -35,7 +35,7 @@ afterEach(async () => {
 describe('electron model asset storage', () => {
   it('installs a complete model pair and detects missing files', async () => {
     const download = vi.fn(async (input: RequestInfo | URL) => new Response(String(input)))
-    const store = await storage(download)
+    const { store } = await storage(download)
 
     await store.install(model, () => {}, new AbortController().signal)
 
@@ -51,9 +51,22 @@ describe('electron model asset storage', () => {
         return new Response('unavailable', { status: 503 })
       return new Response('data')
     })
-    const store = await storage(download)
+    const { store } = await storage(download)
 
     await expect(store.install(model, () => {}, new AbortController().signal)).rejects.toThrow('503')
     expect(await store.has(model)).toBe(false)
+  })
+
+  it('removes staging directories that a killed download left behind', async () => {
+    const download = vi.fn(async (input: RequestInfo | URL) => new Response(String(input)))
+    const { directory, store } = await storage(download)
+    const stale = join(directory, 'speech', '.download-a1b2c3')
+    await mkdir(stale, { recursive: true })
+    await writeFile(join(stale, 'data'), 'partial')
+
+    await store.install(model, () => {}, new AbortController().signal)
+
+    expect(await readdir(join(directory, 'speech'))).toEqual(['v1'])
+    expect(await store.has(model)).toBe(true)
   })
 })

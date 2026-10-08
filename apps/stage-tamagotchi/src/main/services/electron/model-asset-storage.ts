@@ -1,12 +1,14 @@
 import type { ModelAsset, ModelAssetFile, ModelAssetProgress, ModelAssetStorage } from '@proj-airi/stage-shared/model-assets'
 
-import { mkdir, mkdtemp, open, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, open, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { net } from 'electron'
 
 import * as v from 'valibot'
+
+const STAGING_PREFIX = '.download-'
 
 const markerSchema = v.object({
   revision: v.string(),
@@ -46,7 +48,14 @@ export class FileModelAssetStorage implements ModelAssetStorage {
   async install(model: ModelAsset, onProgress: (progress: ModelAssetProgress) => void, signal: AbortSignal): Promise<void> {
     const parent = join(this.directory, encodeURIComponent(model.id))
     await mkdir(parent, { recursive: true })
-    const temporary = await mkdtemp(join(parent, '.download-'))
+    // A killed process leaves its staging directory behind. The repository runs
+    // one download per model, so any staging directory here is stale.
+    for (const entry of await readdir(parent)) {
+      if (entry.startsWith(STAGING_PREFIX))
+        await rm(join(parent, entry), { recursive: true, force: true })
+    }
+    const temporary = join(parent, `${STAGING_PREFIX}${encodeURIComponent(model.revision)}`)
+    await mkdir(temporary)
     const sizes: Record<string, number> = {}
     try {
       for (const file of model.files) {
