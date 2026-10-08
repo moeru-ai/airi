@@ -131,7 +131,8 @@ function commandPreview(s: ServerForm) {
 }
 
 const CARD_PRIMARY = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-primary-100 bg-primary-50/50 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-primary-900/60 dark:bg-primary-900/10 dark:hover:border-primary-400/30'
-const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-100 bg-neutral-50/60 p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-900 dark:bg-neutral-900/30 dark:hover:border-primary-400/30'
+// The section card is neutral-100, so a disabled card needs a lighter fill and a visible border to read as a card.
+const CARD_MUTED = 'flex flex-col gap-3 rounded-xl border-2 border-solid border-neutral-200 bg-white p-3 transition-all duration-200 ease-in-out hover:border-primary-500/30 md:p-4 dark:border-neutral-700/50 dark:bg-neutral-800/40 dark:hover:border-primary-400/30'
 
 async function refreshRuntime() {
   runtime.value = await invokeGetRuntimeStatus()
