@@ -79,6 +79,14 @@ Responsive screen component that calculates canvas dimensions based on breakpoin
 
 **Props**: None | **Slots**: `default({ width, height })`
 
+### SettingsCard
+
+Card container for module settings pages. It owns the width, radius, padding,
+stack gap, and background for both themes. Use it for a new module settings page
+instead of repeating the card classes inline.
+
+**Props**: None | **Slots**: `default`
+
 ### ScrollableArea
 
 Reka UI scroll area with shared light-mode and dark-mode scrollbar styles.
