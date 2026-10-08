@@ -2,6 +2,7 @@ import type { SpeechSubmission } from '@proj-airi/core-agent'
 
 import type { VoiceDraft } from '../services/speech/bus'
 
+import { joinTranscriptSegments } from '@proj-airi/provider-inference'
 import { ref } from 'vue'
 
 import { useChatStore } from '../stores/chat'
@@ -47,7 +48,8 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
       id,
       sessionId: submission.sessionId,
       rawText: evidence.map(source => source.transcript.raw.text).join('\n'),
-      text: [existing?.text, text].filter(Boolean).join('\n'),
+      // Later speech continues the same paragraph. Presentation shows live speech with the same joining rule.
+      text: joinTranscriptSegments([existing?.text ?? '', text]),
     }
 
     sources.set(id, evidence)
@@ -75,15 +77,25 @@ export function useVoiceDrafts(report: (cause: unknown) => void) {
 
     const speechContext = formatSpeechContext(sources.get(id))
     signal?.addEventListener('abort', cancel, { once: true })
+    markSending(id, true)
     const committed = chat.submit({ sessionId: draft.sessionId, messageId: draft.id, text: draft.text, speechContext }).then((receipt) => {
       removeDraft(id)
       return receipt
+    }).catch((error: unknown) => {
+      // A failed send keeps the draft, so the user can edit it and send it again.
+      markSending(id, false)
+      throw error
     }).finally(() => {
       sending.delete(id)
       signal?.removeEventListener('abort', cancel)
     })
     sending.set(id, committed)
     return committed
+  }
+
+  /** Publishes the send state. Controls hide a draft while it is sent and show it again after a failure. */
+  function markSending(id: string, value: boolean) {
+    drafts.value = drafts.value.map(item => item.id === id ? { ...item, sending: value } : item)
   }
 
   function removeDraft(id: string) {
