@@ -1,8 +1,6 @@
 import type { TransferTask } from '../libs/file-transfer/transfer-queue'
 import type { CloudDisplayModel } from '../services/display-model-sync'
 
-import localforage from 'localforage'
-
 import { errorMessageFrom } from '@moeru/std'
 import { until } from '@vueuse/core'
 import { nanoid } from 'nanoid'
@@ -11,6 +9,7 @@ import { computed, ref, watch } from 'vue'
 
 import * as v from 'valibot'
 
+import { displayModelsRepo } from '../database/repos/display-models.repo'
 import { DISPLAY_MODEL_SYNC_FLAG } from '../libs/feature-flags'
 import { downloadVerified, putToTarget, sha256Hex } from '../libs/file-transfer/transfer'
 import { TransferQueue } from '../libs/file-transfer/transfer-queue'
@@ -74,7 +73,6 @@ export type DisplayModelSyncStatus = 'local-only' | 'queued' | 'uploading' | 'sy
 
 const syncableFormats: string[] = [DisplayModelFormat.Live2dZip, DisplayModelFormat.VRM]
 const uploadTaskKind = 'upload-display-model'
-const transferTaskPrefix = 'transfer-task-'
 const UploadPayloadSchema = v.object({ modelId: v.string(), requestId: v.string() })
 
 const displayModelsPresets: DisplayModel[] = [
@@ -98,16 +96,9 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   const transferQueue = new TransferQueue(
     { [uploadTaskKind]: runUploadTask },
     {
-      save: task => localforage.setItem(`${transferTaskPrefix}${task.id}`, task).then(() => undefined),
-      remove: id => localforage.removeItem(`${transferTaskPrefix}${id}`),
-      list: async () => {
-        const tasks: TransferTask[] = []
-        await localforage.iterate<TransferTask, void>((task, key) => {
-          if (key.startsWith(transferTaskPrefix))
-            tasks.push(task)
-        })
-        return tasks
-      },
+      save: task => displayModelsRepo.saveUpload(task),
+      remove: id => displayModelsRepo.removeUpload(id),
+      list: () => displayModelsRepo.listUploads(),
     },
     (task, removed) => {
       const { [task.id]: _previous, ...rest } = queuedUploads.value
@@ -133,14 +124,13 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     const authStore = useAuthStore()
 
     try {
-      await localforage.iterate<{ format: DisplayModelFormat, file: File, name?: string, importedAt: number, previewImage?: string, cloudOwnerId?: string }, void>((val, key) => {
-        if (!key.startsWith('display-model-'))
-          return
+      await displayModelsRepo.migrateFromLocalforage()
+      for (const model of await displayModelsRepo.list()) {
         // Downloaded private models stay hidden from other signed-in accounts on this device.
-        if (val.cloudOwnerId && authStore.isAuthenticated && authStore.userId !== val.cloudOwnerId)
-          return
-        models.push({ id: key, format: val.format, type: 'file', file: val.file, name: val.name ?? val.file.name, importedAt: val.importedAt, previewImage: val.previewImage, cloudOwnerId: val.cloudOwnerId })
-      })
+        if (model.cloudOwnerId && authStore.isAuthenticated && authStore.userId !== model.cloudOwnerId)
+          continue
+        models.push(model)
+      }
     }
     catch (err) {
       console.error(err)
@@ -162,12 +152,12 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     if (modelFromMemory)
       return modelFromMemory
 
-    const modelFromFile = await localforage.getItem<DisplayModelFile>(id)
+    const modelFromFile = await displayModelsRepo.get(id)
     if (modelFromFile) {
       return modelFromFile
     }
 
-    // Fallback to in-memory presets if not found in localforage
+    // Fallback to in-memory presets if not found in storage
     return displayModelsPresets.find(model => model.id === id)
   }
 
@@ -224,7 +214,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     // Source/context: model-selector import flow -> settings-stage-model.updateStageModel().
     // Removal condition: imported display models are persisted through a transactional queue
     // that blocks pick/navigation until the write is durably complete.
-    await localforage.setItem<DisplayModelFile>(newDisplayModel.id, newDisplayModel)
+    await displayModelsRepo.save(newDisplayModel)
       .catch(err => console.error(err))
 
     // The local copy is already usable. A failed enqueue only delays cloud sync.
@@ -237,7 +227,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
   async function renameDisplayModel(id: string, name: string) {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     const displayModel = id.startsWith('display-model-')
-      ? await localforage.getItem<DisplayModelFile>(id)
+      ? await displayModelsRepo.get(id)
       : displayModels.value.find(m => m.id === id)
 
     if (!displayModel)
@@ -251,10 +241,8 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
       displayModels.value[index].name = name
     }
 
-    // Persist if it's a file-based model
-    if (id.startsWith('display-model-')) {
-      await localforage.setItem(id, displayModel)
-    }
+    if (displayModel.type === 'file')
+      await displayModelsRepo.save(displayModel)
 
     const cloudModel = cloudModels.value.find(model => model.id === id)
     if (cloudModel) {
@@ -271,7 +259,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
     await until(displayModelsFromIndexedDBLoading).toBe(false)
     if (queuedUploads.value[id])
       await transferQueue.cancel(id)
-    await localforage.removeItem(id)
+    await displayModelsRepo.remove(id)
     displayModels.value = displayModels.value.filter(model => model.id !== id)
   }
 
@@ -329,7 +317,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
   async function runUploadTask(task: TransferTask, signal: AbortSignal) {
     const { modelId, requestId } = v.parse(UploadPayloadSchema, task.payload)
-    const record = await localforage.getItem<DisplayModelFile>(modelId)
+    const record = await displayModelsRepo.get(modelId)
     // The model was removed from this device before its turn. Nothing is left to upload.
     if (!record)
       return
@@ -350,11 +338,11 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
 
     if (signal.aborted)
       return
-    const synced = { ...record, cloudOwnerId: task.ownerId }
-    await localforage.setItem(modelId, synced)
+    const synced: DisplayModelFile = { ...record, cloudOwnerId: task.ownerId }
+    await displayModelsRepo.save(synced)
     const index = displayModels.value.findIndex(model => model.id === modelId)
     if (index !== -1)
-      displayModels.value[index] = { ...synced, type: 'file' }
+      displayModels.value[index] = synced
     const { [modelId]: _cleared, ...rest } = syncErrors.value
     syncErrors.value = rest
     await refreshCloudModels()
@@ -406,7 +394,7 @@ export const useDisplayModelsStore = defineStore('display-models', () => {
         console.error('[display-models] preview generation failed for a downloaded model:', err)
         return undefined
       })
-      await localforage.setItem<DisplayModelFile>(id, model)
+      await displayModelsRepo.save(model)
       displayModels.value = [model, ...displayModels.value].sort((a, b) => b.importedAt - a.importedAt)
       return model
     }

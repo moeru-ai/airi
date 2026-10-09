@@ -16,6 +16,20 @@ It does not provide a display model directory, authorization policy, or upload c
 The existing `avatar_model` table belongs to hosted characters.
 Private display model assets need an independent lifecycle because several cards can reference one model.
 
+## Product context
+
+A file on the device is a working copy that belongs to the device.
+The uploaded copy is an asset that belongs to the account.
+The owner can share an asset with other users in later work. That step is a separate, explicit action.
+An upload never publishes an asset.
+
+This context puts these limits on the design:
+
+- Ready bytes do not change. A shared asset can refer to them or copy them.
+- A shared asset must not depend on the private record. Deletion of the private record must not break it.
+- Sharing needs full package validation, a license check, and content review. This change checks only size, checksum, and file signature.
+- A device must not upload the local models of one account into another account without a user decision.
+
 ## Proposed decision
 
 Use a private account model directory in Postgres, original model files in S3, and device caches in IndexedDB.
@@ -152,7 +166,10 @@ Upload mechanics are generic. The model domain only decides format, quota, and p
 - `TransferQueue` (client) persists tasks per account, retries after restart, and drops results after an account change.
 - Defaults until confirmed: 512 MiB per file, 2 GiB per account, sync starts after sign-in, upload of old imports is manual.
 - Deletion writes a tombstone. Physical object removal needs the external cleanup command, which is not part of this change.
-- Conditional writes and checksum signing are not verified on the production provider.
+- Object storage is required. The API does not start without `S3_BUCKET` and `S3_REGION`.
+- The local stack uses RustFS. The integration test proves that it rejects wrong bytes (400) and a second write to one key (412).
+- Conditional writes and checksum signing are not verified on the production provider. Run the same integration test against it.
+- The client stores models and pending uploads through the shared `unstorage` instance. Older `localforage` records move once.
 - Package-level Live2D validation, card reference checks on delete, and stage-pocket acceptance are follow-up work.
 
 ## Affected files
@@ -163,12 +180,14 @@ packages/stage-ui/src/
 ├── stores/settings/stage-model.ts                     [extend]
 ├── services/display-model-sync.ts                     [new, API client]
 ├── libs/file-transfer/                                [new, generic transfer and queue]
+├── database/repos/display-models.repo.ts              [new, device storage]
 └── components/scenarios/dialogs/model-selector/       [extend]
 server/apps/api/
 ├── src/routes/display-models/                         [new]
 ├── src/services/domain/display-models.ts              [new]
 ├── src/services/domain/upload-sessions.ts             [new, generic]
 ├── src/schemas/display-models.ts                      [new]
+├── src/schemas/upload-sessions.ts                     [new, generic]
 ├── src/services/adapters/object-store.ts              [extend if required]
 ├── src/app.ts                                        [extend]
 └── drizzle/                                          [new migration]

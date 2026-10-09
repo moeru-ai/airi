@@ -1,6 +1,6 @@
 import process from 'node:process'
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 
 import { CreateBucketCommand, DeleteBucketCommand, S3Client } from '@aws-sdk/client-s3'
 import { parse } from 'valibot'
@@ -22,7 +22,7 @@ describe.skipIf(!process.env.TEST_S3_ENDPOINT)('s3-compatible server integration
       endpoint: config.S3_ENDPOINT,
       forcePathStyle: true,
     })
-    const store = createS3ObjectStore(config)!
+    const store = createS3ObjectStore(config)
     const objectKey = 'audio/test sample.wav'
     let bucketCreated = false
     try {
@@ -48,6 +48,55 @@ describe.skipIf(!process.env.TEST_S3_ENDPOINT)('s3-compatible server integration
       expect(await download.text()).toBe('direct upload')
       await store.deleteObject(objectKey)
       await expect(store.inspectObject(objectKey)).rejects.toMatchObject({ $metadata: { httpStatusCode: 404 } })
+    }
+    finally {
+      try {
+        if (bucketCreated) {
+          await store.deleteObject(objectKey)
+          await admin.send(new DeleteBucketCommand({ Bucket: config.S3_BUCKET }))
+        }
+      }
+      finally {
+        store.dispose()
+        admin.destroy()
+      }
+    }
+  })
+  // Direct uploads depend on this contract. A provider that fails here cannot protect ready bytes.
+  it('rejects wrong bytes and a second write to the same key', async () => {
+    const config = parse(S3EnvironmentSchema, {
+      S3_BUCKET: `airi-s3-test-${randomUUID()}`,
+      S3_REGION: 'us-east-1',
+      S3_ENDPOINT: process.env.TEST_S3_ENDPOINT,
+      S3_FORCE_PATH_STYLE: 'true',
+    })
+    const admin = new S3Client({ region: config.S3_REGION, endpoint: config.S3_ENDPOINT, forcePathStyle: true })
+    const store = createS3ObjectStore(config)
+    const objectKey = 'models/write-once'
+    const body = 'model bytes'
+    const checksum = createHash('sha256').update(body).digest('base64')
+    let bucketCreated = false
+    try {
+      await admin.send(new CreateBucketCommand({ Bucket: config.S3_BUCKET }))
+      bucketCreated = true
+      const target = await store.createUploadTarget({ Key: objectKey, ChecksumSHA256: checksum, IfNoneMatch: '*' })
+
+      const wrong = await fetch(target.url, { method: 'PUT', headers: target.headers, body: 'other bytes' })
+      await wrong.text()
+      expect(wrong.status).toBe(400)
+      await expect(store.inspectObject(objectKey)).rejects.toMatchObject({ $metadata: { httpStatusCode: 404 } })
+
+      const first = await fetch(target.url, { method: 'PUT', headers: target.headers, body })
+      await first.text()
+      expect(first.status).toBe(200)
+      expect((await store.inspectObject(objectKey)).ChecksumSHA256).toBe(checksum)
+
+      const second = await fetch(target.url, { method: 'PUT', headers: target.headers, body })
+      await second.text()
+      expect(second.status).toBe(412)
+
+      const ranged = await store.getObject(objectKey, 'bytes=0-4')
+      expect(await ranged.Body!.transformToString()).toBe('model')
     }
     finally {
       try {

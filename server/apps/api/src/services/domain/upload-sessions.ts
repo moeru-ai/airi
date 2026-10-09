@@ -1,12 +1,12 @@
 import type { Database } from '../../libs/db'
-import type { UploadSession } from '../../schemas/display-models'
+import type { UploadSession } from '../../schemas/upload-sessions'
 import type { ObjectStore } from '../adapters/object-store'
 
 import { Buffer } from 'node:buffer'
 
 import { and, eq, gt, ne, sql } from 'drizzle-orm'
 
-import { uploadSessions } from '../../schemas/display-models'
+import { uploadSessions } from '../../schemas/upload-sessions'
 import { ApiError, createConflictError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
