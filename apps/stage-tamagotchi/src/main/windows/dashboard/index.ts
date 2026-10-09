@@ -166,7 +166,7 @@ export async function setupDashboardWindow(params: {
     // manage events within eventa's context system.
     ipcMain.setMaxListeners(0)
 
-    const { context } = createContext(ipcMain, window)
+    const { context } = createContext(ipcMain, window, { onlySameWindow: true })
     const cleanUpWindowDraggingInvokeHandler = defineInvokeHandler(context, electronStartDraggingWindow, handleStartDraggingWindow)
 
     window.on('closed', () => {
