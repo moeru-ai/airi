@@ -43,7 +43,7 @@ MCP server stdio, không có dependency. Tool: `list_projects`, `list_dir`, `rea
 - **Không có tool ghi.** AIRI chạy tool MCP mà không hỏi lại, nên server này phải giữ chỉ đọc.
 - Chặn `.env*` (trừ `.env.example`), `*.local.md`, `account-info.md`, `.claude/local`, `settings.local.json`, khóa (`*.pem`, `*.key`), `.git`, `node_modules`, `.next`, `.open-next`. Chặn cả đường dẫn thoát khỏi `WORKSPACE_ROOT`.
 - Giới hạn: file 200 KB, output 50 000 ký tự.
-- Luật chặn dùng chung ở `shared/path-guard.mjs`. Vòng lặp MCP stdio dùng chung ở `shared/mcp-stdio.mjs`.
+- Luật chặn dùng chung ở `shared/path-guard.mjs`. Logic MCP dùng chung (`handleMcpMessage`, vòng lặp stdio) ở `shared/mcp-stdio.mjs`. Định nghĩa tool nằm trong `tools.mjs` của từng server.
 
 Đăng ký trong `%APPDATA%/@proj-airi/stage-tamagotchi/mcp.json`, hoặc Settings → Modules → MCP:
 
@@ -60,50 +60,57 @@ MCP server stdio, không có dependency. Tool: `list_projects`, `list_dir`, `rea
 }
 ```
 
-## Kho tri thức WeKnora
+## Kho tri thức + Wiki (`knowledge/`)
 
-[Tencent/WeKnora](https://github.com/Tencent/WeKnora) chạy bằng Docker trong `D:/workspace-AI-v2/projects/WeKnora` (v0.8.2). Web UI: http://localhost. API: http://localhost:8080. `.env` bind cổng vào `127.0.0.1`.
-Mai điều phối. WeKnora chỉ lưu, index và tìm tài liệu. Embedding dùng Voyage AI, cấu hình trong web UI của WeKnora.
+MCP server stdio, chạy ngay trong AIRI, không cần Docker. Thiết kế và prompt port từ [Tencent/WeKnora](https://github.com/Tencent/WeKnora) v0.8.2 (MIT). Ghi chú nguồn `file:line` nằm trong từng module.
 
-Ba server MCP liên quan:
+| Module | Việc |
+|---|---|
+| `extract.mjs` | PDF (`unpdf`), DOCX (bảng → Markdown), PPTX, XLSX, HTML, MD, ảnh. Lấy ảnh nhúng cho vision |
+| `chunk.mjs` | 512 ký tự, overlap 80. Không cắt bảng, code fence, link. Lặp lại tiêu đề bảng khi bảng bị tách. Breadcrumb heading. Mã nguồn chia theo khối, header `path:dòng` |
+| `db.mjs` | `node:sqlite` + FTS5 (`remove_diacritics 2`: gõ không dấu vẫn tìm ra) |
+| `embed.mjs` | Voyage, `input_type` document/query. `voyage-3.5` cho tài liệu, `voyage-code-3` cho code |
+| `search.mjs` | Hybrid: vector + BM25, RRF trọng số 0.7/0.3, MMR λ=0.7 |
+| `llm.mjs`, `vision.mjs`, `profile.mjs` | Claude qua `@anthropic-ai/sdk`. OCR + caption ảnh, hồ sơ tài liệu (summary, gist, topics, loại) |
+| `ingest.mjs` | Quét folder (chặn file bí mật), diff SHA-256, job nền. Code lấy từ `git ls-files` |
+| `wiki*.mjs` | Map (Haiku: thực thể/khái niệm + trang tóm tắt) → dedup → reduce (Sonnet: gộp trang kiểu "compiler") → index + linkify + dọn link chết. Folder có code thì thêm trang `overview/architecture` |
 
-| Server | Loại | Việc |
-|---|---|---|
-| `weknora` | HTTP, có sẵn trong WeKnora | Tìm và đọc tài liệu (`search_knowledge`, `read_document`, …) |
-| `weknora-folders` | stdio, `weknora-folders/server.mjs` | `add_folder`, `sync_folders`, `list_folders`, `remove_folder` |
-| `docs-writer` | stdio, `mcp-docs-writer/server.mjs` | `write_doc`, `list_docs` |
+Tool:
+- **Folder:** `add_folder(path, includeCode)`, `sync_folders`, `list_folders`, `remove_folder`, `index_status`.
+- **Tìm và đọc:** `search_knowledge`, `read_document`, `list_documents`.
+- **Wiki:** `wiki_build(folder, confirm)`, `wiki_search`, `wiki_read_page` (`index` = mục lục), `wiki_write_page`, `wiki_replace_text`.
+  - `wiki_build` không có `confirm` thì chỉ trả về ước tính chi phí khi ước tính trên 1 USD.
 
-### `weknora-folders`
+Lưu trữ:
+- Index: `%APPDATA%/airi-custom/knowledge.db`.
+- Wiki: file Markdown trong `WIKI_DIR`, mỗi folder một thư mục con, link `[[slug|tên]]` (mở được bằng Obsidian).
 
-- Chỉ nhận thư mục trong `ALLOWED_ROOTS` (cách nhau bởi `;`). Bỏ qua file bí mật (luật của `path-guard`), code, file > 30 MB.
-- Đuôi được nạp: pdf, doc/x, ppt/x, xls/x, md, txt, csv, json, html, epub. Đường dẫn giữ nguyên dạng `<tên folder>/<đường dẫn con>` trong KB.
-- Sync theo hash SHA-256: file mới thì upload. File đổi thì xoá bản cũ rồi upload lại. File bị xoá thì xoá knowledge. Chỉ xoá tài liệu do tool này tạo.
-- State: `%APPDATA%/airi-custom/weknora-folders.json`. Có lock file để MCP và CLI không chạy cùng lúc.
-- Mỗi lần gọi MCP upload tối đa 100 file. CLI `node weknora-folders/sync.mjs` không giới hạn. CLI đọc env từ mục `weknora-folders` trong `mcp.json` của AIRI.
-- Tự đồng bộ: Task Scheduler chạy CLI định kỳ.
+Thiếu key thì server vẫn chạy:
+- Không có `VOYAGE_API_KEY`: chỉ tìm theo từ khoá.
+- Không có `ANTHROPIC_API_KEY`: không có vision, hồ sơ tài liệu và wiki.
 
-### `docs-writer`
+Test: `pnpm test` trong `custom/` (`node --test`, không tốn credit, Claude và Voyage được giả lập).
 
-- Tạo file `YYYY-MM-DD-<slug>.md` mới trong `DOCS_DIR` (mặc định `D:/workspace-AI-v2/projects/_mai-docs`), có front-matter (title, created, sources).
-- Không bao giờ ghi đè: trùng tên thì thêm `-2`, `-3`. Slug chỉ gồm `a-z0-9-`, nên tiêu đề không thể thoát khỏi thư mục.
+## Viết docs (`mcp-docs-writer/`)
 
-### Cấu hình `mcp.json`
+- Tool: `write_doc(title, content, sources)` và `list_docs`. Chỉ tạo file `YYYY-MM-DD-<slug>.md` mới trong `DOCS_DIR`.
+- Không ghi đè: trùng tên thì thêm `-2`. Slug chỉ gồm `a-z0-9-`.
+
+## Cấu hình `mcp.json` của AIRI
+
+`%APPDATA%/@proj-airi/stage-tamagotchi/mcp.json`. Key do bạn tự dán, file này nằm ngoài repo. Chạy `pnpm install --ignore-workspace` trong `custom/` một lần để cài `unpdf`, `jszip`, `@anthropic-ai/sdk`.
 
 ```json
 {
   "mcpServers": {
-    "weknora": {
-      "url": "http://127.0.0.1:8080/mcp/<endpoint_id>",
-      "headers": { "Authorization": "Bearer <mcp token>" }
-    },
-    "weknora-folders": {
+    "knowledge": {
       "command": "node",
-      "args": ["D:/workspace-AI-v2/projects/airi/custom/weknora-folders/server.mjs"],
+      "args": ["D:/workspace-AI-v2/projects/airi/custom/knowledge/server.mjs"],
       "env": {
-        "WEKNORA_BASE_URL": "http://127.0.0.1:8080/api/v1",
-        "WEKNORA_API_KEY": "<api key>",
-        "WEKNORA_DEFAULT_KB": "<kb id>",
-        "ALLOWED_ROOTS": "D:/workspace-AI-v2/projects;D:/workspace-AI-v2/docs"
+        "ALLOWED_ROOTS": "D:/workspace-AI-v2/projects;D:/workspace-AI-v2/docs",
+        "WIKI_DIR": "D:/workspace-AI-v2/projects/_mai-wiki",
+        "VOYAGE_API_KEY": "<voyage key>",
+        "ANTHROPIC_API_KEY": "<claude key>"
       }
     },
     "docs-writer": {
@@ -115,7 +122,7 @@ Ba server MCP liên quan:
 }
 ```
 
-Không commit key. `mcp.json` nằm trong `%APPDATA%`, ngoài repo.
+Model mặc định: `claude-haiku-5-5` cho vision, hồ sơ tài liệu và map wiki. `claude-sonnet-5-5` cho reduce và index wiki. Đổi bằng `VISION_MODEL`, `PROFILE_MODEL`, `WIKI_MAP_MODEL`, `WIKI_REDUCE_MODEL`, `EMBED_MODEL`, `EMBED_CODE_MODEL`.
 
 ## Đổi model VRM
 
