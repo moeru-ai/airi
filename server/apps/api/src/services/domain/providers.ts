@@ -2,9 +2,8 @@ import type { Database } from '../../libs/db'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 import { useLogger } from '@guiiai/logg'
+import { createNotFoundError } from '@proj-airi/http-error-shared'
 import { and, eq, isNull } from 'drizzle-orm'
-
-import { createNotFoundError } from '../../utils/error'
 
 import * as schema from '../../schemas/providers'
 

@@ -14,10 +14,10 @@ import { Buffer as NodeBuffer } from 'node:buffer'
 
 import { useLogger } from '@guiiai/logg'
 import { trace } from '@opentelemetry/api'
+import { ApiError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { optional, parse } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'
-import { ApiError, createServiceUnavailableError } from '../../../utils/error'
 import { errorMessageFromUnknown } from '../../../utils/error-message'
 import {
   AIRI_ATTR_GEN_AI_GATEWAY_FALLBACK_DEPTH,

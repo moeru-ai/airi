@@ -2,6 +2,7 @@ import type { ProductEventService } from '../services/domain/product-events'
 import type { UserDeletionExecutor, UserDeletionReason } from '../services/domain/user-deletion'
 import type { HonoEnv } from '../types/hono'
 
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { nonEmpty, object, picklist, pipe, safeParse, string, trim } from 'valibot'
 
@@ -29,7 +30,7 @@ export function createInternalAuthRoutes(input: {
     .post('/user-deletion', async (c) => {
       const parsed = safeParse(UserDeletionRequestSchema, await c.req.json().catch(() => null))
       if (!parsed.success)
-        return c.json({ error: 'BAD_REQUEST', message: 'Invalid user deletion request' }, 400)
+        throw createBadRequestError('Invalid user deletion request')
 
       const request = parsed.output
       await input.userDeletionService.softDeleteAll({
@@ -41,7 +42,7 @@ export function createInternalAuthRoutes(input: {
     .post('/events', async (c) => {
       const parsed = safeParse(AuthEventRequestSchema, await c.req.json().catch(() => null))
       if (!parsed.success)
-        return c.json({ error: 'BAD_REQUEST', message: 'Invalid auth event' }, 400)
+        throw createBadRequestError('Invalid auth event')
 
       await input.productEventService.track({
         userId: parsed.output.userId,

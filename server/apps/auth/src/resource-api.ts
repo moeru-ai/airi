@@ -1,6 +1,5 @@
 import { useLogger } from '@guiiai/logg'
-
-import { createBadGatewayError } from './error'
+import { createBadGatewayError } from '@proj-airi/http-error-shared'
 
 export type UserDeletionReason = 'user-requested' | 'admin' | 'compliance'
 

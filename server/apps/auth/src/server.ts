@@ -13,6 +13,7 @@ import Redis from 'ioredis'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { serve } from '@hono/node-server'
 import { withRetry } from '@moeru/std'
+import { createErrorHandler } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -23,7 +24,6 @@ import { createAuth, getTrustedClientSeedSummaries, seedTrustedClients } from '.
 import { createAuthDrizzle } from './db'
 import { createEmailService } from './email'
 import { parseAuthEnv } from './env'
-import { ApiError, createInternalError } from './error'
 import { getTrustedOrigin } from './origin'
 import { emitOtelLog, initAuthOtel } from './otel'
 import { createResourceApi } from './resource-api'
@@ -85,28 +85,7 @@ export async function buildAuthApp(deps: AuthAppDeps) {
     )
     .use(honoLogger())
     .use('*', bodyLimit({ maxSize: 1024 * 1024 }))
-    .onError((err, c) => {
-      if (err instanceof ApiError) {
-        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
-        if (err.statusCode >= 500)
-          logger.withError(err).withFields(logFields).error('Auth API error occurred')
-        else if (err.statusCode !== 401)
-          logger.withError(err).withFields(logFields).warn('Auth API error occurred')
-
-        return c.json({
-          error: err.errorCode,
-          message: err.message,
-          details: err.details,
-        }, err.statusCode)
-      }
-
-      logger.withError(err).error('Unhandled auth error')
-      const internalError = createInternalError()
-      return c.json({
-        error: internalError.errorCode,
-        message: internalError.message,
-      }, internalError.statusCode)
-    })
+    .onError(createErrorHandler(logger))
     .get('/livez', c => c.json({ status: 'live' }))
     .get('/readyz', async (c) => {
       const [dbResult, redisResult] = await Promise.allSettled([

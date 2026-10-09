@@ -3,7 +3,7 @@ import type { MiddlewareHandler } from 'hono'
 import type { ConfigKVService } from '../services/adapters/config-kv'
 import type { HonoEnv } from '../types/hono'
 
-import { createServiceUnavailableError } from '../utils/error'
+import { createServiceUnavailableError } from '@proj-airi/http-error-shared'
 
 /**
  * Middleware factory that checks required config keys exist in Redis.

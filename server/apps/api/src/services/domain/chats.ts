@@ -4,9 +4,9 @@ import type { Database } from '../../libs/db'
 import type { EngagementMetrics } from '../../otel'
 
 import { useLogger } from '@guiiai/logg'
+import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '@proj-airi/http-error-shared'
 import { and, eq, gt, inArray, isNull, sql } from 'drizzle-orm'
 
-import { createBadRequestError, createConflictError, createForbiddenError, createNotFoundError } from '../../utils/error'
 import { nanoid } from '../../utils/id'
 
 import * as schema from '../../schemas/chats'

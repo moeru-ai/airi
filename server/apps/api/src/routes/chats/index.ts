@@ -1,11 +1,11 @@
 import type { ChatService } from '../../services/domain/chats'
 import type { HonoEnv } from '../../types/hono'
 
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
-import { createBadRequestError } from '../../utils/error'
 import { AddMemberSchema, CreateChatSchema, UpdateChatSchema } from './schema'
 
 export function createChatRoutes(chatService: ChatService) {

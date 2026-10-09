@@ -27,10 +27,52 @@ export function createBadRequestError(message: string, errorCode = 'BAD_REQUEST'
 }
 
 /**
+ * Creates an unauthorized error (401)
+ */
+export function createUnauthorizedError(message = 'Unauthorized', details?: unknown) {
+  return new ApiError(401, 'UNAUTHORIZED', message, details)
+}
+
+/**
  * Creates a forbidden error (403)
  */
 export function createForbiddenError(message = 'Forbidden', details?: unknown) {
   return new ApiError(403, 'FORBIDDEN', message, details)
+}
+
+/**
+ * Creates a not found error (404)
+ */
+export function createNotFoundError(message = 'Not Found', details?: unknown) {
+  return new ApiError(404, 'NOT_FOUND', message, details)
+}
+
+/**
+ * Creates a payload too large error (413)
+ */
+export function createPayloadTooLargeError(message: string, errorCode = 'PAYLOAD_TOO_LARGE', details?: unknown) {
+  return new ApiError(413, errorCode, message, details)
+}
+
+/**
+ * Creates a too many requests error (429)
+ */
+export function createTooManyRequestsError(message = 'Too many requests', details?: unknown) {
+  return new ApiError(429, 'TOO_MANY_REQUESTS', message, details)
+}
+
+/**
+ * Creates a payment required error (402)
+ */
+export function createPaymentRequiredError(message: string, details?: unknown) {
+  return new ApiError(402, 'PAYMENT_REQUIRED', message, details)
+}
+
+/**
+ * Creates a conflict error (409)
+ */
+export function createConflictError(message: string, details?: unknown) {
+  return new ApiError(409, 'CONFLICT', message, details)
 }
 
 /**
@@ -57,4 +99,16 @@ export function createServiceUnavailableError(message = 'Service Unavailable', e
  */
 export function createBadGatewayError(message = 'Bad Gateway', details?: unknown) {
   return new ApiError(502, 'BAD_GATEWAY', message, details)
+}
+
+/**
+ * Creates a gateway timeout error (504).
+ *
+ * Use when:
+ * - The gateway aborted an upstream call (or the entire fallback chain) on a
+ *   timeout boundary. Distinct from 503: 504 tells clients "retry after a
+ *   delay" rather than "service is offline".
+ */
+export function createGatewayTimeoutError(message = 'Gateway Timeout', details?: unknown) {
+  return new ApiError(504, 'GATEWAY_TIMEOUT', message, details)
 }

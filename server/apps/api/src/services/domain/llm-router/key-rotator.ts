@@ -4,8 +4,7 @@ import type { GatewayMetrics } from '../../../otel'
 import type { EnvelopeCrypto } from '../../../utils/envelope-crypto'
 
 import { errorMessageFrom } from '@moeru/std'
-
-import { createServiceUnavailableError } from '../../../utils/error'
+import { createServiceUnavailableError } from '@proj-airi/http-error-shared'
 
 /**
  * Minimal shape of one upstream as needed by the rotator. We do not depend

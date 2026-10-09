@@ -30,6 +30,7 @@ import Stripe from 'stripe'
 import { initLogger, LoggerFormat, LoggerLevel, setGlobalHookPostLog, useLogger } from '@guiiai/logg'
 import { createNodeWebSocket } from '@hono/node-ws'
 import { httpInstrumentationMiddleware } from '@hono/otel'
+import { createErrorHandler, createPayloadTooLargeError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { bodyLimit } from 'hono/body-limit'
 import { cors } from 'hono/cors'
@@ -86,7 +87,6 @@ import { createRequestLogService } from './services/domain/request-log'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
-import { ApiError, createInternalError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -125,7 +125,9 @@ const DEFAULT_API_MAX_REQUEST_BYTES = 1024 * 1024
 function apiBodyLimit(maxSize: number) {
   return bodyLimit({
     maxSize,
-    onError: c => c.json({ error: 'PAYLOAD_TOO_LARGE', message: 'Payload Too Large' }, 413),
+    onError: () => {
+      throw createPayloadTooLargeError('Payload Too Large')
+    },
   })
 }
 
@@ -316,35 +318,7 @@ export async function buildApp(deps: AppDeps) {
         return next()
       return defaultApiBodyLimit(c, next)
     })
-    .onError((err, c) => {
-      if (err instanceof ApiError) {
-        // Surface details + cause to the server-side log only. SEC-5 keeps
-        // upstream body content (carried by `cause`) out of the client
-        // response body; the logger / OTel pipeline is the right channel
-        // for operators to see the real upstream message.
-        const logFields = { details: err.details, cause: (err as { cause?: unknown }).cause }
-
-        if (err.statusCode >= 500) {
-          logger.withError(err).withFields(logFields).error('API error occurred')
-        }
-        else if (err.statusCode !== 401) {
-          logger.withError(err).withFields(logFields).warn('API error occurred')
-        }
-
-        return c.json({
-          error: err.errorCode,
-          message: err.message,
-          details: err.details,
-        }, err.statusCode)
-      }
-
-      logger.withError(err).error('Unhandled error')
-      const internalError = createInternalError()
-      return c.json({
-        error: internalError.errorCode,
-        message: internalError.message,
-      }, internalError.statusCode)
-    })
+    .onError(createErrorHandler(logger))
 
     /**
      * Liveness probe (K8s convention). Returns 200 as long as the Node

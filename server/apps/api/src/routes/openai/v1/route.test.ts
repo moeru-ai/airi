@@ -11,6 +11,7 @@ import type { RequestLogService } from '../../../services/domain/request-log'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -27,7 +28,6 @@ import { createBillingService } from '../../../services/domain/billing/billing-s
 import { microFluxToFlux } from '../../../services/domain/billing/flux-posting'
 import { createLlmBillingService } from '../../../services/domain/billing/llm-billing'
 import { createRequestLogService } from '../../../services/domain/request-log'
-import { ApiError } from '../../../utils/error'
 import {
   AIRI_CHAT_APP_SURFACE_HEADER,
   AIRI_CHAT_ROUND_ID_HEADER,
