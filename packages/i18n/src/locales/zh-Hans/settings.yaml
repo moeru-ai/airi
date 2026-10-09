@@ -258,6 +258,7 @@ pages:
     notLoggedIn: 登录以查看您的帐户并访问所有功能
     login: 登录
     logout: 登出
+    signOutFailed: '退出登录失败。已保留当前会话，请重试。'
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
     signedInAs: 登录 为
