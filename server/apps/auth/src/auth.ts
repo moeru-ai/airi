@@ -584,10 +584,17 @@ export function createAuth(
       // Source: node_modules/better-auth/dist/api/routes/update-user.mjs L286-380
       deleteUser: {
         enabled: true,
+        /** Sends confirmation links to the result page when the client supplies no destination. */
         async sendDeleteAccountVerification({ user, url }) {
+          const confirmation = new URL(url)
+          const callback = confirmation.searchParams.get('callbackURL')
+          // The auth service owns the default result page. Explicit client destinations keep their original value.
+          if (callback === null || callback === '' || callback === '/') {
+            confirmation.searchParams.set('callbackURL', new URL('/auth/delete-account', env.PUBLIC_URL).toString())
+          }
           await requireEmailService(email).sendDeleteAccountVerification({
             to: user.email,
-            url,
+            url: confirmation.toString(),
           })
         },
         async beforeDelete(user) {
