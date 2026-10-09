@@ -1,8 +1,8 @@
 import type { Database } from '../../libs/db'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
+import type { SubscriberEntitlement } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { PaymentService } from '../../services/domain/payment'
-import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
@@ -69,10 +69,9 @@ function createTestApp(
   payment: PaymentService,
   configKV: ConfigKVService = createPacksConfigKV(),
   subscriptionSync: RevenuecatSubscriptionSync,
-  subscriptions: Pick<SubscriptionService, 'hasEvent' | 'recordEvent'>,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
 ) {
-  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, subscriptions, env, null)
+  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, env, null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -129,18 +128,30 @@ describe('revenuecat routes', () => {
     db = await mockDB(schema)
   })
 
+  /** What RevenueCat reports for each user. A test changes it between webhooks. */
+  let entitlements: Record<string, SubscriberEntitlement[]>
+
   async function setup(configKV: ConfigKVService = createPacksConfigKV()) {
     await db.delete(schema.subscriptionConsumption)
     await db.delete(schema.subscriptionAllowance)
-    await db.delete(schema.revenuecatEvent)
+    entitlements = {}
     const payment = createMockPayment()
     const subscriptions = createSubscriptionService(db)
-    const sync = createRevenuecatSubscriptionSync(subscriptions, configKV)
+    const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
+    const sync = createRevenuecatSubscriptionSync(subscriptions, configKV, { fetchEntitlements })
     return {
       payment,
       subscriptions,
-      app: createTestApp(payment, configKV, sync, subscriptions),
+      fetchEntitlements,
+      app: createTestApp(payment, configKV, sync),
     }
+  }
+
+  const goEntitlement: SubscriberEntitlement = {
+    entitlementId: 'airi_go',
+    productId: 'rc_go_monthly',
+    purchasedAt: new Date('2026-10-01T00:00:00.000Z'),
+    accessUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   }
 
   function subscriptionBody(overrides = {}) {
@@ -151,12 +162,8 @@ describe('revenuecat routes', () => {
         id: 'sub-event-1',
         app_user_id: 'user-1',
         product_id: 'rc_go_monthly',
-        transaction_id: 'sub-txn-1',
         environment: 'SANDBOX',
         store: 'TEST_STORE',
-        entitlement_ids: ['airi_go'],
-        expiration_at_ms: Date.now() + 30 * 24 * 60 * 60 * 1000,
-        purchased_at_ms: Date.now(),
         ...overrides,
       },
     }
@@ -198,32 +205,90 @@ describe('revenuecat routes', () => {
     expect(payment.settle).not.toHaveBeenCalled()
   })
 
-  it('syncs a subscription purchase and opens a quota period', async () => {
+  it('grants plan Credits from what RevenueCat reports', async () => {
     const { payment, subscriptions, app } = await setup()
+    entitlements['user-1'] = [goEntitlement]
 
     const res = await postWebhook(app, subscriptionBody())
     expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({ received: true, synced: true })
     expect(payment.settle).not.toHaveBeenCalled()
 
     const status = await subscriptions.getStatus('user-1')
     expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedCredit: 2000, usedCredit: 0 }])
   })
 
-  it('keeps the Credit period on cancellation and does not grant again', async () => {
+  it('does not grant again on a repeated or later event of the same period', async () => {
     const { subscriptions, app } = await setup()
-    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
+    entitlements['user-1'] = [goEntitlement]
 
-    await postWebhook(app, subscriptionBody({ id: 'sub-event-2', expiration_at_ms: expiresAt }))
-    const replay = await postWebhook(app, subscriptionBody({ id: 'sub-event-2', expiration_at_ms: expiresAt }))
-    expect(replay.status).toBe(200)
-    expect(await replay.json()).toEqual({ received: true })
-
-    await postWebhook(app, subscriptionBody({ id: 'sub-event-3', type: 'CANCELLATION', expiration_at_ms: expiresAt }))
+    await postWebhook(app, subscriptionBody())
+    await subscriptions.debitCredits({ userId: 'user-1', microCredit: 500_000_000, requestId: 'req-1' })
+    await postWebhook(app, subscriptionBody())
+    await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'CANCELLATION' }))
 
     const status = await subscriptions.getStatus('user-1')
-    expect(status.allowances).toHaveLength(1)
-    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedCredit: 2000 }])
+    expect(status.allowances).toMatchObject([{ grantedCredit: 2000, usedCredit: 500 }])
+  })
+
+  it('grants the new plan on PRODUCT_CHANGE and not the old product in the event', async () => {
+    const { subscriptions, app } = await setup()
+    entitlements['user-1'] = [goEntitlement]
+    await postWebhook(app, subscriptionBody())
+
+    entitlements['user-1'] = [{
+      entitlementId: 'airi_plus',
+      productId: 'rc_plus_monthly',
+      purchasedAt: new Date('2026-10-15T00:00:00.000Z'),
+      accessUntil: goEntitlement.accessUntil,
+    }]
+    await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
+
+    const status = await subscriptions.getStatus('user-1')
+    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_plus', grantedCredit: 5000, usedCredit: 0 }])
+  })
+
+  it('closes plan Credits when RevenueCat reports no active plan', async () => {
+    const { subscriptions, app } = await setup()
+    entitlements['user-1'] = [goEntitlement]
+    await postWebhook(app, subscriptionBody())
+
+    entitlements['user-1'] = []
+    await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'EXPIRATION' }))
+
+    expect(await subscriptions.spendableMicro('user-1')).toBe(0)
+  })
+
+  it('reconciles both users of a TRANSFER', async () => {
+    const { subscriptions, app } = await setup()
+    entitlements['user-1'] = [goEntitlement]
+    await postWebhook(app, subscriptionBody())
+
+    entitlements['user-1'] = []
+    entitlements['user-2'] = [goEntitlement]
+    const res = await postWebhook(app, {
+      api_version: '1.0',
+      event: { type: 'TRANSFER', id: 'transfer-1', transferred_from: ['user-1'], transferred_to: ['user-2'] },
+    })
+
+    expect(res.status).toBe(200)
+    expect(await subscriptions.spendableMicro('user-1')).toBe(0)
+    expect((await subscriptions.getStatus('user-2')).allowances).toMatchObject([{ grantedCredit: 2000 }])
+  })
+
+  it('returns an error when RevenueCat cannot be read, so the event is sent again', async () => {
+    const { fetchEntitlements, app } = await setup()
+    fetchEntitlements.mockRejectedValueOnce(new ApiError(502, 'BAD_GATEWAY', 'RevenueCat subscriber request failed'))
+
+    const res = await postWebhook(app, subscriptionBody())
+    expect(res.status).toBe(502)
+  })
+
+  it('does not read RevenueCat for a TEST event', async () => {
+    const { fetchEntitlements, app } = await setup()
+
+    const res = await postWebhook(app, subscriptionBody({ type: 'TEST' }))
+    expect(res.status).toBe(200)
+    expect(fetchEntitlements).not.toHaveBeenCalled()
   })
 
   it('returns 503 when no secret is configured', async () => {
@@ -232,7 +297,6 @@ describe('revenuecat routes', () => {
       payment,
       createPacksConfigKV(),
       {} as RevenuecatSubscriptionSync,
-      { hasEvent: vi.fn(async () => false), recordEvent: vi.fn() },
       { REVENUECAT_WEBHOOK_AUTH: undefined, REVENUECAT_WEBHOOK_SECRET: undefined } as never,
     )
     const res = await app.request('/api/v1/revenuecat/webhook', {

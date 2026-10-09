@@ -1,15 +1,19 @@
-import type { SubscriptionService } from '../domain/subscriptions'
-import type { ConfigKVService } from './config-kv'
+import type { PlanPeriod } from '../domain/subscriptions'
+import type { ConfigDefinitions, ConfigKVService } from './config-kv'
+import type { SubscriberEntitlement } from './revenuecat-subscriber'
 
 import { describe, expect, it, vi } from 'vitest'
 
 import { createRevenuecatSubscriptionSync } from './revenuecat-subscriptions'
 
-function createConfigKV(): ConfigKVService {
+const starterPlans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] = {
+  rc_go_monthly: { entitlementId: 'airi_go', quotaCredit: 2000 },
+  rc_plus_monthly: { entitlementId: 'airi_plus', quotaCredit: 5000 },
+}
+
+function createConfigKV(plans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] | null = starterPlans): ConfigKVService {
   return {
-    getOptional: vi.fn(async () => ({
-      rc_go_monthly: { entitlementId: 'airi_go', quotaCredit: 2000 },
-    })),
+    getOptional: vi.fn(async () => plans),
     getOrThrow: vi.fn(),
     get: vi.fn(),
     refresh: vi.fn(),
@@ -17,83 +21,78 @@ function createConfigKV(): ConfigKVService {
   } as ConfigKVService
 }
 
-function createCore(): SubscriptionService {
-  return {
-    hasEvent: vi.fn(),
-    recordEvent: vi.fn(),
-    openPeriod: vi.fn(async () => true),
-    getStatus: vi.fn(),
-    spendableMicro: vi.fn(),
-    debitCredits: vi.fn(),
-    getFallbackPreference: vi.fn(),
-    setFallbackPreference: vi.fn(),
-    deleteAllForUser: vi.fn(),
-  } as SubscriptionService
+const future = new Date(Date.now() + 86_400_000)
+const past = new Date(Date.now() - 86_400_000)
+
+const goEntitlement: SubscriberEntitlement = {
+  entitlementId: 'airi_go',
+  productId: 'rc_go_monthly',
+  purchasedAt: new Date('2026-10-01T00:00:00.000Z'),
+  accessUntil: future,
 }
 
-const baseEvent = {
-  id: 'event-1',
-  type: 'INITIAL_PURCHASE',
-  appUserId: 'user-1',
-  entitlementIds: ['airi_go'],
-  productId: 'rc_go_monthly',
-  store: 'TEST_STORE',
-  environment: 'SANDBOX',
-  expirationAtMs: Date.now() + 1000,
-  purchasedAtMs: Date.now(),
+/** Runs the resolver as the ledger does and returns the period that it selects. */
+async function reconcile(entitlements: SubscriberEntitlement[], configKV = createConfigKV()) {
+  const synced: (PlanPeriod | null)[] = []
+  const fetchEntitlements = vi.fn(async () => entitlements)
+  const sync = createRevenuecatSubscriptionSync(
+    { syncPeriod: async (_userId, resolve) => { synced.push(await resolve()) } },
+    configKV,
+    { fetchEntitlements },
+  )
+  await sync.reconcile('user-1')
+  return { synced, fetchEntitlements }
 }
 
 describe('revenuecat subscription sync', () => {
-  it('grants a period for a purchase', async () => {
-    const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
+  it('syncs the active plan as a Credit period', async () => {
+    const { synced, fetchEntitlements } = await reconcile([goEntitlement])
 
-    expect(await sync.syncEvent(baseEvent)).toEqual({ synced: true })
-    expect(core.openPeriod).toHaveBeenCalledWith(expect.objectContaining({
-      userId: 'user-1',
+    expect(fetchEntitlements).toHaveBeenCalledWith('user-1')
+    expect(synced).toEqual([{
       entitlementId: 'airi_go',
       grantedCredit: 2000,
-      eventKey: 'event-1:airi_go',
-    }))
+      periodStart: goEntitlement.purchasedAt,
+      periodEnd: future,
+    }])
   })
 
-  it('does not grant for a cancellation', async () => {
-    const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
-
-    expect(await sync.syncEvent({ ...baseEvent, id: 'event-2', type: 'CANCELLATION' }))
-      .toEqual({ synced: false })
-    expect(core.openPeriod).not.toHaveBeenCalled()
+  it('syncs no period when the entitlement is expired', async () => {
+    const { synced } = await reconcile([{ ...goEntitlement, accessUntil: past }])
+    expect(synced).toEqual([null])
   })
 
-  it('grants a period on product change', async () => {
-    const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
-
-    expect(await sync.syncEvent({ ...baseEvent, id: 'event-3', type: 'PRODUCT_CHANGE' }))
-      .toEqual({ synced: true })
-    expect(core.openPeriod).toHaveBeenCalledWith(expect.objectContaining({
-      grantedCredit: 2000,
-      eventKey: 'event-3:airi_go',
-    }))
+  it('keeps a plan that does not expire', async () => {
+    const { synced } = await reconcile([{ ...goEntitlement, accessUntil: null }])
+    expect(synced).toMatchObject([{ entitlementId: 'airi_go', periodEnd: null }])
   })
 
-  it('does not grant for uncancellation or an extension', async () => {
-    const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
-
-    expect(await sync.syncEvent({ ...baseEvent, id: 'event-4', type: 'UNCANCELLATION' }))
-      .toEqual({ synced: false })
-    expect(await sync.syncEvent({ ...baseEvent, id: 'event-5', type: 'SUBSCRIPTION_EXTENDED' }))
-      .toEqual({ synced: false })
-    expect(core.openPeriod).not.toHaveBeenCalled()
+  it('selects the latest purchase when two plans are active', async () => {
+    const { synced } = await reconcile([
+      goEntitlement,
+      {
+        entitlementId: 'airi_plus',
+        productId: 'rc_plus_monthly',
+        purchasedAt: new Date('2026-10-15T00:00:00.000Z'),
+        accessUntil: future,
+      },
+    ])
+    expect(synced).toMatchObject([{ entitlementId: 'airi_plus', grantedCredit: 5000 }])
   })
 
-  it('acks unknown products without a grant', async () => {
-    const core = createCore()
-    const sync = createRevenuecatSubscriptionSync(core, createConfigKV())
+  it('ignores a product that has no plan', async () => {
+    const { synced } = await reconcile([{ ...goEntitlement, productId: 'unknown' }])
+    expect(synced).toEqual([null])
+  })
 
-    expect(await sync.syncEvent({ ...baseEvent, productId: 'unknown' })).toEqual({ synced: false })
-    expect(core.openPeriod).not.toHaveBeenCalled()
+  it('ignores an entitlement that does not match the plan', async () => {
+    const { synced } = await reconcile([{ ...goEntitlement, entitlementId: 'other' }])
+    expect(synced).toEqual([null])
+  })
+
+  it('leaves the ledger as it is when no plans are configured', async () => {
+    const { synced, fetchEntitlements } = await reconcile([goEntitlement], createConfigKV(null))
+    expect(synced).toEqual([])
+    expect(fetchEntitlements).not.toHaveBeenCalled()
   })
 })

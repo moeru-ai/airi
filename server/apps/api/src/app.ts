@@ -72,6 +72,7 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
@@ -455,13 +456,12 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
-     * RevenueCat webhook ingress (Test Store + web billing Flux packs).
+     * RevenueCat webhook ingress (Flux packs and plan Credits).
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.paymentService,
       deps.configKV,
       deps.subscriptionSync,
-      deps.subscriptionService,
       deps.env,
       deps.otel?.rateLimit ?? null,
     ))
@@ -740,10 +740,11 @@ export async function createApp() {
   })
 
   const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
-    dependsOn: { subscriptionService, configKV },
+    dependsOn: { subscriptionService, configKV, env: parsedEnv },
     build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
       dependsOn.subscriptionService,
       dependsOn.configKV,
+      createRevenuecatSubscriberClient({ apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null }),
     ),
   })
 

@@ -1,7 +1,6 @@
 import type { InferSelectModel } from 'drizzle-orm'
 
-import { sql } from 'drizzle-orm'
-import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { bigint, boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
@@ -9,24 +8,10 @@ import { nanoid } from '../utils/id'
 // the user row; a cascade would wipe these archive rows kept for billing audit.
 // See `server/apps/api/docs/ai-context/account-deletion.md`.
 
-/** Append-only RevenueCat webhook log. `event_id` rejects a redelivery. */
-export const revenuecatEvent = pgTable('revenuecat_event', {
-  id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  eventId: text('event_id').notNull(),
-  type: text('type').notNull(),
-  appUserId: text('app_user_id'),
-  productId: text('product_id'),
-  entitlementIds: text('entitlement_ids').array().notNull(),
-  payload: jsonb('payload').notNull(),
-  receivedAt: timestamp('received_at').defaultNow().notNull(),
-}, table => [
-  uniqueIndex('revenuecat_event_event_id_uidx').on(table.eventId),
-  index('revenuecat_event_app_user_id_idx').on(table.appUserId),
-])
-
 /**
- * One row per paid billing period. Unused quota dies with the period —
- * upgrades open a new period from the effective date and forfeit the rest.
+ * One row per paid billing period. Unused quota dies with the period.
+ * The user, entitlement, and period start identify the period that
+ * RevenueCat reports, so a repeated sync updates the same row.
  */
 export const subscriptionAllowance = pgTable('subscription_allowance', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
@@ -39,14 +24,11 @@ export const subscriptionAllowance = pgTable('subscription_allowance', {
   usedCredit: integer('used_credit').notNull().default(0),
   /** Micro-Credits charged but not yet settled into a whole Credit. */
   unsettledMicroCredit: bigint('unsettled_micro_credit', { mode: 'number' }).notNull().default(0),
-  eventId: text('event_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, table => [
-  uniqueIndex('subscription_allowance_event_uidx')
-    .on(table.eventId)
-    .where(sql`event_id IS NOT NULL`),
-  index('subscription_allowance_user_id_idx').on(table.userId),
+  uniqueIndex('subscription_allowance_period_uidx')
+    .on(table.userId, table.entitlementId, table.periodStart),
 ])
 
 /** One row per request charged to plan Credits. Guards retries from double-spending. */
@@ -68,7 +50,6 @@ export const userBillingPreference = pgTable('user_billing_preference', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-export type RevenuecatEventRow = InferSelectModel<typeof revenuecatEvent>
 export type SubscriptionAllowance = InferSelectModel<typeof subscriptionAllowance>
 export type SubscriptionConsumption = InferSelectModel<typeof subscriptionConsumption>
 export type UserBillingPreference = InferSelectModel<typeof userBillingPreference>

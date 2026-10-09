@@ -1,7 +1,7 @@
 import type { Database } from '../../../libs/db'
 
 import { useLogger } from '@guiiai/logg'
-import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, ne, or, sql } from 'drizzle-orm'
 
 import { availableMicroCredits, MICRO_PER_CREDIT, postMicroCredits } from '../billing/credit-posting'
 
@@ -9,23 +9,13 @@ import * as schema from '../../../schemas/subscription'
 
 const logger = useLogger('subscriptions')
 
-interface AllowancePeriod {
-  userId: string
+/** The one plan period that pays for a user now. */
+export interface PlanPeriod {
   entitlementId: string
   grantedCredit: number
   periodStart: Date
-  periodEnd?: Date | null
-  /** Deduplicates redeliveries of the same grant. Null disables the check. */
-  eventKey?: string | null
-}
-
-interface RevenuecatEventRecord {
-  eventId: string
-  type: string
-  appUserId: string | null
-  productId: string | null
-  entitlementIds: string[]
-  payload: unknown
+  /** Null for a plan that does not expire. */
+  periodEnd: Date | null
 }
 
 function usableAllowanceSql() {
@@ -45,83 +35,56 @@ function openAllowanceWhere(userId: string, now: Date) {
 
 /**
  * Local Credit ledger for subscription plans.
- * RevenueCat owns entitlement status. Callers translate processor events
- * into period grants. This module never reads a processor payload.
+ * RevenueCat owns entitlement status. This module stores only the Credit
+ * grant for each period and the debits against it.
  */
 export function createSubscriptionService(db: Database) {
-  async function hasEvent(eventId: string): Promise<boolean> {
-    const [row] = await db
-      .select({ eventId: schema.revenuecatEvent.eventId })
-      .from(schema.revenuecatEvent)
-      .where(eq(schema.revenuecatEvent.eventId, eventId))
-      .limit(1)
-    return row != null
-  }
-
-  /** Inserts one webhook event. A repeat `eventId` is ignored. */
-  async function recordEvent(input: RevenuecatEventRecord): Promise<void> {
-    await db.insert(schema.revenuecatEvent).values({
-      eventId: input.eventId,
-      type: input.type,
-      appUserId: input.appUserId,
-      productId: input.productId,
-      entitlementIds: input.entitlementIds,
-      payload: input.payload,
-    }).onConflictDoNothing()
-  }
-
   /**
-   * Opens a fresh quota period and forfeits every other open period for the
-   * user. An older period that arrives after a newer one is stored closed,
-   * so the grant depends only on this event's own times.
-   * Returns false on duplicate eventKey.
+   * Makes the ledger match the plan period that `resolve` returns.
+   *
+   * A new period gets a full grant. A known period keeps its spent Credits
+   * and takes the new end time. Every other open period of the user closes,
+   * so its unused Credits are forfeit. A `null` result closes all periods.
+   *
+   * `resolve` runs under a lock for this user. Two syncs for one user
+   * cannot write an older answer after a newer answer.
    */
-  async function openPeriod(input: AllowancePeriod): Promise<boolean> {
-    return db.transaction(async (tx) => {
-      if (input.eventKey != null) {
-        const [existing] = await tx
-          .select({ id: schema.subscriptionAllowance.id })
-          .from(schema.subscriptionAllowance)
-          .where(eq(schema.subscriptionAllowance.eventId, input.eventKey))
-          .limit(1)
-        if (existing)
-          return false
+  async function syncPeriod(userId: string, resolve: () => Promise<PlanPeriod | null>): Promise<void> {
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
+
+      const period = await resolve()
+      const now = new Date()
+      let currentId: string | null = null
+
+      if (period) {
+        const [row] = await tx.insert(schema.subscriptionAllowance).values({
+          userId,
+          entitlementId: period.entitlementId,
+          periodStart: period.periodStart,
+          periodEnd: period.periodEnd,
+          grantedCredit: period.grantedCredit,
+        }).onConflictDoUpdate({
+          target: [
+            schema.subscriptionAllowance.userId,
+            schema.subscriptionAllowance.entitlementId,
+            schema.subscriptionAllowance.periodStart,
+          ],
+          set: { periodEnd: period.periodEnd, updatedAt: now },
+        }).returning({ id: schema.subscriptionAllowance.id })
+        currentId = row!.id
       }
 
-      const [later] = await tx
-        .select({ id: schema.subscriptionAllowance.id })
-        .from(schema.subscriptionAllowance)
+      await tx.update(schema.subscriptionAllowance)
+        .set({ periodEnd: now, updatedAt: now })
         .where(and(
-          eq(schema.subscriptionAllowance.userId, input.userId),
-          gt(schema.subscriptionAllowance.periodStart, input.periodStart),
+          eq(schema.subscriptionAllowance.userId, userId),
+          currentId == null ? undefined : ne(schema.subscriptionAllowance.id, currentId),
+          or(
+            isNull(schema.subscriptionAllowance.periodEnd),
+            gt(schema.subscriptionAllowance.periodEnd, now),
+          ),
         ))
-        .limit(1)
-
-      const superseded = later != null
-      if (!superseded) {
-        await tx.update(schema.subscriptionAllowance)
-          .set({ periodEnd: input.periodStart, updatedAt: new Date() })
-          .where(and(
-            eq(schema.subscriptionAllowance.userId, input.userId),
-            or(
-              isNull(schema.subscriptionAllowance.periodEnd),
-              gt(schema.subscriptionAllowance.periodEnd, input.periodStart),
-            ),
-          ))
-      }
-
-      const closedAt = new Date(Math.min(input.periodStart.getTime(), Date.now()))
-      await tx.insert(schema.subscriptionAllowance).values({
-        userId: input.userId,
-        entitlementId: input.entitlementId,
-        periodStart: input.periodStart,
-        periodEnd: superseded ? closedAt : input.periodEnd,
-        grantedCredit: input.grantedCredit,
-        usedCredit: 0,
-        unsettledMicroCredit: 0,
-        eventId: input.eventKey,
-      }).onConflictDoNothing()
-      return true
     })
   }
 
@@ -253,8 +216,6 @@ export function createSubscriptionService(db: Database) {
   }
 
   async function deleteAllForUser(userId: string) {
-    await db.delete(schema.revenuecatEvent)
-      .where(eq(schema.revenuecatEvent.appUserId, userId))
     await db.delete(schema.subscriptionAllowance)
       .where(eq(schema.subscriptionAllowance.userId, userId))
     await db.delete(schema.subscriptionConsumption)
@@ -265,9 +226,7 @@ export function createSubscriptionService(db: Database) {
   }
 
   return {
-    hasEvent,
-    recordEvent,
-    openPeriod,
+    syncPeriod,
     getStatus,
     spendableMicro,
     debitCredits,

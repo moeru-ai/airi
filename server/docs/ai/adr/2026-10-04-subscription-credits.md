@@ -4,20 +4,40 @@ Status: accepted
 
 ## Decision
 
-The client RevenueCat SDK is the source for entitlement status.
-The app reads `customerInfo` for the current plan, expiry, and management URL.
-The local database does not store subscription status.
+RevenueCat is the source for entitlement status.
+The local database does not store subscription status and does not store webhook events.
 
-`revenuecat_event` is an append-only log of webhook events.
-`event_id` is unique.
-A duplicate event returns 200 and does not run again.
+The app reads `customerInfo` in the client SDK for the current plan, expiry, and management URL.
+The server reads `GET /v1/subscribers/{app_user_id}` to grant plan Credits.
 
 Plan Credits stay local.
-`INITIAL_PURCHASE`, `RENEWAL`, and `PRODUCT_CHANGE` open a new Credit period and forfeit every other open period for that user.
-A late event with an earlier period start is stored closed.
-The grant uses only that event's own times.
-`UNCANCELLATION`, `CANCELLATION`, `EXPIRATION`, `BILLING_ISSUE`, `SUBSCRIPTION_EXTENDED`, and `TRANSFER` are logged only.
-A refund does not take Credits back.
+The server does not select a Credit rule from the webhook event type.
+A webhook only tells the server that a customer changed.
+The server then reads the customer's entitlements from RevenueCat and makes the Credit ledger match.
+RevenueCat recommends this pattern in its webhook guide.
+
+The ledger holds one open Credit period for each user.
+The period is the active entitlement of a mapped plan.
+The latest purchase wins when two plans are active.
+The user, the entitlement, and the purchase time identify the period.
+
+- A new period gets a full grant.
+- A known period keeps its spent Credits and takes the reported end time.
+- Every other open period of the user closes, and its unused Credits are forfeit.
+- All periods close when RevenueCat reports no active plan.
+
+These rules cover purchase, renewal, product change, extension, expiration, refund, and transfer.
+A repeated delivery or a late delivery gives the same result, so the server keeps no event log.
+`TRANSFER` names its users in `transferred_from` and `transferred_to`. The server reconciles each of them.
+
+The sync holds a Postgres advisory lock for the user while it reads RevenueCat.
+Two webhooks for one user cannot write an older answer after a newer answer.
+The read has a 5-second timeout.
+
+The webhook returns an error when the read fails or `REVENUECAT_API_KEY` is unset.
+RevenueCat then sends the event again.
+`TEST` events do not read RevenueCat.
+`NON_RENEWING_PURCHASE` settles a Flux pack and does not reconcile.
 
 `GET /subscriptions/status` returns the local remaining percent and the Flux-fallback preference.
 It does not return entitlements.
@@ -43,15 +63,14 @@ Billing still reads the ledger inside the server.
 
 ## Scope
 
-Remove the local subscription status mirror.
-Read entitlement status in the client SDK.
+Remove the local subscription status mirror and the webhook event log.
+Read entitlement status from RevenueCat on the client and on the server.
 Keep Credit grants and debits in Postgres.
 
 ## Non-goals
 
-Credit recall on refund.
-A `TRANSFER` account merge.
-A reconciliation job.
+Credit recall inside a period that stays active.
+A reconciliation job without a webhook.
 Showing Credit amounts on the plan cards.
 Folding a 12-month price into a yearly price.
 In-app product replacement checkout.
@@ -66,9 +85,11 @@ flowchart LR
   Settle --> Billing[billing-service.ts]
   Billing --> Credits[credit-posting.ts]
   Subs --> Credits
-  Webhook[RevenueCat webhook] --> Log[revenuecat_event]
-  Webhook --> Subs
-  Client[Client SDK] --> RC[RevenueCat]
+  Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
+  Sync --> Reader["revenuecat-subscriber.ts"]
+  Reader --> RC[RevenueCat]
+  Sync --> Subs
+  Client[Client SDK] --> RC
   Status["GET /subscriptions/status"] --> Subs
 ```
 
@@ -84,8 +105,12 @@ sequenceDiagram
   Client->>API: GET /subscriptions/status
   API->>DB: Read open Credit periods
   API-->>Client: Remaining percent
-  RC->>API: PRODUCT_CHANGE webhook
-  API->>DB: Append event and open period
+  RC->>API: Webhook for a customer
+  API->>DB: Lock the user
+  API->>RC: GET /v1/subscribers/{app_user_id}
+  RC-->>API: Current entitlements
+  API->>DB: Upsert the period and close the others
+  API-->>RC: 200
 ```
 
 ## Affected files
@@ -98,8 +123,10 @@ server/apps/api/
   src/services/domain/billing/settlement.ts
   src/services/domain/billing/speech-billing.ts
   src/services/domain/subscriptions/index.ts
+  src/services/adapters/revenuecat-subscriber.ts
   src/services/adapters/revenuecat-subscriptions.ts
   src/routes/openai/v1/middlewares/billing.ts
+  src/routes/revenuecat/event.ts
   src/routes/revenuecat/operations/webhook.ts
   src/routes/subscriptions/index.ts
 packages/stage-ui/src/composables/use-subscription.ts
@@ -108,9 +135,10 @@ packages/stage-pages/src/pages/settings/plan.vue
 
 ## Test plan
 
-Run the subscription service tests, including forfeit and out-of-order grants.
-Run the RevenueCat subscription sync tests.
-Run the webhook tests for a duplicate event and a Credit grant.
+Run the subscription service tests for a new period, a known period, an extended period, and no period.
+Run the RevenueCat subscriber client tests for the response contract and upstream errors.
+Run the RevenueCat subscription sync tests for plan selection.
+Run the webhook tests for a repeated event, `PRODUCT_CHANGE`, `EXPIRATION`, `TRANSFER`, and a failed read.
 Run the client test that maps `customerInfo` to the current plan.
 Run the Flux usage tests, including speech that plan Credits cover.
 Run the usage settlement tests for plan, wallet, unbilled, and replay.

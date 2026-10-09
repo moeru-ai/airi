@@ -71,7 +71,6 @@ describe('subscription routes', () => {
   async function request(path: string, init?: RequestInit, user?: typeof testUser) {
     await db.delete(schema.subscriptionConsumption)
     await db.delete(schema.subscriptionAllowance)
-    await db.delete(schema.revenuecatEvent)
     await db.delete(schema.userBillingPreference)
     subscriptions = createSubscriptionService(db)
     const app = createTestApp(subscriptions)
@@ -114,18 +113,15 @@ describe('subscription routes', () => {
   it('returns the remaining percent and omits credit counts', async () => {
     await db.delete(schema.subscriptionConsumption)
     await db.delete(schema.subscriptionAllowance)
-    await db.delete(schema.revenuecatEvent)
     await db.delete(schema.userBillingPreference)
     const core = createSubscriptionService(db)
     const periodEnd = new Date(Date.now() + 60_000)
-    await core.openPeriod({
-      userId: testUser.id,
+    await core.syncPeriod(testUser.id, async () => ({
       entitlementId: 'airi_go',
       grantedCredit: 2000,
       periodStart: new Date(),
       periodEnd,
-      eventKey: 'event-percent',
-    })
+    }))
     await core.debitCredits({
       userId: testUser.id,
       microCredit: 560 * MICRO_PER_CREDIT,

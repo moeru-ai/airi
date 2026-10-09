@@ -1,6 +1,5 @@
 import type { Database } from '../../../libs/db'
 
-import { eq } from 'drizzle-orm'
 import { beforeAll, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../../libs/mock-db'
@@ -19,97 +18,118 @@ describe('subscription service', () => {
   async function setup() {
     await db.delete(schema.subscriptionConsumption)
     await db.delete(schema.subscriptionAllowance)
-    await db.delete(schema.revenuecatEvent)
     return createSubscriptionService(db)
   }
 
-  it('opens periods idempotently and forfeits the old remainder', async () => {
+  it('keeps spent Credits when the same period syncs again', async () => {
     const service = await setup()
     const period = {
-      userId: 'user-1',
       entitlementId: 'airi_go',
       grantedCredit: 2000,
-      periodStart: new Date(),
-      periodEnd: new Date(Date.now() + 1000) as Date | null,
-      eventKey: 'event-1:airi_go',
+      periodStart: new Date('2026-10-01T00:00:00.000Z'),
+      periodEnd: new Date(Date.now() + 60_000),
     }
 
-    expect(await service.openPeriod(period)).toBe(true)
-    expect(await service.openPeriod(period)).toBe(false)
-
+    await service.syncPeriod('user-1', async () => period)
     await service.debitCredits({ userId: 'user-1', microCredit: 500 * MICRO_PER_CREDIT, requestId: 'req-1' })
-    expect(await service.openPeriod({ ...period, eventKey: 'event-2:airi_go' })).toBe(true)
+    await service.syncPeriod('user-1', async () => period)
 
     const status = await service.getStatus('user-1')
     expect(status.allowances).toHaveLength(1)
-    expect(status.allowances).toMatchObject([{ grantedCredit: 2000, usedCredit: 0 }])
+    expect(status.allowances).toMatchObject([{ grantedCredit: 2000, usedCredit: 500 }])
   })
 
-  it('forfeits every open period when a new period opens', async () => {
+  it('moves the period end when RevenueCat extends the period', async () => {
     const service = await setup()
-    const start = new Date(Date.now() - 10_000)
-    await service.openPeriod({
-      userId: 'user-1',
+    const period = {
       entitlementId: 'airi_go',
       grantedCredit: 2000,
-      periodStart: start,
-      periodEnd: null,
-      eventKey: 'go',
-    })
-    await service.openPeriod({
-      userId: 'user-1',
+      periodStart: new Date('2026-10-01T00:00:00.000Z'),
+      periodEnd: new Date(Date.now() + 60_000),
+    }
+    const extended = new Date(Date.now() + 120_000)
+
+    await service.syncPeriod('user-1', async () => period)
+    await service.syncPeriod('user-1', async () => ({ ...period, periodEnd: extended }))
+
+    const status = await service.getStatus('user-1')
+    expect(status.allowances).toMatchObject([{ periodEnd: extended.toISOString() }])
+  })
+
+  it('grants a new period and forfeits the old remainder', async () => {
+    const service = await setup()
+    const periodEnd = new Date(Date.now() + 60_000)
+
+    await service.syncPeriod('user-1', async () => ({
+      entitlementId: 'airi_go',
+      grantedCredit: 2000,
+      periodStart: new Date('2026-10-01T00:00:00.000Z'),
+      periodEnd,
+    }))
+    await service.debitCredits({ userId: 'user-1', microCredit: 500 * MICRO_PER_CREDIT, requestId: 'req-1' })
+    await service.syncPeriod('user-1', async () => ({
       entitlementId: 'airi_plus',
       grantedCredit: 5000,
-      periodStart: new Date(start.getTime() + 1000),
-      periodEnd: null,
-      eventKey: 'plus',
-    })
+      periodStart: new Date('2026-10-15T00:00:00.000Z'),
+      periodEnd,
+    }))
 
     const status = await service.getStatus('user-1')
     expect(status.allowances).toMatchObject([{ entitlementId: 'airi_plus', grantedCredit: 5000, usedCredit: 0 }])
   })
 
-  it('stores a late older grant as closed', async () => {
+  it('closes every period when no plan is active', async () => {
     const service = await setup()
-    const olderStart = new Date('2026-10-01T00:00:00.000Z')
-    const newerStart = new Date('2026-10-15T00:00:00.000Z')
-    await service.openPeriod({
-      userId: 'user-1',
-      entitlementId: 'airi_plus',
-      grantedCredit: 5000,
-      periodStart: newerStart,
-      periodEnd: new Date('2026-11-15T00:00:00.000Z'),
-      eventKey: 'newer',
-    })
-    expect(await service.openPeriod({
-      userId: 'user-1',
+    await service.syncPeriod('user-1', async () => ({
       entitlementId: 'airi_go',
       grantedCredit: 2000,
-      periodStart: olderStart,
-      periodEnd: new Date('2026-11-01T00:00:00.000Z'),
-      eventKey: 'older',
-    })).toBe(true)
+      periodStart: new Date('2026-10-01T00:00:00.000Z'),
+      periodEnd: null,
+    }))
+    await service.syncPeriod('user-1', async () => null)
 
-    const status = await service.getStatus('user-1', new Date('2026-10-20T00:00:00.000Z'))
-    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_plus', grantedCredit: 5000 }])
+    expect(await service.spendableMicro('user-1')).toBe(0)
+  })
 
-    const [older] = await db
-      .select()
-      .from(schema.subscriptionAllowance)
-      .where(eq(schema.subscriptionAllowance.eventId, 'older'))
-    expect(older?.periodEnd).toEqual(olderStart)
+  it('opens a closed period again with its spent Credits', async () => {
+    const service = await setup()
+    const period = {
+      entitlementId: 'airi_go',
+      grantedCredit: 2000,
+      periodStart: new Date('2026-10-01T00:00:00.000Z'),
+      periodEnd: new Date(Date.now() + 60_000),
+    }
+
+    await service.syncPeriod('user-1', async () => period)
+    await service.debitCredits({ userId: 'user-1', microCredit: 500 * MICRO_PER_CREDIT, requestId: 'req-1' })
+    await service.syncPeriod('user-1', async () => null)
+    await service.syncPeriod('user-1', async () => period)
+
+    expect(await service.spendableMicro('user-1')).toBe(1500 * MICRO_PER_CREDIT)
+  })
+
+  it('does not change another user', async () => {
+    const service = await setup()
+    const period = {
+      entitlementId: 'airi_go',
+      grantedCredit: 2000,
+      periodStart: new Date('2026-10-01T00:00:00.000Z'),
+      periodEnd: null,
+    }
+    await service.syncPeriod('user-1', async () => period)
+    await service.syncPeriod('user-2', async () => null)
+
+    expect(await service.spendableMicro('user-1')).toBe(2000 * MICRO_PER_CREDIT)
   })
 
   it('spends micro-Credits idempotently and leaves a short period untouched', async () => {
     const service = await setup()
-    await service.openPeriod({
-      userId: 'user-1',
+    await service.syncPeriod('user-1', async () => ({
       entitlementId: 'airi_go',
       grantedCredit: 2000,
       periodStart: new Date(),
       periodEnd: null,
-      eventKey: 'event-1',
-    })
+    }))
 
     const fee = 1_500_000
     expect(await service.debitCredits({ userId: 'user-1', microCredit: fee, requestId: 'req-1' }))
@@ -154,36 +174,13 @@ describe('subscription service', () => {
 
   it('does not spend a period that already ended', async () => {
     const service = await setup()
-    await service.openPeriod({
-      userId: 'user-1',
+    await service.syncPeriod('user-1', async () => ({
       entitlementId: 'airi_go',
       grantedCredit: 2000,
       periodStart: new Date(Date.now() - 10_000),
       periodEnd: new Date(Date.now() - 1000),
-      eventKey: 'closed',
-    })
+    }))
     expect(await service.spendableMicro('user-1')).toBe(0)
     expect((await service.getStatus('user-1')).allowances).toEqual([])
-  })
-
-  it('records a webhook event once and deletes it with the user', async () => {
-    const service = await setup()
-    const event = {
-      eventId: 'event-1',
-      type: 'TEST',
-      appUserId: 'user-1',
-      productId: null,
-      entitlementIds: [],
-      payload: { id: 'event-1' },
-    }
-
-    expect(await service.hasEvent('event-1')).toBe(false)
-    await service.recordEvent(event)
-    await service.recordEvent(event)
-    expect(await service.hasEvent('event-1')).toBe(true)
-    expect(await db.select().from(schema.revenuecatEvent)).toHaveLength(1)
-
-    await service.deleteAllForUser('user-1')
-    expect(await service.hasEvent('event-1')).toBe(false)
   })
 })

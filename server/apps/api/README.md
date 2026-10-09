@@ -143,9 +143,8 @@ RevenueCat lives on `/api/v1/revenuecat/*`. `GET /packages` lists the
 `REVENUECAT_FLUX_PACKS` product-to-Flux map. `POST /webhook` verifies the
 dashboard authorization header and HMAC signature over the raw body, then
 settles `NON_RENEWING_PURCHASE` events as `revenuecat` evidence receipts.
-The webhook appends every accepted event to `revenuecat_event`.
-`INITIAL_PURCHASE`, `RENEWAL`, and `PRODUCT_CHANGE` also open a Credit period.
-Other subscription events are audit rows only.
+Each other event reconciles plan Credits from RevenueCat.
+The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
 
 ## Subscriptions
@@ -160,14 +159,13 @@ The plan page reads `customerInfo` for the current plan, expiry, and management 
 `GET /subscriptions/status` returns the remaining percent and the Flux-fallback preference.
 
 `src/services/domain/subscriptions` owns Credit grants, Credit debit, the
-Flux-fallback preference (default off), the webhook event log, and
-`deleteAllForUser`. It does not store subscription status.
-`INITIAL_PURCHASE`, `RENEWAL`, and `PRODUCT_CHANGE` open a fresh Credit
-period and forfeit every other open period for that user. A late event with
-an earlier period start is stored closed. `CANCELLATION`, `EXPIRATION`,
-`BILLING_ISSUE`, `UNCANCELLATION`, `SUBSCRIPTION_EXTENDED`, and `TRANSFER`
-do not change Credits. A refund does not take Credits back. One Credit
-equals one Flux.
+Flux-fallback preference (default off), and `deleteAllForUser`. It does not
+store subscription status.
+A webhook does not select a Credit rule by its event type. The server reads
+`GET /v1/subscribers/{app_user_id}` with `REVENUECAT_API_KEY` and makes the
+ledger match the active plan. A new period gets a full grant. A known period
+keeps its spent Credits and takes the reported end time. Every other open
+period closes. One Credit equals one Flux.
 `src/services/domain/billing/credit-posting.ts` settles both pools in
 micro-Credits (1 Credit = 1,000,000 micro-Credits). Chat and speech call
 `canCover` and `settle`. The earliest open Credit period pays when it covers
@@ -176,8 +174,8 @@ must cover the whole fee alone. Plan Credits never touch `user_flux`. They
 live in `subscription_allowance` with per-request rows in
 `subscription_consumption`.
 Product-to-plan mapping lives in ConfigKV `REVENUECAT_SUBSCRIPTION_PLANS`.
-A missed webhook skips the Credit grant until RevenueCat sends that event
-again. The plan name and expiry come from the client SDK, so they do not wait for that webhook.
+A missed webhook delays the Credit grant until the next webhook for that
+customer. The plan name and expiry come from the client SDK, so they do not wait for that webhook.
 
 ## Run locally
 

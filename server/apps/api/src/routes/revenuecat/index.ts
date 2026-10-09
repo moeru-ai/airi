@@ -3,7 +3,6 @@ import type { RateLimitMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { PaymentService } from '../../services/domain/payment'
-import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
@@ -12,18 +11,18 @@ import { rateLimiter } from '../../middlewares/rate-limit'
 import { createWebhookOperation } from './operations/webhook'
 
 /**
- * RevenueCat webhook ingress for Flux packs.
- * Verified deliveries map onto Payment CORE `settle` as evidence receipts.
+ * RevenueCat webhook ingress for Flux packs and plan Credits.
+ * A pack purchase maps onto Payment CORE `settle` as an evidence receipt.
+ * Each other event reconciles plan Credits from RevenueCat.
  */
 export function createRevenuecatRoutes(
   payment: PaymentService,
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
-  subscriptions: Pick<SubscriptionService, 'hasEvent' | 'recordEvent'>,
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
   rateLimitMetrics?: RateLimitMetrics | null,
 ) {
-  const webhook = createWebhookOperation(payment, configKV, subscriptionSync, subscriptions, {
+  const webhook = createWebhookOperation(payment, configKV, subscriptionSync, {
     authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
     signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
   })

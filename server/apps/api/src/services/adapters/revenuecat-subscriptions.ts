@@ -1,75 +1,49 @@
-import type { SubscriptionService } from '../domain/subscriptions'
+import type { PlanPeriod, SubscriptionService } from '../domain/subscriptions'
 import type { ConfigKVService } from './config-kv'
+import type { RevenuecatSubscriberClient } from './revenuecat-subscriber'
 
 import { useLogger } from '@guiiai/logg'
 
 const logger = useLogger('revenuecat-subscriptions')
 
-export interface RevenuecatSyncEvent {
-  id: string
-  type: string
-  appUserId: string
-  entitlementIds: string[]
-  productId?: string | null
-  store?: string | null
-  environment?: string | null
-  expirationAtMs?: number | null
-  purchasedAtMs?: number | null
-}
-
-/** Webhook types that open a fresh quota period. Unused quota dies with the old period. */
-const PERIOD_OPENING_EVENTS = new Set([
-  'INITIAL_PURCHASE',
-  'RENEWAL',
-  'PRODUCT_CHANGE',
-])
-
 /**
- * Translates RevenueCat purchase webhooks into Credit grants.
- * Entitlement status stays on RevenueCat. Other event types are audit-only.
+ * Copies the plan period that RevenueCat reports into the Credit ledger.
+ * It reads the customer's current entitlements. It does not read webhook
+ * event types, so event order and repeated deliveries do not change the result.
  */
 export function createRevenuecatSubscriptionSync(
-  subscriptions: SubscriptionService,
+  subscriptions: Pick<SubscriptionService, 'syncPeriod'>,
   configKV: ConfigKVService,
+  subscriber: RevenuecatSubscriberClient,
 ) {
-  /**
-   * Grants Credits for one period-opening event.
-   * Unknown products and other event types ack without a grant.
-   */
-  async function syncEvent(event: RevenuecatSyncEvent): Promise<{ synced: boolean }> {
-    if (!PERIOD_OPENING_EVENTS.has(event.type) || event.entitlementIds.length === 0 || !event.productId)
-      return { synced: false }
-
+  async function reconcile(userId: string): Promise<void> {
     const plans = await configKV.getOptional('REVENUECAT_SUBSCRIPTION_PLANS')
-    const plan = plans?.[event.productId]
-    if (!plan)
-      return { synced: false }
+    // Plans are not sold when the map is unset. The ledger stays as it is.
+    if (!plans)
+      return
 
-    const expiresAt = event.expirationAtMs == null ? null : new Date(event.expirationAtMs)
-    const periodStart = event.purchasedAtMs == null ? new Date() : new Date(event.purchasedAtMs)
-    let granted = false
+    await subscriptions.syncPeriod(userId, async (): Promise<PlanPeriod | null> => {
+      const now = new Date()
+      // The latest purchase wins when two plans are active, so an upgrade
+      // replaces the old plan.
+      const [current] = (await subscriber.fetchEntitlements(userId))
+        .filter(item => plans[item.productId]?.entitlementId === item.entitlementId)
+        .filter(item => item.accessUntil == null || item.accessUntil > now)
+        .sort((left, right) => right.purchasedAt.getTime() - left.purchasedAt.getTime())
+      if (!current)
+        return null
 
-    for (const entitlementId of event.entitlementIds) {
-      if (entitlementId !== plan.entitlementId) {
-        logger.withFields({ eventId: event.id, entitlementId }).warn('Entitlement does not match plan mapping')
-        continue
+      return {
+        entitlementId: current.entitlementId,
+        grantedCredit: plans[current.productId]!.quotaCredit,
+        periodStart: current.purchasedAt,
+        periodEnd: current.accessUntil,
       }
-
-      await subscriptions.openPeriod({
-        userId: event.appUserId,
-        entitlementId,
-        grantedCredit: plan.quotaCredit,
-        periodStart,
-        periodEnd: expiresAt,
-        eventKey: `${event.id}:${entitlementId}`,
-      })
-      granted = true
-    }
-
-    return { synced: granted }
+    })
+    logger.withFields({ userId }).log('Plan Credits reconciled')
   }
 
-  return { syncEvent }
+  return { reconcile }
 }
 
 export type RevenuecatSubscriptionSync = ReturnType<typeof createRevenuecatSubscriptionSync>

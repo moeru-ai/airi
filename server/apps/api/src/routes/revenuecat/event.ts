@@ -3,7 +3,7 @@ import type { InferOutput } from 'valibot'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
 import type { EvidenceReceipt } from '../../services/domain/payment'
 
-import { array, nullable, number, object, optional, string } from 'valibot'
+import { array, nullable, object, optional, string } from 'valibot'
 
 export const REVENUECAT_PROCESSOR = 'revenuecat' as const
 
@@ -15,9 +15,9 @@ const revenuecatEventSchema = object({
   transaction_id: optional(nullable(string())),
   environment: optional(nullable(string())),
   store: optional(nullable(string())),
-  entitlement_ids: optional(nullable(array(nullable(string())))),
-  expiration_at_ms: optional(nullable(number())),
-  purchased_at_ms: optional(nullable(number())),
+  // TRANSFER names its users here and omits `app_user_id`.
+  transferred_from: optional(array(string())),
+  transferred_to: optional(array(string())),
 })
 
 const revenuecatWebhookSchema = object({
@@ -31,25 +31,7 @@ export type RevenuecatEvent = InferOutput<typeof revenuecatEventSchema>
 /** Webhook event types that grant Flux. Consumables arrive as non-renewing purchases. */
 export const FLUX_GRANT_EVENT = 'NON_RENEWING_PURCHASE'
 
-/** Subscription lifecycle events carry no Flux. They sync into subscription state. */
-const SUBSCRIPTION_EVENTS = new Set([
-  'INITIAL_PURCHASE',
-  'RENEWAL',
-  'CANCELLATION',
-  'UNCANCELLATION',
-  'EXPIRATION',
-  'BILLING_ISSUE',
-  'PRODUCT_CHANGE',
-  'SUBSCRIPTION_EXTENDED',
-  'SUBSCRIPTION_PAUSED',
-  'TRANSFER',
-])
-
 export { revenuecatWebhookSchema }
-
-export function isSubscriptionEvent(type: string): boolean {
-  return SUBSCRIPTION_EVENTS.has(type)
-}
 
 export async function resolveRevenuecatPack(configKV: ConfigKVService, productId: string) {
   const packs = await configKV.getOptional('REVENUECAT_FLUX_PACKS')
