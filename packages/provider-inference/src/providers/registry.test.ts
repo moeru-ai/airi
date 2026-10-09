@@ -6,9 +6,11 @@ import { createProviderRegistry, getDefinedProvider, listProviders, portableProv
 
 describe('portable provider registry', () => {
   it('exports the portable provider id union', () => {
+    expectTypeOf<'eden-ai'>().toExtend<PortableProviderId>()
     expectTypeOf<'openai'>().toExtend<PortableProviderId>()
     expectTypeOf<string>().not.toExtend<PortableProviderId>()
 
+    expect(getDefinedProvider('eden-ai')).toBeDefined()
     expect(getDefinedProvider('openai')).toBeDefined()
   })
 
