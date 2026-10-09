@@ -1115,16 +1115,10 @@ pages:
     creditsRemaining: '{percent}% left'
     renewsAt: Renews {date}
     expiresAt: Expires {date}
-    period:
-      month: Monthly
-      year: Yearly
     perMonth: / month
-    perYear: / year
     currentPackage: Current plan
     upgrade: Upgrade
     downgrade: Downgrade
-    switchToYear: Switch to yearly
-    switchToMonth: Switch to monthly
     manageSubscription: Manage subscription
     fallbackToFlux: Use Flux after credits
     fallbackToFluxHint: 'Off: stop when credits run out.'

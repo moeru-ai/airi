@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import type { PlanBillingPeriod, PlanPackage } from '@proj-airi/stage-ui/composables/use-subscription'
+import type { PlanPackage } from '@proj-airi/stage-ui/composables/use-subscription'
 
 import { isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscription'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
-import { FieldCheckbox, SelectTab } from '@proj-airi/ui'
+import { FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -22,33 +22,10 @@ const plan = useSubscription({
 
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
 const preferenceSaving = ref(false)
-const billingPeriod = ref<PlanBillingPeriod>('month')
 
-type PlanAction = 'buy' | 'current' | 'upgrade' | 'downgrade' | 'switchYear' | 'switchMonth'
-
-const periodOptions = computed(() => {
-  const periods = new Set(plan.packages.value.map(pkg => pkg.period))
-  return (['month', 'year'] as const)
-    .filter(period => periods.has(period))
-    .map(period => ({ label: t(`settings.pages.plan.period.${period}`), value: period }))
-})
-
-watch(periodOptions, (options) => {
-  if (options.length > 0 && !options.some(option => option.value === billingPeriod.value))
-    billingPeriod.value = options[0].value
-})
-
-const visiblePackages = computed(() =>
-  plan.packages.value.filter(pkg => pkg.period === billingPeriod.value),
-)
+type PlanAction = 'buy' | 'current' | 'upgrade' | 'downgrade'
 
 const currentPlan = computed(() => plan.currentPlan.value)
-
-function tierRank(period: PlanBillingPeriod, amountMicros: number): number {
-  return plan.packages.value
-    .filter(pkg => pkg.period === period && pkg.amountMicros < amountMicros)
-    .length
-}
 
 function planAction(pkg: PlanPackage): PlanAction {
   const current = currentPlan.value
@@ -57,23 +34,13 @@ function planAction(pkg: PlanPackage): PlanAction {
   if (pkg.productId === current.productId)
     return 'current'
   const currentPackage = plan.packages.value.find(item => item.productId === current.productId)
-  if (!currentPackage)
-    return pkg.period === 'year' ? 'switchYear' : 'switchMonth'
-  const currentRank = tierRank(currentPackage.period, currentPackage.amountMicros)
-  const nextRank = tierRank(pkg.period, pkg.amountMicros)
-  if (nextRank > currentRank)
-    return 'upgrade'
-  if (nextRank < currentRank)
-    return 'downgrade'
-  return pkg.period === 'year' ? 'switchYear' : 'switchMonth'
+  return currentPackage && pkg.amountMicros < currentPackage.amountMicros ? 'downgrade' : 'upgrade'
 }
 
 const ACTION_LABEL: Record<Exclude<PlanAction, 'buy'>, string> = {
   current: 'settings.pages.plan.currentPackage',
   upgrade: 'settings.pages.plan.upgrade',
   downgrade: 'settings.pages.plan.downgrade',
-  switchYear: 'settings.pages.plan.switchToYear',
-  switchMonth: 'settings.pages.plan.switchToMonth',
 }
 
 function actionLabel(pkg: PlanPackage): string {
@@ -229,17 +196,10 @@ async function handleSubscribe(packageId: string) {
     />
 
     <!-- Packages -->
-    <div v-if="!fluxPurchaseDisabled && visiblePackages.length > 0" :class="['flex flex-col gap-4']">
-      <div v-if="periodOptions.length > 1" :class="['flex justify-center']">
-        <SelectTab
-          v-model="billingPeriod"
-          :options="periodOptions"
-          size="sm"
-        />
-      </div>
+    <div v-if="!fluxPurchaseDisabled && plan.packages.value.length > 0" :class="['flex flex-col gap-4']">
       <div :class="['grid grid-cols-1 gap-4', 'sm:grid-cols-2']">
         <button
-          v-for="(pkg, index) in visiblePackages" :key="pkg.packageId"
+          v-for="(pkg, index) in plan.packages.value" :key="pkg.packageId"
           :disabled="planCardDisabled(pkg)"
           :class="[
             'group relative flex flex-row items-center justify-between gap-4 overflow-hidden text-left',
@@ -273,7 +233,7 @@ async function handleSubscribe(packageId: string) {
                 {{ pkg.formattedPrice }}
               </span>
               <span :class="['text-sm text-neutral-400']">
-                {{ t(pkg.period === 'year' ? 'settings.pages.plan.perYear' : 'settings.pages.plan.perMonth') }}
+                {{ t('settings.pages.plan.perMonth') }}
               </span>
             </div>
             <div v-if="actionLabel(pkg)" :class="['text-xs text-primary-600 font-medium', 'dark:text-primary-400']">

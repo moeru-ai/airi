@@ -1,5 +1,5 @@
 {
-  "id": "70bf32a2-919e-43b9-93c7-004353202313",
+  "id": "adb00488-f04a-431d-b327-ee3058a9dcdb",
   "prevId": "1de1a685-2dc0-4b15-8f39-502686f9bb5b",
   "version": "7",
   "dialect": "postgresql",
@@ -996,14 +996,20 @@
           "primaryKey": false,
           "notNull": false
         },
-        "plan_entitlement_id": {
-          "name": "plan_entitlement_id",
-          "type": "text",
+        "plan_period_start": {
+          "name": "plan_period_start",
+          "type": "timestamp",
           "primaryKey": false,
           "notNull": false
         },
-        "plan_period_start": {
-          "name": "plan_period_start",
+        "plan_filled_at": {
+          "name": "plan_filled_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan_reset_at": {
+          "name": "plan_reset_at",
           "type": "timestamp",
           "primaryKey": false,
           "notNull": false

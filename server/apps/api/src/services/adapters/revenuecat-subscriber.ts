@@ -2,7 +2,7 @@ import type { InferOutput } from 'valibot'
 
 import { check, nullable, object, optional, pipe, record, safeParse, string } from 'valibot'
 
-import { createBadGatewayError, createGatewayTimeoutError, createServiceUnavailableError } from '../../utils/error'
+import { createBadGatewayError, createServiceUnavailableError } from '../../utils/error'
 
 const REQUEST_TIMEOUT_MS = 5_000
 
@@ -45,10 +45,6 @@ function accessUntil(entitlement: InferOutput<typeof entitlementSchema>): Date |
   return grace > expires ? grace : expires
 }
 
-function isTimeout(error: unknown): boolean {
-  return error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
-}
-
 /**
  * Reads a customer's entitlements from the RevenueCat REST API.
  * RevenueCat owns this state. The caller does not cache it.
@@ -74,9 +70,7 @@ export function createRevenuecatSubscriberClient(input: {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
     }
-    catch (error) {
-      if (isTimeout(error))
-        throw createGatewayTimeoutError('RevenueCat subscriber request timed out')
+    catch {
       throw createBadGatewayError('RevenueCat subscriber request failed')
     }
 

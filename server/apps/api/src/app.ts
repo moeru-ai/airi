@@ -450,11 +450,9 @@ export async function buildApp(deps: AppDeps) {
     ))
 
     /**
-     * RevenueCat webhook ingress (Flux packs and plan Flux).
+     * RevenueCat webhook ingress (plan Flux).
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
-      deps.paymentService,
-      deps.configKV,
       deps.subscriptionSync,
       deps.env,
       deps.otel?.rateLimit ?? null,
@@ -709,8 +707,8 @@ export async function createApp() {
   })
 
   const billingService = injeca.provide('services:billing', {
-    dependsOn: { db, redis, otel },
-    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.otel?.revenue),
+    dependsOn: { db, redis, configKV, otel },
+    build: ({ dependsOn }) => createBillingService(dependsOn.db, dependsOn.redis, dependsOn.configKV, dependsOn.otel?.revenue),
   })
 
   const llmBilling = injeca.provide('services:llmBilling', {

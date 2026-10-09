@@ -8,12 +8,16 @@ export const userFlux = pgTable('user_flux', {
   userId: text('user_id').primaryKey(),
   flux: bigint('flux', { mode: 'number' }).notNull().default(0),
   unsettledMicroFlux: bigint('unsettled_micro_flux', { mode: 'number' }).notNull().default(0),
-  /** Plan bucket. It resets each billing period and counts as 0 once `planExpiresAt` has passed. */
+  /** Plan bucket. It refills at each reset boundary and counts as 0 once `planExpiresAt` has passed. */
   planFlux: bigint('plan_flux', { mode: 'number' }).notNull().default(0),
   planQuota: bigint('plan_quota', { mode: 'number' }).notNull().default(0),
   planExpiresAt: timestamp('plan_expires_at'),
-  planEntitlementId: text('plan_entitlement_id'),
+  /** Start of the billing period that the payment channel reports. */
   planPeriodStart: timestamp('plan_period_start'),
+  /** Last refill to the quota. A refill is due when this is before the reset boundary. */
+  planFilledAt: timestamp('plan_filled_at'),
+  /** An admin sets this to refill this one wallet once at that time. */
+  planResetAt: timestamp('plan_reset_at'),
   /** With an active plan, spend purchased Flux after the plan bucket runs out. Off by default. */
   fallbackToFlux: boolean('fallback_to_flux').notNull().default(false),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

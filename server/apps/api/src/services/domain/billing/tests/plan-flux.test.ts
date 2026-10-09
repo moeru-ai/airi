@@ -8,7 +8,7 @@ import { createTestRedis } from '../../../../libs/tests/redis'
 import { fluxTransaction, fluxUsage, userFlux } from '../../../../schemas'
 import { createFluxTransactionService } from '../../flux-transaction'
 import { createBillingService } from '../billing-service'
-import { availableMicroFlux, planRemainingPercent, settleOutstandingMicroFlux } from '../flux-posting'
+import { availableMicroFlux, planRemainingPercent, refillPlan, settleOutstandingMicroFlux } from '../flux-posting'
 
 import * as schema from '../../../../schemas'
 
@@ -17,12 +17,14 @@ const periodStart = new Date('2026-10-01T00:00:00.000Z')
 const nextPeriodStart = new Date('2026-11-01T00:00:00.000Z')
 
 function activePlan(quota: number, start = periodStart) {
-  return { entitlementId: 'airi_go', quota, periodStart: start, expiresAt: new Date(Date.now() + 24 * hour) }
+  return { quota, periodStart: start, expiresAt: new Date(Date.now() + 24 * hour) }
 }
 
 describe('plan Flux bucket', () => {
   let db: Database
   let billing: ReturnType<typeof createBillingService>
+  /** Reset config that a test sets. The billing service reads it on each settlement. */
+  let config: { PLAN_FLUX_RESET_INTERVAL?: 'day' | 'week', PLAN_FLUX_RESET_AT?: string }
 
   const wallet = async () => (await db.select().from(userFlux).where(eq(userFlux.userId, 'wallet')))[0]!
   const spend = (id: string, amountMicroFlux: number) =>
@@ -36,14 +38,17 @@ describe('plan Flux bucket', () => {
     await db.delete(fluxUsage)
     await db.delete(userFlux)
     await db.insert(userFlux).values({ userId: 'wallet', flux: 10 })
-    billing = createBillingService(db, createTestRedis())
+    config = {}
+    billing = createBillingService(db, createTestRedis(), {
+      getOptional: async key => (config as Record<string, unknown>)[key] as never ?? null,
+    })
   })
 
   describe('syncPlan', () => {
     it('grants the quota and records a plan ledger row', async () => {
       await billing.syncPlan('wallet', async () => activePlan(100))
 
-      expect(await wallet()).toMatchObject({ flux: 10, planFlux: 100, planQuota: 100, planEntitlementId: 'airi_go' })
+      expect(await wallet()).toMatchObject({ flux: 10, planFlux: 100, planQuota: 100, planPeriodStart: periodStart })
       expect(await db.select().from(fluxTransaction)).toEqual([
         expect.objectContaining({ pool: 'plan', type: 'credit', amount: 100, balanceBefore: 0, balanceAfter: 100 }),
       ])
@@ -78,6 +83,17 @@ describe('plan Flux bucket', () => {
       const row = await wallet()
       expect(row.planExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
       expect(availableMicroFlux(row)).toBe(10_000_000n)
+    })
+
+    // A refund of an upgrade makes RevenueCat report the older period again.
+    it('keeps the spent amount when an earlier period returns', async () => {
+      await billing.syncPlan('wallet', async () => activePlan(100))
+      await spend('a', 30_000_000)
+      await billing.syncPlan('wallet', async () => activePlan(500, nextPeriodStart))
+      await billing.syncPlan('wallet', async () => activePlan(100))
+
+      expect(await wallet()).toMatchObject({ planFlux: 100, planQuota: 100 })
+      expect(await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'plan_grant'))).toHaveLength(2)
     })
 
     it('creates no wallet for a user without a plan', async () => {
@@ -134,6 +150,65 @@ describe('plan Flux bucket', () => {
     })
   })
 
+  describe('resets', () => {
+    const lastMonth = new Date(Date.now() - 30 * 24 * hour)
+    const filledLongAgo = () => db.update(userFlux).set({ planFilledAt: lastMonth }).where(eq(userFlux.userId, 'wallet'))
+
+    it('refills on the reset window when an interval is configured', async () => {
+      await billing.syncPlan('wallet', async () => activePlan(100, lastMonth))
+      await spend('a', 30_000_000)
+      await filledLongAgo()
+      config.PLAN_FLUX_RESET_INTERVAL = 'day'
+
+      expect((await billing.getWallet('wallet')).planFlux).toBe(100)
+      await spend('b', 10_000_000)
+      expect((await wallet()).planFlux).toBe(90)
+      await spend('c', 10_000_000)
+      expect((await wallet()).planFlux).toBe(80)
+    })
+
+    it('refills every wallet once after the global reset time', async () => {
+      await billing.syncPlan('wallet', async () => activePlan(100))
+      await spend('a', 30_000_000)
+      config.PLAN_FLUX_RESET_AT = new Date(Date.now() + hour).toISOString()
+      await spend('b', 10_000_000)
+      expect((await wallet()).planFlux).toBe(60)
+
+      config.PLAN_FLUX_RESET_AT = new Date().toISOString()
+      await spend('c', 10_000_000)
+      await spend('d', 10_000_000)
+      expect((await wallet()).planFlux).toBe(80)
+    })
+
+    it('refills one wallet after its own reset time', async () => {
+      await billing.syncPlan('wallet', async () => activePlan(100))
+      await spend('a', 30_000_000)
+      await db.update(userFlux).set({ planResetAt: new Date() }).where(eq(userFlux.userId, 'wallet'))
+      await spend('b', 10_000_000)
+
+      expect((await wallet()).planFlux).toBe(90)
+      const grants = await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'plan_grant'))
+      expect(grants.map(grant => grant.balanceBefore).sort()).toEqual([0, 70])
+    })
+
+    it('does not refill an expired plan', async () => {
+      await billing.syncPlan('wallet', async () => activePlan(100))
+      await spend('a', 30_000_000)
+      await billing.syncPlan('wallet', async () => null)
+      await db.update(userFlux).set({ planResetAt: new Date() }).where(eq(userFlux.userId, 'wallet'))
+      await spend('b', 1_000_000)
+
+      expect(await wallet()).toMatchObject({ planFlux: 70, flux: 9 })
+    })
+  })
+
+  it('keeps plan ledger rows out of the purchased Flux history', async () => {
+    await billing.syncPlan('wallet', async () => activePlan(100))
+    await spend('a', 4_000_000)
+
+    expect((await createFluxTransactionService(db).getHistory('wallet', 10, 0)).records).toEqual([])
+  })
+
   it('stores the fallback choice and requires a wallet', async () => {
     await billing.setFallbackToFlux('wallet', true)
     expect((await wallet()).fallbackToFlux).toBe(true)
@@ -168,6 +243,30 @@ describe('flux posting math', () => {
       flux: 8,
       unsettledMicroFlux: 250_000,
     })
+  })
+
+  it('refills only when the last refill is before the latest reset that has passed', () => {
+    const now = new Date('2026-10-10T12:00:00.000Z')
+    const plan = {
+      planFlux: 0,
+      planQuota: 100,
+      planExpiresAt: new Date('2026-11-01T00:00:00.000Z'),
+      planPeriodStart: new Date('2026-10-01T06:00:00.000Z'),
+      planFilledAt: new Date('2026-10-01T06:00:00.000Z'),
+      planResetAt: null,
+    }
+    const none = { intervalMs: null, resetAt: null }
+
+    const daily = { intervalMs: 24 * hour, resetAt: null }
+    const filledToday = { ...plan, planFilledAt: new Date('2026-10-10T07:00:00.000Z') }
+
+    expect(refillPlan(plan, none, now).refilled).toBe(false)
+    expect(refillPlan(plan, daily, now)).toMatchObject({ refilled: true, planFlux: 100, planFilledAt: now })
+    // The daily window starts at 06:00, the time of day of the period start.
+    expect(refillPlan(filledToday, daily, now).refilled).toBe(false)
+    expect(refillPlan(plan, { intervalMs: null, resetAt: new Date('2026-10-05T00:00:00.000Z') }, now).refilled).toBe(true)
+    expect(refillPlan(plan, { intervalMs: null, resetAt: new Date('2026-10-20T00:00:00.000Z') }, now).refilled).toBe(false)
+    expect(refillPlan({ ...plan, planExpiresAt: new Date('2026-10-02T00:00:00.000Z') }, daily, now).refilled).toBe(false)
   })
 
   it('reports the remaining plan percent only for an active plan', () => {

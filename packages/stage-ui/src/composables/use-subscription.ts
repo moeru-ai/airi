@@ -43,16 +43,12 @@ export interface CurrentPlan {
   willRenew: boolean
 }
 
-export type PlanBillingPeriod = 'month' | 'year'
-
 export interface PlanPackage {
   packageId: string
   productId: string
   name: string | null
   benefit: string | null
   formattedPrice: string
-  currency: string
-  period: PlanBillingPeriod
   amountMicros: number
 }
 
@@ -118,15 +114,9 @@ export function currentPlanFromCustomerInfo(info: {
   }
 }
 
-function planBillingPeriod(unit: string | null | undefined): PlanBillingPeriod | null {
-  if (unit === 'month' || unit === 'year')
-    return unit
-  return null
-}
-
+/** Plans are sold by the month only. Packages with another billing period are not listed. */
 function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPackage | null {
-  const period = planBillingPeriod(pkg.webBillingProduct.period?.unit)
-  if (!period)
+  if (pkg.webBillingProduct.period?.unit !== 'month')
     return null
   const price = pkg.webBillingProduct.price
   const copy = planCatalogCopy(metadata, pkg.webBillingProduct.identifier, locale)
@@ -136,8 +126,6 @@ function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPac
     name: copy.name,
     benefit: copy.benefit,
     formattedPrice: price.formattedPrice,
-    currency: price.currency,
-    period,
     amountMicros: price.amountMicros,
   }
 }
@@ -152,7 +140,6 @@ export function useSubscription(options: {
 
   const currentPlan = ref<CurrentPlan | null>(null)
   const packages = ref<PlanPackage[]>([])
-  const loadingPackages = ref(false)
   const purchasingPackageId = ref<string | null>(null)
   const managementUrl = ref<string | null>(null)
 
@@ -178,21 +165,15 @@ export function useSubscription(options: {
     packages.value = []
     if (!enabled)
       return
-    loadingPackages.value = true
-    try {
-      const purchases = await ensurePurchases(options.getUserId())
-      const offerings = await purchases.getOfferings()
-      const current = offerings.current
-      if (!current)
-        return
-      packages.value = current.availablePackages.flatMap((pkg) => {
-        const planPackage = toPlanPackage(pkg, current.metadata, locale.value)
-        return planPackage ? [planPackage] : []
-      })
-    }
-    finally {
-      loadingPackages.value = false
-    }
+    const purchases = await ensurePurchases(options.getUserId())
+    const offerings = await purchases.getOfferings()
+    const current = offerings.current
+    if (!current)
+      return
+    packages.value = current.availablePackages.flatMap((pkg) => {
+      const planPackage = toPlanPackage(pkg, current.metadata, locale.value)
+      return planPackage ? [planPackage] : []
+    })
   }
 
   async function purchasePlan(packageId: string): Promise<'activated' | 'pending' | 'cancelled'> {
@@ -234,7 +215,6 @@ export function useSubscription(options: {
     managementUrl,
     currentPlan,
     packages,
-    loadingPackages,
     purchasingPackageId,
     fetchStatus,
     fetchPackages,

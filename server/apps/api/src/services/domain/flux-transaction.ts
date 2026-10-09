@@ -60,7 +60,8 @@ export function createFluxTransactionService(db: Database) {
         END`.as('group_key'),
       })
         .from(schema.fluxTransaction)
-        .where(eq(schema.fluxTransaction.userId, userId))
+        // The history lists purchased Flux. Plan grants and plan debits stay out of it.
+        .where(and(eq(schema.fluxTransaction.userId, userId), eq(schema.fluxTransaction.pool, 'wallet')))
         .as('history_transactions')
       const history = db.select({
         id: transactions.id,

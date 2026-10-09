@@ -50,7 +50,6 @@ describe('revenuecat subscription sync', () => {
 
     expect(fetchEntitlements).toHaveBeenCalledWith('user-1')
     expect(synced).toEqual([{
-      entitlementId: 'airi_go',
       quota: 2000,
       periodStart: goEntitlement.purchasedAt,
       expiresAt: future,
@@ -77,7 +76,7 @@ describe('revenuecat subscription sync', () => {
         accessUntil: future,
       },
     ])
-    expect(synced).toMatchObject([{ entitlementId: 'airi_plus', quota: 5000 }])
+    expect(synced).toMatchObject([{ quota: 5000 }])
   })
 
   it('ignores a product that has no plan', async () => {

@@ -2,14 +2,16 @@ import type Redis from 'ioredis'
 
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
+import type { ConfigKVService } from '../../adapters/config-kv'
 import type { FluxUsageInput } from './flux-posting'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull, sql } from 'drizzle-orm'
 import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 
+import { nanoid } from '../../../utils/id'
 import { invalidateBalanceCache } from '../flux-cache'
-import { fluxUsageInputSchema, settleOutstandingMicroFlux } from './flux-posting'
+import { fluxUsageInputSchema, readPlanResetPolicy, refillPlan, settleOutstandingMicroFlux } from './flux-posting'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -22,7 +24,6 @@ export type BillingTransaction = Pick<Database, 'insert' | 'update' | 'select'>
 
 /** The plan period that the payment channel reports as active now. */
 export interface PlanPeriod {
-  entitlementId: string
   quota: number
   periodStart: Date
   expiresAt: Date
@@ -31,6 +32,7 @@ export interface PlanPeriod {
 export function createBillingService(
   db: Database,
   redis: Redis,
+  configKV: Pick<ConfigKVService, 'getOptional'>,
   metrics?: RevenueMetrics | null,
 ) {
   /**
@@ -56,18 +58,36 @@ export function createBillingService(
     return wallet
   }
 
-  /** Integer debits settle the shared pool. The plan bucket pays first, then purchased Flux. */
+  /**
+   * Refills the plan bucket when a refill is due, then settles integer debits from the shared pool.
+   * The plan bucket pays first, then purchased Flux.
+   */
   async function settleOutstanding(
     tx: BillingTransaction,
-    wallet: typeof fluxSchema.userFlux.$inferSelect,
+    stored: typeof fluxSchema.userFlux.$inferSelect,
     operationId: string,
     usageId?: string,
   ) {
     const now = new Date()
+    const wallet = refillPlan(stored, await readPlanResetPolicy(configKV), now)
+    if (wallet.refilled) {
+      await tx.insert(fluxTxSchema.fluxTransaction).values({
+        userId: wallet.userId,
+        operationId: `${operationId}:refill`,
+        type: 'credit',
+        pool: 'plan',
+        amount: wallet.planQuota,
+        balanceBefore: stored.planFlux,
+        balanceAfter: wallet.planQuota,
+        description: 'plan_grant',
+        metadata: { source: 'plan.grant', periodStart: wallet.planPeriodStart?.toISOString(), forfeited: stored.planFlux },
+      })
+    }
     const settled = settleOutstandingMicroFlux(wallet, now)
     await tx.update(fluxSchema.userFlux).set({
       flux: settled.flux,
       planFlux: settled.planFlux,
+      planFilledAt: wallet.planFilledAt,
       unsettledMicroFlux: settled.unsettledMicroFlux,
       updatedAt: now,
     }).where(eq(fluxSchema.userFlux.userId, wallet.userId))
@@ -135,7 +155,10 @@ export function createBillingService(
       return result
     },
 
-    /** Reads authoritative admission state. Cached balances cannot authorize concurrent usage. */
+    /**
+     * Reads authoritative admission state. Cached balances cannot authorize concurrent usage.
+     * A due plan refill is counted here. The next settlement writes it.
+     */
     async getWallet(userId: string) {
       const [wallet] = await db.select().from(fluxSchema.userFlux).where(and(
         eq(fluxSchema.userFlux.userId, userId),
@@ -143,15 +166,14 @@ export function createBillingService(
       ))
       if (!wallet)
         throw new Error(`No active flux record for user ${userId}`)
-      return wallet
+      return refillPlan(wallet, await readPlanResetPolicy(configKV))
     },
 
     /**
-     * Makes the plan bucket match the period that `resolve` returns. `null` means no active plan.
-     *
-     * - Same entitlement and start time: only the expiry changes.
-     * - Another period: the plan bucket resets to the quota and unused plan Flux is forfeit.
-     * - No plan: the plan expires now.
+     * Stores the period that `resolve` returns. `null` means no active plan, so the plan expires now.
+     * The refill rule then decides the grant: a later period start refills the bucket,
+     * and the same or an earlier start keeps the spent amount.
+     * A smaller quota caps the bucket.
      *
      * An advisory lock per user serializes syncs while `resolve` reads the payment channel.
      * The wallet row stays unlocked during that read, so debits are not blocked.
@@ -177,34 +199,14 @@ export function createBillingService(
           return
         }
 
-        const samePeriod = wallet.planEntitlementId === period.entitlementId
-          && wallet.planPeriodStart?.getTime() === period.periodStart.getTime()
-        if (samePeriod) {
-          await tx.update(fluxSchema.userFlux).set({ planExpiresAt: period.expiresAt, updatedAt: now }).where(eq(fluxSchema.userFlux.userId, userId))
-          return
-        }
-
-        const forfeited = wallet.planExpiresAt !== null && wallet.planExpiresAt > now ? wallet.planFlux : 0
-        const granted = { ...wallet, planFlux: period.quota, planExpiresAt: period.expiresAt }
-        await tx.update(fluxSchema.userFlux).set({
-          planFlux: period.quota,
+        const plan = {
+          planFlux: Math.min(wallet.planFlux, period.quota),
           planQuota: period.quota,
           planExpiresAt: period.expiresAt,
-          planEntitlementId: period.entitlementId,
           planPeriodStart: period.periodStart,
-          updatedAt: now,
-        }).where(eq(fluxSchema.userFlux.userId, userId))
-        const [grant] = await tx.insert(fluxTxSchema.fluxTransaction).values({
-          userId,
-          type: 'credit',
-          pool: 'plan',
-          amount: period.quota,
-          balanceBefore: forfeited,
-          balanceAfter: period.quota,
-          description: 'plan_grant',
-          metadata: { source: 'plan.grant', entitlementId: period.entitlementId, periodStart: period.periodStart.toISOString(), forfeited },
-        }).returning({ id: fluxTxSchema.fluxTransaction.id })
-        await settleOutstanding(tx, granted, `plan:${grant!.id}:settle`)
+        }
+        await tx.update(fluxSchema.userFlux).set(plan).where(eq(fluxSchema.userFlux.userId, userId))
+        await settleOutstanding(tx, { ...wallet, ...plan }, `plan:${nanoid()}:settle`)
       })
       await updateRedisCache(userId)
     },

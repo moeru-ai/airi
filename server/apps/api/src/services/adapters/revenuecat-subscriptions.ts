@@ -34,7 +34,6 @@ export function createRevenuecatSubscriptionSync(
         return null
 
       return {
-        entitlementId: current.entitlementId,
         quota: plans[current.productId]!.quotaCredit,
         periodStart: current.purchasedAt,
         expiresAt: current.accessUntil!,

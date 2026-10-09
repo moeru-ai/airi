@@ -30,7 +30,7 @@ describe('payment CORE', () => {
 
   beforeEach(async () => {
     redis = createTestRedis()
-    const billing = createBillingService(db, redis)
+    const billing = createBillingService(db, redis, { getOptional: async () => null })
     payment = createPaymentService(db, billing)
 
     await db.delete(schema.fluxTransaction).where(eq(schema.fluxTransaction.userId, 'user-pay-1'))

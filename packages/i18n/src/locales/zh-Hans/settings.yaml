@@ -1060,16 +1060,10 @@ pages:
     creditsRemaining: 剩余 {percent}%
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    period:
-      month: 月付
-      year: 年付
     perMonth: / 月
-    perYear: / 年
     currentPackage: 当前方案
     upgrade: 升级
     downgrade: 降级
-    switchToYear: 改为年付
-    switchToMonth: 改为月付
     manageSubscription: 管理订阅
     fallbackToFlux: 额度用完后用 Flux
     fallbackToFluxHint: 关闭后，额度用完即停止。

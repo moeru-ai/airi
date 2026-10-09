@@ -2,7 +2,6 @@ import type { Database } from '../../libs/db'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
 import type { SubscriberEntitlement } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
-import type { PaymentService } from '../../services/domain/payment'
 import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
@@ -23,43 +22,19 @@ import * as schema from '../../schemas'
 const signingSecret = 'test-signing-secret'
 const authorization = 'test-authorization-value'
 
-const starterPacks: ConfigDefinitions['REVENUECAT_FLUX_PACKS'] = {
-  flux_500: { fluxAmount: 500 },
-}
-
 const starterPlans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] = {
   rc_go_monthly: { entitlementId: 'airi_go', quotaCredit: 2000 },
   rc_plus_monthly: { entitlementId: 'airi_plus', quotaCredit: 5000 },
 }
 
-function createPacksConfigKV(
-  packs: ConfigDefinitions['REVENUECAT_FLUX_PACKS'] = starterPacks,
-  plans: ConfigDefinitions['REVENUECAT_SUBSCRIPTION_PLANS'] = starterPlans,
-): ConfigKVService {
+function createPlansConfigKV(): ConfigKVService {
   return {
-    getOptional: vi.fn(async (key: string) => {
-      if (key === 'REVENUECAT_FLUX_PACKS')
-        return packs
-      if (key === 'REVENUECAT_SUBSCRIPTION_PLANS')
-        return plans
-      return null
-    }),
+    getOptional: vi.fn(async (key: string) => key === 'REVENUECAT_SUBSCRIPTION_PLANS' ? starterPlans : null),
     getOrThrow: vi.fn(),
     get: vi.fn(),
     refresh: vi.fn(),
     invalidateCache: vi.fn(),
   } as ConfigKVService
-}
-
-function createMockPayment(overrides?: Partial<PaymentService>): PaymentService {
-  return {
-    openPending: vi.fn(),
-    bindProcessorOrder: vi.fn(),
-    abandon: vi.fn(),
-    settle: vi.fn(async () => ({ applied: true, userId: 'user-1', fluxAmount: 500, balanceAfter: 500 })),
-    deleteAllForUser: vi.fn(),
-    ...overrides,
-  }
 }
 
 function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): string {
@@ -68,12 +43,10 @@ function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): s
 }
 
 function createTestApp(
-  payment: PaymentService,
-  configKV: ConfigKVService = createPacksConfigKV(),
   subscriptionSync: RevenuecatSubscriptionSync,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
 ) {
-  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, env, null)
+  const routes = createRevenuecatRoutes(subscriptionSync, env, null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -94,16 +67,7 @@ function createTestApp(
 function webhookBody(overrides = {}) {
   return {
     api_version: '1.0',
-    event: {
-      type: 'NON_RENEWING_PURCHASE',
-      id: 'event-1',
-      app_user_id: 'user-1',
-      product_id: 'flux_500',
-      transaction_id: 'txn-1',
-      environment: 'SANDBOX',
-      store: 'TEST_STORE',
-      ...overrides,
-    },
+    event: { type: 'INITIAL_PURCHASE', id: 'sub-event-1', app_user_id: 'user-1', ...overrides },
   }
 }
 
@@ -119,7 +83,7 @@ async function postWebhook(
   if (auth)
     headers.authorization = auth
   if (signature)
-    headers['x-revenuecat-signature'] = signature
+    headers['x-revenuecat-webhook-signature'] = signature
   return app.request('/api/v1/revenuecat/webhook', { method: 'POST', headers, body: rawBody })
 }
 
@@ -133,21 +97,16 @@ describe('revenuecat routes', () => {
   /** What RevenueCat reports for each user. A test changes it between webhooks. */
   let entitlements: Record<string, SubscriberEntitlement[]>
 
-  async function setup(configKV: ConfigKVService = createPacksConfigKV()) {
+  async function setup() {
+    const configKV = createPlansConfigKV()
     await db.delete(schema.fluxUsage)
     await db.delete(schema.fluxTransaction)
     await db.delete(schema.userFlux)
     entitlements = {}
-    const payment = createMockPayment()
-    const billing = createBillingService(db, createTestRedis())
+    const billing = createBillingService(db, createTestRedis(), { getOptional: async () => null })
     const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
     const sync = createRevenuecatSubscriptionSync(billing, configKV, { fetchEntitlements })
-    return {
-      payment,
-      billing,
-      fetchEntitlements,
-      app: createTestApp(payment, configKV, sync),
-    }
+    return { billing, fetchEntitlements, app: createTestApp(sync) }
   }
 
   async function readWallet(userId: string) {
@@ -162,37 +121,6 @@ describe('revenuecat routes', () => {
     accessUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
   }
 
-  function subscriptionBody(overrides = {}) {
-    return {
-      api_version: '1.0',
-      event: {
-        type: 'INITIAL_PURCHASE',
-        id: 'sub-event-1',
-        app_user_id: 'user-1',
-        product_id: 'rc_go_monthly',
-        environment: 'SANDBOX',
-        store: 'TEST_STORE',
-        ...overrides,
-      },
-    }
-  }
-
-  it('settles a non-renewing purchase as revenuecat evidence', async () => {
-    const { payment, app } = await setup()
-
-    const res = await postWebhook(app, webhookBody())
-    expect(res.status).toBe(200)
-    expect(await res.json()).toMatchObject({ received: true, granted: true })
-    expect(payment.settle).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'evidence',
-      processor: 'revenuecat',
-      processorOrderId: 'txn-1',
-      userId: 'user-1',
-      packKey: 'flux_500',
-      fluxAmount: 500,
-    }))
-  })
-
   it('returns 401 on authorization mismatch', async () => {
     const { app } = await setup()
     const res = await postWebhook(app, webhookBody(), { authorization: 'wrong' })
@@ -205,33 +133,24 @@ describe('revenuecat routes', () => {
     expect(res.status).toBe(401)
   })
 
-  it('acks unknown products without a grant', async () => {
-    const { payment, app } = await setup()
-
-    const res = await postWebhook(app, webhookBody({ product_id: 'unknown', id: 'event-2' }))
-    expect(res.status).toBe(200)
-    expect(payment.settle).not.toHaveBeenCalled()
-  })
-
   it('grants plan Flux from what RevenueCat reports', async () => {
-    const { payment, app } = await setup()
+    const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
 
-    const res = await postWebhook(app, subscriptionBody())
+    const res = await postWebhook(app, webhookBody())
     expect(res.status).toBe(200)
-    expect(payment.settle).not.toHaveBeenCalled()
 
-    expect(await readWallet('user-1')).toMatchObject({ flux: 0, planFlux: 2000, planQuota: 2000, planEntitlementId: 'airi_go' })
+    expect(await readWallet('user-1')).toMatchObject({ flux: 0, planFlux: 2000, planQuota: 2000 })
   })
 
   it('does not grant again on a repeated or later event of the same period', async () => {
     const { billing, app } = await setup()
     entitlements['user-1'] = [goEntitlement]
 
-    await postWebhook(app, subscriptionBody())
+    await postWebhook(app, webhookBody())
     await billing.postFluxUsage({ userId: 'user-1', source: { type: 'test', id: 'req-1' }, amountMicroFlux: 500_000_000 })
-    await postWebhook(app, subscriptionBody())
-    await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'CANCELLATION' }))
+    await postWebhook(app, webhookBody())
+    await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'CANCELLATION' }))
 
     expect(await readWallet('user-1')).toMatchObject({ planFlux: 1500, planQuota: 2000 })
   })
@@ -239,7 +158,7 @@ describe('revenuecat routes', () => {
   it('grants the new plan on PRODUCT_CHANGE and not the old product in the event', async () => {
     const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
-    await postWebhook(app, subscriptionBody())
+    await postWebhook(app, webhookBody())
 
     entitlements['user-1'] = [{
       entitlementId: 'airi_plus',
@@ -247,18 +166,18 @@ describe('revenuecat routes', () => {
       purchasedAt: new Date('2026-10-15T00:00:00.000Z'),
       accessUntil: goEntitlement.accessUntil,
     }]
-    await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
+    await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
 
-    expect(await readWallet('user-1')).toMatchObject({ planFlux: 5000, planQuota: 5000, planEntitlementId: 'airi_plus' })
+    expect(await readWallet('user-1')).toMatchObject({ planFlux: 5000, planQuota: 5000 })
   })
 
   it('expires the plan when RevenueCat reports no active plan', async () => {
     const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
-    await postWebhook(app, subscriptionBody())
+    await postWebhook(app, webhookBody())
 
     entitlements['user-1'] = []
-    await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'EXPIRATION' }))
+    await postWebhook(app, webhookBody({ id: 'sub-event-2', type: 'EXPIRATION' }))
 
     expect((await readWallet('user-1'))!.planExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
   })
@@ -266,7 +185,7 @@ describe('revenuecat routes', () => {
   it('reconciles both users of a TRANSFER', async () => {
     const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
-    await postWebhook(app, subscriptionBody())
+    await postWebhook(app, webhookBody())
 
     entitlements['user-1'] = []
     entitlements['user-2'] = [goEntitlement]
@@ -284,23 +203,20 @@ describe('revenuecat routes', () => {
     const { fetchEntitlements, app } = await setup()
     fetchEntitlements.mockRejectedValueOnce(new ApiError(502, 'BAD_GATEWAY', 'RevenueCat subscriber request failed'))
 
-    const res = await postWebhook(app, subscriptionBody())
+    const res = await postWebhook(app, webhookBody())
     expect(res.status).toBe(502)
   })
 
   it('does not read RevenueCat for a TEST event', async () => {
     const { fetchEntitlements, app } = await setup()
 
-    const res = await postWebhook(app, subscriptionBody({ type: 'TEST' }))
+    const res = await postWebhook(app, webhookBody({ type: 'TEST' }))
     expect(res.status).toBe(200)
     expect(fetchEntitlements).not.toHaveBeenCalled()
   })
 
   it('returns 503 when no secret is configured', async () => {
-    const payment = createMockPayment()
     const app = createTestApp(
-      payment,
-      createPacksConfigKV(),
       {} as RevenuecatSubscriptionSync,
       { REVENUECAT_WEBHOOK_AUTH: undefined, REVENUECAT_WEBHOOK_SECRET: undefined } as never,
     )
@@ -310,12 +226,5 @@ describe('revenuecat routes', () => {
       body: JSON.stringify(webhookBody()),
     })
     expect(res.status).toBe(503)
-  })
-
-  it('lists flux packs on GET /packages', async () => {
-    const { app } = await setup()
-    const res = await app.request('/api/v1/revenuecat/packages')
-    expect(res.status).toBe(200)
-    expect(await res.json()).toEqual([{ productId: 'flux_500', fluxAmount: 500 }])
   })
 })

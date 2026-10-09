@@ -7,7 +7,7 @@ import type { WalletSnapshot } from './flux-cache'
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
-import { planRemainingPercent } from './billing/flux-posting'
+import { planRemainingPercent, readPlanResetPolicy, refillPlan } from './billing/flux-posting'
 import { invalidateBalanceCache, readBalanceCache, writeBalanceCache } from './flux-cache'
 
 import * as schema from '../../schemas/flux'
@@ -87,10 +87,11 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
         logger.withFields({ userId, initialFlux }).log('Initialized new user flux')
       }
 
+      // A due plan refill is counted in the snapshot. The cache can show the old amount for its TTL after a reset.
       const snapshot = {
         flux: record.flux,
         unsettledMicroFlux: record.unsettledMicroFlux,
-        planFlux: record.planFlux,
+        planFlux: refillPlan(record, await readPlanResetPolicy(configKV)).planFlux,
         planQuota: record.planQuota,
         planExpiresAt: record.planExpiresAt?.toISOString() ?? null,
         fallbackToFlux: record.fallbackToFlux,

@@ -45,8 +45,8 @@ function createMockFluxService(flux = 100): FluxService {
 
 type BillingService = WalletBillingService & LlmBillingService
 
-function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], _config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[2]): BillingService {
-  const billing = createBillingService(db, redis, metrics)
+function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[3]): BillingService {
+  const billing = createBillingService(db, redis, config, metrics)
   return { ...billing, ...createLlmBillingService(billing, metrics) }
 }
 

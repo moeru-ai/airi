@@ -59,12 +59,14 @@ Admission reads PostgreSQL. The display cache contains both wallet fields and ex
 Credits settle affordable outstanding fees. Admin balance changes preserve outstanding fees.
 The ledger must always satisfy: sum of fees = debited Flux x 1,000,000 + outstanding micro-Flux.
 
-`user_flux` also holds the plan bucket: `plan_flux`, `plan_quota`, `plan_expires_at`, `plan_entitlement_id`, and `plan_period_start`.
-Purchased Flux does not expire. Plan Flux resets each billing period and counts as 0 after `plan_expires_at`.
+`user_flux` also holds the plan bucket: `plan_flux`, `plan_quota`, `plan_expires_at`, `plan_period_start`, `plan_filled_at`, and `plan_reset_at`.
+Purchased Flux does not expire. Plan Flux counts as 0 after `plan_expires_at`.
+Plan Flux refills to the quota when `plan_filled_at` is before the reset boundary. The boundary is the latest of the billing period start, the `PLAN_FLUX_RESET_INTERVAL` window, `PLAN_FLUX_RESET_AT`, and `plan_reset_at`.
+The next settlement writes a due refill. No job runs it.
 A pooled debit spends plan Flux first. While a plan is active, purchased Flux pays only when `fallback_to_flux` is on. The default is off.
 A fee that no bucket can pay stays outstanding. A new plan grant or a credit pays it later.
 `flux_transaction.pool` is `wallet` or `plan`. Its balance columns describe that bucket.
-`BillingService.syncPlan` grants a period, `setFallbackToFlux` saves the choice, and `GET /api/v1/flux` returns `planRemainingPercent`.
+`BillingService.syncPlan` stores a period, `setFallbackToFlux` saves the choice, and `GET /api/v1/flux` returns `planRemainingPercent`.
 
 `GET /api/v1/flux/usage` returns paginated fees from `flux_usage`. Wallet history returns integer balance changes.
 
@@ -146,11 +148,10 @@ Apple IAP lives on `/api/v1/apple-iap/*`. The channel verifies StoreKit 2
 JWS proof from every app in `APPLE_IAP_APPS`, resolves the pack from
 `productId` through `APPLE_FLUX_PACKS`, then settles an
 `EvidenceReceipt`.
-RevenueCat lives on `/api/v1/revenuecat/*`. `GET /packages` lists the
-`REVENUECAT_FLUX_PACKS` product-to-Flux map. `POST /webhook` verifies the
-dashboard authorization header and HMAC signature over the raw body, then
-settles `NON_RENEWING_PURCHASE` events as `revenuecat` evidence receipts.
-Each other event reconciles the plan bucket from RevenueCat.
+RevenueCat lives on `/api/v1/revenuecat/*`. `POST /webhook` verifies the
+dashboard authorization header and HMAC signature over the raw body.
+Each event then reconciles the plan bucket from RevenueCat.
+RevenueCat does not sell Flux packs.
 The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
 
