@@ -154,6 +154,13 @@
 > brew install --cask airi
 > ```
 
+> [!TIP]
+> Vous pouvez exécuter la version desktop avec Nix :
+>
+> ```shell
+> nix run github:moeru-ai/airi
+> ```
+
 > [!WARNING]
 > **Attention :** Nous **n'avons pas** de crypto-monnaie ou de token officiel associé à ce projet. Veuillez vérifier les informations et procéder avec prudence.
 
@@ -269,82 +276,37 @@ Capacités :
 
 ## Développement
 
-> Pour des instructions détaillées sur le développement, suivez [CONTRIBUTING.md](./.github/CONTRIBUTING.md)
+> Pour des instructions détaillées sur le développement, suivez [CONTRIBUTING.md](../.github/CONTRIBUTING.md).
 
-> [!NOTE]
-> Par défaut, `pnpm dev` démarre le serveur de développement pour Stage Web (version navigateur). Pour développer la version desktop, lisez [CONTRIBUTING.md](./.github/CONTRIBUTING.md) pour configurer correctement l’environnement.
+Installez les outils aux versions verrouillées et les dépendances du projet :
 
 ```shell
-pnpm i
+mise install
+mise exec -- pnpm install
+```
+
+### Version navigateur ([airi.moeru.ai](https://airi.moeru.ai))
+
+```shell
 pnpm dev
 ```
 
-### Stage Web (Version navigateur sur [airi.moeru.ai](https://airi.moeru.ai))
-
-```shell
-pnpm dev
-```
-
-### Stage Tamagotchi (Version Bureau)
+### Version desktop
 
 ```shell
 pnpm dev:tamagotchi
 ```
 
-Un package Nix pour Tamagotchi est inclus. Pour lancer AIRI avec Nix, assurez-vous d'abord d'activer les flakes, puis exécutez :
+### Version mobile
 
 ```shell
-nix run github:moeru-ai/airi
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
 ```
 
-### Stage Pocket (version mobile)
-
-Lancez le serveur de développement de la version Web Capacitor :
-
-```shell
-pnpm dev:pocket
-```
-
-Vérifiez l'adresse IP dans la sortie de cette commande :
-
-```shell
-  ROLLDOWN-VITE v7.3.0  ready in 1073 ms
-
-  ➜  Local:   https://localhost:5273/
-  ➜  Network: https://<ip-will-be-here>:5273/
-  ➜  Vue DevTools: Open https://localhost:5273/__devtools__/ as a separate window
-  ➜  Vue DevTools: Press Option(⌥)+Shift(⇧)+D in App to toggle the Vue DevTools
-  ➜  UnoCSS Inspector: https://localhost:5273/__unocss/
-```
-
-Ouvrez le projet Xcode :
-
-```shell
-CAPACITOR_DEV_SERVER_URL=https://<your-ip-address>:5273 pnpm open:ios
-```
-
-Xcode s'ouvrira ensuite, et vous pourrez cliquer sur le bouton "Run" pour lancer l'application sur un iPhone.
-
-Si vous devez connecter le canal serveur de Pocket en mode sans fil, vous devez lancer Tamagotchi avec les droits root :
-
-```shell
-sudo pnpm dev:tamagotchi
-```
-
-Activez ensuite le websocket sécurisé dans `settings/connections` de Tamagotchi.
-
-### Site de la Documentation
+### Site de documentation
 
 ```shell
 pnpm dev:docs
-```
-
-### Publier
-
-Exécutez `bumpp` pour mettre à jour la version du monorepo :
-
-```shell
-npx bumpp --no-commit --no-tag
 ```
 
 ## Support des fournisseurs d'API LLM suivants (propulsé par [xsai](https://github.com/moeru-ai/xsai))

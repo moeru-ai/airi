@@ -180,6 +180,34 @@ pnpm dev
 > nr dev
 > ```
 
+### Stage Pocket (Mobile version)
+
+Start the development server for an iOS device or simulator:
+
+```shell
+pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
+# Or
+CAPACITOR_DEVICE_ID_IOS="<DEVICE_ID_OR_SIMULATOR_NAME>" pnpm dev:pocket:ios
+```
+
+Quote the target because simulator names such as `iPhone 16 Pro` contain spaces.
+
+List available devices and simulators with:
+
+```shell
+pnpm -F @proj-airi/stage-pocket exec cap run ios --list
+```
+
+The `@capacitor/cli` package is declared in `apps/stage-pocket`, so `cap` does not resolve from the repository root.
+
+If you need to connect the Pocket server channel in wireless mode, start Tamagotchi as root:
+
+```shell
+sudo pnpm dev:tamagotchi
+```
+
+Then enable secure websocket in Tamagotchi at `settings/connections`.
+
 ### UI Storyboard
 
 Browse the live UI component storyboard at [airi.moeru.ai/ui](https://airi.moeru.ai/ui/).
@@ -197,6 +225,14 @@ pnpm dev:docs
 > ```shell
 > nr dev:docs
 > ```
+
+### Publish
+
+Run `bumpp` to update the monorepo version:
+
+```shell
+npx bumpp --no-commit --no-tag
+```
 
 ### Telegram bot integration
 

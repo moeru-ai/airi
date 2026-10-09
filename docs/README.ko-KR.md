@@ -154,6 +154,20 @@
 > brew install --cask airi
 > ```
 
+> [!TIP]
+> Nix로 데스크톱 버전을 실행할 수 있습니다:
+>
+> ```shell
+> nix run github:moeru-ai/airi
+> ```
+>
+> NixOS에서는 `flake.nix`에 정의된 FHS 셸을 사용하세요:
+>
+> ```shell
+> nix develop .#fhs
+> pnpm dev:tamagotchi
+> ```
+
 > [!WARNING]
 > **주의:** 본 프로젝트와 관련된 공식 암호화폐나 토큰은 **일절 발행하지 않았습니다**. 관련 정보에 주의하시고 신중하게 판단해 주세요.
 
@@ -269,77 +283,37 @@
 
 ## 개발
 
-> 이 프로젝트의 상세한 개발 가이드는 [CONTRIBUTING.md](../.github/CONTRIBUTING.md)를 참조하세요
+> 이 프로젝트의 상세한 개발 가이드는 [CONTRIBUTING.md](../.github/CONTRIBUTING.md)를 참조하세요.
 
-> [!NOTE]
-> 기본적으로 `pnpm dev`는 Stage Web(브라우저 버전)의 개발 서버를 시작합니다. 데스크톱 버전을 개발하고 싶으시다면, [CONTRIBUTING.md](../.github/CONTRIBUTING.md)를 읽고 환경을 올바르게 설정해 주세요.
+고정된 버전의 도구와 프로젝트 의존성을 설치하세요:
 
 ```shell
-pnpm i
+mise install
+mise exec -- pnpm install
+```
+
+### 웹 버전 ([airi.moeru.ai](https://airi.moeru.ai))
+
+```shell
 pnpm dev
 ```
 
-### Stage Web (브라우저 버전, [airi.moeru.ai](https://airi.moeru.ai))
-
-```shell
-pnpm dev
-```
-
-### Stage Tamagotchi (데스크톱 버전)
+### 데스크톱 버전
 
 ```shell
 pnpm dev:tamagotchi
 ```
 
-Tamagotchi용 Nix 패키지도 포함되어 있습니다. flakes를 활성화한 후 다음과 같이 실행할 수 있습니다:
-
-```shell
-nix run github:moeru-ai/airi
-```
-
-#### NixOS
-
-Electron에 필요한 공유 라이브러리가 NixOS에서는 표준 경로에 없습니다. `flake.nix`에 정의된 FHS 셸을 사용하세요:
-
-```shell
-nix develop .#fhs
-pnpm dev:tamagotchi
-```
-
-### Stage Pocket (모바일 버전)
-
-Capacitor 개발 서버를 시작합니다:
+### 모바일 버전
 
 ```shell
 pnpm dev:pocket:ios --target "<DEVICE_ID_OR_SIMULATOR_NAME>"
-# 또는
-CAPACITOR_DEVICE_ID_IOS="<DEVICE_ID_OR_SIMULATOR_NAME>" pnpm dev:pocket:ios
 ```
-
-`iPhone 16 Pro`처럼 시뮬레이터 이름에는 공백이 들어가므로 대상 이름은 따옴표로 감싸세요.
-
-`pnpm -F @proj-airi/stage-pocket exec cap run ios --list`를 실행하면 사용 가능한 기기와 시뮬레이터 목록을 확인할 수 있습니다. `@capacitor/cli`는 `apps/stage-pocket`에만 선언되어 있어서 저장소 루트에서는 `cap`이 resolve되지 않습니다.
-
-무선 모드에서 Pocket의 서버 채널에 연결해야 하는 경우, Tamagotchi를 루트 권한으로 시작해야 합니다:
-
-```shell
-sudo pnpm dev:tamagotchi
-```
-
-그런 다음 Tamagotchi의 `settings/connections`에서 보안 웹소켓을 활성화하세요.
 
 ### 문서 사이트
 
 ```shell
 pnpm dev:docs
-```
-
-### 배포
-
-`bumpp`를 실행해 모노레포 버전을 업데이트하세요:
-
-```shell
-npx bumpp --no-commit --no-tag
 ```
 
 ## LLM API 프로바이더 지원 ([xsai](https://github.com/moeru-ai/xsai) 기반)
