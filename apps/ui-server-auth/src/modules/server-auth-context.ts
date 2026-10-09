@@ -16,7 +16,7 @@ const API_SERVER_URL_QUERY_PARAM = 'api_server_url'
 
 const TRUSTED_STANDALONE_API_SERVER_ORIGINS = [
   'https://api.airi.build',
-  'https://airi-server-dev.up.railway.app',
+  'https://api-dev.airi.build',
   'https://airi-server-next.up.railway.app',
 ]
 

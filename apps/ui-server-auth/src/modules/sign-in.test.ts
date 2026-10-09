@@ -9,7 +9,7 @@ import {
 describe('ui-server-auth sign-in flow helpers', () => {
   it('rebuilds the OIDC callback URL without provider and prompt query params', () => {
     expect(createServerSignInContext(
-      'https://auth.airi.test/sign-in?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app&client_id=airi-stage-web&provider=github&prompt=login&response_type=code&scope=openid',
+      'https://auth.airi.test/sign-in?api_server_url=https%3A%2F%2Fapi-dev.airi.build&client_id=airi-stage-web&provider=github&prompt=login&response_type=code&scope=openid',
       'https://api.airi.test',
     )).toEqual({
       callbackURL: 'https://api.airi.test/api/auth/oauth2/authorize?client_id=airi-stage-web&response_type=code&scope=openid',
@@ -82,10 +82,10 @@ describe('ui-server-auth sign-in flow helpers', () => {
 
   it('keeps trusted standalone admin redirects on the admin origin', () => {
     expect(createServerSignInContext(
-      'https://accounts.airi.build/ui/sign-in?redirect=https%3A%2F%2Fadmin.airi.build%2Fllm-router%3Fapi_server_url%3Dhttps%253A%252F%252Fairi-server-dev.up.railway.app',
+      'https://accounts.airi.build/ui/sign-in?redirect=https%3A%2F%2Fadmin.airi.build%2Fllm-router%3Fapi_server_url%3Dhttps%253A%252F%252Fapi-dev.airi.build',
       'https://api.airi.test',
     )).toEqual({
-      callbackURL: 'https://admin.airi.build/llm-router?api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app',
+      callbackURL: 'https://admin.airi.build/llm-router?api_server_url=https%3A%2F%2Fapi-dev.airi.build',
       requestedProvider: null,
     })
 
