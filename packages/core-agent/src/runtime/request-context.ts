@@ -22,7 +22,20 @@ export function modelKey(model: string, { protocol, config }: GenerationRequest)
 
 /** Applies a caller override before the learned tool compatibility for this exact model request. */
 export function supportsTools(model: string, request: GenerationRequest, options?: StreamOptions): boolean {
+  if (options?.supportsTools === false)
+    return false
+  if (toolChoiceRequiresTools(options?.toolChoice))
+    return true
   return options?.supportsTools ?? (options?.toolsCompatibility?.get(modelKey(model, request)) !== false)
+}
+
+/** Required choices keep tools attached despite a learned compatibility failure. Explicit tool-free requests still win. */
+export function toolChoiceRequiresTools(choice: StreamOptions['toolChoice']): boolean {
+  if (choice === 'required')
+    return true
+  if (typeof choice !== 'object' || choice === null)
+    return false
+  return choice.type === 'function' || (choice.type === 'allowed_tools' && choice.mode === 'required')
 }
 
 /** Applies a caller override before the learned Chat content compatibility for this exact model request. */

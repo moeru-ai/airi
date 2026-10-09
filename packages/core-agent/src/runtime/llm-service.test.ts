@@ -1,11 +1,13 @@
-import type { ChatProvider } from '@xsai-ext/providers/utils'
-import type { Event, Message, Tool } from '@xsai/shared-chat'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { CompletionStep, Event, Message, Tool } from '@xsai/shared-chat'
 
+import type { Conversation } from '../messages/types'
 import type { StreamOptions } from '../types/llm'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { isContentArrayRelatedError, isPlainTextToolCallError, sanitizeMessages, streamFrom } from './llm-service'
+import { chatMessagesToTurns, conversationToChatMessages } from '../messages/chat-completions'
+import { isContentArrayRelatedError, isPlainTextToolCallError, streamFrom } from './llm-service'
 
 const { streamTextMock } = vi.hoisted(() => ({
   streamTextMock: vi.fn(),
@@ -341,19 +343,13 @@ describe('streamFrom tool errors', () => {
 
   // ROOT CAUSE:
   //
-  // A request could require a tool while the request-level capability gate
-  // explicitly removed every tool from the provider payload.
-  //
-  // Before the fix, streamFrom silently removed the required tool choice and
-  // still called the provider without any way to satisfy the request.
-  //
-  // We fixed this by rejecting required choices with no resolved tools before
-  // the provider is called.
+  // Explicit tool disabling removed a required choice and still called the provider.
+  // Reject required choices without available tools before the provider request.
   it('rejects a required tool choice before the provider when tools are explicitly disabled', async () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'Play the game.' }] as Message[],
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'Play the game.' }] as Message[]) },
       options: {
         supportsTools: false,
         toolChoice: {
@@ -412,7 +408,7 @@ describe('streamFrom tool errors', () => {
     const listenerStarted = Promise.withResolvers<void>()
     const releaseListener = Promise.withResolvers<void>()
     const streamError = new Error('accepted provider error')
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onUsage = vi.fn()
     const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async (event) => {
       if (event.type === 'text-delta') {
@@ -429,8 +425,8 @@ describe('streamFrom tool errors', () => {
     const result = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }],
-      options: { tools: withTools ? [createSparkTool()] : undefined, onStreamEvent, onMessages, onUsage },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
+      options: { tools: withTools ? [createSparkTool()] : undefined, onStreamEvent, onGeneratedTurn, onUsage },
     }).then(() => undefined, error => error)
 
     await listenerStarted.promise
@@ -443,23 +439,21 @@ describe('streamFrom tool errors', () => {
       { type: 'text-delta', text: 'partial answer' },
       { type: 'error', error: streamError },
     ])
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     expect(onUsage).not.toHaveBeenCalled()
   })
 
   // ROOT CAUSE:
   //
-  // A provider failure can arrive while an output listener waits on a plugin.
-  // Before the fix, the caller received rejection before that listener returned.
-  // Queued events and buffered output then continued to change the session.
-  // Failure now stops pending output and waits for the active listener before rejection.
+  // A provider failure rejected while its output listener still changed session state.
+  // Stop pending output and wait for the active listener before rejection.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949844417
   it.each(['plain', 'step-end', 'native-tool'] as const)('stops %s output and drains the active listener on failure for Issue #2161', async (mode) => {
     const steps = Promise.withResolvers<unknown[]>()
     const listenerStarted = Promise.withResolvers<void>()
     const releaseListener = Promise.withResolvers<void>()
     const streamError = new Error('steps failed during output')
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onUsage = vi.fn()
     const mutations: string[] = []
     let settled = false
@@ -491,8 +485,8 @@ describe('streamFrom tool errors', () => {
     const result = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }],
-      options: { tools: [createSparkTool()], onStreamEvent, onMessages, onUsage },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
+      options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn, onUsage },
     }).then(
       () => {
         settled = true
@@ -515,7 +509,7 @@ describe('streamFrom tool errors', () => {
     expect(error).toBe(streamError)
     expect(mutations).toEqual(['before rejection'])
     expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([firstEvent])
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     expect(onUsage).not.toHaveBeenCalled()
   })
 
@@ -526,7 +520,7 @@ describe('streamFrom tool errors', () => {
     let onEvent: (event: Event) => void = () => {
       throw new Error('provider not started')
     }
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async (event) => {
       if (event.type === 'text-delta') {
         listenerStarted.resolve()
@@ -541,15 +535,15 @@ describe('streamFrom tool errors', () => {
     const pending = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'hello' }],
-      options: { onStreamEvent, onMessages },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }]) },
+      options: { onStreamEvent, onGeneratedTurn },
     })
     await listenerStarted.promise
     steps.resolve([])
     await new Promise(resolve => setImmediate(resolve))
     onEvent({ type: 'error', message: 'late provider error' })
     onEvent({ type: 'text.delta', delta: 'late output' })
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     releaseListener.resolve()
     await pending
 
@@ -557,7 +551,7 @@ describe('streamFrom tool errors', () => {
       { type: 'text-delta', text: 'accepted output' },
       { type: 'finish' },
     ])
-    expect(onMessages).toHaveBeenCalledTimes(1)
+    expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
   })
 
   it.each([false, true])('stops the queue when an output listener rejects with steps complete=%s', async (stepsComplete) => {
@@ -565,7 +559,7 @@ describe('streamFrom tool errors', () => {
     const listenerStarted = Promise.withResolvers<void>()
     const releaseListener = Promise.withResolvers<void>()
     const listenerError = new Error('output listener failed')
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async () => {
       listenerStarted.resolve()
       await releaseListener.promise
@@ -579,8 +573,8 @@ describe('streamFrom tool errors', () => {
     const result = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
-      options: { onStreamEvent, onMessages },
+      conversation: { turns: chatMessagesToTurns([]) },
+      options: { onStreamEvent, onGeneratedTurn },
     }).then(() => undefined, error => error)
 
     await listenerStarted.promise
@@ -596,7 +590,7 @@ describe('streamFrom tool errors', () => {
     }
     await new Promise(resolve => setImmediate(resolve))
     expect(onStreamEvent).toHaveBeenCalledTimes(1)
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   it('keeps the provider failure when the active listener also rejects', async () => {
@@ -617,7 +611,7 @@ describe('streamFrom tool errors', () => {
     const result = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { onStreamEvent },
     }).then(() => undefined, error => error)
     await listenerStarted.promise
@@ -638,7 +632,7 @@ describe('streamFrom tool errors', () => {
     const steps = Promise.withResolvers<unknown[]>()
     const streamError = new Error('provider event failed')
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onUsage = vi.fn()
     streamTextMock.mockImplementationOnce((options: { onEvent: (event: Event) => void }) => {
       options.onEvent({ type: 'error', message: streamError.message, cause: streamError })
@@ -648,22 +642,22 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
-      options: { onStreamEvent, onMessages, onUsage },
+      conversation: { turns: chatMessagesToTurns([]) },
+      options: { onStreamEvent, onGeneratedTurn, onUsage },
     })).rejects.toBe(streamError)
     steps.resolve([])
     await new Promise(resolve => setImmediate(resolve))
 
     expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([{ type: 'error', error: streamError }])
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     expect(onUsage).not.toHaveBeenCalled()
   })
 
-  it.each(['messages', 'listener'] as const)('does not emit finish when the final %s rejects', async (failureSource) => {
+  it.each(['messages', 'listener'] as const)('rejects final transcript failures from %s without usage reporting', async (failureSource) => {
     const persistenceError = new Error('transcript failed')
     const onStreamEvent = vi.fn()
     const onUsage = vi.fn()
-    const onMessages = vi.fn(() => {
+    const onGeneratedTurn = vi.fn(() => {
       throw persistenceError
     })
     streamTextMock.mockReturnValueOnce(createMockStreamResult(
@@ -674,12 +668,12 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
-      options: { onMessages, onStreamEvent, onUsage },
+      conversation: { turns: chatMessagesToTurns([]) },
+      options: { onGeneratedTurn, onStreamEvent, onUsage },
     })).rejects.toBe(persistenceError)
 
-    expect(onMessages).toHaveBeenCalledTimes(failureSource === 'messages' ? 0 : 1)
-    expect(onStreamEvent).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).toHaveBeenCalledTimes(failureSource === 'messages' ? 0 : 1)
+    expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual(failureSource === 'messages' ? [] : [{ type: 'finish' }])
     expect(onUsage).not.toHaveBeenCalled()
   })
 
@@ -864,7 +858,7 @@ describe('streamFrom tool errors', () => {
     for (const nativeEvent of nativeEvents) {
       for (const splitAt of [0, 20, call.length]) {
         const onStreamEvent = vi.fn()
-        const onMessages = vi.fn()
+        const onGeneratedTurn = vi.fn()
         const events: Event[] = [
           { type, delta: call.slice(0, splitAt) },
           nativeEvent,
@@ -874,11 +868,11 @@ describe('streamFrom tool errors', () => {
         await expect(streamFrom({
           model: 'model-a',
           chatProvider: provider,
-          messages: [],
-          options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+          conversation: { turns: chatMessagesToTurns([]) },
+          options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn },
         })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
         expect(onStreamEvent.mock.calls.flat()).not.toContainEqual(expect.objectContaining({ type: type === 'text.delta' ? 'text-delta' : 'reasoning-delta' }))
-        expect(onMessages).not.toHaveBeenCalled()
+        expect(onGeneratedTurn).not.toHaveBeenCalled()
         expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
       }
     }
@@ -903,7 +897,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })
     expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
@@ -918,13 +912,9 @@ describe('streamFrom tool errors', () => {
 
   // ROOT CAUSE:
   //
-  // Some providers serialize an offered tool call as assistant text instead
-  // of emitting the native tool-call protocol events.
-  //
-  // Before the fix, the raw JSON reached the UI as ordinary model output.
-  //
-  // We reject complete JSON calls for known tools. Ordinary reasoning can
-  // stream before a candidate starts, so callers must not replay that output.
+  // Some providers returned tool calls as text, which reached the UI.
+  // Reject complete calls for known tools in either output channel.
+  // Ordinary reasoning streams before candidates, so callers must not replay it.
   // https://github.com/moeru-ai/airi/issues/2161
   it('rejects a known plain-text tool call after ordinary reasoning for Issue #2161', async () => {
     const events: unknown[] = []
@@ -945,7 +935,7 @@ describe('streamFrom tool errors', () => {
     const error = await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'Can you play games?' }] as Message[],
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'Can you play games?' }] as Message[]) },
       options: {
         tools: [createSparkTool()],
         onStreamEvent: (event) => {
@@ -968,14 +958,8 @@ describe('streamFrom tool errors', () => {
 
   // ROOT CAUSE:
   //
-  // Reasoning deltas were buffered but excluded from the text inspected by
-  // the plain-text tool-call guard.
-  //
-  // Before the fix, a complete tool JSON emitted only through reasoning was
-  // flushed when the step ended or ordinary assistant text started.
-  //
-  // We fixed this by tracking text and reasoning candidates separately and
-  // rejecting a complete registered-tool call found in either channel.
+  // Reasoning was buffered without inspection, then released at step boundaries.
+  // Track text and reasoning candidates separately and reject known calls in either channel.
   // https://github.com/moeru-ai/airi/issues/2161
   it('rejects a known plain-text tool call emitted only through reasoning for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
@@ -995,7 +979,7 @@ describe('streamFrom tool errors', () => {
       const error = await streamFrom({
         model: 'model-a',
         chatProvider: provider,
-        messages: [{ role: 'user', content: 'Can you play games?' }] as Message[],
+        conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'Can you play games?' }] as Message[]) },
         options: {
           tools: [createSparkTool()],
           onStreamEvent: (event) => {
@@ -1039,7 +1023,7 @@ describe('streamFrom tool errors', () => {
       parameters: { guidance: 'Use {braces}, a "quote", and a \\ slash.' },
     })
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     mockStreamEvents([
       { type: 'step.start' },
       { type, delta: prefix },
@@ -1051,14 +1035,14 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'Can you play games?' }],
-      options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'Can you play games?' }]) },
+      options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn },
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     const output = onStreamEvent.mock.calls.map(([event]) => event.text ?? '').join('')
     expect(output).not.toContain('{')
     expect(onStreamEvent).not.toHaveBeenCalledWith({ type: 'finish' })
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   // ROOT CAUSE:
@@ -1077,7 +1061,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
@@ -1102,7 +1086,7 @@ describe('streamFrom tool errors', () => {
   ])('rejects a tool JSON in %s after malformed prefix %j for Issue #2161', async (type, prefix) => {
     const rawToolCall = '{"name":"builtIn_emitSparkCommand","arguments":{"text":"A } brace and a { brace."}}'
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     mockStreamEvents([
       { type, delta: prefix },
       ...Array.from(rawToolCall, delta => ({ type, delta })),
@@ -1111,12 +1095,12 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
-      options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+      conversation: { turns: chatMessagesToTurns([]) },
+      options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn },
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   it.each([
@@ -1136,7 +1120,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })
 
@@ -1159,7 +1143,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
@@ -1174,19 +1158,19 @@ describe('streamFrom tool errors', () => {
   it.each(['text.delta', 'reasoning.delta'] as const)('bounds invalid nested JSON in %s for Issue #2161', async (type) => {
     const answer = `${'{"a":'.repeat(512)}x${'}'.repeat(512)}`
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onUsage = vi.fn()
     mockStreamEvents([{ type, delta: answer }, { type: 'step.done' }])
 
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
-      options: { tools: [createSparkTool()], onStreamEvent, onMessages, onUsage },
+      conversation: { turns: chatMessagesToTurns([]) },
+      options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn, onUsage },
     })).rejects.toThrow('Model output exceeded the JSON inspection work limit.')
 
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     expect(onUsage).not.toHaveBeenCalled()
   })
 
@@ -1198,7 +1182,7 @@ describe('streamFrom tool errors', () => {
   it.each(['text.delta', 'reasoning.delta'] as const)('withholds later tool JSON after the work limit in %s for Issue #2161', async (type) => {
     const answer = `${'{"a":'.repeat(512)}x${'}'.repeat(512)}`
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     mockStreamEvents([
       { type, delta: answer },
       { type, delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' },
@@ -1208,12 +1192,12 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
-      options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+      conversation: { turns: chatMessagesToTurns([]) },
+      options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn },
     })).rejects.toThrow('Model output exceeded the JSON inspection work limit.')
 
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   // ROOT CAUSE:
@@ -1238,7 +1222,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })
 
@@ -1259,7 +1243,7 @@ describe('streamFrom tool errors', () => {
     for (const boundary of [['step.done'], ['step.start'], ['step.done', 'step.start']]) {
       for (let cut = 1; cut < call.length; cut++) {
         const onStreamEvent = vi.fn()
-        const onMessages = vi.fn()
+        const onGeneratedTurn = vi.fn()
         mockStreamEvents([
           { type, delta: call.slice(0, cut) },
           ...boundary.map(type => ({ type })),
@@ -1268,11 +1252,11 @@ describe('streamFrom tool errors', () => {
         await expect(streamFrom({
           model: 'model-a',
           chatProvider: provider,
-          messages: [],
-          options: { tools: [createSparkTool()], onStreamEvent, onMessages },
+          conversation: { turns: chatMessagesToTurns([]) },
+          options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn },
         })).rejects.toThrow('as plain text')
         expect(onStreamEvent).not.toHaveBeenCalled()
-        expect(onMessages).not.toHaveBeenCalled()
+        expect(onGeneratedTurn).not.toHaveBeenCalled()
       }
     }
   })
@@ -1295,7 +1279,7 @@ describe('streamFrom tool errors', () => {
         await streamFrom({
           model: 'model-a',
           chatProvider: provider,
-          messages: [],
+          conversation: { turns: chatMessagesToTurns([]) },
           options: { tools: [createSparkTool()], onStreamEvent },
         })
         expect(onStreamEvent.mock.calls.map(([event]) => event.text ?? '').join('')).toBe(answer)
@@ -1311,7 +1295,7 @@ describe('streamFrom tool errors', () => {
   it.each([false, true])('holds partial output until stream settlement, failure=%s, for Issue #2161', async (fail) => {
     const steps = Promise.withResolvers<unknown[]>()
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onUsage = vi.fn()
     const onNativeToolCall = vi.fn()
     const failure = new Error('provider failed after a partial candidate')
@@ -1328,14 +1312,14 @@ describe('streamFrom tool errors', () => {
     const pending = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       onNativeToolCall,
-      options: { tools: [createSparkTool()], onStreamEvent, onMessages, onUsage },
+      options: { tools: [createSparkTool()], onStreamEvent, onGeneratedTurn, onUsage },
     }).then(() => undefined, error => error)
     await new Promise(resolve => setImmediate(resolve))
     expect(onNativeToolCall).toHaveBeenCalledTimes(1)
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     if (fail)
       steps.reject(failure)
     else
@@ -1344,7 +1328,7 @@ describe('streamFrom tool errors', () => {
     if (fail) {
       expect(outcome).toBe(failure)
       expect(onStreamEvent).not.toHaveBeenCalled()
-      expect(onMessages).not.toHaveBeenCalled()
+      expect(onGeneratedTurn).not.toHaveBeenCalled()
       expect(onUsage).not.toHaveBeenCalled()
     }
     else {
@@ -1355,7 +1339,7 @@ describe('streamFrom tool errors', () => {
         { type: 'reasoning-delta', text: 'Still working.' },
         { type: 'finish' },
       ])
-      expect(onMessages).toHaveBeenCalledTimes(1)
+      expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
       expect(onUsage).toHaveBeenCalledTimes(1)
     }
   })
@@ -1377,7 +1361,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })).rejects.toThrow('JSON inspection work limit')
     expect(onStreamEvent).not.toHaveBeenCalled()
@@ -1397,7 +1381,7 @@ describe('streamFrom tool errors', () => {
       { type: 'step.start' },
       { type: 'reasoning.delta', delta: suffix },
     ])
-    await streamFrom({ model: 'model-a', chatProvider: provider, messages: [], options: { tools: [createSparkTool()], onStreamEvent } })
+    await streamFrom({ model: 'model-a', chatProvider: provider, conversation: { turns: chatMessagesToTurns([]) }, options: { tools: [createSparkTool()], onStreamEvent } })
     expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
       { type: 'text-delta', text: prefix },
       { type: 'reasoning-delta', text: suffix },
@@ -1405,7 +1389,7 @@ describe('streamFrom tool errors', () => {
     ])
     onStreamEvent.mockClear()
     mockStreamEvents([{ type: 'text.delta', delta: suffix }])
-    await streamFrom({ model: 'model-a', chatProvider: provider, messages: [], options: { tools: [createSparkTool()], onStreamEvent } })
+    await streamFrom({ model: 'model-a', chatProvider: provider, conversation: { turns: chatMessagesToTurns([]) }, options: { tools: [createSparkTool()], onStreamEvent } })
     expect(onStreamEvent.mock.calls.map(([event]) => event)).toEqual([
       { type: 'text-delta', text: suffix },
       { type: 'finish' },
@@ -1434,7 +1418,7 @@ describe('streamFrom tool errors', () => {
     const pending = streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })
 
@@ -1470,7 +1454,7 @@ describe('streamFrom tool errors', () => {
     await expect(streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [],
+      conversation: { turns: chatMessagesToTurns([]) },
       options: { tools: [createSparkTool()], onStreamEvent },
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
@@ -1499,7 +1483,7 @@ describe('streamFrom tool errors', () => {
     await streamFrom({
       model: 'model-a',
       chatProvider: provider,
-      messages: [{ role: 'user', content: 'Answer as JSON.' }] as Message[],
+      conversation: { turns: chatMessagesToTurns([{ role: 'user', content: 'Answer as JSON.' }] as Message[]) },
       options: {
         tools: [createSparkTool()],
         onStreamEvent: (event) => {
