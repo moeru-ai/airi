@@ -27,7 +27,7 @@ export interface HonoEnv {
 export const SERVER_AUTH_UI_BASE_PATH = '/auth'
 export const AUTH_UI_PUBLIC_URL_QUERY_PARAM = 'api_server_url'
 export const DEFAULT_AUTH_UI_URL = 'https://accounts.airi.build/ui'
-export const SERVER_DEV_PUBLIC_URL = 'https://airi-server-dev.up.railway.app'
+export const SERVER_DEV_PUBLIC_URL = 'https://api-dev.airi.build'
 export const SERVER_DEV_AUTH_UI_URL = 'https://server-dev.airi-server-auth.pages.dev/ui'
 
 const FORWARDED_AUTH_UI_PROVIDERS = new Set(['google', 'github', 'steam'])

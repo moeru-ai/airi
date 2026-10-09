@@ -177,7 +177,7 @@ sequenceDiagram
 
 ```text
 server/apps/api/
-  drizzle/0031_plan_flux.sql
+  drizzle/0032_plan_flux.sql
   src/schemas/{flux,flux-transaction}.ts
   src/services/domain/billing/{billing-service,flux-posting}.ts
   src/services/domain/{flux,flux-cache,flux-transaction}.ts

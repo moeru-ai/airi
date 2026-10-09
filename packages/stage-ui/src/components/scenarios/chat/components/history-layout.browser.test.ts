@@ -2,7 +2,8 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { expect, it, onTestFinished, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, expect, it, onTestFinished, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
 
@@ -10,6 +11,40 @@ import ChatHistory from './history.vue'
 
 import '@unocss/reset/tailwind.css'
 import 'virtual:uno.css'
+
+// A user message reads voice message snapshots from a store.
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
+
+it.each(['desktop', 'mobile'] as const)('centers timestamps after five minutes of inactivity on %s', async (variant) => {
+  const start = new Date('2026-10-06T10:00:00Z').getTime()
+  const screen = await render(ChatHistory, {
+    props: {
+      variant,
+      messages: [
+        { id: 'first', role: 'user', content: 'First message', createdAt: start },
+        { id: 'nearby', role: 'user', content: 'Nearby message', createdAt: start + 299_999 },
+        { id: 'later', role: 'user', content: 'After a pause', createdAt: start + 599_999 },
+        { id: 'undated', role: 'user', content: 'Undated message' },
+        { id: 'invalid', role: 'user', content: 'Invalid timestamp', createdAt: Number.NaN },
+      ],
+      style: 'height: 600px; width: 360px;',
+    },
+    global: { plugins: [createI18n({ legacy: false, locale: 'en', messages: { en } })] },
+  })
+  onTestFinished(() => screen.unmount())
+  await vi.waitFor(() => {
+    const timestamps = screen.container.querySelectorAll('time')
+    expect(timestamps).toHaveLength(2)
+    expect(timestamps[0].dateTime).toBe(new Date(start).toISOString())
+    expect(timestamps[1].dateTime).toBe(new Date(start + 599_999).toISOString())
+    expect(getComputedStyle(timestamps[1]).textAlign).toBe('center')
+  })
+})
 
 it('keeps a bubble inside a narrow history when its folded reasoning holds a long URL', async () => {
   // ROOT CAUSE:

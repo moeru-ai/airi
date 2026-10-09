@@ -111,7 +111,13 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
 /** Encoded attachments belong to one user message. Media capture and storage stay outside chat orchestration. */
 export type ChatAttachment
   = { type: 'image', data: string, mimeType: string }
-    | { type: 'audio', data: string, mimeType: 'audio/wav' | 'audio/mpeg' }
+    | {
+      type: 'audio'
+      data: string
+      mimeType: 'audio/wav' | 'audio/mpeg'
+      /** Speech recognized while the recording was captured. Text-only models receive it instead of the audio. */
+      transcript?: string
+    }
 
 /** Options accepted by the chat orchestrator runtime for one user send. */
 export interface ChatOrchestratorSendOptions {
@@ -700,6 +706,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+      // Transcripts follow audio part order, which is the cache key that text-only projection reads.
+      const audioTranscripts = options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript ?? '')
       if (!streamingMessageContext.input) {
         streamingMessageContext.input = {
           type: 'input:text',
@@ -728,6 +736,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+        ...(audioTranscripts?.some(Boolean) ? { audioTranscripts } : {}),
       }
       const receipt = await deps.session.commitUserMessage(sessionId, userMessage)
       accepted.resolve({ sessionId, messageId: receipt.messageId })
@@ -1044,6 +1053,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
+        finalAssistant.completedAt = now()
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         assistantStored = true
         deps.onAssistantMessageAppended?.({
@@ -1113,7 +1123,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
         // sync for an assistant turn that never reached a terminal event.
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
       }
       resetForegroundStream(sessionId)
 
@@ -1144,7 +1154,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         && abortSignal.aborted
         && !isStaleGeneration()
         && hasAssistantOutput(buildingMessage)) {
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
         resetForegroundStream(sessionId)
       }
       activeSends.delete(sessionId)

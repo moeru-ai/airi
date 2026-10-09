@@ -1,9 +1,145 @@
 {
-  "id": "adb00488-f04a-431d-b327-ee3058a9dcdb",
+  "id": "790786c0-b7ac-4e2c-9490-2492ad6bf99c",
   "prevId": "1de1a685-2dc0-4b15-8f39-502686f9bb5b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.character_cards_fields": {
+      "name": "character_cards_fields",
+      "schema": "",
+      "columns": {
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "character_cards_fields_document_fk": {
+          "name": "character_cards_fields_document_fk",
+          "tableFrom": "character_cards_fields",
+          "tableTo": "character_cards",
+          "columnsFrom": [
+            "owner_id",
+            "document_id"
+          ],
+          "columnsTo": [
+            "owner_id",
+            "document_id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "character_cards_fields_pk": {
+          "name": "character_cards_fields_pk",
+          "columns": [
+            "owner_id",
+            "document_id",
+            "key",
+            "revision"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.character_cards": {
+      "name": "character_cards",
+      "schema": "",
+      "columns": {
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "document_id": {
+          "name": "document_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "revision": {
+          "name": "revision",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "deleted_at": {
+          "name": "deleted_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "character_cards_pk": {
+          "name": "character_cards_pk",
+          "columns": [
+            "owner_id",
+            "document_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.avatar_model": {
       "name": "avatar_model",
       "schema": "",
@@ -976,51 +1112,6 @@
           "notNull": true,
           "default": 0
         },
-        "plan_flux": {
-          "name": "plan_flux",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "plan_quota": {
-          "name": "plan_quota",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "plan_expires_at": {
-          "name": "plan_expires_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "plan_period_start": {
-          "name": "plan_period_start",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "plan_filled_at": {
-          "name": "plan_filled_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "plan_reset_at": {
-          "name": "plan_reset_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fallback_to_flux": {
-          "name": "fallback_to_flux",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "updated_at": {
           "name": "updated_at",
           "type": "timestamp",
@@ -1044,10 +1135,6 @@
         "user_flux_unsettled_nonnegative": {
           "name": "user_flux_unsettled_nonnegative",
           "value": "\"user_flux\".\"unsettled_micro_flux\" >= 0"
-        },
-        "user_flux_plan_nonnegative": {
-          "name": "user_flux_plan_nonnegative",
-          "value": "\"user_flux\".\"plan_flux\" >= 0 AND \"user_flux\".\"plan_quota\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -1079,13 +1166,6 @@
           "type": "bigint",
           "primaryKey": false,
           "notNull": true
-        },
-        "pool": {
-          "name": "pool",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'wallet'"
         },
         "balance_before": {
           "name": "balance_before",

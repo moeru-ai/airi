@@ -14,7 +14,7 @@ mobile-tools:
   application: 应用
   more: 更多
   background: 背景
-  settings: 全部设置
+  settings: 设置
   about: 关于
   view: 视图
   close-view: 保存并关闭视图调节
@@ -24,6 +24,62 @@ chat:
     title: 尚未正确配置聊天 Provider
     description: 请先前往设置页面选择并验证一个 Provider，再发送消息。
     action: 打开 Provider 设置
+  voice-message:
+    recording: 正在录制
+    starting: 正在启动麦克风
+    preview: 已录制的语音消息
+    transcribing: 正在转写…
+    position: 播放位置
+    no-speech: 没有识别到说话，语音消息没有发送。
+  voice-composer:
+    audio: 语音消息
+    transcription: 语音转文字
+    hold-hint: 按住录音。单击在语音消息和语音转文字之间切换。按 Enter 可以免按住录音。
+    listening: 正在聆听…
+    lock: 上滑锁定
+    cancel-hint: 左滑取消
+    processing: 正在完成…
+    cancel: 取消
+    send: 发送语音消息
+    insert: 插入文字
+    retry: 重新发送语音消息
+    discard: 丢弃语音消息
+    failed: 语音输入失败
+    configure-title: 设置听觉
+    configure-description: 请在听觉设置中选择转录服务和模型，才能使用语音转文字。
+    configure-action: 打开听觉设置
+    mode: 语音输入
+    auto-send: 录音结束后自动发送
+    input-device: 麦克风
+    system-default: 系统默认
+    listen: 持续聆听
+    hearing-settings: 更多听觉设置…
+    options-hint: 悬停或右键查看选项
+    recording: 正在录音
+    stop: 停止录音
+    stop-send: 停止并发送
+    play: 播放录音
+    pause: 暂停
+  voice-preview:
+    processing: 正在完成转录
+    device: 音频输入设备
+    device-description: 选择本次录音使用的麦克风。
+    device-placeholder: 选择麦克风
+    level: 输入音量
+    activity: 语音活动
+    silence: 静音
+    speech: 人声
+    threshold: 检测阈值
+    sensitivity: 灵敏度
+    sensitivity-description: 调整人声指示器的检测阈值。
+    start: 开始录音
+    stop: 结束录音
+    failed: 音频操作失败。
+  voice-draft:
+    title: 语音草稿
+    discard: 丢弃草稿
+    listening: 正在聆听
+    finalizing: 正在整理……
   voice-input: 语音输入
   error-details:
     show: 查看详情

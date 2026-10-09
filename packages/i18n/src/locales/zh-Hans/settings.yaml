@@ -348,6 +348,68 @@ pages:
         error:
           fallback: 无法开始删除操作，请稍后重试。
   card:
+    sync:
+      notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。
+      off_notice: 你已登录，但角色卡同步还没有打开。
+      off_notice_link: 去实验性特性里打开。
+      state:
+        synced: 已同步到账号
+        pending: 等待上传
+        refused: 未上传。账号里没有空间再存角色卡，这张卡只保留在这台设备。
+      conflict_copy_name: '{name}（冲突副本）'
+      conflict_notice: 另一台设备修改了同一个角色，已将本设备的版本另存为副本。
+      history:
+        tab: 历史版本
+        empty: 这张角色卡还没有历史版本。
+        loading: 正在加载历史版本……
+        load_failed: 无法加载这张角色卡的历史版本。
+        current: 当前版本
+        changed_label: 改动
+        removed_label: 移除
+        fields:
+          name: 名称
+          nickname: 昵称
+          version: 版本
+          creator: 作者
+          description: 描述
+          personality: 性格
+          scenario: 场景
+          systemPrompt: 系统提示词
+          postHistoryInstructions: 历史后指令
+          notes: 创作者备注
+          greetings: 问候语
+          tags: 标签
+          metadata: 元数据
+          assets: 资源
+          characterBook: 世界书
+          source: 来源
+          wakeWords: 唤醒词
+          agents: 智能体
+          consciousness: 意识模型
+          vision: 视觉模型
+          speech: 语音模型
+          vrm: VRM 模型
+          live2d: Live2D 模型
+          displayModelId: 展示模型
+          activeBackgroundId: 固定背景
+          artistry: 绘画
+        restore: 恢复到此版本
+        restore_confirm_title: 恢复到此版本？
+        restore_confirm_body: 这会用 {date} 的内容替换 {name} 当前的内容。
+        restore_confirm_confirm: 恢复
+        restore_confirm_cancel: 取消
+        restore_success: 已将 {name} 恢复到较早的版本。
+        restore_failed: 无法恢复到此版本，服务端可能已不再保留它。
+      deleted:
+        title: 最近删除
+        empty: 没有最近删除的角色卡。
+        loading: 正在加载最近删除的角色卡……
+        load_failed: 无法加载最近删除的角色卡。
+        deleted_when: '删除于 {when}'
+        days_left: '还可恢复，剩余 {days} 天'
+        restore: 恢复
+        restore_success: 已恢复 {name}。
+        restore_failed: 无法恢复这张角色卡，服务端可能已不再保留它的内容。
     activate: 激活
     active: 已激活
     active_badge: 当前使用中
@@ -734,6 +796,16 @@ pages:
         section:
           provider-selection:
             description: 选择合适的语音转文本的服务来源
+          rephrase:
+            title: 转写改写
+            description: 在转写成为草稿之前，由对话模型修正识别错误并去掉口头禅。原始文本会被保留。
+            enabled: 改写转写文本
+            enabled-description: 每段完成的转写都会发送给所选的对话模型。模型失败或超过 10 秒时，使用原始文本。
+            provider: 服务来源
+            provider-description: 默认使用意识模块的对话模型。
+            same-as-chat: 与对话相同
+            model: 模型
+            model-placeholder: 选择模型
           playground:
             current: 当前转写
             description: 通过当前的听觉管线监听，并在下方保留每一段完成的语音转写。
@@ -928,8 +1000,31 @@ pages:
         airi-tired: 疲惫
         airi-affectionate: 喜欢
         airi-awkward: 尴尬
-        airi-agree: 赞同
+        airi-agree: '赞同'
         airi-disagree: 拒绝
+    home-assistant:
+      title: Home Assistant
+      description: 让 AIRI 读取和控制你的 Home Assistant 设备。
+      enable: 启用 Home Assistant
+      enable-description: 允许 AIRI 读取和控制你的设备
+      base-url:
+        label: 地址
+        placeholder: http://homeassistant.local:8123
+        description: 你的 Home Assistant 实例地址。
+      token:
+        label: 长期访问令牌
+        placeholder: 粘贴 Home Assistant 个人资料里的令牌
+        description: 在 Home Assistant 个人资料的「安全」里创建一个。
+        saved: 已保存令牌。留空则保持不变。
+      note: 令牌只保存在这台设备上，不会同步到你的账号。
+      actions:
+        save: 保存
+        test: 测试
+      status:
+        saved: 已保存。
+        testing: 正在测试连接……
+        reachable: 已连接。Home Assistant 报告了 {count} 个实体。
+        failed: 无法连接。{message}
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
@@ -963,6 +1058,7 @@ pages:
         restart: 刷新 MCP 状态
         add-server: 添加
         add-env: 添加变量
+        add-header: 添加请求头
         remove: 移除
         test: 测试
         edit-json: 编辑 JSON
@@ -978,6 +1074,20 @@ pages:
           label: 唯一标识符
           description: 唯一名称，作为 mcp.json 中的键。
           placeholder: 例如：filesystem
+        transport:
+          label: 类型
+          description: AIRI 连接这个服务器的方式。
+          stdio: 本地进程
+          http: 远程地址
+        url:
+          label: 地址
+          description: 服务器的 Streamable HTTP 接口地址。
+          placeholder: 例如：https://example.com/api/mcp
+        headers:
+          label: 请求头
+          description: 每次请求都会带上的请求头，比如授权令牌。
+          key-placeholder: Authorization
+          value-placeholder: Bearer 令牌
         command:
           label: 命令
           description: 通过 stdio 启动的可执行程序。
@@ -1002,7 +1112,7 @@ pages:
         placeholder: 在这里粘贴 mcp.json...
       test:
         title: 测试连接
-        description: 我们会临时把它启动一次，看看命令能不能跑、能列出哪些工具
+        description: AIRI 会临时连接一次，确认服务器可用并列出它提供的工具
         pick-server-label: 服务器
         no-servers: 还没有可以测试的服务器
         no-server-selected: 先选一个服务器吧
@@ -1016,6 +1126,8 @@ pages:
         empty-identifier: 服务器 # {index} is missing an identifier.
         duplicate-identifier: 标识符 "{name}" 重复了，每个服务器要用不同的名字。
         empty-command: '"{name}" 还没填启动命令。'
+        empty-url: '"{name}" 还没填地址。'
+        invalid-url: '"{name}" 需要填一个完整的 http 或 https 地址。'
         invalid-shape: mcp.json 结构不对，最外层得有 "mcpServers" 这个字段。
       messages:
         opened: 已经在文件管理器里打开 {path} 啦
@@ -1237,19 +1349,6 @@ pages:
         转录（语音转文本）模型服务来源，例如 Whisper.cpp, OpenAI, Azure Speech
     description: LLM，语音合成，语音识别服务来源等
     provider:
-      minimax-speech:
-        description: minimax.io
-        errors:
-          provider-initialization-failed: 初始化 MiniMax 语音提供程序失败。
-        fields:
-          field:
-            model:
-              description: 选择用于生成语音的 MiniMax 文本转语音模型。
-              label: 模型
-              placeholder: 选择一个 MiniMax 模型...
-        playground:
-          default-text: 您好！这是 MiniMax 语音合成测试。
-        title: MiniMax Speech
       sherpaw-transcription:
         description: 使用内置或按需加载的模型进行本地语音识别，无需 API 密钥。
         language:
@@ -1497,6 +1596,17 @@ pages:
       index-tts-vllm:
         callout_indextts2_unavailable_title: 暂不支持
         callout_indextts2_unavailable: 目前尚未支持 IndexTTS2，请使用 IndexTTS。
+      minimax-speech:
+        errors:
+          provider-initialization-failed: 初始化 MiniMax 语音提供程序失败。
+        fields:
+          field:
+            model:
+              description: 选择用于生成语音的 MiniMax 文本转语音模型。
+              label: 模型
+              placeholder: 选择一个 MiniMax 模型...
+        playground:
+          default-text: 您好！这是 MiniMax 语音合成测试。
       moonshot:
         description: Moonshot.ai
         title: 月之暗面
@@ -1585,6 +1695,24 @@ pages:
         title: 二维码扫描失败
         failed: 扫描或连接二维码失败。
   system:
+    experimental:
+      refresh: 刷新策略
+      title: 实验性特性
+      description: 体验开发中的功能，管理你的实验选择。
+      notice: 实验性特性可能变更或移除。你的选择仅保存在此设备上。
+      empty-title: 暂无可用实验
+      load-error: 云端功能暂不可用，本地功能不受影响。
+      retry: 重试
+      reset: 使用默认值
+      sources:
+        default: 应用默认值
+        local: 此设备的选择
+        global: 已向登录账户开放
+        account: 已向你的账户开放
+      features:
+        character_card_sync:
+          title: 角色卡云同步
+          description: 登录后把角色卡同步到账号，方便在其他设备上使用。默认关闭。删除的角色卡会在账号里保留 30 天。
     color-scheme:
       description: 更改舞台的配色方案
       title: 配色方案

@@ -237,6 +237,20 @@ describe('createChatOrchestratorRuntime', () => {
     expect(user?.content).toContainEqual({ type: 'audio', data: 'YXVkaW8=', format: 'wav' })
   })
 
+  it('stores the transcript of a voice attachment for text-only projection', async () => {
+    const harness = createHarness()
+    const request = harness.runtime.submit('', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      messageId: 'spoken',
+      attachments: [{ type: 'audio' as const, data: 'YXVkaW8=', mimeType: 'audio/wav' as const, transcript: 'hello there' }],
+    }, 'session-1')
+    await request.done
+
+    const stored = harness.sessionMessages['session-1'].find(message => message.id === 'spoken')
+    expect(stored).toMatchObject({ role: 'user', audioTranscripts: ['hello there'] })
+  })
+
   it('acknowledges persistence before generation and reuses a retried message identity', async () => {
     const harness = createHarness()
     const generation = Promise.withResolvers<void>()
@@ -320,8 +334,10 @@ describe('createChatOrchestratorRuntime', () => {
   // caller still receives the failure and can append its normal error item.
   it('stores visible assistant output when the stream fails', async () => {
     const harness = createHarness()
+    const failedAt = new Date(2026, 3, 25, 18, 48).getTime()
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'partial reply' })
+      harness.now.set(failedAt)
       throw new Error('stream interrupted')
     })
 
@@ -335,6 +351,7 @@ describe('createChatOrchestratorRuntime', () => {
       interrupted: true,
       content: 'partial ',
       slices: [{ type: 'text', text: 'partial ' }],
+      completedAt: failedAt,
     })
     expect(harness.assistantAppended).toHaveLength(0)
     expect(harness.foregroundResets).toHaveLength(1)
@@ -1349,6 +1366,7 @@ describe('createChatOrchestratorRuntime', () => {
 
   it('handles attachments, reasoning deltas, tool events, and assistant finalization', async () => {
     const harness = createHarness()
+    const finishedAt = new Date(2026, 3, 25, 18, 48).getTime()
     let composedMessages: Message[] = []
     harness.stream.mockImplementationOnce(async (_model, _chatProvider, messages, options) => {
       composedMessages = conversationToChatMessages(messages)
@@ -1365,6 +1383,7 @@ describe('createChatOrchestratorRuntime', () => {
         result: 'sunny',
       } as StreamEvent)
       await options?.onStreamEvent?.({ type: 'text-delta', text: 'visible reply' })
+      harness.now.set(finishedAt)
       await options?.onStreamEvent?.({ type: 'finish' })
     })
 
@@ -1399,7 +1418,9 @@ describe('createChatOrchestratorRuntime', () => {
       categorization: {
         reasoning: 'thinking',
       },
+      completedAt: finishedAt,
     })
+    expect(assistant?.createdAt).toBeLessThan(finishedAt)
     expect((assistant as StreamingAssistantMessage).slices).toEqual([
       expect.objectContaining({
         type: 'tool-call',
@@ -1484,12 +1505,15 @@ describe('responses generated turn ownership', () => {
     const send = harness.runtime.ingest('hello', { model: 'test', chatProvider: provider })
     await visibleOutput
 
+    const cancelledAt = new Date(2026, 3, 25, 18, 48).getTime()
+    harness.now.set(cancelledAt)
     harness.runtime.cancelPendingSends('session-1')
     await send
 
     expect(harness.sessionMessages['session-1']?.at(-1)).toEqual(expect.objectContaining({
       content: expect.stringContaining('partial answer'),
       interrupted: true,
+      completedAt: cancelledAt,
     }))
     expect(harness.settled).toEqual([{ sessionId: 'session-1', turnId: 'user-id', status: 'cancelled' }])
     expect(harness.foregroundResets).toHaveLength(1)
@@ -1547,7 +1571,7 @@ describe('chat stickers', () => {
     })
     harness.stream.mockImplementationOnce(async (_model, _provider, context, options) => {
       expect(JSON.stringify(context)).toContain('<|STICKER heart|>')
-      for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|EMOTE happy|>'])
+      for (const text of ['Hello! ', '<', '|STI', 'CKER heart|', '>', '<|STICKER heart|>', '<|ACT|>'])
         await options?.onStreamEvent?.({ type: 'text-delta', text })
     })
     await harness.runtime.ingest('Send a heart', { model: 'test', chatProvider: provider, stickers })
@@ -1558,8 +1582,8 @@ describe('chat stickers', () => {
       slices: [{ type: 'text', text: 'Hello! ' }, { type: 'sticker', stickerId: 'heart' }],
     })
     expect(literals.join('')).toBe('Hello! ')
-    expect(specials).toEqual(['<|EMOTE happy|>'])
-    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello! <|EMOTE happy|>')
+    expect(specials).toEqual(['<|ACT|>'])
+    expect(saved?.role === 'assistant' && saved.categorization?.speech).toBe('Hello! <|ACT|>')
   })
 
   it('ignores unknown IDs, model URLs, and an unfinished marker', async () => {

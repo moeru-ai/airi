@@ -47,6 +47,14 @@ docs:
   composer:
     show: 展开输入框
     hide: 收起输入框
+  danmaku-feed:
+    title: 消息停留时间
+    hide-read: 自动隐藏已读消息
+    hide-read-description: 读完后自动消失，有语音时随语音结束消失。
+    reading-speed: 阅读速度
+    reading-speed-value: '{count} 字/秒'
+    minimum-time: 最短停留时间
+    minimum-time-value: '{count} 秒'
 widgets:
   close: 关闭小部件
   empty:
@@ -55,7 +63,7 @@ widgets:
   loading: 正在加载小部件…
   waiting: 正在等待小部件 "{id}" 的数据…
 inlay:
-  close: 关闭
+  hide: 隐藏
 notice:
   'fade-on-hover':
     title: 悬停淡出

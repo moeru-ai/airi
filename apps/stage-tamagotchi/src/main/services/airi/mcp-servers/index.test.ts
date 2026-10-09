@@ -57,9 +57,27 @@ vi.mock('@modelcontextprotocol/sdk/client/stdio.js', async () => {
   }
 })
 
-describe('createMcpStdioManager', () => {
+const httpTransportMock = vi.hoisted(() => ({
+  options: undefined as unknown,
+  url: undefined as URL | undefined,
+}))
+
+vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
+  StreamableHTTPClientTransport: class {
+    constructor(url: URL, options?: unknown) {
+      httpTransportMock.url = url
+      httpTransportMock.options = options
+    }
+
+    close = vi.fn(async () => undefined)
+  },
+}))
+
+describe('createMcpManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    httpTransportMock.options = undefined
+    httpTransportMock.url = undefined
     appMock.getPath.mockReturnValue('/tmp/airi-user-data')
     appMock.getVersion.mockReturnValue('0.10.0')
     clientMocks.close.mockResolvedValue(undefined)
@@ -67,8 +85,8 @@ describe('createMcpStdioManager', () => {
   })
 
   it('includes stderr captured during connect failures in MCP server test results', async () => {
-    const { createMcpStdioManager } = await import('./index')
-    const manager = createMcpStdioManager()
+    const { createMcpManager } = await import('./index')
+    const manager = createMcpManager()
 
     clientMocks.connect.mockImplementationOnce(async (transport: { stderr: NodeJS.WritableStream }) => {
       transport.stderr.write('Missing required environment variable: API_KEY\n')
@@ -85,5 +103,26 @@ describe('createMcpStdioManager', () => {
     expect(result.ok).toBe(false)
     expect(result.error).toContain('connect failed')
     expect(result.error).toContain('Missing required environment variable: API_KEY')
+  })
+
+  it('reaches a remote server over streamable HTTP and sends its headers', async () => {
+    const { createMcpManager } = await import('./index')
+    const manager = createMcpManager()
+
+    clientMocks.connect.mockResolvedValueOnce(undefined)
+    clientMocks.listTools.mockResolvedValueOnce({ tools: [{ name: 'search_docs' }] })
+
+    const result = await manager.testServer({
+      name: 'remote-server',
+      config: {
+        url: 'https://mcp.example.com/mcp',
+        headers: { Authorization: 'Bearer token' },
+      },
+    })
+
+    expect(result.ok).toBe(true)
+    expect(result.tools).toEqual(['search_docs'])
+    expect(httpTransportMock.url?.toString()).toBe('https://mcp.example.com/mcp')
+    expect(httpTransportMock.options).toEqual({ requestInit: { headers: { Authorization: 'Bearer token' } } })
   })
 })

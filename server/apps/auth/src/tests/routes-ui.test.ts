@@ -19,27 +19,27 @@ describe('auth UI URL helpers', () => {
   it('adds the API server origin for standalone auth UI cross-environment redirects', () => {
     expect(buildAuthUiRedirectUrl(
       'https://auth-preview.example/ui/',
-      'https://airi-server-dev.up.railway.app/auth/sign-in?client_id=airi-stage-web&api_server_url=https%3A%2F%2Fevil.example',
-      'https://airi-server-dev.up.railway.app/api/auth',
+      'https://api-dev.airi.build/auth/sign-in?client_id=airi-stage-web&api_server_url=https%3A%2F%2Fevil.example',
+      'https://api-dev.airi.build/api/auth',
     )).toBe(
-      'https://auth-preview.example/ui/sign-in?client_id=airi-stage-web&api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app',
+      'https://auth-preview.example/ui/sign-in?client_id=airi-stage-web&api_server_url=https%3A%2F%2Fapi-dev.airi.build',
     )
   })
 
   it('routes server-dev default auth UI redirects to the matching Pages branch', () => {
     expect(buildAuthUiRedirectUrl(
       'https://accounts.airi.build/ui',
-      'https://airi-server-dev.up.railway.app/auth/sign-in?client_id=airi-stage-web',
-      'https://airi-server-dev.up.railway.app',
+      'https://api-dev.airi.build/auth/sign-in?client_id=airi-stage-web',
+      'https://api-dev.airi.build',
     )).toBe(
-      'https://server-dev.airi-server-auth.pages.dev/ui/sign-in?client_id=airi-stage-web&api_server_url=https%3A%2F%2Fairi-server-dev.up.railway.app',
+      'https://server-dev.airi-server-auth.pages.dev/ui/sign-in?client_id=airi-stage-web&api_server_url=https%3A%2F%2Fapi-dev.airi.build',
     )
   })
 
   it('keeps an explicitly configured auth UI URL for server-dev', () => {
     expect(resolveAuthUiUrl(
       'https://auth-preview.example/ui',
-      'https://airi-server-dev.up.railway.app',
+      'https://api-dev.airi.build',
     )).toBe('https://auth-preview.example/ui')
   })
 })

@@ -8,8 +8,8 @@ import type { ChatDraftHandover } from '../../shared/eventa'
 
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useChatInterruption } from '@proj-airi/stage-layouts/composables/use-chat-interruption'
-import { ChatHistory, HearingConfigDialog, JournalPreviewModal } from '@proj-airi/stage-ui/components'
-import { ChatImageAttachmentPreview, ChatReplyPreview, useChatComposer, useChatImages } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatHistory, JournalPreviewModal } from '@proj-airi/stage-ui/components'
+import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSendButton, useChatComposer, useChatImages, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useAnalytics } from '@proj-airi/stage-ui/composables/use-analytics'
 import { useBackgroundStore } from '@proj-airi/stage-ui/stores/background'
 import { useChatStore } from '@proj-airi/stage-ui/stores/chat'
@@ -18,13 +18,10 @@ import { useChatStreamStore } from '@proj-airi/stage-ui/stores/chat/stream-store
 import { useJournalPreviewStore } from '@proj-airi/stage-ui/stores/journal-preview'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
 import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
-import { useHearingStore } from '@proj-airi/stage-ui/stores/modules/hearing'
-import { useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
 import { BasicButton, BasicTextarea, Callout, GhostButton } from '@proj-airi/ui'
 import { until, useLocalStorage } from '@vueuse/core'
 import { nanoid } from 'nanoid/non-secure'
 import { storeToRefs } from 'pinia'
-import { DropdownMenuContent, DropdownMenuItem, DropdownMenuPortal, DropdownMenuRoot, DropdownMenuTrigger } from 'reka-ui'
 import { computed, nextTick, onMounted, ref, shallowRef, toRaw, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -56,10 +53,17 @@ const props = withDefaults(defineProps<{
    * newest message.
    */
   passive?: boolean
+  /**
+   * Index of the first message that the history shows. The host hides the
+   * messages before it in place, such as read messages in the danmaku feed.
+   * Hidden messages stay in the session.
+   */
+  expiredBefore?: number
 }>(), {
   floating: false,
   composerFoldable: false,
   passive: false,
+  expiredBefore: 0,
 })
 
 /** Whether a foldable composer is folded away. */
@@ -67,10 +71,16 @@ const composerFolded = defineModel<boolean>('composerFolded', { default: false }
 const viewportLayout = useTemplateRef<InstanceType<typeof ChatViewportLayout>>('viewport-layout')
 
 const messageComposer = useTemplateRef<HTMLDivElement>('message-composer')
+const voiceStatus = useTemplateRef<HTMLDivElement>('voice-status')
+const voiceAttachment = useTemplateRef<HTMLDivElement>('voice-attachment')
+const voiceButton = useTemplateRef<InstanceType<typeof VoiceInputButton>>('voice-button')
+/** A recorded voice message waits for the send button. It can be sent without text. */
+const voicePending = shallowRef(false)
+/** A recording is open. Dictation writes into the text, so the text stays read-only and send waits until it closes. */
+const voiceActive = shallowRef(false)
 const lastEnterTime = ref(0)
 // Each request captures this composer selection, including retries and tool reruns.
 const computerUseEnabled = ref(true)
-const hearingDialogOpen = shallowRef(false)
 
 const chatStore = useChatStore()
 const chatSession = useChatSessionStore()
@@ -78,8 +88,6 @@ const chatStream = useChatStreamStore()
 const backgroundStore = useBackgroundStore()
 const journalPreviewStore = useJournalPreviewStore()
 const airiCardStore = useAiriCardStore()
-const { autoSendEnabled } = storeToRefs(useHearingStore())
-const { enabled: microphoneEnabled, permissionGranted: microphonePermissionGranted } = storeToRefs(useSettingsAudioDevice())
 
 const { activeSessionId, messages } = storeToRefs(chatSession)
 const { streamingMessage } = storeToRefs(chatStream)
@@ -117,18 +125,12 @@ const { t } = useI18n()
 const { openImagePreview } = journalPreviewStore
 const DOUBLE_ENTER_INTERVAL_MS = 300
 const TRAILING_NEWLINES_REGEX = /[\r\n]+$/
-const SEND_MODES = ['enter', 'ctrl-enter', 'double-enter'] as const
-type SendMode = (typeof SEND_MODES)[number]
+type SendMode = 'enter' | 'ctrl-enter' | 'double-enter'
 const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter')
 const toolCallRenderers = {
   image_journal: JournalToolCallBlock,
   text_journal: JournalToolCallBlock,
 } satisfies ChatToolCallRendererRegistry
-const sendModeLabels = computed<Record<SendMode, string>>(() => ({
-  'enter': t('stage.send-mode.enter'),
-  'ctrl-enter': t('stage.send-mode.ctrl-enter'),
-  'double-enter': t('stage.send-mode.double-enter'),
-}))
 const {
   trackChatMessageDeleted,
   trackChatMessageRetried,
@@ -154,8 +156,17 @@ const { showStopAction, stopActiveResponse, submitInterruptingResponse } = useCh
 
 async function handleSend() {
   // The draft stays in the composer while the setup callout is shown.
-  if (!pendingImages.value && chatReady.value)
-    await submitInterruptingResponse()
+  if (voiceActive.value || pendingImages.value || !chatReady.value)
+    return
+
+  // A waiting voice message takes the composer text into the same user message.
+  const voice = await voiceButton.value?.sendPending(messageInput.value)
+  if (voice === 'sent')
+    messageInput.value = ''
+  if (voice === 'sent' || voice === 'failed')
+    return
+
+  await submitInterruptingResponse()
 }
 
 function sendFromKeyboard() {
@@ -387,6 +398,7 @@ defineExpose({
         :surface="props.floating ? 'opaque' : 'translucent'"
         :scrollbar="props.floating ? 'hover' : 'scroll'"
         :passive="props.passive"
+        :expired-before="props.expiredBefore"
         @delete-message="handleDeleteMessage"
         @reply-message="handleReplyMessage"
         @retry-message="handleRetryMessage($event.index)"
@@ -452,6 +464,7 @@ defineExpose({
             'min-h-0 overflow-y-auto scrollbar-none',
           ]"
         >
+          <div ref="voice-attachment" :class="['px-2 pt-1 empty:hidden']" />
           <!-- Journal Preview Chips -->
           <div v-if="latestImageEntries.length > 0" class="flex gap-2 overflow-x-auto px-2 py-1 scrollbar-none">
             <div
@@ -510,6 +523,7 @@ defineExpose({
           <BasicTextarea
             v-model="messageInput"
             :submit-on-enter="false"
+            :readonly="voiceActive"
             :placeholder="t('stage.message')"
             :class="[
               'ph-no-capture w-full resize-none overflow-y-auto border-0 bg-transparent px-2 font-medium outline-none [scrollbar-gutter:stable]',
@@ -534,18 +548,6 @@ defineExpose({
           >
             <span :class="['i-solar:paperclip-bold-duotone h-5 w-5']" />
           </GhostButton>
-          <HearingConfigDialog v-model:show="hearingDialogOpen" v-model:auto-send="autoSendEnabled" :granted="microphonePermissionGranted">
-            <GhostButton
-              data-testid="voice-input-button"
-              size="unset"
-              :class="['size-9']"
-              :active="microphoneEnabled"
-              :title="t('stage.chat.voice-input')"
-              :aria-label="t('stage.chat.voice-input')"
-            >
-              <span :class="[microphoneEnabled ? 'i-solar:microphone-3-outline' : 'i-ph:microphone-slash', 'size-5']" />
-            </GhostButton>
-          </HearingConfigDialog>
           <GhostButton
             data-testid="computer-use-toggle"
             size="unset"
@@ -559,78 +561,48 @@ defineExpose({
           >
             <span :class="['i-solar:monitor-bold-duotone h-5 w-5 shrink-0']" />
           </GhostButton>
-          <span aria-hidden="true" :class="['mx-1 h-5 w-px bg-neutral-300/70 dark:bg-neutral-700/70']" />
-          <DropdownMenuRoot>
-            <DropdownMenuTrigger as-child>
-              <GhostButton
-                size="unset"
-                :class="['size-9']"
-                :title="t('stage.send-mode.title')"
-                :aria-label="t('stage.send-mode.title')"
-              >
-                <span :class="['i-solar:keyboard-bold-duotone h-5 w-5']" />
-              </GhostButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuPortal>
-              <DropdownMenuContent
-                align="end"
-                side="top"
-                :side-offset="8"
-                :class="[
-                  'z-50 min-w-[180px] rounded-xl p-1 shadow',
-                  'bg-white dark:bg-neutral-800',
-                  'flex flex-col gap-1',
-                  'data-[side=top]:animate-slideDownAndFade',
-                  'data-[side=left]:animate-none',
-                  'data-[side=bottom]:animate-none',
-                  'data-[side=right]:animate-none',
-                ]"
-              >
-                <DropdownMenuItem
-                  v-for="mode in SEND_MODES"
-                  :key="mode"
-                  :class="[
-                    'w-full flex cursor-pointer items-center rounded-md px-3 py-2 text-left text-xs outline-none transition-colors',
-                    'hover:bg-primary-50 dark:hover:bg-primary-900/20',
-                    sendMode === mode ? 'bg-primary-50 text-primary-600 font-semibold dark:bg-primary-900/20 dark:text-primary-300' : 'text-neutral-500',
-                  ]"
-                  @select="sendMode = mode"
-                >
-                  <div class="mr-2 h-4 w-4 flex shrink-0 items-center justify-center">
-                    <div v-if="sendMode === mode" class="i-ph:check-bold text-base" />
-                  </div>
-                  <span>{{ sendModeLabels[mode] }}</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenuPortal>
-          </DropdownMenuRoot>
 
-          <GhostButton
-            v-if="showStopAction"
-            size="unset"
-            :class="['ml-auto size-9 rounded-full']"
-            data-testid="stop-speaking-button"
-            :title="t('stage.chat.actions.stop')"
-            :aria-label="t('stage.chat.actions.stop')"
-            @click="stopActiveResponse"
-          >
-            <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
-          </GhostButton>
+          <!-- The voice control shows its recording status here, so the composer keeps its height. -->
+          <div ref="voice-status" :class="['min-w-0 flex flex-1 items-center px-1']" />
+          <div :class="['flex shrink-0 items-center gap-1']">
+            <VoiceInputButton
+              ref="voice-button"
+              v-model="messageInput"
+              :status-element="voiceStatus"
+              :attachment-element="voiceAttachment"
+              :session-id="activeSessionId"
+              :reply-to-message-id="replyTarget?.message.id"
+              :tools="computerUseEnabled ? [...artistryToolReferences, ...computerUseToolReferences] : artistryToolReferences"
+              @recording-change="voiceActive = $event"
+              @pending-change="voicePending = $event"
+              @sent="composer.clearReply()"
+              @submit="handleSend"
+              @configure="openSettings({ route: '/settings/modules/hearing' })"
+            />
+            <GhostButton
+              v-if="showStopAction"
+              size="unset"
+              :class="['size-9 rounded-full']"
+              data-testid="stop-speaking-button"
+              :title="t('stage.chat.actions.stop')"
+              :aria-label="t('stage.chat.actions.stop')"
+              @click="stopActiveResponse"
+            >
+              <span :class="['i-solar:stop-bold-duotone h-4 w-4']" />
+            </GhostButton>
 
-          <BasicButton
-            v-else
-            size="unset"
-            :aria-label="t('stage.chat.actions.send')"
-            :title="t('stage.chat.actions.send')"
-            :disabled="!!pendingImages || (!messageInput.trim() && !attachments.length) || isComposing"
-            :class="[
-              'ml-auto size-9 rounded-full bg-primary-500 text-white',
-              'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
-            ]"
-            @click="handleSend"
-          >
-            <span :class="['i-solar:arrow-up-outline h-5 w-5']" />
-          </BasicButton>
+            <!-- Hover or right-click the send button to choose the send key. -->
+            <ChatSendButton
+              v-else
+              v-model:send-mode="sendMode"
+              :disabled="voiceActive || !!pendingImages || (!messageInput.trim() && !attachments.length && !voicePending) || isComposing"
+              :button-class="[
+                'size-9 rounded-full bg-primary-500 text-white',
+                'hover:bg-primary-600 disabled:pointer-events-none disabled:bg-neutral-200 disabled:text-neutral-400 dark:disabled:bg-neutral-700 dark:disabled:text-neutral-500 motion-reduce:transition-none',
+              ]"
+              @send="handleSend"
+            />
+          </div>
           <input
             ref="fileInput"
             type="file"

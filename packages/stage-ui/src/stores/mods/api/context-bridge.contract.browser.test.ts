@@ -692,6 +692,23 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
+  it('clears failed remote generation and rejects its late tokens', async () => {
+    const store = useContextBridgeStore()
+    await store.initialize()
+    const peer = createContextChannel()
+    testChannels.push(peer)
+    const context = { sessionId: 'session-1', turnId: 'failed', message: { role: 'user', content: 'ping' }, contexts: {}, composedMessage: [] } satisfies ChatStreamEventContext
+    await peer.emitStream({ type: 'before-send', message: 'ping', sessionId: context.sessionId, context })
+    await peer.emitStream({ type: 'token-literal', literal: 'partial', sessionId: context.sessionId, context })
+    await vi.waitFor(() => expect(appendStreamLiteralMock).toHaveBeenCalledWith('partial'))
+    await peer.emitStreamFailed(context)
+    await vi.waitFor(() => expect(store.isReceivingRemoteStream).toBe(false))
+    await peer.emitStream({ type: 'token-literal', literal: 'late', sessionId: context.sessionId, context })
+    await waitForBroadcastDelivery()
+    expect(appendStreamLiteralMock).not.toHaveBeenCalledWith('late')
+    expect(resetStreamMock).toHaveBeenCalledOnce()
+  })
+
   it('emits cancellation for the correlated remote turn', async () => {
     const store = useContextBridgeStore()
     await store.initialize()

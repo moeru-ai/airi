@@ -13,7 +13,7 @@ import type { BrowserWindow } from 'electron'
 
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
-import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { DesktopOverlayReadiness } from './contracts'
 
 import { defineInvokeHandler } from '@moeru/eventa'
@@ -27,7 +27,7 @@ import { setupBaseWindowElectronInvokes } from '../../shared/window'
 
 export async function setupDesktopOverlayElectronInvokes(params: {
   window: BrowserWindow
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   serverChannel: ServerChannel
   i18n: I18n
 }) {
@@ -46,7 +46,7 @@ export async function setupDesktopOverlayElectronInvokes(params: {
 
   try {
     await setupBaseWindowElectronInvokes({ context, window: params.window, i18n: params.i18n, serverChannel: params.serverChannel })
-    createMcpServersService({ context, manager: params.mcpStdioManager })
+    createMcpServersService({ context, manager: params.mcpManager })
     readiness = { state: 'ready' }
   }
   catch (error) {

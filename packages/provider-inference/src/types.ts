@@ -79,7 +79,7 @@ export type ProviderInstance
     | SpeechProvider
     | SpeechProviderWithExtraOptions
     | TranscriptionProvider
-    | TranscriptionProviderWithExtraOptions
+    | TranscriptionProviderWithExtraOptions<string, Record<string, unknown>>
     | ModelProvider
     | ModelProviderWithExtraOptions
 
@@ -227,11 +227,15 @@ export type ModelMetadata = Pick<AIChatModelCard, 'abilities' | 'maxOutput' | 'p
 
 export interface ModelInfo {
   metadata?: ModelMetadata
+  /** Provider-reported reasoning constraints for this model, when available. */
+  reasoning?: { mandatory?: boolean }
   id: string
   name: string
   provider: string
   description?: string
   capabilities?: string[]
+  /** Input media declared by the provider model catalog. Missing means unknown. */
+  inputModalities?: string[]
   contextLength?: number
   deprecated?: boolean
 }
