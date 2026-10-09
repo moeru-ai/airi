@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { ChatComposerController, ChatImageAttachment } from '@proj-airi/stage-ui/components/scenarios/chat'
 
-import { ChatImageAttachmentPreview, ChatReplyPreview, ChatSendButton, useChatImages, VoiceDrafts, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
+import { ChatImageAttachmentPreview, ChatProviderSetupCallout, ChatReplyPreview, ChatSendButton, useChatImages, VoiceDrafts, VoiceInputButton } from '@proj-airi/stage-ui/components/scenarios/chat'
 import { useChatSessionStore } from '@proj-airi/stage-ui/stores/chat/session-store'
+import { useConsciousnessStore } from '@proj-airi/stage-ui/stores/modules/consciousness'
 import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { BasicTextarea } from '@proj-airi/ui'
 import { useLocalStorage } from '@vueuse/core'
@@ -42,6 +43,7 @@ const sendMode = useLocalStorage<SendMode>('ui/chat/settings/send-mode', 'enter'
 const lastEnterTime = ref(0)
 
 const { themeColorsHueDynamic } = storeToRefs(useSettings())
+const { chatReady } = storeToRefs(useConsciousnessStore())
 
 const replyTarget = props.composer.replyTarget
 const { t } = useI18n()
@@ -71,7 +73,8 @@ const composerActionButtonClass = [
 ]
 
 async function handleSend() {
-  if (voiceActive.value || pendingImages.value)
+  // The draft stays in the composer while the setup callout is shown.
+  if (voiceActive.value || pendingImages.value || !chatReady.value)
     return
 
   // A waiting voice message takes the composer text into the same user message.
@@ -145,6 +148,15 @@ watch(replyTarget, async (target) => {
 
 <template>
   <VoiceDrafts />
+  <ChatProviderSetupCallout
+    v-if="!chatReady"
+    :class="[
+      'mb-1',
+      // The callout takes the panel width. Its content must not widen the panel.
+      'w-0 min-w-full',
+    ]"
+    @configure="router.push('/settings/providers')"
+  />
   <div ref="composer" :class="['flex gap-2 <md:h-full', 'ph-no-capture']">
     <div
       :class="[
