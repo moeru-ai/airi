@@ -2,9 +2,9 @@ import type { RevenueMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
 import type { BillingService } from './billing-service'
 
+import { createPaymentRequiredError } from '@proj-airi/http-error-shared'
 import { parse } from 'valibot'
 
-import { createPaymentRequiredError } from '../../../utils/error'
 import { priceSpeechUsage, speechPricingSchema } from './billing'
 import { availableMicroFlux, microFluxToFlux } from './flux-posting'
 

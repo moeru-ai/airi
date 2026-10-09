@@ -1,8 +1,8 @@
 import { Buffer } from 'node:buffer'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../../../utils/error'
 import { getAdapter } from './index'
 import { TtsUpstreamResponseError } from './types'
 

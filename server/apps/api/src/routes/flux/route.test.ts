@@ -2,11 +2,11 @@ import type { FluxService } from '../../services/domain/flux'
 import type { FluxTransactionService } from '../../services/domain/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 import { describe, expect, it, vi } from 'vitest'
 
 import { createFluxRoutes } from '.'
-import { ApiError } from '../../utils/error'
 
 function createMockFluxService(): FluxService {
   return {

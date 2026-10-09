@@ -3,13 +3,12 @@ import type { AuthEnv } from './env'
 
 import { Buffer } from 'node:buffer'
 
+import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { eq } from 'drizzle-orm'
 import { importPKCS8, SignJWT } from 'jose'
 import { literal, object, safeParse } from 'valibot'
 
 import * as authSchema from '@proj-airi/auth-shared'
-
-import { createBadGatewayError, createServiceUnavailableError } from './error'
 
 type AppleCredentials = Pick<AuthEnv, 'AUTH_APPLE_CLIENT_ID' | 'AUTH_APPLE_TEAM_ID' | 'AUTH_APPLE_KEY_ID' | 'AUTH_APPLE_PRIVATE_KEY_PEM'>
 

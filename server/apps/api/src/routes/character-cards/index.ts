@@ -1,11 +1,11 @@
 import type { CharacterCardService } from '../../services/domain/character-cards'
 import type { HonoEnv } from '../../types/hono'
 
+import { createNotFoundError } from '@proj-airi/http-error-shared'
 import { Hono } from 'hono'
 
 import { authGuard } from '../../middlewares/auth'
 import { parseDeleteRevision, parseDocumentId, parseHistoryQuery, parsePushRequest, parseRevisionParam, readJsonBody } from '../../services/domain/field-sync'
-import { createNotFoundError } from '../../utils/error'
 
 export function createCharacterCardRoutes(characterCardService: CharacterCardService) {
   return new Hono<HonoEnv>()

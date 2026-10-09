@@ -1,6 +1,6 @@
 import type { ChatAppSurface } from '../../analytics'
 
-import { createBadRequestError } from '../../../../../utils/error'
+import { createBadRequestError } from '@proj-airi/http-error-shared'
 
 const MAX_INPUT_TEXT_LENGTH = 10_485_760
 

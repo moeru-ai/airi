@@ -8,12 +8,12 @@ import type { RateLimitMetrics } from './otel'
 import { createHash } from 'node:crypto'
 
 import { account, isUserBannedNow, user } from '@proj-airi/auth-shared'
+import { createBadRequestError, createForbiddenError } from '@proj-airi/http-error-shared'
 import { and, eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { email, nonEmpty, object, pipe, regex, safeParse, string, transform } from 'valibot'
 
 import { ensureDynamicFirstPartyRedirectUri } from './auth'
-import { createBadRequestError, createForbiddenError } from './error'
 import { createOidcAccessTokenVerifier } from './oidc-access-token'
 import { rateLimiter } from './rate-limit'
 

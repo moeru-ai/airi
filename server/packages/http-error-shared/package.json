@@ -1,0 +1,18 @@
+{
+  "name": "@proj-airi/http-error-shared",
+  "type": "module",
+  "version": "0.12.0-beta.5",
+  "private": true,
+  "description": "Shared HTTP error model and JSON error response for AIRI services",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@guiiai/logg": "catalog:",
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

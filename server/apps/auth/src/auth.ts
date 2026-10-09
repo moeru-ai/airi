@@ -14,6 +14,7 @@ import { Buffer } from 'node:buffer'
 
 import { oauthProvider } from '@better-auth/oauth-provider'
 import { useLogger } from '@guiiai/logg'
+import { ApiError } from '@proj-airi/http-error-shared'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { createAuthMiddleware } from 'better-auth/api'
@@ -23,7 +24,6 @@ import { eq } from 'drizzle-orm'
 
 import * as authSchema from '@proj-airi/auth-shared'
 
-import { ApiError } from './error'
 import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
 import { banGuard } from './plugins/ban-guard'
