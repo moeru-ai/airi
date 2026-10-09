@@ -1,5 +1,4 @@
 import type { Database } from '../../libs/db'
-import type { RevenuecatStatus, SubscriptionEntitlement } from '../../services/adapters/revenuecat-status'
 import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -23,15 +22,8 @@ const testUser = {
   updatedAt: new Date(),
 }
 
-function createEntitlements(subscriptions: SubscriptionEntitlement[] = []): Pick<RevenuecatStatus, 'read'> {
-  return { read: async () => subscriptions }
-}
-
-function createTestApp(
-  subscriptions: SubscriptionService,
-  entitlements: Pick<RevenuecatStatus, 'read'> = createEntitlements(),
-) {
-  const routes = createSubscriptionRoutes(subscriptions, entitlements)
+function createTestApp(subscriptions: SubscriptionService) {
+  const routes = createSubscriptionRoutes(subscriptions)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -97,7 +89,7 @@ describe('subscription routes', () => {
   it('returns empty status with fallback off by default', async () => {
     const res = await request('/status', undefined, testUser)
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ subscriptions: [], allowances: [], fallbackToFlux: false })
+    expect(await res.json()).toEqual({ allowances: [], fallbackToFlux: false })
   })
 
   it('reads and writes the fallback preference', async () => {
@@ -139,14 +131,7 @@ describe('subscription routes', () => {
       microCredit: 560 * MICRO_PER_CREDIT,
       requestId: 'req-percent',
     })
-    const app = createTestApp(core, createEntitlements([{
-      entitlementId: 'airi_go',
-      productId: 'rc_go_monthly',
-      store: 'app_store',
-      environment: 'SANDBOX',
-      status: 'active',
-      expiresAt: periodEnd.toISOString(),
-    }]))
+    const app = createTestApp(core)
 
     const res = await app.fetch(
       new Request('http://localhost/api/v1/subscriptions/status'),
@@ -155,9 +140,9 @@ describe('subscription routes', () => {
     const body = await res.json()
 
     expect(res.status).toBe(200)
-    expect(body).toMatchObject({
-      subscriptions: [{ entitlementId: 'airi_go', status: 'active' }],
+    expect(body).toEqual({
       allowances: [{ entitlementId: 'airi_go', remainingPercent: 72 }],
+      fallbackToFlux: false,
     })
     expect(body).not.toHaveProperty('allowances.0.grantedCredit')
     expect(body).not.toHaveProperty('allowances.0.usedCredit')

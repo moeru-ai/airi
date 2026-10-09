@@ -17,10 +17,6 @@ export function userFluxRedisKey(userId: string): string {
   return redisKeyFrom('user', userId, 'flux')
 }
 
-export function userSubscriptionStatusRedisKey(userId: string): string {
-  return redisKeyFrom('user', userId, 'subscription', 'status')
-}
-
 export function userChatBroadcastRedisKey(userId: string): string {
   return redisKeyFrom('user', userId, 'chat', 'broadcast')
 }

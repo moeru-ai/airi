@@ -48,7 +48,7 @@ const visiblePackages = computed(() =>
   plan.packages.value.filter(pkg => pkg.period === billingPeriod.value),
 )
 
-const currentSubscription = computed(() => plan.status.value?.subscriptions[0])
+const currentPlan = computed(() => plan.currentPlan.value)
 
 function tierRank(period: PlanBillingPeriod, amountMicros: number): number {
   return plan.packages.value
@@ -57,7 +57,7 @@ function tierRank(period: PlanBillingPeriod, amountMicros: number): number {
 }
 
 function planAction(pkg: PlanPackage): PlanAction {
-  const current = currentSubscription.value
+  const current = currentPlan.value
   if (!current)
     return 'buy'
   if (pkg.productId === current.productId)
@@ -95,7 +95,7 @@ const fallbackToFlux = computed({
 })
 
 const currentPlanName = computed(() => {
-  const current = currentSubscription.value
+  const current = currentPlan.value
   if (!current)
     return t('settings.pages.plan.noPlan')
   return plan.packages.value.find(item => item.productId === current.productId)?.name ?? ''
@@ -209,10 +209,10 @@ async function handleSubscribe(packageId: string) {
           <p v-else :class="['text-sm text-neutral-500']">
             {{ t('settings.pages.plan.description') }}
           </p>
-          <p v-if="currentSubscription?.expiresAt" :class="['text-xs text-neutral-400']">
-            {{ currentSubscription.status === 'cancelled'
-              ? t('settings.pages.plan.expiresAt', { date: formatDate(currentSubscription.expiresAt) })
-              : t('settings.pages.plan.renewsAt', { date: formatDate(currentSubscription.expiresAt) }) }}
+          <p v-if="currentPlan?.expiresAt" :class="['text-xs text-neutral-400']">
+            {{ currentPlan.willRenew
+              ? t('settings.pages.plan.renewsAt', { date: formatDate(currentPlan.expiresAt) })
+              : t('settings.pages.plan.expiresAt', { date: formatDate(currentPlan.expiresAt) }) }}
           </p>
           <a
             v-if="plan.managementUrl.value"
@@ -230,7 +230,7 @@ async function handleSubscribe(packageId: string) {
     <!-- Flux fallback preference -->
     <FieldCheckbox
       v-model="fallbackToFlux"
-      :disabled="preferenceSaving || !currentSubscription"
+      :disabled="preferenceSaving || !currentPlan"
       :label="t('settings.pages.plan.fallbackToFlux')"
       :description="t('settings.pages.plan.fallbackToFluxHint')"
     />

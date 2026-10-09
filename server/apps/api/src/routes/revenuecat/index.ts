@@ -1,7 +1,6 @@
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
-import type { RevenuecatStatus } from '../../services/adapters/revenuecat-status'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { PaymentService } from '../../services/domain/payment'
 import type { SubscriptionService } from '../../services/domain/subscriptions'
@@ -21,21 +20,13 @@ export function createRevenuecatRoutes(
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   subscriptions: Pick<SubscriptionService, 'hasEvent' | 'recordEvent'>,
-  entitlements: Pick<RevenuecatStatus, 'invalidate'>,
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
   rateLimitMetrics?: RateLimitMetrics | null,
 ) {
-  const webhook = createWebhookOperation(
-    payment,
-    configKV,
-    subscriptionSync,
-    subscriptions,
-    userId => entitlements.invalidate(userId),
-    {
-      authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
-      signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
-    },
-  )
+  const webhook = createWebhookOperation(payment, configKV, subscriptionSync, subscriptions, {
+    authorization: env.REVENUECAT_WEBHOOK_AUTH ?? null,
+    signingSecret: env.REVENUECAT_WEBHOOK_SECRET ?? null,
+  })
 
   return new Hono<HonoEnv>()
     .get('/packages', async (c) => {

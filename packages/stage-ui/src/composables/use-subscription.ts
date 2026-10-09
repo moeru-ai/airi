@@ -1,4 +1,4 @@
-import type { Package } from '@revenuecat/purchases-js'
+import type { CustomerInfo, Package } from '@revenuecat/purchases-js'
 
 import { getRevenuecatWebKey, isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { ErrorCode, Purchases, PurchasesError } from '@revenuecat/purchases-js'
@@ -43,6 +43,13 @@ async function ensurePurchases(userId: string) {
 
 type SubscriptionStatus = Awaited<ReturnType<Awaited<ReturnType<typeof client.api.v1.subscriptions.status.$get>>['json']>>
 
+export interface CurrentPlan {
+  entitlementId: string
+  productId: string
+  expiresAt: string | null
+  willRenew: boolean
+}
+
 export type PlanBillingPeriod = 'month' | 'year'
 
 export interface PlanPackage {
@@ -86,6 +93,38 @@ export function planCatalogCopy(metadata: unknown, productId: string, locale: st
   }
 }
 
+interface PlanEntitlement {
+  identifier: string
+  productIdentifier: string
+  expirationDate: Date | null
+  willRenew: boolean
+}
+
+/**
+ * Picks the active entitlement that lasts longest.
+ * A lifetime entitlement has no expiry and outranks a dated one.
+ */
+export function currentPlanFromCustomerInfo(info: {
+  entitlements: { active: Record<string, PlanEntitlement> }
+}): CurrentPlan | null {
+  const active = Object.values(info.entitlements.active)
+  const chosen = active.reduce<typeof active[number] | null>((best, item) => {
+    if (!best)
+      return item
+    const bestExpiry = best.expirationDate?.getTime() ?? Number.POSITIVE_INFINITY
+    const itemExpiry = item.expirationDate?.getTime() ?? Number.POSITIVE_INFINITY
+    return itemExpiry > bestExpiry ? item : best
+  }, null)
+  if (!chosen)
+    return null
+  return {
+    entitlementId: chosen.identifier,
+    productId: chosen.productIdentifier,
+    expiresAt: chosen.expirationDate?.toISOString() ?? null,
+    willRenew: chosen.willRenew,
+  }
+}
+
 /** Only month and year packages are sold. */
 function planBillingPeriod(unit: string | null | undefined): PlanBillingPeriod | null {
   if (unit === 'month' || unit === 'year')
@@ -111,7 +150,7 @@ function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPac
   }
 }
 
-/** Plan subscriptions through RevenueCat Web Billing. The grant lands through the webhook, so the caller polls status. */
+/** Plan subscriptions through RevenueCat Web Billing. The SDK reports the plan. The webhook grants Credits. */
 export function useSubscription(options: {
   getUserId: () => string
   onChanged: () => Promise<unknown>
@@ -120,6 +159,7 @@ export function useSubscription(options: {
   const enabled = !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null
 
   const status = ref<SubscriptionStatus | null>(null)
+  const currentPlan = ref<CurrentPlan | null>(null)
   const packages = ref<PlanPackage[]>([])
   const loadingPackages = ref(false)
   const purchasingPackageId = ref<string | null>(null)
@@ -127,23 +167,37 @@ export function useSubscription(options: {
   const missingKey = computed(() => getRevenuecatWebKey() == null)
   const managementUrl = ref<string | null>(null)
 
-  async function fetchManagementUrl(): Promise<void> {
+  function applyCustomerInfo(info: CustomerInfo) {
+    currentPlan.value = currentPlanFromCustomerInfo(info)
+    managementUrl.value = info.managementURL
+  }
+
+  async function refreshCustomer(): Promise<void> {
     if (!enabled)
       return
+    const purchases = await ensurePurchases(options.getUserId())
+    applyCustomerInfo(await purchases.getCustomerInfo())
+  }
+
+  async function fetchManagementUrl(): Promise<void> {
     try {
-      const purchases = await ensurePurchases(options.getUserId())
-      managementUrl.value = (await purchases.getCustomerInfo()).managementURL
+      await refreshCustomer()
     }
     catch {
       managementUrl.value = null
     }
   }
 
-  async function fetchStatus(): Promise<void> {
+  async function fetchServerStatus(): Promise<void> {
     const res = await client.api.v1.subscriptions.status.$get()
     if (!res.ok)
       throw new Error(t('settings.pages.plan.statusError'))
     status.value = await res.json()
+  }
+
+  async function fetchStatus(): Promise<void> {
+    await fetchServerStatus()
+    await refreshCustomer().catch(() => undefined)
     await options.onChanged().catch(() => undefined)
   }
 
@@ -177,8 +231,9 @@ export function useSubscription(options: {
       if (!rcPackage)
         throw new Error(t('settings.pages.plan.checkout.error'))
 
+      let customerInfo: CustomerInfo
       try {
-        await purchases.purchase({ rcPackage })
+        customerInfo = (await purchases.purchase({ rcPackage })).customerInfo
       }
       catch (error) {
         if (error instanceof PurchasesError && error.errorCode === ErrorCode.UserCancelledError)
@@ -186,11 +241,28 @@ export function useSubscription(options: {
         throw error
       }
 
+      applyCustomerInfo(customerInfo)
+      if (currentPlan.value) {
+        void pollAllowance()
+        return 'activated'
+      }
       const activated = await pollActivation()
+      if (activated)
+        void pollAllowance()
       return activated ? 'activated' : 'pending'
     }
     finally {
       purchasingPackageId.value = null
+    }
+  }
+
+  /** Fills the remaining percent after the SDK already shows the plan. */
+  async function pollAllowance(): Promise<void> {
+    for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+      await fetchServerStatus().catch(() => undefined)
+      if ((status.value?.allowances.length ?? 0) > 0)
+        return
+      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
     }
   }
 
@@ -200,12 +272,10 @@ export function useSubscription(options: {
       for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
         try {
-          const res = await client.api.v1.subscriptions.status.$get()
-          if (res.ok) {
-            status.value = await res.json()
-            if (status.value.subscriptions.length > 0)
-              return true
-          }
+          await refreshCustomer()
+          await fetchServerStatus()
+          if (currentPlan.value)
+            return true
         }
         catch {
           // Keep polling through transient failures.
@@ -232,6 +302,7 @@ export function useSubscription(options: {
     missingKey,
     managementUrl,
     status,
+    currentPlan,
     packages,
     loadingPackages,
     purchasingPackageId,

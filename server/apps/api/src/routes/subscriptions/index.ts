@@ -1,4 +1,3 @@
-import type { RevenuecatStatus } from '../../services/adapters/revenuecat-status'
 import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -23,24 +22,19 @@ export function allowanceRemainingPercent(grantedCredit: number, remainingCredit
 }
 
 /**
- * Subscription status and the Flux-fallback preference.
- * Entitlements come from RevenueCat. Allowances expose a percent only.
- * Credit counts stay on the ledger for billing.
+ * Remaining plan percent and the Flux-fallback preference.
+ * The client SDK owns the current plan and its expiry.
+ * Allowances expose a percent only. Credit counts stay on the ledger.
  */
-export function createSubscriptionRoutes(
-  subscriptions: SubscriptionService,
-  entitlements: Pick<RevenuecatStatus, 'read'>,
-) {
+export function createSubscriptionRoutes(subscriptions: SubscriptionService) {
   return new Hono<HonoEnv>()
     .get('/status', authGuard, async (c) => {
       const userId = c.get('user')!.id
-      const [live, status, fallbackToFlux] = await Promise.all([
-        entitlements.read(userId),
+      const [status, fallbackToFlux] = await Promise.all([
         subscriptions.getStatus(userId),
         subscriptions.getFallbackPreference(userId),
       ])
       return c.json({
-        subscriptions: live,
         allowances: status.allowances.map(allowance => ({
           entitlementId: allowance.entitlementId,
           remainingPercent: allowanceRemainingPercent(allowance.grantedCredit, allowance.remainingCredit),

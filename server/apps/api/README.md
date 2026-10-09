@@ -155,10 +155,9 @@ are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
 Store all enter through the single RevenueCat webhook; `store` is only a
 field, so new channels need no server changes.
 
-RevenueCat is the source for entitlement status.
-`GET /subscriptions/status` reads the RevenueCat subscriber API and caches
-the result for 60 seconds. A subscription webhook deletes that cache.
-Status reads return 503 when `REVENUECAT_API_KEY` is unset.
+The client RevenueCat SDK is the source for entitlement status.
+The plan page reads `customerInfo` for the current plan, expiry, and management URL.
+`GET /subscriptions/status` returns the remaining percent and the Flux-fallback preference.
 
 `src/services/domain/subscriptions` owns Credit grants, Credit debit, the
 Flux-fallback preference (default off), the webhook event log, and
@@ -178,7 +177,7 @@ live in `subscription_allowance` with per-request rows in
 `subscription_consumption`.
 Product-to-plan mapping lives in ConfigKV `REVENUECAT_SUBSCRIPTION_PLANS`.
 A missed webhook skips the Credit grant until RevenueCat sends that event
-again. Status does not go stale, because it is read from RevenueCat.
+again. The plan name and expiry come from the client SDK, so they do not wait for that webhook.
 
 ## Run locally
 

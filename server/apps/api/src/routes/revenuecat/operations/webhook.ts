@@ -94,7 +94,6 @@ export function createWebhookOperation(
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
   subscriptions: Pick<SubscriptionService, 'hasEvent' | 'recordEvent'>,
-  invalidateStatus: (userId: string) => Promise<void>,
   secrets: RevenuecatWebhookSecrets,
 ) {
   return async (
@@ -125,11 +124,8 @@ export function createWebhookOperation(
     const event = parsed.output.event
     logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
 
-    if (await subscriptions.hasEvent(event.id)) {
-      if (isSubscriptionEvent(event.type) && event.app_user_id)
-        await invalidateStatus(event.app_user_id)
+    if (await subscriptions.hasEvent(event.id))
       return { received: true }
-    }
 
     const record = () => subscriptions.recordEvent(eventRecord(event, parsed.output))
 
@@ -155,7 +151,6 @@ export function createWebhookOperation(
         expirationAtMs: event.expiration_at_ms,
         purchasedAtMs: event.purchased_at_ms,
       })
-      await invalidateStatus(event.app_user_id)
       await record()
       logger.withFields({
         type: event.type,

@@ -1,6 +1,5 @@
 import type { Database } from '../../libs/db'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
-import type { RevenuecatStatus } from '../../services/adapters/revenuecat-status'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { PaymentService } from '../../services/domain/payment'
 import type { SubscriptionService } from '../../services/domain/subscriptions'
@@ -72,9 +71,8 @@ function createTestApp(
   subscriptionSync: RevenuecatSubscriptionSync,
   subscriptions: Pick<SubscriptionService, 'hasEvent' | 'recordEvent'>,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
-  entitlements: Pick<RevenuecatStatus, 'invalidate'> = { invalidate: vi.fn(async () => undefined) },
 ) {
-  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, subscriptions, entitlements, env, null)
+  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, subscriptions, env, null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -138,12 +136,10 @@ describe('revenuecat routes', () => {
     const payment = createMockPayment()
     const subscriptions = createSubscriptionService(db)
     const sync = createRevenuecatSubscriptionSync(subscriptions, configKV)
-    const invalidate = vi.fn(async () => undefined)
     return {
       payment,
       subscriptions,
-      invalidate,
-      app: createTestApp(payment, configKV, sync, subscriptions, undefined, { invalidate }),
+      app: createTestApp(payment, configKV, sync, subscriptions),
     }
   }
 
@@ -215,7 +211,7 @@ describe('revenuecat routes', () => {
   })
 
   it('keeps the Credit period on cancellation and does not grant again', async () => {
-    const { subscriptions, invalidate, app } = await setup()
+    const { subscriptions, app } = await setup()
     const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
 
     await postWebhook(app, subscriptionBody({ id: 'sub-event-2', expiration_at_ms: expiresAt }))
@@ -228,7 +224,6 @@ describe('revenuecat routes', () => {
     const status = await subscriptions.getStatus('user-1')
     expect(status.allowances).toHaveLength(1)
     expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedCredit: 2000 }])
-    expect(invalidate).toHaveBeenCalledWith('user-1')
   })
 
   it('returns 503 when no secret is configured', async () => {
