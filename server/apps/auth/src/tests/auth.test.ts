@@ -41,6 +41,98 @@ describe('createAuth', () => {
   const applePrivateKey = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
   const applePublicKey = publicKey.export({ type: 'spki', format: 'pem' }).toString()
 
+  // Report: deletion emails with callbackURL=/ hide the result after confirmation.
+  // ROOT CAUSE:
+  // The email hook forwarded the library default unchanged. It now assigns the service result page.
+  it.each([
+    [undefined, 'https://api.airi.test/auth/delete-account'],
+    ['', 'https://api.airi.test/auth/delete-account'],
+    ['/', 'https://api.airi.test/auth/delete-account'],
+    ['/auth/delete-account', '/auth/delete-account'],
+    ['https://accounts.airi.test/ui/delete-account?source=desktop', 'https://accounts.airi.test/ui/delete-account?source=desktop'],
+    ['ai.moeru.airi-pocket://auth/result', 'ai.moeru.airi-pocket://auth/result'],
+  ])('delivers deletion result callbacks without replacing explicit destinations: %s', async (callbackURL, expected) => {
+    const sendDeletion = vi.fn<(params: { to: string, url: string }) => Promise<void>>()
+    const auth = createAuth({} as unknown as AuthDatabase, {
+      PUBLIC_URL: 'https://api.airi.test',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as AuthEnv, {
+      send: vi.fn(),
+      sendVerification: vi.fn(),
+      sendPasswordReset: vi.fn(),
+      sendMagicLink: vi.fn(),
+      sendChangeEmailConfirmation: vi.fn(),
+      sendDeleteAccountVerification: sendDeletion,
+    })
+    const url = new URL('https://api.airi.test/api/auth/delete-user/callback?token=test-token&extra=keep')
+    if (callbackURL !== undefined)
+      url.searchParams.set('callbackURL', callbackURL)
+
+    const hook = auth.options.user?.deleteUser?.sendDeleteAccountVerification
+    if (!hook)
+      throw new TypeError('Expected deletion email hook')
+    await hook({
+      user: { id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() },
+      url: url.toString(),
+      token: 'test-token',
+    }, new Request('https://api.airi.test/api/auth/delete-user'))
+
+    expect(sendDeletion).toHaveBeenCalledOnce()
+    const delivered = new URL(sendDeletion.mock.calls[0][0].url)
+    expect(delivered.searchParams.get('callbackURL')).toBe(expected)
+    expect(delivered.searchParams.get('token')).toBe('test-token')
+    expect(delivered.searchParams.get('extra')).toBe('keep')
+    expect(delivered.pathname).toBe('/api/auth/delete-user/callback')
+    expect(sendDeletion.mock.calls[0][0].to).toBe('test@example.com')
+  })
+
+  // Report: verification emails with callbackURL=/ hide the result after confirmation.
+  // ROOT CAUSE:
+  // The email hook forwarded the library default unchanged. It now assigns the service result page.
+  it.each([
+    [undefined, 'https://api.airi.test/auth/verify-email?verified=true'],
+    ['', 'https://api.airi.test/auth/verify-email?verified=true'],
+    ['/', 'https://api.airi.test/auth/verify-email?verified=true'],
+    ['/auth/verify-email?verified=true', '/auth/verify-email?verified=true'],
+    ['https://accounts.airi.test/ui/verify-email?source=desktop', 'https://accounts.airi.test/ui/verify-email?source=desktop'],
+    ['ai.moeru.airi-pocket://auth/result', 'ai.moeru.airi-pocket://auth/result'],
+  ])('delivers verification result callbacks without replacing explicit destinations: %s', async (callbackURL, expected) => {
+    const sendVerification = vi.fn<(params: { to: string, url: string }) => Promise<void>>()
+    const auth = createAuth({} as unknown as AuthDatabase, {
+      PUBLIC_URL: 'https://api.airi.test',
+      BETTER_AUTH_SECRET: 'test-secret-test-secret-test-secret',
+      ADDITIONAL_TRUSTED_ORIGINS: [],
+    } as unknown as AuthEnv, {
+      send: vi.fn(),
+      sendVerification,
+      sendPasswordReset: vi.fn(),
+      sendMagicLink: vi.fn(),
+      sendChangeEmailConfirmation: vi.fn(),
+      sendDeleteAccountVerification: vi.fn(),
+    })
+    const url = new URL('https://api.airi.test/api/auth/verify-email?token=test-token&extra=keep')
+    if (callbackURL !== undefined)
+      url.searchParams.set('callbackURL', callbackURL)
+
+    const hook = auth.options.emailVerification?.sendVerificationEmail
+    if (!hook)
+      throw new TypeError('Expected verification email hook')
+    await hook({
+      user: { id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() },
+      url: url.toString(),
+      token: 'test-token',
+    }, new Request('https://api.airi.test/api/auth/send-verification-email'))
+
+    expect(sendVerification).toHaveBeenCalledOnce()
+    const delivered = new URL(sendVerification.mock.calls[0][0].url)
+    expect(delivered.searchParams.get('callbackURL')).toBe(expected)
+    expect(delivered.searchParams.get('token')).toBe('test-token')
+    expect(delivered.searchParams.get('extra')).toBe('keep')
+    expect(delivered.pathname).toBe('/api/auth/verify-email')
+    expect(sendVerification.mock.calls[0][0].to).toBe('test@example.com')
+  })
+
   it('allows signed-in users to link OAuth accounts that use a different email', () => {
     const auth = createAuth({} as unknown as AuthDatabase, {
       PUBLIC_URL: 'http://localhost:3000',
