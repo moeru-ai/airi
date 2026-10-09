@@ -436,14 +436,14 @@ describe('ensureDynamicFirstPartyRedirectUri', () => {
 
     await ensureDynamicFirstPartyRedirectUri(
       db as any,
-      new Request('https://airi-server-dev.up.railway.app/api/auth/oauth2/authorize?client_id=airi-stage-electron&redirect_uri=https%3A%2F%2Fairi-server-dev.up.railway.app%2Fapi%2Fauth%2Foidc%2Felectron-callback'),
+      new Request('https://api-dev.airi.build/api/auth/oauth2/authorize?client_id=airi-stage-electron&redirect_uri=https%3A%2F%2Fapi-dev.airi.build%2Fapi%2Fauth%2Foidc%2Felectron-callback'),
       [],
     )
 
     expect(setCalls).toHaveLength(1)
     expect(setCalls[0].redirectUris).toEqual([
       'https://api.airi.build/api/auth/oidc/electron-callback',
-      'https://airi-server-dev.up.railway.app/api/auth/oidc/electron-callback',
+      'https://api-dev.airi.build/api/auth/oidc/electron-callback',
     ])
     expect(updateWhere).toHaveBeenCalledTimes(1)
   })
