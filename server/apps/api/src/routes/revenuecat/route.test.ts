@@ -133,6 +133,15 @@ describe('revenuecat routes', () => {
     expect(res.status).toBe(401)
   })
 
+  it('returns 401 on a signature that is older than the tolerance', async () => {
+    const { app } = await setup()
+    const body = webhookBody()
+    const stale = signBody(JSON.stringify(body), Math.floor(Date.now() / 1000) - 600)
+
+    const res = await postWebhook(app, body, { signature: stale })
+    expect(res.status).toBe(401)
+  })
+
   it('grants plan Flux from what RevenueCat reports', async () => {
     const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]

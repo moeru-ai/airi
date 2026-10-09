@@ -216,7 +216,8 @@ describe('plan Flux bucket', () => {
   })
 
   it('keeps plan ledger rows out of the purchased Flux capacity', async () => {
-    await db.insert(fluxTransaction).values({ userId: 'wallet', type: 'credit', pool: 'wallet', amount: 10, balanceBefore: 0, balanceAfter: 10, description: 'pack' })
+    // The pack credit is older, so the plan grant is the latest credit row.
+    await db.insert(fluxTransaction).values({ userId: 'wallet', type: 'credit', pool: 'wallet', amount: 10, balanceBefore: 0, balanceAfter: 10, description: 'pack', createdAt: new Date(Date.now() - hour) })
     await billing.syncPlan('wallet', async () => activePlan(100))
 
     expect(await createFluxTransactionService(db).getStats('wallet')).toEqual({ capacity: 10 })
@@ -267,6 +268,23 @@ describe('flux posting math', () => {
     expect(refillPlan(plan, { intervalMs: null, resetAt: new Date('2026-10-05T00:00:00.000Z') }, now).refilled).toBe(true)
     expect(refillPlan(plan, { intervalMs: null, resetAt: new Date('2026-10-20T00:00:00.000Z') }, now).refilled).toBe(false)
     expect(refillPlan({ ...plan, planExpiresAt: new Date('2026-10-02T00:00:00.000Z') }, daily, now).refilled).toBe(false)
+  })
+
+  it('refills once when the period start is ahead of this clock', () => {
+    const now = new Date('2026-10-01T05:59:59.000Z')
+    const plan = {
+      planFlux: 0,
+      planQuota: 100,
+      planExpiresAt: new Date('2026-11-01T00:00:00.000Z'),
+      planPeriodStart: new Date('2026-10-01T06:00:00.000Z'),
+      planFilledAt: null,
+      planResetAt: null,
+    }
+    const none = { intervalMs: null, resetAt: null }
+
+    const first = refillPlan(plan, none, now)
+    expect(first.refilled).toBe(true)
+    expect(refillPlan({ ...first, planFlux: 40 }, none, now).refilled).toBe(false)
   })
 
   it('reports the remaining plan percent only for an active plan', () => {

@@ -103,7 +103,7 @@ describe('revenuecat subscriber client', () => {
   })
 
   it('fails with 502 on an upstream error', async () => {
-    const client = createRevenuecatSubscriberClient({ apiKey: 'sk_test', fetch: jsonFetch({}, 500) })
+    const client = createRevenuecatSubscriberClient({ apiKey: 'sk_test', fetch: jsonFetch({ subscriber: { entitlements: {} } }, 500) })
     expect(await statusOf(client.fetchEntitlements('user-1'))).toBe(502)
   })
 

@@ -142,6 +142,20 @@ describe('fluxService (DB-backed)', () => {
     expect((await service.getFlux(testUser.id)).flux).toBe(42)
   })
 
+  it('counts a due plan refill in the plan percent', async () => {
+    await db.insert(schema.userFlux).values({
+      userId: testUser.id,
+      flux: 42,
+      planFlux: 25,
+      planQuota: 100,
+      planExpiresAt: new Date(Date.now() + 60_000),
+      planPeriodStart: new Date(Date.now() - 60_000),
+      planFilledAt: new Date(Date.now() - 120_000),
+    })
+
+    expect(await service.getFlux(testUser.id)).toMatchObject({ planRemainingPercent: 100 })
+  })
+
   it('reports the plan percent and judges expiry on every read', async () => {
     const planExpiresAt = new Date(Date.now() + 60_000)
     await db.insert(schema.userFlux).values({ userId: testUser.id, flux: 42, planFlux: 25, planQuota: 100, planExpiresAt })
