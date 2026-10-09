@@ -127,6 +127,13 @@ Use card commands for activation and explicit edits. Settings pages must not
 save cards from watchers: authentication and remote snapshots also trigger them.
 The synchronization leader owns these commands; followers receive snapshots.
 
+Official speech discovery completes a missing voice through the card store.
+The leader saves the discovered model and voice on the owning card, or in
+`moduleDefaults` when the card inherits its speech settings.
+Late results cannot replace a subsequent selection, another character, or a
+logged-out account. Discovery runs in the background so card edits and logout
+do not wait for the provider.
+
 Models inherit only within the same provider. Voices also require the same
 model. Selecting a vision provider on the vision page stores the catalog default
 model of that provider on the active card. A different provider without a model stays unconfigured rather than
