@@ -65,8 +65,6 @@ interface ResetPasswordArgs extends AuthFetchBase {
 interface SignInResult {
   /** Set when better-auth allows browser to follow the OIDC redirect itself. */
   redirectURL: string | null
-  /** Better Auth session token. Present when a session was created. */
-  token: string | null
   /**
    * True if email verification is still pending; UI should route to
    * the `verify-email` notice page.
@@ -131,10 +129,7 @@ export async function signInWithEmail(args: EmailSignInArgs): Promise<SignInResu
       const requiresVerification = Boolean(
         (data as { requiresEmailVerification?: unknown })?.requiresEmailVerification,
       )
-      const token = typeof (data as { token?: unknown })?.token === 'string'
-        ? (data as { token: string }).token
-        : null
-      return { redirectURL: url, token, requiresVerification }
+      return { redirectURL: url, requiresVerification }
     },
   )
 }
