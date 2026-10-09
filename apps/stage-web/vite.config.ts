@@ -1,5 +1,6 @@
 import process, { cwd, env } from 'node:process'
 
+import { readFile } from 'node:fs/promises'
 import { execSync } from 'node:child_process'
 import { join, resolve } from 'node:path'
 
@@ -23,12 +24,47 @@ import { paraformerBilingualZhEn, xAsrBilingualZhEnInt8, zipformerMultilingual }
 import { Download } from '@proj-airi/unplugin-fetch/vite'
 import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
+import { extractShellResources, filterShellPrecache, type ViteManifestEntry } from './src/modules/pwa-precache'
 import { LFS, SpaceCard } from 'hfup/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
+const pwaManifest = {
+  name: 'AIRI',
+  short_name: 'AIRI',
+  icons: [
+    {
+      src: '/web-app-manifest-192x192.png',
+      sizes: '192x192',
+      type: 'image/png',
+    },
+    {
+      src: '/web-app-manifest-512x512.png',
+      sizes: '512x512',
+      type: 'image/png',
+    },
+    {
+      purpose: 'maskable',
+      sizes: '192x192',
+      src: '/maskable_icon_x192.png',
+      type: 'image/png',
+    },
+    {
+      purpose: 'maskable',
+      sizes: '512x512',
+      src: '/maskable_icon_x512.png',
+      type: 'image/png',
+    },
+  ],
+}
+const pwaIncludedAssets = ['favicon.svg', 'apple-touch-icon.png']
+const pwaShellResources = [
+  ...pwaIncludedAssets,
+  'manifest.webmanifest',
+  ...pwaManifest.icons.map(icon => icon.src),
+]
 
 function hasFlagEnableMkcert(): boolean {
   if (process.argv.includes('--mkcert')) {
@@ -195,37 +231,26 @@ export default defineConfig({
       ? []
       : [VitePWA({
           registerType: 'prompt',
-          includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
-          manifest: {
-            name: 'AIRI',
-            short_name: 'AIRI',
-            icons: [
-              {
-                src: '/web-app-manifest-192x192.png',
-                sizes: '192x192',
-                type: 'image/png',
-              },
-              {
-                src: '/web-app-manifest-512x512.png',
-                sizes: '512x512',
-                type: 'image/png',
-              },
-              {
-                purpose: 'maskable',
-                sizes: '192x192',
-                src: '/maskable_icon_x192.png',
-                type: 'image/png',
-              },
-              {
-                purpose: 'maskable',
-                sizes: '512x512',
-                src: '/maskable_icon_x512.png',
-                type: 'image/png',
-              },
-            ],
-          },
+          includeAssets: pwaIncludedAssets,
+          manifest: pwaManifest,
           workbox: {
             maximumFileSizeToCacheInBytes: 64 * 1024 * 1024,
+            manifestTransforms: [async (entries) => {
+              const distPath = resolve(import.meta.dirname, 'dist')
+              const manifestPath = resolve(distPath, '.vite/manifest.json')
+              const viteManifest = JSON.parse(await readFile(manifestPath, 'utf8')) as Record<string, ViteManifestEntry>
+              const html = await readFile(resolve(distPath, 'index.html'), 'utf8')
+
+              return {
+                manifest: filterShellPrecache(
+                  entries,
+                  viteManifest,
+                  [...pwaShellResources, ...extractShellResources(html), './', 'index.html'],
+                  ['src/pages/index.vue', 'src/modules/pwa.ts'],
+                ),
+                warnings: [],
+              }
+            }],
             // Cloudflare redirects /index.html to /. Cache the canonical response
             // so navigation fallbacks never replay a redirected response.
             modifyURLPrefix: { 'index.html': './' },
