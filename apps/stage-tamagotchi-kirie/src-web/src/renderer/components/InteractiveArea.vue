@@ -46,7 +46,7 @@ const { streamingMessage } = storeToRefs(chatStream)
 const { activeTurns } = storeToRefs(chatStore)
 const { activeCard, activeCardId } = storeToRefs(airiCardStore)
 
-type ChatImageAttachment = Extract<NonNullable<ChatSendPayload['attachments']>[number], { type: 'image' }>
+type ChatImageAttachment = Extract<NonNullable<ChatSendPayload['attachments']>[number], { type: 'image', data: string }>
 
 interface ImageComposerAttachment extends ChatImageAttachment {
   file: File

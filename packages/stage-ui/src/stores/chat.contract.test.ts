@@ -155,6 +155,8 @@ vi.mock('./chat/context-store', () => ({
 }))
 
 // IndexedDB is a browser boundary. Browser tests exercise the real sticker repository.
+vi.mock('../database/repos/chat-assets.repo')
+
 vi.mock('../database/repos/stickers.repo', () => ({
   stickersRepo: { read: async () => ({ records: [], images: [] }) },
 }))
@@ -507,11 +509,16 @@ describe('chat store contract', () => {
     const store = useChatStore()
     await store.retry({ sessionId: 'session-1', index: 2 })
 
+    // The retried turn stores the image as an asset reference. The provider still receives its bytes.
     const retried = sessionMessages['session-1'].findLast(message => message.role === 'user')
     expect(retried.content).toEqual([
       { type: 'text', text: 'What is this?' },
-      { type: 'image_url', image_url: { url: 'data:image/png;base64,aW1hZ2U=' } },
+      { type: 'image_url', image_url: { url: expect.stringMatching(/^airi-asset:[0-9a-f]{64}$/) } },
     ])
+    const context = llmStreamMock.mock.calls.at(-1)![2] as Conversation
+    expect(context.turns.findLast(turn => turn.type === 'user')).toMatchObject({
+      content: expect.arrayContaining([expect.objectContaining({ type: 'image', url: 'data:image/png;base64,aW1hZ2U=' })]),
+    })
   })
 
   // ROOT CAUSE:

@@ -14,6 +14,7 @@ import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { authedFetch } from '../../libs/auth-fetch'
+import { chatAssetIdsOf, inlineChatAssets } from '../../libs/chat-assets'
 import {
   applyCreateActions,
   createChatWsClient,
@@ -386,7 +387,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     if (!await loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
-    const nextMessages = getSessionMessages(payload.sessionId).filter((message, messageIndex) => {
+    const currentMessages = getSessionMessages(payload.sessionId)
+    const nextMessages = currentMessages.filter((message, messageIndex) => {
       if (payload.messageId)
         return message.id !== payload.messageId
       if (payload.index !== undefined)
@@ -395,6 +397,18 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     })
 
     setSessionMessages(payload.sessionId, nextMessages)
+    await releaseRemovedAssets(payload.sessionId, currentMessages, nextMessages)
+  }
+
+  /**
+   * Releases the images and recordings that `previous` referenced and `next` no longer does.
+   * The release queues after the save of `next`, so a stored message never references a deleted asset.
+   */
+  async function releaseRemovedAssets(sessionId: string, previous: readonly ChatHistoryItem[], next: readonly ChatHistoryItem[]) {
+    const kept = chatAssetIdsOf(next)
+    const removed = [...chatAssetIdsOf(previous)].filter(id => !kept.has(id))
+    if (removed.length)
+      await enqueuePersist(() => chatSessionsRepo.releaseAssets(sessionId, removed))
   }
 
   /**
@@ -1489,7 +1503,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    const previous = sessionMessages.value[sessionId] ?? []
+    const next = [generateInitialMessage()]
+    setSessionMessages(sessionId, next)
+    void releaseRemovedAssets(sessionId, previous, next)
   }
 
   function getAllSessions() {
@@ -1577,15 +1594,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const sessions: Record<string, ChatSessionRecord> = {}
     for (const character of Object.values(index.value.characters)) {
       for (const sessionId of Object.keys(character.sessions)) {
+        // An export leaves the device, so it carries the bytes of each image and recording in place of asset references.
         const stored = await chatSessionsRepo.getSession(sessionId)
         if (stored) {
-          sessions[sessionId] = stored
+          sessions[sessionId] = { ...stored, messages: await inlineChatAssets(stored.messages) }
           continue
         }
         const meta = sessionMetas.value[sessionId]
         const messages = sessionMessages.value[sessionId]
         if (meta && messages)
-          sessions[sessionId] = { meta, messages }
+          sessions[sessionId] = { meta, messages: await inlineChatAssets(messages) }
       }
     }
 

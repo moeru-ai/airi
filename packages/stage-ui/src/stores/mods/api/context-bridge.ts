@@ -6,6 +6,7 @@ import type { ChatStreamEventContext, ContextMessage } from '../../../types/chat
 import type { SparkNotifyPerformanceResult, SparkNotifyReactionOptions } from './spark-notify-reaction'
 
 import { errorMessageFrom } from '@moeru/std'
+import { encodeBase64 } from '@moeru/std/base64'
 import { isStageTamagotchi, isStageWeb } from '@proj-airi/stage-shared'
 import { useBroadcastChannel } from '@vueuse/core'
 import { Mutex } from 'es-toolkit'
@@ -13,6 +14,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowReactive, toRaw, watch } from 'vue'
 
+import { ChatAssetTooLargeError, chatEventAttachmentsOf, MAX_CHAT_ASSET_BYTES, readChatAsset } from '../../../libs/chat-assets'
 import { getSpeechBusContext, voiceGenerationEnded } from '../../../services/speech/bus'
 import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
 import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
@@ -655,6 +657,33 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         })
       }))
 
+      // Chat events reference images and recordings. A module reads their bytes here. Every stage window that holds
+      // the channel answers, and the module keeps the first answer.
+      disposeHookFns.value.push(serverChannelStore.onEvent('asset:get:request', async (event) => {
+        const { ref } = event.data
+        // A client can claim any `metadata.source`. The server names the sending connection, so only that is trusted.
+        const sender = event.metadata.sender
+        if (!sender?.modules.length) {
+          console.warn('[context-bridge] Ignored an asset request from a connection that announced no module:', ref)
+          return
+        }
+        console.info(`[context-bridge] Module ${sender.modules.join(', ')} (peer ${sender.peerId}) requested ${ref}`)
+
+        const answer = await readChatAsset(ref).then(
+          async (record) => {
+            if (record.blob.size > MAX_CHAT_ASSET_BYTES)
+              throw new ChatAssetTooLargeError(record.blob.size)
+            return { ref, mimeType: record.mimeType, data: encodeBase64(new Uint8Array(await record.blob.arrayBuffer())) }
+          },
+        ).catch((error: unknown) => ({ ref, error: errorMessageFrom(error) ?? 'Could not read the asset' }))
+        serverChannelStore.send({
+          type: 'asset:get:response',
+          data: answer,
+          metadata: { event: { parentId: event.metadata.event.id } },
+          route: { destinations: [`peer:${sender.peerId}`] },
+        })
+      }))
+
       disposeHookFns.value.push(serverChannelStore.onEvent('input:text', async (event) => {
         const {
           text,
@@ -844,6 +873,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+          // The stored user message of the turn holds its images and recordings as asset references.
+          const userMessage = chatSession.getSessionMessagesIfLoaded(context.sessionId)?.find(item => item.id === context.turnId)
+          const attachments = chatEventAttachmentsOf(userMessage)
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {
@@ -856,6 +888,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 composedMessage: context.composedMessage,
                 contexts: context.contexts,
                 input: context.input,
+                ...(attachments.length ? { attachments } : {}),
               },
             },
           })
