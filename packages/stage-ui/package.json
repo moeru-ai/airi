@@ -212,6 +212,7 @@
     "@proj-airi/api-server": "workspace:*",
     "@proj-airi/lobe-icons": "catalog:",
     "@proj-airi/stream-kit": "workspace:*",
+    "@proj-airi/unplugin-live2d-sdk": "catalog:",
     "@types/audioworklet": "catalog:",
     "@types/culori": "catalog:",
     "@types/d3": "catalog:",

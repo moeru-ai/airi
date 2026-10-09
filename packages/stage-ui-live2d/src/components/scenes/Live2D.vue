@@ -15,9 +15,6 @@ import Live2DPresenceBubble from './live2d/presence-bubble.vue'
 
 import { useLive2DEyeFocusFor, useSettingsLive2d } from '../../composables/live2d'
 
-import '../../utils/live2d-zip-loader'
-import '../../utils/live2d-opfs-registration'
-
 const props = withDefaults(defineProps<{
   cursorPosition?: Live2DEyeFocusSource
   modelSrc?: string

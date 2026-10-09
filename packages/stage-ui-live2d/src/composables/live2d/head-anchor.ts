@@ -1,5 +1,5 @@
 import type { Matrix } from '@pixi/math'
-import type { Bounds } from 'pixi-live2d-display/cubism4'
+import type { Bounds } from 'pixi-live2d-display'
 
 /** A point in the model's own canvas space, before any stage transform. */
 interface Live2DModelCanvasPoint {
@@ -16,22 +16,39 @@ export interface Live2DModelCanvasRect {
 }
 
 /**
+ * What the rig-inference pass needs beyond posing the head.
+ *
+ * Cubism 3+ publishes all four. Cubism 2 publishes none of them: its core
+ * addresses parameters through its own `getParamIndex`/`getParamFloat` pair and
+ * offers neither a drawable count nor a parameter range, and the generation
+ * adapter adds only the by-id accessors AIRI's plugins write through. The
+ * tracker therefore treats the group as optional and infers nothing without it,
+ * rather than calling a method that is not there.
+ */
+interface Live2DRigProbe {
+  getDrawableCount: () => number
+  getParameterIndex: (id: string) => number
+  getParameterMaximumValue: (index: number) => number
+  getParameterMinimumValue: (index: number) => number
+}
+
+/**
  * What the tracker asks a model for.
  *
  * Narrower than the internal model, which satisfies it structurally: the tracker
  * reads the rig and the drawables and nothing else, and saying so lets it be
  * exercised without a Cubism runtime.
+ *
+ * Only the hit-area path is available on every generation. {@link Live2DRigProbe}
+ * marks the part a model may not answer, which is what makes a head reported
+ * from the rig a Cubism 3+ result in practice.
  */
 export interface Live2DHeadSource {
   hitAreas: Record<string, { index: number }>
-  coreModel: {
+  coreModel: Partial<Live2DRigProbe> & {
     update: () => void
-    getDrawableCount: () => number
-    getParameterIndex: (id: string) => number
     getParameterValueById: (id: string) => number
     setParameterValueById: (id: string, value: number) => void
-    getParameterMaximumValue: (index: number) => number
-    getParameterMinimumValue: (index: number) => number
   }
   getDrawableBounds: (index: number) => Bounds
   /**
@@ -41,6 +58,30 @@ export interface Live2DHeadSource {
    * the head only swings indirectly show up as part of the head.
    */
   physics?: { evaluate: (coreModel: unknown, deltaTimeSeconds: number) => void }
+}
+
+/**
+ * The rig probe for a core that publishes one, or `undefined` for a core that
+ * does not.
+ *
+ * The methods are read off the core and called back against it, because they
+ * are prototype methods that answer from its own state.
+ */
+function rigProbeFor(coreModel: Live2DHeadSource['coreModel']): Live2DRigProbe | undefined {
+  const { getDrawableCount, getParameterIndex, getParameterMaximumValue, getParameterMinimumValue } = coreModel
+  if (typeof getDrawableCount !== 'function'
+    || typeof getParameterIndex !== 'function'
+    || typeof getParameterMaximumValue !== 'function'
+    || typeof getParameterMinimumValue !== 'function') {
+    return undefined
+  }
+
+  return {
+    getDrawableCount: () => getDrawableCount.call(coreModel),
+    getParameterIndex: id => getParameterIndex.call(coreModel, id),
+    getParameterMaximumValue: index => getParameterMaximumValue.call(coreModel, index),
+    getParameterMinimumValue: index => getParameterMinimumValue.call(coreModel, index),
+  }
 }
 
 /**
@@ -140,10 +181,14 @@ export function createLive2DHeadTracker() {
    */
   function selectByHeadAngle(internalModel: Live2DHeadSource) {
     const core = internalModel.coreModel
-    const count = core.getDrawableCount()
+    const probe = rigProbeFor(core)
+    if (!probe)
+      return undefined
+
+    const count = probe.getDrawableCount()
 
     const present = (ids: string[]) => ids
-      .map(id => ({ id, index: core.getParameterIndex(id) }))
+      .map(id => ({ id, index: probe.getParameterIndex(id) }))
       .filter(parameter => parameter.index >= 0)
 
     const head = present(headAngleParameterIds)
@@ -169,8 +214,8 @@ export function createLive2DHeadTracker() {
      * first appears.
      */
     const farEnd = (parameter: { id: string, index: number }, from: number) => {
-      const maximum = core.getParameterMaximumValue(parameter.index)
-      const minimum = core.getParameterMinimumValue(parameter.index)
+      const maximum = probe.getParameterMaximumValue(parameter.index)
+      const minimum = probe.getParameterMinimumValue(parameter.index)
       return Math.abs(maximum - from) >= Math.abs(from - minimum) ? maximum : minimum
     }
 

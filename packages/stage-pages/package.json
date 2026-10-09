@@ -65,6 +65,7 @@
     "@nekopaw/tempora": "catalog:",
     "@pinia/colada": "catalog:",
     "@proj-airi/stage-shared": "workspace:^",
+    "@proj-airi/unplugin-live2d-sdk": "catalog:",
     "@types/audioworklet": "catalog:",
     "@types/splitpanes": "catalog:",
     "@types/three": "catalog:",

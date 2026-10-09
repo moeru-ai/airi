@@ -5,6 +5,7 @@ import UnoCSS from 'unocss/vite'
 import Info from 'unplugin-info/vite'
 import VueRouter from 'vue-router/vite'
 
+import { Cubism2Core } from '@proj-airi/unplugin-live2d-sdk/vite'
 import { playwright } from '@vitest/browser-playwright'
 import { mergeConfigs } from 'unocss'
 import { loadEnv } from 'vite'
@@ -31,6 +32,11 @@ export default defineConfig({
   },
   plugins: [
     Info(),
+    // The Live2D settings test imports `@proj-airi/stage-ui-live2d`, whose runtime
+    // imports `virtual:live2d-sdk/cores` at module scope. Both projects below take
+    // this list through `extends: true`. Without sources the plugin answers with an
+    // unavailable capability, which is what a settings test should see.
+    Cubism2Core(),
     // Use the app's route-block transform when browser tests mount shared pages.
     VueRouter({ routesFolder: [], dts: false }),
     Vue(),
