@@ -14,15 +14,6 @@ const metadata = {
   },
 }
 
-function entitlement(input: {
-  identifier: string
-  productIdentifier: string
-  expirationDate: Date | null
-  willRenew: boolean
-}) {
-  return input
-}
-
 describe('currentPlanFromCustomerInfo', () => {
   it('returns null when nothing is active', () => {
     expect(currentPlanFromCustomerInfo({ entitlements: { active: {} } })).toBeNull()
@@ -32,18 +23,18 @@ describe('currentPlanFromCustomerInfo', () => {
     const plan = currentPlanFromCustomerInfo({
       entitlements: {
         active: {
-          airi_go: entitlement({
+          airi_go: {
             identifier: 'airi_go',
             productIdentifier: 'rc_go_monthly',
             expirationDate: new Date('2026-11-01T00:00:00.000Z'),
             willRenew: false,
-          }),
-          airi_plus: entitlement({
+          },
+          airi_plus: {
             identifier: 'airi_plus',
             productIdentifier: 'rc_plus_monthly',
             expirationDate: new Date('2026-12-01T00:00:00.000Z'),
             willRenew: true,
-          }),
+          },
         },
       },
     })
@@ -59,18 +50,18 @@ describe('currentPlanFromCustomerInfo', () => {
     const plan = currentPlanFromCustomerInfo({
       entitlements: {
         active: {
-          dated: entitlement({
+          dated: {
             identifier: 'airi_go',
             productIdentifier: 'rc_go_monthly',
             expirationDate: new Date('2026-12-01T00:00:00.000Z'),
             willRenew: true,
-          }),
-          lifetime: entitlement({
+          },
+          lifetime: {
             identifier: 'airi_plus',
             productIdentifier: 'rc_plus_lifetime',
             expirationDate: null,
             willRenew: true,
-          }),
+          },
         },
       },
     })

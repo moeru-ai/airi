@@ -121,7 +121,6 @@ onMounted(async () => {
       message.value = { type: 'error', text: t('settings.pages.plan.packagesError') }
     })
   }
-  await plan.fetchManagementUrl()
 })
 
 async function savePreference(value: boolean) {

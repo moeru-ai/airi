@@ -3,15 +3,10 @@ import type { CustomerInfo, Package } from '@revenuecat/purchases-js'
 import { getRevenuecatWebKey, isFluxPurchaseDisabled } from '@proj-airi/stage-shared'
 import { ErrorCode, Purchases, PurchasesError } from '@revenuecat/purchases-js'
 import { object, optional, pipe, record, safeParse, string, trim } from 'valibot'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { client } from './api'
-
-/** Delay between polls while waiting for the webhook grant to land. */
-const POLL_INTERVAL_MS = 3000
-/** Webhook grants usually land within a minute; stop polling after this many tries. */
-const POLL_MAX_ATTEMPTS = 20
 
 let configuredKey: string | null = null
 let configuredUserId: string | null = null
@@ -163,8 +158,6 @@ export function useSubscription(options: {
   const packages = ref<PlanPackage[]>([])
   const loadingPackages = ref(false)
   const purchasingPackageId = ref<string | null>(null)
-  const pendingActivation = ref(false)
-  const missingKey = computed(() => getRevenuecatWebKey() == null)
   const managementUrl = ref<string | null>(null)
 
   function applyCustomerInfo(info: CustomerInfo) {
@@ -177,15 +170,6 @@ export function useSubscription(options: {
       return
     const purchases = await ensurePurchases(options.getUserId())
     applyCustomerInfo(await purchases.getCustomerInfo())
-  }
-
-  async function fetchManagementUrl(): Promise<void> {
-    try {
-      await refreshCustomer()
-    }
-    catch {
-      managementUrl.value = null
-    }
   }
 
   async function fetchServerStatus(): Promise<void> {
@@ -242,49 +226,12 @@ export function useSubscription(options: {
       }
 
       applyCustomerInfo(customerInfo)
-      if (currentPlan.value) {
-        void pollAllowance()
-        return 'activated'
-      }
-      const activated = await pollActivation()
-      if (activated)
-        void pollAllowance()
-      return activated ? 'activated' : 'pending'
+      await fetchServerStatus().catch(() => undefined)
+      await options.onChanged().catch(() => undefined)
+      return currentPlan.value ? 'activated' : 'pending'
     }
     finally {
       purchasingPackageId.value = null
-    }
-  }
-
-  /** Fills the remaining percent after the SDK already shows the plan. */
-  async function pollAllowance(): Promise<void> {
-    for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-      await fetchServerStatus().catch(() => undefined)
-      if ((status.value?.allowances.length ?? 0) > 0)
-        return
-      await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
-    }
-  }
-
-  async function pollActivation(): Promise<boolean> {
-    pendingActivation.value = true
-    try {
-      for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-        await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS))
-        try {
-          await refreshCustomer()
-          await fetchServerStatus()
-          if (currentPlan.value)
-            return true
-        }
-        catch {
-          // Keep polling through transient failures.
-        }
-      }
-      return false
-    }
-    finally {
-      pendingActivation.value = false
     }
   }
 
@@ -298,17 +245,13 @@ export function useSubscription(options: {
   }
 
   return {
-    enabled,
-    missingKey,
     managementUrl,
     status,
     currentPlan,
     packages,
     loadingPackages,
     purchasingPackageId,
-    pendingActivation,
     fetchStatus,
-    fetchManagementUrl,
     fetchPackages,
     purchasePlan,
     setFallbackToFlux,
