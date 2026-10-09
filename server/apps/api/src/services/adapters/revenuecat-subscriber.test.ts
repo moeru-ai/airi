@@ -1,6 +1,6 @@
+import { ApiError } from '@proj-airi/http-error-shared'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from '../../utils/error'
 import { createRevenuecatSubscriberClient } from './revenuecat-subscriber'
 
 const periodStart = Date.parse('2026-10-01T00:00:00Z')

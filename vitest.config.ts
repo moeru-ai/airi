@@ -7,6 +7,7 @@ export default defineConfig({
     projects: [
       'server/apps/auth',
       'server/apps/api',
+      'server/packages/http-error-shared',
       'apps/ui-server-auth',
       'apps/stage-tamagotchi/vitest.node.config.ts',
       'packages/cap-vite',

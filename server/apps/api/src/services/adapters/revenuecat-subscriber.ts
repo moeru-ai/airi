@@ -1,8 +1,7 @@
 import type { InferOutput } from 'valibot'
 
+import { createBadGatewayError, createServiceUnavailableError } from '@proj-airi/http-error-shared'
 import { array, boolean, nullable, number, object, safeParse, string } from 'valibot'
-
-import { createBadGatewayError, createServiceUnavailableError } from '../../utils/error'
 
 const REQUEST_TIMEOUT_MS = 5_000
 

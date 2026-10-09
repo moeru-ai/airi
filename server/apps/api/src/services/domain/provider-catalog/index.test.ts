@@ -1,12 +1,12 @@
 import type { Database } from '../../../libs/db'
 
+import { ApiError } from '@proj-airi/http-error-shared'
 import { eq } from 'drizzle-orm'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { createProviderCatalogService } from '.'
 import { mockDB } from '../../../libs/mock-db'
 import { capabilityAliases, capabilityAliasRoutes, providerCatalogTtsModels, providerCatalogTtsVoices } from '../../../schemas/provider-catalog'
-import { ApiError } from '../../../utils/error'
 
 import * as schema from '../../../schemas'
 
