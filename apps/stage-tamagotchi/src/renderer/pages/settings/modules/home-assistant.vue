@@ -2,7 +2,7 @@
 import { errorMessageFrom } from '@moeru/std'
 import { useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
 import { useHomeAssistantStore } from '@proj-airi/stage-ui/stores/modules/home-assistant'
-import { Button, FieldCheckbox, FieldInput } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, SettingsCard } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -104,7 +104,7 @@ async function onTest() {
 </script>
 
 <template>
-  <div flex="~ col gap-6">
+  <SettingsCard>
     <FieldCheckbox
       v-model="enabled"
       :label="tn('enable')"
@@ -143,7 +143,7 @@ async function onTest() {
         {{ tn(status.suffix, status.params) }}
       </span>
     </div>
-  </div>
+  </SettingsCard>
 </template>
 
 <route lang="yaml">

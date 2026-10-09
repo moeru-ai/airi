@@ -5,7 +5,7 @@ import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
 import type { IOTraceRecordingService } from '../../services/airi/io-trace-recording'
-import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { McpManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { ChatWindowManager } from '../chat'
 import type { EditorWindowManager } from '../editor'
@@ -59,7 +59,7 @@ export async function setupMainWindow(params: {
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
   ioTraceRecording: IOTraceRecordingService
@@ -185,7 +185,7 @@ export async function setupMainWindow(params: {
     autoUpdater: params.autoUpdater,
     serverChannel: params.serverChannel,
     godotStageManager: params.godotStageManager,
-    mcpStdioManager: params.mcpStdioManager,
+    mcpManager: params.mcpManager,
     i18n: params.i18n,
     onboardingWindowManager: params.onboardingWindowManager,
     ioTraceRecording: params.ioTraceRecording,

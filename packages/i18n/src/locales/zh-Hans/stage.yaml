@@ -28,6 +28,9 @@ chat:
     recording: 正在录制
     starting: 正在启动麦克风
     preview: 已录制的语音消息
+    transcribing: 正在转写…
+    position: 播放位置
+    no-speech: 没有识别到说话，语音消息没有发送。
   voice-composer:
     audio: 语音消息
     transcription: 语音转文字
@@ -74,8 +77,8 @@ chat:
     failed: 音频操作失败。
   voice-draft:
     title: 语音草稿
-    select: '查看草稿 {number}'
     discard: 丢弃草稿
+    listening: 正在聆听
     finalizing: 正在整理……
   voice-input: 语音输入
   error-details:

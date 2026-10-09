@@ -28,6 +28,9 @@ chat:
     recording: Recording
     starting: Starting microphone
     preview: Recorded voice message
+    transcribing: Transcribing…
+    position: Playback position
+    no-speech: No speech was recognized, so the voice message was not sent.
   voice-composer:
     audio: Voice message
     transcription: Dictation
@@ -74,8 +77,8 @@ chat:
     failed: The audio operation failed.
   voice-draft:
     title: Voice draft
-    select: 'Show draft {number}'
     discard: Discard draft
+    listening: Listening
     finalizing: Finishing…
   voice-input: Voice input
   error-details:

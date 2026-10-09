@@ -72,6 +72,11 @@ export interface ChatSendPayload {
   replyToMessageId?: string
   /** User text for the new turn. */
   text: string
+  /**
+   * The transcript of the audio attachment arrives after the submit through `settleAudioTranscript`.
+   * A model without audio input waits for it instead of transcribing the file.
+   */
+  audioTranscriptPending?: boolean
   /** Application-formatted voice evidence captured before submission. */
   speechContext?: string
   /** Request-specific tools selected by their model-facing names. */
@@ -119,6 +124,17 @@ function ownsProjectedTurn(message: ChatHistoryItem, turnId: string) {
   // buildContext converts one stored message at a time. The Chat projection
   // adds its only array index to the stored message ID.
   return message.id === turnId || `${message.id}-0` === turnId
+}
+
+/** Resolves with `promise`, or rejects with the abort reason once `signal` aborts. */
+function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal) {
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted)
+      return reject(signal.reason)
+    const abort = () => reject(signal.reason)
+    signal.addEventListener('abort', abort, { once: true })
+    promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', abort))
+  })
 }
 
 function retryContentFrom(message: ChatHistoryItem | undefined): Pick<ChatSendPayload, 'attachments' | 'text'> | null {
@@ -256,6 +272,14 @@ export const useChatStore = defineStore('chat', () => {
    */
   const failedImageReads = new Map<string, Set<string>>()
 
+  /**
+   * Voice messages whose transcript is still coming, keyed by session and message. Each lives in the leader, which runs
+   * both the submit and the provider projection that waits for it.
+   */
+  const liveTranscripts = new Map<string, PromiseWithResolvers<void>>()
+  /** Turns that a voice message without speech removed. Their cancellation is not reported as a send error. */
+  const droppedTurns = new Set<string>()
+
   function failedImageReadsOf(sessionId: string) {
     let reads = failedImageReads.get(sessionId)
     if (!reads) {
@@ -377,8 +401,17 @@ export const useChatStore = defineStore('chat', () => {
             continue
 
           const sourceIndex = audioIndex++
-          const stored = sessionId ? chatSession.getSessionMessages(sessionId).find(message => ownsProjectedTurn(message, turn.id)) : undefined
+          const findStored = () => sessionId ? chatSession.getSessionMessages(sessionId).find(message => ownsProjectedTurn(message, turn.id)) : undefined
+          let stored = findStored()
           let text = stored?.audioTranscripts?.[sourceIndex]
+
+          // A voice message is submitted before its transcript is ready. Waiting avoids a second transcription.
+          const live = sessionId && stored?.id ? liveTranscripts.get(JSON.stringify([sessionId, stored.id])) : undefined
+          if (!text && live) {
+            await waitWithSignal(live.promise, signal)
+            stored = findStored()
+            text = stored?.audioTranscripts?.[sourceIndex]
+          }
 
           if (!text) {
             transcriber ??= hearing.createTranscriber()
@@ -399,12 +432,8 @@ export const useChatStore = defineStore('chat', () => {
             if (!completed || !text?.trim())
               throw new Error('The recording has no completed transcription')
 
-            if (sessionId && stored) {
-              const messages = chatSession.getSessionMessages(sessionId)
-              const audioTranscripts = [...(stored.audioTranscripts ?? [])]
-              audioTranscripts[sourceIndex] = text
-              chatSession.setSessionMessages(sessionId, messages.map(message => message.id === stored.id ? { ...message, audioTranscripts } : message))
-            }
+            if (sessionId && stored?.id)
+              writeAudioTranscript(sessionId, stored.id, sourceIndex, text)
           }
 
           turn.content[index] = { type: 'text', text }
@@ -667,6 +696,40 @@ export const useChatStore = defineStore('chat', () => {
     return [...names].map(name => ({ name }))
   }
 
+  function writeAudioTranscript(sessionId: string, messageId: string, index: number, text: string) {
+    const messages = chatSession.getSessionMessagesIfLoaded(sessionId)
+    if (!messages?.some(message => message.id === messageId))
+      return
+    chatSession.setSessionMessages(sessionId, messages.map((message) => {
+      if (message.id !== messageId)
+        return message
+      const audioTranscripts = [...(message.audioTranscripts ?? [])]
+      audioTranscripts[index] = text
+      return { ...message, audioTranscripts }
+    }))
+  }
+
+  /**
+   * Settles the transcript of a submitted voice message. Text is stored with the message. An empty transcript means no
+   * speech, so the turn is cancelled and the message removed. Without a transcript, the chat transcribes the file.
+   */
+  async function settleAudioTranscript(payload: { sessionId: string, messageId: string, transcript?: string }) {
+    const key = JSON.stringify([payload.sessionId, payload.messageId])
+    if (payload.transcript) {
+      writeAudioTranscript(payload.sessionId, payload.messageId, 0, payload.transcript)
+    }
+    else if (payload.transcript === '') {
+      droppedTurns.add(key)
+      const done = requests.get(key)?.request.done
+      await cancelTurn({ sessionId: payload.sessionId, turnId: payload.messageId })
+      await done?.catch(() => {})
+      await chatSession.deleteMessage({ sessionId: payload.sessionId, messageId: payload.messageId })
+      droppedTurns.delete(key)
+    }
+    liveTranscripts.get(key)?.resolve()
+    liveTranscripts.delete(key)
+  }
+
   function appendSendError(sessionId: string, error: unknown) {
     if (error instanceof DOMException && error.name === 'AbortError')
       return
@@ -676,6 +739,8 @@ export const useChatStore = defineStore('chat', () => {
     chatSession.appendSessionMessage(sessionId, {
       role: 'error',
       content: errorMessageFrom(error) ?? 'Unknown chat operation failure',
+      id: nanoid(),
+      createdAt: Date.now(),
     })
   }
 
@@ -788,8 +853,14 @@ export const useChatStore = defineStore('chat', () => {
 
   /** Returns the storage receipt while generation continues in the elected leader. */
   async function submit(payload: ChatSendPayload & { messageId: string }) {
+    const key = JSON.stringify([payload.sessionId, payload.messageId])
+    if (payload.audioTranscriptPending && !liveTranscripts.has(key))
+      liveTranscripts.set(key, Promise.withResolvers<void>())
     const request = startSend(payload, true)
-    void request.done.catch(error => appendSendError(payload.sessionId, error))
+    void request.done.catch((error) => {
+      if (!droppedTurns.has(key))
+        appendSendError(payload.sessionId, error)
+    })
 
     return request.accepted
   }
@@ -956,6 +1027,7 @@ export const useChatStore = defineStore('chat', () => {
     retry,
     send,
     submit,
+    settleAudioTranscript,
     cancelTurn,
     receiveInterruption,
     cancelPendingSends,
@@ -987,7 +1059,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 }, {
   synced: {
-    actions: ['submit', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
+    actions: ['submit', 'settleAudioTranscript', 'cancelTurn', 'receiveInterruption', 'cancelPendingSends', 'cleanup', 'deleteSession', 'rerunToolCall', 'retry', 'send'],
     state: true,
   },
 })

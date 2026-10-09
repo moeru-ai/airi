@@ -207,4 +207,41 @@ describe('createPlaybackManager', () => {
 
     expect(play.mock.calls.map(([item]) => item.id)).toEqual(['a', 'd', 'a2', 'e'])
   })
+
+  // https://github.com/moeru-ai/airi/pull/2740
+  // ROOT CAUSE:
+  //
+  // Finalization deleted active playback by item ID alone. An interrupted promise
+  // could finish after that ID was reused and delete the replacement playback.
+  // Finalization must match the active entry, not only its reusable item ID.
+  it('issue #2740: ignores completion from an interrupted playback after its ID is reused', async () => {
+    const completions: Array<() => void> = []
+    const play = vi.fn((_item: PlaybackItem<unknown>, _signal: AbortSignal) => new Promise<void>((resolve) => {
+      // Playback can finish asynchronously after an abort request.
+      completions.push(resolve)
+    }))
+    const ended = vi.fn()
+    const manager = createPlaybackManager({ maxVoices: 1, overflowPolicy: 'queue', play })
+    manager.onEnd(ended)
+
+    manager.schedule(createPlaybackItem('reused', 10, 'old-intent'))
+    manager.stopByIntent('old-intent')
+    manager.schedule(createPlaybackItem('reused', 10, 'new-intent'))
+    manager.schedule(createPlaybackItem('queued', 5, 'other-intent'))
+
+    completions[0]!()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(ended).not.toHaveBeenCalled()
+    expect(play.mock.calls.map(([item]) => item.intentId)).toEqual(['old-intent', 'new-intent'])
+    expect(play.mock.calls[1]![1].aborted).toBe(false)
+
+    completions[1]!()
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(ended).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ item: expect.objectContaining({ intentId: 'new-intent' }) }))
+    expect(play.mock.calls.map(([item]) => item.intentId)).toEqual(['old-intent', 'new-intent', 'other-intent'])
+  })
 })
