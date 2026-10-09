@@ -536,8 +536,15 @@ export function createAuth(
       // detects the new session via polling and resumes the OIDC handoff.
       // Source: node_modules/better-auth/dist/api/routes/email-verification.mjs L268+
       autoSignInAfterVerification: true,
+      /** Keeps default email verification callbacks on the service result page. */
       async sendVerificationEmail({ user, url }) {
-        await requireEmailService(email).sendVerification({ to: user.email, url })
+        const confirmation = new URL(url)
+        const callback = confirmation.searchParams.get('callbackURL')
+        // Explicit destinations retain their login continuation context.
+        if (callback === null || callback === '' || callback === '/') {
+          confirmation.searchParams.set('callbackURL', new URL('/auth/verify-email?verified=true', env.PUBLIC_URL).toString())
+        }
+        await requireEmailService(email).sendVerification({ to: user.email, url: confirmation.toString() })
       },
     },
 

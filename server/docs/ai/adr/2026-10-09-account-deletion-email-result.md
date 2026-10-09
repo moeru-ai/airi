@@ -1,4 +1,4 @@
-# Account deletion email results
+# Account email confirmation results
 
 Status: accepted
 
@@ -12,7 +12,9 @@ The public route uses the configured Auth UI deployment and preserves environmen
 
 ## Scope
 
-This change affects newly generated account deletion emails. It does not change existing emails, registration, token expiry, authorization, or data deletion.
+This change affects newly generated deletion and registration verification emails. It does not change existing emails, token expiry, authorization, or data deletion.
+Verification emails use `/auth/verify-email?verified=true` for absent, empty, or root callbacks. Explicit callbacks remain unchanged.
+The verification result tab stays visible and broadcasts success. Only the original pending tab resumes its login flow after a session check.
 The confirmation email remains required. The result page alone does not prove deletion.
 
 ## Dependencies
@@ -32,6 +34,8 @@ flowchart LR
 server/apps/auth/src/
   auth.ts
   tests/auth.test.ts
+apps/ui-server-auth/src/pages/
+  verify-email.vue
 server/docs/ai/adr/
   2026-10-09-account-deletion-email-result.md
 ```
@@ -60,3 +64,31 @@ Hook tests capture the delivered URL and preserve its token and other query para
 Cases cover absent, empty, and root callbacks, plus explicit relative and absolute destinations.
 Existing auth tests cover the deletion hook order. No production account deletion is part of these checks.
 After deployment, request a new email with a disposable account and complete the flow on a physical device.
+
+## Registration verification
+
+```mermaid
+sequenceDiagram
+  participant A as Better Auth
+  participant H as Email hook
+  participant R as Result tab
+  participant P as Original pending tab
+  A->>H: Generate verification email
+  H->>H: Assign default result callback if absent, empty, or root
+  A->>A: Validate clicked token and establish session
+  A-->>R: Redirect to verification result
+  R->>P: Broadcast verified
+  Note over R: Keep result visible
+  P->>A: Get session
+  alt Session exists
+    P->>P: Resume saved login continuation
+  else Session unavailable
+    Note over P: Stay pending
+  end
+```
+
+Verification hook tests cover the same six callback cases as deletion.
+Local browser checks mount the real page with English translations and repository UnoCSS.
+A local session fixture verifies pending-to-login continuation through the real BroadcastChannel API.
+A conflicting success and error query displays failure. These checks do not perform real email delivery or token verification.
+The full Auth UI typecheck remains blocked by missing workspace dependencies in the local installation.
