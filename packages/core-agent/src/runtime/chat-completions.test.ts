@@ -75,7 +75,7 @@ it('uses one request snapshot while tools load (PR #2477)', async () => {
   expect(generation).toHaveBeenCalledTimes(1)
 })
 
-it('applies the new Chat model tool and content compatibility after a tool changes settings', async () => {
+it.each(['auto', 'required'] as const)('applies the new Chat model compatibility with tool choice %s after settings change', async (choice) => {
   // ROOT CAUSE:
   // The first model's compatibility decisions were reused by later xsAI tool steps.
   // A new model could receive tools and media arrays it had already rejected.
@@ -107,17 +107,23 @@ it('applies the new Chat model tool and content compatibility after a tool chang
     options: {
       toolsCompatibility: new Map([['https://second.test/v1/-second', false]]),
       contentArrayCompatibility: new Map([['https://second.test/v1/-second', false]]),
-      toolChoice: 'required',
+      toolChoice: choice,
       resolveStep: async () => ({ model: live.model, chatProvider, providerId: 'live', systemPrompt: '', tools: [tool] }),
     },
   })
   expect(requests).toHaveLength(2)
   expect(requests[0].tools).toHaveLength(1)
-  expect(requests[0].tool_choice).toBe('required')
+  expect(requests[0].tool_choice).toBe(choice)
   expect(requests[0].reasoning_effort).toBe('high')
   expect(Array.isArray(requests[0].messages[0].content)).toBe(true)
-  expect(requests[1].tools).toBeUndefined()
-  expect(requests[1].tool_choice).toBeUndefined()
+  if (choice === 'required') {
+    expect(requests[1].tools).toHaveLength(1)
+    expect(requests[1].tool_choice).toBe('required')
+  }
+  else {
+    expect(requests[1].tools).toBeUndefined()
+    expect(requests[1].tool_choice).toBeUndefined()
+  }
   expect(requests[1].reasoning_effort).toBeUndefined()
   expect(requests[1].messages[0].content).toBe('Look')
   expect(requests[1].messages.some(message => message.reasoning_content != null)).toBe(false)
@@ -282,23 +288,29 @@ describe('transient provider failures (Issue #2660)', () => {
     expect(fetch).toHaveBeenCalledOnce()
   })
 
-  it('does not repeat a tool call when a later step fails', async () => {
+  it.each([false, true])('does not repeat native work after a temporary error with buffered JSON=%s for Issue #2161', async (bufferedJson) => {
     const fetch = vi.fn<typeof globalThis.fetch>(async (_url, init) => {
       const body: { messages: Array<{ role: string }> } = JSON.parse(String(init?.body))
       if (body.messages.some(message => message.role === 'tool'))
         return unavailable()
       const chunk = { choices: [{ index: 0, delta: { tool_calls: [{ index: 0, id: 'save-1', type: 'function', function: { name: 'save', arguments: '{}' } }] }, finish_reason: 'tool_calls' }] }
-      return new Response(`data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { 'content-type': 'text/event-stream' } })
+      const prefix = bufferedJson
+        ? `data: ${JSON.stringify({ choices: [{ index: 0, delta: { content: '{"name":"save","arguments":' }, finish_reason: null }] })}\n\n`
+        : ''
+      return new Response(`${prefix}data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`, { headers: { 'content-type': 'text/event-stream' } })
     })
     const execute = vi.fn(() => 'saved')
+    const onStreamEvent = vi.fn()
     await expect(streamFrom({
       model: 'test',
       chatProvider: provider(fetch),
       conversation: { turns: [] },
-      options: { tools: [{ type: 'function', function: { name: 'save', parameters: { type: 'object', properties: {} } }, execute }] },
+      options: { tools: [{ type: 'function', function: { name: 'save', parameters: { type: 'object', properties: {} } }, execute }], onStreamEvent },
     })).rejects.toMatchObject({ statusCode: 503 })
     expect(fetch).toHaveBeenCalledTimes(2)
     expect(execute).toHaveBeenCalledOnce()
+    if (bufferedJson)
+      expect(onStreamEvent).not.toHaveBeenCalled()
   })
 
   it('stops waiting to retry when the request is cancelled', async () => {

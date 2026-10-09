@@ -1,5 +1,5 @@
 import type { StreamOptions } from '@proj-airi/core-agent'
-import type { ChatProvider } from '@xsai-ext/providers/utils'
+import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { Event, Message, Tool } from '@xsai/shared-chat'
 import type { StreamTextChunkResult, StreamTextOptions, StreamTextResult } from '@xsai/stream-text'
 
@@ -8,6 +8,7 @@ import type { ExecutableTool } from './tools'
 import { createServer } from 'node:http'
 import { env } from 'node:process'
 
+import { chatMessagesToTurns } from '@proj-airi/core-agent'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -42,10 +43,13 @@ vi.mock('@xsai/stream-text', () => ({
   streamText: streamTextMock,
 }))
 
+vi.mock('@proj-airi/core-agent/agents/spark-command', () => ({
+  createSparkCommandTool: createSparkCommandToolMock,
+}))
+
 vi.mock('../../../tools', () => ({
   mcp: mcpMock,
   debug: debugMock,
-  createSparkCommandTool: createSparkCommandToolMock,
   // NOTICE: the resolver imports `createWebSearchTools` from the tools barrel, so
   // the mock must expose it or module loading fails with a missing-export error.
   createWebSearchTools: vi.fn(async (): Promise<Tool[]> => []),
@@ -169,7 +173,7 @@ describe('isToolRelatedError', () => {
     const listenerStarted = Promise.withResolvers<void>()
     const releaseListener = Promise.withResolvers<void>()
     const streamError = new Error('accepted provider error')
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const onStreamEvent = vi.fn<NonNullable<StreamOptions['onStreamEvent']>>(async (event) => {
       if (event.type === 'text-delta') {
         listenerStarted.resolve()
@@ -182,7 +186,7 @@ describe('isToolRelatedError', () => {
       options.onEvent({ type: 'text.delta', delta: 'must not escape' })
       return { ...createMockStreamResult(), steps: steps.promise }
     })
-    const result = useLLM().stream('model-a', provider, [], { onStreamEvent, onMessages }).then(() => undefined, error => error)
+    const result = useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, { onStreamEvent, onGeneratedTurn }).then(() => undefined, error => error)
     await listenerStarted.promise
     steps.resolve([])
     await new Promise(resolve => setImmediate(resolve))
@@ -193,7 +197,7 @@ describe('isToolRelatedError', () => {
       { type: 'text-delta', text: 'partial answer' },
       { type: 'error', error: streamError },
     ])
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     expect(streamTextMock).toHaveBeenCalledTimes(1)
   })
 
@@ -220,7 +224,7 @@ describe('isToolRelatedError', () => {
       options.onEvent({ type: 'text.delta', delta: 'second' })
       return { ...createMockStreamResult(), steps: steps.promise }
     })
-    const result = useLLM().stream('model-a', provider, [], { onStreamEvent }).then(
+    const result = useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, { onStreamEvent }).then(
       () => { settled = true },
       (error) => {
         settled = true
@@ -329,9 +333,9 @@ describe('isToolRelatedError', () => {
       return createMockStreamResult()
     })
 
-    const pending = store.stream('model-a', provider, [{ role: 'user', content: 'hello' }] as Message[], {
+    const pending = store.stream('model-a', provider, { turns: chatMessagesToTurns([{ role: 'user', content: 'hello' }] as Message[]) }, {
       tools: [customTool],
-      onMessages: async () => {
+      onGeneratedTurn: async () => {
         transcriptStarted.resolve()
         await releaseTranscript.promise
       },
@@ -368,7 +372,7 @@ describe('isToolRelatedError', () => {
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440962
   it.each(['tool-call.start', 'tool-call.delta', 'tool-call.done'] as const)('does not replay buffered output after %s for Issue #2161', async (type) => {
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const nativeEvent: Event = type === 'tool-call.start'
       ? { type, toolCallId: 'call-1', toolName: 'builtIn_emitSparkCommand' }
       : type === 'tool-call.delta'
@@ -378,23 +382,23 @@ describe('isToolRelatedError', () => {
       { type: 'reasoning.delta', delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' },
       nativeEvent,
     ] satisfies Event[])
-    await expect(useLLM().stream('model-a', provider, [], {
+    await expect(useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
       tools: [createSparkTool()],
       onStreamEvent,
-      onMessages,
+      onGeneratedTurn,
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
     expect(streamTextMock).toHaveBeenCalledTimes(1)
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   // ROOT CAUSE:
   // Native events released leaks, and retry errors bypassed compatibility checks.
-  // These tests use the real SDK and scripted HTTP responses to check both fixes.
+  // Check both fixes with the real SDK and HTTP responses.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440962
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3950440972
   // Step boundaries also released partial calls or misclassified partial outer examples.
-  // Keep those candidates through the SDK tool round and inspect the joined output.
+  // Inspect joined candidates after the tool round.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3954079834
   it.runIf(env.AIRI_TEST_REAL_SSE === '1').each(['native-text', 'native-reasoning', 'native-safe', 'native-split-text', 'native-split-reasoning', 'native-split-example', 'native-split-failure', 'tools-first', 'arrays-first'] as const)('checks %s with real xsAI and HTTP/SSE for Issue #2161', async (scenario) => {
     const { streamText } = await vi.importActual<typeof import('@xsai/stream-text')>('@xsai/stream-text')
@@ -408,7 +412,7 @@ describe('isToolRelatedError', () => {
     const call = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
     const native = scenario.startsWith('native')
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const tool = createSparkTool()
     const controller = new AbortController()
     const server = createServer((request, response) => {
@@ -471,12 +475,12 @@ describe('isToolRelatedError', () => {
       if (!address || typeof address === 'string')
         throw new Error('The loopback server did not get a TCP port.')
       const localProvider = {
-        chat: (model: string) => ({ model, baseURL: `http://127.0.0.1:${address.port}/v1/` }),
-      } as ChatProvider
-      const outcome = await useLLM().stream('fixture', localProvider, [{ role: 'user', content: [
+        generation: (model: string) => ({ protocol: 'chat-completions', config: { model, baseURL: `http://127.0.0.1:${address.port}/v1/` } }),
+      } as GenerationProvider
+      const outcome = await useLLM().stream('fixture', localProvider, { turns: chatMessagesToTurns([{ role: 'user', content: [
         { type: 'text', text: 'Play.' },
         { type: 'image_url', image_url: { url: 'https://example.com/game.png' } },
-      ] }], { tools: [tool], abortSignal: controller.signal, onStreamEvent, onMessages }).then(() => undefined, error => error)
+      ] }]) }, { tools: [tool], abortSignal: controller.signal, onStreamEvent, onGeneratedTurn }).then(() => undefined, error => error)
       // The SDK can finish its tool round after the guard rejects UI output.
       await Promise.allSettled(sdkResults.map(result => result.steps))
       if (native) {
@@ -486,7 +490,7 @@ describe('isToolRelatedError', () => {
         expect(requests[1].messages).toContainEqual(expect.objectContaining({ role: 'tool', tool_call_id: 'call-1' }))
         if (scenario === 'native-safe' || scenario === 'native-split-example') {
           expect(outcome).toBeUndefined()
-          expect(onMessages).toHaveBeenCalledTimes(1)
+          expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
           expect(onStreamEvent.mock.calls.map(([event]) => event.type === 'reasoning-delta' ? event.text : '').join('')).toBe(scenario === 'native-safe' ? '{"note":"safe"}' : `{"example":${call}}`)
           expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: 'Recovered.' })
           expect(onStreamEvent.mock.calls.map(([event]) => event.type)).toEqual(scenario === 'native-safe'
@@ -496,7 +500,7 @@ describe('isToolRelatedError', () => {
         else {
           expect(String(outcome)).toContain(scenario === 'native-split-failure' ? 'fixture failed after a tool round' : 'as plain text')
           expect(onStreamEvent).not.toHaveBeenCalled()
-          expect(onMessages).not.toHaveBeenCalled()
+          expect(onGeneratedTurn).not.toHaveBeenCalled()
         }
       }
       else {
@@ -512,7 +516,7 @@ describe('isToolRelatedError', () => {
           { type: 'text-delta', text: 'Recovered.' },
           { type: 'finish' },
         ])
-        expect(onMessages).toHaveBeenCalledTimes(1)
+        expect(onGeneratedTurn).toHaveBeenCalledTimes(1)
       }
     }
     finally {
@@ -548,7 +552,7 @@ describe('isToolRelatedError', () => {
     const store = useLLM()
     const onStreamEvent = vi.fn()
     const options = { tools: [createSparkTool()], onStreamEvent }
-    await store.stream('model-a', provider, messages, options)
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns(messages) }, options)
     expect(streamTextMock).toHaveBeenCalledTimes(3)
     const attempts = streamTextMock.mock.calls.map(([attempt]) => ({
       tools: attempt.tools !== undefined,
@@ -564,7 +568,7 @@ describe('isToolRelatedError', () => {
       { type: 'finish' },
     ])
     mockStreamEvents([])
-    await store.stream('model-a', provider, messages, options)
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns(messages) }, options)
     expect(streamTextMock.mock.calls[3][0].tools).toBeUndefined()
     expect(streamTextMock.mock.calls[3][0].messages[0].content).toBe('Play.')
     expect(Array.isArray(messages[0].content)).toBe(true)
@@ -590,7 +594,7 @@ describe('isToolRelatedError', () => {
       })
     }
     const onStreamEvent = vi.fn()
-    await expect(useLLM().stream('model-a', provider, [], {
+    await expect(useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
       tools: [createSparkTool()],
       onStreamEvent,
     })).rejects.toThrow(failure === 'tool-leak' ? 'as plain text' : arrayError.message)
@@ -609,7 +613,7 @@ describe('isToolRelatedError', () => {
       if (activity === 'finish' && event.type === 'finish')
         throw arrayError
     })
-    const onMessages = vi.fn(() => {
+    const onGeneratedTurn = vi.fn(() => {
       if (activity === 'messages')
         throw arrayError
     })
@@ -623,10 +627,10 @@ describe('isToolRelatedError', () => {
         ? []
         : [{ type: activity, delta: 'visible prefix' }, { type: 'error', message: arrayError.message, cause: arrayError }]
     mockStreamEvents(events)
-    await expect(useLLM().stream('model-a', provider, [], {
+    await expect(useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
       tools: [createSparkTool()],
       onStreamEvent,
-      onMessages,
+      onGeneratedTurn,
     })).rejects.toBe(arrayError)
     expect(streamTextMock).toHaveBeenCalledTimes(1)
     if (activity === 'native')
@@ -642,7 +646,7 @@ describe('isToolRelatedError', () => {
     streamTextMock.mockImplementationOnce(() => {
       throw arrayError
     })
-    await expect(useLLM().stream('model-a', provider, [], { supportsContentArray })).rejects.toBe(arrayError)
+    await expect(useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, { supportsContentArray })).rejects.toBe(arrayError)
     expect(streamTextMock).toHaveBeenCalledTimes(1)
   })
 
@@ -655,7 +659,7 @@ describe('isToolRelatedError', () => {
       throw new Error('messages[0]: invalid type: sequence, expected a string')
     })
     mockStreamEvents([{ type: 'text.delta', delta: '{"name":"builtIn_emitSparkCommand","arguments":{}}' }])
-    await expect(useLLM().stream('model-a', provider, [], {
+    await expect(useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
       toolChoice: 'required',
       tools: [createSparkTool()],
     })).rejects.toThrow('as plain text')
@@ -666,14 +670,8 @@ describe('isToolRelatedError', () => {
 
   // ROOT CAUSE:
   //
-  // Some providers emit a registered tool call as assistant text instead of
-  // using the native tool protocol.
-  //
-  // Before the fix, that raw JSON reached the chat UI and later requests kept
-  // sending the same incompatible tool payload.
-  //
-  // We fixed this by retrying once without tools only before any output or tool
-  // work is committed, then caching the model's incompatibility.
+  // Serialized tool calls reached the UI, and later requests sent the same incompatible tools.
+  // Retry without tools only before output or tool work is committed, then cache the incompatibility.
   // https://github.com/moeru-ai/airi/issues/2161
   it('retries without tools when a model emits a plain-text tool call for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
@@ -694,7 +692,7 @@ describe('isToolRelatedError', () => {
     ])
 
     const store = useLLM()
-    await store.stream('model-a', provider, [{ role: 'user', content: 'Can you play games?' }] as Message[], {
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([{ role: 'user', content: 'Can you play games?' }] as Message[]) }, {
       supportsTools: true,
       toolChoice: 'auto',
       tools: [customTool],
@@ -717,8 +715,7 @@ describe('isToolRelatedError', () => {
       .toBe(fallbackText)
 
     streamTextMock.mockImplementationOnce(() => createMockStreamResult())
-    await store.stream('model-a', provider, [{ role: 'user', content: 'Try again.' }] as Message[], {
-      supportsTools: true,
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([{ role: 'user', content: 'Try again.' }] as Message[]) }, {
       toolChoice: 'auto',
       tools: [customTool],
     })
@@ -730,14 +727,8 @@ describe('isToolRelatedError', () => {
 
   // ROOT CAUSE:
   //
-  // A later plain-text tool-call failure could occur after an earlier native
-  // tool event had already committed work in the same request.
-  //
-  // Before the fix, automatically replaying that request could execute the
-  // earlier tool work a second time.
-  //
-  // We fixed this by caching the incompatibility without replaying any attempt
-  // that has already emitted output or native tool activity.
+  // Retrying after a later JSON failure repeated earlier native tool work.
+  // Cache incompatibility without replaying attempts that emitted output or native tool activity.
   // https://github.com/moeru-ai/airi/issues/2161
   it('does not replay earlier native tool work after a later plain-text tool call for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
@@ -764,7 +755,7 @@ describe('isToolRelatedError', () => {
     streamTextMock.mockImplementationOnce(() => createMockStreamResult())
 
     const store = useLLM()
-    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'Can you play games?' }] as Message[], {
+    await expect(store.stream('model-a', provider, { turns: chatMessagesToTurns([{ role: 'user', content: 'Can you play games?' }] as Message[]) }, {
       supportsTools: true,
       toolChoice: 'auto',
       tools: [customTool],
@@ -779,8 +770,7 @@ describe('isToolRelatedError', () => {
       toolCallId: 'call-1',
     }))
 
-    await store.stream('model-a', provider, [{ role: 'user', content: 'Try again.' }] as Message[], {
-      supportsTools: true,
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([{ role: 'user', content: 'Try again.' }] as Message[]) }, {
       toolChoice: 'auto',
       tools: [customTool],
     })
@@ -792,14 +782,8 @@ describe('isToolRelatedError', () => {
 
   // ROOT CAUSE:
   //
-  // A forced request that leaked a text tool call marked the model as tool-
-  // incompatible, so the cache stripped tools from the next forced request.
-  //
-  // Before the fix, that later request could resolve without ever performing
-  // the required Spark command.
-  //
-  // We fixed this by letting required choices bypass the compatibility cache
-  // while still rejecting them when no tools are actually available.
+  // The compatibility cache removed tools from a required choice after an earlier leak.
+  // Required choices bypass that cache. Reject them when no tools are available.
   // https://github.com/moeru-ai/airi/issues/2161
   it('does not downgrade a forced tool choice after a plain-text leak for Issue #2161', async () => {
     const rawToolCall = JSON.stringify({
@@ -822,7 +806,7 @@ describe('isToolRelatedError', () => {
       tools: [customTool],
     } satisfies StreamOptions
 
-    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'You must play a game.' }] as Message[], options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+    await expect(store.stream('model-a', provider, { turns: chatMessagesToTurns([{ role: 'user', content: 'You must play a game.' }] as Message[]) }, options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(1)
 
@@ -830,7 +814,7 @@ describe('isToolRelatedError', () => {
       { type: 'text.delta', delta: rawToolCall },
     ])
 
-    await expect(store.stream('model-a', provider, [{ role: 'user', content: 'You still must play a game.' }] as Message[], options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+    await expect(store.stream('model-a', provider, { turns: chatMessagesToTurns([{ role: 'user', content: 'You still must play a game.' }] as Message[]) }, options)).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(2)
     expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
@@ -848,14 +832,14 @@ describe('isToolRelatedError', () => {
     const customTools = vi.fn(async () => [customTool])
     const rawToolCall = JSON.stringify({ name: 'builtIn_emitSparkCommand', parameters: { destinations: [] } })
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
     mockStreamEvents([{ type, delta: rawToolCall }])
 
-    await expect(useLLM().stream('model-a', provider, [
+    await expect(useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([
       { role: 'system', content: 'Use builtIn_emitSparkCommand to play games.' },
       { role: 'user', content: 'Can you play games?' },
-    ], { tools: customTools, toolChoice: 'auto', onStreamEvent, onMessages })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
+    ]) }, { tools: customTools, toolChoice: 'auto', onStreamEvent, onGeneratedTurn })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(2)
     expect(streamTextMock.mock.calls[0]?.[0]?.tools?.map(toolNameFrom)).toContain('builtIn_emitSparkCommand')
@@ -864,7 +848,7 @@ describe('isToolRelatedError', () => {
     expect(customTools).toHaveBeenCalledTimes(1)
     expect(customTool.execute).not.toHaveBeenCalled()
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   // ROOT CAUSE:
@@ -877,22 +861,22 @@ describe('isToolRelatedError', () => {
     const customTool = createSparkTool()
     const answer = `${'{"a":'.repeat(512)}x${'}'.repeat(512)}`
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     mockStreamEvents([{ type, delta: answer }])
 
-    await expect(store.stream('model-a', provider, [], {
+    await expect(store.stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
       tools: [customTool],
       onStreamEvent,
-      onMessages,
+      onGeneratedTurn,
     })).rejects.toThrow('Model output exceeded the JSON inspection work limit.')
 
     expect(streamTextMock).toHaveBeenCalledTimes(1)
     expect(customTool.execute).not.toHaveBeenCalled()
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
 
     mockStreamEvents([{ type: 'text.delta', delta: 'A safe answer.' }])
-    await store.stream('model-a', provider, [], { tools: [customTool], onStreamEvent })
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([]) }, { tools: [customTool], onStreamEvent })
 
     expect(streamTextMock).toHaveBeenCalledTimes(2)
     expect(streamTextMock.mock.calls[1]?.[0]?.tools?.map(toolNameFrom)).toContain(customTool.function.name)
@@ -902,10 +886,8 @@ describe('isToolRelatedError', () => {
 
   // ROOT CAUSE:
   //
-  // A later JSON call can follow a prefix that already reached the caller.
-  // Before the fix, this call bypassed the guard and the stream succeeded.
-  // We reject the call without retrying or replaying the visible prefix.
-  // Ordinary reasoning is also committed output and must not be replayed.
+  // Tool JSON after a visible prefix bypassed the guard.
+  // Reject it without replaying earlier text or reasoning.
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3932132863
   // https://github.com/moeru-ai/airi/pull/2459#discussion_r3949439849
   it.each([
@@ -913,7 +895,7 @@ describe('isToolRelatedError', () => {
     ['reasoning.delta', 'reasoning-delta', 'Let me think.'],
   ] as const)('does not retry a leak after visible %s for Issue #2161', async (type, outputType, prefix) => {
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     const customTool = createSparkTool()
     mockStreamEvents([
       { type, delta: prefix },
@@ -921,15 +903,15 @@ describe('isToolRelatedError', () => {
     ])
     mockStreamEvents([{ type: 'text.delta', delta: 'A repeated answer.' }])
 
-    await expect(useLLM().stream('model-a', provider, [], {
+    await expect(useLLM().stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
       tools: [customTool],
       onStreamEvent,
-      onMessages,
+      onGeneratedTurn,
     })).rejects.toThrow('tool call "builtIn_emitSparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(1)
     expect(onStreamEvent).toHaveBeenCalledExactlyOnceWith({ type: outputType, text: prefix })
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
     expect(customTool.execute).not.toHaveBeenCalled()
   })
 
@@ -947,14 +929,14 @@ describe('isToolRelatedError', () => {
     const store = useLLM()
     mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
     mockStreamEvents([{ type: 'text.delta', delta: 'No tool is available.' }])
-    await store.stream('model-a', provider, [])
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([]) })
 
     const onStreamEvent = vi.fn()
-    const onMessages = vi.fn()
+    const onGeneratedTurn = vi.fn()
     mockStreamEvents([{ type, delta: rawToolCall }])
-    await expect(store.stream('model-a', provider, [
+    await expect(store.stream('model-a', provider, { turns: chatMessagesToTurns([
       { role: 'system', content: 'Use builtIn_sparkCommand to send a game command.' },
-    ], { toolChoice: 'auto', onStreamEvent, onMessages })).rejects.toThrow('tool call "builtIn_sparkCommand" as plain text')
+    ]) }, { toolChoice: 'auto', onStreamEvent, onGeneratedTurn })).rejects.toThrow('tool call "builtIn_sparkCommand" as plain text')
 
     expect(streamTextMock).toHaveBeenCalledTimes(3)
     expect(streamTextMock.mock.calls[2]?.[0]?.tools).toBeUndefined()
@@ -962,7 +944,7 @@ describe('isToolRelatedError', () => {
     expect(createSparkCommandToolMock).toHaveBeenCalledTimes(2)
     expect(sparkTool.execute).not.toHaveBeenCalled()
     expect(onStreamEvent).not.toHaveBeenCalled()
-    expect(onMessages).not.toHaveBeenCalled()
+    expect(onGeneratedTurn).not.toHaveBeenCalled()
   })
 
   it('keeps retry tool names isolated between requests to the same model', async () => {
@@ -970,14 +952,14 @@ describe('isToolRelatedError', () => {
     const store = useLLM()
     mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
     mockStreamEvents([{ type: 'text.delta', delta: 'No tool is available.' }])
-    await store.stream('model-a', provider, [], { tools: [createSparkTool()] })
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([]) }, { tools: [createSparkTool()] })
 
     const onStreamEvent = vi.fn()
     const customTools = vi.fn(async () => [createSparkTool()])
     mockStreamEvents([{ type: 'text.delta', delta: rawToolCall }])
-    await store.stream('model-a', provider, [
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([
       { role: 'user', content: 'Quote this JSON as a documentation example.' },
-    ], { supportsTools: false, tools: customTools, onStreamEvent })
+    ]) }, { supportsTools: false, tools: customTools, onStreamEvent })
 
     expect(streamTextMock).toHaveBeenCalledTimes(3)
     expect(customTools).not.toHaveBeenCalled()
@@ -997,20 +979,20 @@ describe('isToolRelatedError', () => {
     const oldCall = '{"name":"builtIn_emitSparkCommand","arguments":{}}'
     mockStreamEvents([{ type: 'text.delta', delta: oldCall }])
     mockStreamEvents([{ type: 'text.delta', delta: 'No tool is available.' }])
-    await store.stream('model-a', provider, [], { tools: [createSparkTool()] })
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([]) }, { tools: [createSparkTool()] })
 
     const newTool = createSparkTool()
     newTool.function.name = 'new_game_tool'
     const currentTools = vi.fn(async () => [newTool])
     const onStreamEvent = vi.fn()
     mockStreamEvents([{ type: 'text.delta', delta: oldCall }])
-    await store.stream('model-a', provider, [], { tools: currentTools, onStreamEvent })
+    await store.stream('model-a', provider, { turns: chatMessagesToTurns([]) }, { tools: currentTools, onStreamEvent })
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'text-delta', text: oldCall })
     expect(onStreamEvent).toHaveBeenCalledWith({ type: 'finish' })
 
     onStreamEvent.mockClear()
     mockStreamEvents([{ type: 'text.delta', delta: '{"name":"new_game_tool","arguments":{}}' }])
-    await expect(store.stream('model-a', provider, [], {
+    await expect(store.stream('model-a', provider, { turns: chatMessagesToTurns([]) }, {
       tools: currentTools,
       onStreamEvent,
     })).rejects.toThrow('tool call "new_game_tool" as plain text')
@@ -1071,7 +1053,7 @@ describe('isToolRelatedError', () => {
         parameters: { type: 'object', properties: {} },
       },
       execute: vi.fn(),
-    } as unknown as Tool
+    } satisfies Tool
     const runtimeTool = {
       id: 'plugin:runtime:duplicate_runtime_tool',
       type: 'function' as const,
@@ -1083,14 +1065,15 @@ describe('isToolRelatedError', () => {
       execute: vi.fn(async () => ({ ok: true })),
     } satisfies ExecutableTool
 
-    mcpMock.mockResolvedValueOnce([builtinTool] as Tool[])
+    mcpMock.mockResolvedValueOnce([builtinTool])
     llmToolsStore.addTools(runtimeTool)
 
     streamTextMock.mockImplementationOnce(() => createMockStreamResult())
 
     await store.stream('model-a', provider, { turns: [{ id: 'user', type: 'user', content: [{ type: 'text', text: 'play chess' }] }] })
 
-    const mergedTools = streamTextMock.mock.calls[0]?.[0]?.tools as Array<{ function?: { name?: string, description?: string } }>
+    const request: StreamTextOptions | undefined = streamTextMock.mock.calls[0]?.[0]
+    const mergedTools = request?.tools ?? []
     const duplicateNameTools = mergedTools.filter(tool => tool.function?.name === 'duplicate_runtime_tool')
 
     expect(duplicateNameTools).toHaveLength(1)

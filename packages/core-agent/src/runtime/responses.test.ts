@@ -27,6 +27,56 @@ function provider(fetch: typeof globalThis.fetch): GenerationProvider {
   }
 }
 
+// https://github.com/moeru-ai/airi/issues/2161
+// ROOT CAUSE:
+// A new SDK stream starts after a protocol change, while consumers join output across that change.
+// Keep pending JSON candidates in the generation, across both adapters and provider scopes.
+it.each(['text', 'reasoning'] as const)('guards a tool-call candidate across a Responses-to-Chat switch in %s for Issue #2161', async (channel) => {
+  const live: { protocol: 'responses' | 'chat-completions' } = { protocol: 'responses' }
+  const call = '{"name":"switch_protocol","arguments":{}}'
+  const splitAt = 20
+  const onStreamEvent = vi.fn()
+  const onGeneratedTurn = vi.fn()
+  const execute = vi.fn(() => {
+    live.protocol = 'chat-completions'
+    return 'switched'
+  })
+  const fetch = vi.fn<typeof globalThis.fetch>(async () => {
+    if (live.protocol === 'responses') {
+      return sse([
+        { type: channel === 'text' ? 'response.output_text.delta' : 'response.reasoning_summary_text.delta', delta: call.slice(0, splitAt) },
+        ...completed([{ type: 'function_call', call_id: 'switch-1', name: 'switch_protocol', arguments: '{}' }]),
+      ])
+    }
+    return sse([{ choices: [{ index: 0, delta: channel === 'text' ? { content: call.slice(splitAt) } : { reasoning_content: call.slice(splitAt) }, finish_reason: 'stop' }] }])
+  })
+  const chatProvider: GenerationProvider = {
+    generation: model => live.protocol === 'responses'
+      ? { protocol: 'responses', webSearch: false, config: { model, baseURL: 'https://responses.test/v1/', fetch } }
+      : { protocol: 'chat-completions', config: { model, baseURL: 'https://chat.test/v1/', fetch } },
+  }
+  await expect(streamFrom({
+    model: 'test',
+    chatProvider,
+    conversation: { turns: [] },
+    options: {
+      resolveStep: async () => ({
+        model: 'test',
+        chatProvider,
+        providerId: 'live',
+        systemPrompt: '',
+        tools: [{ type: 'function', function: { name: 'switch_protocol', parameters: { type: 'object', properties: {} } }, execute }],
+      }),
+      onStreamEvent,
+      onGeneratedTurn,
+    },
+  })).rejects.toThrow('tool call "switch_protocol" as plain text')
+  expect(fetch).toHaveBeenCalledTimes(2)
+  expect(execute).toHaveBeenCalledOnce()
+  expect(onStreamEvent).not.toHaveBeenCalled()
+  expect(onGeneratedTurn).not.toHaveBeenCalled()
+})
+
 it('refreshes Responses settings after a tool changes the character configuration', async () => {
   const live = { model: 'first-model', prompt: 'First prompt', baseURL: 'https://first.example/v1/', toolName: 'rename' }
   const reasoning: ItemParam = { type: 'reasoning', id: 'private-1', summary: [], encrypted_content: 'first-provider-state' }
@@ -78,7 +128,7 @@ it('refreshes Responses settings after a tool changes the character configuratio
   expect(requests[1].body.tools?.[0]?.name).toBe('new_tool')
 })
 
-it('removes local and hosted tools for a newly incompatible Responses model', async () => {
+it.each(['auto', 'required'] as const)('applies local and hosted tool compatibility with choice %s after a Responses model change', async (choice) => {
   const live = { model: 'first', baseURL: 'https://first.test/v1/' }
   const requests: Array<{ tools?: unknown, tool_choice?: string }> = []
   const fetch: typeof globalThis.fetch = async (_url, init) => {
@@ -96,7 +146,7 @@ it('removes local and hosted tools for a newly incompatible Responses model', as
     conversation: { turns: [] },
     options: {
       toolsCompatibility: new Map([['responses:https://second.test/v1/-second', false]]),
-      toolChoice: 'required',
+      toolChoice: choice,
       resolveStep: async () => ({
         model: live.model,
         chatProvider,
@@ -112,9 +162,15 @@ it('removes local and hosted tools for a newly incompatible Responses model', as
   })
   expect(requests).toHaveLength(2)
   expect(requests[0].tools).toHaveLength(2)
-  expect(requests[0].tool_choice).toBe('required')
-  expect(requests[1].tools).toBeUndefined()
-  expect(requests[1].tool_choice).toBeUndefined()
+  expect(requests[0].tool_choice).toBe(choice)
+  if (choice === 'required') {
+    expect(requests[1].tools).toHaveLength(2)
+    expect(requests[1].tool_choice).toBe('required')
+  }
+  else {
+    expect(requests[1].tools).toBeUndefined()
+    expect(requests[1].tool_choice).toBeUndefined()
+  }
 })
 
 it('continues one assistant turn in Chat Completions after a Responses tool switches protocol', async () => {
@@ -346,7 +402,15 @@ describe('responses generation', () => {
       expect(request.messages).toBeUndefined()
       return sse(completed([]))
     }
-    await streamFrom({ model: 'test', chatProvider: provider(fetch), conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'image', url: 'data:image/png;base64,AA==', detail: 'low' }] }]) }, options: { toolChoice: { type: 'function', function: { name: 'inspect' } } } })
+    await streamFrom({
+      model: 'test',
+      chatProvider: provider(fetch),
+      conversation: { turns: readTurns([{ id: 'user', role: 'user', segments: [{ type: 'image', url: 'data:image/png;base64,AA==', detail: 'low' }] }]) },
+      options: {
+        tools: [{ type: 'function', function: { name: 'inspect', parameters: { type: 'object', properties: {} } }, execute: () => 'inspected' }],
+        toolChoice: { type: 'function', function: { name: 'inspect' } },
+      },
+    })
   })
 
   it('does not persist a failed response', async () => {
