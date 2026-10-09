@@ -118,7 +118,6 @@ export function currentPlanFromCustomerInfo(info: {
   }
 }
 
-/** Only month and year packages are sold. */
 function planBillingPeriod(unit: string | null | undefined): PlanBillingPeriod | null {
   if (unit === 'month' || unit === 'year')
     return unit

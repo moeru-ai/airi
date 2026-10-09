@@ -15,7 +15,7 @@ const FallbackBodySchema = object({ fallbackToFlux: boolean() })
 export function createFluxRoutes(
   fluxService: FluxService,
   fluxTransactionService: FluxTransactionService,
-  billingService: BillingService,
+  billingService: Pick<BillingService, 'setFallbackToFlux'>,
 ) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)

@@ -1056,13 +1056,10 @@ pages:
     description: 套餐额度
     packagesError: 暂时无法获取可用的订阅档位，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
-    currentPlan: 当前订阅
     noPlan: 暂无生效中的订阅
-    planCredits: 套餐额度
     creditsRemaining: 剩余 {percent}%
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
-    choosePlan: 选择订阅档位
     period:
       month: 月付
       year: 年付

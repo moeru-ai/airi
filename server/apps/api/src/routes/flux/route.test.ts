@@ -58,7 +58,7 @@ function createTestApp(
     c.set('user', authenticated ? { id: 'user-1', name: 'Test User', email: 'test@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() } : null)
     await next()
   })
-  app.route('/api/v1/flux', createFluxRoutes(fluxService, transactions, billing as BillingService))
+  app.route('/api/v1/flux', createFluxRoutes(fluxService, transactions, billing))
   return app
 }
 

@@ -1111,13 +1111,10 @@ pages:
     description: Plan credits
     packagesError: Failed to load plans. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
-    currentPlan: Current plan
     noPlan: No active plan
-    planCredits: Plan credits
     creditsRemaining: '{percent}% left'
     renewsAt: Renews {date}
     expiresAt: Expires {date}
-    choosePlan: Choose a plan
     period:
       month: Monthly
       year: Yearly

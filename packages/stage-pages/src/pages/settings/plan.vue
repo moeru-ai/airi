@@ -104,7 +104,12 @@ function formatDate(iso: string | null): string {
 }
 
 onMounted(async () => {
-  await plan.fetchStatus()
+  try {
+    await plan.fetchStatus()
+  }
+  catch {
+    message.value = { type: 'error', text: t('settings.pages.plan.statusError') }
+  }
   if (!fluxPurchaseDisabled) {
     await plan.fetchPackages().catch(() => {
       message.value = { type: 'error', text: t('settings.pages.plan.packagesError') }
