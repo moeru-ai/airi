@@ -1,0 +1,5 @@
+{
+  "format": "airi-character-card",
+  "version": 1,
+  "card": { "path": "card.json", "spec": "chara_card_v3" }
+}
