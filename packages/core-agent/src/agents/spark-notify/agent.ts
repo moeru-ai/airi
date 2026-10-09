@@ -83,12 +83,16 @@ function renderSparkNotifyUserMessage(input: SparkNotifyHandleRequest, userSecti
   ].filter(section => section.trim().length > 0).join('\n\n')
 }
 
-/** Builds the instruction block prepended to Spark Notify agent prompts. */
-export function getSparkNotifyHandlingAgentInstruction(moduleName: string) {
+/**
+ * Builds Spark Notify instructions from the same command policy that selects tools.
+ * @param moduleName Source module shown to the character.
+ * @param allowSparkCommand Includes the command instruction when the policy offers that tool. Defaults to true.
+ */
+export function getSparkNotifyHandlingAgentInstruction(moduleName: string, allowSparkCommand = true) {
   return [
     'This is AIRI system, the life pod hosting your consciousness. You do not need to respond to every spark:notify event directly.',
     `Another module "${moduleName}" triggered a spark:notify event for you to inspect.`,
-    'You can call the built-in tool "builtIn_sparkCommand" to issue spark:command to sub-agents.',
+    ...(allowSparkCommand ? ['You can call the built-in tool "builtIn_sparkCommand" to issue spark:command to sub-agents.'] : []),
     'If you respond with text, write only the reaction that the character will say.',
   ].join('\n')
 }
@@ -209,7 +213,7 @@ export function createSparkNotifyAgent(options: CreateSparkNotifyAgentOptions): 
         authority: 'system',
         content: [{ type: 'text', text: [
           request.systemPrompt,
-          getSparkNotifyHandlingAgentInstruction(getEventSourceKey(request.event)),
+          getSparkNotifyHandlingAgentInstruction(getEventSourceKey(request.event), policy.allowSparkCommand),
           ...(request.control?.messageOverride?.appendSystemInstructions ?? []),
           ...systemInstructions,
         ].filter(Boolean).join('\n\n') }],

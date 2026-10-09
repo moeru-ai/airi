@@ -24,6 +24,9 @@ export function streamChatCompletions(input: {
   tools?: Tool[]
   initialStep?: ResolvedStep
   onEvent: (event: StreamEvent) => Promise<void>
+  onStepBoundary: () => Promise<void>
+  onNativeToolCall: () => void
+  onToolsResolved: (tools?: Tool[]) => void
 }) {
   const messages = conversationToChatMessages(input.conversation, input.supportsContentArray, input.scope)
   const scopes: string[] = []
@@ -68,6 +71,7 @@ export function streamChatCompletions(input: {
         // Source: @xsai/stream-text 0.5 doStream and @xsai/shared-chat resolvePrepareStep.
         // Remove this mutation when xsAI supports typed provider options for each step.
         const toolsSupported = supportsTools(next.model, nextRequest, input.options)
+        input.onToolsResolved(toolsSupported ? next.tools : undefined)
         providerConfigKeys = replaceProviderConfig(requestOptions, providerConfigKeys, nextRequest.config)
         Object.assign(requestOptions, {
           apiKey: nextRequest.config.apiKey,
@@ -113,6 +117,12 @@ export function streamChatCompletions(input: {
     stopWhen: not(hasToolCall()),
     tools: input.tools,
     onEvent: async (event) => {
+      if (event.type === 'tool-call.start' || event.type === 'tool-call.delta' || event.type === 'tool-call.done' || event.type === 'tool-result.done')
+        input.onNativeToolCall()
+      if (event.type === 'step.start' || event.type === 'step.done') {
+        await input.onStepBoundary()
+        return
+      }
       const mapped = toAiriStreamEvent(event)
       if (mapped)
         await input.onEvent(mapped)

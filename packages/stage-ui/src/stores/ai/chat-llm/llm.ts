@@ -1,8 +1,10 @@
 import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
 import type { Tool } from '@xsai/shared-chat'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey, streamOptionsContentArrayCompatibilityOk, streamOptionsToolsCompatibilityOk } from '@proj-airi/core-agent'
+import type { DescribeToolImage } from './tool-images'
+
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
@@ -11,16 +13,6 @@ import { resolveLlmTools, toolNameFrom } from './tool-resolver'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 export { isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError } from '@proj-airi/core-agent'
-
-function toolChoiceRequiresTools(toolChoice: StreamOptions['toolChoice']): boolean {
-  if (toolChoice === 'required')
-    return true
-  if (typeof toolChoice !== 'object' || toolChoice === null)
-    return false
-
-  return toolChoice.type === 'function'
-    || (toolChoice.type === 'allowed_tools' && toolChoice.mode === 'required')
-}
 
 /** Core stream options plus the stage-ui reader of images in tool results. */
 export interface LlmStreamOptions extends StreamOptions {
@@ -33,40 +25,67 @@ export interface LlmStreamOptions extends StreamOptions {
   taskTools?: Tool[]
 }
 
+function toolChoiceRequiresTools(choice: StreamOptions['toolChoice']): boolean {
+  if (choice === 'required')
+    return true
+  if (typeof choice !== 'object' || choice === null)
+    return false
+  return choice.type === 'function' || (choice.type === 'allowed_tools' && choice.mode === 'required')
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
-    // Compatibility belongs to the model that received the failing request.
-    // `prepareConversation` runs for every resolved request, so the key follows a step that changes the model.
-    let key = modelKey(model, chatProvider.generation(model))
-    let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, taskTools, ...streamOptions } = options ?? {}
     const resolveTools = async () => taskTools ?? await resolveLlmTools({ customTools, describeImage: describeToolImage })
-    const resolveStep = streamOptions.resolveStep
-    // Keep names for this request's retries even after the capability cache
-    // disables tool resolution. Do not carry these names into another request.
+    const initialRequest = chatProvider.generation(model)
+    let key = modelKey(model, initialRequest)
+    let toolsDisabled = false
+    let arraysDisabled = false
+    let hasCommittedAttemptOutput = false
     const toolCallGuardNames = new Set<string>()
-    const builtinToolsResolver = async () => {
-      const tools = await resolveTools()
-      for (const tool of tools) {
+    const rememberTools = (tools?: Tool[]) => {
+      for (const tool of tools ?? []) {
         const name = toolNameFrom(tool)
         if (name)
           toolCallGuardNames.add(name)
       }
+    }
+    const builtinToolsResolver = async () => {
+      const tools = await resolveTools()
+      rememberTools(tools)
       return tools
     }
-    // Cache-disabled requests still need detection, but explicitly tool-free
-    // requests must not resolve tools or inherit names from other requests.
-    if (!startsWithTools && streamOptions.supportsTools !== false)
+
+    // The cache follows the actual request selection. Retry flags only remove capabilities for this generation.
+    const requestToolsSupported = (model: string, request: GenerationRequest) => {
+      if (toolsDisabled || streamOptions.supportsTools === false)
+        return false
+      return toolChoiceRequiresTools(streamOptions.toolChoice)
+        || (streamOptions.supportsTools ?? (toolsCompatibility.value.get(modelKey(model, request)) !== false))
+    }
+    const requestArraysSupported = (model: string, request: GenerationRequest) => !arraysDisabled
+      && (streamOptions.supportsContentArray ?? (contentArrayCompatibility.value.get(modelKey(model, request)) !== false))
+    let supportsTools = requestToolsSupported(model, initialRequest)
+    let supportsContentArray = requestArraysSupported(model, initialRequest)
+
+    // A cached downgrade still needs current tool names. An explicit tool-free request never resolves builtin tools.
+    if (!supportsTools && streamOptions.supportsTools !== false && !streamOptions.resolveStep)
       await builtinToolsResolver()
-    let hasCommittedAttemptOutput = false
-    let supportsTools = startsWithTools
-    let supportsContentArray = streamOptionsContentArrayCompatibilityOk(model, chatProvider, {
-      ...streamOptions,
-      contentArrayCompatibility: contentArrayCompatibility.value,
-    })
+    const resolveStep = streamOptions.resolveStep
+      ? async () => {
+        const next = await streamOptions.resolveStep!()
+        const request = next.chatProvider.generation(next.model)
+        key = modelKey(next.model, request)
+        supportsTools = requestToolsSupported(next.model, request)
+        supportsContentArray = requestArraysSupported(next.model, request)
+        if (streamOptions.supportsTools !== false)
+          rememberTools(next.tools)
+        return next
+      }
+      : undefined
 
     const runStream = () => coreStreamFrom({
       model,
@@ -75,73 +94,59 @@ export const useLLM = defineStore('llm', () => {
       options: {
         ...streamOptions,
         ...(taskTools ? { providerTools: false } : {}),
-        // Core uses only the tools of a resolved step, so each step carries the complete tool list.
-        resolveStep: resolveStep
-          ? async () => ({ ...await resolveStep(), tools: await resolveTools() })
-          : undefined,
-        prepareConversation: async (conversation, target) => {
-          key = modelKey(target.model, target.request)
-          return await streamOptions.prepareConversation?.(conversation, target) ?? conversation
-        },
+        resolveStep,
+        supportsTools: toolsDisabled ? false : streamOptions.supportsTools,
+        supportsContentArray: arraysDisabled ? false : streamOptions.supportsContentArray,
         onStreamEvent: async (event) => {
-          if (event.type === 'tool-call')
-            toolExecutionStarted = true
-          await streamOptions.onStreamEvent?.(event)
-        },
-        toolsCompatibility: toolsCompatibility.value,
-        contentArrayCompatibility: contentArrayCompatibility.value,
-        supportsTools,
-        supportsContentArray,
-        onStreamEvent: async (event: StreamEvent) => {
           if (event.type !== 'error')
             hasCommittedAttemptOutput = true
           await streamOptions.onStreamEvent?.(event)
         },
-        onMessages: async (finalMessages) => {
+        onGeneratedTurn: async (turn) => {
           hasCommittedAttemptOutput = true
-          await streamOptions.onMessages?.(finalMessages)
+          await streamOptions.onGeneratedTurn?.(turn)
         },
+        toolsCompatibility: toolsCompatibility.value,
+        contentArrayCompatibility: contentArrayCompatibility.value,
       },
       builtinToolsResolver,
       toolCallGuardNames,
       onNativeToolCall: () => { hasCommittedAttemptOutput = true },
     })
 
-    // Each retry disables one remaining capability. Neither capability returns
-    // during this request, so there are at most three stream attempts.
+    // Each retry removes one capability. The generation makes at most three attempts.
     while (true) {
       try {
         await runStream()
         return
       }
       catch (err) {
-        const shouldRetryWithoutTools = isPlainTextToolCallError(err)
+        const retryWithoutTools = isPlainTextToolCallError(err)
           && supportsTools
           && !hasCommittedAttemptOutput
           && !toolChoiceRequiresTools(streamOptions.toolChoice)
         if (isToolRelatedError(err)) {
-          const retryMessage = shouldRetryWithoutTools ? ' and retrying once' : ''
+          const retryMessage = retryWithoutTools ? ' and retrying once' : ''
           console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error${retryMessage}`)
           toolsCompatibility.value.set(key, false)
         }
-        // Keep explicit array support intact. Its request-level override takes
-        // precedence over the cache, so the same payload cannot recover inline.
-        const shouldRetryWithoutArrays = isContentArrayRelatedError(err)
+        const retryWithoutArrays = isContentArrayRelatedError(err)
           && supportsContentArray
           && streamOptions.supportsContentArray !== true
           && !hasCommittedAttemptOutput
         if (isContentArrayRelatedError(err)) {
-          const retryMessage = shouldRetryWithoutArrays ? ' and retrying once' : ''
+          const retryMessage = retryWithoutArrays ? ' and retrying once' : ''
           console.warn(`[llm] Auto-disabling content-part arrays for "${key}"${retryMessage}`)
           contentArrayCompatibility.value.set(key, false)
         }
-        if (shouldRetryWithoutTools) {
+        if (retryWithoutTools) {
+          toolsDisabled = true
           supportsTools = false
           continue
         }
-        // Issue #1500: string-only providers reject content-part arrays.
-        // Retry errors return to this classifier so both fallbacks can apply.
-        if (shouldRetryWithoutArrays) {
+        // Issue #1500: Keep the same classifier for both fallback orders.
+        if (retryWithoutArrays) {
+          arraysDisabled = true
           supportsContentArray = false
           continue
         }
