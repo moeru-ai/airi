@@ -73,10 +73,9 @@ function createMockBillingService(flux = 100): BillingService {
 function createMockSubscriptionService(overrides?: Partial<SubscriptionService>): SubscriptionService {
   // No plan quota with Flux fallback on: existing debit assertions keep passing.
   return {
-    getStatus: vi.fn(async () => ({ subscriptions: [], allowances: [] })),
+    getStatus: vi.fn(async () => ({ allowances: [] })),
     spendableMicro: vi.fn(async () => 0),
     debitCredits: vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: 0, requestedMicro: input.microCredit, replay: false })),
-    retireOtherEntitlements: vi.fn(),
     getFallbackPreference: vi.fn(async () => true),
     setFallbackPreference: vi.fn(),
     deleteAllForUser: vi.fn(),

@@ -1,6 +1,8 @@
 import type { ConfigKVService } from '../../../services/adapters/config-kv'
 import type { RevenuecatSubscriptionSync } from '../../../services/adapters/revenuecat-subscriptions'
 import type { PaymentService } from '../../../services/domain/payment'
+import type { SubscriptionService } from '../../../services/domain/subscriptions'
+import type { RevenuecatEvent } from '../event'
 
 import { Buffer } from 'node:buffer'
 import { createHmac, timingSafeEqual } from 'node:crypto'
@@ -72,14 +74,27 @@ function verifySignature(
 }
 
 /**
- * Verifies a RevenueCat webhook, then settles Flux through Payment CORE.
- * Only `NON_RENEWING_PURCHASE` grants. Subscription events, test events,
- * and unknown products ack 200 without a grant so RevenueCat stops retrying.
+ * Verifies a RevenueCat webhook, appends it to the event log, then settles.
+ * Only `NON_RENEWING_PURCHASE` grants Flux. Only purchase, renewal, and
+ * product change grant Credits. A duplicate `event_id` acks without running.
  */
+function eventRecord(event: RevenuecatEvent, payload: unknown) {
+  return {
+    eventId: event.id,
+    type: event.type,
+    appUserId: event.app_user_id ?? null,
+    productId: event.product_id ?? null,
+    entitlementIds: (event.entitlement_ids ?? []).filter(id => id != null),
+    payload,
+  }
+}
+
 export function createWebhookOperation(
   payment: PaymentService,
   configKV: ConfigKVService,
   subscriptionSync: RevenuecatSubscriptionSync,
+  subscriptions: Pick<SubscriptionService, 'hasEvent' | 'recordEvent'>,
+  invalidateStatus: (userId: string) => Promise<void>,
   secrets: RevenuecatWebhookSecrets,
 ) {
   return async (
@@ -110,12 +125,23 @@ export function createWebhookOperation(
     const event = parsed.output.event
     logger.withFields({ type: event.type, id: event.id }).log('Webhook event received')
 
-    if (event.type === 'TEST')
+    if (await subscriptions.hasEvent(event.id)) {
+      if (isSubscriptionEvent(event.type) && event.app_user_id)
+        await invalidateStatus(event.app_user_id)
       return { received: true }
+    }
+
+    const record = () => subscriptions.recordEvent(eventRecord(event, parsed.output))
+
+    if (event.type === 'TEST') {
+      await record()
+      return { received: true }
+    }
 
     if (isSubscriptionEvent(event.type)) {
       if (!event.app_user_id) {
         logger.withFields({ id: event.id }).warn('Subscription event is missing app_user_id')
+        await record()
         return { received: true }
       }
       const result = await subscriptionSync.syncEvent({
@@ -129,6 +155,8 @@ export function createWebhookOperation(
         expirationAtMs: event.expiration_at_ms,
         purchasedAtMs: event.purchased_at_ms,
       })
+      await invalidateStatus(event.app_user_id)
+      await record()
       logger.withFields({
         type: event.type,
         id: event.id,
@@ -140,17 +168,20 @@ export function createWebhookOperation(
 
     if (event.type !== FLUX_GRANT_EVENT) {
       logger.withFields({ type: event.type, id: event.id }).log('Ignoring webhook event')
+      await record()
       return { received: true }
     }
 
     if (!event.app_user_id || !event.product_id || !event.transaction_id) {
       logger.withFields({ id: event.id }).warn('Non-renewing purchase is missing identifiers')
+      await record()
       return { received: true }
     }
 
     const pack = await resolveRevenuecatPack(configKV, event.product_id)
     if (!pack) {
       logger.withFields({ id: event.id, productId: event.product_id }).warn('RevenueCat product is unknown')
+      await record()
       return { received: true }
     }
 
@@ -158,6 +189,7 @@ export function createWebhookOperation(
       productId: event.product_id,
       transactionId: event.transaction_id,
     }))
+    await record()
     logger.withFields({
       userId: event.app_user_id,
       transactionId: event.transaction_id,

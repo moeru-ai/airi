@@ -1,7 +1,9 @@
 import type { Database } from '../../libs/db'
 import type { ConfigDefinitions, ConfigKVService } from '../../services/adapters/config-kv'
+import type { RevenuecatStatus } from '../../services/adapters/revenuecat-status'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { PaymentService } from '../../services/domain/payment'
+import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
@@ -68,9 +70,11 @@ function createTestApp(
   payment: PaymentService,
   configKV: ConfigKVService = createPacksConfigKV(),
   subscriptionSync: RevenuecatSubscriptionSync,
+  subscriptions: Pick<SubscriptionService, 'hasEvent' | 'recordEvent'>,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
+  entitlements: Pick<RevenuecatStatus, 'invalidate'> = { invalidate: vi.fn(async () => undefined) },
 ) {
-  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, env, null)
+  const routes = createRevenuecatRoutes(payment, configKV, subscriptionSync, subscriptions, entitlements, env, null)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -127,11 +131,20 @@ describe('revenuecat routes', () => {
     db = await mockDB(schema)
   })
 
-  function setup(configKV: ConfigKVService = createPacksConfigKV()) {
+  async function setup(configKV: ConfigKVService = createPacksConfigKV()) {
+    await db.delete(schema.subscriptionConsumption)
+    await db.delete(schema.subscriptionAllowance)
+    await db.delete(schema.revenuecatEvent)
     const payment = createMockPayment()
     const subscriptions = createSubscriptionService(db)
     const sync = createRevenuecatSubscriptionSync(subscriptions, configKV)
-    return { payment, subscriptions, app: createTestApp(payment, configKV, sync) }
+    const invalidate = vi.fn(async () => undefined)
+    return {
+      payment,
+      subscriptions,
+      invalidate,
+      app: createTestApp(payment, configKV, sync, subscriptions, undefined, { invalidate }),
+    }
   }
 
   function subscriptionBody(overrides = {}) {
@@ -154,7 +167,7 @@ describe('revenuecat routes', () => {
   }
 
   it('settles a non-renewing purchase as revenuecat evidence', async () => {
-    const { payment, app } = setup()
+    const { payment, app } = await setup()
 
     const res = await postWebhook(app, webhookBody())
     expect(res.status).toBe(200)
@@ -170,19 +183,19 @@ describe('revenuecat routes', () => {
   })
 
   it('returns 401 on authorization mismatch', async () => {
-    const { app } = setup()
+    const { app } = await setup()
     const res = await postWebhook(app, webhookBody(), { authorization: 'wrong' })
     expect(res.status).toBe(401)
   })
 
   it('returns 401 on signature mismatch', async () => {
-    const { app } = setup()
+    const { app } = await setup()
     const res = await postWebhook(app, webhookBody(), { signature: 't=123,v1=deadbeef' })
     expect(res.status).toBe(401)
   })
 
   it('acks unknown products without a grant', async () => {
-    const { payment, app } = setup()
+    const { payment, app } = await setup()
 
     const res = await postWebhook(app, webhookBody({ product_id: 'unknown', id: 'event-2' }))
     expect(res.status).toBe(200)
@@ -190,7 +203,7 @@ describe('revenuecat routes', () => {
   })
 
   it('syncs a subscription purchase and opens a quota period', async () => {
-    const { payment, subscriptions, app } = setup()
+    const { payment, subscriptions, app } = await setup()
 
     const res = await postWebhook(app, subscriptionBody())
     expect(res.status).toBe(200)
@@ -198,23 +211,24 @@ describe('revenuecat routes', () => {
     expect(payment.settle).not.toHaveBeenCalled()
 
     const status = await subscriptions.getStatus('user-1')
-    expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_go', status: 'active' }])
     expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedCredit: 2000, usedCredit: 0 }])
   })
 
-  it('keeps access on cancellation until expiry, then revokes on expiration', async () => {
-    const { subscriptions, app } = setup()
+  it('keeps the Credit period on cancellation and does not grant again', async () => {
+    const { subscriptions, invalidate, app } = await setup()
     const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000
 
     await postWebhook(app, subscriptionBody({ id: 'sub-event-2', expiration_at_ms: expiresAt }))
+    const replay = await postWebhook(app, subscriptionBody({ id: 'sub-event-2', expiration_at_ms: expiresAt }))
+    expect(replay.status).toBe(200)
+    expect(await replay.json()).toEqual({ received: true })
+
     await postWebhook(app, subscriptionBody({ id: 'sub-event-3', type: 'CANCELLATION', expiration_at_ms: expiresAt }))
 
-    let status = await subscriptions.getStatus('user-1')
-    expect(status.subscriptions).toMatchObject([{ entitlementId: 'airi_go', status: 'cancelled' }])
-
-    await postWebhook(app, subscriptionBody({ id: 'sub-event-4', type: 'EXPIRATION', expiration_at_ms: Date.now() - 1000 }))
-    status = await subscriptions.getStatus('user-1')
-    expect(status.subscriptions).toEqual([])
+    const status = await subscriptions.getStatus('user-1')
+    expect(status.allowances).toHaveLength(1)
+    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedCredit: 2000 }])
+    expect(invalidate).toHaveBeenCalledWith('user-1')
   })
 
   it('returns 503 when no secret is configured', async () => {
@@ -223,6 +237,7 @@ describe('revenuecat routes', () => {
       payment,
       createPacksConfigKV(),
       {} as RevenuecatSubscriptionSync,
+      { hasEvent: vi.fn(async () => false), recordEvent: vi.fn() },
       { REVENUECAT_WEBHOOK_AUTH: undefined, REVENUECAT_WEBHOOK_SECRET: undefined } as never,
     )
     const res = await app.request('/api/v1/revenuecat/webhook', {
@@ -234,7 +249,7 @@ describe('revenuecat routes', () => {
   })
 
   it('lists flux packs on GET /packages', async () => {
-    const { app } = setup()
+    const { app } = await setup()
     const res = await app.request('/api/v1/revenuecat/packages')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual([{ productId: 'flux_500', fluxAmount: 500 }])

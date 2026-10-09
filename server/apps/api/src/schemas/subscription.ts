@@ -1,36 +1,27 @@
 import type { InferSelectModel } from 'drizzle-orm'
 
 import { sql } from 'drizzle-orm'
-import { bigint, boolean, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import { bigint, boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 import { nanoid } from '../utils/id'
 
 // NOTICE: bare userId is intentional — no FK to user.id. better-auth hard-deletes
-// the user row; a cascade would wipe these soft-delete archive rows kept for
-// billing audit. See `server/apps/api/docs/ai-context/account-deletion.md`.
+// the user row; a cascade would wipe these archive rows kept for billing audit.
+// See `server/apps/api/docs/ai-context/account-deletion.md`.
 
-export const subscriptionStatusValues = ['active', 'past_due', 'cancelled', 'expired'] as const
-
-export type SubscriptionStatus = (typeof subscriptionStatusValues)[number]
-
-/** One row per user and entitlement. Synced from RevenueCat webhooks. */
-export const subscription = pgTable('subscription', {
+/** Append-only RevenueCat webhook log. `event_id` rejects a redelivery. */
+export const revenuecatEvent = pgTable('revenuecat_event', {
   id: text('id').primaryKey().$defaultFn(() => nanoid()),
-  userId: text('user_id').notNull(),
-  entitlementId: text('entitlement_id').notNull(),
+  eventId: text('event_id').notNull(),
+  type: text('type').notNull(),
+  appUserId: text('app_user_id'),
   productId: text('product_id'),
-  store: text('store'),
-  environment: text('environment'),
-  status: text('status').notNull().$type<SubscriptionStatus>(),
-  expiresAt: timestamp('expires_at'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull(),
-  deletedAt: timestamp('deleted_at'),
+  entitlementIds: text('entitlement_ids').array().notNull(),
+  payload: jsonb('payload').notNull(),
+  receivedAt: timestamp('received_at').defaultNow().notNull(),
 }, table => [
-  uniqueIndex('subscription_user_entitlement_uidx')
-    .on(table.userId, table.entitlementId)
-    .where(sql`deleted_at IS NULL`),
-  index('subscription_user_id_idx').on(table.userId),
+  uniqueIndex('revenuecat_event_event_id_uidx').on(table.eventId),
+  index('revenuecat_event_app_user_id_idx').on(table.appUserId),
 ])
 
 /**
@@ -77,7 +68,7 @@ export const userBillingPreference = pgTable('user_billing_preference', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 })
 
-export type Subscription = InferSelectModel<typeof subscription>
+export type RevenuecatEventRow = InferSelectModel<typeof revenuecatEvent>
 export type SubscriptionAllowance = InferSelectModel<typeof subscriptionAllowance>
 export type SubscriptionConsumption = InferSelectModel<typeof subscriptionConsumption>
 export type UserBillingPreference = InferSelectModel<typeof userBillingPreference>

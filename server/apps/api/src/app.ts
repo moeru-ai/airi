@@ -4,6 +4,7 @@ import type { OtelInstance } from './otel'
 import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { RevenuecatStatus } from './services/adapters/revenuecat-status'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
@@ -72,6 +73,7 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
+import { createRevenuecatStatus } from './services/adapters/revenuecat-status'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
 import { createLlmBillingService } from './services/domain/billing/llm-billing'
@@ -109,6 +111,7 @@ interface AppDeps {
   speechBilling: SpeechMeter
   subscriptionService: SubscriptionService
   subscriptionSync: RevenuecatSubscriptionSync
+  revenuecatStatus: RevenuecatStatus
   requestLogService: RequestLogService
   voicePackService: VoicePackService
   productEventService: ProductEventService
@@ -461,6 +464,8 @@ export async function buildApp(deps: AppDeps) {
       deps.paymentService,
       deps.configKV,
       deps.subscriptionSync,
+      deps.subscriptionService,
+      deps.revenuecatStatus,
       deps.env,
       deps.otel?.rateLimit ?? null,
     ))
@@ -468,7 +473,7 @@ export async function buildApp(deps: AppDeps) {
     /**
      * Subscription status and billing preference.
      */
-    .route('/api/v1/subscriptions', createSubscriptionRoutes(deps.subscriptionService))
+    .route('/api/v1/subscriptions', createSubscriptionRoutes(deps.subscriptionService, deps.revenuecatStatus))
 
     /**
      * Apple IAP routes (StoreKit 2 JWS and Notifications V2).
@@ -746,6 +751,14 @@ export async function createApp() {
     ),
   })
 
+  const revenuecatStatus = injeca.provide('services:revenuecatStatus', {
+    dependsOn: { redis, env: parsedEnv },
+    build: ({ dependsOn }) => createRevenuecatStatus({
+      apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null,
+      redis: dependsOn.redis,
+    }),
+  })
+
   // NOTICE:
   // The deletion service is a thin scheduler that delegates to each business
   // service's own `deleteAllForUser` method. Adding a new business module:
@@ -811,6 +824,7 @@ export async function createApp() {
     paymentService,
     subscriptionService,
     subscriptionSync,
+    revenuecatStatus,
     appleIapVerifier,
     stripe,
     billingService,
@@ -841,6 +855,7 @@ export async function createApp() {
     paymentService: resolved.paymentService,
     subscriptionService: resolved.subscriptionService,
     subscriptionSync: resolved.subscriptionSync,
+    revenuecatStatus: resolved.revenuecatStatus,
     appleIapVerifier: resolved.appleIapVerifier,
     stripe: resolved.stripe,
     voicePackService: resolved.voicePackService,

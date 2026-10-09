@@ -1,24 +1,13 @@
 import type { Database } from '../../../libs/db'
-import type { SubscriptionStatus } from '../../../schemas/subscription'
 
 import { useLogger } from '@guiiai/logg'
-import { and, asc, eq, gt, isNull, lt, ne, or, sql } from 'drizzle-orm'
+import { and, asc, eq, gt, isNull, or, sql } from 'drizzle-orm'
 
 import { availableMicroCredits, MICRO_PER_CREDIT, postMicroCredits } from '../billing/credit-posting'
 
 import * as schema from '../../../schemas/subscription'
 
 const logger = useLogger('subscriptions')
-
-interface SubscriptionUpsert {
-  userId: string
-  entitlementId: string
-  status: SubscriptionStatus
-  productId?: string | null
-  source?: string | null
-  environment?: string | null
-  expiresAt?: Date | null
-}
 
 interface AllowancePeriod {
   userId: string
@@ -28,6 +17,15 @@ interface AllowancePeriod {
   periodEnd?: Date | null
   /** Deduplicates redeliveries of the same grant. Null disables the check. */
   eventKey?: string | null
+}
+
+interface RevenuecatEventRecord {
+  eventId: string
+  type: string
+  appUserId: string | null
+  productId: string | null
+  entitlementIds: string[]
+  payload: unknown
 }
 
 function usableAllowanceSql() {
@@ -46,41 +44,37 @@ function openAllowanceWhere(userId: string, now: Date) {
 }
 
 /**
- * Source-agnostic subscription state. Callers (RevenueCat webhooks, manual
- * grants, future store-direct integrations) translate their own events into
- * these domain inputs. The core never sees a processor payload.
+ * Local Credit ledger for subscription plans.
+ * RevenueCat owns entitlement status. Callers translate processor events
+ * into period grants. This module never reads a processor payload.
  */
 export function createSubscriptionService(db: Database) {
-  async function upsertSubscription(input: SubscriptionUpsert): Promise<void> {
-    // Partial unique index (WHERE deleted_at IS NULL) cannot be an
-    // ON CONFLICT target, so insert-then-update instead of upsert.
-    await db.insert(schema.subscription).values({
-      userId: input.userId,
-      entitlementId: input.entitlementId,
+  async function hasEvent(eventId: string): Promise<boolean> {
+    const [row] = await db
+      .select({ eventId: schema.revenuecatEvent.eventId })
+      .from(schema.revenuecatEvent)
+      .where(eq(schema.revenuecatEvent.eventId, eventId))
+      .limit(1)
+    return row != null
+  }
+
+  /** Inserts one webhook event. A repeat `eventId` is ignored. */
+  async function recordEvent(input: RevenuecatEventRecord): Promise<void> {
+    await db.insert(schema.revenuecatEvent).values({
+      eventId: input.eventId,
+      type: input.type,
+      appUserId: input.appUserId,
       productId: input.productId,
-      store: input.source,
-      environment: input.environment,
-      status: input.status,
-      expiresAt: input.expiresAt,
+      entitlementIds: input.entitlementIds,
+      payload: input.payload,
     }).onConflictDoNothing()
-    await db.update(schema.subscription).set({
-      productId: input.productId,
-      store: input.source,
-      environment: input.environment,
-      status: input.status,
-      expiresAt: input.expiresAt,
-      updatedAt: new Date(),
-      deletedAt: null,
-    }).where(and(
-      eq(schema.subscription.userId, input.userId),
-      eq(schema.subscription.entitlementId, input.entitlementId),
-      isNull(schema.subscription.deletedAt),
-    ))
   }
 
   /**
-   * Opens a fresh quota period and forfeits the old remainder: prior open
-   * periods close at the new start. Returns false on duplicate eventKey.
+   * Opens a fresh quota period and forfeits every other open period for the
+   * user. An older period that arrives after a newer one is stored closed,
+   * so the grant depends only on this event's own times.
+   * Returns false on duplicate eventKey.
    */
   async function openPeriod(input: AllowancePeriod): Promise<boolean> {
     return db.transaction(async (tx) => {
@@ -94,21 +88,34 @@ export function createSubscriptionService(db: Database) {
           return false
       }
 
-      await tx.update(schema.subscriptionAllowance)
-        .set({ periodEnd: input.periodStart, updatedAt: new Date() })
+      const [later] = await tx
+        .select({ id: schema.subscriptionAllowance.id })
+        .from(schema.subscriptionAllowance)
         .where(and(
           eq(schema.subscriptionAllowance.userId, input.userId),
-          eq(schema.subscriptionAllowance.entitlementId, input.entitlementId),
-          or(
-            isNull(schema.subscriptionAllowance.periodEnd),
-            gt(schema.subscriptionAllowance.periodEnd, input.periodStart),
-          ),
+          gt(schema.subscriptionAllowance.periodStart, input.periodStart),
         ))
+        .limit(1)
+
+      const superseded = later != null
+      if (!superseded) {
+        await tx.update(schema.subscriptionAllowance)
+          .set({ periodEnd: input.periodStart, updatedAt: new Date() })
+          .where(and(
+            eq(schema.subscriptionAllowance.userId, input.userId),
+            or(
+              isNull(schema.subscriptionAllowance.periodEnd),
+              gt(schema.subscriptionAllowance.periodEnd, input.periodStart),
+            ),
+          ))
+      }
+
+      const closedAt = new Date(Math.min(input.periodStart.getTime(), Date.now()))
       await tx.insert(schema.subscriptionAllowance).values({
         userId: input.userId,
         entitlementId: input.entitlementId,
         periodStart: input.periodStart,
-        periodEnd: input.periodEnd,
+        periodEnd: superseded ? closedAt : input.periodEnd,
         grantedCredit: input.grantedCredit,
         usedCredit: 0,
         unsettledMicroCredit: 0,
@@ -126,30 +133,11 @@ export function createSubscriptionService(db: Database) {
       .orderBy(asc(schema.subscriptionAllowance.periodEnd))
   }
 
-  /** Live rows with usable access. Expired rows and lapsed periods are excluded. */
+  /** Open Credit periods with a usable remainder. */
   async function getStatus(userId: string, now: Date = new Date()) {
-    const rows = await db
-      .select()
-      .from(schema.subscription)
-      .where(and(
-        eq(schema.subscription.userId, userId),
-        isNull(schema.subscription.deletedAt),
-      ))
-
-    const active = rows.filter(row => row.status !== 'expired' && (!row.expiresAt || row.expiresAt > now))
-    const allowances = active.length === 0
-      ? []
-      : await listOpenAllowances(userId, now)
+    const allowances = await listOpenAllowances(userId, now)
 
     return {
-      subscriptions: active.map(row => ({
-        entitlementId: row.entitlementId,
-        productId: row.productId,
-        store: row.store,
-        environment: row.environment,
-        status: row.status,
-        expiresAt: row.expiresAt?.toISOString() ?? null,
-      })),
       allowances: allowances.map((row) => {
         const remainingMicro = Number(availableMicroCredits({
           credits: row.grantedCredit - row.usedCredit,
@@ -244,50 +232,6 @@ export function createSubscriptionService(db: Database) {
     })
   }
 
-  /**
-   * Moves an open Credit period end later.
-   * A closed period stays closed.
-   * An earlier date does not shorten the period.
-   */
-  async function extendPeriod(input: {
-    userId: string
-    entitlementId: string
-    periodEnd: Date
-  }): Promise<void> {
-    const now = new Date()
-    await db.update(schema.subscriptionAllowance)
-      .set({ periodEnd: input.periodEnd, updatedAt: now })
-      .where(and(
-        eq(schema.subscriptionAllowance.userId, input.userId),
-        eq(schema.subscriptionAllowance.entitlementId, input.entitlementId),
-        gt(schema.subscriptionAllowance.periodEnd, now),
-        lt(schema.subscriptionAllowance.periodEnd, input.periodEnd),
-      ))
-  }
-
-  /** Expires every other entitlement and closes its open Credit periods. */
-  async function retireOtherEntitlements(userId: string, keepEntitlementId: string): Promise<void> {
-    const now = new Date()
-    await db.update(schema.subscription)
-      .set({ status: 'expired', updatedAt: now })
-      .where(and(
-        eq(schema.subscription.userId, userId),
-        ne(schema.subscription.entitlementId, keepEntitlementId),
-        isNull(schema.subscription.deletedAt),
-        ne(schema.subscription.status, 'expired'),
-      ))
-    await db.update(schema.subscriptionAllowance)
-      .set({ periodEnd: now, updatedAt: now })
-      .where(and(
-        eq(schema.subscriptionAllowance.userId, userId),
-        ne(schema.subscriptionAllowance.entitlementId, keepEntitlementId),
-        or(
-          isNull(schema.subscriptionAllowance.periodEnd),
-          gt(schema.subscriptionAllowance.periodEnd, now),
-        ),
-      ))
-  }
-
   async function getFallbackPreference(userId: string): Promise<boolean> {
     const [row] = await db
       .select({ fallbackToFlux: schema.userBillingPreference.fallbackToFlux })
@@ -309,13 +253,8 @@ export function createSubscriptionService(db: Database) {
   }
 
   async function deleteAllForUser(userId: string) {
-    const now = new Date()
-    await db.update(schema.subscription)
-      .set({ deletedAt: now, updatedAt: now })
-      .where(and(
-        eq(schema.subscription.userId, userId),
-        isNull(schema.subscription.deletedAt),
-      ))
+    await db.delete(schema.revenuecatEvent)
+      .where(eq(schema.revenuecatEvent.appUserId, userId))
     await db.delete(schema.subscriptionAllowance)
       .where(eq(schema.subscriptionAllowance.userId, userId))
     await db.delete(schema.subscriptionConsumption)
@@ -326,13 +265,12 @@ export function createSubscriptionService(db: Database) {
   }
 
   return {
-    upsertSubscription,
+    hasEvent,
+    recordEvent,
     openPeriod,
     getStatus,
     spendableMicro,
     debitCredits,
-    extendPeriod,
-    retireOtherEntitlements,
     getFallbackPreference,
     setFallbackPreference,
     deleteAllForUser,

@@ -23,6 +23,7 @@ function createTestDeps(webAppUrl = 'https://airi.moeru.ai') {
     paymentService: {} as never,
     subscriptionService: {} as never,
     subscriptionSync: {} as never,
+    revenuecatStatus: { read: vi.fn(async () => []), invalidate: vi.fn() } as never,
     appleIapVerifier: null,
     stripe: null,
     llmBilling: {} as never,

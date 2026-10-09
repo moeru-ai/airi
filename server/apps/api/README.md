@@ -143,9 +143,10 @@ RevenueCat lives on `/api/v1/revenuecat/*`. `GET /packages` lists the
 `REVENUECAT_FLUX_PACKS` product-to-Flux map. `POST /webhook` verifies the
 dashboard authorization header and HMAC signature over the raw body, then
 settles `NON_RENEWING_PURCHASE` events as `revenuecat` evidence receipts.
-Subscription lifecycle events sync into `src/services/domain/subscriptions`
-(one row per user and entitlement, plus per-period quota allowances).
-Flux balance stays self-managed; In-App Currency is not used.
+The webhook appends every accepted event to `revenuecat_event`.
+`INITIAL_PURCHASE`, `RENEWAL`, and `PRODUCT_CHANGE` also open a Credit period.
+Other subscription events are audit rows only.
+Flux balance stays self-managed. In-App Currency is not used.
 
 ## Subscriptions
 
@@ -154,16 +155,20 @@ are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
 Store all enter through the single RevenueCat webhook; `store` is only a
 field, so new channels need no server changes.
 
-`src/services/domain/subscriptions` owns sync, status reads, Credit debit,
-the Flux-fallback preference (default off), and `deleteAllForUser`.
-Status comes from webhook events. Only `EXPIRATION` revokes access. `BILLING_ISSUE`
-and `CANCELLATION` keep access until `expires_at`. `INITIAL_PURCHASE`,
-`RENEWAL`, and `PRODUCT_CHANGE` open a fresh Credit period and forfeit the
-old remainder. Those events also expire every other entitlement for that
-user. `UNCANCELLATION` sets the subscription back to active and leaves the
-Credit period in place. `SUBSCRIPTION_EXTENDED` moves the open Credit period
-end to the new expiration and does not grant Credits. One Credit equals one
-Flux.
+RevenueCat is the source for entitlement status.
+`GET /subscriptions/status` reads the RevenueCat subscriber API and caches
+the result for 60 seconds. A subscription webhook deletes that cache.
+Status reads return 503 when `REVENUECAT_API_KEY` is unset.
+
+`src/services/domain/subscriptions` owns Credit grants, Credit debit, the
+Flux-fallback preference (default off), the webhook event log, and
+`deleteAllForUser`. It does not store subscription status.
+`INITIAL_PURCHASE`, `RENEWAL`, and `PRODUCT_CHANGE` open a fresh Credit
+period and forfeit every other open period for that user. A late event with
+an earlier period start is stored closed. `CANCELLATION`, `EXPIRATION`,
+`BILLING_ISSUE`, `UNCANCELLATION`, `SUBSCRIPTION_EXTENDED`, and `TRANSFER`
+do not change Credits. A refund does not take Credits back. One Credit
+equals one Flux.
 `src/services/domain/billing/credit-posting.ts` settles both pools in
 micro-Credits (1 Credit = 1,000,000 micro-Credits). Chat and speech call
 `canCover` and `settle`. The earliest open Credit period pays when it covers
@@ -172,8 +177,8 @@ must cover the whole fee alone. Plan Credits never touch `user_flux`. They
 live in `subscription_allowance` with per-request rows in
 `subscription_consumption`.
 Product-to-plan mapping lives in ConfigKV `REVENUECAT_SUBSCRIPTION_PLANS`.
-Status reads the local ledger. A missed webhook stays stale until RevenueCat
-resends that event.
+A missed webhook skips the Credit grant until RevenueCat sends that event
+again. Status does not go stale, because it is read from RevenueCat.
 
 ## Run locally
 

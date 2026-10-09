@@ -1,4 +1,5 @@
 import type { Database } from '../../libs/db'
+import type { RevenuecatStatus, SubscriptionEntitlement } from '../../services/adapters/revenuecat-status'
 import type { SubscriptionService } from '../../services/domain/subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -22,8 +23,15 @@ const testUser = {
   updatedAt: new Date(),
 }
 
-function createTestApp(subscriptions: SubscriptionService) {
-  const routes = createSubscriptionRoutes(subscriptions)
+function createEntitlements(subscriptions: SubscriptionEntitlement[] = []): Pick<RevenuecatStatus, 'read'> {
+  return { read: async () => subscriptions }
+}
+
+function createTestApp(
+  subscriptions: SubscriptionService,
+  entitlements: Pick<RevenuecatStatus, 'read'> = createEntitlements(),
+) {
+  const routes = createSubscriptionRoutes(subscriptions, entitlements)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -71,7 +79,7 @@ describe('subscription routes', () => {
   async function request(path: string, init?: RequestInit, user?: typeof testUser) {
     await db.delete(schema.subscriptionConsumption)
     await db.delete(schema.subscriptionAllowance)
-    await db.delete(schema.subscription)
+    await db.delete(schema.revenuecatEvent)
     await db.delete(schema.userBillingPreference)
     subscriptions = createSubscriptionService(db)
     const app = createTestApp(subscriptions)
@@ -114,16 +122,10 @@ describe('subscription routes', () => {
   it('returns the remaining percent and omits credit counts', async () => {
     await db.delete(schema.subscriptionConsumption)
     await db.delete(schema.subscriptionAllowance)
-    await db.delete(schema.subscription)
+    await db.delete(schema.revenuecatEvent)
     await db.delete(schema.userBillingPreference)
     const core = createSubscriptionService(db)
     const periodEnd = new Date(Date.now() + 60_000)
-    await core.upsertSubscription({
-      userId: testUser.id,
-      entitlementId: 'airi_go',
-      status: 'active',
-      expiresAt: periodEnd,
-    })
     await core.openPeriod({
       userId: testUser.id,
       entitlementId: 'airi_go',
@@ -137,7 +139,14 @@ describe('subscription routes', () => {
       microCredit: 560 * MICRO_PER_CREDIT,
       requestId: 'req-percent',
     })
-    const app = createTestApp(core)
+    const app = createTestApp(core, createEntitlements([{
+      entitlementId: 'airi_go',
+      productId: 'rc_go_monthly',
+      store: 'app_store',
+      environment: 'SANDBOX',
+      status: 'active',
+      expiresAt: periodEnd.toISOString(),
+    }]))
 
     const res = await app.fetch(
       new Request('http://localhost/api/v1/subscriptions/status'),
@@ -147,6 +156,7 @@ describe('subscription routes', () => {
 
     expect(res.status).toBe(200)
     expect(body).toMatchObject({
+      subscriptions: [{ entitlementId: 'airi_go', status: 'active' }],
       allowances: [{ entitlementId: 'airi_go', remainingPercent: 72 }],
     })
     expect(body).not.toHaveProperty('allowances.0.grantedCredit')
