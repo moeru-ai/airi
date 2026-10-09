@@ -6,16 +6,19 @@
 import process from 'node:process'
 
 import { execFile } from 'node:child_process'
-import { readdir, readFile, realpath, stat } from 'node:fs/promises'
-import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path'
-import { createInterface } from 'node:readline'
+import { readdir, readFile, stat } from 'node:fs/promises'
+import { basename, join, resolve } from 'node:path'
 import { promisify } from 'node:util'
+
+// eslint-disable-next-line no-restricted-syntax -- Plain Node.js ESM needs the file extension.
+import { startMcpServer, truncate as truncateText } from '../shared/mcp-stdio.mjs'
+// eslint-disable-next-line no-restricted-syntax -- Plain Node.js ESM needs the file extension.
+import { GIT_SECRET_EXCLUDES, isBlockedName, resolveInsideRoot } from '../shared/path-guard.mjs'
 
 const execFileAsync = promisify(execFile)
 
 const ROOT = resolve(process.env.WORKSPACE_ROOT ?? process.argv[2] ?? process.cwd())
 const SERVER_INFO = { name: 'workspace-reader', version: '1.0.0' }
-const DEFAULT_PROTOCOL_VERSION = '2025-06-18'
 const MAX_FILE_BYTES = 200_000
 const MAX_OUTPUT_CHARS = 50_000
 const MAX_DIR_ENTRIES = 500
@@ -24,32 +27,12 @@ const DEFAULT_LOG_COUNT = 15
 const MAX_LOG_COUNT = 100
 const GIT_TIMEOUT_MS = 10_000
 
-// Names that can hold secrets, or that are too big to be useful. They are hidden and refused.
-const BLOCKED_SEGMENTS = new Set(['.git', 'node_modules', '.open-next', '.next', '.turbo', 'account-info.md', 'settings.local.json', 'id_rsa', 'id_ed25519'])
-const BLOCKED_PATTERNS = [/^\.env(?!\.example$)(\..*)?$/i, /\.local\.md$/i, /\.(pem|key|p12|pfx)$/i]
-const BLOCKED_PATH_PARTS = [`.claude${sep}local`]
-// Keep the same secret files out of git output.
-const GIT_EXCLUDES = [':(exclude,glob)**/.env', ':(exclude,glob)**/.env.*', ':(exclude,glob)**/*.local.md', ':(exclude,glob)**/account-info.md']
-
-function isBlockedName(name) {
-  return BLOCKED_SEGMENTS.has(name.toLowerCase()) || BLOCKED_PATTERNS.some(pattern => pattern.test(name))
-}
-
 function truncate(text, limit = MAX_OUTPUT_CHARS) {
-  return text.length > limit ? `${text.slice(0, limit)}\n… (đã cắt bớt, còn ${text.length - limit} ký tự)` : text
+  return truncateText(text, limit)
 }
 
-/** Resolves a user path inside ROOT and refuses escapes, symlink escapes, and secret files. */
-async function resolveSafe(userPath = '.') {
-  const target = resolve(ROOT, userPath)
-  const real = await realpath(target)
-  const rootReal = await realpath(ROOT)
-  const rel = relative(rootReal, real)
-  if (rel.startsWith('..') || isAbsolute(rel))
-    throw new Error('Đường dẫn nằm ngoài workspace.')
-  if (rel.split(sep).some(isBlockedName) || BLOCKED_PATH_PARTS.some(part => rel.includes(part)))
-    throw new Error('File hoặc thư mục này bị chặn vì có thể chứa bí mật.')
-  return { real, rel: rel || '.' }
+function resolveSafe(userPath = '.') {
+  return resolveInsideRoot(ROOT, userPath)
 }
 
 async function git(projectPath, args) {
@@ -134,58 +117,10 @@ const tools = {
   git_diff: {
     description: 'Xem thay đổi chưa commit của một dự án (staged=true để xem phần đã stage).',
     inputSchema: { type: 'object', properties: { project: { type: 'string' }, staged: { type: 'boolean' } }, required: ['project'] },
-    run: ({ project, staged = false }) => git(project, ['diff', ...(staged ? ['--staged'] : []), '--', '.', ...GIT_EXCLUDES]),
+    run: ({ project, staged = false }) => git(project, ['diff', ...(staged ? ['--staged'] : []), '--', '.', ...GIT_SECRET_EXCLUDES]),
   },
 }
 
-async function handle(request) {
-  const { method, params } = request
-  if (method === 'initialize') {
-    return { protocolVersion: params?.protocolVersion ?? DEFAULT_PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: SERVER_INFO }
-  }
-  if (method === 'ping')
-    return {}
-  if (method === 'tools/list') {
-    return { tools: Object.entries(tools).map(([name, tool]) => ({ name, description: tool.description, inputSchema: tool.inputSchema })) }
-  }
-  if (method === 'tools/call') {
-    const tool = tools[params?.name]
-    if (!tool)
-      throw Object.assign(new Error(`Không có tool ${params?.name}`), { code: -32602 })
-    try {
-      return { content: [{ type: 'text', text: await tool.run(params.arguments ?? {}) }] }
-    }
-    catch (error) {
-      return { content: [{ type: 'text', text: `Lỗi: ${String(error?.message ?? error)}` }], isError: true }
-    }
-  }
-  throw Object.assign(new Error(`Method not found: ${method}`), { code: -32601 })
-}
-
-function reply(message) {
-  process.stdout.write(`${JSON.stringify(message)}\n`)
-}
-
-createInterface({ input: process.stdin }).on('line', async (line) => {
-  if (!line.trim())
-    return
-  let request
-  try {
-    request = JSON.parse(line)
-  }
-  catch {
-    reply({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } })
-    return
-  }
-  // Notifications have no id and need no reply.
-  if (request.id === undefined)
-    return
-  try {
-    reply({ jsonrpc: '2.0', id: request.id, result: await handle(request) })
-  }
-  catch (error) {
-    reply({ jsonrpc: '2.0', id: request.id, error: { code: error.code ?? -32603, message: error.message } })
-  }
-})
+startMcpServer({ info: SERVER_INFO, tools })
 
 process.stderr.write(`[${SERVER_INFO.name}] root: ${ROOT} (${basename(ROOT)})\n`)
