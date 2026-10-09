@@ -1,12 +1,13 @@
 import type { ComputedRef, MaybeRefOrGetter } from 'vue'
 
-import { storeToRefs } from 'pinia'
 import { computed, toValue } from 'vue'
 
-import { useL2dViewControl } from '../../stores'
-import { useSettingsLive2d } from './live2d'
-
 export interface Live2DEyeFocusSource {
+  x: number
+  y: number
+}
+
+export interface Live2DEyeFocusOffset {
   x: number
   y: number
 }
@@ -33,21 +34,23 @@ export function useLive2DEyeFocusFor(options: {
     modelHeight: number
   }>
   source: MaybeRefOrGetter<Live2DEyeFocusSource | null | undefined>
+  renderScale: MaybeRefOrGetter<number>
+  modelScale: MaybeRefOrGetter<number>
+  eyeOffset: MaybeRefOrGetter<Live2DEyeFocusOffset>
 }): ComputedRef<{ x: number, y: number }> {
-  const { live2dRenderScale, live2dModelEyeOffset } = storeToRefs(useSettingsLive2d())
-  const { scale } = useL2dViewControl()
-
   const mouseFocus = computed(() => {
     const { normalizedScale, modelWidth, modelHeight } = toValue(options.model)
-    const renderScale = live2dRenderScale.value
+    const renderScale = toValue(options.renderScale)
+    const modelScale = toValue(options.modelScale)
+    const modelEyeOffset = toValue(options.eyeOffset)
     const trackingSource = toValue(options.source)
     const canvasRect = toValue(options.canvas)?.getBoundingClientRect()
     if (!trackingSource || !(canvasRect)) {
       return { x: 1000, y: 1000 }
     }
     const eyeOffset = {
-      x: live2dModelEyeOffset.value.x / 100 * modelWidth * normalizedScale * scale.value,
-      y: live2dModelEyeOffset.value.y / 100 * modelHeight * normalizedScale * scale.value,
+      x: modelEyeOffset.x / 100 * modelWidth * normalizedScale * modelScale,
+      y: modelEyeOffset.y / 100 * modelHeight * normalizedScale * modelScale,
     }
     return {
       x: (trackingSource.x - canvasRect.left + eyeOffset.x) * renderScale,

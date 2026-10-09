@@ -115,7 +115,7 @@ beforeEach(() => {
     useAiriCardStore().cards.set('default', {
       name: 'Test character',
       version: '1.0',
-      extensions: { airi: { agents: {}, modules: {
+      extensions: { airi: { avatarModels: [], agents: {}, modules: {
         consciousness: { provider: '', model: '' },
         vision: { provider: '', model: '' },
         speech: { provider: '', model: '', voice_id: '' },

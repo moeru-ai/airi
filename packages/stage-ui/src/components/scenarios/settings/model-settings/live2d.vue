@@ -1,22 +1,24 @@
 <script setup lang="ts">
-import type {
-  Live2DExpressionLlmMode,
-  Live2DExpressionSettingsCommand,
-  Live2DMotionDriver,
-} from '@proj-airi/stage-ui-live2d'
+import type { Live2DContext, Live2DMotionDriver } from '@proj-airi/stage-ui-live2d'
+import type { Live2DExpressionParameterControl } from '@proj-airi/stage-ui-live2d/controls/manifest'
 import type { SelectTabOption } from '@proj-airi/ui'
 
+import type { Live2DPreviewTarget } from '../../../../stores/live2d'
 import type { ModelSettingsRuntimeSnapshot } from './runtime'
 
-import { defaultModelParameters, useExpressionStore, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
+import { defaultModelParameters, isLive2DControlEnabled, updateLive2DControlPolicy, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { OPFSCache } from '@proj-airi/stage-ui-live2d/utils/opfs-loader'
 import { Button, Checkbox, FieldCheckbox, FieldCombobox, FieldRange, SelectTab } from '@proj-airi/ui'
+import { useEventListener, useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import MagicMotionSettings from '../../../../features/motions/live2d/components/magic-settings.vue'
+import Live2DExpressionList from './live2d-expression-list.vue'
 
+import { useSharedLive2D } from '../../../../stores/live2d'
+import { useAiriCardStore } from '../../../../stores/modules/airi-card'
 import { PropertyPoint } from '../../../data-pane'
 import { Section } from '../../../layouts'
 import { ColorPalette } from '../../../widgets'
@@ -25,13 +27,16 @@ const props = withDefaults(defineProps<{
   palette: string[]
   allowExtractColors?: boolean
   runtimeSnapshot: ModelSettingsRuntimeSnapshot
+  live2dContext?: Live2DContext
 }>(), {
   allowExtractColors: true,
 })
-const emit = defineEmits<{
-  (e: 'extractColorsFromModel'): void
-  (e: 'live2dExpressionCommand', command: Live2DExpressionSettingsCommand): void
+defineEmits<{
+  extractColorsFromModel: []
 }>()
+
+const emptyExpressionPreviewNames: ReadonlySet<string> = new Set()
+const emptyExpressionParameters: readonly Live2DExpressionParameterControl[] = Object.freeze([])
 
 const { t } = useI18n()
 
@@ -71,18 +76,118 @@ const {
   currentMotion,
 } = storeToRefs(live2d)
 
-const expressionStore = useExpressionStore()
-const expressionSettingsSnapshot = computed(() => props.runtimeSnapshot.live2dExpressions ?? expressionStore.settingsSnapshot)
-const usesRemoteExpressionRuntime = computed(() => props.runtimeSnapshot.live2dExpressions != null)
+const airiCardStore = useAiriCardStore()
+const {
+  activeCardId,
+  activeLive2DModelControls,
+  selectedAvatarModel,
+  selectedAvatarModelId,
+} = storeToRefs(airiCardStore)
+const sharedLive2D = useSharedLive2D()
+const { expressionPreview } = storeToRefs(sharedLive2D)
+const previewOwnerId = crypto.randomUUID()
+const activeExpressionPreviewNames = computed<ReadonlySet<string>>(() => {
+  const preview = expressionPreview.value
+  if (!preview || preview.ownerId !== previewOwnerId || preview.characterId !== activeCardId.value || preview.avatarModelId !== selectedAvatarModelId.value)
+    return emptyExpressionPreviewNames
 
-function applyExpressionSettingsCommand(command: Live2DExpressionSettingsCommand) {
-  if (usesRemoteExpressionRuntime.value) {
-    emit('live2dExpressionCommand', command)
+  return new Set(preview.names)
+})
+const canActivateExpressions = computed(() => {
+  if (!live2dExpressionEnabled.value)
+    return false
+
+  if (props.live2dContext)
+    return props.live2dContext.phase.value === 'ready'
+
+  return props.runtimeSnapshot.ownerInstanceId.length > 0
+    && props.runtimeSnapshot.renderer === 'live2d'
+    && props.runtimeSnapshot.phase === 'mounted'
+})
+const expressionItems = computed(() => activeLive2DModelControls.value.expressions.map(expression => ({
+  name: expression.name,
+  fileName: expression.fileName,
+  parameterCount: (
+    expression.parameters
+    ?? props.live2dContext?.expressions.definitions.value.get(expression.name)?.parameters
+    ?? emptyExpressionParameters
+  ).length,
+  active: activeExpressionPreviewNames.value.has(expression.name),
+  availableToAiri: selectedAvatarModel.value?.type === 'live2d'
+    ? isLive2DControlEnabled(selectedAvatarModel.value.config.controls, {
+        kind: 'expression',
+        id: expression.name,
+      })
+    : false,
+  activationDisabled: !canActivateExpressions.value
+    || (props.live2dContext !== undefined && !props.live2dContext.expressions.definitions.value.has(expression.name)),
+})))
+
+async function setExpressionPreview(name: string, active: boolean) {
+  const avatarModelId = selectedAvatarModelId.value
+  if (!avatarModelId)
     return
-  }
 
-  expressionStore.applySettingsCommand(command)
+  const target = { characterId: activeCardId.value, avatarModelId }
+  if (active)
+    await sharedLive2D.startPreviewingExpression(target, name, previewOwnerId)
+  else
+    await sharedLive2D.stopPreviewingExpression(target, name, previewOwnerId)
 }
+
+async function stopExpressionPreviews(target: Live2DPreviewTarget | undefined) {
+  if (!target)
+    return
+
+  await sharedLive2D.stopPreviewingAllExpressions(target, previewOwnerId)
+}
+
+async function stopOwnedExpressionPreviews() {
+  const preview = expressionPreview.value
+  if (preview?.ownerId !== previewOwnerId)
+    return
+
+  await stopExpressionPreviews({ characterId: preview.characterId, avatarModelId: preview.avatarModelId })
+}
+
+async function setExpressionAvailableToAiri(name: string, available: boolean) {
+  const avatarModel = selectedAvatarModel.value
+  if (avatarModel?.type !== 'live2d')
+    return
+
+  const policy = updateLive2DControlPolicy(
+    avatarModel.config.controls,
+    { kind: 'expression', id: name },
+    available,
+  )
+  await airiCardStore.updateLive2DControlPolicy(activeCardId.value, avatarModel.id, policy)
+}
+
+watch([activeCardId, selectedAvatarModelId], async ([characterId, avatarModelId], [previousCharacterId, previousAvatarModelId]) => {
+  if (!previousAvatarModelId || (previousCharacterId === characterId && previousAvatarModelId === avatarModelId))
+    return
+
+  await stopExpressionPreviews({ characterId: previousCharacterId, avatarModelId: previousAvatarModelId })
+})
+
+watch(live2dExpressionEnabled, async (enabled) => {
+  if (!enabled)
+    await stopOwnedExpressionPreviews()
+})
+
+useIntervalFn(() => {
+  const avatarModelId = selectedAvatarModelId.value
+  if (avatarModelId && expressionPreview.value?.ownerId === previewOwnerId)
+    void sharedLive2D.renewExpressionPreview({ characterId: activeCardId.value, avatarModelId }, previewOwnerId)
+}, 2_000)
+
+useEventListener('pagehide', () => {
+  void stopOwnedExpressionPreviews()
+}, { capture: true })
+
+onBeforeUnmount(() => {
+  void stopOwnedExpressionPreviews()
+})
 
 const selectedRuntimeMotion = ref<string>('')
 const runtimeMotions = ref<Array<{ name: string, displayPath: string, group: string, index: number }>>([])
@@ -139,12 +244,6 @@ watch(() => live2d.availableMotions, (motions) => {
 
   console.info('Available motions:', runtimeMotions.value)
 }, { immediate: true })
-
-const llmModeOptions = computed(() => [
-  { value: 'none', label: t('settings.live2d.expressions.expose-to-llm-options.none') },
-  { value: 'all', label: t('settings.live2d.expressions.expose-to-llm-options.all') },
-  { value: 'custom', label: t('settings.live2d.expressions.expose-to-llm-options.custom') },
-])
 
 // Get available runtime motions from the model
 onMounted(() => {
@@ -763,61 +862,26 @@ function handleMotionSelect(selectedMotionPath: string | number | undefined) {
     <div v-if="!live2dExpressionEnabled" py-2 text-xs text-neutral-500 dark:text-neutral-400>
       {{ t('settings.live2d.expressions.sdk-preset-preserved-notice') }}
     </div>
-    <template v-else-if="expressionSettingsSnapshot.groups.length === 0">
+    <div :class="['py-2 text-xs opacity-60']">
+      {{ t('settings.live2d.expressions.description') }}
+    </div>
+    <template v-if="expressionItems.length === 0">
       <div py-2 text-sm text-neutral-500 dark:text-neutral-400>
         {{ t('settings.live2d.expressions.no-expression') }}
       </div>
     </template>
     <template v-else>
-      <!-- Expression preview toggles -->
-      <div flex flex-col gap-2>
-        <div
-          v-for="group in expressionSettingsSnapshot.groups"
-          :key="group.name"
-          flex items-center justify-between
-        >
-          <span text-sm text-neutral-700 dark:text-neutral-300>{{ group.name }}</span>
-          <Checkbox
-            :model-value="group.active"
-            @update:model-value="applyExpressionSettingsCommand({ type: 'toggle', name: group.name })"
-          />
-        </div>
-      </div>
+      <Live2DExpressionList
+        :items="expressionItems"
+        @set-active="setExpressionPreview"
+        @set-available-to-airi="setExpressionAvailableToAiri"
+      />
 
-      <div mt-4 flex flex-wrap items-center gap-3>
-        <span whitespace-nowrap text-sm text-neutral-600 dark:text-neutral-400>{{ t('settings.live2d.expressions.expose-to-llm-toggle') }}</span>
-        <SelectTab
-          :model-value="expressionSettingsSnapshot.llmMode"
-          :options="llmModeOptions"
-          size="sm"
-          @update:model-value="(mode: string) => applyExpressionSettingsCommand({ type: 'set-llm-mode', mode: mode as Live2DExpressionLlmMode })"
-        />
-      </div>
-      <span v-if="expressionSettingsSnapshot.llmMode !== 'none'" text-xs text-neutral-500 dark:text-neutral-400>
-        {{ t('settings.live2d.expressions.llm-integration-wip') }}
-      </span>
-
-      <!-- Custom per-expression LLM toggles (only when mode = 'custom') -->
-      <div v-if="expressionSettingsSnapshot.llmMode === 'custom'" mt-2 flex flex-col gap-2 border-l-2 border-neutral-200 pl-3 dark:border-neutral-700>
-        <div
-          v-for="group in expressionSettingsSnapshot.groups"
-          :key="`llm-${group.name}`"
-          flex items-center justify-between
-        >
-          <span text-xs text-neutral-600 dark:text-neutral-400>{{ group.name }}</span>
-          <Checkbox
-            :model-value="group.exposedToLlm"
-            @update:model-value="(exposed: boolean) => applyExpressionSettingsCommand({ type: 'set-llm-exposed', name: group.name, exposed })"
-          />
-        </div>
-      </div>
-
-      <!-- Action buttons -->
       <div mt-4 flex gap-2>
-        <Button @click="applyExpressionSettingsCommand({ type: 'save-defaults' })">
-          {{ t('settings.live2d.expressions.save-default') }}
-        </Button>
-        <Button @click="applyExpressionSettingsCommand({ type: 'reset-all' })">
+        <Button
+          :disabled="!canActivateExpressions || activeExpressionPreviewNames.size === 0"
+          @click="stopOwnedExpressionPreviews"
+        >
           {{ t('settings.live2d.expressions.reset') }}
         </Button>
       </div>

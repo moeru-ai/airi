@@ -22,6 +22,21 @@ const syncedContexts: Array<{
   runtime: SyncedPiniaRuntime
 }> = []
 
+const nativeFetch = globalThis.fetch
+
+// https://github.com/moeru-ai/airi/actions/runs/36556710449/job/109369349384
+// ROOT CAUSE: A broad fetch mock returns JSON to inline WASM data URLs and file URLs.
+// Keep WASM requests on the browser fetch while mocking voice catalogs.
+function stubCatalogFetch(catalogFetch: typeof fetch) {
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>((input, init) => {
+    const url = input instanceof Request ? input.url : String(input)
+    if (url.startsWith('data:application/wasm') || url.split('?')[0].endsWith('.wasm'))
+      return nativeFetch(input, init)
+
+    return catalogFetch(input, init)
+  }))
+}
+
 /** Creates one mounted speech-store renderer with explicit leadership. */
 function createSyncedContext(namespace: string, leadership: LeadershipMode, withCards = false) {
   const pinia = createPinia()
@@ -71,7 +86,7 @@ describe('speech synchronization', () => {
   it.each(['microsoft-speech', 'official-provider-speech'])('preserves a card voice while its new %s model catalog loads', async (provider) => {
     const deferred = Promise.withResolvers<Response>()
     let pause = false
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => pause
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => pause
       ? deferred.promise.then(response => response.clone())
       : Response.json({ voices: [{ id: 'old', name: 'Old', languages: [] }], data: [] })))
     const namespace = `speech:${crypto.randomUUID()}`
@@ -127,7 +142,7 @@ describe('speech synchronization', () => {
   // ROOT CAUSE: HTTP discovery returned only models, leaving the server default
   // in the outgoing renderer instead of the replicated provider catalog.
   it('replicates the HTTP speech default to the next leader', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({
       models: [{ id: 'first', name: 'First' }, { id: 'preferred', name: 'Preferred' }],
       default: 'preferred',
       voices: [],
@@ -163,6 +178,14 @@ describe('speech synchronization', () => {
     localStorage.clear()
   })
 
+  it('passes inline WASM requests through the browser fetch', async () => {
+    const catalogFetch = vi.fn<typeof fetch>(async () => Response.json({ voices: [] }))
+    stubCatalogFetch(catalogFetch)
+
+    await expect(WebAssembly.compileStreaming(fetch('data:application/wasm;base64,AGFzbQEAAAA='))).resolves.toBeInstanceOf(WebAssembly.Module)
+    expect(catalogFetch).not.toHaveBeenCalled()
+  })
+
   // https://github.com/moeru-ai/airi/pull/2490#discussion_r3965793949
   // ROOT CAUSE: A delayed settings proposal carried an old catalog and replaced
   // a completed leader load. Catalog state must have a separate snapshot owner.
@@ -182,7 +205,7 @@ describe('speech synchronization', () => {
     follower.speechStore.pitch = 15
     follower.speechStore.ssmlEnabled = true
     await vi.waitFor(() => expect(delayed.length).toBeGreaterThan(0))
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
     await leader.speechStore.loadVoiceCatalog('microsoft-speech', 'model', {
       definitionId: 'microsoft-speech',
       config: { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' },
@@ -214,7 +237,7 @@ describe('speech synchronization', () => {
     await vi.waitFor(() => expect(useProviderConfigStore(other.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
     const { promise: response, resolve: finish } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
-    vi.stubGlobal('fetch', fetchCatalog)
+    stubCatalogFetch(fetchCatalog)
     const pending = other.speechStore.loadVoicesForProvider('microsoft-speech')
     try {
       await vi.waitFor(() => expect(fetchCatalog).toHaveBeenCalledOnce())
@@ -244,7 +267,7 @@ describe('speech synchronization', () => {
     await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
     await new Promise(resolve => setTimeout(resolve, 100))
     const fetchCatalog = vi.fn<typeof fetch>(async () => Response.json({ voices: [] }))
-    vi.stubGlobal('fetch', fetchCatalog)
+    stubCatalogFetch(fetchCatalog)
     const postMessage = BroadcastChannel.prototype.postMessage
     const delayed: Array<() => void> = []
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage').mockImplementation(function (this: BroadcastChannel, message) {
@@ -279,7 +302,7 @@ describe('speech synchronization', () => {
       baseUrl: 'https://old.invalid/v1/',
       region: 'eastasia',
     })
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'old', name: 'Old', languages: [] }] })))
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'old', name: 'Old', languages: [] }] })))
     await leader.speechStore.selectProviderModel('microsoft-speech', 'model')
     await vi.waitFor(() => expect(leader.speechStore.availableVoices['microsoft-speech']?.[0]?.id).toBe('old'))
     leader.speechStore.activeSpeechVoiceId = 'old'
@@ -287,7 +310,7 @@ describe('speech synchronization', () => {
     expect(leader.speechStore.configured).toBe(true)
     const { promise: response, reject: fail } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
-    vi.stubGlobal('fetch', fetchCatalog)
+    stubCatalogFetch(fetchCatalog)
     const pending = leader.speechStore.loadVoiceCatalog('microsoft-speech', 'model', {
       definitionId: 'microsoft-speech',
       config: { apiKey: 'new-key', baseUrl: 'https://new.invalid/v1/', region: 'westus' },
@@ -378,7 +401,7 @@ describe('speech synchronization', () => {
     })
     const follower = createSyncedContext(namespace, 'follower-only')
     await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({ voices: [{ id: 'fresh', name: 'Fresh', languages: [] }] })))
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
     await follower.speechStore.selectProviderModel('microsoft-speech', 'model-a')
     expect(follower.speechStore.activeSpeechModel).toBe('model-a')
@@ -409,7 +432,7 @@ describe('speech synchronization', () => {
     const followerConfig = useProviderConfigStore(follower.pinia)
     await vi.waitFor(() => expect(followerConfig.configs['microsoft-speech']?.apiKey).toBe('old-key'))
     const requests: string[] = []
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+    stubCatalogFetch(vi.fn<typeof fetch>(async (input) => {
       requests.push(String(input))
       return Response.json({ voices: [] })
     }))
@@ -448,7 +471,7 @@ describe('speech synchronization', () => {
     })
     const { promise: oldResponse, resolve: finishOld } = Promise.withResolvers<Response>()
     let requests = 0
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => {
       requests++
       if (requests === 1)
         return oldResponse
@@ -485,7 +508,7 @@ describe('speech synchronization', () => {
     leader.speechStore.activeSpeechProvider = 'official-provider-speech'
     await new Promise(resolve => setTimeout(resolve, 100))
     const traffic = vi.spyOn(BroadcastChannel.prototype, 'postMessage')
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({
       flux: 0,
       voices: [
         { id: 'fallback', name: 'Fallback', languages: [{ code: 'en-US', title: 'English' }] },
@@ -518,7 +541,7 @@ describe('speech synchronization', () => {
     let pause = false
     let catalogVersion = 'cached'
     let requests = 0
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => {
       requests++
       if (pause)
         return oldResponse
@@ -565,7 +588,7 @@ describe('speech synchronization', () => {
 
     const { promise: response, resolve: finish } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
-    vi.stubGlobal('fetch', fetchCatalog)
+    stubCatalogFetch(fetchCatalog)
     const pending = leader.speechStore.loadVoiceCatalog('microsoft-speech', undefined, {
       definitionId: 'microsoft-speech',
       config: { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' },
@@ -604,7 +627,7 @@ describe('speech synchronization', () => {
     await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
     const { promise: response, resolve: finish } = Promise.withResolvers<Response>()
     const fetchCatalog = vi.fn<typeof fetch>(() => response)
-    vi.stubGlobal('fetch', fetchCatalog)
+    stubCatalogFetch(fetchCatalog)
     const first = follower.speechStore.loadVoicesForProvider('microsoft-speech')
     const second = follower.speechStore.loadVoicesForProvider('microsoft-speech')
     try {
@@ -624,7 +647,7 @@ describe('speech synchronization', () => {
   })
 
   it('invalidates completed owned catalogs across renderers without follower proposals', async () => {
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => Response.json({
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => Response.json({
       flux: 0,
       voices: [{ id: 'previous-owner', name: 'Previous owner', languages: [] }],
     })))
@@ -657,7 +680,7 @@ describe('speech synchronization', () => {
     await config.ensureProvider('microsoft-speech', 'microsoft-speech', { apiKey: 'key', baseUrl: 'https://voices.invalid/v1/', region: 'eastasia' })
     const follower = createSyncedContext(namespace, 'follower-only')
     await vi.waitFor(() => expect(useProviderConfigStore(follower.pinia).configs['microsoft-speech']?.apiKey).toBe('key'))
-    vi.stubGlobal('fetch', vi.fn<typeof fetch>(async () => {
+    stubCatalogFetch(vi.fn<typeof fetch>(async () => {
       throw new Error('catalog unavailable')
     }))
     await expect(follower.speechStore.loadVoicesForProvider('microsoft-speech')).resolves.toEqual([])
