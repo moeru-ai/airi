@@ -1,3 +1,4 @@
+import type { BillingService } from '../../services/domain/billing/billing-service'
 import type { FluxService } from '../../services/domain/flux'
 import type { FluxTransactionService } from '../../services/domain/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
@@ -10,7 +11,7 @@ import { ApiError } from '../../utils/error'
 
 function createMockFluxService(): FluxService {
   return {
-    getFlux: vi.fn(async (userId: string) => ({ userId, flux: 42, unsettledMicroFlux: 150_000 })),
+    getFlux: vi.fn(async (userId: string) => ({ userId, flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, planRemainingPercent: 90 })),
     deleteAllForUser: vi.fn(async () => undefined),
   }
 }
@@ -37,7 +38,16 @@ function createMockFluxTransactionService(): FluxTransactionService {
   }
 }
 
-function createTestApp(fluxService: FluxService, transactions: FluxTransactionService, authenticated = true) {
+function createMockBillingService(): Pick<BillingService, 'setFallbackToFlux'> {
+  return { setFallbackToFlux: vi.fn(async () => undefined) }
+}
+
+function createTestApp(
+  fluxService: FluxService,
+  transactions: FluxTransactionService,
+  authenticated = true,
+  billing: Pick<BillingService, 'setFallbackToFlux'> = createMockBillingService(),
+) {
   const app = new Hono<HonoEnv>()
   app.onError((error, c) => {
     if (error instanceof ApiError)
@@ -48,17 +58,17 @@ function createTestApp(fluxService: FluxService, transactions: FluxTransactionSe
     c.set('user', authenticated ? { id: 'user-1', name: 'Test User', email: 'test@example.com', emailVerified: true, createdAt: new Date(), updatedAt: new Date() } : null)
     await next()
   })
-  app.route('/api/v1/flux', createFluxRoutes(fluxService, transactions))
+  app.route('/api/v1/flux', createFluxRoutes(fluxService, transactions, billing as BillingService))
   return app
 }
 
 describe('fluxRoutes', () => {
-  it('returns the integer balance and outstanding fees together', async () => {
+  it('returns both buckets with the plan percent and the fallback choice', async () => {
     const flux = createMockFluxService()
     const app = createTestApp(flux, createMockFluxTransactionService())
     const response = await app.request('/api/v1/flux')
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ userId: 'user-1', flux: 42, unsettledMicroFlux: 150_000 })
+    expect(await response.json()).toEqual({ userId: 'user-1', flux: 42, unsettledMicroFlux: 150_000, fallbackToFlux: false, planRemainingPercent: 90 })
     expect(flux.getFlux).toHaveBeenCalledWith('user-1')
   })
 
@@ -92,5 +102,30 @@ describe('fluxRoutes', () => {
     const response = await app.request('/api/v1/flux/usage')
     expect(response.status).toBe(401)
     expect(transactions.getUsageHistory).not.toHaveBeenCalled()
+  })
+
+  it('saves the fallback choice for the authenticated wallet', async () => {
+    const billing = createMockBillingService()
+    const app = createTestApp(createMockFluxService(), createMockFluxTransactionService(), true, billing)
+    const response = await app.request('/api/v1/flux/fallback', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fallbackToFlux: true }),
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ fallbackToFlux: true })
+    expect(billing.setFallbackToFlux).toHaveBeenCalledWith('user-1', true)
+  })
+
+  it('rejects an invalid fallback body', async () => {
+    const billing = createMockBillingService()
+    const app = createTestApp(createMockFluxService(), createMockFluxTransactionService(), true, billing)
+    const response = await app.request('/api/v1/flux/fallback', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fallbackToFlux: 'yes' }),
+    })
+    expect(response.status).toBe(400)
+    expect(billing.setFallbackToFlux).not.toHaveBeenCalled()
   })
 })

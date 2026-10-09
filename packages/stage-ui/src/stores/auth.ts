@@ -96,7 +96,9 @@ export const useAuthStore = defineStore('auth', () => {
   let signingOut = false
 
   const credits = ref(0)
+  /** Whole percent of the plan Flux left. Null without an active plan. */
   const planRemaining = ref<number | null>(null)
+  const fallbackToFlux = ref(false)
 
   // The leader owns this cross-window login request. Web consumes it locally;
   // Electron renderers compete to consume it before starting the IPC flow.
@@ -422,22 +424,12 @@ export const useAuthStore = defineStore('auth', () => {
     const res = await client.api.v1.flux.$get()
     if (res.ok) {
       const data = await res.json()
-      if (version === sessionVersion.value && isAuthenticated.value)
+      if (version === sessionVersion.value && isAuthenticated.value) {
         credits.value = data.flux
+        planRemaining.value = data.planRemainingPercent
+        fallbackToFlux.value = data.fallbackToFlux
+      }
     }
-  }
-
-  const updatePlanRemaining = async () => {
-    if (!isAuthenticated.value)
-      return
-    const version = sessionVersion.value
-    const res = await client.api.v1.subscriptions.status.$get()
-    if (!res.ok)
-      return
-    const status = await res.json()
-    if (version !== sessionVersion.value || !isAuthenticated.value)
-      return
-    planRemaining.value = status.allowances?.[0]?.remainingPercent ?? null
   }
 
   // This is the only watcher that reacts to an auth-state transition. Each
@@ -446,7 +438,6 @@ export const useAuthStore = defineStore('auth', () => {
   watch(isAuthenticated, async (authenticated, wasAuthenticated) => {
     if (authenticated) {
       void updateCredits()
-      void updatePlanRemaining()
       needsLogin.value = false
 
       if (!wasAuthenticated)
@@ -455,6 +446,7 @@ export const useAuthStore = defineStore('auth', () => {
     else {
       credits.value = 0
       planRemaining.value = null
+      fallbackToFlux.value = false
 
       if (wasAuthenticated)
         await dispatchHooks(logoutHooks, 'logout hook error')
@@ -482,8 +474,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     credits,
     planRemaining,
+    fallbackToFlux,
     updateCredits,
-    updatePlanRemaining,
     needsLogin,
     onAuthenticated,
     onLogout,

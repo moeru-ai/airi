@@ -1109,7 +1109,6 @@ pages:
   plan:
     title: Plan
     description: Plan credits
-    statusError: Failed to load plan status. Please try again later.
     packagesError: Failed to load plans. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
     currentPlan: Current plan

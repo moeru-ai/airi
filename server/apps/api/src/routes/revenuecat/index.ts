@@ -11,9 +11,9 @@ import { rateLimiter } from '../../middlewares/rate-limit'
 import { createWebhookOperation } from './operations/webhook'
 
 /**
- * RevenueCat webhook ingress for Flux packs and plan Credits.
+ * RevenueCat webhook ingress for Flux packs and plan Flux.
  * A pack purchase maps onto Payment CORE `settle` as an evidence receipt.
- * Each other event reconciles plan Credits from RevenueCat.
+ * Each other event reconciles plan Flux from RevenueCat.
  */
 export function createRevenuecatRoutes(
   payment: PaymentService,

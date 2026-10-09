@@ -1,15 +1,19 @@
 import type Redis from 'ioredis'
 import type { InferOutput } from 'valibot'
 
-import { minValue, number, object, pipe, safeInteger, safeParse } from 'valibot'
+import { boolean, minValue, nullable, number, object, pipe, safeInteger, safeParse, string } from 'valibot'
 
 import { readCache, writeCache } from '../../libs/redis/cache'
 import { userFluxRedisKey } from '../../utils/redis-keys'
 
-/** A wallet snapshot always carries both integer balance and confirmed outstanding fees. */
+/** A wallet snapshot carries both buckets and confirmed outstanding fees. Expiry stays raw so each read judges it. */
 export const walletSnapshotSchema = object({
   flux: pipe(number(), safeInteger(), minValue(0)),
   unsettledMicroFlux: pipe(number(), safeInteger(), minValue(0)),
+  planFlux: pipe(number(), safeInteger(), minValue(0)),
+  planQuota: pipe(number(), safeInteger(), minValue(0)),
+  planExpiresAt: nullable(string()),
+  fallbackToFlux: boolean(),
 })
 export type WalletSnapshot = InferOutput<typeof walletSnapshotSchema>
 const ttlSeconds = 60

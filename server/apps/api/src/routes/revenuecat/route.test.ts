@@ -7,12 +7,14 @@ import type { HonoEnv } from '../../types/hono'
 
 import { createHmac } from 'node:crypto'
 
+import { eq } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
+import { createTestRedis } from '../../libs/tests/redis'
 import { createRevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
-import { createSubscriptionService } from '../../services/domain/subscriptions'
+import { createBillingService } from '../../services/domain/billing/billing-service'
 import { ApiError } from '../../utils/error'
 import { createRevenuecatRoutes } from './index'
 
@@ -132,19 +134,25 @@ describe('revenuecat routes', () => {
   let entitlements: Record<string, SubscriberEntitlement[]>
 
   async function setup(configKV: ConfigKVService = createPacksConfigKV()) {
-    await db.delete(schema.subscriptionConsumption)
-    await db.delete(schema.subscriptionAllowance)
+    await db.delete(schema.fluxUsage)
+    await db.delete(schema.fluxTransaction)
+    await db.delete(schema.userFlux)
     entitlements = {}
     const payment = createMockPayment()
-    const subscriptions = createSubscriptionService(db)
+    const billing = createBillingService(db, createTestRedis())
     const fetchEntitlements = vi.fn(async (userId: string) => entitlements[userId] ?? [])
-    const sync = createRevenuecatSubscriptionSync(subscriptions, configKV, { fetchEntitlements })
+    const sync = createRevenuecatSubscriptionSync(billing, configKV, { fetchEntitlements })
     return {
       payment,
-      subscriptions,
+      billing,
       fetchEntitlements,
       app: createTestApp(payment, configKV, sync),
     }
+  }
+
+  async function readWallet(userId: string) {
+    const [wallet] = await db.select().from(schema.userFlux).where(eq(schema.userFlux.userId, userId))
+    return wallet
   }
 
   const goEntitlement: SubscriberEntitlement = {
@@ -205,33 +213,31 @@ describe('revenuecat routes', () => {
     expect(payment.settle).not.toHaveBeenCalled()
   })
 
-  it('grants plan Credits from what RevenueCat reports', async () => {
-    const { payment, subscriptions, app } = await setup()
+  it('grants plan Flux from what RevenueCat reports', async () => {
+    const { payment, app } = await setup()
     entitlements['user-1'] = [goEntitlement]
 
     const res = await postWebhook(app, subscriptionBody())
     expect(res.status).toBe(200)
     expect(payment.settle).not.toHaveBeenCalled()
 
-    const status = await subscriptions.getStatus('user-1')
-    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_go', grantedCredit: 2000, usedCredit: 0 }])
+    expect(await readWallet('user-1')).toMatchObject({ flux: 0, planFlux: 2000, planQuota: 2000, planEntitlementId: 'airi_go' })
   })
 
   it('does not grant again on a repeated or later event of the same period', async () => {
-    const { subscriptions, app } = await setup()
+    const { billing, app } = await setup()
     entitlements['user-1'] = [goEntitlement]
 
     await postWebhook(app, subscriptionBody())
-    await subscriptions.debitCredits({ userId: 'user-1', microCredit: 500_000_000, requestId: 'req-1' })
+    await billing.postFluxUsage({ userId: 'user-1', source: { type: 'test', id: 'req-1' }, amountMicroFlux: 500_000_000 })
     await postWebhook(app, subscriptionBody())
     await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'CANCELLATION' }))
 
-    const status = await subscriptions.getStatus('user-1')
-    expect(status.allowances).toMatchObject([{ grantedCredit: 2000, usedCredit: 500 }])
+    expect(await readWallet('user-1')).toMatchObject({ planFlux: 1500, planQuota: 2000 })
   })
 
   it('grants the new plan on PRODUCT_CHANGE and not the old product in the event', async () => {
-    const { subscriptions, app } = await setup()
+    const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
     await postWebhook(app, subscriptionBody())
 
@@ -243,23 +249,22 @@ describe('revenuecat routes', () => {
     }]
     await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'PRODUCT_CHANGE', product_id: 'rc_go_monthly' }))
 
-    const status = await subscriptions.getStatus('user-1')
-    expect(status.allowances).toMatchObject([{ entitlementId: 'airi_plus', grantedCredit: 5000, usedCredit: 0 }])
+    expect(await readWallet('user-1')).toMatchObject({ planFlux: 5000, planQuota: 5000, planEntitlementId: 'airi_plus' })
   })
 
-  it('closes plan Credits when RevenueCat reports no active plan', async () => {
-    const { subscriptions, app } = await setup()
+  it('expires the plan when RevenueCat reports no active plan', async () => {
+    const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
     await postWebhook(app, subscriptionBody())
 
     entitlements['user-1'] = []
     await postWebhook(app, subscriptionBody({ id: 'sub-event-2', type: 'EXPIRATION' }))
 
-    expect(await subscriptions.spendableMicro('user-1')).toBe(0)
+    expect((await readWallet('user-1'))!.planExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
   })
 
   it('reconciles both users of a TRANSFER', async () => {
-    const { subscriptions, app } = await setup()
+    const { app } = await setup()
     entitlements['user-1'] = [goEntitlement]
     await postWebhook(app, subscriptionBody())
 
@@ -271,8 +276,8 @@ describe('revenuecat routes', () => {
     })
 
     expect(res.status).toBe(200)
-    expect(await subscriptions.spendableMicro('user-1')).toBe(0)
-    expect((await subscriptions.getStatus('user-2')).allowances).toMatchObject([{ grantedCredit: 2000 }])
+    expect((await readWallet('user-1'))!.planExpiresAt!.getTime()).toBeLessThanOrEqual(Date.now())
+    expect(await readWallet('user-2')).toMatchObject({ planFlux: 2000 })
   })
 
   it('returns an error when RevenueCat cannot be read, so the event is sent again', async () => {

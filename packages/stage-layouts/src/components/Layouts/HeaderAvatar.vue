@@ -46,7 +46,7 @@ const formattedCredits = computed(() => credits.value.toLocaleString())
             'data-[state=open]:ring-2 data-[state=open]:ring-primary-500/20',
             'transition-colors duration-200 ease-in-out',
           ]"
-          @click="authStore.updateCredits(); authStore.updatePlanRemaining()"
+          @click="authStore.updateCredits()"
         >
           <Avatar
             v-if="isAuthenticated"

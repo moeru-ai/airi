@@ -1,15 +1,15 @@
 import type Redis from 'ioredis'
-import type { InferOutput } from 'valibot'
 
 import type { Database } from '../../../libs/db'
 import type { RevenueMetrics } from '../../../otel'
+import type { FluxUsageInput } from './flux-posting'
 
 import { useLogger } from '@guiiai/logg'
-import { and, eq, isNull } from 'drizzle-orm'
-import { minValue, nonEmpty, number, object, optional, parse, pipe, record, safeInteger, string, unknown } from 'valibot'
+import { and, eq, isNull, sql } from 'drizzle-orm'
+import { minValue, number, parse, pipe, safeInteger } from 'valibot'
 
 import { invalidateBalanceCache } from '../flux-cache'
-import { availableMicroCredits, MICRO_PER_CREDIT, settleMicroCredits } from './credit-posting'
+import { fluxUsageInputSchema, settleOutstandingMicroFlux } from './flux-posting'
 
 import * as fluxSchema from '../../../schemas/flux'
 import * as fluxTxSchema from '../../../schemas/flux-transaction'
@@ -17,27 +17,16 @@ import * as fluxUsageSchema from '../../../schemas/flux-usage'
 
 const logger = useLogger('billing-service')
 
-/** Source identity scopes idempotency per wallet. Zero is a confirmed amount and still creates a usage record. */
-export const fluxUsageInputSchema = object({
-  userId: pipe(string(), nonEmpty()),
-  source: object({ type: pipe(string(), nonEmpty()), id: pipe(string(), nonEmpty()) }),
-  amountMicroFlux: pipe(number(), safeInteger(), minValue(0)),
-  detail: optional(record(string(), unknown())),
-})
-export type FluxUsageInput = InferOutput<typeof fluxUsageInputSchema>
-
-/** Converts a micro-Flux fee to Flux for telemetry. */
-export function microFluxToFlux(microFlux: number): number {
-  return microFlux / MICRO_PER_CREDIT
-}
-
-/** Integer balance minus confirmed outstanding fees, in micro-Credits. Admission uses this one formula. */
-export function availableMicroFlux(wallet: { flux: number, unsettledMicroFlux: number }): bigint {
-  return availableMicroCredits({ credits: wallet.flux, unsettledMicro: wallet.unsettledMicroFlux })
-}
-
 /** Database handle used when the caller owns the outer transaction. */
 export type BillingTransaction = Pick<Database, 'insert' | 'update' | 'select'>
+
+/** The plan period that the payment channel reports as active now. */
+export interface PlanPeriod {
+  entitlementId: string
+  quota: number
+  periodStart: Date
+  expiresAt: Date
+}
 
 export function createBillingService(
   db: Database,
@@ -67,32 +56,50 @@ export function createBillingService(
     return wallet
   }
 
-  /** Integer debits settle the shared pool, independent of the service that crossed its threshold. */
+  /** Integer debits settle the shared pool. The plan bucket pays first, then purchased Flux. */
   async function settleOutstanding(
     tx: BillingTransaction,
     wallet: typeof fluxSchema.userFlux.$inferSelect,
     operationId: string,
     usageId?: string,
   ) {
-    const settled = settleMicroCredits({ credits: wallet.flux, unsettledMicro: wallet.unsettledMicroFlux })
-    const requested = Math.floor(wallet.unsettledMicroFlux / MICRO_PER_CREDIT)
-    const charged = settled.chargedCredits
-    const balance = settled.credits
-    const unsettledMicroFlux = settled.unsettledMicro
-    await tx.update(fluxSchema.userFlux).set({ flux: balance, unsettledMicroFlux, updatedAt: new Date() }).where(eq(fluxSchema.userFlux.userId, wallet.userId))
-    if (charged > 0) {
+    const now = new Date()
+    const settled = settleOutstandingMicroFlux(wallet, now)
+    await tx.update(fluxSchema.userFlux).set({
+      flux: settled.flux,
+      planFlux: settled.planFlux,
+      unsettledMicroFlux: settled.unsettledMicroFlux,
+      updatedAt: now,
+    }).where(eq(fluxSchema.userFlux.userId, wallet.userId))
+
+    const metadata = { source: 'usage.settlement', usageId, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: settled.unsettledMicroFlux }
+    if (settled.fromPurchased > 0) {
       await tx.insert(fluxTxSchema.fluxTransaction).values({
         userId: wallet.userId,
         operationId,
         type: 'debit',
-        amount: charged,
+        pool: 'wallet',
+        amount: settled.fromPurchased,
         balanceBefore: wallet.flux,
-        balanceAfter: balance,
+        balanceAfter: settled.flux,
         description: 'usage_settlement',
-        metadata: { source: 'usage.settlement', usageId, unsettledBefore: wallet.unsettledMicroFlux, unsettledAfter: unsettledMicroFlux },
+        metadata,
       })
     }
-    return { charged, requested, balance, unsettledMicroFlux }
+    if (settled.fromPlan > 0) {
+      await tx.insert(fluxTxSchema.fluxTransaction).values({
+        userId: wallet.userId,
+        operationId: `${operationId}:plan`,
+        type: 'debit',
+        pool: 'plan',
+        amount: settled.fromPlan,
+        balanceBefore: wallet.planFlux,
+        balanceAfter: settled.planFlux,
+        description: 'usage_settlement',
+        metadata,
+      })
+    }
+    return { charged: settled.charged, requested: settled.requested, balance: settled.flux, unsettledMicroFlux: settled.unsettledMicroFlux }
   }
 
   return {
@@ -137,6 +144,80 @@ export function createBillingService(
       if (!wallet)
         throw new Error(`No active flux record for user ${userId}`)
       return wallet
+    },
+
+    /**
+     * Makes the plan bucket match the period that `resolve` returns. `null` means no active plan.
+     *
+     * - Same entitlement and start time: only the expiry changes.
+     * - Another period: the plan bucket resets to the quota and unused plan Flux is forfeit.
+     * - No plan: the plan expires now.
+     *
+     * An advisory lock per user serializes syncs while `resolve` reads the payment channel.
+     * The wallet row stays unlocked during that read, so debits are not blocked.
+     */
+    async syncPlan(userId: string, resolve: () => Promise<PlanPeriod | null>): Promise<void> {
+      await db.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
+        const period = await resolve()
+        const now = new Date()
+
+        if (period)
+          await tx.insert(fluxSchema.userFlux).values({ userId, flux: 0 }).onConflictDoNothing({ target: fluxSchema.userFlux.userId })
+        const [wallet] = await tx.select().from(fluxSchema.userFlux).where(and(
+          eq(fluxSchema.userFlux.userId, userId),
+          isNull(fluxSchema.userFlux.deletedAt),
+        )).for('update')
+        if (!wallet)
+          return
+
+        if (!period) {
+          if (wallet.planExpiresAt !== null && wallet.planExpiresAt > now)
+            await tx.update(fluxSchema.userFlux).set({ planExpiresAt: now, updatedAt: now }).where(eq(fluxSchema.userFlux.userId, userId))
+          return
+        }
+
+        const samePeriod = wallet.planEntitlementId === period.entitlementId
+          && wallet.planPeriodStart?.getTime() === period.periodStart.getTime()
+        if (samePeriod) {
+          await tx.update(fluxSchema.userFlux).set({ planExpiresAt: period.expiresAt, updatedAt: now }).where(eq(fluxSchema.userFlux.userId, userId))
+          return
+        }
+
+        const forfeited = wallet.planExpiresAt !== null && wallet.planExpiresAt > now ? wallet.planFlux : 0
+        const granted = { ...wallet, planFlux: period.quota, planExpiresAt: period.expiresAt }
+        await tx.update(fluxSchema.userFlux).set({
+          planFlux: period.quota,
+          planQuota: period.quota,
+          planExpiresAt: period.expiresAt,
+          planEntitlementId: period.entitlementId,
+          planPeriodStart: period.periodStart,
+          updatedAt: now,
+        }).where(eq(fluxSchema.userFlux.userId, userId))
+        const [grant] = await tx.insert(fluxTxSchema.fluxTransaction).values({
+          userId,
+          type: 'credit',
+          pool: 'plan',
+          amount: period.quota,
+          balanceBefore: forfeited,
+          balanceAfter: period.quota,
+          description: 'plan_grant',
+          metadata: { source: 'plan.grant', entitlementId: period.entitlementId, periodStart: period.periodStart.toISOString(), forfeited },
+        }).returning({ id: fluxTxSchema.fluxTransaction.id })
+        await settleOutstanding(tx, granted, `plan:${grant!.id}:settle`)
+      })
+      await updateRedisCache(userId)
+    },
+
+    /** Chooses whether purchased Flux pays after the plan bucket runs out. Needs an initialized wallet. */
+    async setFallbackToFlux(userId: string, fallbackToFlux: boolean): Promise<void> {
+      const updated = await db.update(fluxSchema.userFlux)
+        .set({ fallbackToFlux, updatedAt: new Date() })
+        .where(and(eq(fluxSchema.userFlux.userId, userId), isNull(fluxSchema.userFlux.deletedAt)))
+        .returning({ userId: fluxSchema.userFlux.userId })
+      if (updated.length === 0)
+        throw new Error(`No active flux record for user ${userId}`)
+      await updateRedisCache(userId)
     },
 
     /** Credits integer Flux, then settles affordable outstanding fees in the same transaction. Replay returns the current wallet balance. */
@@ -303,7 +384,12 @@ export function createBillingService(
       })
 
       // Invalidation prevents a balance-only write from hiding confirmed outstanding fees.
-      await updateRedisCache(input.userId)
+      try {
+        await invalidateBalanceCache(redis, input.userId)
+      }
+      catch {
+        logger.withFields({ userId: input.userId }).warn('Failed to invalidate flux cache after setFlux')
+      }
 
       logger.withFields({
         userId: input.userId,

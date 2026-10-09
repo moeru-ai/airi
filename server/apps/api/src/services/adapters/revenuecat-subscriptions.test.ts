@@ -1,4 +1,4 @@
-import type { PlanPeriod } from '../domain/subscriptions'
+import type { PlanPeriod } from '../domain/billing/billing-service'
 import type { ConfigDefinitions, ConfigKVService } from './config-kv'
 import type { SubscriberEntitlement } from './revenuecat-subscriber'
 
@@ -31,12 +31,12 @@ const goEntitlement: SubscriberEntitlement = {
   accessUntil: future,
 }
 
-/** Runs the resolver as the ledger does and returns the period that it selects. */
+/** Runs the resolver as the wallet does and returns the period that it selects. */
 async function reconcile(entitlements: SubscriberEntitlement[], configKV = createConfigKV()) {
   const synced: (PlanPeriod | null)[] = []
   const fetchEntitlements = vi.fn(async () => entitlements)
   const sync = createRevenuecatSubscriptionSync(
-    { syncPeriod: async (_userId, resolve) => { synced.push(await resolve()) } },
+    { syncPlan: async (_userId, resolve) => { synced.push(await resolve()) } },
     configKV,
     { fetchEntitlements },
   )
@@ -45,15 +45,15 @@ async function reconcile(entitlements: SubscriberEntitlement[], configKV = creat
 }
 
 describe('revenuecat subscription sync', () => {
-  it('syncs the active plan as a Credit period', async () => {
+  it('syncs the active plan as a plan period', async () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement])
 
     expect(fetchEntitlements).toHaveBeenCalledWith('user-1')
     expect(synced).toEqual([{
       entitlementId: 'airi_go',
-      grantedCredit: 2000,
+      quota: 2000,
       periodStart: goEntitlement.purchasedAt,
-      periodEnd: future,
+      expiresAt: future,
     }])
   })
 
@@ -62,9 +62,9 @@ describe('revenuecat subscription sync', () => {
     expect(synced).toEqual([null])
   })
 
-  it('keeps a plan that does not expire', async () => {
+  it('syncs no period when the entitlement has no expiry', async () => {
     const { synced } = await reconcile([{ ...goEntitlement, accessUntil: null }])
-    expect(synced).toMatchObject([{ entitlementId: 'airi_go', periodEnd: null }])
+    expect(synced).toEqual([null])
   })
 
   it('selects the latest purchase when two plans are active', async () => {
@@ -77,7 +77,7 @@ describe('revenuecat subscription sync', () => {
         accessUntil: future,
       },
     ])
-    expect(synced).toMatchObject([{ entitlementId: 'airi_plus', grantedCredit: 5000 }])
+    expect(synced).toMatchObject([{ entitlementId: 'airi_plus', quota: 5000 }])
   })
 
   it('ignores a product that has no plan', async () => {
@@ -90,7 +90,7 @@ describe('revenuecat subscription sync', () => {
     expect(synced).toEqual([null])
   })
 
-  it('leaves the ledger as it is when no plans are configured', async () => {
+  it('leaves the wallet as it is when no plans are configured', async () => {
     const { synced, fetchEntitlements } = await reconcile([goEntitlement], createConfigKV(null))
     expect(synced).toEqual([])
     expect(fetchEntitlements).not.toHaveBeenCalled()

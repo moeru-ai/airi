@@ -2,10 +2,12 @@ import type Redis from 'ioredis'
 
 import type { Database } from '../../libs/db'
 import type { ConfigKVService } from '../adapters/config-kv'
+import type { WalletSnapshot } from './flux-cache'
 
 import { useLogger } from '@guiiai/logg'
 import { and, eq, isNull } from 'drizzle-orm'
 
+import { planRemainingPercent } from './billing/flux-posting'
 import { invalidateBalanceCache, readBalanceCache, writeBalanceCache } from './flux-cache'
 
 import * as schema from '../../schemas/flux'
@@ -18,12 +20,27 @@ const logger = useLogger('flux-service')
 // invisible. After account deletion the auth tables hard-delete the user
 // so this filter is mostly defense-in-depth against routes that bypass
 // `sessionMiddleware`. See `server/apps/api/docs/ai-context/account-deletion.md`.
+/** Plan expiry is judged on every read, so a cached snapshot never shows an expired plan. */
+function toBalance(userId: string, snapshot: WalletSnapshot) {
+  return {
+    userId,
+    flux: snapshot.flux,
+    unsettledMicroFlux: snapshot.unsettledMicroFlux,
+    fallbackToFlux: snapshot.fallbackToFlux,
+    planRemainingPercent: planRemainingPercent({
+      planFlux: snapshot.planFlux,
+      planQuota: snapshot.planQuota,
+      planExpiresAt: snapshot.planExpiresAt === null ? null : new Date(snapshot.planExpiresAt),
+    }),
+  }
+}
+
 export function createFluxService(db: Database, redis: Redis, configKV: ConfigKVService) {
   return {
     async getFlux(userId: string) {
       const cached = await readBalanceCache(redis, userId)
       if (cached !== null)
-        return { userId, ...cached }
+        return toBalance(userId, cached)
 
       let record = await db.query.userFlux.findFirst({
         where: and(
@@ -70,9 +87,16 @@ export function createFluxService(db: Database, redis: Redis, configKV: ConfigKV
         logger.withFields({ userId, initialFlux }).log('Initialized new user flux')
       }
 
-      const snapshot = { flux: record.flux, unsettledMicroFlux: record.unsettledMicroFlux }
+      const snapshot = {
+        flux: record.flux,
+        unsettledMicroFlux: record.unsettledMicroFlux,
+        planFlux: record.planFlux,
+        planQuota: record.planQuota,
+        planExpiresAt: record.planExpiresAt?.toISOString() ?? null,
+        fallbackToFlux: record.fallbackToFlux,
+      }
       await writeBalanceCache(redis, userId, snapshot)
-      return { userId, ...snapshot }
+      return toBalance(userId, snapshot)
     },
 
     /**

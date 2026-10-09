@@ -1054,7 +1054,6 @@ pages:
   plan:
     title: 订阅
     description: 套餐额度
-    statusError: 订阅状态加载失败，请稍后再试。
     packagesError: 暂时无法获取可用的订阅档位，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
     currentPlan: 当前订阅

@@ -172,10 +172,11 @@ function makeFakeDeps(overrides: {
         throw Object.assign(new Error('Insufficient flux'), { statusCode: 402 })
     }),
     settle: vi.fn(async () => ({
-      meter: 'wallet',
-      micro: 0,
+      charged: 1,
+      requested: 1,
+      balance: overrides.fluxBalance - 1,
+      unsettledMicroFlux: 0,
       replay: false,
-      fluxConsumed: 0,
     })),
   }
   const genAi = {

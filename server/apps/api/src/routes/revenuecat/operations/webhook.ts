@@ -74,8 +74,8 @@ function verifySignature(
 /**
  * Verifies a RevenueCat webhook, then acts on it.
  * `NON_RENEWING_PURCHASE` settles a Flux pack. Each other event reconciles
- * the plan Credits of the users that it names. The event type does not
- * select a Credit rule, so a repeated or late delivery is safe.
+ * the plan Flux of the users that it names. The event type does not
+ * select a plan rule, so a repeated or late delivery is safe.
  */
 export function createWebhookOperation(
   payment: PaymentService,

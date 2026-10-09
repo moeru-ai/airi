@@ -11,19 +11,13 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
-const { isAuthenticated, planRemaining } = storeToRefs(authStore)
+const { planRemaining, fallbackToFlux } = storeToRefs(authStore)
 
 const fluxPurchaseDisabled = isFluxPurchaseDisabled()
 
 const plan = useSubscription({
   getUserId: () => authStore.user?.id ?? '',
   onChanged: () => authStore.updateCredits(),
-})
-
-watch(() => plan.status.value, (status) => {
-  if (!status || !isAuthenticated.value)
-    return
-  planRemaining.value = status.allowances[0]?.remainingPercent ?? null
 })
 
 const message = ref<{ type: 'success' | 'error', text: string } | null>(null)
@@ -89,8 +83,8 @@ function actionLabel(pkg: PlanPackage): string {
   return t(ACTION_LABEL[action])
 }
 
-const fallbackToFlux = computed({
-  get: () => plan.status.value?.fallbackToFlux ?? false,
+const fallbackChoice = computed({
+  get: () => fallbackToFlux.value,
   set: value => void savePreference(value),
 })
 
@@ -110,12 +104,7 @@ function formatDate(iso: string | null): string {
 }
 
 onMounted(async () => {
-  try {
-    await plan.fetchStatus()
-  }
-  catch {
-    message.value = { type: 'error', text: t('settings.pages.plan.statusError') }
-  }
+  await plan.fetchStatus()
   if (!fluxPurchaseDisabled) {
     await plan.fetchPackages().catch(() => {
       message.value = { type: 'error', text: t('settings.pages.plan.packagesError') }
@@ -228,7 +217,7 @@ async function handleSubscribe(packageId: string) {
 
     <!-- Flux fallback preference -->
     <FieldCheckbox
-      v-model="fallbackToFlux"
+      v-model="fallbackChoice"
       :disabled="preferenceSaving || !currentPlan"
       :label="t('settings.pages.plan.fallbackToFlux')"
       :description="t('settings.pages.plan.fallbackToFluxHint')"

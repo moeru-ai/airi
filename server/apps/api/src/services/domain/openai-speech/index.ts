@@ -1,6 +1,6 @@
 import type { GenAiMetrics } from '../../../otel'
 import type { ConfigKVService } from '../../adapters/config-kv'
-import type { SpeechMeter } from '../billing/speech-billing'
+import type { SpeechBilling } from '../billing/speech-billing'
 import type { LlmRouterService } from '../llm-router'
 import type { startTtsGeneration, TtsGenerationTrace } from '../llm-tracing'
 import type { ProviderCatalogService } from '../provider-catalog'
@@ -46,7 +46,7 @@ function readOptionalNumber(record: Record<string, unknown> | undefined, key: st
 
 export interface OpenAiSpeechServiceDeps {
   configKV: ConfigKVService
-  speechBilling: SpeechMeter
+  speechBilling: SpeechBilling
   llmRouter: LlmRouterService
   voicePackService: VoicePackService
   providerCatalogService: ProviderCatalogService
@@ -214,7 +214,7 @@ export function createOpenAiSpeechService(deps: OpenAiSpeechServiceDeps) {
         turnId: analytics.turnId,
         provider: routeCtx.provider,
       })
-      fluxConsumed = result.fluxConsumed
+      fluxConsumed = result.feeFlux
       span.setAttribute(AIRI_ATTR_BILLING_FLUX_CONSUMED, fluxConsumed)
       generationTrace.succeed({
         inputChars: inputText.length,

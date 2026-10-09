@@ -36,8 +36,6 @@ async function ensurePurchases(userId: string) {
   return purchases
 }
 
-type SubscriptionStatus = Awaited<ReturnType<Awaited<ReturnType<typeof client.api.v1.subscriptions.status.$get>>['json']>>
-
 export interface CurrentPlan {
   entitlementId: string
   productId: string
@@ -145,7 +143,7 @@ function toPlanPackage(pkg: Package, metadata: unknown, locale: string): PlanPac
   }
 }
 
-/** Plan subscriptions through RevenueCat Web Billing. The SDK reports the plan. The webhook grants Credits. */
+/** Plan subscriptions through RevenueCat Web Billing. The SDK reports the plan. The webhook grants plan Flux. */
 export function useSubscription(options: {
   getUserId: () => string
   onChanged: () => Promise<unknown>
@@ -153,7 +151,6 @@ export function useSubscription(options: {
   const { t, locale } = useI18n()
   const enabled = !isFluxPurchaseDisabled() && getRevenuecatWebKey() != null
 
-  const status = ref<SubscriptionStatus | null>(null)
   const currentPlan = ref<CurrentPlan | null>(null)
   const packages = ref<PlanPackage[]>([])
   const loadingPackages = ref(false)
@@ -172,15 +169,8 @@ export function useSubscription(options: {
     applyCustomerInfo(await purchases.getCustomerInfo())
   }
 
-  async function fetchServerStatus(): Promise<void> {
-    const res = await client.api.v1.subscriptions.status.$get()
-    if (!res.ok)
-      throw new Error(t('settings.pages.plan.statusError'))
-    status.value = await res.json()
-  }
-
+  /** Reads the plan from the SDK, then refreshes the balance, which carries the plan percent. */
   async function fetchStatus(): Promise<void> {
-    await fetchServerStatus()
     await refreshCustomer().catch(() => undefined)
     await options.onChanged().catch(() => undefined)
   }
@@ -226,7 +216,6 @@ export function useSubscription(options: {
       }
 
       applyCustomerInfo(customerInfo)
-      await fetchServerStatus().catch(() => undefined)
       await options.onChanged().catch(() => undefined)
       return currentPlan.value ? 'activated' : 'pending'
     }
@@ -236,17 +225,14 @@ export function useSubscription(options: {
   }
 
   async function setFallbackToFlux(fallbackToFlux: boolean): Promise<void> {
-    const res = await client.api.v1.subscriptions.preference.$put({ json: { fallbackToFlux } })
+    const res = await client.api.v1.flux.fallback.$put({ json: { fallbackToFlux } })
     if (!res.ok)
       throw new Error(t('settings.pages.plan.preferenceError'))
-    const data = await res.json()
-    if (status.value)
-      status.value = { ...status.value, fallbackToFlux: data.fallbackToFlux }
+    await options.onChanged().catch(() => undefined)
   }
 
   return {
     managementUrl,
-    status,
     currentPlan,
     packages,
     loadingPackages,

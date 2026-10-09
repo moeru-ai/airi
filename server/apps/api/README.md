@@ -49,7 +49,7 @@ The cache functions do not add a key prefix.
 `flux_transaction` records integer balance changes only. `user_flux` stores integer Flux and outstanding micro-Flux.
 One Flux equals 1,000,000 micro-Flux.
 LLM and TTS fees share one pool. Outstanding fees do not expire.
-`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux, detail? })` accepts confirmed amounts. The billing service lives in `src/services/domain/billing/billing-service.ts`.
+`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux, detail? })` accepts confirmed amounts.
 The accounting core has no model, provider, turn, attempt, or pricing dependency.
 A service puts its own evidence in `detail`. A new service needs a new `source.type` and no new table.
 A fee posts once. A replay with the same amount returns the first result. A replay with another amount fails.
@@ -58,6 +58,13 @@ Use `flux_usage` for service spend reports. Do not attribute a pooled debit to o
 Admission reads PostgreSQL. The display cache contains both wallet fields and expires after 60 seconds.
 Credits settle affordable outstanding fees. Admin balance changes preserve outstanding fees.
 The ledger must always satisfy: sum of fees = debited Flux x 1,000,000 + outstanding micro-Flux.
+
+`user_flux` also holds the plan bucket: `plan_flux`, `plan_quota`, `plan_expires_at`, `plan_entitlement_id`, and `plan_period_start`.
+Purchased Flux does not expire. Plan Flux resets each billing period and counts as 0 after `plan_expires_at`.
+A pooled debit spends plan Flux first. While a plan is active, purchased Flux pays only when `fallback_to_flux` is on. The default is off.
+A fee that no bucket can pay stays outstanding. A new plan grant or a credit pays it later.
+`flux_transaction.pool` is `wallet` or `plan`. Its balance columns describe that bucket.
+`BillingService.syncPlan` grants a period, `setFallbackToFlux` saves the choice, and `GET /api/v1/flux` returns `planRemainingPercent`.
 
 `GET /api/v1/flux/usage` returns paginated fees from `flux_usage`. Wallet history returns integer balance changes.
 
@@ -143,38 +150,28 @@ RevenueCat lives on `/api/v1/revenuecat/*`. `GET /packages` lists the
 `REVENUECAT_FLUX_PACKS` product-to-Flux map. `POST /webhook` verifies the
 dashboard authorization header and HMAC signature over the raw body, then
 settles `NON_RENEWING_PURCHASE` events as `revenuecat` evidence receipts.
-Each other event reconciles plan Credits from RevenueCat.
+Each other event reconciles the plan bucket from RevenueCat.
 The webhook stores no events.
 Flux balance stays self-managed. In-App Currency is not used.
 
 ## Subscriptions
 
-Go (`airi_go`, 2000 plan credits) and Plus (`airi_plus`, 5000 plan credits)
+Go (`airi_go`, 2000 plan Flux) and Plus (`airi_plus`, 5000 plan Flux)
 are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
-Store all enter through the single RevenueCat webhook; `store` is only a
+Store all enter through the single RevenueCat webhook. `store` is only a
 field, so new channels need no server changes.
 
 The client RevenueCat SDK is the source for entitlement status.
 The plan page reads `customerInfo` for the current plan, expiry, and management URL.
-`GET /subscriptions/status` returns the remaining percent and the Flux-fallback preference.
+The server stores only the plan bucket in `user_flux`.
 
-`src/services/domain/subscriptions` owns Credit grants, Credit debit, the
-Flux-fallback preference (default off), and `deleteAllForUser`. It does not
-store subscription status.
-A webhook does not select a Credit rule by its event type. The server reads
-`GET /v1/subscribers/{app_user_id}` with `REVENUECAT_API_KEY` and makes the
-ledger match the active plan. A new period gets a full grant. A known period
-keeps its spent Credits and takes the reported end time. Every other open
-period closes. One Credit equals one Flux.
-`src/services/domain/billing/credit-posting.ts` settles both pools in
-micro-Credits (1 Credit = 1,000,000 micro-Credits). Chat and speech call
-`canCover` and `settle`. The earliest open Credit period pays when it covers
-the whole fee. Otherwise the wallet pays when Flux fallback is on. Each pool
-must cover the whole fee alone. Plan Credits never touch `user_flux`. They
-live in `subscription_allowance` with per-request rows in
-`subscription_consumption`.
+A webhook does not select a grant rule by its event type. The server reads
+`GET /v1/subscribers/{app_user_id}` with `REVENUECAT_API_KEY` and calls
+`BillingService.syncPlan`. A new period resets the bucket to the quota.
+A known period keeps its spent Flux and takes the reported end time.
+No active plan expires the bucket now.
 Product-to-plan mapping lives in ConfigKV `REVENUECAT_SUBSCRIPTION_PLANS`.
-A missed webhook delays the Credit grant until the next webhook for that
+A missed webhook delays the grant until the next webhook for that
 customer. The plan name and expiry come from the client SDK, so they do not wait for that webhook.
 
 ## Run locally

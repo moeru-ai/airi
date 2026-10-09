@@ -9,7 +9,6 @@ import type { ChatGenerationTrace, TtsGenerationTrace } from '../../../services/
 import type { ProductEventService } from '../../../services/domain/product-events'
 import type { ProviderCatalogService } from '../../../services/domain/provider-catalog'
 import type { RequestLogService } from '../../../services/domain/request-log'
-import type { SubscriptionService } from '../../../services/domain/subscriptions'
 import type { VoicePackService } from '../../../services/domain/voice-packs'
 import type { HonoEnv } from '../../../types/hono'
 
@@ -24,9 +23,10 @@ import { fluxTransaction } from '../../../schemas/flux-transaction'
 import { fluxUsage } from '../../../schemas/flux-usage'
 import { llmRequestAttempt } from '../../../schemas/llm-request-attempt'
 import { llmRequestLog } from '../../../schemas/llm-request-log'
-import { createBillingService, microFluxToFlux } from '../../../services/domain/billing/billing-service'
+import { priceLlmCost } from '../../../services/domain/billing/billing'
+import { createBillingService } from '../../../services/domain/billing/billing-service'
+import { microFluxToFlux } from '../../../services/domain/billing/flux-posting'
 import { createLlmBillingService } from '../../../services/domain/billing/llm-billing'
-import { priceLlmCost } from '../../../services/domain/billing/pricing'
 import { createRequestLogService } from '../../../services/domain/request-log'
 import { ApiError } from '../../../utils/error'
 import {
@@ -58,7 +58,7 @@ function createMockBillingService(flux = 100): BillingService {
     settleLlmCost: vi.fn(async (input: Parameters<BillingService['settleLlmCost']>[0]) => {
       const quote = priceLlmCost(input.usage, input.pricing)
       if (input.pendingReason || quote.costMicroFlux === undefined)
-        return { charged: 0, requested: 0, pending: true, feeFlux: 0, replay: false }
+        return { charged: 0, requested: 0, pending: true, feeFlux: 0 }
       outstanding += quote.costMicroFlux
       const requested = Math.floor(outstanding / 1_000_000)
       const charged = Math.min(requested, balance)
@@ -68,19 +68,6 @@ function createMockBillingService(flux = 100): BillingService {
     }),
     creditFlux: vi.fn(),
   } as any
-}
-
-function createMockSubscriptionService(overrides?: Partial<SubscriptionService>): SubscriptionService {
-  // No plan quota with Flux fallback on: existing debit assertions keep passing.
-  return {
-    getStatus: vi.fn(async () => ({ allowances: [] })),
-    spendableMicro: vi.fn(async () => 0),
-    debitCredits: vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: 0, requestedMicro: input.microCredit, replay: false })),
-    getFallbackPreference: vi.fn(async () => true),
-    setFallbackPreference: vi.fn(),
-    deleteAllForUser: vi.fn(),
-    ...overrides,
-  } as SubscriptionService
 }
 
 function createMockGenAiMetrics(): GenAiMetrics {
@@ -152,7 +139,7 @@ function createMockTtsMeter(unitsPerFlux = 1000, initialBalance = 100) {
       const charged = Math.floor(debt / unitsPerFlux)
       debt -= charged * unitsPerFlux
       balance -= charged
-      return { meter: 'wallet', micro: 0, replay: false, fluxConsumed: charged }
+      return { charged, requested: charged, balance, unsettledMicroFlux: debt, replay: false }
     }),
   } as any
 }
@@ -391,13 +378,11 @@ function createTestApp(
   voicePackService = createMockVoicePackService(),
   providerCatalogService = createMockProviderCatalogService(),
   genAi: GenAiMetrics | null = null,
-  subscriptions?: SubscriptionService,
 ) {
   const { openaiRoutes, audioRoutes } = createV1Routes({
     fluxService,
     billingService: billingService ?? createMockBillingService(),
     llmBilling: billingService ?? createMockBillingService(),
-    subscriptions: subscriptions ?? createMockSubscriptionService(),
     configKV,
     requestLogService: requestLogService ?? createMockRequestLogService(),
     productEventService,
@@ -485,48 +470,6 @@ describe('v1CompletionsRoutes', () => {
         { user: testUser } as any,
       )
       expect(res.status).toBe(402)
-    })
-
-    it('passes the gate on plan quota with zero flux and spends quota first', async () => {
-      globalThis.fetch = vi.fn(async () =>
-        Response.json({
-          id: 'chatcmpl-plan',
-          choices: [{ message: { role: 'assistant', content: 'ok' } }],
-          usage: { cost: 0.002, prompt_tokens: 1, completion_tokens: 1 },
-        })) as any
-      const billingService = createMockBillingService(0)
-      const debitCredits = vi.fn(async (input: { microCredit: number }) => ({ chargedMicro: input.microCredit, requestedMicro: input.microCredit, replay: false }))
-      const subscriptions = createMockSubscriptionService({
-        spendableMicro: vi.fn(async () => 2_000_000_000),
-        debitCredits,
-        getFallbackPreference: vi.fn(async () => false),
-      })
-      const app = createTestApp(
-        createMockFluxService(0),
-        createMockConfigKV(),
-        billingService,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        null,
-        subscriptions,
-      )
-
-      const res = await app.fetch(
-        new Request('http://localhost/api/v1/openai/chat/completions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model: 'auto', messages: [{ role: 'user', content: 'hi' }] }),
-        }),
-        { user: testUser } as any,
-      )
-      expect(res.status).toBe(200)
-      expect(debitCredits).toHaveBeenCalled()
-      expect(billingService.settleLlmCost).not.toHaveBeenCalled()
     })
 
     it('rejects pre-flight when balance is below LLM_MINIMUM_BALANCE (Issue: unpaid-usage-exploit)', async () => {
@@ -2988,7 +2931,7 @@ describe('issue #2479 hosted Responses', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
     vi.mocked(flux.getFlux).mockImplementation(async () => {
       now = 1000
-      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0 }
+      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0, fallbackToFlux: false, planRemainingPercent: null }
     })
     vi.mocked(catalog.resolveEnabledAlias).mockImplementation(async () => {
       now = 2000

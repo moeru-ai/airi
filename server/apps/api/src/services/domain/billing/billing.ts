@@ -4,9 +4,9 @@ import type { UsageInfo } from '../generation-usage'
 
 import { finite, integer, minValue, nonEmpty, number, object, pipe, record, safeParse, string } from 'valibot'
 
-import { MICRO_PER_CREDIT } from './credit-posting'
+import { MICRO_FLUX_PER_FLUX } from './flux-posting'
 
-const microPerCredit = BigInt(MICRO_PER_CREDIT)
+const microFluxPerFlux = BigInt(MICRO_FLUX_PER_FLUX)
 
 /** Price snapshot for provider-reported USD costs. There are no default sale prices. */
 export const costPricingSchema = object({
@@ -64,7 +64,7 @@ export function priceLlmCost(usage: Pick<CostUsage, 'costUsd' | 'pendingReason' 
   if (!safeParse(generationIdSchema, usage.generationId).success)
     return { pricing, pendingReason: 'missing_generation_id' }
 
-  let numerator = microPerCredit
+  let numerator = microFluxPerFlux
   let denominator = 1n
   for (const value of [cost.output, pricing.fluxPerUsd, pricing.multiplier]) {
     const [factorNumerator, factorDenominator] = decimalFraction(value)
@@ -89,7 +89,7 @@ export function priceSpeechUsage(units: number, pricing: SpeechPricing): number 
     throw new Error('Speech units must be a non-negative safe integer')
   const [numerator, denominator] = decimalFraction(pricing.fluxPer1kChars)
   const divisor = denominator * 1000n
-  const fee = (BigInt(units) * numerator * microPerCredit + divisor - 1n) / divisor
+  const fee = (BigInt(units) * numerator * microFluxPerFlux + divisor - 1n) / divisor
   if (fee > BigInt(Number.MAX_SAFE_INTEGER))
     throw new Error('Speech cost is out of range')
   return Number(fee)

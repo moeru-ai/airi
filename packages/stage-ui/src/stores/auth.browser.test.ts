@@ -32,8 +32,6 @@ describe('authentication request ownership', () => {
       const url = input instanceof Request ? input.url : input.toString()
       if (url.includes('/flux'))
         return Promise.resolve(Response.json({ flux: 0 }))
-      if (url.includes('/subscriptions/status'))
-        return Promise.resolve(Response.json({ allowances: [] }))
       return new Promise(resolve => requests.push({ path: new URL(url).pathname, resolve }))
     })
   })

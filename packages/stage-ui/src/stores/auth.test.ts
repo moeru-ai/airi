@@ -75,8 +75,7 @@ describe('auth store sign-in requests', () => {
   beforeEach(() => {
     storage = new MemoryStorage()
     vi.stubGlobal('localStorage', storage)
-    // Authentication also requests credits and the plan percent.
-    // Keep that HTTP boundary inside the test.
+    // Authentication also requests credits. Keep that HTTP boundary inside the test.
     vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 0 })))
     setActivePinia(createPinia())
     vi.mocked(triggerSignIn).mockReset()
@@ -158,13 +157,16 @@ describe('auth store sign-in requests', () => {
     expect(authStore.token).toBe('persisted-access-token')
   })
 
-  it('keeps the plan percent empty when status has no allowance', async () => {
+  it('reads the plan percent and fallback choice with the Flux balance', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ flux: 5, planRemainingPercent: 40, fallbackToFlux: true })))
     const authStore = useAuthStore()
     authStore.$patch({ user, session })
 
-    await authStore.updatePlanRemaining()
+    await authStore.updateCredits()
 
-    expect(authStore.planRemaining).toBeNull()
+    expect(authStore.credits).toBe(5)
+    expect(authStore.planRemaining).toBe(40)
+    expect(authStore.fallbackToFlux).toBe(true)
   })
 
   it('does not persist state patches received from another window', async () => {

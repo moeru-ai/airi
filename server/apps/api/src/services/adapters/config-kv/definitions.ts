@@ -3,7 +3,7 @@ import type { InferOutput } from 'valibot'
 import { any, array, boolean, check, finite, integer, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'
-import { costPricingSchema } from '../../domain/billing/pricing'
+import { costPricingSchema } from '../../domain/billing/billing'
 
 /**
  * LLM/TTS router config tree. Single composite entry under configKV holds the
@@ -265,8 +265,8 @@ export const configEntrySchemas = {
       fluxAmount: pipe(number(), minValue(1, 'REVENUECAT_FLUX_PACKS fluxAmount must be >= 1')),
     }),
   ), {}),
-  // RevenueCat subscription product id → entitlement and per-period Credits.
-  // Unused Credits die with the billing period.
+  // RevenueCat subscription product id → entitlement and per-period plan Flux.
+  // Unused plan Flux dies with the billing period.
   REVENUECAT_SUBSCRIPTION_PLANS: optional(record(
     pipe(string(), nonEmpty('REVENUECAT_SUBSCRIPTION_PLANS product ids must not be empty')),
     object({
