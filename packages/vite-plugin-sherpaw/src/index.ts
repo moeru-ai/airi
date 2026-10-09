@@ -32,8 +32,14 @@ export interface SherpawOptions {
  *
  * `HF_ENDPOINT` is the variable `huggingface_hub` reads, so a mirror that other
  * tooling already uses applies to these downloads without extra configuration.
+ * A host that downloads remote models outside Vite, such as the Electron main
+ * process, calls this function to use the same endpoint as the plugin.
+ *
+ * @example
+ * resolveModelEndpoint('https://hf-mirror.com')
+ * // => 'https://hf-mirror.com'
  */
-function resolveEndpoint(endpoint?: string) {
+export function resolveModelEndpoint(endpoint?: string) {
   return endpoint?.trim() || env.HF_ENDPOINT?.trim() || defaultSherpawModelEndpoint
 }
 
@@ -57,7 +63,7 @@ export function Sherpaw(options: SherpawOptions): Plugin {
         ? options.developmentModels ?? []
         : options.bundledModels ?? []
 
-      const endpoint = resolveEndpoint(options.endpoint)
+      const endpoint = resolveModelEndpoint(options.endpoint)
       const cacheDirectory = resolve(config.root, options.cacheDir ?? '.cache')
       if (config.publicDir)
         await rm(join(config.publicDir, 'sherpaw'), { recursive: true, force: true })

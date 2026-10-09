@@ -7,6 +7,7 @@ import { useLive2dParams } from '@proj-airi/stage-ui-live2d/stores/model-paramet
 import { useModelStore } from '@proj-airi/stage-ui-three'
 
 import { useLive2DMotionMagicSettings } from '../features/motions/live2d'
+import { clearSherpawModelAssets } from '../libs/providers/providers/sherpaw/model-assets'
 import { useChatStore } from '../stores/chat'
 import { useChatSessionStore } from '../stores/chat/session-store'
 import { useDisplayModelsStore } from '../stores/display-models'
@@ -122,6 +123,7 @@ export function useDataMaintenance() {
     await resetModulesSettings()
     await deleteAllChatSessions()
     await resetSettingsState()
+    await clearSherpawModelAssets()
   }
 
   async function resetDesktopApplicationState() {
