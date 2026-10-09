@@ -1,0 +1,16 @@
+{
+  "name": "airi-custom",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Custom MCP servers and hooks for the HoangIT-69/airi fork. Not part of the AIRI pnpm workspace.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"knowledge/test/*.test.mjs\""
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.128.0",
+    "jszip": "3.10.1",
+    "unpdf": "1.8.1"
+  }
+}
