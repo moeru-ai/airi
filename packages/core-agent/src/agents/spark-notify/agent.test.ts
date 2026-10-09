@@ -30,6 +30,12 @@ describe('createSparkNotifyAgent', () => {
     const run = vi.fn(async (request: SparkNotifyRunRequest) => {
       expect(request.conversation.turns).toHaveLength(2)
       expect(request.tools).toHaveLength(2)
+      const system = request.conversation.turns[0]
+      if (system.type !== 'system')
+        throw new Error('Expected the Spark system prompt')
+      expect(system.content).toEqual(expect.arrayContaining([
+        expect.objectContaining({ text: expect.stringContaining('builtIn_sparkCommand') }),
+      ]))
       await request.onStreamEvent({ type: 'text-delta', text: 'Checkmate.' })
     })
     const agent = createSparkNotifyAgent({
@@ -60,9 +66,21 @@ describe('createSparkNotifyAgent', () => {
     expect(observedEvents).toContain('result')
   })
 
-  it('does not expose tools when the host forces a text response', async () => {
+  // https://github.com/moeru-ai/airi/pull/2459#discussion_r4002621225
+  // ROOT CAUSE:
+  // The forced-text policy removed tools but kept the command instruction.
+  // Build the instruction from the same command policy that selects tools.
+  it('omits unavailable Spark command instructions when the host forces text for Issue #2161', async () => {
     const run = vi.fn(async (request: SparkNotifyRunRequest) => {
       expect(request.tools).toEqual([])
+      expect(request.policy.supportsTools).toBe(false)
+      const system = request.conversation.turns[0]
+      expect(system.type).toBe('system')
+      if (system.type !== 'system')
+        throw new Error('Expected the Spark system prompt')
+      expect(system.content).not.toEqual(expect.arrayContaining([
+        expect.objectContaining({ text: expect.stringContaining('builtIn_sparkCommand') }),
+      ]))
       await request.onStreamEvent({ type: 'text-delta', text: 'I will speak.' })
     })
     const agent = createSparkNotifyAgent({ runner: { run } })

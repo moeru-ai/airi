@@ -20,6 +20,20 @@ When a caller supplies `resolveStep`, `streamFrom` reads current settings before
 
 The chat orchestrator forwards a send's `resolveStep`. It appends that send's system prompt supplement, including sticker instructions, to each resolved prompt.
 
+### Tool output and compatibility retries
+
+`streamFrom` rejects serialized calls to known tools in text or reasoning. A call has a top-level tool `name` and `parameters` or `arguments`. Ordinary JSON and nested examples remain output. This policy applies to Chat Completions and Responses.
+
+Plain output streams until a JSON candidate starts. Complete candidates are checked at step boundaries. An unmatched candidate holds later output until generation completion, including across provider or protocol changes. This delay prevents incomplete outer objects from exposing a tool call or incorrectly rejecting an ordinary nested example. Text and reasoning keep separate candidates. Each inspection limits candidate parsing to eight times the channel length. Exhaustion rejects without releasing unchecked output. This bounds inspection work, not total input size or elapsed time.
+
+Native tool activity is reported before queued UI notifications. Accepted events keep their order. Failure stops queued output and waits for the active consumer. SDK completion rejects late provider events, but accepted errors and terminal consumer failures still reject the generation. Usage observers remain optional telemetry.
+
+The stage-ui LLM store retries a plain-text call without tools only before output, generated-turn persistence, or native tool activity. Tool and content-array fallbacks each apply at most once, in either order. A required tool choice keeps tools despite a learned incompatibility. An explicit `supportsTools: false` wins, and a required choice without available tools rejects before the request. An explicit content-array override stays intact.
+
+`toolCallGuardNames` retains known names from earlier attempts of one generation. Cached tool-disabled requests inspect current tool names. Explicit tool-free requests skip builtin tool resolution. Spark forced-text prompts omit unavailable command instructions.
+
+Already emitted output and executed tools cannot be rolled back. Active consumer callbacks must eventually settle. Highly malformed ordinary JSON can exhaust the inspection budget and fail.
+
 To cap each request's output, set `StreamOptions.maxTokens`. Chat sends `max_tokens`, and Responses sends `max_output_tokens`.
 A `resolveStep` cap overrides the caller's cap. If the step omits its cap, the caller's cap applies.
 If both omit it, the provider's default applies.
@@ -267,44 +281,3 @@ Symbols that markdown keeps as text, for example `2 * 3` and `x ~= 3`, stay in t
 Special tokens and flushes keep their position relative to the text.
 Cancelling an acknowledgment releases its place without reporting a user interruption.
 Whole-turn interruption aborts generation, synthesis, queued audio, and playback for that response.
-
-## LLM streaming
-
-Import `streamFrom` and `StreamFromOptions` from `@proj-airi/core-agent`.
-Pass the model, chat provider, messages, and optional tools and callbacks.
-Await the returned promise to handle completion or failure.
-
-The runtime checks text and reasoning for serialized calls to registered tools.
-It checks complete JSON candidates at step boundaries. If a candidate is unmatched,
-it retains that candidate and all later output until the stream ends.
-The final check joins each channel across tool rounds. Valid ordinary objects retain
-their nested examples, including examples split across steps.
-Native tool activity does not disable this check or wait for buffered UI notifications.
-
-Each channel inspection has a parse-work budget. The budget permits candidate
-lengths to total at most eight times the channel length, measured in UTF-16 code units.
-Valid objects need one pass. The budget adds no size or depth limit to valid objects.
-An unmatched prefix is inspected at its first boundary and once at stream completion.
-Intermediate boundaries do not rescan that growing prefix.
-
-Ordinary text before a JSON candidate still streams immediately. Complete candidates
-can flush at step boundaries. After an unmatched candidate, text, reasoning, and
-native UI notifications wait for stream completion and retain their original order.
-Final incomplete ordinary output remains unchanged unless it contains a detected tool call.
-
-If malformed candidates exhaust the budget, the response rejects with
-`Model output exceeded the JSON inspection work limit.`
-The runtime discards unchecked buffered output and skips message, finish, and usage callbacks.
-Earlier streamed output and native tool side effects cannot be rolled back.
-Deeply malformed output can fail this check even without a tool call.
-This error does not establish tool incompatibility. The Stage UI store does not
-retry it or change the tool compatibility cache.
-
-## Development
-
-Build the public exports before tests in consuming packages:
-
-```shell
-pnpm -F @proj-airi/core-agent build
-pnpm -F @proj-airi/core-agent exec vitest run
-```
