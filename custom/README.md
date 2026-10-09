@@ -43,6 +43,7 @@ MCP server stdio, không có dependency. Tool: `list_projects`, `list_dir`, `rea
 - **Không có tool ghi.** AIRI chạy tool MCP mà không hỏi lại, nên server này phải giữ chỉ đọc.
 - Chặn `.env*` (trừ `.env.example`), `*.local.md`, `account-info.md`, `.claude/local`, `settings.local.json`, khóa (`*.pem`, `*.key`), `.git`, `node_modules`, `.next`, `.open-next`. Chặn cả đường dẫn thoát khỏi `WORKSPACE_ROOT`.
 - Giới hạn: file 200 KB, output 50 000 ký tự.
+- Luật chặn dùng chung ở `shared/path-guard.mjs`. Vòng lặp MCP stdio dùng chung ở `shared/mcp-stdio.mjs`.
 
 Đăng ký trong `%APPDATA%/@proj-airi/stage-tamagotchi/mcp.json`, hoặc Settings → Modules → MCP:
 
@@ -58,6 +59,63 @@ MCP server stdio, không có dependency. Tool: `list_projects`, `list_dir`, `rea
   }
 }
 ```
+
+## Kho tri thức WeKnora
+
+[Tencent/WeKnora](https://github.com/Tencent/WeKnora) chạy bằng Docker trong `D:/workspace-AI-v2/projects/WeKnora` (v0.8.2). Web UI: http://localhost. API: http://localhost:8080. `.env` bind cổng vào `127.0.0.1`.
+Mai điều phối. WeKnora chỉ lưu, index và tìm tài liệu. Embedding dùng Voyage AI, cấu hình trong web UI của WeKnora.
+
+Ba server MCP liên quan:
+
+| Server | Loại | Việc |
+|---|---|---|
+| `weknora` | HTTP, có sẵn trong WeKnora | Tìm và đọc tài liệu (`search_knowledge`, `read_document`, …) |
+| `weknora-folders` | stdio, `weknora-folders/server.mjs` | `add_folder`, `sync_folders`, `list_folders`, `remove_folder` |
+| `docs-writer` | stdio, `mcp-docs-writer/server.mjs` | `write_doc`, `list_docs` |
+
+### `weknora-folders`
+
+- Chỉ nhận thư mục trong `ALLOWED_ROOTS` (cách nhau bởi `;`). Bỏ qua file bí mật (luật của `path-guard`), code, file > 30 MB.
+- Đuôi được nạp: pdf, doc/x, ppt/x, xls/x, md, txt, csv, json, html, epub. Đường dẫn giữ nguyên dạng `<tên folder>/<đường dẫn con>` trong KB.
+- Sync theo hash SHA-256: file mới thì upload. File đổi thì xoá bản cũ rồi upload lại. File bị xoá thì xoá knowledge. Chỉ xoá tài liệu do tool này tạo.
+- State: `%APPDATA%/airi-custom/weknora-folders.json`. Có lock file để MCP và CLI không chạy cùng lúc.
+- Mỗi lần gọi MCP upload tối đa 100 file. CLI `node weknora-folders/sync.mjs` không giới hạn. CLI đọc env từ mục `weknora-folders` trong `mcp.json` của AIRI.
+- Tự đồng bộ: Task Scheduler chạy CLI định kỳ.
+
+### `docs-writer`
+
+- Tạo file `YYYY-MM-DD-<slug>.md` mới trong `DOCS_DIR` (mặc định `D:/workspace-AI-v2/projects/_mai-docs`), có front-matter (title, created, sources).
+- Không bao giờ ghi đè: trùng tên thì thêm `-2`, `-3`. Slug chỉ gồm `a-z0-9-`, nên tiêu đề không thể thoát khỏi thư mục.
+
+### Cấu hình `mcp.json`
+
+```json
+{
+  "mcpServers": {
+    "weknora": {
+      "url": "http://127.0.0.1:8080/mcp/<endpoint_id>",
+      "headers": { "Authorization": "Bearer <mcp token>" }
+    },
+    "weknora-folders": {
+      "command": "node",
+      "args": ["D:/workspace-AI-v2/projects/airi/custom/weknora-folders/server.mjs"],
+      "env": {
+        "WEKNORA_BASE_URL": "http://127.0.0.1:8080/api/v1",
+        "WEKNORA_API_KEY": "<api key>",
+        "WEKNORA_DEFAULT_KB": "<kb id>",
+        "ALLOWED_ROOTS": "D:/workspace-AI-v2/projects;D:/workspace-AI-v2/docs"
+      }
+    },
+    "docs-writer": {
+      "command": "node",
+      "args": ["D:/workspace-AI-v2/projects/airi/custom/mcp-docs-writer/server.mjs"],
+      "env": { "DOCS_DIR": "D:/workspace-AI-v2/projects/_mai-docs" }
+    }
+  }
+}
+```
+
+Không commit key. `mcp.json` nằm trong `%APPDATA%`, ngoài repo.
 
 ## Đổi model VRM
 
