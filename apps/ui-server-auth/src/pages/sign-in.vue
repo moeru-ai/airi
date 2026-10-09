@@ -21,6 +21,7 @@ import {
   signInWithEmail,
   signUpWithEmail,
 } from '../modules/email-password'
+import { emailSignInNavigationURL } from '../modules/email-sign-in-navigation'
 import { getServerAuthBootstrapContext } from '../modules/server-auth-context'
 import {
   createServerSignInContext,
@@ -224,11 +225,18 @@ async function handleEmailSignIn(event: Event) {
       return
     }
 
-    // After a successful credential sign-in better-auth has set the session
-    // cookie. Bounce into the OIDC `/oauth2/authorize` flow (or wherever the
-    // OIDC client originally pointed) so the upstream stage app gets its tokens.
+    // Same-site hosts can follow authorize directly. Cross-site hosts (server-dev
+    // Pages UI calling the Railway API) must hop through the API first so the
+    // session cookie is set on a top-level response. Mobile Safari otherwise
+    // drops the fetch Set-Cookie and authorize sends the user back to email entry.
     trackLoginSucceeded({ method: 'email' })
-    window.location.href = result.redirectURL ?? effectiveCallbackURL.value
+    window.location.href = emailSignInNavigationURL({
+      pageOrigin: window.location.origin,
+      apiServerUrl,
+      token: result.token,
+      redirectURL: result.redirectURL,
+      callbackURL: effectiveCallbackURL.value,
+    })
   }
   catch (error) {
     trackLoginFailed({ method: 'email' })

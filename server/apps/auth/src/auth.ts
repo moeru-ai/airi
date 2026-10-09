@@ -28,6 +28,7 @@ import { googleClientIds } from './google-client-ids'
 import { getAuthTrustedOrigins, getTrustedOrigin } from './origin'
 import { banGuard } from './plugins/ban-guard'
 import { oidcJwtBearer } from './plugins/oidc-jwt-bearer'
+import { sessionHandoff } from './plugins/session-handoff'
 import { steam } from './plugins/steam'
 import { createAppleClientSecret, createSocialAuthorizationRevoker } from './social-authorization'
 
@@ -457,6 +458,7 @@ export function createAuth(
 
     plugins: [
       bearer(),
+      sessionHandoff(),
       jwt(),
       banGuard(),
       // NOTICE:
