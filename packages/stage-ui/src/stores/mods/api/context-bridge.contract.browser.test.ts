@@ -47,6 +47,7 @@ const assistantMessageHooks: HookCallback[] = []
 const turnCompleteHooks: HookCallback[] = []
 
 const activeSessionIdRef = ref('session-1')
+const storedSessionMessages: Record<string, unknown[]> = {}
 let currentGeneration = 7
 const testChannels: Array<ReturnType<typeof createContextChannel>> = []
 
@@ -225,6 +226,7 @@ vi.mock('../../chat/session-store', () => ({
       return activeSessionIdRef.value
     },
     getSessionGenerationValue: () => currentGeneration,
+    getSessionMessagesIfLoaded: (sessionId: string) => storedSessionMessages[sessionId],
     refreshSession: (sessionId: string) => refreshSessionMock(sessionId),
   }),
 }))
@@ -318,6 +320,36 @@ describe('context bridge contract', () => {
     disposePinia(pinia)
     vi.restoreAllMocks()
     localStorage.clear()
+  })
+
+  it('lists the images and recordings of the turn in the chat message event', async () => {
+    storedSessionMessages['session-1'] = [{
+      id: 'turn-1',
+      role: 'user',
+      content: [
+        { type: 'text', text: 'look' },
+        { type: 'image_url', image_url: { url: 'airi-asset:image' } },
+        { type: 'input_audio', input_audio: { data: 'airi-asset:voice', format: 'wav' } },
+      ],
+      audioTranscripts: ['hello there'],
+    }]
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitHooks(assistantMessageHooks, { role: 'assistant', content: 'hi' }, 'hi', {
+      sessionId: 'session-1',
+      turnId: 'turn-1',
+      message: { role: 'user', content: 'look' },
+      contexts: {},
+      composedMessage: [],
+    })
+
+    const event = serverSendMock.mock.calls.find(([sent]) => sent.type === 'output:gen-ai:chat:message')?.[0]
+    expect(event?.data['gen-ai:chat'].attachments).toEqual([
+      { type: 'image', ref: 'airi-asset:image' },
+      { type: 'audio', ref: 'airi-asset:voice', mimeType: 'audio/wav', transcript: 'hello there' },
+    ])
+    delete storedSessionMessages['session-1']
   })
 
   it('ignores an asset read that the server did not attribute to a module', async () => {

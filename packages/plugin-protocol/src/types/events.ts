@@ -533,12 +533,24 @@ interface InputSource {
   'discord': Discord
 }
 
+/** An image or recording of the user message of a chat turn. Read its bytes with `asset:get:request`. */
+export interface ChatEventAttachment {
+  type: 'image' | 'audio'
+  /** `airi-asset:<id>`. */
+  ref: string
+  mimeType?: string
+  /** Speech recognized in a recording, when the stage has it. */
+  transcript?: string
+}
+
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
     contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
     composedMessage: Array<Message>
     input?: InputEventEnvelope
+    /** Images and recordings of the user message of this turn. `message` holds only its text. */
+    attachments?: ChatEventAttachment[]
   }
 }
 

@@ -14,7 +14,7 @@ import { nanoid } from 'nanoid'
 import { defineStore, storeToRefs } from 'pinia'
 import { computed, ref, shallowReactive, toRaw, watch } from 'vue'
 
-import { ChatAssetTooLargeError, MAX_CHAT_ASSET_BYTES, readChatAsset } from '../../../libs/chat-assets'
+import { ChatAssetTooLargeError, chatEventAttachmentsOf, MAX_CHAT_ASSET_BYTES, readChatAsset } from '../../../libs/chat-assets'
 import { getSpeechBusContext, voiceGenerationEnded } from '../../../services/speech/bus'
 import { getEventSourceKey, getMetadataSourceLabel } from '../../../utils/event-source'
 import { useLlmStreamingControlStore } from '../../ai/chat-llm/streaming-control'
@@ -873,6 +873,9 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
         }),
 
         chatOrchestrator.onAssistantMessage(async (message, _messageText, context) => {
+          // The stored user message of the turn holds its images and recordings as asset references.
+          const userMessage = chatSession.getSessionMessagesIfLoaded(context.sessionId)?.find(item => item.id === context.turnId)
+          const attachments = chatEventAttachmentsOf(userMessage)
           serverChannelStore.send({
             type: 'output:gen-ai:chat:message',
             data: {
@@ -885,6 +888,7 @@ export const useContextBridgeStore = defineStore('mods:api:context-bridge', () =
                 composedMessage: context.composedMessage,
                 contexts: context.contexts,
                 input: context.input,
+                ...(attachments.length ? { attachments } : {}),
               },
             },
           })

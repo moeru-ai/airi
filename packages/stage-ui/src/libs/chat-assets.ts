@@ -1,4 +1,5 @@
 import type { ChatAttachment, Conversation } from '@proj-airi/core-agent'
+import type { ChatEventAttachment } from '@proj-airi/server-sdk'
 
 import type { ChatHistoryItem } from '../types/chat'
 
@@ -94,6 +95,23 @@ function isAssetPart(part: Extract<Conversation['turns'][number], { type: 'user'
   if (part.type === 'audio')
     return !!chatAssetIdFrom(part.data)
   return false
+}
+
+/** The images and recordings of a user message that the asset store holds, for chat events to modules. */
+export function chatEventAttachmentsOf(message: ChatHistoryItem | undefined): ChatEventAttachment[] {
+  if (message?.role !== 'user' || !Array.isArray(message.content))
+    return []
+  let audioIndex = 0
+  return message.content.flatMap((part): ChatEventAttachment[] => {
+    if (part.type === 'image_url')
+      return chatAssetIdFrom(part.image_url.url) ? [{ type: 'image', ref: part.image_url.url }] : []
+    if (part.type !== 'input_audio')
+      return []
+    const transcript = message.audioTranscripts?.[audioIndex++]?.trim()
+    if (!chatAssetIdFrom(part.input_audio.data))
+      return []
+    return [{ type: 'audio', ref: part.input_audio.data, mimeType: part.input_audio.format === 'mp3' ? 'audio/mpeg' : 'audio/wav', ...(transcript ? { transcript } : {}) }]
+  })
 }
 
 /** Every asset ID that the messages reference. */

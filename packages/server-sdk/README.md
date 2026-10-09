@@ -41,21 +41,13 @@ Useful runtime helpers:
 
 ### Read chat images and recordings
 
-Chat events, such as `output:gen-ai:chat:message`, do not carry image or audio bytes. A message part holds a reference such as `airi-asset:<id>` in place of them. Read the bytes with `getAsset`:
+Chat events do not carry image or audio bytes. `output:gen-ai:chat:message` lists the images and recordings of the user message in `gen-ai:chat.attachments`, each with a reference such as `airi-asset:<id>`. Read the bytes with `getAsset`:
 
 ```typescript
-import { ASSET_REF_PREFIX } from '@proj-airi/server-sdk'
-
 client.onEvent('output:gen-ai:chat:message', async (event) => {
-  const content = event.data['gen-ai:chat']?.message.content
-  if (!Array.isArray(content))
-    return
-
-  for (const part of content) {
-    if (part.type === 'input_audio' && part.input_audio.data.startsWith(ASSET_REF_PREFIX)) {
-      const { mimeType, data } = await client.getAsset(part.input_audio.data)
-      console.info(mimeType, data.byteLength)
-    }
+  for (const attachment of event.data['gen-ai:chat']?.attachments ?? []) {
+    const { mimeType, data } = await client.getAsset(attachment.ref)
+    console.info(attachment.type, mimeType, data.byteLength, attachment.transcript)
   }
 })
 ```
