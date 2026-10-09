@@ -68,18 +68,18 @@ See [the Flux usage ADR](../../docs/ai/adr/2026-10-04-flux-usage.md) for invaria
 
 ## Object storage
 
-The API provides an optional S3 adapter for private objects. It supports server
+The API requires an S3 adapter for private objects. It supports server
 uploads, streamed downloads, HEAD, deletion, and presigned PUT/GET URLs.
 Use it for domain-owned files such as attachments and audio. It does not provide
 public upload routes, access control, attachment records, or message sync.
 
-Set `S3_BUCKET` and `S3_REGION` to enable it. Leave all `S3_*` variables unset to
-disable it. Partial configuration fails startup.
+`S3_BUCKET` and `S3_REGION` are required. The API does not start without them.
+The local `docker-compose.yaml` stack provides RustFS at `http://s3.localhost:6113` and creates the bucket with CORS for local web origins.
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `S3_BUCKET` | Existing private bucket | Unset |
-| `S3_REGION` | AWS region, or the region required by the compatible service | Unset |
+| `S3_BUCKET` | Existing private bucket | Required |
+| `S3_REGION` | AWS region, or the region required by the compatible service | Required |
 | `S3_ENDPOINT` | Custom HTTP(S) endpoint for R2, MinIO, Railway, or another S3 service | AWS endpoint |
 | `S3_FORCE_PATH_STYLE` | `true` for endpoint/bucket/key addressing, `false` for virtual-hosted addressing | `false` |
 
@@ -118,6 +118,7 @@ See [the storage ADR](../../docs/ai/adr/2026-09-27-s3-object-storage.md).
 To run the optional integration test, point `TEST_S3_ENDPOINT` at a disposable
 S3-compatible server. Set `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`
 to its test credentials. The test creates and deletes a unique bucket.
+It also checks the direct-upload contract: the server rejects wrong bytes and a second write to one key.
 
 ```sh
 pnpm -F @proj-airi/api-server exec vitest run src/services/adapters/object-store.integration.test.ts

@@ -21,12 +21,8 @@ describe('s3 object store', () => {
 
   afterEach(() => vi.unstubAllEnvs())
 
-  it('does not create storage when unconfigured', () => {
-    expect(createS3ObjectStore({})).toBeUndefined()
-  })
-
   it('signs the checksum and write-once headers for a direct upload', async () => {
-    const store = createS3ObjectStore(config)!
+    const store = createS3ObjectStore(config)
     try {
       const checksum = Buffer.alloc(32, 1).toString('base64')
       const target = await store.createUploadTarget({ Key: 'models/one', ChecksumSHA256: checksum, IfNoneMatch: '*' })
@@ -40,7 +36,7 @@ describe('s3 object store', () => {
   })
 
   it('signs the content type and metadata headers for a direct upload', async () => {
-    const store = createS3ObjectStore({ ...config, S3_ENDPOINT: 'https://objects.example.com', S3_FORCE_PATH_STYLE: true })!
+    const store = createS3ObjectStore({ ...config, S3_ENDPOINT: 'https://objects.example.com', S3_FORCE_PATH_STYLE: true })
     try {
       const target = await store.createUploadTarget({ Key: 'attachments/image one/original', ContentType: 'image/png', Metadata: { sha256: 'a'.repeat(64) } })
       const url = new URL(target.url)
@@ -61,7 +57,7 @@ describe('s3 object store', () => {
 
   it('signs virtual-hosted downloads with AWS session credentials and fixed expiry', async () => {
     vi.stubEnv('AWS_SESSION_TOKEN', 'test-session')
-    const store = createS3ObjectStore(config)!
+    const store = createS3ObjectStore(config)
     try {
       const url = new URL(await store.createDownloadUrl('voices/sample.wav'))
       expect(url.hostname).toBe('private-bucket.s3.us-east-1.amazonaws.com')
@@ -111,7 +107,7 @@ describe('s3 object store', () => {
     const address = server.address()
     if (!address || typeof address === 'string')
       throw new Error('Expected a TCP test server')
-    const store = createS3ObjectStore({ ...config, S3_ENDPOINT: `http://127.0.0.1:${address.port}`, S3_FORCE_PATH_STYLE: true })!
+    const store = createS3ObjectStore({ ...config, S3_ENDPOINT: `http://127.0.0.1:${address.port}`, S3_FORCE_PATH_STYLE: true })
     try {
       const bytes = Buffer.from([0, 1, 128, 255])
       await store.putObject({ Key: 'audio/sample.wav', Body: bytes, ContentType: 'audio/wav', Metadata: { source: 'tts' } })

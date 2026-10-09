@@ -7,13 +7,10 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 /**
  * Creates one bucket-scoped client from validated startup configuration.
- * Returns undefined when storage is disabled. Callers own authorization and object keys.
+ * Callers own authorization and object keys.
  * The application must stop callers before disposal. SDK errors propagate without translation.
  */
 export function createS3ObjectStore(config: S3Environment) {
-  if (!config.S3_BUCKET)
-    return undefined
-
   const client = new S3Client({
     region: config.S3_REGION,
     endpoint: config.S3_ENDPOINT,
@@ -84,4 +81,4 @@ export function createS3ObjectStore(config: S3Environment) {
 }
 
 /** Bucket transport shared by API domains. It does not own access control or database records. */
-export type ObjectStore = NonNullable<ReturnType<typeof createS3ObjectStore>>
+export type ObjectStore = ReturnType<typeof createS3ObjectStore>

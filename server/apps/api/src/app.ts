@@ -110,7 +110,7 @@ interface AppDeps {
   speechBilling: SpeechBilling
   requestLogService: RequestLogService
   voicePackService: VoicePackService
-  displayModelService: DisplayModelService | undefined
+  displayModelService: DisplayModelService
   productEventService: ProductEventService
   configKV: ConfigKVService
   envelopeCrypto: EnvelopeCrypto
@@ -604,8 +604,7 @@ export async function createApp() {
     dependsOn: { env: parsedEnv, lifecycle },
     build: ({ dependsOn }) => {
       const store = createS3ObjectStore(dependsOn.env)
-      if (store)
-        dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
+      dependsOn.lifecycle.appHooks.onStop(() => store.dispose())
       return store
     },
   })
@@ -713,9 +712,7 @@ export async function createApp() {
 
   const displayModelService = injeca.provide('services:displayModel', {
     dependsOn: { db, objectStore },
-    build: ({ dependsOn }) => dependsOn.objectStore
-      ? createDisplayModelService(dependsOn.db, dependsOn.objectStore, createUploadSessionService(dependsOn.objectStore))
-      : undefined,
+    build: ({ dependsOn }) => createDisplayModelService(dependsOn.db, dependsOn.objectStore, createUploadSessionService(dependsOn.objectStore)),
   })
 
   const providerCatalogService = injeca.provide('services:providerCatalog', {
