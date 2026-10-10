@@ -1,5 +1,5 @@
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 55dfc31d12464d4f80fa78c196c3f4702839d24e..26d959f6b8c59c0a51b91cfb2418486bcb82cd67 100644
+index 55dfc31d12464d4f80fa78c196c3f4702839d24e..ae982f21a3b7e3e72d174b384bd9dcb64b218fa1 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
 @@ -1,5 +1,5 @@
@@ -17,12 +17,3 @@ index 55dfc31d12464d4f80fa78c196c3f4702839d24e..26d959f6b8c59c0a51b91cfb2418486b
  		registration.applyingState += 1;
  		try {
  			registration.store.$patch((currentState) => {
-@@ -233,7 +234,7 @@ function createSyncedPiniaPlugin(options = {}) {
- 			const storeId = registration.store.$id;
- 			if (!(storeId in domainState.stores)) continue;
- 			const storeRevision = domainState.storeRevisions[storeId] ?? domainState.revision;
--			if (registration.appliedRevision === storeRevision) continue;
-+			if (registration.appliedRevision !== void 0 && storeRevision <= registration.appliedRevision) continue;
- 			applyStoreState(registration, domainState.stores[storeId]);
- 			registration.appliedRevision = storeRevision;
- 		}

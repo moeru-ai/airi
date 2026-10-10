@@ -1279,7 +1279,7 @@ packageExtensionsChecksum: sha256-lLxz4me6BFXSsuohDen54RU9DmiItse34Xa+IWGtSzU=
 patchedDependencies:
   '@xsai-ext/responses@0.5.1': 869608a1a960b80aef6290aef41763c909252e2401364f1bfa75a67134866eed
   mineflayer-pathfinder: 4bbfdca823ab48b74086e6e7d4b2f9baf5ee7c0ba9aee0c279b3c91c50bfd797
-  pinia-plugin-synced@0.1.4: e7d52ac3356eb70881b835bf944f3af6527ffeb02b7c23864a33e839f62ce6cf
+  pinia-plugin-synced@0.1.4: 465e187f3abc9a79668573294c7ec307f39bf6d419c839831c945a4072c4d4c5
   pixi-live2d-display: 7881eb52793f46a10d6c04d62b1799a3d0ef79f83edc0283777baa6db339ed6d
   sponsorkit@17.1.0: f5887da52a29ae85732e01644d05c0c274231fe76b95aebeafbfab6dc4444f88
   tab-election@4.6.2: ff8fe3c9aed66469fa00180f039fbf9f4f8e682430bfb3f6a07d9baf3f850674
@@ -5234,7 +5234,7 @@ importers:
         version: 4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3))
       pinia-plugin-synced:
         specifier: 'catalog:'
-        version: 0.1.4(patch_hash=e7d52ac3356eb70881b835bf944f3af6527ffeb02b7c23864a33e839f62ce6cf)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
+        version: 0.1.4(patch_hash=465e187f3abc9a79668573294c7ec307f39bf6d419c839831c945a4072c4d4c5)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3))
       rehype-katex:
         specifier: 'catalog:'
         version: 7.0.1
@@ -33658,7 +33658,7 @@ snapshots:
 
   pify@2.3.0: {}
 
-  pinia-plugin-synced@0.1.4(patch_hash=e7d52ac3356eb70881b835bf944f3af6527ffeb02b7c23864a33e839f62ce6cf)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)):
+  pinia-plugin-synced@0.1.4(patch_hash=465e187f3abc9a79668573294c7ec307f39bf6d419c839831c945a4072c4d4c5)(pinia@4.0.3(@vue/devtools-api@8.2.1)(typescript@6.0.3)(vue@3.5.41(typescript@6.0.3)))(vue@3.5.41(typescript@6.0.3)):
     dependencies:
       '@moeru/std': 0.1.0-beta.20
       es-toolkit: 1.51.0

@@ -27,7 +27,8 @@ pnpm patch-commit <directory>
 This patch makes a replicated store apply idempotent, so a snapshot that changes nothing notifies nobody.
 
 - `applyStoreState` returns before `$patch` when the incoming snapshot deep-equals the current state. Pinia notifies subscribers on every `$patch`, so a redundant apply reached `$subscribe` callbacks as a change.
-- `applyDomainState` skips a revision that is not newer than the one it applied. The old test compared for equality, so a repeated or late revision re-applied.
+
+The patch leaves the revision check alone. Making it reject a revision that is not newer looks safer, but a leader that restarts begins its counter again, and a follower that kept the old number then ignores every snapshot until the new leader passes it. The idempotence change carries the fix on its own, and a repeated or stale snapshot that changes nothing no longer notifies anybody.
 
 The two together fix a race the browser tests meet in CI. The tests in `packages/stage-ui/src/stores` install their `$subscribe` counters after the election signal, and `tab-election` sends the leader's first state snapshot in a message of its own. When that snapshot arrives after the counters, the follower applies its baseline, and the no-op apply fired the counter. The follower then reported two mutations where the test allows one.
 
@@ -35,7 +36,7 @@ Reproduction: delay only the inbound `onState` messages of the follower by 60 ms
 
 The patch changes `dist` because the npm artifact ships compiled code. The package has no released sources, so port these changes to [pinia-plugin-synced](https://github.com/nekomeowww/pinia-plugin-synced) rather than to this repository.
 
-Remove the patch when an upstream release applies a snapshot only when it differs and reconciles revisions in order. Check both before removal: the delay reproduction above, and the follower-writes-back case that must still fail.
+Remove the patch when an upstream release applies a snapshot only when it differs. Check both before removal: the delay reproduction above, and the follower-writes-back case that must still fail.
 
 To update the patch:
 
