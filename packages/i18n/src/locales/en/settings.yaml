@@ -1075,7 +1075,7 @@ pages:
         label: Long-lived access token
         placeholder: Paste a token from your Home Assistant profile
         description: Create one in your Home Assistant profile, under Security.
-        saved: A token is stored. Leave the field empty to keep it.
+        saved: A token is stored. Leave the field empty to keep it. Enter the token again when the address changes.
       note: The token stays on this device. It does not sync to your account.
       actions:
         save: Save
@@ -1085,6 +1085,8 @@ pages:
         testing: Testing the connection...
         reachable: 'Connected. Home Assistant reported {count} entities.'
         failed: 'Could not connect. {message}'
+        rejected-token: Enter a Home Assistant access token.
+        rejected-address: The address changed. Enter the access token for the new address.
     web-search:
       title: Web Search
       description: Let AIRI search the web for current information

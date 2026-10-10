@@ -99,8 +99,10 @@ The main process owns the address and the token, in
 `home-assistant-v1.json` under the Electron user data directory. The renderer
 reads back the address and whether a token exists, and never the token.
 
-An empty token field in the settings page keeps the stored token, so a user can
-correct the address without pasting the secret again.
+An empty token field keeps the stored token. A token belongs to one instance, so
+a save that changes the address needs the token for the new address, and the main
+process refuses the save without one. An empty token field therefore keeps the
+secret only while the address stays.
 
 The token is stored in plain text. Every other settings file in this repository
 stores its secrets the same way, and no code here uses Electron `safeStorage`.
@@ -110,16 +112,27 @@ The settings page states that the token stays on the device.
 
 The renderer sends a path, and the main process applies the address and the
 token. That makes the request handler the only place that decides where a
-request lands, so it checks the path twice:
+request lands, so it accepts three shapes and nothing else:
 
-- `/api/` prefix, no `..`, no `//`, no whitespace, and no `%`.
-- After the URL is built, the resolved `pathname` must still sit under the base
-  path.
+| Method | Path |
+| --- | --- |
+| `GET` | `/api/states` |
+| `GET` | `/api/states/{domain}.{object_id}` |
+| `POST` | `/api/services/{domain}/{service}` |
 
-The percent rule matters. The URL parser reads `%2e%2e` as a parent segment, so
-`/api/%2e%2e/secrets.yaml` passes a text check and resolves above `/api/`. The
-client builds every path from `[a-z0-9_.]`, so a `%` means a caller that is not
-the client.
+Two shapes outside that list matter. `POST /api/template` runs arbitrary Jinja on
+the Home Assistant host, and `POST /api/states/{id}` writes a state. Measurement
+determined that the stored token reached both. The client builds neither shape.
+
+Every segment the client builds matches `[a-z0-9_.]`, so the patterns also reject
+a percent escape, a `..` segment, a doubled slash, and whitespace. After the URL
+is built, the resolved `pathname` must still sit under the base path, because a
+reverse proxy can serve Home Assistant under a subpath.
+
+A second rule covers the address. A token belongs to one Home Assistant
+instance, so no update can move the address while the stored token stays behind.
+Without that rule, a renderer moves the address to a server it controls and the
+next request sends the token there.
 
 ## Platform scope
 

@@ -1,19 +1,21 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 
+import type { HomeAssistantStoredConfig } from './request'
+
 import { defineInvokeHandler } from '@moeru/eventa'
 import { errorMessageFrom } from '@moeru/std'
 import { object, string } from 'valibot'
 
 import { homeAssistantGetConfig, homeAssistantRequest, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { createConfig } from '../../../libs/electron/persistence'
-import { normalizeBaseUrl, readBody, requestTimeoutMs, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
+import { readBody, requestTimeoutMs, resolveConfigUpdate, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
 
 const configSchema = object({
   baseUrl: string(),
   token: string(),
 })
 
-const defaultConfig = {
+const defaultConfig: HomeAssistantStoredConfig = {
   baseUrl: '',
   token: '',
 }
@@ -43,7 +45,7 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
     return config.get() ?? defaultConfig
   }
 
-  function toPublic(current: typeof defaultConfig) {
+  function toPublic(current: HomeAssistantStoredConfig) {
     return {
       baseUrl: current.baseUrl,
       hasToken: Boolean(current.token),
@@ -54,13 +56,10 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
   defineInvokeHandler(context, homeAssistantGetConfig, () => toPublic(read()))
 
   defineInvokeHandler(context, homeAssistantSetConfig, (update) => {
-    const current = read()
-    const next = {
-      baseUrl: normalizeBaseUrl(update.baseUrl),
-      // An absent token keeps the stored one, so the settings page can save a new
-      // address without asking the user to paste the token again.
-      token: update.token ?? current.token,
-    }
+    // `resolveConfigUpdate` decides what a stored token may survive. It refuses
+    // to move the address while the secret stays, which is the one path by which
+    // a renderer could send the token to a server it controls.
+    const next = resolveConfigUpdate(read(), update)
     config.update(next)
 
     return toPublic(next)
@@ -73,10 +72,9 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
     if (!current.token)
       throw new Error('Home Assistant has no access token yet. Ask the user to add one in settings.')
 
-    if (input.method !== 'GET' && input.method !== 'POST')
-      throw new Error(`Home Assistant requests support GET and POST, received "${input.method}".`)
-
-    const target = resolveRequestUrl(current.baseUrl, input.path)
+    // The renderer picks the path, so this call is the boundary that decides
+    // what leaves the application.
+    const target = resolveRequestUrl(current.baseUrl, input.method, input.path)
     const hasBody = input.method === 'POST' && input.body !== undefined
 
     let response: Response

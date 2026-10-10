@@ -1018,7 +1018,7 @@ pages:
         label: 长期访问令牌
         placeholder: 粘贴 Home Assistant 个人资料里的令牌
         description: 在 Home Assistant 个人资料的「安全」里创建一个。
-        saved: 已保存令牌。留空则保持不变。
+        saved: 已保存令牌。留空则保持不变。更改地址时需要重新填写。
       note: 令牌只保存在这台设备上，不会同步到你的账号。
       actions:
         save: 保存
@@ -1028,6 +1028,8 @@ pages:
         testing: 正在测试连接……
         reachable: '已连接。Home Assistant 报告了 {count} 个实体。'
         failed: '无法连接。{message}'
+        rejected-token: 请输入 Home Assistant 长期访问令牌。
+        rejected-address: 地址已更改，请输入新地址对应的访问令牌。
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
