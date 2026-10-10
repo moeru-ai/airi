@@ -2,6 +2,7 @@ import type { DecisionAction, Recipe } from '@proj-airi/core-agent'
 import type { Tool } from '@xsai/shared-chat'
 import type { InferOutput } from 'valibot'
 
+import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
 import { rawTool } from '@xsai/tool'
 import { array, boolean, description, maxLength, minLength, nullable, picklist, pipe, safeParse, strictObject, string, summarize } from 'valibot'
 import { toJsonSchema } from 'xsschema'
@@ -19,6 +20,7 @@ const PROPOSE_RECIPE_DESCRIPTION = [
   'For example, greeting the owner back after an hour away is a mouse active trigger with afterIdleMinutes 60. Noticing late-night coding is a keyboard active trigger with a time condition from 22:00 to 04:00 and a cooldown.',
   'When the owner wants something done at a later time, such as a reminder, ask whether they want a fixed schedule or a reusable recipe whose time you set each time they ask. Never save the time of one request as an automation.',
   'A reusable one is modelTimed with keywords and no automation. When a keyword invokes it, you set its triggers and conditions from the owner\'s message, and it runs once.',
+  `When the owner wants you to decide what each run does, use these instructions: "${MODEL_DECIDES_STEPS}"`,
   'Set background for a task that runs on its own and reports a result later, such as research. Leave it false for steps you follow in the conversation, such as a way of answering.',
   'A saved recipe waits for the owner\'s approval in Settings, under Modules, Long-term memory, Recipes. Tell the owner so.',
 ].join('\n')
@@ -41,7 +43,6 @@ const proposeRecipeParameters = strictObject({
   answers: nullable(pipe(array(answerSchema), description('For decision: the possible answers and their actions. Null for instructions.'))),
   background: pipe(boolean(), description('For instructions: true for a task that runs in its own space and reports a result later. False for steps you follow in the conversation.')),
   automation: nullable(pipe(automationInputSchema, description('For instructions that run on their own, without a message. Null for recipes that a conversation uses, and when modelTimed.'))),
-  modelFlow: pipe(boolean(), description('For a recipe that runs on its own or is modelTimed: true when you decide what each run does, so the recipe has no instructions. False otherwise.')),
   modelTimed: pipe(boolean(), description('For instructions: true when you set when it runs, each time a keyword invokes it. It needs keywords and no automation. False otherwise.')),
 })
 
@@ -64,12 +65,7 @@ function recipeFromInput(input: InferOutput<typeof proposeRecipeParameters>): Om
   if (input.modelTimed && (input.automation || !keywords.length))
     return 'A modelTimed recipe needs keywords and no automation. You set when it runs each time a keyword invokes it.'
   const instructions = input.instructions?.trim() ?? ''
-  // A recipe has the owner's instructions, or the model decides each run, never both.
-  if (input.modelFlow && !input.automation && !input.modelTimed)
-    return 'modelFlow needs an automation or modelTimed.'
-  if (input.modelFlow && instructions)
-    return 'A modelFlow recipe has no instructions, because you decide each run. Set instructions to null.'
-  if (!instructions && !input.modelFlow)
+  if (!instructions)
     return 'An instructions recipe needs instructions.'
   const automation = input.automation ? automationFromInput(input.automation) : undefined
   if (typeof automation === 'string')
@@ -82,7 +78,6 @@ function recipeFromInput(input: InferOutput<typeof proposeRecipeParameters>): Om
     triggers: keywords.length ? [{ kind: 'keyword' as const, keywords }] : [],
     ...(automation ? { automation } : {}),
     ...(input.modelTimed ? { modelTimed: true } : {}),
-    ...(input.modelFlow ? { modelFlow: true } : {}),
     // A recipe that runs on its own always runs in its own space, so only conversation recipes choose.
     ...(input.background && !runsOnItsOwn ? { background: true } : {}),
   }

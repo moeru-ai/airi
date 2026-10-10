@@ -14,11 +14,6 @@ export interface MemoryEntry {
   updatedAt: number
 }
 
-/** Longest index line of one entry, so a long description cannot grow every prompt. */
-const INDEX_DESCRIPTION_LIMIT = 150
-/** Entries that the index lists, so many memories cannot grow every prompt. The newest come first, and the card's own before general ones. */
-const INDEX_ENTRY_LIMIT = 40
-
 /** Turns a free name into the kebab-case key that entries use. */
 export function memoryName(name: string) {
   return name.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 64)
@@ -48,22 +43,15 @@ export const useMemoryStore = defineStore('memory', () => {
     return sorted.value.filter(entry => !entry.persona || entry.persona === personaId)
   }
 
-  /**
-   * The index for a card: its own memories, then general ones, each as a name and its description.
-   * Beyond the entry limit, the newest stay and one line counts the rest. A run can still read an unlisted entry by name.
-   */
+  /** The index for a card: its own memories, then general ones, each as a name and its description. */
   function indexFor(personaId: string) {
-    const line = (entry: MemoryEntry) => `- ${entry.name}: ${entry.description.slice(0, INDEX_DESCRIPTION_LIMIT)}`
-    const newest = (entries: MemoryEntry[]) => [...entries].sort((left, right) => right.updatedAt - left.updatedAt)
-    const listed = [...newest(sorted.value.filter(entry => entry.persona === personaId)), ...newest(sorted.value.filter(entry => !entry.persona))].slice(0, INDEX_ENTRY_LIMIT)
-    const visible = sorted.value.filter(entry => !entry.persona || entry.persona === personaId).length
+    const line = (entry: MemoryEntry) => `- ${entry.name}: ${entry.description}`
     const byName = (left: MemoryEntry, right: MemoryEntry) => left.name.localeCompare(right.name)
-    const own = listed.filter(entry => entry.persona).sort(byName).map(line)
-    const general = listed.filter(entry => !entry.persona).sort(byName).map(line)
+    const own = sorted.value.filter(entry => entry.persona === personaId).sort(byName).map(line)
+    const general = sorted.value.filter(entry => !entry.persona).sort(byName).map(line)
     return [
       ...(own.length ? [`Your own:\n${own.join('\n')}`] : []),
       ...(general.length ? [`General:\n${general.join('\n')}`] : []),
-      ...(visible > listed.length ? [`${visible - listed.length} older entries are not listed. Read one by name when you know it.`] : []),
     ].join('\n')
   }
 

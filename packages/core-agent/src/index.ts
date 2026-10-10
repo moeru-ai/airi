@@ -29,7 +29,7 @@ export type {
   QueuedSendSnapshot,
 } from './runtime/chat-orchestrator-runtime'
 export { createChatOrchestratorRuntime } from './runtime/chat-orchestrator-runtime'
-export type { ContextHistoryEntry, ContextIngestResult, ContextReader, ContextRegistry } from './runtime/context-registry'
+export type { ContextHistoryEntry, ContextIngestResult, ContextRegistry } from './runtime/context-registry'
 export { createContextRegistry } from './runtime/context-registry'
 export { useLlmmarkerParser } from './runtime/llm-marker-parser'
 export {
@@ -38,7 +38,7 @@ export {
   modelKey,
   streamFrom,
 } from './runtime/llm-service'
-export { decisionOptions, isAutoRunRecipe, isBackgroundRecipe, judgeDecision, matchKeywordRecipes, usableRecipes } from './runtime/recipe'
+export { decisionOptions, isAutoRunRecipe, isBackgroundRecipe, judgeDecision, matchKeywordRecipes, MODEL_DECIDES_STEPS, usableRecipes } from './runtime/recipe'
 export type { DecisionAction, DecisionOption, DecisionQuestion, Recipe, RecipeDecision } from './runtime/recipe'
 export {
   categorizeResponse,

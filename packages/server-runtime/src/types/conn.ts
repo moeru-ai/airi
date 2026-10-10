@@ -1,4 +1,4 @@
-import type { ExtensionIdentity, ExtensionModuleIdentity, ModuleCognition } from '@proj-airi/server-shared/types'
+import type { ExtensionIdentity, ExtensionModuleIdentity } from '@proj-airi/server-shared/types'
 
 export interface Peer {
   /**
@@ -34,8 +34,6 @@ export interface RegisteredExtensionModule {
   name: string
   /** Module identity scoped to the owning extension session. */
   identity: ExtensionModuleIdentity
-  /** Host-facing declaration from the announcement. Clients validate it before use. */
-  cognition?: ModuleCognition
 }
 
 export enum WebSocketReadyState {

@@ -70,11 +70,6 @@ export interface Recipe {
    * Each automation that the model sets runs the recipe once in its own session. The owner approves what the recipe does, not each time.
    */
   modelTimed?: boolean
-  /**
-   * The model decides what each run of an auto-run recipe does, from the recipe's description and what it knows when the run starts.
-   * Such a recipe has no instructions.
-   */
-  modelFlow?: boolean
   triggers: RecipeTrigger[]
   source: 'user' | 'model'
   enabled: boolean
@@ -89,6 +84,12 @@ export interface Recipe {
    */
   background?: boolean
 }
+
+/**
+ * Instructions that let the model decide what each run does, from the recipe's purpose.
+ * The editor writes them when the owner picks "the model decides". They are plain instructions, so nothing treats such a recipe differently.
+ */
+export const MODEL_DECIDES_STEPS = 'Decide what this run does from the recipe\'s purpose and what you know now, and use your tools to do it.'
 
 /** Recipes that can run now: enabled and authorized. */
 export function usableRecipes(recipes: readonly Recipe[]) {

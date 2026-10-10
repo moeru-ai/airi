@@ -126,10 +126,8 @@ export interface ChatStreamEventContext {
   contexts: Record<string, ContextMessage[]>
   composedMessage: Array<Message>
   input?: WebSocketEventInputs
-  /** Server connection that receives the reply. An absent target keeps output inside the host. */
-  outputTarget?: string
-  /** Outputs of the send beyond the chat, which always shows it. Only a send with `voice` drives speech. */
-  outputs?: readonly string[]
+  /** Whether the reply speaks on the host. Scene replies and background tasks stay silent. */
+  speaks?: boolean
 }
 
 export type ChatStreamEvent
@@ -142,6 +140,5 @@ export type ChatStreamEvent
     | { type: 'stream-end', sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
-    | { type: 'chat-turn-complete', chat: { output: StreamingAssistantMessage, outputText: string, toolCalls: ToolMessage[] }, sessionId: string, context: ChatStreamEventContext }
 
 export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, completedAt?: number, id?: string }

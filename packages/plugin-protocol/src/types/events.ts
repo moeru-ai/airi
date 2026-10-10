@@ -385,16 +385,6 @@ export interface ModuleConfigEnvelope<C = Record<string, unknown>> {
   baseRevision?: number
 }
 
-/** Host-facing declaration of a module. A new module declares itself here instead of changing host code. */
-export interface ModuleCognition {
-  /**
-   * Scenes that the module serves. A binding matches a scene when it starts with `binding`.
-   * Output in a scene reaches its members and the owner. Input from a module with scenes must name a matching binding.
-   * A module without scenes speaks for the owner.
-   */
-  scenes?: Array<{ binding: string }>
-}
-
 export interface ModuleCapability {
   /**
    * Stable capability id within a module.
@@ -511,8 +501,6 @@ export type RouteTargetExpression
     | { type: 'ids', ids: string[], inverted?: boolean }
     | { type: 'plugin', plugins: string[], inverted?: boolean }
     | { type: 'instance', instances: string[], inverted?: boolean }
-    /** Exact server connection IDs, without module aliases or wildcard matching. */
-    | { type: 'connection', connections: string[] }
     | { type: 'label', selectors: string[], inverted?: boolean }
     | { type: 'module', modules: string[], inverted?: boolean }
     | { type: 'source', sources: string[], inverted?: boolean }
@@ -558,10 +546,8 @@ export interface ChatEventAttachment {
 interface OutputSource {
   'gen-ai:chat': {
     message: UserMessage
-    /** Contexts of the turn. They can be private, so the stage keeps them on the host and chat output never carries them. */
-    contexts?: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
-    /** The prompt of the turn. The stage keeps it on the host, so chat output never carries it. */
-    composedMessage?: Array<Message>
+    contexts: Record<string, ContextUpdate<Record<string, any>, unknown>[]>
+    composedMessage: Array<Message>
     input?: InputEventEnvelope
     /** Images and recordings of the user message of this turn. `message` holds only its text. */
     attachments?: ChatEventAttachment[]
@@ -725,7 +711,6 @@ interface ExtensionModuleAnnounceEvent<C = undefined> {
   permissions?: ModulePermissionDeclaration
   configSchema?: ModuleConfigSchema
   dependencies?: ModuleDependency[]
-  cognition?: ModuleCognition
 }
 
 interface ExtensionKitAnnounceEvent {
@@ -760,9 +745,6 @@ export interface RegistryModulesSyncEvent {
     name: string
     index?: number
     identity: MetadataEventSource
-    /** Server-assigned connection of the module. It matches `metadata.sender.peerId` of its events. */
-    connectionId?: string
-    cognition?: ModuleCognition
   }>
 }
 

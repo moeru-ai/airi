@@ -11,7 +11,7 @@ import { errorMessageFrom, sleep } from '@moeru/std'
 import { BrowserPlayback } from '@proj-airi/audio/browser'
 import { createLive2DLipSync } from '@proj-airi/model-driver-lipsync'
 import { wlipsyncProfile } from '@proj-airi/model-driver-lipsync/shared/wlipsync'
-import { createSpeakableTextFilter, normalizeActPayload, Playback } from '@proj-airi/pipelines-audio'
+import { normalizeActPayload, Playback } from '@proj-airi/pipelines-audio'
 import { presenceBubbleIdle, presenceBubbleThinking } from '@proj-airi/stage-shared'
 import { defaultLive2DMotionControlDynamics, Live2DScene, useLive2DMotionControl, useLive2dParams, useSettingsLive2d } from '@proj-airi/stage-ui-live2d'
 import { MMDScene } from '@proj-airi/stage-ui-mmd'
@@ -507,18 +507,14 @@ watch(speechMuted, (muted) => {
   }
 })
 
-// Only a send with the voice output drives speech and expression. Background work and scene replies never speak here.
-function holdsVoice(context: { outputs?: readonly string[] }) {
-  return context.outputs?.includes('voice') ?? false
+// Only a reply that speaks drives speech and expression. Background work and scene replies never speak here.
+function holdsVoice(context: { speaks?: boolean }) {
+  return context.speaks ?? false
 }
-
-// Code and markup stay in the chat. Speech reads only the speakable text of each turn.
-const speakableTexts = new Map<string, ReturnType<typeof createSpeakableTextFilter>>()
 
 chatHookCleanups.push(onBeforeMessageComposed(async (_message, context) => {
   if (!holdsVoice(context))
     return
-  speakableTexts.set(context.turnId, createSpeakableTextFilter())
   voice.startResponse(context)
   if (context.sessionId === chatSession.activeSessionId)
     resetAssistantSpeechSurface('new-message')
@@ -532,9 +528,8 @@ chatHookCleanups.push(onBeforeSend(async (_message, context) => {
 }))
 
 chatHookCleanups.push(onTokenLiteral(async (literal, context) => {
-  const speakable = speakableTexts.get(context.turnId)?.push(literal)
-  if (speakable && !speechMuted.value)
-    await voice.getSpeech(context)?.write(speakable)
+  if (holdsVoice(context) && !speechMuted.value)
+    await voice.getSpeech(context)?.write(literal)
 }))
 
 chatHookCleanups.push(onTokenSpecial(async (special, context) => {
@@ -547,15 +542,10 @@ chatHookCleanups.push(onTokenSpecial(async (special, context) => {
 }))
 
 chatHookCleanups.push(onStreamEnd(async (context) => {
-  const rest = speakableTexts.get(context.turnId)?.flush()
-  speakableTexts.delete(context.turnId)
-  if (rest && !speechMuted.value)
-    await voice.getSpeech(context)?.write(rest)
   void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))
 }))
 
 chatHookCleanups.push(onAssistantResponseEnd(async (_message, context) => {
-  speakableTexts.delete(context.turnId)
   if (!holdsVoice(context))
     return
   void voice.finishResponse(context).catch(error => console.error('Speech response completion failed', error))

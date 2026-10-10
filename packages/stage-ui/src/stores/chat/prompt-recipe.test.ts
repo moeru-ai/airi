@@ -21,8 +21,8 @@ describe('chat prompt recipe', () => {
 
     expect(composeRecipeSpacePrompt(recipe)).toContain('Your reply is the recipe\'s result')
     expect(composeRecipeSpacePrompt(recipe)).toContain('Recipe steps:\nRead the screen slot.')
-    // The model decides what each run does, from the recipe's purpose.
-    expect(composeRecipeSpacePrompt({ ...recipe, instructions: '', description: 'Checks on the owner late at night.', modelFlow: true }))
-      .toContain('Decide what each run does from its purpose and what you know now, and use your tools to do it.\nPurpose: Checks on the owner late at night.')
+    // The steps can leave each run to the model, so they come after the recipe's purpose.
+    expect(composeRecipeSpacePrompt({ ...recipe, description: 'Checks on the owner late at night.' }))
+      .toContain('Purpose: Checks on the owner late at night.\nRecipe steps:\nRead the screen slot.')
   })
 })

@@ -158,8 +158,6 @@ export interface ChatOrchestratorSendOptions {
   temperature?: number
   /** Top_p for the LLM request. */
   topP?: number
-  /** Host-selected return connection. This transport address does not grant access to context. */
-  outputTarget?: ChatStreamEventContext['outputTarget']
   /** Work beside the conversation, for example a task recipe in its own session. It never speaks. */
   background?: boolean
   /** The send answers an external scene, for example a Discord channel. Its reply returns as text and never speaks on the host. */
@@ -313,7 +311,7 @@ export interface ChatOrchestratorRuntimeDeps {
    */
   getSystemPrompt?: (sessionId: string) => string | undefined
   /** Request-owned context providers evaluated once per send for its session, outside the shared pool. */
-  runtimeContextProviders?: Array<(sessionId: string) => ContextMessage | null | undefined>
+  runtimeContextProviders?: Array<() => ContextMessage | null | undefined>
   /** Clock used for persisted message timestamps. @default Date.now */
   now?: () => number
   /** Monotonic clock used for elapsed telemetry in milliseconds. @default performance.now */
@@ -575,11 +573,11 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.foregroundStream.reset()
   }
 
-  /** Projects pool observations that the session can read, then adds request-owned providers. */
-  function getRequestContexts(sessionId: string) {
-    const snapshot = deps.context.snapshot(sessionId)
+  /** Projects pool observations, then adds request-owned providers. */
+  function getRequestContexts() {
+    const snapshot = deps.context.snapshot()
     for (const provider of deps.runtimeContextProviders ?? []) {
-      const context = provider(sessionId)
+      const context = provider()
       if (context)
         snapshot[context.contextId] = [context]
     }
@@ -643,7 +641,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // It is applied at message-assembly time (see below) as a system-prompt
     // date anchor + per-message [HH:MM] prefixes, which is more KV-cache
     // friendly and less prone to weak models echoing timestamps verbatim.
-    const requestContexts = getRequestContexts(sessionId)
+    const requestContexts = getRequestContexts()
 
     const sendingCreatedAt = now()
 
@@ -665,12 +663,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       contexts: requestContexts,
       composedMessage: [],
       input: options.input,
-      outputTarget: options.outputTarget,
-      // A reply returns to its source connection. The owner hears it unless it answers a scene or runs in the background.
-      outputs: [
-        ...(options.outputTarget ? [`connection:${options.outputTarget}`] : []),
-        ...(options.background || options.scene ? [] : ['voice']),
-      ],
+      // The owner hears the reply unless it answers a scene or runs in the background.
+      speaks: !options.background && !options.scene,
     }
     deps.onLifecycle?.({
       phase: 'before-compose',

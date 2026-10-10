@@ -2,11 +2,6 @@
 
 The shared type definitions for all server-side packages of Project AIRI.
 
-## Input return addresses
-
-The channel server sets `metadata.sender` on forwarded events and overwrites any sender-provided value.
-Hosts retain `metadata.sender.peerId` for reply routing. The address identifies one live connection, not a module name or a permission.
-
 ## Usage
 
 ```shell

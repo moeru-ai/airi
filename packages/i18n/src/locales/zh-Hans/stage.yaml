@@ -89,7 +89,6 @@ chat:
     dismiss: '移除{name}'
     status:
       armed: 待触发
-      queued: 等待中
       running: 正在执行
       done: 已完成
       failed: 失败

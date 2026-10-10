@@ -38,7 +38,6 @@ describe('recipe proposal tool', () => {
       background: false,
       automation: null,
       modelTimed: false,
-      modelFlow: false,
     })
 
     expect(tool.function.name).toBe(PROPOSE_RECIPE_TOOL_NAME)
@@ -52,7 +51,7 @@ describe('recipe proposal tool', () => {
   })
 
   it('explains what is missing instead of saving an incomplete recipe', async () => {
-    const nulls = { instructions: null, keywords: null, question: null, answerType: null, answers: null, background: false, automation: null, modelTimed: false, modelFlow: false }
+    const nulls = { instructions: null, keywords: null, question: null, answerType: null, answers: null, background: false, automation: null, modelTimed: false }
     expect((await proposeWith({ ...nulls, name: 'Empty', description: '', style: 'instructions' })).result).toBe('Recipe not saved: An instructions recipe needs instructions.')
     expect((await proposeWith({ ...nulls, name: 'Odd', description: '', style: 'decision', keywords: ['ok'], question: 'Yes?', answerType: 'noul', answers: [{ meaning: 'a', action: 'reply', hint: null }, { meaning: 'b', action: 'reply', hint: null }, { meaning: 'c', action: 'reply', hint: null }] })).result)
       .toBe('Recipe not saved: A yes-or-no decision needs exactly two answers, yes first.')
@@ -84,7 +83,6 @@ describe('recipe proposal tool', () => {
       background: false,
       automation: null,
       modelTimed: false,
-      modelFlow: false,
     }
     const { proposals } = await proposeWith(input)
 
@@ -109,7 +107,6 @@ describe('recipe proposal tool', () => {
       answers: null,
       background: false,
       modelTimed: false,
-      modelFlow: false,
       automation: {
         ...automation({ source: 'mouse', event: 'active', afterIdleMinutes: 60 }),
         conditions: [{ kind: 'time', from: '08:00', to: '23:00', days: null, source: null, state: null, minutes: null }],
@@ -125,7 +122,7 @@ describe('recipe proposal tool', () => {
   })
 
   it('names what an automation misses, so the model can fix its call', async () => {
-    const base = { name: 'Good morning', description: '', style: 'instructions', instructions: 'Say good morning.', keywords: null, question: null, answerType: null, answers: null, background: false, modelTimed: false, modelFlow: false }
+    const base = { name: 'Good morning', description: '', style: 'instructions', instructions: 'Say good morning.', keywords: null, question: null, answerType: null, answers: null, background: false, modelTimed: false }
     expect((await proposeWith({ ...base, automation: automation({ source: 'clock', event: 'at', time: '25:00', days: [1, 2, 3, 4, 5] }) })).result)
       .toBe('Recipe not saved: A clock trigger is at an HH:MM time or every some minutes.')
     expect((await proposeWith({ ...base, automation: automation({ source: 'module', event: 'observation' }) })).result)
@@ -134,7 +131,7 @@ describe('recipe proposal tool', () => {
 
   // A reminder that the owner can reuse: a keyword invokes it, and the model sets when it runs each time.
   it('saves a model-timed recipe behind its keywords, with no automation of its own', async () => {
-    const base = { name: 'Remind me', description: 'Reminds the owner later.', style: 'instructions', instructions: 'Remind the owner of the note.', keywords: ['提醒我'], question: null, answerType: null, answers: null, background: false, automation: null, modelTimed: true, modelFlow: false }
+    const base = { name: 'Remind me', description: 'Reminds the owner later.', style: 'instructions', instructions: 'Remind the owner of the note.', keywords: ['提醒我'], question: null, answerType: null, answers: null, background: false, automation: null, modelTimed: true }
     expect((await proposeWith(base)).proposals).toEqual([{
       name: 'Remind me',
       description: 'Reminds the owner later.',
@@ -146,17 +143,9 @@ describe('recipe proposal tool', () => {
       .toBe('Recipe not saved: A modelTimed recipe needs keywords and no automation. You set when it runs each time a keyword invokes it.')
   })
 
-  // The model decides what each run does, so the recipe has no instructions, and only a recipe that runs on its own takes it.
-  it('saves a recipe whose runs the model decides, without instructions', async () => {
-    const base = { name: 'Check on me', description: 'Checks how the owner is doing late at night.', style: 'instructions', instructions: null, keywords: null, question: null, answerType: null, answers: null, background: false, automation: automation({ source: 'clock', event: 'every', minutes: 60 }), modelTimed: false, modelFlow: true }
-    expect((await proposeWith(base)).proposals[0]).toMatchObject({ instructions: '', modelFlow: true, automation: { triggers: [{ source: 'clock', event: 'every', minutes: 60 }] } })
-    expect((await proposeWith({ ...base, instructions: 'Ask how the owner is.' })).result).toBe('Recipe not saved: A modelFlow recipe has no instructions, because you decide each run. Set instructions to null.')
-    expect((await proposeWith({ ...base, automation: null })).result).toBe('Recipe not saved: modelFlow needs an automation or modelTimed.')
-  })
-
   // A task with a result runs in the background. An automated recipe always runs in its own space, so it never sets the flag.
   it('marks a task as a background recipe, and never an automated recipe', async () => {
-    const base = { name: 'Research', description: 'Researches a purchase.', style: 'instructions', instructions: 'Compare three options.', keywords: null, question: null, answerType: null, answers: null, background: true, modelTimed: false, modelFlow: false }
+    const base = { name: 'Research', description: 'Researches a purchase.', style: 'instructions', instructions: 'Compare three options.', keywords: null, question: null, answerType: null, answers: null, background: true, modelTimed: false }
     expect((await proposeWith({ ...base, automation: null })).proposals[0]?.background).toBe(true)
     expect((await proposeWith({ ...base, automation: automation({ source: 'clock', event: 'every', minutes: 60 }) })).proposals[0]?.background).toBeUndefined()
   })

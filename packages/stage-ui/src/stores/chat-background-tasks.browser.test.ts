@@ -68,7 +68,7 @@ afterEach(() => {
 
 // ROOT CAUSE:
 // A cancelled send ends without an error, so a stopped task looked finished and reported a result to the conversation.
-it('stops a running task without a result, and starts the next waiting one', async () => {
+it('stops a running task without a result, while another task runs on', async () => {
   const { chat, sessions, recipes, prompts } = await setupChat(async (prompt, options) => {
     // The first task streams until it is stopped.
     if (prompt.includes('Watch the page.'))
@@ -85,16 +85,15 @@ it('stops a running task without a result, and starts the next waiting one', asy
   await chat.startRecipe(watch!, { parentSessionId: parent, task: 'the news page' })
   await chat.startRecipe(sum!, { parentSessionId: parent, task: '1 + 2' })
 
-  // One task runs at a time, so the second one waits.
+  // Each task runs in its own session, so the second one finishes while the first still runs.
   const statusOf = (name: string) => chat.backgroundTasks.find(task => task.recipeName === name)?.status
-  await expect.poll(() => [statusOf('Watch'), statusOf('Sum')]).toEqual(['running', 'queued'])
+  await expect.poll(() => [statusOf('Watch'), statusOf('Sum')]).toEqual(['running', 'done'])
+  await expect.poll(() => prompts.some(prompt => prompt.includes('The background task \\"Sum\\" finished.'))).toBe(true)
 
   const watching = chat.backgroundTasks.find(task => task.recipeName === 'Watch')!
   await chat.stopBackgroundTask(watching.sessionId)
 
   await expect.poll(() => sessions.sessionMetas[watching.sessionId]?.task?.status).toBe('interrupted')
-  await expect.poll(() => statusOf('Sum')).toBe('done')
-  await expect.poll(() => prompts.some(prompt => prompt.includes('The background task \\"Sum\\" finished.'))).toBe(true)
   expect(prompts.some(prompt => prompt.includes('The background task \\"Watch\\"'))).toBe(false)
 })
 

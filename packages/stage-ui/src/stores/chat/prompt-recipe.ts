@@ -26,8 +26,7 @@ export function composeSystemPrompt(identity: string) {
  * The recipe reports a result to the conversation.
  */
 export function composeRecipeSpacePrompt(recipe: Recipe) {
-  const steps = recipe.modelFlow
-    ? `The recipe has no fixed steps. Decide what each run does from its purpose and what you know now, and use your tools to do it.\nPurpose: ${recipe.description.trim()}`
-    : `Recipe steps:\n${recipe.instructions.trim()}`
+  const purpose = recipe.description.trim() ? `Purpose: ${recipe.description.trim()}\n` : ''
+  const steps = `${purpose}Recipe steps:\n${recipe.instructions.trim()}`
   return `\n\nYou run the recipe "${recipe.name}" in its own space for your conversation with the owner. Each message here is a task from that conversation. Your reply is the recipe's result: the conversation receives it and decides what to tell the owner, so report what you found or did, briefly.\n\n${steps}`
 }

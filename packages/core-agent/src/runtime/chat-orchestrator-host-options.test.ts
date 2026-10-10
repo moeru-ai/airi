@@ -106,25 +106,18 @@ describe('chat orchestrator host options', () => {
     expect(harness.messages['session-1']?.map(message => message.role)).toEqual(['user', 'user', 'assistant'])
   })
 
-  // The owner hears local replies and replies to the owner's modules. A scene reply returns as text, and background work stays silent.
-  it('gives each send its output channels', async () => {
+  // The owner hears local replies. A scene reply returns as text, and background work stays silent.
+  it('speaks only the replies to the owner', async () => {
     const harness = createHarness()
-    const outputs: ChatStreamEventContext['outputs'][] = []
+    const speaks: ChatStreamEventContext['speaks'][] = []
     harness.runtime.hooks.onBeforeSend(async (_message, context) => {
-      outputs.push(context.outputs)
+      speaks.push(context.speaks)
     })
 
     await harness.runtime.ingest('local', { model: 'test', chatProvider: provider })
-    // A module that speaks for the owner gets its reply back, and the owner still hears it.
-    await harness.runtime.ingest('plugin', { model: 'test', chatProvider: provider, outputTarget: 'plugin-connection' })
-    await harness.runtime.ingest('scene', { model: 'test', chatProvider: provider, outputTarget: 'discord-connection', scene: true }, 'scene-session')
+    await harness.runtime.ingest('scene', { model: 'test', chatProvider: provider, scene: true }, 'scene-session')
     await harness.runtime.ingest('task', { model: 'test', chatProvider: provider, background: true }, 'recipe-session')
 
-    expect(outputs).toEqual([
-      ['voice'],
-      ['connection:plugin-connection', 'voice'],
-      ['connection:discord-connection'],
-      [],
-    ])
+    expect(speaks).toEqual([true, false, false])
   })
 })

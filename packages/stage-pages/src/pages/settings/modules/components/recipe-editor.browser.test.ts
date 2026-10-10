@@ -2,6 +2,7 @@ import type { Recipe, RecipeFields } from '@proj-airi/stage-ui/stores/recipes'
 
 import en from '@proj-airi/i18n/locales/en'
 
+import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
 import { describe, expect, it } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { createI18n } from 'vue-i18n'
@@ -55,11 +56,11 @@ describe('recipe editor', () => {
     expect(await saveUnchanged(stored, true)).toEqual({ name: stored.name, description: stored.description, instructions: stored.instructions, decision: undefined, triggers: stored.triggers, automation: undefined, modelTimed: true, background: undefined })
   })
 
-  // The model decides what each run does, so the recipe keeps no instructions.
+  // The model decides what each run does through preset instructions, so nothing else marks the recipe.
   it('loads an auto-run recipe whose runs the model decides and saves it back unchanged', async () => {
-    const stored: Recipe = { ...recipe(''), modelFlow: true, automation: { triggers: [{ source: 'clock', event: 'every', minutes: 60 }], conditions: [] } }
+    const stored: Recipe = { ...recipe(MODEL_DECIDES_STEPS), automation: { triggers: [{ source: 'clock', event: 'every', minutes: 60 }], conditions: [] } }
 
-    expect(await saveUnchanged(stored, true)).toMatchObject({ instructions: '', modelFlow: true, automation: stored.automation })
+    expect(await saveUnchanged(stored, true)).toMatchObject({ instructions: MODEL_DECIDES_STEPS, automation: stored.automation })
   })
 
   it('loads an auto-run recipe with its automation and saves it back unchanged', async () => {

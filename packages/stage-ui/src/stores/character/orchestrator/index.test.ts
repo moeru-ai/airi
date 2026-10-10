@@ -371,7 +371,7 @@ describe('store character-orchestrator', () => {
       'discord-scene': { sessionId: 'discord-scene', userId: 'local', characterId: 'default', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 9 },
     }
     chatSession.activeSessionId = 'discord-scene'
-    useModuleDirectoryStore(pinia).modules = [{ name: 'minecraft', identityId: 'bot-instance-7', connectionId: 'minecraft-connection' }]
+    useModuleDirectoryStore(pinia).modules = [{ name: 'minecraft', identityId: 'bot-instance-7' }]
     const recipes = useRecipesStore(pinia)
     recipes.add({ name: 'Game watch', description: '', instructions: 'Comment on the game.', triggers: [], automation: { triggers: [{ source: 'module', event: 'observation', module: 'minecraft' }], conditions: [] }, enabled: true })
     // A started recipe runs a model request, so the test stops at the start and checks what the trigger asked for.

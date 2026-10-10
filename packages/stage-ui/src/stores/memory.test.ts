@@ -49,21 +49,4 @@ describe('memory store', () => {
     expect(memory.write({ name: 'x', description: '', body: ' ' }, 'airi')).toBeUndefined()
     expect(memoryName('  我的 猫咪！ ')).toBe('我的-猫咪')
   })
-
-  // ROOT CAUSE:
-  // The index listed every entry, so many memories grew every system prompt without a bound.
-  it('lists the newest entries only and counts the rest', () => {
-    const memory = useMemoryStore()
-    for (let index = 0; index < 45; index++)
-      memory.write({ name: `fact-${String(index).padStart(2, '0')}`, description: 'A fact.', body: 'x' }, 'airi')
-    for (const [index, entry] of memory.entries.entries())
-      entry.updatedAt = index
-
-    const index = memory.indexFor('airi')
-
-    expect(index.split('\n').filter(line => line.startsWith('- '))).toHaveLength(40)
-    expect(index).toContain('- fact-44: A fact.')
-    expect(index).not.toContain('- fact-00:')
-    expect(index).toContain('5 older entries are not listed.')
-  })
 })

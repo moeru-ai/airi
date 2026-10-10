@@ -9,13 +9,13 @@ export interface StoredVoiceInterruption extends Omit<VoiceInterruptionEvent, 'p
 
 /**
  * Where a background task stands. `armed` waits for the automation that the model set. It survives a restart.
- * `interrupted` means the owner stopped it or the app closed while it waited in the queue or ran.
+ * `interrupted` means the owner stopped it or the app closed while it ran.
  */
-export type ChatSessionTaskStatus = 'armed' | 'queued' | 'running' | 'done' | 'failed' | 'interrupted'
+export type ChatSessionTaskStatus = 'armed' | 'running' | 'done' | 'failed' | 'interrupted'
 
 export interface ChatSessionTask {
   status: ChatSessionTaskStatus
-  /** When the task was queued, or set for an armed task. */
+  /** When the task started, or was set for an armed task. */
   startedAt: number
   endedAt?: number
   /** For an armed task: when it runs, once, and the note that the model left for that run. */

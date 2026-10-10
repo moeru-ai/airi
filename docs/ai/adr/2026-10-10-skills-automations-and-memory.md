@@ -35,23 +35,23 @@ A recipe is a skill, like a skill in a coding agent.
 - The owner's activity counts mouse and keyboard input. The desktop app reads the system idle time, so input in any app counts. The web app sees input in its own page only.
 - Code decides each trigger from the clock and the observations, without a model call. A new or newly enabled recipe counts time from when the leader first sees it.
 - An auto-run recipe always runs in the background. It reports to the owner conversation of the selected card that the owner used last.
-- An auto-run recipe follows the owner's instructions, or the model decides what each run does from the recipe's description.
+- An auto-run recipe follows the owner's instructions. The owner can pick preset instructions instead, and then the model decides what each run does from the recipe's description.
 - A model-timed recipe has keywords and no automation of its own. The model sets one or more runs with `builtIn_armRecipe` from the owner's words. Each run happens once and needs no approval.
 - A repeat that the owner asks for becomes a proposal. The model can also propose a recipe with `builtIn_proposeRecipe`. Each proposal waits for one owner approval.
 
 ### Background tasks
 
 - Each background task runs in a new hidden session. It never resends the main conversation.
-- Tasks run one at a time. The next one waits, and owner input never waits for them.
-- It has no voice. The session keeps its status: armed, waiting, running, done, failed, or stopped. The chat lists open tasks and the latest results. Only the three newest finished tasks keep their sessions, and dismissing a task deletes its session.
-- The owner can stop an armed, waiting, or running task. A stopped task reports no result. A new leader marks tasks of an earlier leader as stopped.
-- When it ends, the main agent gets a notice with the result and decides what to say, or says nothing.
+- Tasks run at the same time, each in its own session. Owner input never waits for them.
+- It has no voice. The session keeps its status: armed, running, done, failed, or stopped. The chat lists open tasks and the latest results. Only the three newest finished tasks keep their sessions, and dismissing a task deletes its session.
+- The owner can stop an armed or running task. A stopped task reports no result. A new leader marks tasks of an earlier leader as stopped.
+- When it ends, the main agent gets a notice with the whole result and decides what to say, or says nothing.
 - History keeps the notice, marked with its source, so later turns still know the result. Requests and the chat never show it as owner speech.
 - A notice and the reply to it never sync to the cloud, because the cloud chat cannot mark a notice.
 
 ### Long-term memory
 
-- Memory is an index plus one entry per fact. The index joins the identity at the start of each run. It lists the newest 40 entries and counts the rest.
+- Memory is an index plus one entry per fact. The index lists every entry by name and description, and joins the identity at the start of each run.
 - The run reads, writes, and forgets entries with memory tools. It needs no approval.
 - A new entry belongs to the character card of the run. Other cards do not read it.
 - The owner can make an entry general in Settings. Every card then reads it in addition to its own entries. A run cannot change or forget a general entry.
@@ -65,31 +65,26 @@ A recipe is a skill, like a skill in a coding agent.
 ### Scenes and routing
 
 - An external scene, for example a Discord channel, names a binding. The host keeps one persistent session for each binding.
-- A module declares its scenes. Its input must name a matching binding and can never name an owner session.
-- One connection can carry several modules. The host finds the sender by `metadata.sender` and the identity, and rejects input from an unknown sender.
 - Scene sessions and background task sessions stay on this device. Cloud chats carry no bindings or task status.
-- A scene reply goes only to the connection in `metadata.sender.peerId`. Chat output needs an explicit destination, and the server never broadcasts it.
-- Chat output carries the user message and its attachments, never the prompt or the contexts of the turn.
-- Shared context has readers. An owner session reads owner context. A scene session reads its own binding. Owner-only providers, for example the Minecraft status, never reach a scene.
 
 ### Speech
 
-- Only a run with the `voice` output speaks. Replies to the owner's sessions speak, also when a module that speaks for the owner sent the input. Scene replies and background tasks stay silent.
-- Speech drops code blocks, markup, and link addresses. The chat keeps the full text.
+- Replies to the owner's sessions speak, also when a module that speaks for the owner sent the input. Scene replies and background tasks stay silent.
 
 ## Implementation boundaries
 
-`core-agent` owns runtime policy and portable types: recipes, decisions, automations, and context readers.
+`core-agent` owns runtime policy and portable types: recipes, decisions, and automations.
 `stage-ui` connects storage, providers, tools, and chat surfaces.
 The renderer leader runs recipe triggers. Other windows read state.
 Recipes and memory live under long-term memory in Settings.
 
 ## Validation
 
-Deterministic tests cover recipes, decisions, automations, the arming and proposal tools, context readers, scene routing, and the chat contract.
+Deterministic tests cover recipes, decisions, automations, the arming and proposal tools, scene routing, and the chat contract.
 Browser tests cover the recipe editor, background tasks, the chat history, and the session store.
 
 ## Open work
 
 - Live checks with real models, Discord, and speech are not verified.
+- Scene privacy: chat output reaches every connected module, and a scene prompt reads every shared context.
 - A skill becomes code that the model writes and a QuickJS sandbox runs. The owner sees it as a card with the model's description, and can only delete it.

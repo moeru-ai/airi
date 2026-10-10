@@ -257,11 +257,11 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   }
 
   /**
-   * Latest observation per source that the owner conversation can read. Event triggers follow these.
+   * Latest observation per source. Event triggers follow these.
    * A registered module is keyed by its name, which stays the same across restarts. Other writers keep their source key.
    */
-  function latestObservations(sessionId: string) {
-    const snapshot = chatContext.getContextsSnapshot(useChatStore().contextReaderFor(sessionId))
+  function latestObservations() {
+    const snapshot = chatContext.getContextsSnapshot()
     const latest: Record<string, { createdAt: number, text: string }> = {}
     for (const message of Object.values(snapshot).flat()) {
       const source = moduleDirectory.nameOf(message.metadata?.source?.id) ?? getEventSourceKey(message)
@@ -330,8 +330,8 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
     const lastOwnerMessageAt = ownerWroteAt(parentSessionId)
     await ownerActivity.sample(now)
     const inputs = ownerActivity.inputs()
-    // A recipe whose earlier run still waits or runs does not start again.
-    const running = new Set(Object.values(chatSession.sessionMetas).flatMap(meta => meta.recipeId && (meta.task?.status === 'queued' || meta.task?.status === 'running') ? [meta.recipeId] : []))
+    // A recipe whose earlier run still runs does not start again.
+    const running = new Set(Object.values(chatSession.sessionMetas).flatMap(meta => meta.recipeId && meta.task?.status === 'running' ? [meta.recipeId] : []))
     const armed = new Map(armedTasks(usable).map(task => [task.sessionId, task]))
     const { fired, due } = checkAutomations([...recipes.recipes, ...[...armed.values()].map(task => ({ ...task.recipe, id: task.sessionId, automation: task.automation }))], {
       now,
@@ -341,7 +341,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
       seenAt: { ...Object.fromEntries(automationSeenAt), ...Object.fromEntries([...armed.values()].map(task => [task.sessionId, task.armedAt])) },
       lastOwnerMessageAt,
       inputs,
-      observations: latestObservations(parentSessionId),
+      observations: latestObservations(),
       running,
     })
     for (const [id, triggers] of Object.entries(fired)) {

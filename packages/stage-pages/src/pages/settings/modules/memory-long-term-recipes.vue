@@ -2,6 +2,7 @@
 import type { Automation, AutomationCondition, AutomationTrigger } from '@proj-airi/core-agent'
 import type { Recipe, RecipeFields } from '@proj-airi/stage-ui/stores/recipes'
 
+import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
 import { WebSocketEventSource } from '@proj-airi/server-sdk'
 import { useChatContextStore } from '@proj-airi/stage-ui/stores/chat/context-store'
 import { useModuleDirectoryStore } from '@proj-airi/stage-ui/stores/mods/api/module-directory'
@@ -95,8 +96,8 @@ function descriptionOf(recipe: Recipe) {
 
 /** One line of facts: type, source, and what the recipe can do. */
 function metaOf(recipe: Recipe) {
-  // A recipe whose runs the model decides has no instructions, so its grants say what it is instead of a style.
-  const style = recipe.modelFlow ? [] : [t(`${KEY}.styles.${typeOf(recipe)}`)]
+  // A recipe whose runs the model decides has preset instructions, so its grants say what it is instead of a style.
+  const style = recipe.instructions === MODEL_DECIDES_STEPS ? [] : [t(`${KEY}.styles.${typeOf(recipe)}`)]
   return [...style, t(`${KEY}.sources.${recipe.source}`), ...grantsOf(recipe)].join(' · ')
 }
 
@@ -157,7 +158,7 @@ function grantsOf(recipe: Recipe) {
     parts.push(...automationSummary(recipe.automation))
   if (recipe.modelTimed)
     parts.push(t(`${SUMMARY}.model`))
-  if (recipe.modelFlow)
+  if (recipe.instructions === MODEL_DECIDES_STEPS)
     parts.push(t(`${SUMMARY}.model_flow`))
   for (const trigger of recipe.triggers) {
     if (trigger.keywords.length) {

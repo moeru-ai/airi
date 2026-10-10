@@ -100,7 +100,7 @@ export async function createJudgeRecipeTool(options: CreateJudgeRecipeToolOption
         if (target.decision)
           return `Next, ${judgmentSkillText(target)}`
         if (target.modelTimed)
-          return `Set when "${target.name}" runs with ${ARM_RECIPE_TOOL_NAME}, only from the owner's words. ${target.modelFlow ? 'When it runs, it decides what to do from the owner\'s words.' : `It follows these steps then:\n${target.instructions.trim()}`}`
+          return `Set when "${target.name}" runs with ${ARM_RECIPE_TOOL_NAME}, only from the owner's words. It follows these steps then:\n${target.instructions.trim()}`
         if (target.background) {
           const started = await options.start(target)
           return started.status === 'started'

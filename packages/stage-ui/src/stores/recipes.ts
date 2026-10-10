@@ -9,7 +9,7 @@ import { computed } from 'vue'
 export type { DecisionAction, Recipe } from '@proj-airi/core-agent'
 
 /** The fields that the owner writes in the recipe editor. */
-export type RecipeFields = Pick<Recipe, 'name' | 'description' | 'instructions' | 'decision' | 'triggers' | 'automation' | 'modelTimed' | 'modelFlow' | 'background'>
+export type RecipeFields = Pick<Recipe, 'name' | 'description' | 'instructions' | 'decision' | 'triggers' | 'automation' | 'modelTimed' | 'background'>
 
 /**
  * Recipes the owner keeps: the owner's own and model proposals.

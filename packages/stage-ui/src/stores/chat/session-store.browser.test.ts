@@ -175,14 +175,14 @@ describe('chat session synchronization', () => {
     await vi.waitFor(() => expect(followerContext.runtime.getLeaderId()).toBe(leaderContext.runtime.participantId))
     await follower.initialize()
 
-    const task = await follower.createSession('default', { setActive: false, hidden: true, recipeId: 'user:research', task: { status: 'queued', startedAt: 1 } })
-    expect(await follower.setSessionTask(task, { status: 'running' }, ['queued'])).toBe(true)
+    const task = await follower.createSession('default', { setActive: false, hidden: true, recipeId: 'user:research', task: { status: 'armed', startedAt: 1 } })
+    expect(await follower.setSessionTask(task, { status: 'running' }, ['armed'])).toBe(true)
 
     // ROOT CAUSE:
     // A stop and a natural end both read `running` before either write landed, so a stopped task still reported done.
     // The check and the write now run in one step, so exactly one change wins.
     const [stopped, finished] = await Promise.all([
-      follower.setSessionTask(task, { status: 'interrupted', endedAt: 2 }, ['queued', 'running']),
+      follower.setSessionTask(task, { status: 'interrupted', endedAt: 2 }, ['armed', 'running']),
       follower.setSessionTask(task, { status: 'done', endedAt: 3 }, ['running']),
     ])
     expect([stopped, finished].filter(Boolean)).toHaveLength(1)

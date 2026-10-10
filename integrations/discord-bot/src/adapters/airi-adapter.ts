@@ -83,8 +83,6 @@ export class DiscordAdapter {
         'module:configure',
         'output:gen-ai:chat:message',
       ],
-      // Every Discord conversation is a channel scene. Input must name its channel binding, never an owner session.
-      cognition: { scenes: [{ binding: 'discord:channel:' }] },
       token: config.airiToken,
       url: config.airiUrl,
     })
@@ -161,7 +159,7 @@ export class DiscordAdapter {
     this.airiClient.onEvent('output:gen-ai:chat:message', async (event) => {
       try {
         const message = (event.data as { message?: { content: string } }).message
-        const discordContext = event.data.discord
+        const discordContext = (event.data)['gen-ai:chat'].input.data.discord
 
         if (message?.content && discordContext?.channelId) {
           const channel = await this.discordClient.channels.fetch(discordContext.channelId)

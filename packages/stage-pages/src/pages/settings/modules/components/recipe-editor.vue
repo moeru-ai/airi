@@ -3,6 +3,7 @@ import type { AutomationCondition, AutomationTrigger, Weekday } from '@proj-airi
 import type { DecisionAction, Recipe, RecipeFields } from '@proj-airi/stage-ui/stores/recipes'
 import type { ConditionInput, TriggerInput } from '@proj-airi/stage-ui/tools/automation-input'
 
+import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
 import { automationFromInput } from '@proj-airi/stage-ui/tools/automation-input'
 import { Button, FieldCheckbox, FieldInput, FieldSelect, FieldTextArea, Textarea } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
@@ -101,8 +102,8 @@ const conditionRows = ref<ConditionRow[]>(automation?.conditions.map(condition =
 const cooldown = ref(automation?.cooldownMinutes ?? 0)
 /** Who sets when an auto-run recipe runs: the owner's triggers below, or the model each time a keyword invokes it. */
 const timing = ref<'owner' | 'model'>(props.recipe?.modelTimed ? 'model' : 'owner')
-/** Who decides what each auto-run does: the owner's instructions, or the model each time it runs. */
-const flow = ref<'owner' | 'model'>(props.recipe?.modelFlow ? 'model' : 'owner')
+/** Who decides what each auto-run does: the owner's instructions, or the model each time it runs through preset instructions. */
+const flow = ref<'owner' | 'model'>(props.recipe?.instructions === MODEL_DECIDES_STEPS ? 'model' : 'owner')
 const background = ref(props.recipe?.background ?? false)
 const question = ref(decision?.question.instructions ?? '')
 const questionType = ref<QuestionType>(decision?.question.type ?? 'noul')
@@ -188,7 +189,7 @@ function decisionOf(): NonNullable<Recipe['decision']> {
   }
 }
 
-/** The model decides what each run does, so the recipe keeps no instructions. */
+/** The model decides what each run does, so the recipe saves the preset instructions. */
 const modelDecides = computed(() => props.autoRun && flow.value === 'model')
 
 const canSave = computed(() => {
@@ -220,7 +221,6 @@ function save() {
       triggers: keywordTriggers,
       automation: undefined,
       modelTimed: undefined,
-      modelFlow: undefined,
       background: undefined,
     })
     return
@@ -232,12 +232,11 @@ function save() {
   emit('save', {
     name: name.value.trim(),
     description: description.value.trim(),
-    instructions: modelDecides.value ? '' : instructions.value.trim(),
+    instructions: modelDecides.value ? MODEL_DECIDES_STEPS : instructions.value.trim(),
     decision: undefined,
     triggers: automated ? [] : keywordTriggers,
     automation: automated,
     modelTimed: modelTimed || undefined,
-    modelFlow: modelDecides.value || undefined,
     background: !props.autoRun && background.value ? true : undefined,
   })
 }

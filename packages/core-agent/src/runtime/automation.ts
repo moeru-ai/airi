@@ -74,7 +74,7 @@ export interface AutomationState {
   inputs?: Readonly<Partial<Record<InputSource, InputActivity>>>
   /** The latest observation from each registered module, by module name. */
   observations?: Readonly<Record<string, { createdAt: number, text: string }>>
-  /** Recipes whose earlier run still waits or runs. They do not start again. */
+  /** Recipes whose earlier run still runs. They do not start again. */
   running?: ReadonlySet<string>
 }
 
@@ -187,15 +187,14 @@ function holds(condition: AutomationCondition, state: AutomationState, since: nu
  * Returns:
  * - `fired`: the indexes of the triggers that fired, by recipe id. The host records them in `firedAt`, so each event counts once.
  * - `due`: the fired recipes that start now, with the first trigger that fired. A recipe whose conditions fail, which is in
- *   its cooldown, or whose earlier run still waits or runs, does not start, and its events are spent.
+ *   its cooldown, or whose earlier run still runs, does not start, and its events are spent.
  */
 export function checkAutomations(recipes: readonly Recipe[], state: AutomationState): { fired: Record<string, number[]>, due: DueRecipe[] } {
   const fired: Record<string, number[]> = {}
   const due: DueRecipe[] = []
   for (const recipe of recipes) {
     const automation = recipe.automation
-    // A recipe needs instructions, unless the model decides what each run does.
-    if (!automation || !recipe.enabled || !recipe.approved || (!recipe.instructions.trim() && !recipe.modelFlow))
+    if (!automation || !recipe.enabled || !recipe.approved || !recipe.instructions.trim())
       continue
     const since = state.seenAt?.[recipe.id] ?? state.startedAt
     const firing = automation.triggers.flatMap((entry, index) => fires(entry, state, since, state.firedAt[recipe.id]?.[index]) ? [index] : [])

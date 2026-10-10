@@ -304,27 +304,12 @@ describe('createContextRegistry', () => {
   })
 })
 
-describe('context registry readers and bounds', () => {
-  const owner = { ids: ['session-1', 'character'], owner: true }
-  const channel = { ids: ['session-2', 'discord:channel:a'], owner: false }
-
-  // ROOT CAUSE:
-  // Every observation reached every prompt, so a Discord channel reply read the owner's private context.
-  it('shows unaddressed observations to the owner only, and named readers to their scene', () => {
-    const registry = createContextRegistry()
-    registry.ingest(createContextMessage({ id: 'private', source: 'desktop', text: 'owner screen' }))
-    registry.ingest(createContextMessage({ id: 'scene', source: 'discord', text: 'channel topic', destinations: { include: ['discord:channel:a'] } }))
-    registry.ingest(createContextMessage({ id: 'transport', source: 'game', text: 'game status', destinations: ['proj-airi:stage-*'] }))
-
-    expect(Object.keys(registry.snapshot(owner))).toEqual(['desktop', 'game'])
-    expect(Object.keys(registry.snapshot(channel))).toEqual(['discord'])
-  })
-
+describe('context registry writers', () => {
   it('removes the observations of a writer that left', () => {
     const registry = createContextRegistry()
     registry.ingest(createContextMessage({ source: 'game', text: 'status' }))
 
     expect(registry.removeWriter('game')).toBe(true)
-    expect(registry.snapshot(owner)).toEqual({})
+    expect(registry.snapshot()).toEqual({})
   })
 })

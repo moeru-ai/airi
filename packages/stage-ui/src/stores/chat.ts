@@ -1,4 +1,4 @@
-import type { Automation, ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, ContextReader, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
+import type { Automation, ChatAttachment, ChatInvokedSkill, ChatOrchestratorRuntimeState, ChatOrchestratorSendOptions, Conversation, Recipe, StreamEvent, StreamOptions } from '@proj-airi/core-agent'
 import type { GenerationProvider } from '@proj-airi/provider-inference'
 import type { WebSocketEventInputs } from '@proj-airi/server-sdk'
 import type { Message } from '@xsai/shared-chat'
@@ -76,8 +76,6 @@ export interface ChatSendPayload {
   attachments?: ChatAttachment[]
   /** Original input metadata for chat hooks and telemetry. */
   input?: WebSocketEventInputs
-  /** Server connection for this reply. Local turns have no transport target. */
-  outputTarget?: ChatOrchestratorSendOptions['outputTarget']
   /** Session that owns the new turn. */
   sessionId: string
   /** Message that the new user turn replies to in the target session. */
@@ -108,9 +106,9 @@ export interface BackgroundTask {
   turnId?: string
 }
 
-/** Whether a background task still waits for its automation, waits in the queue, or runs. */
+/** Whether a background task still waits for its automation, or runs. */
 export function isOpenTask(status: ChatSessionTaskStatus) {
-  return status === 'armed' || status === 'queued' || status === 'running'
+  return status === 'armed' || status === 'running'
 }
 
 /**
@@ -118,18 +116,6 @@ export function isOpenTask(status: ChatSessionTaskStatus) {
  * The result already reached the conversation as a stored notice, so nothing else reads these sessions.
  */
 const KEPT_FINISHED_TASKS = 3
-
-/**
- * Characters of a background result that the notice keeps. The notice stays in the conversation history, so a long result is cut and marked as cut.
- * The task session does not keep the rest for long, because old task sessions are deleted.
- */
-const RECIPE_RESULT_NOTICE_LIMIT = 1500
-
-/** Cuts a background result to the notice limit and says so, so the conversation never mistakes a cut result for the whole one. */
-function noticeResultText(text: string) {
-  const trimmed = text.trim()
-  return trimmed.length > RECIPE_RESULT_NOTICE_LIMIT ? `${trimmed.slice(0, RECIPE_RESULT_NOTICE_LIMIT)}\n[The result was cut here.]` : trimmed
-}
 
 /** The durable messages appended while one chat request executes. */
 export interface ChatSendResult {
@@ -306,8 +292,6 @@ export const useChatStore = defineStore('chat', () => {
     const open = tasks.filter(task => isOpenTask(task.status))
     return [...open, ...tasks.filter(task => !open.includes(task))]
   })
-  // Background tasks run one at a time in this leader. Owner input never waits for them, because it runs in its own session.
-  let backgroundQueue: Promise<void> = Promise.resolve()
   let ownedActiveTurnSpan: typeof activeTurnSpan.value
   let stopLeadershipListener: (() => void) | undefined
   const analyticsHooks = createChatAnalyticsHooks({
@@ -375,14 +359,6 @@ export const useChatStore = defineStore('chat', () => {
     return !chatSession.sessionMetas[sessionId]?.bindings?.length
   }
 
-  /** Session bindings select the scene that a request reads. An unbound session reads the owner scene. */
-  function contextReaderFor(sessionId: string): ContextReader {
-    const bindings = chatSession.sessionMetas[sessionId]?.bindings
-    return bindings?.length
-      ? { ids: [sessionId, ...bindings], owner: false }
-      : { ids: [sessionId, 'character'], owner: true }
-  }
-
   /**
    * Tells a conversation about finished background work. The main agent reads the notice and decides what to say, or stays quiet.
    * Only the owner's own conversation gets a notice, so background results never reach a scene.
@@ -415,14 +391,11 @@ export const useChatStore = defineStore('chat', () => {
     return Boolean(meta && !staysLocal(meta))
   }
 
-  /** Runs one queued task: its own send without voice, then its status and a notice to the parent conversation. */
+  /** Runs one task: its own send without voice, then its status and a notice to the parent conversation. */
   async function runBackgroundTask(recipe: Recipe, sessionId: string, request: { parentSessionId: string, task: string, tools: ChatToolReference[] }) {
-    // The owner can stop a task while it waits.
-    if (!await chatSession.setSessionTask(sessionId, { status: 'running' }, ['queued']))
-      return
     const notify = (ok: boolean, text: string) => notifyConversation(request.parentSessionId, {
       source: `recipe:${recipe.name}`,
-      text: `${ok ? `The background task "${recipe.name}" finished.` : `The background task "${recipe.name}" could not finish.`}\n${noticeResultText(text)}`,
+      text: `${ok ? `The background task "${recipe.name}" finished.` : `The background task "${recipe.name}" could not finish.`}\n${text.trim()}`,
     })
     // A cancelled send ends without an error. Only the change that moves the task out of `running` reports, so a stopped task never reports a result.
     try {
@@ -446,8 +419,8 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Queues a task recipe in a new session of its own, without voice. Each task starts with an empty history.
-   * Resolves once the task is queued or refused. When it settles, its result reaches the parent conversation as a notice.
+   * Starts a task recipe in a new session of its own, without voice. Each task starts with an empty history.
+   * Resolves once the task starts or is refused. When it settles, its result reaches the parent conversation as a notice.
    */
   async function startRecipe(recipe: Recipe, request: { parentSessionId: string, task: string }): Promise<{ status: 'started' } | { status: 'refused', reason: string }> {
     // An empty send never runs, so an empty task ends as done without doing anything.
@@ -462,18 +435,19 @@ export const useChatStore = defineStore('chat', () => {
         title: recipe.name,
         parentSessionId: request.parentSessionId,
         recipeId: recipe.id,
-        task: { status: 'queued', startedAt: Date.now() },
+        task: { status: 'running', startedAt: Date.now() },
       })
     }
     catch (error) {
       return { status: 'refused', reason: errorMessageFrom(error) ?? 'The recipe space could not open' }
     }
-    queueBackgroundTask(recipe, sessionId, { ...request, tools })
+    runInBackground(recipe, sessionId, { ...request, tools })
     return { status: 'started' }
   }
 
-  function queueBackgroundTask(recipe: Recipe, sessionId: string, request: { parentSessionId: string, task: string, tools: ChatToolReference[] }) {
-    backgroundQueue = backgroundQueue.then(() => runBackgroundTask(recipe, sessionId, request)).catch((error: unknown) => {
+  /** Each task runs in its own session, so tasks run at the same time and never wait for each other. */
+  function runInBackground(recipe: Recipe, sessionId: string, request: { parentSessionId: string, task: string, tools: ChatToolReference[] }) {
+    void runBackgroundTask(recipe, sessionId, request).catch((error: unknown) => {
       console.warn('[chat] Background task failed:', errorMessageFrom(error))
     })
   }
@@ -500,13 +474,13 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * Queues an armed task whose automation fired. It runs once and ends, so it is the owner's request, later.
+   * Starts an armed task whose automation fired. It runs once and ends, so it is the owner's request, later.
    * It gets the tools that the owner granted to that request, and needs no second approval.
    */
   async function startArmedTask(recipe: Recipe, sessionId: string, task: string) {
     const parentSessionId = chatSession.sessionMetas[sessionId]?.parentSessionId
-    if (parentSessionId && await chatSession.setSessionTask(sessionId, { status: 'queued', startedAt: Date.now() }, ['armed']))
-      queueBackgroundTask(recipe, sessionId, { parentSessionId, task, tools: recipeRunTools() })
+    if (parentSessionId && await chatSession.setSessionTask(sessionId, { status: 'running', startedAt: Date.now() }, ['armed']))
+      runInBackground(recipe, sessionId, { parentSessionId, task, tools: recipeRunTools() })
   }
 
   /** Deletes an armed task whose one event fired without a run, because a condition said no. */
@@ -515,9 +489,9 @@ export const useChatStore = defineStore('chat', () => {
       await deleteTaskSession(sessionId)
   }
 
-  /** Stops a background task. An armed or waiting task never starts, and a running one is cancelled without a result. */
+  /** Stops a background task. An armed task never starts, and a running one is cancelled without a result. */
   async function stopBackgroundTask(sessionId: string) {
-    if (!await chatSession.setSessionTask(sessionId, { status: 'interrupted', endedAt: Date.now() }, ['armed', 'queued', 'running']))
+    if (!await chatSession.setSessionTask(sessionId, { status: 'interrupted', endedAt: Date.now() }, ['armed', 'running']))
       return
     // The task can still be preparing, before its turn is active, so every request of its session stops.
     abortSessionRequests(sessionId, new DOMException('Background task stopped', 'AbortError'))
@@ -549,14 +523,14 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   /**
-   * A new leader has no queue, so tasks that waited or ran in an earlier leader are interrupted.
+   * A new leader does not continue the runs of an earlier leader, so tasks that ran there are interrupted.
    * Only this leader's own requests count. Replicated turns can still name a turn of the leader that left.
    */
   async function interruptOrphanedTasks() {
     for (const meta of Object.values(chatSession.sessionMetas)) {
       const status = meta.task?.status
       if (status && isOpenTask(status) && !hasLocalRequest(meta.sessionId))
-        await chatSession.setSessionTask(meta.sessionId, { status: 'interrupted', endedAt: Date.now() }, ['queued', 'running'])
+        await chatSession.setSessionTask(meta.sessionId, { status: 'interrupted', endedAt: Date.now() }, ['running'])
     }
     await pruneFinishedTasks()
   }
@@ -569,9 +543,9 @@ export const useChatStore = defineStore('chat', () => {
     return llmToolsStore.tools.map(tool => ({ name: tool.function.name }))
   }
 
-  /** Whether a send answers the owner's own message in the owner's conversation: not a notice, a scene output, or a task. */
+  /** Whether a send answers the owner's own message in the owner's conversation: not a notice, a scene, or a task. */
   function isOwnerSend(payload: ChatSendPayload, extra: HostSendOptions) {
-    return !extra.notice && !payload.outputTarget && isOwnerSession(payload.sessionId) && !chatSession.sessionMetas[payload.sessionId]?.recipeId
+    return !extra.notice && isOwnerSession(payload.sessionId) && !chatSession.sessionMetas[payload.sessionId]?.recipeId
   }
 
   /**
@@ -581,7 +555,7 @@ export const useChatStore = defineStore('chat', () => {
   function keywordRecipesFor(payload: ChatSendPayload, extra: HostSendOptions) {
     if (!isOwnerSend(payload, extra))
       return []
-    return matchKeywordRecipes(recipes.usable, payload.text).filter(recipe => recipe.instructions.trim() || recipe.decision || recipe.modelFlow)
+    return matchKeywordRecipes(recipes.usable, payload.text).filter(recipe => recipe.instructions.trim() || recipe.decision)
   }
 
   /**
@@ -621,9 +595,7 @@ export const useChatStore = defineStore('chat', () => {
         : recipe.modelTimed
           ? [
               `It runs later. Set when with ${ARM_RECIPE_TOOL_NAME}, only from the owner's words, and add nothing that the owner did not ask for. If the owner gave no time or event, ask. Do not do its task now. Reply briefly when it is set.`,
-              recipe.modelFlow
-                ? `When it runs, it decides what to do from the owner's words and its purpose: ${recipe.description.trim()}`
-                : `When it runs, it follows these steps:\n${recipe.instructions.trim()}`,
+              `When it runs, it follows these steps:\n${recipe.instructions.trim()}`,
             ].join('\n')
           : isBackgroundRecipe(recipe)
             ? 'It runs in the background for this message, and its result reaches you later. Reply briefly, and do not do its task yourself.'
@@ -922,11 +894,11 @@ export const useChatStore = defineStore('chat', () => {
     },
     context: {
       ingest: envelope => chatContext.ingestContextMessage(envelope),
-      snapshot: (sessionId) => {
-        const snapshot = chatContext.getContextsSnapshot(contextReaderFor(sessionId))
+      snapshot: () => {
+        const snapshot = { ...chatContext.getContextsSnapshot() }
         // Account data belongs to this request, not the persistent context registry.
         // A signed-out request therefore cannot inherit the previous account snapshot.
-        const account = chatSession.sessionMetas[sessionId]?.bindings?.length ? null : createUserAccountContext(authStore)
+        const account = createUserAccountContext(authStore)
         if (account)
           snapshot[account.contextId] = [account]
         return snapshot
@@ -957,8 +929,7 @@ export const useChatStore = defineStore('chat', () => {
     },
     runtimeContextProviders: [
       () => createRuntimePromptContext(runtimePrompt.value),
-      // Integration status belongs to the owner, so a scene never reads it.
-      sessionId => isOwnerSession(sessionId) ? createMinecraftContext() : undefined,
+      createMinecraftContext,
     ],
     createId: nanoid,
     unwrapMessage: message => toRaw(message),
@@ -1217,7 +1188,6 @@ export const useChatStore = defineStore('chat', () => {
       messageId: payload.messageId,
       attachments: await storeChatAttachments(payload.attachments, payload.sessionId),
       input: payload.input,
-      outputTarget: payload.outputTarget,
       replyToMessageId: payload.replyToMessageId,
       toolReferences: payload.tools,
       // A session with scene bindings answers other people, so its reply never speaks on the host.
@@ -1457,7 +1427,6 @@ export const useChatStore = defineStore('chat', () => {
   return {
     sending,
     activeTurns,
-    contextReaderFor,
     activeSendSessionId,
     activeStreamingMessage,
     backgroundTasks,

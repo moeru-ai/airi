@@ -89,7 +89,6 @@ chat:
     dismiss: 'Dismiss {name}'
     status:
       armed: Set
-      queued: Waiting
       running: Working on
       done: Done
       failed: Failed

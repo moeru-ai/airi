@@ -490,7 +490,6 @@ describe('chat store contract', () => {
     expect(getChatProviderInstanceMock).toHaveBeenCalledTimes(2)
     expect(getChatProviderInstanceMock).toHaveBeenCalledWith('mock-provider', { reasoning: 'disabled' })
     expect(() => structuredClone(result)).not.toThrow()
-    // Each request also receives the source reader, authorized by its own session.
     expect(resolvedToolNames).toEqual([
       ['stage_widgets', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
       ['stage_widgets', 'builtIn_readMemory', 'builtIn_writeMemory', 'builtIn_forgetMemory', 'builtIn_useRecipe', 'builtIn_proposeRecipe'],
@@ -575,7 +574,7 @@ describe('chat store contract', () => {
     memory.write({ name: 'channel-rules', description: 'Rules of this channel.', body: 'No spoilers.' }, 'discord-host')
     memory.write({ name: 'focus-steps', description: 'How the focus card answers.', body: 'Next step first.' }, 'focus')
 
-    await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me', outputTarget: 'discord-connection' })
+    await useChatStore().send({ sessionId: 'scene-session', text: 'save a recipe for me' })
 
     expect(toolNames[0]).not.toContain('builtIn_proposeRecipe')
     expect(toolNames[0]).toContain('builtIn_writeMemory')
@@ -585,7 +584,7 @@ describe('chat store contract', () => {
 
     // With long-term memory off, no memory tool or index reaches the run.
     memory.enabled = false
-    await useChatStore().send({ sessionId: 'scene-session', text: 'hello again', outputTarget: 'discord-connection' })
+    await useChatStore().send({ sessionId: 'scene-session', text: 'hello again' })
 
     expect(toolNames[1]).not.toContain('builtIn_writeMemory')
     expect(prompt).not.toContain('channel-rules')
@@ -1669,7 +1668,6 @@ describe('chat store contract', () => {
     expect(createRuntimePromptContextMock).toHaveBeenCalledWith(expect.stringContaining('base.prompt.emoji'))
     expect(createRuntimePromptContextMock).toHaveBeenCalledOnce()
     expect(getContextsSnapshotMock).toHaveBeenCalledOnce()
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character'], owner: true })
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
     if (composedMessages[1].type !== 'user')
       throw new Error('Expected user turn')
@@ -1681,103 +1679,26 @@ describe('chat store contract', () => {
     })
   })
 
-  it('uses external scene readers without adding private owner or account context', async () => {
-    sessionMetas['session-1'] = {
-      sessionId: 'session-1',
-      userId: 'local',
-      characterId: 'default',
-      bindings: ['discord:channel:a'],
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
-      await options.onStreamEvent?.({ type: 'finish' })
-    })
-
-    await useChatStore().send({ sessionId: 'session-1', text: 'Hello from Discord' })
-
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'], owner: false })
-    expect(createUserAccountContextMock).not.toHaveBeenCalled()
-  })
-
-  // ROOT CAUSE:
-  // An external reply reaches the channel members, so its run must read only records of its scene.
-  it('reads the scene readers when the reply leaves the host', async () => {
-    sessionMetas['session-1'] = {
-      sessionId: 'session-1',
-      userId: 'local',
-      characterId: 'default',
-      bindings: ['discord:channel:a'],
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
-      await options.onStreamEvent?.({ type: 'finish' })
-    })
-
-    await useChatStore().send({ sessionId: 'session-1', text: 'Hello from Discord', outputTarget: 'discord-connection' })
-
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'], owner: false })
-  })
-
   // ROOT CAUSE:
   // Every send drove the character voice, so a channel reply took over the owner's speech.
-  // A scene reply goes to its scene and never speaks. A module that speaks for the owner gets its reply back, and the owner hears it.
   it('gives the voice to the owner sessions and never to a scene', async () => {
     sessionMetas['scene-session'] = { sessionId: 'scene-session', userId: 'local', characterId: 'default', bindings: ['discord:channel:a'], createdAt: 1, updatedAt: 1 }
     llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, _messages: Conversation, options: StreamOptions) => {
       await options.onStreamEvent?.({ type: 'finish' })
     })
-    const outputs: Array<readonly string[] | undefined> = []
+    const speaks: Array<boolean | undefined> = []
     const store = useChatStore()
     store.onBeforeSend(async (_message, context) => {
-      outputs.push(context.outputs)
+      speaks.push(context.speaks)
     })
 
     await store.send({ sessionId: 'session-1', text: 'Hello' })
-    await store.send({ sessionId: 'session-1', text: 'Hello from a module', outputTarget: 'module-connection' })
-    await store.send({ sessionId: 'scene-session', text: 'Hello from Discord', outputTarget: 'discord-connection' })
+    await store.send({ sessionId: 'scene-session', text: 'Hello from Discord' })
 
-    expect(outputs).toEqual([
-      ['voice'],
-      ['connection:module-connection', 'voice'],
-      ['connection:discord-connection'],
-    ])
+    expect(speaks).toEqual([true, false])
   })
 
-  // ROOT CAUSE:
-  // The frontend Minecraft provider bypassed reader filtering through the request-only instruction path.
-  // It describes the owner's integration, so only the owner's own sessions read it.
-  it('does not inject frontend Minecraft context into an unrelated external scene', async () => {
-    sessionMetas['session-1'] = {
-      sessionId: 'session-1',
-      userId: 'local',
-      characterId: 'default',
-      bindings: ['discord:channel:a'],
-      createdAt: 1,
-      updatedAt: 1,
-    }
-    createMinecraftContextMock.mockReturnValue({
-      id: 'minecraft-context',
-      contextId: 'system:minecraft-integration',
-      strategy: 'replace-self',
-      text: 'Private Minecraft coordinates: 10, 20, 30',
-      createdAt: Date.now(),
-    })
-    let prompt = ''
-    llmStreamMock.mockImplementation(async (_model: string, _provider: GenerationProvider, conversation: Conversation, options: StreamOptions) => {
-      prompt = JSON.stringify(conversation)
-      await options.onStreamEvent?.({ type: 'finish' })
-    })
-
-    await useChatStore().send({ sessionId: 'session-1', text: 'Hello from Discord' })
-
-    expect(prompt).not.toContain('Private Minecraft coordinates')
-    expect(createMinecraftContextMock).not.toHaveBeenCalled()
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'discord:channel:a'], owner: false })
-  })
-
-  it('projects module-owned Minecraft context from the reader snapshot', async () => {
+  it('projects module-owned Minecraft context from the context snapshot', async () => {
     getContextsSnapshotMock.mockReturnValue({
       'minecraft-bot': [{
         id: 'minecraft-status',
@@ -1796,7 +1717,6 @@ describe('chat store contract', () => {
     await useChatStore().send({ sessionId: 'session-1', text: 'Is the bot online?' })
 
     expect(prompt).toContain('Minecraft bot is online.')
-    expect(getContextsSnapshotMock).toHaveBeenCalledWith({ ids: ['session-1', 'character'], owner: true })
     expect(ingestContextMessageMock).not.toHaveBeenCalled()
   })
 

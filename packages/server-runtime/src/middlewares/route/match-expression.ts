@@ -89,8 +89,6 @@ export function matchesRouteExpression(expression: RouteTargetExpression, peer: 
       const matched = expression.instances.includes(peer.identity?.id ?? '')
       return expression.inverted ? !matched : matched
     }
-    case 'connection':
-      return expression.connections.includes(peer.peer.id)
     case 'label': {
       const matched = matchesLabelSelectors(expression.selectors, getPeerLabels(peer))
       return expression.inverted ? !matched : matched

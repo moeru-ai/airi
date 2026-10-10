@@ -50,9 +50,8 @@ describe('automations', () => {
     expect(due(hourly, { now: at(5, 9, 35), startedAt: at(5, 9), seenAt: { 'user:auto': at(5, 8, 30) } })).toHaveLength(1)
     // A recipe that became usable again counts from then, also when it fired before.
     expect(due(hourly, { now: at(5, 9, 10), seenAt: { 'user:auto': at(5, 9) }, firedAt: { 'user:auto': { 0: at(5, 1) } } })).toEqual([])
-    // A recipe without instructions runs only when the model decides what each run does.
+    // A recipe without instructions never runs.
     expect(due({ ...hourly, instructions: '' }, { now: at(5, 1, 30), seenAt: { 'user:auto': at(5, 0, 30) } })).toEqual([])
-    expect(due({ ...hourly, instructions: '', modelFlow: true }, { now: at(5, 1, 30), seenAt: { 'user:auto': at(5, 0, 30) } })).toHaveLength(1)
   })
 
   it('fires once per idle time of a source, and waits for the next use', () => {
@@ -101,7 +100,7 @@ describe('automations', () => {
     expect(early).toEqual({ fired: { 'user:auto': [0] }, due: [] })
   })
 
-  it('skips a run in its cooldown or while an earlier run still waits or runs', () => {
+  it('skips a run in its cooldown or while an earlier run still runs', () => {
     const typing = automated({ triggers: [{ source: 'keyboard', event: 'active' }], cooldownMinutes: 120 })
     const state = { now: at(5, 23), inputs: { keyboard: { lastAt: at(5, 23) - 1_000 } } }
 

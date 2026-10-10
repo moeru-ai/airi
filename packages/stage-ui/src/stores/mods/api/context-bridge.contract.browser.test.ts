@@ -187,8 +187,6 @@ const chatOrchestratorMock = {
   emitTokenSpecialHooks: (...args: unknown[]) => emitHooks(tokenSpecialHooks, ...args),
   emitStreamEndHooks: (...args: unknown[]) => emitHooks(streamEndHooks, ...args),
   emitAssistantResponseEndHooks: (...args: unknown[]) => emitHooks(assistantEndHooks, ...args),
-  emitAssistantMessageHooks: (...args: unknown[]) => emitHooks(assistantMessageHooks, ...args),
-  emitChatTurnCompleteHooks: (...args: unknown[]) => emitHooks(turnCompleteHooks, ...args),
 }
 
 vi.mock('@proj-airi/stage-shared', async (importOriginal) => {
@@ -325,92 +323,6 @@ describe('context bridge contract', () => {
     localStorage.clear()
   })
 
-  // ROOT CAUSE:
-  // Chat output hooks broadcast every reply and its prompt snapshot, including local private turns.
-  // Only a transport return address permits module output. Prompt snapshots stay inside the host.
-  it.each(['message', 'complete'] as const)('keeps local %s output inside the host', async (kind) => {
-    const store = useContextBridgeStore()
-    await store.initialize()
-    serverSendMock.mockClear()
-    const context: ChatStreamEventContext = {
-      sessionId: 'session-1',
-      turnId: 'private-turn',
-      message: { role: 'user', content: 'private question' },
-      contexts: {},
-      composedMessage: [{ role: 'system', content: 'private system prompt' }],
-      input: { type: 'input:text', data: { text: 'private question' } },
-    }
-    const message = { role: 'assistant', content: 'private reply' }
-
-    if (kind === 'message')
-      await emitHooks(assistantMessageHooks, message, message.content, context)
-    else
-      await emitHooks(turnCompleteHooks, { output: message }, context)
-
-    expect(serverSendMock).not.toHaveBeenCalled()
-  })
-
-  it.each(['message', 'complete'] as const)('returns %s output only to its origin without prompt snapshots', async (kind) => {
-    const store = useContextBridgeStore()
-    await store.initialize()
-    serverSendMock.mockClear()
-    const context = {
-      turnId: 'external-turn',
-      message: { role: 'user', content: 'channel question' },
-      contexts: { private: [createContextMessage({ text: 'private observation' })] },
-      composedMessage: [{ role: 'system', content: 'private system prompt' }],
-      input: { type: 'input:text', data: { text: 'channel question', discord: { channelId: 'channel-a' } } },
-      outputTarget: 'discord:instance-a',
-      outputs: ['connection:discord:instance-a'],
-    }
-    const message = { role: 'assistant', content: 'channel reply' }
-
-    if (kind === 'message')
-      await emitHooks(assistantMessageHooks, message, message.content, context)
-    else
-      await emitHooks(turnCompleteHooks, { output: message }, context)
-
-    expect(serverSendMock).toHaveBeenCalledTimes(1)
-    const output = serverSendMock.mock.calls[0][0]
-    expect(output.route).toEqual({ destinations: [{ type: 'connection', connections: ['discord:instance-a'] }] })
-    expect(output.data.message).toEqual(message)
-    expect(output.data.discord).toEqual({ channelId: 'channel-a' })
-    expect(output.data).not.toHaveProperty('gen-ai:chat')
-  })
-
-  // ROOT CAUSE:
-  // Devtools in another renderer read reply and completion entries from the server broadcast.
-  // Directed output removed that feed, so those renderers saw no reply for a turn.
-  it('mirrors reply and completion hooks to other renderers without module output', async () => {
-    const outgoing = collectChannelMessages<{ type: string, sessionId: string }>(CHAT_STREAM_CHANNEL_NAME)
-    const store = useContextBridgeStore()
-    await store.initialize()
-    serverSendMock.mockClear()
-    const context: ChatStreamEventContext = { sessionId: 'session-1', turnId: 'turn-1', message: { role: 'user', content: 'hello' }, contexts: {}, composedMessage: [] }
-    const message = { role: 'assistant' as const, content: 'local reply', slices: [], tool_results: [] }
-
-    await emitHooks(assistantMessageHooks, message, message.content, context)
-    await emitHooks(turnCompleteHooks, { output: message, outputText: message.content, toolCalls: [] }, context)
-    await vi.waitFor(() => expect(outgoing.map(event => event.type)).toEqual(['assistant-message', 'chat-turn-complete']))
-
-    const received: string[] = []
-    chatOrchestratorMock.onAssistantMessage(async (_message, text) => {
-      received.push(`message:${text as string}`)
-    })
-    chatOrchestratorMock.onChatTurnComplete(async (chat) => {
-      received.push(`complete:${(chat as { outputText: string }).outputText}`)
-    })
-    const remote = createTestChannel(CHAT_STREAM_CHANNEL_NAME)
-    const remoteContext = { ...context, outputTarget: 'discord:instance-a' }
-    await remote.postMessage({ type: 'assistant-message', message, messageText: 'remote reply', sessionId: 'session-1', context: remoteContext })
-    await remote.postMessage({ type: 'chat-turn-complete', chat: { output: message, outputText: 'remote reply', toolCalls: [] }, sessionId: 'session-1', context: remoteContext })
-    await vi.waitFor(() => expect(received).toEqual(['message:remote reply', 'complete:remote reply']))
-
-    // The producing renderer owns module output. A mirror never sends it again.
-    expect(serverSendMock).not.toHaveBeenCalled()
-    await store.dispose()
-  })
-
   it('lists the images and recordings of the turn in the chat message event', async () => {
     storedSessionMessages['session-1'] = [{
       id: 'turn-1',
@@ -431,13 +343,10 @@ describe('context bridge contract', () => {
       message: { role: 'user', content: 'look' },
       contexts: {},
       composedMessage: [],
-      // Only a reply to a connection leaves the host, so the turn answers one.
-      outputTarget: 'discord:instance-a',
-      outputs: ['connection:discord:instance-a'],
     })
 
     const event = serverSendMock.mock.calls.find(([sent]) => sent.type === 'output:gen-ai:chat:message')?.[0]
-    expect(event?.data['gen-ai:chat']?.attachments).toEqual([
+    expect(event?.data['gen-ai:chat'].attachments).toEqual([
       { type: 'image', ref: 'airi-asset:image' },
       { type: 'audio', ref: 'airi-asset:voice', mimeType: 'audio/wav', transcript: 'hello there' },
     ])
@@ -495,6 +404,24 @@ describe('context bridge contract', () => {
       metadata: { event: { parentId: 'request-2' } },
     }))
     await chatAssetsRepo.clear()
+  })
+
+  it('sends input with a scene binding to the bound session', async () => {
+    consciousness.activeProvider = 'mock-provider'
+    consciousness.activeModel = 'mock-model'
+    const store = useContextBridgeStore()
+    await store.initialize()
+
+    await emitServerEvent('input:text', {
+      type: 'input:text',
+      source: 'discord',
+      metadata: createMetadata('discord', 'bot'),
+      data: { text: 'hello', overrides: { binding: 'discord:channel:a' } },
+    })
+
+    expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
+    expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'bound:discord:channel:a' })
+    await store.dispose()
   })
 
   it('records core ingest result for broadcast context updates', async () => {
@@ -563,149 +490,6 @@ describe('context bridge contract', () => {
     await store.dispose()
   })
 
-  // Module observations keep their destinations. The pool reads object destinations as readers and gives the rest to the owner.
-  it('keeps module observation destinations as the module sent them', async () => {
-    const store = useContextBridgeStore()
-    await store.initialize()
-
-    await emitContextUpdate(createContextUpdateEvent({ id: 'unaddressed' }))
-    await emitContextUpdate(createContextUpdateEvent({ id: 'shared', destinations: { include: ['discord:channel:a'] } }))
-
-    expect(chatContextIngestMock.mock.calls.map(([message]) => [message.id, message.destinations])).toEqual([
-      ['unaddressed', undefined],
-      ['shared', { include: ['discord:channel:a'] }],
-    ])
-
-    await store.dispose()
-  })
-
-  // ROOT CAUSE:
-  // Input side context used the array form for logical readers, while arrays route transport peers.
-  // A sender's transport list became a reader list, and the observation reached no session.
-  it('gives input side context the input scene unless the sender names logical readers', async () => {
-    const store = useContextBridgeStore()
-    await store.initialize()
-
-    await emitServerEvent('input:text', {
-      type: 'input:text',
-      source: 'discord-bot',
-      metadata: createMetadata('discord', 'bot'),
-      data: {
-        text: 'hello',
-        overrides: { binding: 'discord:channel:a' },
-        contextUpdates: [
-          { strategy: ContextUpdateStrategy.ReplaceSelf, contextId: 'unaddressed', text: 'one' },
-          { strategy: ContextUpdateStrategy.ReplaceSelf, contextId: 'transport-routed', text: 'two', destinations: ['instance:discord-bot'] },
-          { strategy: ContextUpdateStrategy.ReplaceSelf, contextId: 'shared', text: 'three', destinations: { include: ['discord:channel:b'] } },
-        ],
-      },
-    })
-
-    expect(chatContextIngestMock.mock.calls.map(([message]) => [message.contextId, message.destinations])).toEqual([
-      ['unaddressed', { include: ['discord:channel:a'] }],
-      ['transport-routed', { include: ['discord:channel:a'] }],
-      ['shared', { include: ['discord:channel:b'] }],
-    ])
-
-    await store.dispose()
-  })
-
-  describe('declared scenes', () => {
-    async function announceDiscord(cognition: unknown) {
-      await emitServerEvent('registry:modules:sync', {
-        type: 'registry:modules:sync',
-        data: { modules: [{ name: 'discord', identity: createMetadata('discord', 'bot').source, connectionId: 'discord-connection', cognition }] },
-      })
-    }
-
-    function discordInput(overrides: Record<string, string>) {
-      return emitServerEvent('input:text', {
-        type: 'input:text',
-        source: 'discord',
-        metadata: { ...createMetadata('discord', 'bot'), sender: { peerId: 'discord-connection', modules: ['discord'] } },
-        data: { text: 'hello', overrides },
-      })
-    }
-
-    // ROOT CAUSE:
-    // Any connection named the owner's session. The reply then carried owner history to that connection.
-    it('rejects input from a scened module that names a session outside its scenes', async () => {
-      consciousness.activeProvider = 'mock-provider'
-      consciousness.activeModel = 'mock-model'
-      const store = useContextBridgeStore()
-      await store.initialize()
-      await announceDiscord({ scenes: [{ binding: 'discord:channel:' }] })
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-      await discordInput({ sessionId: 'session-1' })
-
-      expect(chatOrchestratorMock.send).not.toHaveBeenCalled()
-      warn.mockRestore()
-      await store.dispose()
-    })
-
-    it('sends input in a declared scene to its bound session, never a named one', async () => {
-      consciousness.activeProvider = 'mock-provider'
-      consciousness.activeModel = 'mock-model'
-      const store = useContextBridgeStore()
-      await store.initialize()
-      await announceDiscord({ scenes: [{ binding: 'discord:channel:' }] })
-
-      await discordInput({ binding: 'discord:channel:a', sessionId: 'session-1' })
-
-      expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
-      expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'bound:discord:channel:a', outputTarget: 'discord-connection' })
-      await store.dispose()
-    })
-
-    // ROOT CAUSE:
-    // One connection can carry several modules, and the lookup took the first module of the connection.
-    // A scened module behind an unscened one then named the owner's session.
-    it('finds the sender by its identity on a shared connection, and rejects an unknown sender', async () => {
-      consciousness.activeProvider = 'mock-provider'
-      consciousness.activeModel = 'mock-model'
-      const store = useContextBridgeStore()
-      await store.initialize()
-      await emitServerEvent('registry:modules:sync', {
-        type: 'registry:modules:sync',
-        data: { modules: [
-          { name: 'helper', identity: createMetadata('helper', 'tool').source, connectionId: 'discord-connection' },
-          { name: 'discord', identity: createMetadata('discord', 'bot').source, connectionId: 'discord-connection', cognition: { scenes: [{ binding: 'discord:channel:' }] } },
-        ] },
-      })
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-      await discordInput({ sessionId: 'session-1' })
-      await emitServerEvent('input:text', {
-        type: 'input:text',
-        source: 'discord',
-        metadata: { sender: { peerId: 'discord-connection', modules: ['discord'] } },
-        data: { text: 'who am I', overrides: { sessionId: 'session-1' } },
-      })
-      expect(chatOrchestratorMock.send).not.toHaveBeenCalled()
-
-      await discordInput({ binding: 'discord:channel:a' })
-      expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({ sessionId: 'bound:discord:channel:a' })
-      warn.mockRestore()
-      await store.dispose()
-    })
-
-    it('rejects input from a module whose scene leaves its namespace', async () => {
-      consciousness.activeProvider = 'mock-provider'
-      consciousness.activeModel = 'mock-model'
-      const store = useContextBridgeStore()
-      await store.initialize()
-      await announceDiscord({ scenes: [{ binding: 'owner:' }] })
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-
-      await discordInput({ binding: 'owner:private' })
-
-      expect(chatOrchestratorMock.send).not.toHaveBeenCalled()
-      warn.mockRestore()
-      await store.dispose()
-    })
-  })
-
   // https://github.com/moeru-ai/airi/actions/runs/34237304157/job/102098223378
   // ROOT CAUSE:
   // The old consciousness mock omitted temperature and top-p. Input handling
@@ -729,7 +513,7 @@ describe('context bridge contract', () => {
     await emitServerEvent('input:text', {
       type: 'input:text',
       source: 'extension-module-host',
-      metadata: { ...createMetadata('weather', 'station-1'), sender: { peerId: 'station-connection', modules: ['weather'] } },
+      metadata: createMetadata('weather', 'station-1'),
       data: {
         text: 'hello',
         contextUpdates: [
@@ -755,13 +539,13 @@ describe('context bridge contract', () => {
     expect(chatOrchestratorMock.send).toHaveBeenCalledTimes(1)
     expect(chatOrchestratorMock.send.mock.calls[0]?.[0]).toMatchObject({
       sessionId: 'session-1',
-      outputTarget: 'station-connection',
       text: 'hello',
       temperature: 0.3,
       topP: 0.8,
     })
     expect(chatOrchestratorMock.send.mock.calls[0]?.[0]?.input?.data.contextUpdates).toEqual([
       expect.objectContaining({
+        contextId: expect.any(String),
         id: expect.any(String),
         text: 'input weather',
       }),
