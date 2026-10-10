@@ -162,16 +162,31 @@ export function createBillingService(
 
     /**
      * Reads authoritative admission state. Cached balances cannot authorize concurrent usage.
-     * A due capacitor refill is counted here. The next settlement writes it.
+     * A due capacitor refill is written here with the settlement of outstanding fees.
+     * A rejected request never reaches `postFluxUsage`, so a refill that is only counted
+     * would pay the same outstanding fee again after each reset.
      */
     async getWallet(userId: string) {
+      const policy = await readCapacitorResetPolicy(configKV)
       const [wallet] = await db.select().from(fluxSchema.userFlux).where(and(
         eq(fluxSchema.userFlux.userId, userId),
         isNull(fluxSchema.userFlux.deletedAt),
       ))
       if (!wallet)
         throw new Error(`No active flux record for user ${userId}`)
-      return refillCapacitor(wallet, await readCapacitorResetPolicy(configKV))
+      if (!refillCapacitor(wallet, policy).refilled)
+        return wallet
+
+      const refilled = await db.transaction(async (tx) => {
+        const locked = await lockWallet(tx, userId)
+        // A concurrent admission or settlement can write the refill first.
+        if (!refillCapacitor(locked, policy).refilled)
+          return locked
+        await settleOutstanding(tx, locked, policy, `admission:${nanoid()}:settle`)
+        return lockWallet(tx, userId)
+      })
+      await updateRedisCache(userId)
+      return refilled
     },
 
     /**
@@ -182,12 +197,13 @@ export function createBillingService(
      *
      * An advisory lock per user serializes syncs while `resolve` reads the payment channel.
      * The wallet row stays unlocked during that read, so debits are not blocked.
+     * Returns the period that `resolve` gave.
      */
-    async syncCapacitor(userId: string, resolve: () => Promise<CapacitorPeriod | null>): Promise<void> {
+    async syncCapacitor(userId: string, resolve: () => Promise<CapacitorPeriod | null>): Promise<CapacitorPeriod | null> {
       const policy = await readCapacitorResetPolicy(configKV)
       // INITIAL_USER_FLUX has a zero default when no initial grant is configured.
       const initialFlux = await configKV.getOptional('INITIAL_USER_FLUX') ?? 0
-      await db.transaction(async (tx) => {
+      const synced = await db.transaction(async (tx) => {
         await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${userId}))`)
         const period = await resolve()
         const now = new Date()
@@ -199,12 +215,12 @@ export function createBillingService(
           isNull(fluxSchema.userFlux.deletedAt),
         )).for('update')
         if (!wallet)
-          return
+          return period
 
         if (!period) {
           if (wallet.capacitorExpiresAt !== null && wallet.capacitorExpiresAt > now)
             await tx.update(fluxSchema.userFlux).set({ capacitorExpiresAt: now, updatedAt: now }).where(eq(fluxSchema.userFlux.userId, userId))
-          return
+          return period
         }
 
         const operationId = `capacitor:${nanoid()}`
@@ -229,8 +245,10 @@ export function createBillingService(
           })
         }
         await settleOutstanding(tx, { ...wallet, ...capacitor }, policy, `${operationId}:settle`)
+        return period
       })
       await updateRedisCache(userId)
+      return synced
     },
 
     /** Chooses whether purchased Flux pays after the capacitor bucket runs out. Needs an initialized wallet. */

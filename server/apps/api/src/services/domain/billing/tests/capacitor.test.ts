@@ -231,6 +231,33 @@ describe('capacitor Flux bucket', () => {
 
       expect(await wallet()).toMatchObject({ capacitorFlux: 70, flux: 9 })
     })
+
+    // https://github.com/moeru-ai/airi/pull/2813#discussion_r4238519379
+    // ROOT CAUSE:
+    //
+    // `getWallet` counted a due refill but did not write it, and a rejected request never settled.
+    // Admission then subtracted the same outstanding fee from every later refill.
+    //
+    // `getWallet` now writes the refill and settles the fee under the wallet row lock.
+    it('writes a due refill at admission and pays the outstanding fee one time', async () => {
+      await billing.syncCapacitor('wallet', async () => activeCapacitor(10, lastMonth))
+      await db.update(userFlux)
+        .set({ capacitorFlux: 0, unsettledMicroFlux: 9_000_000, capacitorFilledAt: lastMonth })
+        .where(eq(userFlux.userId, 'wallet'))
+      config.CAPACITOR_RESET_INTERVAL = 'day'
+
+      const admitted = await billing.getWallet('wallet')
+      expect(admitted).toMatchObject({ capacitorFlux: 1, unsettledMicroFlux: 0 })
+
+      const stored = await wallet()
+      expect(stored).toMatchObject({ capacitorFlux: 1, unsettledMicroFlux: 0, flux: 10 })
+      expect(stored.capacitorFilledAt!.getTime()).toBeGreaterThan(lastMonth.getTime())
+
+      // The first refill row is the grant of `syncCapacitor`. A second read adds no row.
+      await billing.getWallet('wallet')
+      const refills = await db.select().from(fluxTransaction).where(eq(fluxTransaction.description, 'capacitor_refill'))
+      expect(refills).toHaveLength(2)
+    })
   })
 
   it('reads the reset policy outside the settlement transaction', async () => {
