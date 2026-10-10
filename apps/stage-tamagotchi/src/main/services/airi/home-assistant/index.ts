@@ -6,7 +6,7 @@ import { object, string } from 'valibot'
 
 import { homeAssistantGetConfig, homeAssistantRequest, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { createConfig } from '../../../libs/electron/persistence'
-import { assertSingleTarget, isServiceCall, normalizeBaseUrl, readBody, readServiceTarget, requestTimeoutMs, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
+import { normalizeBaseUrl, readBody, requestTimeoutMs, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
 
 const configSchema = object({
   baseUrl: string(),
@@ -105,13 +105,11 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
       return await readBody(response)
     }
 
-    // A service call names one device, and a service on a group reaches every
-    // member. Read the target here, first, so the guard sees the same instance
-    // the call reaches and the caller cannot skip it.
-    if (isServiceCall(input.method, input.path)) {
-      const entityId = readServiceTarget(input.body)
-      assertSingleTarget(entityId, await send(`/api/states/${encodeURIComponent(entityId)}`, 'GET'))
-    }
+    // A caller that read the target of a call sends the address it read. This
+    // refuses the call when the address moved after that read, so a check
+    // cannot land on one instance and the call on another.
+    if (input.expectBaseUrl !== undefined && input.expectBaseUrl !== current.baseUrl)
+      throw new Error(`The Home Assistant address changed from "${input.expectBaseUrl}" to "${current.baseUrl}". Ask the user, then read the device again before you change it.`)
 
     return await send(input.path, input.method, input.body)
   })

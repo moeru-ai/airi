@@ -203,21 +203,39 @@ onMounted(async () => {
 async function save() {
   const previousBaseUrl = storedBaseUrl.value
   const submittedToken = Boolean(token.value)
-  const saved = await setConfig({
-    baseUrl: baseUrl.value,
-    ...(token.value ? { token: token.value } : {}),
-  })
+  // The lists belong to the address they were written for, so they go before
+  // the new address becomes visible. A call in flight cannot then use one
+  // instance's list on another.
+  const willMove = Boolean(previousBaseUrl) && baseUrl.value.trim().replace(/\/+$/, '') !== previousBaseUrl
+  const previousAllowed = [...settings.allowedEntities]
+  const previousDenied = [...settings.deniedEntities]
 
-  // An entity id means one device on one instance. A list written for the old
-  // instance would allow or block a different device on the new one, so it goes.
-  const movedAddress = Boolean(previousBaseUrl) && saved.baseUrl !== previousBaseUrl
-  if (movedAddress) {
+  if (willMove) {
     settings.clearSelection()
     // The rows describe the old instance, so they go with the lists, and a load
     // that is still in flight loses its right to write them back.
     invalidateLoads()
     entities.value = []
   }
+
+  let saved
+  try {
+    saved = await setConfig({
+      baseUrl: baseUrl.value,
+      ...(token.value ? { token: token.value } : {}),
+    })
+  }
+  catch (error) {
+    // The save was refused, so the instance did not move and the lists stand.
+    if (willMove) {
+      settings.allowedEntities = previousAllowed
+      settings.deniedEntities = previousDenied
+      entities.value = []
+    }
+    throw error
+  }
+
+  const movedAddress = Boolean(previousBaseUrl) && saved.baseUrl !== previousBaseUrl
   // Another token can reach another set of devices, so the grid is stale even
   // when the address stays.
   const replacedToken = submittedToken && !movedAddress

@@ -41,6 +41,14 @@ export type HomeAssistantTransport = (input: {
   method: 'GET' | 'POST'
   body?: unknown
   signal?: AbortSignal
+  /**
+   * The address the caller checked this request against.
+   *
+   * A transport that reaches a server the user can move must refuse a request
+   * whose pinned address is no longer the stored one, so a check cannot land on
+   * one instance and the request on another.
+   */
+  expectBaseUrl?: string
 }) => Promise<unknown>
 
 /** Home Assistant could not serve the request. */
@@ -140,7 +148,10 @@ export function createHomeAssistantClient(transport: HomeAssistantTransport) {
     return parsed.output.map(toEntity)
   }
 
-  async function callService(call: HomeAssistantServiceCall, signal?: AbortSignal): Promise<unknown> {
+  async function callService(
+    call: HomeAssistantServiceCall,
+    options: { signal?: AbortSignal, expectBaseUrl?: string } = {},
+  ): Promise<unknown> {
     assertSlug(call.domain, 'service domain')
     assertSlug(call.service, 'service name')
     assertEntityId(call.entityId)
@@ -154,7 +165,8 @@ export function createHomeAssistantClient(transport: HomeAssistantTransport) {
       path: `/api/services/${encodeURIComponent(call.domain)}/${encodeURIComponent(call.service)}`,
       method: 'POST',
       body,
-      signal,
+      signal: options.signal,
+      expectBaseUrl: options.expectBaseUrl,
     })
   }
 

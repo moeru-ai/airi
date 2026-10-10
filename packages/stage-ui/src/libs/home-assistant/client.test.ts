@@ -101,6 +101,21 @@ describe('home assistant client', () => {
     expect(transport).not.toHaveBeenCalled()
   })
 
+  it('passes the pinned address to the transport', async () => {
+    const transport = transportReturning([])
+    const client = createHomeAssistantClient(transport)
+
+    await client.callService(
+      { domain: 'light', service: 'turn_on', entityId: 'light.kitchen' },
+      { expectBaseUrl: 'http://homeassistant.local:8123' },
+    )
+
+    expect(transport).toHaveBeenCalledWith(expect.objectContaining({
+      expectBaseUrl: 'http://homeassistant.local:8123',
+      path: '/api/services/light/turn_on',
+    }))
+  })
+
   it('rejects a service name that is not a Home Assistant slug', async () => {
     const transport = transportReturning([])
     const client = createHomeAssistantClient(transport)

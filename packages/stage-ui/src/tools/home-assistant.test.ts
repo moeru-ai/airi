@@ -17,10 +17,11 @@ function createClient(overrides: Partial<HomeAssistantClient> = {}): HomeAssista
 const allow = (...entityIds: string[]): HomeAssistantExposure => ({ mode: 'allow', entityIds })
 const deny = (...entityIds: string[]): HomeAssistantExposure => ({ mode: 'deny', entityIds })
 
-async function tools(client: HomeAssistantClient, options?: { entityLimit?: number, exposure?: HomeAssistantExposure | (() => HomeAssistantExposure) }) {
+async function tools(client: HomeAssistantClient, options?: { entityLimit?: number, exposure?: HomeAssistantExposure | (() => HomeAssistantExposure), readInstance?: () => Promise<string> }) {
   const exposure = options?.exposure
   const created = await createHomeAssistantTools(client, {
     ...(options?.entityLimit === undefined ? {} : { entityLimit: options.entityLimit }),
+    ...(options?.readInstance === undefined ? {} : { readInstance: options.readInstance }),
     ...(exposure === undefined ? {} : { exposure: typeof exposure === 'function' ? exposure : () => exposure }),
   })
   return new Map(created.map(entry => [entry.function.name, entry]))
@@ -129,7 +130,7 @@ describe('home assistant tools', () => {
       service: 'turn_on',
       entityId: 'light.kitchen',
       data: { brightness: 200 },
-    })
+    }, {})
     // Home Assistant answers with the states it changed. The model reads them back.
     expect(JSON.parse(result as string)).toEqual({ changed: [{ entityId: 'light.kitchen', state: 'on' }] })
   })
@@ -149,7 +150,7 @@ describe('home assistant tools', () => {
       service: 'turn_on',
       entityId: 'script.good_night',
       data: undefined,
-    })
+    }, {})
   })
 
   it('requires a target entity, so no call reaches a whole domain', async () => {
@@ -430,5 +431,86 @@ describe('home assistant tools', () => {
       .rejects
       .toThrow('The user blocks this device')
     expect(callService).toHaveBeenCalledTimes(1)
+  })
+
+  it('refuses a target that stands for several devices', async () => {
+    // Measured: light.turn_on on a group with two members changed both.
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => ({
+        entityId: 'group.all_lights',
+        state: 'on',
+        attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] },
+      })),
+    })
+    const mounted = await tools(client)
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'group.all_lights',
+    })).rejects.toThrow('is a group of other devices')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('allows a scene, which carries a member list on purpose', async () => {
+    // Measured: scene.movie_night reports its members the way a group does.
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => ({
+        entityId: 'scene.movie_night',
+        state: 'unknown',
+        attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] },
+      })),
+    })
+    const mounted = await tools(client)
+
+    await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'scene',
+      service: 'turn_on',
+      entity_id: 'scene.movie_night',
+    })
+
+    expect(callService).toHaveBeenCalled()
+  })
+
+  it('blocks the device when the user blocks it during the target read', async () => {
+    // The read of the target takes a round trip, and the policy is read after it.
+    let policy: HomeAssistantExposure = { mode: 'all' }
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      getState: vi.fn(async () => {
+        policy = { mode: 'deny', entityIds: ['light.kitchen'] }
+        return { entityId: 'light.kitchen', state: 'on', attributes: {} }
+      }),
+    })
+    const mounted = await tools(client, { exposure: () => policy })
+
+    await expect(execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+    })).rejects.toThrow('The user blocks this device')
+    expect(callService).not.toHaveBeenCalled()
+  })
+
+  it('pins the call to the instance it read the device on', async () => {
+    const callService = vi.fn(async () => [])
+    const client = createClient({ callService })
+    const mounted = await tools(client, { readInstance: async () => 'http://homeassistant.local:8123' })
+
+    await execute(mounted.get('home_assistant_call_service'), {
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+    })
+
+    expect(callService).toHaveBeenCalledWith(
+      expect.objectContaining({ entityId: 'light.kitchen' }),
+      { expectBaseUrl: 'http://homeassistant.local:8123' },
+    )
   })
 })

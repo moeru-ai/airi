@@ -9,7 +9,7 @@ import { z } from 'zod'
 
 import { domainOf } from '../libs/home-assistant/client'
 import { allEntitiesExposure, assertEntityExposed, describeExposure, describeHidden, filterExposed } from '../libs/home-assistant/exposure'
-import { assertServiceAllowed } from '../libs/home-assistant/services'
+import { assertServiceAllowed, isGroupEntity } from '../libs/home-assistant/services'
 
 /**
  * Default cap on the entity list one lookup returns.
@@ -96,7 +96,17 @@ function parseServiceResponse(response: unknown) {
  */
 export async function createHomeAssistantTools(
   client: HomeAssistantClient,
-  options: { entityLimit?: number, exposure?: () => HomeAssistantExposure } = {},
+  options: {
+    entityLimit?: number
+    exposure?: () => HomeAssistantExposure
+    /**
+     * Reads the address the tools act on.
+     *
+     * A call that reads a device and then changes it pins the address it read,
+     * so the transport can refuse a request whose instance moved in between.
+     */
+    readInstance?: () => Promise<string>
+  } = {},
 ): Promise<Tool[]> {
   const entityLimit = Math.min(
     MAX_ENTITY_LIMIT,
@@ -170,19 +180,28 @@ export async function createHomeAssistantTools(
         // services that act on the entity the caller named.
         assertServiceAllowed(domain, service)
 
-        // The policy is read here, with no await between it and the dispatch, so
-        // a user who blocks the device during the call loses the call. The main
-        // process reads the target of a service call itself, under the same
-        // configuration, so a group cannot reach its members from there and an
-        // address change cannot move the call to another instance.
+        // Fail before the reads below, so a blocked device costs no request.
         assertEntityExposed(readExposure(), entityId)
 
-        const response = await client.callService({
-          domain,
-          service,
-          entityId,
-          data: parseServiceData(data),
-        })
+        // The instance this call will reach, so the request can be pinned to it.
+        const instance = options.readInstance ? await options.readInstance() : undefined
+
+        // A service on a group reaches every member. Read the target first, so a
+        // call cannot change a device the policy never saw. A target Home
+        // Assistant cannot report fails the call, because nothing can be checked
+        // without it.
+        const target = await client.getState(entityId)
+        if (isGroupEntity(entityId, target.attributes))
+          throw new Error(`Entity "${entityId}" is a group of other devices. A service on it changes every member. Ask the user for one device by name, or list the entities and call the service on the member you need.`)
+
+        // The policy is read after every await, so a user who blocks the device
+        // while the reads above are in flight loses the call.
+        assertEntityExposed(readExposure(), entityId)
+
+        const response = await client.callService(
+          { domain, service, entityId, data: parseServiceData(data) },
+          instance === undefined ? {} : { expectBaseUrl: instance },
+        )
 
         return JSON.stringify({ changed: parseServiceResponse(response) })
       },

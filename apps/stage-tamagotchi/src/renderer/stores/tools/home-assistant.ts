@@ -46,8 +46,10 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
    * socket to Home Assistant. It sends a path, and main decides what to do.
    */
   function createClient(): HomeAssistantClient {
-    return createHomeAssistantClient(async ({ path, method, body }) => {
-      return await request({ path, method, body })
+    return createHomeAssistantClient(async ({ path, method, body, expectBaseUrl }) => {
+      // The pinned address travels with the request, so the main process can
+      // refuse it when the stored address moved after the caller read it.
+      return await request({ path, method, body, ...(expectBaseUrl === undefined ? {} : { expectBaseUrl }) })
     })
   }
 
@@ -72,7 +74,10 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
     if (!settings.enabled || !config.baseUrl || !config.hasToken)
       return
 
-    const tools = await createHomeAssistantTools(createClient(), { exposure: () => settings.exposure })
+    const tools = await createHomeAssistantTools(createClient(), {
+      exposure: () => settings.exposure,
+      readInstance: async () => (await getConfig()).baseUrl,
+    })
     // NOTICE: these tools carry no `defaultActive: false` and no
     // `requiresExplicitSelection`, unlike the built-in store. The shared
     // `activeTools` filter drops both of those, so a tool that needs to be

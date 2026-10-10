@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { assertApiPath, assertSingleTarget, isCompositeTarget, isServiceCall, normalizeBaseUrl, readBody, readServiceTarget, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
+import { assertApiPath, normalizeBaseUrl, readBody, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
 
 describe('normalizeBaseUrl', () => {
   it('trims the value and drops trailing slashes', () => {
@@ -107,61 +107,5 @@ describe('toRequestError', () => {
 
     expect(error.message).toContain('500 Internal Server Error')
     expect(error.message).toContain('nope')
-  })
-})
-
-describe('isServiceCall', () => {
-  it('recognises the path a service call uses', () => {
-    expect(isServiceCall('POST', '/api/services/light/turn_on')).toBe(true)
-  })
-
-  it('rejects every other method and path', () => {
-    expect(isServiceCall('GET', '/api/services/light/turn_on')).toBe(false)
-    expect(isServiceCall('POST', '/api/states')).toBe(false)
-    expect(isServiceCall('POST', '/api/states/light.kitchen')).toBe(false)
-  })
-})
-
-describe('readServiceTarget', () => {
-  it('reads the entity the body names', () => {
-    expect(readServiceTarget({ entity_id: 'light.kitchen', brightness: 200 })).toBe('light.kitchen')
-  })
-
-  it('refuses a body that names no device', () => {
-    // A call without a target reaches a whole domain at once.
-    expect(() => readServiceTarget({ brightness: 200 })).toThrow('must name one entity_id')
-    expect(() => readServiceTarget({ entity_id: '' })).toThrow('must name one entity_id')
-    expect(() => readServiceTarget(undefined)).toThrow('must name one entity_id')
-  })
-})
-
-describe('isCompositeTarget', () => {
-  it('reads a member list as a target that stands for several devices', () => {
-    // Measured: light.turn_on on a group with two members changed both.
-    expect(isCompositeTarget('group.all_lights', { attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] } })).toBe(true)
-  })
-
-  it('exempts a scene, which the user allows as one device', () => {
-    // Measured: scene.movie_night carries the same attribute as a group.
-    expect(isCompositeTarget('scene.movie_night', { attributes: { entity_id: ['light.bed_light'] } })).toBe(false)
-  })
-
-  it('accepts a device and a state it cannot read', () => {
-    expect(isCompositeTarget('light.kitchen', { attributes: { brightness: 120 } })).toBe(false)
-    expect(isCompositeTarget('light.kitchen', { attributes: { entity_id: [] } })).toBe(false)
-    expect(isCompositeTarget('light.kitchen', undefined)).toBe(false)
-    expect(isCompositeTarget('light.kitchen', { attributes: 'unexpected' })).toBe(false)
-  })
-})
-
-describe('assertSingleTarget', () => {
-  it('names the way out of a group', () => {
-    expect(() => assertSingleTarget('group.all_lights', { attributes: { entity_id: ['light.bed_light'] } }))
-      .toThrow('is a group of other devices')
-  })
-
-  it('passes a device and a scene', () => {
-    expect(() => assertSingleTarget('light.kitchen', { attributes: {} })).not.toThrow()
-    expect(() => assertSingleTarget('scene.movie_night', { attributes: { entity_id: ['light.bed_light'] } })).not.toThrow()
   })
 })

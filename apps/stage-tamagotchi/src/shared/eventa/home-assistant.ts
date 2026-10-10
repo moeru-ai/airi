@@ -38,6 +38,15 @@ export interface HomeAssistantRequestInput {
   method: 'GET' | 'POST'
   /** JSON body for a POST request. */
   body?: unknown
+  /**
+   * The address the caller checked its request against.
+   *
+   * A caller that reads the target of a call and then makes the call sends the
+   * address it read. The main process refuses the request when the stored
+   * address moved in between, so a check cannot land on one instance and the
+   * request on another.
+   */
+  expectBaseUrl?: string
 }
 
 export const homeAssistantGetConfig = defineInvokeEventa<HomeAssistantPublicConfig>('eventa:invoke:home-assistant:get-config')
