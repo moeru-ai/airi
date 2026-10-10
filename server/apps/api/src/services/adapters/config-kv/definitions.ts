@@ -1,6 +1,6 @@
 import type { InferOutput } from 'valibot'
 
-import { any, array, boolean, check, finite, integer, isoTimestamp, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, string } from 'valibot'
+import { any, array, boolean, check, finite, integer, isoTimestamp, minValue, nonEmpty, number, object, optional, picklist, pipe, record, regex, safeInteger, string } from 'valibot'
 
 import { generationProtocolSchema } from '../../../schemas/generation-protocol'
 import { costPricingSchema } from '../../domain/billing/billing'
@@ -263,8 +263,9 @@ export const configEntrySchemas = {
     pipe(string(), nonEmpty('REVENUECAT_CAPACITORS product ids must not be empty')),
     object({
       entitlementId: pipe(string(), nonEmpty('REVENUECAT_CAPACITORS entitlementId must not be empty')),
-      // The wallet stores whole Flux, so a fraction would fail the database write.
-      quota: pipe(number(), integer('REVENUECAT_CAPACITORS quota must be a whole number'), minValue(1, 'REVENUECAT_CAPACITORS quota must be >= 1')),
+      // The wallet stores whole Flux in a number-backed bigint column.
+      // A fraction fails the database write, and an unsafe integer loses precision.
+      quota: pipe(number(), safeInteger('REVENUECAT_CAPACITORS quota must be a safe whole number'), minValue(1, 'REVENUECAT_CAPACITORS quota must be >= 1')),
     }),
   ), {}),
   // Refills the capacitor bucket on a shorter window inside the billing period.
