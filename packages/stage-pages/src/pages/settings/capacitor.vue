@@ -6,7 +6,7 @@ import { useSubscription } from '@proj-airi/stage-ui/composables/use-subscriptio
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
 import { FieldCheckbox } from '@proj-airi/ui'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -70,30 +70,45 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleString()
 }
 
-onMounted(async () => {
+let identityVersion = 0
+onScopeDispose(() => identityVersion += 1)
+
+watch(() => authStore.user?.id, async (userId, _previous, onCleanup) => {
+  identityVersion += 1
+  message.value = null
+  preferenceSaving.value = false
+  let active = true
+  onCleanup(() => active = false)
+  if (!userId)
+    return
   try {
     await subscription.fetchStatus()
   }
   catch {
-    message.value = { type: 'error', text: t('settings.pages.capacitor.statusError') }
+    if (active)
+      message.value = { type: 'error', text: t('settings.pages.capacitor.statusError') }
   }
-  if (!fluxPurchaseDisabled) {
+  if (active && !fluxPurchaseDisabled) {
     await subscription.fetchPackages().catch(() => {
-      message.value = { type: 'error', text: t('settings.pages.capacitor.packagesError') }
+      if (active)
+        message.value = { type: 'error', text: t('settings.pages.capacitor.packagesError') }
     })
   }
-})
+}, { immediate: true, flush: 'sync' })
 
 async function savePreference(value: boolean) {
+  const version = identityVersion
   preferenceSaving.value = true
   try {
     await subscription.setFallbackToFlux(value)
   }
   catch {
-    message.value = { type: 'error', text: t('settings.pages.capacitor.preferenceError') }
+    if (version === identityVersion)
+      message.value = { type: 'error', text: t('settings.pages.capacitor.preferenceError') }
   }
   finally {
-    preferenceSaving.value = false
+    if (version === identityVersion)
+      preferenceSaving.value = false
   }
 }
 
@@ -118,9 +133,12 @@ function handleCapacitor(pkg: CapacitorPackage) {
 }
 
 async function handleSubscribe(packageId: string) {
+  const version = identityVersion
   message.value = null
   try {
     const outcome = await subscription.purchaseCapacitor(packageId)
+    if (version !== identityVersion)
+      return
     if (outcome === 'cancelled') {
       message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.canceled') }
       return
@@ -133,7 +151,8 @@ async function handleSubscribe(packageId: string) {
     }
   }
   catch {
-    message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.error') }
+    if (version === identityVersion)
+      message.value = { type: 'error', text: t('settings.pages.capacitor.checkout.error') }
   }
 }
 </script>

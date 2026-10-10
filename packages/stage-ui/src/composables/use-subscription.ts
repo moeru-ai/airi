@@ -3,7 +3,7 @@ import type { CustomerInfo, Package } from '@revenuecat/purchases-js'
 import { getRevenuecatWebKey, isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { ErrorCode, Purchases, PurchasesError } from '@revenuecat/purchases-js'
 import { object, optional, pipe, record, safeParse, string, trim } from 'valibot'
-import { ref } from 'vue'
+import { onScopeDispose, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { client } from './api'
@@ -143,32 +143,61 @@ export function useSubscription(options: {
   const purchasingPackageId = ref<string | null>(null)
   const managementUrl = ref<string | null>(null)
 
+  let identityVersion = 0
+
+  function clearState() {
+    identityVersion += 1
+    currentCapacitor.value = null
+    managementUrl.value = null
+    packages.value = []
+    purchasingPackageId.value = null
+  }
+
+  watch(options.getUserId, clearState, { flush: 'sync' })
+  onScopeDispose(clearState)
+
+  function captureIdentity() {
+    const userId = options.getUserId()
+    const version = identityVersion
+    return { userId, isCurrent: () => version === identityVersion && userId === options.getUserId() }
+  }
+
   function applyCustomerInfo(info: CustomerInfo) {
     currentCapacitor.value = currentCapacitorFromCustomerInfo(info)
     managementUrl.value = info.managementURL
   }
 
   async function refreshCustomer(): Promise<void> {
-    if (!enabled)
+    const identity = captureIdentity()
+    if (!enabled || !identity.userId)
       return
-    const purchases = await ensurePurchases(options.getUserId())
-    applyCustomerInfo(await purchases.getCustomerInfo())
+    const purchases = await ensurePurchases(identity.userId)
+    if (!identity.isCurrent())
+      return
+    const info = await purchases.getCustomerInfo()
+    if (identity.isCurrent())
+      applyCustomerInfo(info)
   }
 
   /** Reads the capacitor from the SDK, then refreshes the balance, which carries the capacitor percent. */
   async function fetchStatus(): Promise<void> {
-    await refreshCustomer().catch(() => undefined)
-    await options.onChanged().catch(() => undefined)
+    const identity = captureIdentity()
+    await refreshCustomer()
+    if (identity.userId && identity.isCurrent())
+      await options.onChanged()
   }
 
   async function fetchPackages(): Promise<void> {
+    const identity = captureIdentity()
     packages.value = []
-    if (!enabled)
+    if (!enabled || !identity.userId)
       return
-    const purchases = await ensurePurchases(options.getUserId())
+    const purchases = await ensurePurchases(identity.userId)
+    if (!identity.isCurrent())
+      return
     const offerings = await purchases.getOfferings()
     const current = offerings.current
-    if (!current)
+    if (!identity.isCurrent() || !current)
       return
     packages.value = current.availablePackages.flatMap((pkg) => {
       const capacitorPackage = toCapacitorPackage(pkg, current.metadata, locale.value)
@@ -177,10 +206,17 @@ export function useSubscription(options: {
   }
 
   async function purchaseCapacitor(packageId: string): Promise<'activated' | 'pending' | 'cancelled'> {
+    const identity = captureIdentity()
+    if (!identity.userId)
+      return 'cancelled'
     purchasingPackageId.value = packageId
     try {
-      const purchases = await ensurePurchases(options.getUserId())
+      const purchases = await ensurePurchases(identity.userId)
+      if (!identity.isCurrent())
+        return 'cancelled'
       const offerings = await purchases.getOfferings()
+      if (!identity.isCurrent())
+        return 'cancelled'
       const rcPackage = offerings.current?.availablePackages.find(pkg => pkg.identifier === packageId)
       if (!rcPackage)
         throw new Error(t('settings.pages.capacitor.checkout.error'))
@@ -195,12 +231,17 @@ export function useSubscription(options: {
         throw error
       }
 
+      if (!identity.isCurrent())
+        return 'cancelled'
       applyCustomerInfo(customerInfo)
       await options.onChanged().catch(() => undefined)
+      if (!identity.isCurrent())
+        return 'cancelled'
       return currentCapacitor.value ? 'activated' : 'pending'
     }
     finally {
-      purchasingPackageId.value = null
+      if (identity.isCurrent())
+        purchasingPackageId.value = null
     }
   }
 
