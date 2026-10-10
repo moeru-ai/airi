@@ -19,7 +19,7 @@ afterEach(() => {
   localStorage.clear()
 })
 
-function renderComposer(attrs: { onPresence?: (visible: boolean) => void } = {}) {
+function renderComposer(attrs: { onPresence?: (visible: boolean) => void, showSilentSpeech?: boolean } = {}) {
   const pinia = createPinia()
   setActivePinia(pinia)
   cleanups.push(() => disposePinia(pinia))
@@ -59,6 +59,25 @@ describe('voiceDrafts composer variant', () => {
     await expect.element(view.getByText('Still talking')).toHaveAttribute('data-tier', 'latest')
     await expect.element(view.getByText('Listening')).toBeVisible()
     await expect.element(view.getByRole('button', { name: 'Send message' })).toBeDisabled()
+  })
+
+  it('shows a silent capture only when the host asks for it', async () => {
+    const silentInput = { requestId: 'speech', sessionId: 'alice', phase: 'capturing' as const, text: '', segments: [] }
+
+    const hidden: boolean[] = []
+    const plain = renderComposer({ onPresence: (visible: boolean) => hidden.push(visible) })
+    getSpeechBusContext().emit(voiceSnapshotChanged, { connected: true, drafts: [], input: silentInput })
+    await expect.element(plain.getByRole('region', { name: 'Voice draft' })).not.toBeInTheDocument()
+    expect(hidden).toEqual([false])
+    plain.unmount()
+    cleanups.splice(0).forEach(cleanup => cleanup())
+
+    const shown: boolean[] = []
+    const inlay = renderComposer({ showSilentSpeech: true, onPresence: (visible: boolean) => shown.push(visible) })
+    getSpeechBusContext().emit(voiceSnapshotChanged, { connected: true, drafts: [], input: silentInput })
+    await expect.element(inlay.getByText('Listening')).toBeVisible()
+    await expect.element(inlay.getByRole('button', { name: 'Send message' })).toBeDisabled()
+    expect(shown).toEqual([false, true])
   })
 
   it('hides a draft while the host sends it and reports that nothing is shown', async () => {

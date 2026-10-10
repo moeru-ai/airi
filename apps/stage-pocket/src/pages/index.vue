@@ -8,12 +8,12 @@ import { useBackgroundThemeColor } from '@proj-airi/stage-layouts/composables/th
 import { useBackgroundStore } from '@proj-airi/stage-layouts/stores/background'
 import { IS_DEV } from '@proj-airi/stage-shared'
 import { ViewControlSlider, WidgetStage } from '@proj-airi/stage-ui/components/scenes'
-import { useSettings, useSettingsAudioDevice } from '@proj-airi/stage-ui/stores/settings'
+import { useVoiceListening } from '@proj-airi/stage-ui/composables/voice-input-mode'
+import { useSettings } from '@proj-airi/stage-ui/stores/settings'
 import { useStartupResourcesStore } from '@proj-airi/stage-ui/stores/startup-resources'
-import { useVoiceStore } from '@proj-airi/stage-ui/stores/voice'
 import { breakpointsTailwind, useBreakpoints, useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, shallowRef, useTemplateRef, watch } from 'vue'
 
 import WebSocketStatusButton from '../components/websocket-status-button.vue'
 
@@ -61,17 +61,7 @@ const { stageModelRenderer } = storeToRefs(useSettings())
 const { syncBackgroundTheme } = useBackgroundThemeColor({ backgroundSurface, selectedOption, sampledColor })
 onMounted(() => syncBackgroundTheme())
 
-const voice = useVoiceStore()
-const { enabled } = storeToRefs(useSettingsAudioDevice())
-watch(enabled, (value) => {
-  if (value)
-    voice.startListening()
-  else
-    void voice.stopListening()
-}, { immediate: true })
-onUnmounted(() => {
-  void voice.stopListening()
-})
+useVoiceListening()
 </script>
 
 <template>

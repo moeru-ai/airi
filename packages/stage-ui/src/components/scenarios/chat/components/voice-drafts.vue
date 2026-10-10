@@ -18,7 +18,13 @@ const props = withDefaults(defineProps<{
    * @default 'card'
    */
   variant?: 'card' | 'composer'
-}>(), { variant: 'card' })
+  /**
+   * Shows the listening state while the host captures speech that has no transcript text yet.
+   * A host that opens at the start of a capture, such as the desktop inlay for Push to Talk, uses it.
+   * @default false
+   */
+  showSilentSpeech?: boolean
+}>(), { variant: 'card', showSilentSpeech: false })
 
 const emit = defineEmits<{
   /** Whether a draft or live speech is shown. A host window can hide itself when nothing is shown. */
@@ -34,12 +40,15 @@ const sending = ref(false)
 /** Drafts that the user can still edit. A draft that the host is sending is on its way to the chat and stays hidden. */
 const drafts = computed(() => controls.snapshot.drafts.filter(item => !item.sending))
 
-/** Speech that the host is still transcribing. It is shown read-only until it becomes part of a draft. */
+/**
+ * Speech that the host is still transcribing. It is shown read-only until it becomes part of a draft.
+ * Without `showSilentSpeech`, a capture appears only after its first transcript text.
+ */
 const liveInput = computed(() => {
   const input = controls.snapshot.input
   if (!input || (input.phase !== 'capturing' && input.phase !== 'finalizing'))
     return undefined
-  return input.segments.some(segment => segment.text.trim()) ? input : undefined
+  return props.showSilentSpeech || input.segments.some(segment => segment.text.trim()) ? input : undefined
 })
 
 /**
