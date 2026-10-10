@@ -71,6 +71,13 @@ Whichever signal arrives second completes the binding. The first signal to arriv
 
 `ThreeScene` watches `modelRef` and `controlsRef` with `flush: 'sync'` to detect immediate detach events within the same tick. When `controlsRef` goes null (e.g. TresJS internal remount), `controlsReady` resets and a new binding transaction opens. When `modelRef` goes null, `scenePhase` reverts to `loading` without opening a new transaction, since the next `loadStart` event from `VRMModel` will open one.
 
+## Camera Gestures
+
+When orbit input is enabled, the canvas cancels native `dragstart` events.
+This prevents a retained text selection from cancelling the pointer stream during camera rotation.
+The listener belongs to the controls component and ends when that component unmounts.
+Text selection outside the canvas and incoming drag-over events remain unchanged.
+
 ## `trace` Submodule
 
 `@proj-airi/stage-ui-three/trace` provides:
