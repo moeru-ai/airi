@@ -6,7 +6,7 @@ import { computed } from 'vue'
 export interface MemoryEntry {
   /** Short name in kebab case, unique within its scope. The index lists it, and tools address the entry by it. */
   name: string
-  /** One line that tells when the entry matters. */
+  /** The index line: the fact itself when it fits in one line, or when the entry matters. */
   description: string
   body: string
   /** The character card that owns this memory. Without it, the owner made the memory general. */
