@@ -24,6 +24,13 @@ Small shared contracts stay beside those boundaries (`db.ts`, `env.ts`,
 `error.ts`, and `origin.ts`). Tests are collected under `src/tests`; Better
 Auth schema-generation wiring is isolated under `src/tooling`.
 
+## Account deletion
+
+`POST /api/auth/delete-account` accepts `{ "confirm": true }` after the client confirms permanent deletion.
+It requires an authoritative, fresh session and returns `{ "success": true, "message": "User deleted" }` without email confirmation.
+On `SESSION_NOT_FRESH`, the client must request sign-in again.
+The existing `/api/auth/delete-user` email flow is unchanged. See [deletion policy and rollout](../../docs/ai/adr/2026-10-10-account-deletion-confirmation.md).
+
 ## Run locally
 
 ```bash
