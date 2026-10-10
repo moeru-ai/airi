@@ -72,7 +72,7 @@ export const useTamagotchiHomeAssistantStore = defineStore('tamagotchi-home-assi
     if (!settings.enabled || !config.baseUrl || !config.hasToken)
       return
 
-    const tools = await createHomeAssistantTools(createClient(), { exposure: settings.exposure })
+    const tools = await createHomeAssistantTools(createClient(), { exposure: () => settings.exposure })
     // NOTICE: these tools carry no `defaultActive: false` and no
     // `requiresExplicitSelection`, unlike the built-in store. The shared
     // `activeTools` filter drops both of those, so a tool that needs to be

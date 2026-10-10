@@ -167,6 +167,10 @@ checked and what the call changes.
 - A service that expands its target. A service call on a group entity reaches
   every member. Measurement: a group with two members changed both.
 
+A model turn holds the tools it resolved when the turn started. The tools
+therefore read the policy at each call, so a change during that turn reaches the
+calls the turn still makes.
+
 The integration therefore runs only the services that act on the device the
 caller named. A service outside the list fails, and the message names what the
 domain accepts. A call whose target reports a member list fails too, and the

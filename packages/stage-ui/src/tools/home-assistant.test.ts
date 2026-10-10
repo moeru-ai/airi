@@ -17,8 +17,12 @@ function createClient(overrides: Partial<HomeAssistantClient> = {}): HomeAssista
 const allow = (...entityIds: string[]): HomeAssistantExposure => ({ mode: 'allow', entityIds })
 const deny = (...entityIds: string[]): HomeAssistantExposure => ({ mode: 'deny', entityIds })
 
-async function tools(client: HomeAssistantClient, options?: { entityLimit?: number, exposure?: HomeAssistantExposure }) {
-  const created = await createHomeAssistantTools(client, options)
+async function tools(client: HomeAssistantClient, options?: { entityLimit?: number, exposure?: HomeAssistantExposure | (() => HomeAssistantExposure) }) {
+  const exposure = options?.exposure
+  const created = await createHomeAssistantTools(client, {
+    ...(options?.entityLimit === undefined ? {} : { entityLimit: options.entityLimit }),
+    ...(exposure === undefined ? {} : { exposure: typeof exposure === 'function' ? exposure : () => exposure }),
+  })
   return new Map(created.map(entry => [entry.function.name, entry]))
 }
 
@@ -441,5 +445,32 @@ describe('home assistant tools', () => {
     }
 
     expect(callService).toHaveBeenCalledTimes(4)
+  })
+
+  it('reads the policy at the moment of the call, not when the tools mount', async () => {
+    // A model request holds these executors for the whole turn. A policy change
+    // during that turn must reach the calls the turn still makes.
+    let policy: HomeAssistantExposure = { mode: 'all' }
+    const callService = vi.fn(async () => [])
+    const client = createClient({
+      callService,
+      listEntities: vi.fn(async () => [{ entityId: 'light.kitchen', state: 'on', attributes: {} }]),
+    })
+    const mounted = await tools(client, { exposure: () => policy })
+
+    const before = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+    expect(before.total).toBe(1)
+    await execute(mounted.get('home_assistant_call_service'), { domain: 'light', service: 'turn_on', entity_id: 'light.kitchen' })
+    expect(callService).toHaveBeenCalledTimes(1)
+
+    policy = { mode: 'deny', entityIds: ['light.kitchen'] }
+
+    const after = JSON.parse(await execute(mounted.get('home_assistant_list_entities'), {}) as string)
+    expect(after.total).toBe(0)
+    expect(after.note).toContain('blocked list')
+    await expect(execute(mounted.get('home_assistant_call_service'), { domain: 'light', service: 'turn_on', entity_id: 'light.kitchen' }))
+      .rejects
+      .toThrow('The user blocks this device')
+    expect(callService).toHaveBeenCalledTimes(1)
   })
 })

@@ -188,8 +188,11 @@ async function save() {
   // An entity id means one device on one instance. A list written for the old
   // instance would allow or block a different device on the new one, so it goes.
   const movedAddress = Boolean(previousBaseUrl) && saved.baseUrl !== previousBaseUrl
-  if (movedAddress)
+  if (movedAddress) {
     settings.clearSelection()
+    // The rows describe the old instance, so they go with the lists.
+    entities.value = []
+  }
 
   baseUrl.value = saved.baseUrl
   storedBaseUrl.value = saved.baseUrl
@@ -208,6 +211,9 @@ async function onSave() {
   busy.value = true
   try {
     const { movedAddress } = await save()
+    // The grid belongs to the instance the address now points at.
+    if (movedAddress)
+      await loadEntities()
     status.value = { suffix: movedAddress ? 'status.saved-cleared' : 'status.saved' }
   }
   catch (error) {

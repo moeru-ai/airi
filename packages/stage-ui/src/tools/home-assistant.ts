@@ -96,16 +96,21 @@ function parseServiceResponse(response: unknown) {
  */
 export async function createHomeAssistantTools(
   client: HomeAssistantClient,
-  options: { entityLimit?: number, exposure?: HomeAssistantExposure } = {},
+  options: { entityLimit?: number, exposure?: () => HomeAssistantExposure } = {},
 ): Promise<Tool[]> {
   const entityLimit = Math.min(
     MAX_ENTITY_LIMIT,
     Math.max(MIN_ENTITY_LIMIT, options.entityLimit ?? DEFAULT_ENTITY_LIMIT),
   )
-  const exposure = options.exposure ?? allEntitiesExposure
+  // The policy is read at the moment of each call. The settings page can change
+  // the list while a model request runs, and that request already holds these
+  // executors, so a captured value would let it reach a device the user blocked
+  // a moment ago.
+  const readExposure = () => options.exposure?.() ?? allEntitiesExposure
+
   // Each description states the policy, because the model plans from the tool
   // list alone. A hidden domain would otherwise cost a failed call to discover.
-  const policy = describeExposure(exposure)
+  const policy = describeExposure(readExposure())
 
   // `tool()` converts the Zod schema to JSON Schema asynchronously, so it
   // resolves to the tool rather than returning one.
@@ -114,6 +119,7 @@ export async function createHomeAssistantTools(
       name: 'home_assistant_list_entities',
       description: `List Home Assistant entities and their current states. Call this first to find the entity_id for a device the user named (match by the "name" field). Pass a domain like "light" or "climate" to browse one kind of device. Results are capped, so pass a domain on a large installation. ${policy}`,
       execute: async ({ domain }) => {
+        const exposure = readExposure()
         const entities = await client.listEntities()
         // The domain is a way to browse, not a permission. A domain the user
         // blocked returns the rows it still holds, which can be none.
@@ -145,6 +151,7 @@ export async function createHomeAssistantTools(
       name: 'home_assistant_get_state',
       description: `Read the current state and attributes of one Home Assistant entity. Use this to answer questions about a device or check a value before changing it. ${policy}`,
       execute: async ({ entity_id: entityId }) => {
+        const exposure = readExposure()
         assertEntityExposed(exposure, entityId)
 
         const entity = await client.getState(entityId)
@@ -158,6 +165,7 @@ export async function createHomeAssistantTools(
       name: 'home_assistant_call_service',
       description: `Call a Home Assistant service to control one device (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id, then pass exactly one. Use the service of the device domain, for example light.turn_on for a light, or homeassistant.turn_on for any device. Report the returned state changes to the user. ${policy}`,
       execute: async ({ domain, service, entity_id: entityId, data }) => {
+        const exposure = readExposure()
         assertEntityExposed(exposure, entityId)
         // A service that is its own target, such as a script named as the
         // service, would run what the user never allowed. The list holds the
