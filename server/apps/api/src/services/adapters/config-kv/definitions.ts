@@ -263,7 +263,8 @@ export const configEntrySchemas = {
     pipe(string(), nonEmpty('REVENUECAT_CAPACITORS product ids must not be empty')),
     object({
       entitlementId: pipe(string(), nonEmpty('REVENUECAT_CAPACITORS entitlementId must not be empty')),
-      quota: pipe(number(), minValue(1, 'REVENUECAT_CAPACITORS quota must be >= 1')),
+      // The wallet stores whole Flux, so a fraction would fail the database write.
+      quota: pipe(number(), integer('REVENUECAT_CAPACITORS quota must be a whole number'), minValue(1, 'REVENUECAT_CAPACITORS quota must be >= 1')),
     }),
   ), {}),
   // Refills the capacitor bucket on a shorter window inside the billing period.
