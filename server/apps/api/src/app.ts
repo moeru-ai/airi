@@ -464,7 +464,6 @@ export async function buildApp(deps: AppDeps) {
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,
       deps.env,
-      deps.otel?.rateLimit ?? null,
     ))
 
     /**

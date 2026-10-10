@@ -46,7 +46,7 @@ function createTestApp(
   subscriptionSync: RevenuecatSubscriptionSync,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, env, null)
+  const routes = createRevenuecatRoutes(subscriptionSync, env)
   const app = new Hono<HonoEnv>()
 
   app.onError((err, c) => {
@@ -140,6 +140,17 @@ describe('revenuecat routes', () => {
 
     const res = await postWebhook(app, body, { signature: stale })
     expect(res.status).toBe(401)
+  })
+
+  it('accepts a signed webhook after many unsigned requests', async () => {
+    const { app } = await setup()
+    entitlements['user-1'] = [goEntitlement]
+
+    for (let attempt = 0; attempt < 61; attempt++)
+      await postWebhook(app, webhookBody(), { authorization: 'wrong' })
+
+    const res = await postWebhook(app, webhookBody())
+    expect(res.status).toBe(200)
   })
 
   it('grants capacitor Flux from what RevenueCat reports', async () => {
