@@ -145,18 +145,30 @@ function recordCredentials(saved: { baseUrl: string, hasToken: boolean }) {
   settings.setHasCredentials(Boolean(saved.baseUrl) && saved.hasToken)
 }
 
+/** The number of the load in flight, so an earlier one cannot write over a later one. */
+let loadGeneration = 0
+
 /** Reads the device list. The policy does not apply, so a blocked device is still offered. */
 async function loadEntities() {
+  const generation = ++loadGeneration
   loadingEntities.value = true
   entityError.value = ''
   try {
-    entities.value = await toolsStore.listEntities()
+    const loaded = await toolsStore.listEntities()
+    // A load started for an earlier address can finish after a later one. Only
+    // the latest may write, or the grid shows an instance the address left.
+    if (generation !== loadGeneration)
+      return
+    entities.value = loaded
   }
   catch (error) {
+    if (generation !== loadGeneration)
+      return
     entityError.value = errorMessageFrom(error) ?? ''
   }
   finally {
-    loadingEntities.value = false
+    if (generation === loadGeneration)
+      loadingEntities.value = false
   }
 }
 

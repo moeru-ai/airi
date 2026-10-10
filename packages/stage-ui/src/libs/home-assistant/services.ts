@@ -1,3 +1,5 @@
+import { domainOf } from './client'
+
 /**
  * The services a caller may ask Home Assistant to run.
  *
@@ -16,6 +18,7 @@
  * services that act on the device the caller named. A service outside the list
  * fails, and the message names what the domain does accept.
  */
+
 const allowedServices: Record<string, string[]> = {
   button: ['press'],
   climate: ['set_fan_mode', 'set_humidity', 'set_hvac_mode', 'set_preset_mode', 'set_swing_horizontal_mode', 'set_swing_mode', 'set_temperature', 'toggle', 'turn_off', 'turn_on'],
@@ -74,8 +77,15 @@ export function assertServiceAllowed(domain: string, service: string): void {
  * A group carries the members in its own attributes. A service call on the
  * group reaches every member, so a caller that checked one device would change
  * devices it never saw.
+ *
+ * A scene carries the same attribute, and it is the exception. A scene is one
+ * device the user allows or blocks, and its effect is what the user allowed with
+ * it, so the members of a scene are not a reason to refuse it.
  */
-export function isGroupEntity(attributes: Record<string, unknown>): boolean {
+export function isGroupEntity(entityId: string, attributes: Record<string, unknown>): boolean {
+  if (domainOf(entityId) === 'scene')
+    return false
+
   const members = attributes[memberAttribute]
   return Array.isArray(members) && members.length > 0
 }

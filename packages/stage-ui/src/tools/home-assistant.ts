@@ -165,8 +165,10 @@ export async function createHomeAssistantTools(
       name: 'home_assistant_call_service',
       description: `Call a Home Assistant service to control one device (turn on/off, set brightness, change temperature). Always list entities first to find the correct entity_id, then pass exactly one. Use the service of the device domain, for example light.turn_on for a light, or homeassistant.turn_on for any device. Report the returned state changes to the user. ${policy}`,
       execute: async ({ domain, service, entity_id: entityId, data }) => {
-        const exposure = readExposure()
-        assertEntityExposed(exposure, entityId)
+        // Fail before the read below, with the message that names the device.
+        const assertAllowed = () => assertEntityExposed(readExposure(), entityId)
+        assertAllowed()
+
         // A service that is its own target, such as a script named as the
         // service, would run what the user never allowed. The list holds the
         // services that act on the entity the caller named.
@@ -177,8 +179,13 @@ export async function createHomeAssistantTools(
         // Assistant cannot report fails the call, because nothing can be
         // checked without it.
         const target = await client.getState(entityId)
-        if (isGroupEntity(target.attributes))
+        if (isGroupEntity(entityId, target.attributes))
           throw new Error(`Entity "${entityId}" is a group of other devices. A service on it changes every member. Ask the user for one device by name, or list the entities and call the service on the member you need.`)
+
+        // The policy is read again here, where no await sits between the check
+        // and the dispatch. A user who blocks the device while the read above is
+        // in flight would otherwise slip through.
+        assertAllowed()
 
         const response = await client.callService({
           domain,
