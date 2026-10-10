@@ -912,7 +912,7 @@ pages:
           instructions: What to do
           keywords:
             label: Code words
-            description: Separate them with commas. Say a code word, and the character uses this recipe.
+            description: Say a code word, and the character uses this recipe.
           submit: Add
         decision:
           question: Question
@@ -933,7 +933,7 @@ pages:
             recipe: Use another recipe next
           hint_text: Note to keep in mind
           target_recipe: Recipe
-          keywords: Separate them with commas. The character judges only after you say a code word.
+          keywords: The character judges only after you say a code word.
           note: After a code word, the character reads the conversation, picks one answer, and acts on it.
         entry:
           title: Recipes

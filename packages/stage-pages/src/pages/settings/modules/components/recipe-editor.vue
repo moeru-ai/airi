@@ -6,7 +6,7 @@ import type { ConditionInput, TriggerInput } from '@proj-airi/stage-ui/tools/aut
 import { MODEL_DECIDES_STEPS } from '@proj-airi/core-agent'
 import { isStageTamagotchi } from '@proj-airi/stage-shared'
 import { automationFromInput } from '@proj-airi/stage-ui/tools/automation-input'
-import { Button, FieldCheckbox, FieldInput, FieldSelect, FieldTextArea, Textarea } from '@proj-airi/ui'
+import { Button, FieldCheckbox, FieldInput, FieldSelect, FieldTextArea, FieldValues, Textarea } from '@proj-airi/ui'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -96,7 +96,8 @@ const automation = props.recipe?.automation
 const name = ref(props.recipe?.name ?? '')
 const description = ref(props.recipe?.description ?? '')
 const instructions = ref(props.recipe?.instructions ?? '')
-const keywords = ref(props.recipe?.keywords.join(', ') ?? '')
+/** One keyword per row. A form without keywords starts with one empty row. */
+const keywords = ref<string[]>(props.recipe?.keywords.length ? [...props.recipe.keywords] : [''])
 const triggerRows = ref<TriggerRow[]>(automation?.triggers.map(trigger => triggerRow(trigger)) ?? [triggerRow()])
 const conditionRows = ref<ConditionRow[]>(automation?.conditions.map(condition => conditionRow(condition)) ?? [])
 const cooldown = ref(automation?.cooldownMinutes ?? 0)
@@ -146,7 +147,7 @@ const builtAutomation = computed(() => automationFromInput({
   conditions: conditionRows.value,
   cooldownMinutes: cooldown.value || null,
 }))
-const words = computed(() => keywords.value.split(/[,，]/).map(word => word.trim()).filter(Boolean))
+const words = computed(() => keywords.value.map(word => word.trim()).filter(Boolean))
 
 const questionTypeOptions = computed(() => (['noul', 'choice'] as const).map(type => ({ label: t(`${KEY}.decision.type.${type}`), value: type })))
 const actionOptions = computed(() => [
@@ -264,7 +265,16 @@ function save() {
       <FieldTextArea v-else v-model="instructions" :rows="5" :required="false" :label="t(`${KEY}.add.instructions`)" />
       <template v-if="autoRun">
         <FieldSelect v-model="timing" :label="t(`${KEY}.auto_run.timing.label`)" :options="timingOptions" />
-        <FieldInput v-if="timing === 'model'" v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.auto_run.timing.keywords`)" />
+        <!-- NOTICE:
+          FieldValues keeps its description on one line, so a long description leaves the form on a phone.
+          Its description wrapper uses text-nowrap, and text-wrap is inherited, so the span below wraps only this text.
+          Source: packages/ui/src/components/form/field/field-values.vue.
+          Remove the span when FieldValues wraps its description. Every keyword list in this form uses it. -->
+        <FieldValues v-if="timing === 'model'" v-model="keywords" :required="false" :label="t(`${KEY}.add.keywords.label`)">
+          <template #description>
+            <span :class="['text-wrap']">{{ t(`${KEY}.auto_run.timing.keywords`) }}</span>
+          </template>
+        </FieldValues>
       </template>
       <template v-if="autoRun && timing === 'owner'">
         <div>
@@ -339,12 +349,20 @@ function save() {
         <FieldInput v-model="cooldown" type="number" :label="t(`${KEY}.auto_run.cooldown.label`)" :description="t(`${KEY}.auto_run.cooldown.description`)" />
       </template>
       <template v-if="!autoRun">
-        <FieldInput v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.add.keywords.description`)" />
+        <FieldValues v-model="keywords" :required="false" :label="t(`${KEY}.add.keywords.label`)">
+          <template #description>
+            <span :class="['text-wrap']">{{ t(`${KEY}.add.keywords.description`) }}</span>
+          </template>
+        </FieldValues>
         <FieldCheckbox v-model="background" :label="t(`${KEY}.background.label`)" :description="t(`${KEY}.background.description`)" />
       </template>
     </template>
     <template v-else>
-      <FieldInput v-model="keywords" :label="t(`${KEY}.add.keywords.label`)" :description="t(`${KEY}.decision.keywords`)" />
+      <FieldValues v-model="keywords" :required="false" :label="t(`${KEY}.add.keywords.label`)">
+        <template #description>
+          <span :class="['text-wrap']">{{ t(`${KEY}.decision.keywords`) }}</span>
+        </template>
+      </FieldValues>
       <FieldInput v-model="question" :label="t(`${KEY}.decision.question`)" />
       <FieldSelect :model-value="questionType" :label="t(`${KEY}.decision.type.label`)" :options="questionTypeOptions" @update:model-value="value => setQuestionType(value as QuestionType)" />
       <ol :class="['flex flex-col', 'gap-3']">

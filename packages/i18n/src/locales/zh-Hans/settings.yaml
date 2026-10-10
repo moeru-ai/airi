@@ -862,7 +862,7 @@ pages:
           instructions: 怎么做
           keywords:
             label: 暗号
-            description: 用逗号隔开。消息里说出暗号，角色就会用这个配方。
+            description: 消息里说出暗号，角色就会用这个配方。
           submit: 添加
         decision:
           question: 问题
@@ -883,7 +883,7 @@ pages:
             recipe: 接着用另一个配方
           hint_text: 要记住的话
           target_recipe: 配方
-          keywords: 用逗号隔开。消息里说出暗号，角色才会做这道判断。
+          keywords: 消息里说出暗号，角色才会做这道判断。
           note: 对上暗号后，角色会看完整段对话，选定一个答案，然后照着做。
         entry:
           title: 配方

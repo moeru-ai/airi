@@ -28,6 +28,14 @@ const provider: GenerationProvider = {
  * `reply` answers each request from its prompt, and the returned prompts list every request in order.
  */
 async function setupChat(reply: (prompt: string, options?: StreamOptions) => Promise<string>) {
+  // A send reads the provider and model of the session character. The card store reads them from storage when it starts.
+  const modules = {
+    consciousness: { provider: 'openai', model: 'test-model' },
+    vision: { provider: '', model: '' },
+    speech: { provider: '', model: '', voice_id: '' },
+  }
+  localStorage.setItem('airi-cards', JSON.stringify([['default', { name: 'Character', version: '1.0', extensions: { airi: { agents: {}, modules } } }]]))
+  localStorage.setItem('airi-card-module-defaults', JSON.stringify(modules))
   const pinia = createPinia()
   pinias.push(pinia)
   render(defineComponent({
