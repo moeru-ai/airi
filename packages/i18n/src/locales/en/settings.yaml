@@ -1464,7 +1464,7 @@ pages:
             description: AWS region where Bedrock is enabled (e.g. us-east-1, us-west-2)
       anthropic:
         description: anthropic.com
-        title: Anthropic | Claude
+        title: Anthropic {'|'} Claude
         helpinfo:
           title: Before you start
           description:

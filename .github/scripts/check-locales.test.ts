@@ -225,4 +225,64 @@ describe('checkLocales', () => {
 
     expect(issues).toEqual([expect.objectContaining({ level: 'error', locale: 'ko', file: 'settings.yaml', key: '' })])
   })
+
+  // https://github.com/moeru-ai/airi/pull/2904
+  it('reports a choice separator that no count can select', async () => {
+    // ROOT CAUSE:
+    //
+    // vue-i18n reads `|` as a choice separator and picks a form with the `count`
+    // parameter. The Anthropic provider card was written as `Anthropic | Claude`, which
+    // has no count, so every render returned `Anthropic` and the second name never
+    // appeared.
+    //
+    //   providers.anthropic: Anthropic | Claude
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic | Claude\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    // A warning, not an error: the call site decides which form a message uses,
+    // and `t(key, plural)` selects one with a bare number.
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'en', file: 'settings.yaml', key: 'providers.anthropic' })])
+  })
+
+  it('accepts a pipe that the message writes as a literal', async () => {
+    const root = await locales({
+      'en/settings.yaml': 'providers:\n  anthropic: Anthropic {\'|\'} Claude\n',
+    })
+
+    expect(await checkLocales({ root })).toEqual([])
+  })
+
+  it('accepts a separator that a count selects', async () => {
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  count: \'{count} file | {count} files\'\n',
+    })
+
+    expect(await checkLocales({ root })).toEqual([])
+  })
+
+  it('reports the separator in a translation as well', async () => {
+    const root = await locales({
+      'en/settings.yaml': english,
+      'ja/settings.yaml': 'animation:\n  title: アニメーション | モーション\n',
+    })
+
+    const issues = await checkLocales({ root })
+
+    expect(issues).toEqual([expect.objectContaining({ level: 'warning', locale: 'ja', key: 'animation.title' })])
+  })
+
+  it('accepts a separator that a bare number selects', async () => {
+    // t(key, plural) picks a form with the number itself, so the message needs no
+    // placeholder. This is why the check reports a warning and not an error.
+    const root = await locales({
+      'en/settings.yaml': 'files:\n  car: car | cars\n',
+    })
+
+    const reported = await checkLocales({ root })
+
+    expect(reported.every(issue => issue.level === 'warning')).toBe(true)
+  })
 })

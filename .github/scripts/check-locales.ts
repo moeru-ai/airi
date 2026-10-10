@@ -34,6 +34,33 @@ type LocaleStrings = Map<string, Map<string, string>>
  */
 const PLACEHOLDER = /\{\s*([a-z_][\w-]*|\d+)\s*\}|@(?:\.\w+)?:[\w.-]+/gi
 
+/**
+ * The parameter vue-i18n reads to pick one form of a message that holds a choice separator.
+ */
+const PLURAL_SELECTOR = /\{\s*(?:count|n)\s*\}/
+
+/** A literal pipe, which is text and not a separator. */
+const LITERAL_PIPE = /\{'\|'\}/g
+
+/**
+ * Checks a choice separator that nothing can select.
+ *
+ * vue-i18n splits a message on \`|\` and picks a form with the \`count\` parameter. A message
+ * with a separator and no \`count\` has nothing to select a form, so every render returns the
+ * first choice. \`Anthropic | Claude\` reached a provider card as \`Anthropic\` this way.
+ *
+ * @returns A message for the problem, or \`undefined\` when the value is fine.
+ */
+function unselectableChoice(value: string): string | undefined {
+  // A literal pipe is written "{'|'}". Removing those leaves only the separators.
+  const separators = value.replace(LITERAL_PIPE, '')
+  if (!separators.includes('|') || PLURAL_SELECTOR.test(separators))
+    return undefined
+
+  return "A choice separator needs a {count} to select a form, so this message always renders its first choice. Write a literal pipe as {'|'}."
+}
+
+
 function flatten(value: unknown, prefix: string, into: Map<string, string>) {
   if (typeof value === 'string') {
     into.set(prefix, value)
@@ -154,6 +181,7 @@ function findMovedTranslations(
  * - Error: a file does not parse.
  * - Error: a key does not exist in the source locale.
  * - Error: a translation does not keep the placeholders of its source string.
+ * - Warning: a message holds a choice separator that its own placeholders cannot select.
  * - Error: a translation disappears although its English did not change.
  * - Warning: a changed translation repeats the translation of an unrelated key.
  *
@@ -180,6 +208,15 @@ export async function checkLocales(options: {
   const issues: LocaleIssue[] = []
   const source = await loadLocale(options.root, SOURCE_LOCALE, issues)
   const baseSource = options.baseRoot ? await loadLocale(options.baseRoot, SOURCE_LOCALE, []) : new Map()
+
+  // The source locale owns the strings, so a separator mistake can live here too.
+  for (const [file, values] of source) {
+    for (const [key, value] of values) {
+      const message = unselectableChoice(value)
+      if (message)
+        issues.push({ level: 'warning', locale: SOURCE_LOCALE, file, key, message })
+    }
+  }
   const entries = await readdir(options.root, { withFileTypes: true })
   const locales = entries.filter(entry => entry.isDirectory() && entry.name !== SOURCE_LOCALE).map(entry => entry.name).sort()
 
@@ -205,6 +242,10 @@ export async function checkLocales(options: {
           issues.push({ level: level(file, key, value), locale, file, key, message: `The key does not exist in ${SOURCE_LOCALE}/${file}.` })
           continue
         }
+        const choice = unselectableChoice(value)
+        if (choice)
+          issues.push({ level: 'warning', locale, file, key, message: choice })
+
         const expected = placeholders(english)
         const actual = placeholders(value)
         if (expected.join() !== actual.join())
