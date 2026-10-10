@@ -244,7 +244,7 @@ export function streamResponses(input: {
     topP: input.options?.topP,
     headers: mergeRequestHeaders(input.config.headers, input.options?.headers),
     tools: input.webSearch ? [...(input.tools ?? []), { type: 'web_search' }] : input.tools,
-    toolChoice: input.options?.resolveStep ? undefined : toolChoice(input.options?.toolChoice),
+    toolChoice: input.options?.toolsEnabled === false || input.options?.resolveStep ? undefined : toolChoice(input.options?.toolChoice),
     stopWhen: stepCountAtLeast(10),
     onEvent: async (event) => {
       const mapped = toAiriStreamEvent(event)
