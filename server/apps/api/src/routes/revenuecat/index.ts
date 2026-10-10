@@ -1,5 +1,6 @@
 import type { Env } from '../../libs/env'
 import type { RateLimitMetrics } from '../../otel'
+import type { RevenuecatSubscriberClient } from '../../services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from '../../services/adapters/revenuecat-subscriptions'
 import type { HonoEnv } from '../../types/hono'
 
@@ -14,6 +15,8 @@ import { createWebhookOperation } from './operations/webhook'
  * Each webhook event reconciles capacitor Flux from RevenueCat.
  * `POST /sync` runs the same reconciliation for the caller. The client calls it after a purchase
  * and when the Capacitor page opens, so a late or lost webhook does not delay the grant.
+ * `GET /subscription` tells whether the caller's subscription still renews. The account page
+ * reads it before it requests an account deletion, on every platform.
  *
  * The webhook has no rate limit. An anonymous limit counts all callers behind the proxy as one,
  * so unsigned requests could use the budget and RevenueCat would get 429.
@@ -21,6 +24,7 @@ import { createWebhookOperation } from './operations/webhook'
  */
 export function createRevenuecatRoutes(
   subscriptionSync: RevenuecatSubscriptionSync,
+  subscriber: Pick<RevenuecatSubscriberClient, 'hasRenewingSubscription'>,
   env: Pick<Env, 'REVENUECAT_WEBHOOK_AUTH' | 'REVENUECAT_WEBHOOK_SECRET'>,
   rateLimitMetrics: RateLimitMetrics | null,
 ) {
@@ -42,5 +46,6 @@ export function createRevenuecatRoutes(
       await subscriptionSync.reconcile(c.get('user')!.id)
       return c.json({ synced: true })
     })
+    .get('/subscription', authGuard, async c => c.json({ renewing: await subscriber.hasRenewingSubscription(c.get('user')!.id) }))
     .get('/capacitors', authGuard, async c => c.json({ productIds: await subscriptionSync.listProductIds() }))
 }

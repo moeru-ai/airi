@@ -3,6 +3,7 @@ import { errorMessageFrom } from '@moeru/std'
 import { isCapacitorAvailable } from '@proj-airi/stage-shared'
 import { defaultSignInProviders } from '@proj-airi/stage-ui/components/auth'
 import { resolveLinkedAccountOAuthErrorMessageKey, useAnalytics, useLinkedAccounts } from '@proj-airi/stage-ui/composables'
+import { client } from '@proj-airi/stage-ui/composables/api'
 import { authClient } from '@proj-airi/stage-ui/libs/auth'
 import { SERVER_URL } from '@proj-airi/stage-ui/libs/server'
 import { useAuthStore } from '@proj-airi/stage-ui/stores/auth'
@@ -382,6 +383,14 @@ async function handleConfirmDelete(event: Event) {
   deleteLoading.value = true
 
   try {
+    // A deleted user cannot manage a subscription, so the server stops the deletion while one renews.
+    // This read tells the user before the confirmation email goes out.
+    const subscription = await client.api.v1.revenuecat.subscription.$get()
+    if (!subscription.ok)
+      throw new Error(t('settings.pages.account.danger.deleteAccount.error.fallback'))
+    if ((await subscription.json()).renewing)
+      throw new Error(t('settings.pages.account.danger.deleteAccount.error.subscriptionActive'))
+
     // The success page lives on the API-server origin (shared
     // ui-server-auth bundle). It tells the user the deletion completed
     // and asks them to close the tab — there is no "back to home"

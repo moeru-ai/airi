@@ -14,7 +14,7 @@ const logger = useLogger('revenuecat-subscriptions')
 export function createRevenuecatSubscriptionSync(
   billing: Pick<BillingService, 'syncCapacitor'>,
   configKV: ConfigKVService,
-  subscriber: RevenuecatSubscriberClient,
+  subscriber: Pick<RevenuecatSubscriberClient, 'fetchEntitlements'>,
 ) {
   async function reconcile(userId: string): Promise<void> {
     const capacitors = await configKV.getOptional('REVENUECAT_CAPACITORS')

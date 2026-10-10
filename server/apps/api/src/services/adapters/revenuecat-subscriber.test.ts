@@ -21,6 +21,7 @@ describe('revenuecat subscriber client', () => {
   it('reads entitlements with the secret key', async () => {
     const fetch = jsonFetch({
       subscriber: {
+        subscriptions: {},
         entitlements: {
           airi_go: {
             expires_date: '2026-11-01T00:00:00Z',
@@ -50,6 +51,7 @@ describe('revenuecat subscriber client', () => {
       apiKey: 'sk_test',
       fetch: jsonFetch({
         subscriber: {
+          subscriptions: {},
           entitlements: {
             airi_go: {
               expires_date: '2026-11-01T00:00:00Z',
@@ -71,6 +73,7 @@ describe('revenuecat subscriber client', () => {
       apiKey: 'sk_test',
       fetch: jsonFetch({
         subscriber: {
+          subscriptions: {},
           entitlements: {
             airi_go: {
               expires_date: null,
@@ -89,7 +92,7 @@ describe('revenuecat subscriber client', () => {
   it('returns no entitlements for a new customer', async () => {
     const client = createRevenuecatSubscriberClient({
       apiKey: 'sk_test',
-      fetch: jsonFetch({ subscriber: { entitlements: {} } }, 201),
+      fetch: jsonFetch({ subscriber: { entitlements: {}, subscriptions: {} } }, 201),
     })
     expect(await client.fetchEntitlements('user-1')).toEqual([])
   })
@@ -103,7 +106,7 @@ describe('revenuecat subscriber client', () => {
   })
 
   it('fails with 502 on an upstream error', async () => {
-    const client = createRevenuecatSubscriberClient({ apiKey: 'sk_test', fetch: jsonFetch({ subscriber: { entitlements: {} } }, 500) })
+    const client = createRevenuecatSubscriberClient({ apiKey: 'sk_test', fetch: jsonFetch({ subscriber: { entitlements: {}, subscriptions: {} } }, 500) })
     expect(await statusOf(client.fetchEntitlements('user-1'))).toBe(502)
   })
 
@@ -113,5 +116,40 @@ describe('revenuecat subscriber client', () => {
       fetch: jsonFetch({ subscriber: { entitlements: { airi_go: { product_identifier: 'rc_go_monthly' } } } }),
     })
     expect(await statusOf(client.fetchEntitlements('user-1'))).toBe(502)
+  })
+
+  describe('hasRenewingSubscription', () => {
+    const hour = 3_600_000
+    const soon = new Date(Date.now() + hour).toISOString()
+    const earlier = new Date(Date.now() - hour).toISOString()
+    const subscription = { expires_date: soon, grace_period_expires_date: null, unsubscribe_detected_at: null, refunded_at: null }
+
+    function renewing(subscriptions: Record<string, unknown>) {
+      const fetch = jsonFetch({ subscriber: { entitlements: {}, subscriptions } })
+      return createRevenuecatSubscriberClient({ apiKey: 'sk_test', fetch }).hasRenewingSubscription('user-1')
+    }
+
+    it('is true while a subscription gives access and the renewal is on', async () => {
+      expect(await renewing({ rc_go_monthly: subscription })).toBe(true)
+      expect(await renewing({ rc_go_monthly: { ...subscription, expires_date: earlier, grace_period_expires_date: soon } })).toBe(true)
+    })
+
+    it('is false for a cancelled, refunded, or expired subscription and for no subscription', async () => {
+      expect(await renewing({ rc_go_monthly: { ...subscription, unsubscribe_detected_at: earlier } })).toBe(false)
+      expect(await renewing({ rc_go_monthly: { ...subscription, refunded_at: earlier } })).toBe(false)
+      expect(await renewing({ rc_go_monthly: { ...subscription, expires_date: earlier } })).toBe(false)
+      expect(await renewing({})).toBe(false)
+    })
+
+    it('is false without a read when no API key is configured', async () => {
+      const fetch = jsonFetch({})
+      expect(await createRevenuecatSubscriberClient({ apiKey: null, fetch }).hasRenewingSubscription('user-1')).toBe(false)
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('fails when RevenueCat cannot be read, so the deletion stops', async () => {
+      const client = createRevenuecatSubscriberClient({ apiKey: 'sk_test', fetch: jsonFetch({}, 500) })
+      expect(await statusOf(client.hasRenewingSubscription('user-1'))).toBe(502)
+    })
   })
 })

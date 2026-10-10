@@ -28,6 +28,17 @@ describe('resource API', () => {
     ).rejects.toMatchObject({ statusCode: 502 })
   })
 
+  it('tells the user to cancel the subscription when the resource API reports one that renews', async () => {
+    const resourceApi = createResourceApi(
+      'https://resource.internal',
+      vi.fn<typeof fetch>(async () => Response.json({ error: 'SUBSCRIPTION_ACTIVE' }, { status: 409 })),
+    )
+
+    await expect(
+      resourceApi.softDeleteUserData({ userId: 'user-1', reason: 'user-requested' }),
+    ).rejects.toMatchObject({ statusCode: 409, errorCode: 'user-deletion/subscription_active' })
+  })
+
   it('forwards auth events without adding an application credential', async () => {
     const fetchRequest = vi.fn<typeof fetch>(async () => new Response(null, { status: 204 }))
     const resourceApi = createResourceApi('https://resource.internal', fetchRequest)

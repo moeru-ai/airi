@@ -18,9 +18,18 @@ const entitlementSchema = object({
   purchase_date: instantSchema,
 })
 
+const subscriptionSchema = object({
+  expires_date: nullable(instantSchema),
+  grace_period_expires_date: optional(nullable(instantSchema)),
+  /** The time at which the store reported that the customer turned off the renewal. */
+  unsubscribe_detected_at: nullable(instantSchema),
+  refunded_at: nullable(instantSchema),
+})
+
 const subscriberResponseSchema = object({
   subscriber: object({
     entitlements: record(string(), entitlementSchema),
+    subscriptions: record(string(), subscriptionSchema),
   }),
 })
 
@@ -35,7 +44,7 @@ export interface SubscriberEntitlement {
 }
 
 /** Access lasts through the grace period when RevenueCat grants one. */
-function accessUntil(entitlement: InferOutput<typeof entitlementSchema>): Date | null {
+function accessUntil(entitlement: Pick<InferOutput<typeof entitlementSchema>, 'expires_date' | 'grace_period_expires_date'>): Date | null {
   if (entitlement.expires_date == null)
     return null
   const expires = new Date(entitlement.expires_date)
@@ -46,7 +55,7 @@ function accessUntil(entitlement: InferOutput<typeof entitlementSchema>): Date |
 }
 
 /**
- * Reads a customer's entitlements from the RevenueCat REST API.
+ * Reads a customer's entitlements and subscriptions from the RevenueCat REST API.
  * RevenueCat owns this state. The caller does not cache it.
  */
 export function createRevenuecatSubscriberClient(input: {
@@ -56,10 +65,7 @@ export function createRevenuecatSubscriberClient(input: {
 }) {
   const fetchImpl = input.fetch ?? globalThis.fetch
 
-  async function fetchEntitlements(userId: string): Promise<SubscriberEntitlement[]> {
-    if (!input.apiKey)
-      throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
-
+  async function fetchSubscriber(userId: string) {
     let response: Response
     try {
       response = await fetchImpl(`https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}`, {
@@ -89,7 +95,14 @@ export function createRevenuecatSubscriberClient(input: {
     if (!parsed.success)
       throw createBadGatewayError('RevenueCat subscriber response is invalid')
 
-    return Object.entries(parsed.output.subscriber.entitlements).map(([entitlementId, entitlement]) => ({
+    return parsed.output.subscriber
+  }
+
+  async function fetchEntitlements(userId: string): Promise<SubscriberEntitlement[]> {
+    if (!input.apiKey)
+      throw createServiceUnavailableError('RevenueCat is not configured', 'REVENUECAT_NOT_CONFIGURED')
+
+    return Object.entries((await fetchSubscriber(userId)).entitlements).map(([entitlementId, entitlement]) => ({
       entitlementId,
       productId: entitlement.product_identifier,
       purchasedAt: new Date(entitlement.purchase_date),
@@ -97,7 +110,24 @@ export function createRevenuecatSubscriberClient(input: {
     }))
   }
 
-  return { fetchEntitlements }
+  /**
+   * Tells whether the store will charge the customer again.
+   * A subscription renews while it gives access and the customer did not turn off the renewal.
+   * A cancelled subscription keeps its access until the period ends, and it does not count.
+   * Without an API key no subscription is sold, so the answer is no.
+   */
+  async function hasRenewingSubscription(userId: string): Promise<boolean> {
+    if (!input.apiKey)
+      return false
+
+    const now = new Date()
+    return Object.values((await fetchSubscriber(userId)).subscriptions).some((subscription) => {
+      const until = accessUntil(subscription)
+      return until !== null && until > now && subscription.unsubscribe_detected_at === null && subscription.refunded_at === null
+    })
+  }
+
+  return { fetchEntitlements, hasRenewingSubscription }
 }
 
 export type RevenuecatSubscriberClient = ReturnType<typeof createRevenuecatSubscriberClient>

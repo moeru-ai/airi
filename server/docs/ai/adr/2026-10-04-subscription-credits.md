@@ -135,15 +135,20 @@ The webhook applies the new Capacitor Flux after the store changes the product.
 
 ### Account deletion
 
-The deletion coordinator cancels the user's Web Billing subscriptions before it removes the identity.
-A deleted user cannot open the management URL, so an active subscription would renew.
-The handler `subscriptions` runs first, at priority 10. It lists the customer's subscriptions through the RevenueCat REST API v2.
-It cancels each subscription of the store `rc_billing` that gives access and still renews.
-The cancel stops the renewal. Access lasts until the period ends, and the deletion clears the wallet at once.
-A failed cancel stops the deletion. A repeated deletion finds no renewing subscription.
-API v2 needs `REVENUECAT_V2_API_KEY` and `REVENUECAT_PROJECT_ID`. The v1 key does not work with API v2.
-When one of them is unset, the handler logs a warning and cancels nothing.
-RevenueCat cannot cancel App Store or Google Play subscriptions. The user cancels these in the store.
+A deleted user cannot open the management URL, so a subscription that still renews stops the deletion.
+The server does not cancel a subscription. The user cancels it, and then deletes the account.
+This rule needs only the v1 subscriber read, and it also covers App Store and Google Play subscriptions.
+
+A subscription renews while it gives access, `unsubscribe_detected_at` is null, and `refunded_at` is null.
+A cancelled subscription keeps its access until the period ends. It does not stop the deletion, and the deletion clears the wallet.
+
+The rule runs at two points:
+
+- `GET /api/v1/revenuecat/subscription` returns `renewing` for the signed-in user. The account page reads it before it requests the confirmation email.
+- The deletion handler `subscriptions` runs first, at priority 10. It returns 409 `SUBSCRIPTION_ACTIVE` while a subscription renews. The Auth service then returns 409 `user-deletion/subscription_active`, and the identity stays.
+
+The second point covers a client that skips the read, and a purchase after the email.
+A failed read of RevenueCat stops the deletion. Without `REVENUECAT_API_KEY` no subscription is sold, and the rule passes.
 
 ## Scope
 
@@ -171,8 +176,8 @@ flowchart LR
   Billing --> Posting[flux-posting.ts]
   Webhook[RevenueCat webhook] --> Sync["revenuecat-subscriptions.ts"]
   SyncRoute["POST /revenuecat/sync"] --> Sync
-  Deletion[user-deletion] --> Cancel["revenuecat-cancellation.ts"]
-  Cancel --> RC
+  Deletion[user-deletion] --> Reader
+  AccountPage["GET /revenuecat/subscription"] --> Reader
   Sync --> Reader["revenuecat-subscriber.ts"]
   Reader --> RC[RevenueCat]
   Sync --> Billing
@@ -217,7 +222,6 @@ server/apps/api/
   src/services/domain/{flux,flux-cache,flux-transaction}.ts
   src/services/adapters/revenuecat-subscriber.ts
   src/services/adapters/revenuecat-subscriptions.ts
-  src/services/adapters/revenuecat-cancellation.ts
   src/routes/flux/index.ts
   src/routes/revenuecat/index.ts
   src/routes/revenuecat/operations/webhook.ts
@@ -238,5 +242,6 @@ Run the flux route tests for the Capacitor percent and the fallback choice.
 Run the client test that maps `customerInfo` to the current Capacitor.
 Run the admission test for a due refill with an outstanding fee.
 Run the route tests for the sync of a signed-in user, an anonymous sync, and the product list.
-Run the cancellation tests for a renewing subscription, an unknown customer, a missing configuration, and upstream errors.
+Run the subscriber client tests for a renewing, a cancelled, a refunded, and an expired subscription, and for a failed read.
+Run the route test for the renewal status, and the Auth test for the 409 of the resource API.
 Run the client tests for the sync before the balance read and for the product filter.

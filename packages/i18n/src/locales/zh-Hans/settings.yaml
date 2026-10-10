@@ -337,7 +337,7 @@ pages:
         action: 删除帐户
         modal:
           title: 删除账户？
-          warning: 此操作无法撤销。已经激活的订阅将被取消，现存的 Flux 余额均会被清除。
+          warning: 此操作无法撤销。现存的 Flux 余额会被清除。如有生效中的订阅，请先取消。
           confirmEmail:
             label: 请再次输入电子邮箱以确认删除
             mismatch: 邮箱不匹配。
@@ -347,6 +347,7 @@ pages:
           emailSent: 请查看 {email} 中的删除链接。
         error:
           fallback: 无法开始删除操作，请稍后重试。
+          subscriptionActive: 您的订阅仍在生效。请先在 Capacitor 页面取消订阅，再删除帐户。
   card:
     sync:
       notice: 角色卡会同步到账号。删除的角色卡可在 30 天内恢复。

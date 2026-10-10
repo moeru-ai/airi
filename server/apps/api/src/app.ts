@@ -4,6 +4,7 @@ import type { OtelInstance } from './otel'
 import type { Verifier as AppleIapVerifier } from './routes/apple-iap/verifier'
 import type { StreamingTtsVoiceType } from './routes/audio-speech-ws/session'
 import type { ConfigKVService } from './services/adapters/config-kv'
+import type { RevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import type { RevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import type { BillingService } from './services/domain/billing/billing-service'
 import type { LlmBillingService } from './services/domain/billing/llm-billing'
@@ -71,7 +72,6 @@ import { createConfigKVService } from './services/adapters/config-kv'
 import { createConfigKVStore } from './services/adapters/config-kv/store'
 import { createS3ObjectStore } from './services/adapters/object-store'
 import { createOpenpanelSink } from './services/adapters/openpanel'
-import { createRevenuecatCancellation } from './services/adapters/revenuecat-cancellation'
 import { createRevenuecatSubscriberClient } from './services/adapters/revenuecat-subscriber'
 import { createRevenuecatSubscriptionSync } from './services/adapters/revenuecat-subscriptions'
 import { createBillingService } from './services/domain/billing/billing-service'
@@ -91,7 +91,7 @@ import { createRequestLogService } from './services/domain/request-log'
 import { createUserDeletionService } from './services/domain/user-deletion'
 import { createVoicePackService } from './services/domain/voice-packs'
 import { createEnvelopeCrypto } from './utils/envelope-crypto'
-import { ApiError, createInternalError } from './utils/error'
+import { ApiError, createInternalError, createSubscriptionActiveError } from './utils/error'
 import { nanoid } from './utils/id'
 import { getTrustedOrigin } from './utils/origin'
 
@@ -110,6 +110,7 @@ interface AppDeps {
   billingService: BillingService
   speechBilling: SpeechBilling
   subscriptionSync: RevenuecatSubscriptionSync
+  revenuecatSubscriber: RevenuecatSubscriberClient
   requestLogService: RequestLogService
   voicePackService: VoicePackService
   productEventService: ProductEventService
@@ -464,6 +465,7 @@ export async function buildApp(deps: AppDeps) {
      */
     .route('/api/v1/revenuecat', createRevenuecatRoutes(
       deps.subscriptionSync,
+      deps.revenuecatSubscriber,
       deps.env,
       deps.otel?.rateLimit ?? null,
     ))
@@ -736,12 +738,17 @@ export async function createApp() {
     build: ({ dependsOn }) => createPaymentService(dependsOn.db, dependsOn.billingService),
   })
 
+  const revenuecatSubscriber = injeca.provide('adapters:revenuecatSubscriber', {
+    dependsOn: { env: parsedEnv },
+    build: ({ dependsOn }) => createRevenuecatSubscriberClient({ apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null }),
+  })
+
   const subscriptionSync = injeca.provide('services:revenuecatSubscriptionSync', {
-    dependsOn: { billingService, configKV, env: parsedEnv },
+    dependsOn: { billingService, configKV, revenuecatSubscriber },
     build: ({ dependsOn }) => createRevenuecatSubscriptionSync(
       dependsOn.billingService,
       dependsOn.configKV,
-      createRevenuecatSubscriberClient({ apiKey: dependsOn.env.REVENUECAT_API_KEY ?? null }),
+      dependsOn.revenuecatSubscriber,
     ),
   })
 
@@ -753,18 +760,21 @@ export async function createApp() {
   // Domain knowledge stays inside each service instead of being copied into
   // a parallel handler file. See `server/apps/api/docs/ai-context/account-deletion.md`.
   const userDeletionService = injeca.provide('services:userDeletion', {
-    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, env: parsedEnv },
+    dependsOn: { paymentService, fluxService, providerService, characterService, characterCardService, chatService, revenuecatSubscriber },
     build: ({ dependsOn }) => {
       const service = createUserDeletionService()
-      const subscriptionCancellation = createRevenuecatCancellation({
-        apiKey: dependsOn.env.REVENUECAT_V2_API_KEY ?? null,
-        projectId: dependsOn.env.REVENUECAT_PROJECT_ID ?? null,
-      })
-      // priority: 10 = external side effect without rollback (RevenueCat cancel),
+      // priority: 10 = precondition that can stop the deletion (renewing subscription),
       //           20 = financial / cache state (Flux balance + Redis),
       //           30 = pure DB soft-delete (no external touch).
-      // A deleted user cannot open the management URL, so the renewal stops before the identity goes.
-      service.register({ name: 'subscriptions', priority: 10, softDelete: async ({ userId }) => void await subscriptionCancellation.cancelRenewals(userId) })
+      // A deleted user cannot open the management URL, so a subscription that renews stops the deletion.
+      service.register({
+        name: 'subscriptions',
+        priority: 10,
+        softDelete: async ({ userId }) => {
+          if (await dependsOn.revenuecatSubscriber.hasRenewingSubscription(userId))
+            throw createSubscriptionActiveError()
+        },
+      })
       service.register({ name: 'payment', priority: 30, softDelete: ({ userId }) => dependsOn.paymentService.deleteAllForUser(userId) })
       service.register({ name: 'flux', priority: 20, softDelete: ({ userId }) => dependsOn.fluxService.deleteAllForUser(userId) })
       service.register({ name: 'providers', priority: 30, softDelete: ({ userId }) => dependsOn.providerService.deleteAllForUser(userId) })
@@ -823,6 +833,7 @@ export async function createApp() {
     env: parsedEnv,
     otel,
     userDeletionService,
+    revenuecatSubscriber,
     llmRouter,
     providerCatalogService,
     ttsConcurrencyLedger,
@@ -856,6 +867,7 @@ export async function createApp() {
     env: resolved.env,
     otel: resolved.otel,
     userDeletionService: resolved.userDeletionService,
+    revenuecatSubscriber: resolved.revenuecatSubscriber,
     llmRouter: resolved.llmRouter,
     providerCatalogService: resolved.providerCatalogService,
   }

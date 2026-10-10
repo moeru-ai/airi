@@ -1,6 +1,6 @@
 import { useLogger } from '@guiiai/logg'
 
-import { createBadGatewayError } from './error'
+import { ApiError, createBadGatewayError } from './error'
 
 export type UserDeletionReason = 'user-requested' | 'admin' | 'compliance'
 
@@ -34,6 +34,16 @@ export function createResourceApi(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input),
       })
+
+      // The resource API stops the deletion with 409 while a subscription still renews.
+      // The user reads this message on the deletion callback, so it tells the next step.
+      if (response.status === 409) {
+        throw new ApiError(
+          409,
+          'user-deletion/subscription_active',
+          'Your subscription is still active. Cancel it first, then request the account deletion again.',
+        )
+      }
 
       if (!response.ok) {
         throw createBadGatewayError('Business account cleanup failed', {

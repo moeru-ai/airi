@@ -176,9 +176,9 @@ Product-to-Capacitor mapping lives in ConfigKV `REVENUECAT_CAPACITORS`.
 A missed webhook delays the grant until the next webhook for that
 customer, or until the client calls `POST /sync`. The Capacitor name and expiry come from the client SDK, so they do not wait for that webhook.
 
-Account deletion cancels the user's Web Billing subscriptions first. It uses the RevenueCat REST API v2 with
-`REVENUECAT_V2_API_KEY` and `REVENUECAT_PROJECT_ID`. The key needs the permission
-`customer_information:subscriptions:read_write`. When one of them is unset, the deletion cancels nothing.
+Account deletion stops with 409 `SUBSCRIPTION_ACTIVE` while a subscription still renews. The user cancels the
+subscription first. `GET /subscription` returns `renewing` for the signed-in user, and the account page reads it
+before it requests the deletion.
 
 ## Run locally
 

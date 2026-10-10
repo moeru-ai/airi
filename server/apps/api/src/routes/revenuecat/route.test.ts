@@ -42,13 +42,16 @@ function signBody(rawBody: string, timestamp = Math.floor(Date.now() / 1000)): s
   return `t=${timestamp},v1=${signature}`
 }
 
+/** The users whose subscription still renews, as RevenueCat reports it. */
+const renewingUserIds = new Set<string>()
+
 function createTestApp(
   subscriptionSync: RevenuecatSubscriptionSync,
   env = { REVENUECAT_WEBHOOK_AUTH: authorization, REVENUECAT_WEBHOOK_SECRET: signingSecret },
   /** The signed-in user of each request. Null leaves the request anonymous, as RevenueCat sends it. */
   signedInUserId: string | null = null,
 ) {
-  const routes = createRevenuecatRoutes(subscriptionSync, env, null)
+  const routes = createRevenuecatRoutes(subscriptionSync, { hasRenewingSubscription: async userId => renewingUserIds.has(userId) }, env, null)
   const app = new Hono<HonoEnv>()
 
   app.use('*', async (c, next) => {
@@ -272,6 +275,18 @@ describe('revenuecat routes', () => {
     const res = await app.request('/api/v1/revenuecat/sync', { method: 'POST' })
     expect(res.status).toBe(401)
     expect(fetchEntitlements).not.toHaveBeenCalled()
+  })
+
+  it('tells whether the subscription of the signed-in user still renews', async () => {
+    const { app } = await setup('user-1')
+
+    const idle = await app.request('/api/v1/revenuecat/subscription')
+    expect(await idle.json()).toEqual({ renewing: false })
+
+    renewingUserIds.add('user-1')
+    const renewing = await app.request('/api/v1/revenuecat/subscription')
+    renewingUserIds.clear()
+    expect(await renewing.json()).toEqual({ renewing: true })
   })
 
   it('lists the products that grant a Capacitor', async () => {
