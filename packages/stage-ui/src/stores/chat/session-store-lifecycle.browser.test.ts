@@ -496,6 +496,7 @@ describe('chat-session-store · cloud placeholder hydration', () => {
       title: null,
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
+      members: [],
     }
     userIdRef.value = 'cloud-user'
     getIndexMock.mockResolvedValue({
@@ -546,6 +547,103 @@ describe('chat-session-store · cloud placeholder hydration', () => {
     await store.setActiveSession(remoteChat.id)
 
     expect(pullMessagesMock.mock.calls.filter(([request]) => request.chatId === remoteChat.id)).toHaveLength(2)
+  })
+})
+
+describe('chat-session-store · cloud character membership', () => {
+  function remoteChatOf(id: string, characterId: string) {
+    return {
+      id,
+      type: 'bot' as const,
+      title: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      members: [
+        { memberType: 'user' as const, characterId: null },
+        { memberType: 'character' as const, characterId },
+      ],
+    }
+  }
+
+  async function reconcile() {
+    const store = useChatSessionStore()
+    await store.initialize()
+    cloudWsStatus = 'open'
+    cloudStatusListener?.('open')
+    await vi.waitFor(() => {
+      expect(store.cloudSyncReady).toBe(true)
+    })
+    return store
+  }
+
+  it('puts a received chat under the character of its member, also when the device does not have that character', async () => {
+    const localMeta: ChatSessionMeta = { sessionId: 'local-session', userId: 'cloud-user', characterId: 'default', createdAt: 1, updatedAt: 1, cloudChatId: 'local-session' }
+    userIdRef.value = 'cloud-user'
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: { default: { activeSessionId: localMeta.sessionId, sessions: { [localMeta.sessionId]: localMeta } } },
+    })
+    getSessionMock.mockResolvedValue({ meta: localMeta, messages: [] })
+    listChatsMock.mockResolvedValue([remoteChatOf('local-session', 'default'), remoteChatOf('luna-session', 'luna')])
+
+    const store = await reconcile()
+
+    expect(store.sessionMetas['luna-session'].characterId).toBe('luna')
+    const savedIndex = saveIndexMock.mock.calls.at(-1)![0]
+    expect(Object.keys(savedIndex.characters.luna.sessions)).toEqual(['luna-session'])
+    expect(Object.keys(savedIndex.characters.default.sessions)).toEqual(['local-session'])
+  })
+
+  it('moves a session from default to the character of its remote chat and keeps its messages', async () => {
+    // ROOT CAUSE:
+    //
+    // The chat list did not include the members, so the adopt step put every
+    // received chat under `default`. Those sessions stay under `default`.
+    //
+    // We fixed this by a comparison with the character member of the remote
+    // chat during each reconcile.
+    const misfiled: ChatSessionMeta = { sessionId: 'misfiled', userId: 'cloud-user', characterId: 'default', createdAt: 1, updatedAt: 1, cloudChatId: 'misfiled' }
+    const kept: ChatSessionMeta = { sessionId: 'kept', userId: 'cloud-user', characterId: 'default', createdAt: 2, updatedAt: 2, cloudChatId: 'kept' }
+    const misfiledMessages: ChatSessionRecord['messages'] = [{ id: 'message-1', role: 'user', content: 'Hello Luna' }]
+    userIdRef.value = 'cloud-user'
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: { default: { activeSessionId: kept.sessionId, sessions: { misfiled, kept } } },
+    })
+    getSessionMock.mockImplementation(sessionId => Promise.resolve(sessionId === 'misfiled'
+      ? { meta: misfiled, messages: misfiledMessages }
+      : { meta: kept, messages: [] }))
+    listChatsMock.mockResolvedValue([remoteChatOf('misfiled', 'luna'), remoteChatOf('kept', 'default')])
+
+    const store = await reconcile()
+
+    expect(store.sessionMetas.misfiled.characterId).toBe('luna')
+    expect(store.sessionMetas.kept.characterId).toBe('default')
+    expect(saveSessionMock).toHaveBeenCalledWith('misfiled', {
+      meta: { ...misfiled, characterId: 'luna' },
+      messages: misfiledMessages,
+    })
+    const savedIndex = saveIndexMock.mock.calls.at(-1)![0]
+    expect(Object.keys(savedIndex.characters.luna.sessions)).toEqual(['misfiled'])
+    expect(Object.keys(savedIndex.characters.default.sessions)).toEqual(['kept'])
+    expect(savedIndex.characters.default.activeSessionId).toBe('kept')
+  })
+
+  it('selects another session for the previous character when its active session moves', async () => {
+    const misfiled: ChatSessionMeta = { sessionId: 'misfiled', userId: 'cloud-user', characterId: 'default', createdAt: 1, updatedAt: 1, cloudChatId: 'misfiled' }
+    const kept: ChatSessionMeta = { sessionId: 'kept', userId: 'cloud-user', characterId: 'default', createdAt: 2, updatedAt: 2, cloudChatId: 'kept' }
+    userIdRef.value = 'cloud-user'
+    getIndexMock.mockResolvedValue({
+      userId: 'cloud-user',
+      characters: { default: { activeSessionId: misfiled.sessionId, sessions: { misfiled, kept } } },
+    })
+    getSessionMock.mockImplementation(sessionId => Promise.resolve({ meta: sessionId === 'misfiled' ? misfiled : kept, messages: [] }))
+    listChatsMock.mockResolvedValue([remoteChatOf('misfiled', 'luna'), remoteChatOf('kept', 'default')])
+
+    await reconcile()
+
+    const savedIndex = saveIndexMock.mock.calls.at(-1)![0]
+    expect(savedIndex.characters.default.activeSessionId).toBe('kept')
   })
 })
 

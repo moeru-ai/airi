@@ -2,11 +2,13 @@ export type {
   CloudChatMapper,
   CreateCloudChatMapperOptions,
   CreateRemoteChatInput,
+  ListedRemoteChat,
   ReconcilePlan,
   RemoteChat,
 } from './cloud-mapper'
 export {
   applyCreateActions,
+  characterIdOfRemoteChat,
   createCloudChatMapper,
   reconcileLocalAndRemote,
 } from './cloud-mapper'

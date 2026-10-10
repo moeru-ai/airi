@@ -17,6 +17,7 @@ import { authedFetch } from '../../libs/auth-fetch'
 import { chatAssetIdsOf, inlineChatAssets } from '../../libs/chat-assets'
 import {
   applyCreateActions,
+  characterIdOfRemoteChat,
   createChatWsClient,
   createCloudChatMapper,
   extractMessageText,
@@ -906,6 +907,46 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         void persistSession(action.sessionId)
       }
 
+      // reassign: move a session to the character of its remote chat.
+      for (const action of plan.reassign) {
+        const meta = sessionMetas.value[action.sessionId]
+        if (!meta || !index.value)
+          continue
+
+        const previousCharacterIndex = index.value.characters[meta.characterId]
+        if (previousCharacterIndex) {
+          delete previousCharacterIndex.sessions[action.sessionId]
+          // The previous character opens another of its sessions next time. An
+          // empty id makes it create a session, as after a deletion.
+          if (previousCharacterIndex.activeSessionId === action.sessionId)
+            previousCharacterIndex.activeSessionId = Object.keys(previousCharacterIndex.sessions).find(id => sessionMetas.value[id]) ?? ''
+        }
+
+        const reassignedMeta: ChatSessionMeta = { ...meta, characterId: action.characterId }
+        sessionMetas.value[action.sessionId] = reassignedMeta
+        const characterIndex = index.value.characters[action.characterId] ?? {
+          activeSessionId: '',
+          sessions: {},
+        }
+        characterIndex.sessions[action.sessionId] = reassignedMeta
+        index.value.characters[action.characterId] = characterIndex
+
+        // `loadSession` takes the meta of the stored record, so the record
+        // must change too. `persistSession` is not used here, because it
+        // writes the messages in memory, and this session is possibly not loaded.
+        await enqueuePersist(async () => {
+          const stored = await chatSessionsRepo.getSession(action.sessionId)
+          if (stored) {
+            await chatSessionsRepo.saveSession(action.sessionId, {
+              meta: { ...stored.meta, characterId: action.characterId },
+              messages: stored.messages,
+            })
+          }
+        })
+      }
+      if (isStaleEpoch())
+        return
+
       // create: POST /api/v1/chats and bind. Mapper handles 409-as-claim.
       const createResults = await applyCreateActions(mapper, plan.create)
       if (isStaleEpoch())
@@ -954,7 +995,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
         const adoptedMeta: ChatSessionMeta = {
           sessionId: remote.id,
           userId: currentUserId,
-          characterId: 'default',
+          // A chat without one character member stays under the built-in character.
+          characterId: characterIdOfRemoteChat(remote) ?? 'default',
           title: remote.title ?? undefined,
           createdAt: new Date(remote.createdAt).getTime() || now,
           updatedAt: new Date(remote.updatedAt).getTime() || now,
