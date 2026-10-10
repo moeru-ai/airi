@@ -99,7 +99,7 @@ async function streamOnce({
   const tools = mergedTools.length > 0 ? mergedTools : undefined
 
   const scope = createContinuationScope(request.config, { ...options, providerId: initialStep?.providerId ?? options?.providerId })
-  // A request switch or a caller abort, such as a deadline, ends the stream on purpose. Its rejections are not errors to report.
+  // A request switch or a caller abort, such as a stop, ends the stream on purpose. Its rejections are not errors to report.
   const isIntentionalStop = (error: unknown) => error instanceof RequestSwitch || options?.abortSignal?.aborted === true
 
   return new Promise<void>((resolve, reject) => {
