@@ -84,6 +84,13 @@ async function streamOnce({
   const currentProvider = initialStep?.chatProvider ?? chatProvider
   // Resolve before async tool loading so all decisions use this request's configuration.
   const request = currentProvider.generation(currentModel)
+  if (options?.prepareConversation) {
+    conversation = await options.prepareConversation(conversation, {
+      model: currentModel,
+      providerId: initialStep?.providerId ?? options.providerId,
+      request,
+    })
+  }
   const supportedTools = supportsTools(currentModel, request, options)
   const contentArraySupported = supportsContentArray(currentModel, request, options)
   if (request.protocol === 'chat-completions' && !contentArraySupported && options?.prepareStringContent)

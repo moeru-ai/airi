@@ -742,6 +742,24 @@ describe('createChatOrchestratorRuntime', () => {
     })
   })
 
+  it('appends the request supplement to the system prompt of each resolved step', async () => {
+    const harness = createHarness()
+    harness.systemPromptSupplement.set('Plugin toolset guidance.')
+    let resolvedPrompt: string | undefined
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      resolvedPrompt = (await options?.resolveStep?.())?.systemPrompt
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('hello from user', {
+      model: 'gpt-test',
+      chatProvider: provider,
+      resolveStep: async () => ({ model: 'edited-model', chatProvider: provider, providerId: 'mock-provider', systemPrompt: 'edited prompt' }),
+    })
+
+    expect(resolvedPrompt).toBe('edited prompt\n\nPlugin toolset guidance.')
+  })
+
   it('creates a system message when only a system prompt supplement is available', async () => {
     const harness = createHarness()
     let composedMessages: Message[] = []

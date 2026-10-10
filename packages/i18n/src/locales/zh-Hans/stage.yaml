@@ -10,7 +10,6 @@ mobile-tools:
   character-voice: 角色声音
   title: 设置
   appearance: 外观
-  dark-mode: 深色模式
   application: 应用
   more: 更多
   background: 背景
@@ -182,6 +181,14 @@ startup:
     route: 页面
     model: 角色模型
 message: 说点什么...
+theme:
+  title: 主题
+  system: 系统
+  light: 亮色
+  dark: 暗色
+  switch-to-light: 切换到亮色主题
+  switch-to-dark: 切换到暗色主题
+  switch-to-system: 跟随系统主题
 send-mode:
   title: 发送键值
   double-enter: 双击Enter

@@ -148,6 +148,12 @@ export interface ChatOrchestratorSendOptions {
   attachments?: ChatAttachment[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
+  /**
+   * Reads the current settings of the request owner before each model request.
+   * The runtime appends this request's system prompt supplement to the returned prompt.
+   * Omission keeps `model`, `chatProvider`, and the composed system prompt for every step.
+   */
+  resolveStep?: StreamOptions['resolveStep']
   /** Serializable tool names stored with the user message for later requests. */
   toolReferences?: ChatToolReference[]
   /** Original transport input metadata used by bridge/devtools observers. */
@@ -974,9 +980,17 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         hasVoice,
       })
 
+      const resolveOwnerStep = options.resolveStep
       await waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
+        // A resolved prompt replaces the composed system message, so it must carry the same supplement.
+        resolveStep: resolveOwnerStep
+          ? async () => {
+            const step = await resolveOwnerStep()
+            return { ...step, systemPrompt: [step.systemPrompt, systemPromptSupplement].filter(Boolean).join('\n\n') }
+          }
+          : undefined,
         supportsAudioInput: options.supportsAudioInput,
         supportsVisionInput: options.supportsVisionInput,
         abortSignal,

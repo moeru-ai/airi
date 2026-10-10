@@ -2072,7 +2072,10 @@ sections:
 theme:
   title: 主题
   description: |
-    切换 AIRI 的基础主题，亮色模式或暗色模式。
+    使用亮色主题、暗色主题，或跟随系统主题。
+  auto: 系统
+  light: 亮色
+  dark: 暗色
 title: 设置
 voices: 声线
 vrm:
