@@ -304,6 +304,10 @@ describe('provider store synchronization boundary', () => {
     }
     configStore.ensureProvider('openai', 'openai', openaiConfig)
     const first = await store.getProviderInstance('openai')
+    // The replica uses fake keys; keep validation independent of external network latency.
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      Response.json({ error: { message: 'Invalid API key' } }, { status: 401 }),
+    )
     let restore = stubOpenAiReplica({ ...openaiConfig })
 
     try {
@@ -326,6 +330,7 @@ describe('provider store synchronization boundary', () => {
     }
     finally {
       restore()
+      fetchMock.mockRestore()
     }
   })
 

@@ -224,6 +224,9 @@ const configurationFailure = computed(() => configurationError.value
   || voiceCatalogStatus.value[selection.value.provider]?.error
   || '')
 const configurationState = computed(() => {
+  // A failed edit must remain visible even when the previous committed choice is usable.
+  if (configurationError.value)
+    return 'error'
   const committed = getSpeechSelectionState(selection.value)
   if (committed === 'muted')
     return 'muted'

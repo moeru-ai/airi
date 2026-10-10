@@ -32,8 +32,18 @@ function mountRenderer(namespace: string, page?: Component, leadership: 'leader-
   const pinia = createPinia()
   const runtime = createSyncedPiniaPlugin({ namespace, leadership })
   pinia.use(runtime.plugin)
+  const mountedConfiguration = Promise.withResolvers<void>()
   const container = document.createElement('div')
   document.body.append(container)
+  // Await the page's first configuration cycle before injecting another transition.
+  const observer = new MutationObserver((records) => {
+    if (records.some(record => record.attributeName === 'aria-busy' && record.oldValue === 'true')
+      && container.querySelector('[role="status"]')?.getAttribute('aria-busy') === 'false') {
+      observer.disconnect()
+      mountedConfiguration.resolve()
+    }
+  })
+  observer.observe(container, { attributes: true, attributeOldValue: true, attributeFilter: ['aria-busy'], subtree: true })
   const app = createApp({
     setup() {
       useSpeechStore()
@@ -57,13 +67,14 @@ function mountRenderer(namespace: string, page?: Component, leadership: 'leader-
     if (disposed)
       return
     disposed = true
+    observer.disconnect()
     app.unmount()
     disposePinia(pinia)
     runtime.dispose()
     container.remove()
   }
   cleanups.push(dispose)
-  return { dispose, app, pinia, runtime, container, speech: useSpeechStore(pinia) }
+  return { configured: mountedConfiguration.promise, dispose, app, pinia, runtime, container, speech: useSpeechStore(pinia) }
 }
 
 /** Provides the external session needed by official speech discovery. */
@@ -500,6 +511,8 @@ it('issue #2861: model options use the committed provider during runtime diverge
   await cards.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: 'saved' })
   const follower = mountRenderer(namespace, SpeechSettings)
   await expect.poll(() => follower.container.querySelector('input[value="eleven_multilingual_v2"]')).not.toBeNull()
+  await follower.configured
+  await Promise.all(initializations)
   await leader.speech.selectProviderModel('speech-noop', '', '')
   await expect.poll(() => follower.speech.activeSpeechProvider).toBe('speech-noop')
   expect(useAiriCardStore(follower.pinia).getModules('default').speech.provider).toBe('elevenlabs')
