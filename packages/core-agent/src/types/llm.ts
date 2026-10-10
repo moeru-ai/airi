@@ -110,4 +110,8 @@ export interface StreamFromOptions {
   conversation: Conversation
   options?: StreamOptions
   builtinToolsResolver?: BuiltinToolsResolver
+  /** Known tool names from earlier attempts of this generation, even after tools are disabled. */
+  toolCallGuardNames?: Set<string>
+  /** Reports native tool activity before queued output, so retry owners can prevent duplicate side effects. */
+  onNativeToolCall?: () => void
 }

@@ -1,17 +1,18 @@
 import type { Conversation, StreamOptions } from '@proj-airi/core-agent'
-import type { GenerationProvider } from '@proj-airi/provider-inference'
+import type { GenerationProvider, GenerationRequest } from '@proj-airi/provider-inference'
+import type { Tool } from '@xsai/shared-chat'
 
 import type { DescribeToolImage } from './tool-images'
 
-import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
+import { streamFrom as coreStreamFrom, isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError, modelKey } from '@proj-airi/core-agent'
 import { listModels } from '@xsai/model'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
-import { resolveLlmTools } from './tool-resolver'
+import { resolveLlmTools, toolNameFrom } from './tool-resolver'
 
 export type { StreamEvent, StreamOptions } from '@proj-airi/core-agent'
-export { isContentArrayRelatedError, isToolRelatedError } from '@proj-airi/core-agent'
+export { isContentArrayRelatedError, isPlainTextToolCallError, isToolRelatedError } from '@proj-airi/core-agent'
 
 /** Core stream options plus the stage-ui reader of images in tool results. */
 export interface LlmStreamOptions extends StreamOptions {
@@ -19,15 +20,66 @@ export interface LlmStreamOptions extends StreamOptions {
   describeToolImage?: DescribeToolImage
 }
 
+function toolChoiceRequiresTools(choice: StreamOptions['toolChoice']): boolean {
+  if (choice === 'required')
+    return true
+  if (typeof choice !== 'object' || choice === null)
+    return false
+  return choice.type === 'function' || (choice.type === 'allowed_tools' && choice.mode === 'required')
+}
+
 export const useLLM = defineStore('llm', () => {
   const toolsCompatibility = ref<Map<string, boolean>>(new Map())
   const contentArrayCompatibility = ref<Map<string, boolean>>(new Map())
 
   async function stream(model: string, chatProvider: GenerationProvider, context: Conversation, options?: LlmStreamOptions) {
-    const key = modelKey(model, chatProvider.generation(model))
-    let toolExecutionStarted = false
     const { tools: customTools, describeToolImage, ...streamOptions } = options ?? {}
-    const builtinToolsResolver = () => resolveLlmTools({ customTools, describeImage: describeToolImage })
+    const initialRequest = chatProvider.generation(model)
+    let key = modelKey(model, initialRequest)
+    let toolsDisabled = false
+    let arraysDisabled = false
+    let hasCommittedAttemptOutput = false
+    const toolCallGuardNames = new Set<string>()
+    const rememberTools = (tools?: Tool[]) => {
+      for (const tool of tools ?? []) {
+        const name = toolNameFrom(tool)
+        if (name)
+          toolCallGuardNames.add(name)
+      }
+    }
+    const builtinToolsResolver = async () => {
+      const tools = await resolveLlmTools({ customTools, describeImage: describeToolImage })
+      rememberTools(tools)
+      return tools
+    }
+
+    // The cache follows the actual request selection. Retry flags only remove capabilities for this generation.
+    const requestToolsSupported = (model: string, request: GenerationRequest) => {
+      if (toolsDisabled || streamOptions.supportsTools === false)
+        return false
+      return toolChoiceRequiresTools(streamOptions.toolChoice)
+        || (streamOptions.supportsTools ?? (toolsCompatibility.value.get(modelKey(model, request)) !== false))
+    }
+    const requestArraysSupported = (model: string, request: GenerationRequest) => !arraysDisabled
+      && (streamOptions.supportsContentArray ?? (contentArrayCompatibility.value.get(modelKey(model, request)) !== false))
+    let supportsTools = requestToolsSupported(model, initialRequest)
+    let supportsContentArray = requestArraysSupported(model, initialRequest)
+
+    // A cached downgrade still needs current tool names. An explicit tool-free request never resolves builtin tools.
+    if (!supportsTools && streamOptions.supportsTools !== false && !streamOptions.resolveStep)
+      await builtinToolsResolver()
+    const resolveStep = streamOptions.resolveStep
+      ? async () => {
+        const next = await streamOptions.resolveStep!()
+        const request = next.chatProvider.generation(next.model)
+        key = modelKey(next.model, request)
+        supportsTools = requestToolsSupported(next.model, request)
+        supportsContentArray = requestArraysSupported(next.model, request)
+        if (streamOptions.supportsTools !== false)
+          rememberTools(next.tools)
+        return next
+      }
+      : undefined
 
     const runStream = () => coreStreamFrom({
       model,
@@ -35,41 +87,64 @@ export const useLLM = defineStore('llm', () => {
       conversation: context,
       options: {
         ...streamOptions,
+        resolveStep,
+        supportsTools: toolsDisabled ? false : streamOptions.supportsTools,
+        supportsContentArray: arraysDisabled ? false : streamOptions.supportsContentArray,
         onStreamEvent: async (event) => {
-          if (event.type === 'tool-call')
-            toolExecutionStarted = true
+          if (event.type !== 'error')
+            hasCommittedAttemptOutput = true
           await streamOptions.onStreamEvent?.(event)
+        },
+        onGeneratedTurn: async (turn) => {
+          hasCommittedAttemptOutput = true
+          await streamOptions.onGeneratedTurn?.(turn)
         },
         toolsCompatibility: toolsCompatibility.value,
         contentArrayCompatibility: contentArrayCompatibility.value,
       },
       builtinToolsResolver,
+      toolCallGuardNames,
+      onNativeToolCall: () => { hasCommittedAttemptOutput = true },
     })
 
-    try {
-      await runStream()
-    }
-    catch (err) {
-      if (isToolRelatedError(err)) {
-        console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error`)
-        toolsCompatibility.value.set(key, false)
-      }
-      // NOTICE:
-      // Auto-degrade content-part arrays to plain strings on the next attempt
-      // when the provider returned the Rust/serde-style "expected a string"
-      // 400. We retry once inline so the user's failing turn recovers without
-      // requiring them to resend; subsequent calls reuse the cached degrade.
-      // See: https://github.com/moeru-ai/airi/issues/1500
-      if (isContentArrayRelatedError(err) && contentArrayCompatibility.value.get(key) !== false) {
-        console.warn(`[llm] Auto-disabling content-part arrays for "${key}" and retrying once`)
-        contentArrayCompatibility.value.set(key, false)
-        // A completed tool can have external effects. A full retry must not repeat it.
-        if (toolExecutionStarted)
-          throw err
+    // Each retry removes one capability. The generation makes at most three attempts.
+    while (true) {
+      try {
         await runStream()
         return
       }
-      throw err
+      catch (err) {
+        const retryWithoutTools = isPlainTextToolCallError(err)
+          && supportsTools
+          && !hasCommittedAttemptOutput
+          && !toolChoiceRequiresTools(streamOptions.toolChoice)
+        if (isToolRelatedError(err)) {
+          const retryMessage = retryWithoutTools ? ' and retrying once' : ''
+          console.warn(`[llm] Auto-disabling tools for "${key}" due to tool-related error${retryMessage}`)
+          toolsCompatibility.value.set(key, false)
+        }
+        const retryWithoutArrays = isContentArrayRelatedError(err)
+          && supportsContentArray
+          && streamOptions.supportsContentArray !== true
+          && !hasCommittedAttemptOutput
+        if (isContentArrayRelatedError(err)) {
+          const retryMessage = retryWithoutArrays ? ' and retrying once' : ''
+          console.warn(`[llm] Auto-disabling content-part arrays for "${key}"${retryMessage}`)
+          contentArrayCompatibility.value.set(key, false)
+        }
+        if (retryWithoutTools) {
+          toolsDisabled = true
+          supportsTools = false
+          continue
+        }
+        // Issue #1500: Keep the same classifier for both fallback orders.
+        if (retryWithoutArrays) {
+          arraysDisabled = true
+          supportsContentArray = false
+          continue
+        }
+        throw err
+      }
     }
   }
 
