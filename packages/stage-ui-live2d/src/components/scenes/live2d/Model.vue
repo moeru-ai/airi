@@ -273,6 +273,13 @@ const disposeShouldUpdateView = live2dStore.onShouldUpdateView(() => {
   loadModel()
 })
 
+// The textures sit in the global Pixi texture cache under the model's blob URLs.
+// Each cached texture holds a listener into the renderer that uploaded it, so a
+// texture left there keeps that renderer's WebGL context and GPU memory alive.
+function destroyModel(target: Live2DModel) {
+  target.destroy({ texture: true, baseTexture: true })
+}
+
 async function loadModel() {
   await until(modelLoading).not.toBeTruthy()
 
@@ -311,7 +318,7 @@ async function performModelLoad() {
 
     try {
       pixiApp.value.stage.removeChild(model.value)
-      model.value.destroy()
+      destroyModel(model.value)
     }
     catch (error) {
       console.warn('Error removing old model:', error)
@@ -341,7 +348,7 @@ async function performModelLoad() {
     await Live2DFactory.setupLive2DModel(live2DModel, { url: pendingModel.src, id: pendingModel.id }, { autoInteract: false })
     // The unmount hook ran while the model was loading, so it had no model to destroy.
     if (isUnmounted) {
-      live2DModel.destroy()
+      destroyModel(live2DModel)
       return
     }
 
@@ -930,7 +937,7 @@ onUnmounted(() => {
   // before the canvas, so the stage still exists here.
   if (model.value) {
     pixiApp.value?.stage?.removeChild(model.value)
-    model.value.destroy()
+    destroyModel(model.value)
     model.value = undefined
   }
 })
