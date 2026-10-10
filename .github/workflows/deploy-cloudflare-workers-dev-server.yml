@@ -58,6 +58,7 @@ jobs:
           S3_REGION: ${{ secrets.S3_REGION }}
           WARP_DRIVE_PUBLIC_BASE: ${{ secrets.WARP_DRIVE_PUBLIC_BASE }}
           VITE_SERVER_URL: 'https://api-dev.airi.build'
+          VITE_REVENUECAT_WEB_KEY: ${{ vars.VITE_REVENUECAT_WEB_KEY }}
 
       - name: Wrangler Upload
         id: wrangler-versions-upload

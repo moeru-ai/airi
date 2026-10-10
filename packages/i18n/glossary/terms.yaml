@@ -146,6 +146,16 @@
       part-of-speech: proper noun
       status: preferred
       context: Payment successful! Your Flux has been topped up.
+- id: capacitor
+  subject: payment
+  translatable: false
+  definition: The store of Flux that a subscription gives and recharges each billing period.
+  note: Do not call it a plan or credits. The Flux inside it is the same Flux that a user buys.
+  terms:
+    - text: Capacitor
+      part-of-speech: proper noun
+      status: preferred
+      context: Use Flux when the Capacitor is empty.
 
 # ---------------------------------------------------------------------------------------
 # Rendering

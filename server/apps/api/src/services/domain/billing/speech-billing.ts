@@ -6,7 +6,7 @@ import { parse } from 'valibot'
 
 import { createPaymentRequiredError } from '../../../utils/error'
 import { priceSpeechUsage, speechPricingSchema } from './billing'
-import { availableMicroFlux, microFluxToFlux } from './flux-posting'
+import { availableMicroFlux, microFluxToFlux, spendableFlux } from './flux-posting'
 
 /** Speech fees follow the character price and post to the same wallet pool as every other metered service. */
 export class SpeechBilling {
@@ -24,7 +24,7 @@ export class SpeechBilling {
   async assertCanAfford(userId: string, units: number): Promise<void> {
     const cost = priceSpeechUsage(units, await this.pricing())
     const wallet = await this.billing.getWallet(userId)
-    if (wallet.flux <= 0 || availableMicroFlux(wallet) < BigInt(cost)) {
+    if (spendableFlux(wallet) <= 0 || availableMicroFlux(wallet) < BigInt(cost)) {
       this.metrics?.ttsPreflightRejections.add(1, { meter: 'tts', reason: 'insufficient_balance' })
       throw createPaymentRequiredError('Insufficient flux')
     }

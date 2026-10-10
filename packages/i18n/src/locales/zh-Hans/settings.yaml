@@ -260,6 +260,8 @@ pages:
     logout: 登出
     fluxBalance: 剩余通量
     viewFluxDetails: 查看详情
+    capacitorEntry: Capacitor
+    viewCapacitor: 查看
     signedInAs: 登录 为
     profile:
       tab: 个人资料
@@ -1165,6 +1167,31 @@ pages:
       title: Flux 电池包
       buy: 充值
       description: 可以选择购入的 Flux 电池包
+  capacitor:
+    title: Capacitor
+    description: Capacitor 装着 Flux，会自动充满。
+    statusError: 暂时无法获取 Capacitor 的状态，可以之后再试试吗？
+    packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
+    preferenceError: 偏好保存失败，请稍后再试。
+    noCapacitor: 尚未装配 Capacitor
+    available: 可选的 Capacitor
+    remaining: 剩余 {percent}
+    rechargesAt: '{date} 充满'
+    renewsAt: '{date} 续订'
+    expiresAt: '{date} 到期'
+    perMonth: / 月
+    currentPackage: 当前
+    install: 装配
+    upgrade: 升级
+    downgrade: 降级
+    manageSubscription: 管理订阅
+    fallbackToFlux: Capacitor 放空后使用 Flux
+    fallbackToFluxHint: 关闭后，Capacitor 放空即停止。
+    checkout:
+      success: Capacitor 已装配并充满。
+      pending: 已收到付款，Capacitor 稍后充满。
+      canceled: 购买被取消
+      error: 哎呀，出错了，请稍后再试
   providers:
     catalog:
       edit:

@@ -44,8 +44,8 @@ function createMockFluxService(flux = 100): FluxService {
 
 type BillingService = WalletBillingService & LlmBillingService
 
-function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], _config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[2]): BillingService {
-  const billing = createBillingService(db, redis, metrics)
+function createTestBillingService(db: Parameters<typeof createBillingService>[0], redis: Parameters<typeof createBillingService>[1], config: ConfigKVService, metrics?: Parameters<typeof createBillingService>[3]): BillingService {
+  const billing = createBillingService(db, redis, config, metrics)
   return { ...billing, ...createLlmBillingService(billing, metrics) }
 }
 
@@ -2919,7 +2919,7 @@ describe('issue #2479 hosted Responses', () => {
     const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now)
     vi.mocked(flux.getFlux).mockImplementation(async () => {
       now = 1000
-      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0 }
+      return { userId: 'user-1', flux: 100, unsettledMicroFlux: 0, fallbackToFlux: false, capacitorPercent: null, capacitorRechargesAt: null }
     })
     vi.mocked(catalog.resolveEnabledAlias).mockImplementation(async () => {
       now = 2000
@@ -3581,8 +3581,8 @@ it('keeps partial Responses content on unexpected EOF', async () => {
 // https://github.com/moeru-ai/airi/pull/2644#discussion_r4122406969
 // ROOT CAUSE:
 // Sequential candidate validation allowed primary dispatch before fallback pricing validation.
-// Validate the complete alias plan before the first route call.
-it.each(['chat/completions', 'responses'])('validates the full alias plan before dispatch for %s (PR #2644)', async (protocol) => {
+// Validate the complete alias capacitor before the first route call.
+it.each(['chat/completions', 'responses'])('validates the full alias capacitor before dispatch for %s (PR #2644)', async (protocol) => {
   const catalog = createMockProviderCatalogService()
   const alias = await catalog.resolveEnabledAlias('llm', 'auto')
   vi.mocked(catalog.resolveEnabledAlias).mockResolvedValue({ ...alias, fallbackEnabled: true, routes: [

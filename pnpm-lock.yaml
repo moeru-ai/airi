@@ -423,6 +423,9 @@ catalogs:
     '@radix-ui/colors':
       specifier: ^3.0.0
       version: 3.0.0
+    '@revenuecat/purchases-js':
+      specifier: ^1.15.0
+      version: 1.68.0
     '@rive-app/canvas-lite':
       specifier: ^2.40.1
       version: 2.40.1
@@ -5093,6 +5096,9 @@ importers:
       '@proj-airi/vite-plugin-sherpaw':
         specifier: workspace:^
         version: link:../vite-plugin-sherpaw
+      '@revenuecat/purchases-js':
+        specifier: 'catalog:'
+        version: 1.68.0
       '@sherpaw/xsai-transcription':
         specifier: 'catalog:'
         version: 0.2.1(electron@43.4.1(supports-color@10.2.2))(onnxruntime-web@1.27.0)(web-worker@1.5.0)
@@ -11436,6 +11442,9 @@ packages:
 
   '@radix-ui/colors@3.0.0':
     resolution: {integrity: sha512-FUOsGBkHrYJwCSEtWRCIfQbZG7q1e6DgxCIOe1SUQzDe/7rXXeA47s8yCn6fuTNQAj1Zq4oTFi9Yjp3wzElcxg==}
+
+  '@revenuecat/purchases-js@1.68.0':
+    resolution: {integrity: sha512-1z8S2PWp2EJNljxZbrxY7hU+JrAgEl1kYKZ/xF82t6LVuLQFJrlTSihjC44Zp16i5A6LR4SB8FLANN2UIh9Fvg==}
 
   '@rive-app/canvas-lite@2.40.1':
     resolution: {integrity: sha512-gnlvjeI344tC9vBqYW8lV9o9g8FJPtaTq6UjmFmn4q9wLXloN/u3XqdXHsdU/5uBgCd8G6fFFQh7TqtnwzRSfA==}
@@ -26014,6 +26023,8 @@ snapshots:
       quansync: 1.0.0
 
   '@radix-ui/colors@3.0.0': {}
+
+  '@revenuecat/purchases-js@1.68.0': {}
 
   '@rive-app/canvas-lite@2.40.1': {}
 

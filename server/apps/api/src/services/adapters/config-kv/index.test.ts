@@ -38,6 +38,16 @@ describe('configKVService', () => {
     }
   })
 
+  it('accepts a whole Capacitor quota and rejects a fraction or an unsafe integer', async () => {
+    store._store.set('REVENUECAT_CAPACITORS', JSON.stringify({ rc_go_monthly: { entitlementId: 'airi_go', quota: 100 } }))
+    expect(await service.getOptional('REVENUECAT_CAPACITORS')).toEqual({ rc_go_monthly: { entitlementId: 'airi_go', quota: 100 } })
+
+    for (const quota of [1.5, 1e20]) {
+      store._store.set('REVENUECAT_CAPACITORS', JSON.stringify({ rc_go_monthly: { entitlementId: 'airi_go', quota } }))
+      await expect(service.refresh('REVENUECAT_CAPACITORS')).rejects.toMatchObject({ errorCode: 'CONFIG_INVALID' })
+    }
+  })
+
   it('get should throw 503 when key is not set', async () => {
     await expect(service.getOrThrow('FLUX_PER_1K_CHARS_TTS'))
       .rejects

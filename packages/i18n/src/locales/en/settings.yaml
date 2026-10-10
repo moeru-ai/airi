@@ -285,6 +285,8 @@ pages:
     logout: Sign out
     fluxBalance: Flux Balance
     viewFluxDetails: View details
+    capacitorEntry: Capacitor
+    viewCapacitor: View
     signedInAs: Signed in as
     profile:
       tab: Profile
@@ -1225,6 +1227,31 @@ pages:
       title: Flux Packages
       buy: Charge
       description: Flux packages to choose from.
+  capacitor:
+    title: Capacitor
+    description: A Capacitor holds Flux and recharges by itself.
+    statusError: Failed to load your Capacitor. Please try again later.
+    packagesError: Failed to load Capacitors. Please try again later.
+    preferenceError: Failed to save preference. Please try again later.
+    noCapacitor: No Capacitor
+    available: Capacitors
+    remaining: '{percent} left'
+    rechargesAt: Recharges {date}
+    renewsAt: Renews {date}
+    expiresAt: Expires {date}
+    perMonth: / month
+    currentPackage: Current
+    install: Install
+    upgrade: Upgrade
+    downgrade: Downgrade
+    manageSubscription: Manage subscription
+    fallbackToFlux: Use Flux when the Capacitor is empty
+    fallbackToFluxHint: When off, usage stops when the Capacitor is empty.
+    checkout:
+      success: Your Capacitor is installed and charged.
+      pending: Payment received. Your Capacitor charges shortly.
+      canceled: Purchase was canceled.
+      error: Something went wrong. Please try again later.
   providers:
     catalog:
       edit:

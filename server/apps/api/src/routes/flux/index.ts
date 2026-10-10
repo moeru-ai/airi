@@ -1,16 +1,21 @@
+import type { BillingService } from '../../services/domain/billing/billing-service'
 import type { FluxService } from '../../services/domain/flux'
 import type { FluxTransactionService } from '../../services/domain/flux-transaction'
 import type { HonoEnv } from '../../types/hono'
 
 import { Hono } from 'hono'
-import { parse } from 'valibot'
+import { boolean, object, parse, safeParse } from 'valibot'
 
 import { authGuard } from '../../middlewares/auth'
+import { createBadRequestError } from '../../utils/error'
 import { LimitOffsetPaginationQuerySchema } from '../../utils/http-query'
+
+const FallbackBodySchema = object({ fallbackToFlux: boolean() })
 
 export function createFluxRoutes(
   fluxService: FluxService,
   fluxTransactionService: FluxTransactionService,
+  billingService: Pick<BillingService, 'setFallbackToFlux'>,
 ) {
   return new Hono<HonoEnv>()
     .use('*', authGuard)
@@ -18,6 +23,16 @@ export function createFluxRoutes(
       const user = c.get('user')!
       const flux = await fluxService.getFlux(user.id)
       return c.json(flux)
+    })
+    .put('/fallback', async (c) => {
+      const user = c.get('user')!
+      const body = safeParse(FallbackBodySchema, await c.req.json().catch(() => null))
+      if (!body.success)
+        throw createBadRequestError('Invalid fallback body', 'INVALID_REQUEST', body.issues)
+      // Reading first creates the wallet row of a user who has none.
+      await fluxService.getFlux(user.id)
+      await billingService.setFallbackToFlux(user.id, body.output.fallbackToFlux)
+      return c.json({ fallbackToFlux: body.output.fallbackToFlux })
     })
     .get('/usage', async (c) => {
       const user = c.get('user')!

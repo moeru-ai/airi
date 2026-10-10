@@ -60,7 +60,8 @@ export function createFluxTransactionService(db: Database) {
         END`.as('group_key'),
       })
         .from(schema.fluxTransaction)
-        .where(eq(schema.fluxTransaction.userId, userId))
+        // The history lists purchased Flux. Capacitor grants and capacitor debits stay out of it.
+        .where(and(eq(schema.fluxTransaction.userId, userId), eq(schema.fluxTransaction.pool, 'wallet')))
         .as('history_transactions')
       const history = db.select({
         id: transactions.id,
@@ -91,8 +92,8 @@ export function createFluxTransactionService(db: Database) {
     },
 
     async getStats(userId: string) {
-      // Get the balance right after the most recent credit/initial/promo transaction
-      // as the "capacity" for the progress bar. 'promo' (admin grant) bumps capacity
+      // Get the purchased-Flux balance right after the most recent credit/initial/promo transaction
+      // as the "capacity" for the progress bar. Capacitor grants live in the capacitor pool and are skipped. 'promo' (admin grant) bumps capacity
       // so the user's progress bar reflects the new total they have to spend.
       const [latestCredit] = await db.select({
         balanceAfter: schema.fluxTransaction.balanceAfter,
@@ -101,6 +102,7 @@ export function createFluxTransactionService(db: Database) {
         .where(
           and(
             eq(schema.fluxTransaction.userId, userId),
+            eq(schema.fluxTransaction.pool, 'wallet'),
             inArray(schema.fluxTransaction.type, ['credit', 'initial', 'promo']),
           ),
         )
