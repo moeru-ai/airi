@@ -390,48 +390,6 @@ describe('home assistant tools', () => {
     })).rejects.toThrow('The "light" domain accepts: toggle, turn_off, turn_on.')
   })
 
-  it('refuses a target that stands for several devices', async () => {
-    // Measured: light.turn_on on a group changed both of its members, so a
-    // check on the group alone would have reached a device nobody named.
-    const callService = vi.fn(async () => [])
-    const client = createClient({
-      callService,
-      getState: vi.fn(async () => ({
-        entityId: 'group.all_lights',
-        state: 'on',
-        attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] },
-      })),
-    })
-    const mounted = await tools(client, { exposure: deny() })
-
-    await expect(execute(mounted.get('home_assistant_call_service'), {
-      domain: 'light',
-      service: 'turn_on',
-      entity_id: 'group.all_lights',
-    })).rejects.toThrow('is a group of other devices')
-    expect(callService).not.toHaveBeenCalled()
-  })
-
-  it('refuses a call whose target Home Assistant cannot report', async () => {
-    // Nothing can be checked without the target, so the call fails rather than
-    // skipping the group test.
-    const callService = vi.fn(async () => [])
-    const client = createClient({
-      callService,
-      getState: vi.fn(async () => {
-        throw new Error('Home Assistant answered 404 Not Found.')
-      }),
-    })
-    const mounted = await tools(client)
-
-    await expect(execute(mounted.get('home_assistant_call_service'), {
-      domain: 'light',
-      service: 'turn_on',
-      entity_id: 'light.kitchen',
-    })).rejects.toThrow('404')
-    expect(callService).not.toHaveBeenCalled()
-  })
-
   it('accepts the service of the device domain and the generic actuator', async () => {
     const callService = vi.fn(async () => [])
     const mounted = await tools(createClient({ callService }))
@@ -472,55 +430,5 @@ describe('home assistant tools', () => {
       .rejects
       .toThrow('The user blocks this device')
     expect(callService).toHaveBeenCalledTimes(1)
-  })
-
-  it('allows a scene, which carries a member list on purpose', async () => {
-    // A scene reports its members the way a group does. A scene is one device
-    // the user allows, and its effect is what the user allowed with it.
-    const callService = vi.fn(async () => [])
-    const client = createClient({
-      callService,
-      getState: vi.fn(async () => ({
-        entityId: 'scene.movie_night',
-        state: 'unknown',
-        attributes: { entity_id: ['light.bed_light', 'light.kitchen_lights'] },
-      })),
-    })
-    const mounted = await tools(client)
-
-    await execute(mounted.get('home_assistant_call_service'), {
-      domain: 'scene',
-      service: 'turn_on',
-      entity_id: 'scene.movie_night',
-    })
-
-    expect(callService).toHaveBeenCalledWith({
-      domain: 'scene',
-      service: 'turn_on',
-      entityId: 'scene.movie_night',
-      data: undefined,
-    })
-  })
-
-  it('checks the policy again after the target read', async () => {
-    // The read of the target takes a round trip. A user who blocks the device
-    // during it must not lose the block.
-    let policy: HomeAssistantExposure = { mode: 'all' }
-    const callService = vi.fn(async () => [])
-    const client = createClient({
-      callService,
-      getState: vi.fn(async () => {
-        policy = { mode: 'deny', entityIds: ['light.kitchen'] }
-        return { entityId: 'light.kitchen', state: 'on', attributes: {} }
-      }),
-    })
-    const mounted = await tools(client, { exposure: () => policy })
-
-    await expect(execute(mounted.get('home_assistant_call_service'), {
-      domain: 'light',
-      service: 'turn_on',
-      entity_id: 'light.kitchen',
-    })).rejects.toThrow('The user blocks this device')
-    expect(callService).not.toHaveBeenCalled()
   })
 })

@@ -169,7 +169,21 @@ describe('parseStateMoment', () => {
   it('rejects a value that is not a date', () => {
     expect(parseStateMoment('21.5')).toBeUndefined()
     expect(parseStateMoment('locked')).toBeUndefined()
-    expect(parseStateMoment('2026-13-45')).toBeDefined()
     expect(parseStateMoment('10-10-2026')).toBeUndefined()
+  })
+
+  it('rejects a day the month does not hold', () => {
+    // `Date` normalizes an overflow, so `2026-02-31` would show as March 3.
+    expect(parseStateMoment('2026-02-31')).toBeUndefined()
+    expect(parseStateMoment('2026-02-31T10:00:00')).toBeUndefined()
+    expect(parseStateMoment('2026-13-01')).toBeUndefined()
+    expect(parseStateMoment('2026-00-10')).toBeUndefined()
+    expect(parseStateMoment('2026-04-31')).toBeUndefined()
+  })
+
+  it('accepts the last day of a month, including a leap day', () => {
+    expect(parseStateMoment('2026-02-28')?.at.getDate()).toBe(28)
+    expect(parseStateMoment('2024-02-29')?.at.getDate()).toBe(29)
+    expect(parseStateMoment('2026-01-31')?.at.getDate()).toBe(31)
   })
 })

@@ -148,6 +148,16 @@ function recordCredentials(saved: { baseUrl: string, hasToken: boolean }) {
 /** The number of the load in flight, so an earlier one cannot write over a later one. */
 let loadGeneration = 0
 
+/**
+ * Stops a load that is already in flight from writing.
+ *
+ * The settings page calls this the moment the address moves, so a row set from
+ * the old instance can neither repopulate the grid nor report its error.
+ */
+function invalidateLoads() {
+  loadGeneration += 1
+}
+
 /** Reads the device list. The policy does not apply, so a blocked device is still offered. */
 async function loadEntities() {
   const generation = ++loadGeneration
@@ -192,6 +202,7 @@ onMounted(async () => {
  */
 async function save() {
   const previousBaseUrl = storedBaseUrl.value
+  const submittedToken = Boolean(token.value)
   const saved = await setConfig({
     baseUrl: baseUrl.value,
     ...(token.value ? { token: token.value } : {}),
@@ -202,9 +213,14 @@ async function save() {
   const movedAddress = Boolean(previousBaseUrl) && saved.baseUrl !== previousBaseUrl
   if (movedAddress) {
     settings.clearSelection()
-    // The rows describe the old instance, so they go with the lists.
+    // The rows describe the old instance, so they go with the lists, and a load
+    // that is still in flight loses its right to write them back.
+    invalidateLoads()
     entities.value = []
   }
+  // Another token can reach another set of devices, so the grid is stale even
+  // when the address stays.
+  const replacedToken = submittedToken && !movedAddress
 
   baseUrl.value = saved.baseUrl
   storedBaseUrl.value = saved.baseUrl
@@ -216,15 +232,15 @@ async function save() {
   // leader mounts or unmounts them without a reload.
   await toolsStore.refresh()
 
-  return { movedAddress, saved }
+  return { movedAddress, replacedToken, saved }
 }
 
 async function onSave() {
   busy.value = true
   try {
-    const { movedAddress } = await save()
-    // The grid belongs to the instance the address now points at.
-    if (movedAddress)
+    const { movedAddress, replacedToken } = await save()
+    // The grid belongs to the instance and the credential the form now holds.
+    if (movedAddress || replacedToken)
       await loadEntities()
     status.value = { suffix: movedAddress ? 'status.saved-cleared' : 'status.saved' }
   }

@@ -218,6 +218,19 @@ const dateStatePattern = /^(\d{4})-(\d{2})-(\d{2})$/
 const dateTimeStatePattern = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?$/
 
 /**
+ * Reports whether a day exists in its month.
+ *
+ * `Date` normalizes an overflow rather than refusing it, so `2026-02-31` would
+ * become March 3 in the tile. The state has to stay as Home Assistant wrote it.
+ */
+function isRealDay(year: number, month: number, day: number): boolean {
+  if (month < 1 || month > 12 || day < 1)
+    return false
+
+  return day <= new Date(year, month, 0).getDate()
+}
+
+/**
  * Reads a state that is a date or a timestamp.
  *
  * Home Assistant reports these as ISO 8601 text, which reads as machine output
@@ -225,9 +238,18 @@ const dateTimeStatePattern = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\
  * UTC cannot shift it to the day before.
  */
 export function parseStateMoment(state: string): HomeAssistantStateMoment | undefined {
-  const date = dateStatePattern.exec(state)
-  if (date)
-    return { kind: 'date', at: new Date(Number(date[1]), Number(date[2]) - 1, Number(date[3])) }
+  const date = dateStatePattern.exec(state.slice(0, 10))
+  if (!date)
+    return undefined
+
+  const year = Number(date[1])
+  const month = Number(date[2])
+  const day = Number(date[3])
+  if (!isRealDay(year, month, day))
+    return undefined
+
+  if (state.length === 10)
+    return { kind: 'date', at: new Date(year, month - 1, day) }
 
   if (!dateTimeStatePattern.test(state))
     return undefined

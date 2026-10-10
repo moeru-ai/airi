@@ -6,7 +6,7 @@ import { object, string } from 'valibot'
 
 import { homeAssistantGetConfig, homeAssistantRequest, homeAssistantSetConfig } from '../../../../shared/eventa/home-assistant'
 import { createConfig } from '../../../libs/electron/persistence'
-import { normalizeBaseUrl, readBody, requestTimeoutMs, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
+import { assertSingleTarget, isServiceCall, normalizeBaseUrl, readBody, readServiceTarget, requestTimeoutMs, resolveRequestUrl, toRequestError, toTokenPreview } from './request'
 
 const configSchema = object({
   baseUrl: string(),
@@ -76,28 +76,43 @@ export function setupHomeAssistant(context: ReturnType<typeof createContext>['co
     if (input.method !== 'GET' && input.method !== 'POST')
       throw new Error(`Home Assistant requests support GET and POST, received "${input.method}".`)
 
-    const target = resolveRequestUrl(current.baseUrl, input.path)
-    const hasBody = input.method === 'POST' && input.body !== undefined
+    // Every request this call makes reads the configuration once, here. An
+    // address change during the call therefore cannot put a check and the
+    // request it guards on different instances.
+    async function send(path: string, method: 'GET' | 'POST', body?: unknown) {
+      const target = resolveRequestUrl(current.baseUrl, path)
+      const hasBody = method === 'POST' && body !== undefined
 
-    let response: Response
-    try {
-      response = await fetch(target, {
-        method: input.method,
-        headers: {
-          Authorization: `Bearer ${current.token}`,
-          ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
-        },
-        body: hasBody ? JSON.stringify(input.body) : undefined,
-        signal: AbortSignal.timeout(requestTimeoutMs),
-      })
+      let response: Response
+      try {
+        response = await fetch(target, {
+          method,
+          headers: {
+            Authorization: `Bearer ${current.token}`,
+            ...(hasBody ? { 'Content-Type': 'application/json' } : {}),
+          },
+          body: hasBody ? JSON.stringify(body) : undefined,
+          signal: AbortSignal.timeout(requestTimeoutMs),
+        })
+      }
+      catch (error) {
+        throw new Error(`Could not reach Home Assistant at ${current.baseUrl}: ${errorMessageFrom(error) ?? 'unknown network error'}`)
+      }
+
+      if (!response.ok)
+        throw await toRequestError(response)
+
+      return await readBody(response)
     }
-    catch (error) {
-      throw new Error(`Could not reach Home Assistant at ${current.baseUrl}: ${errorMessageFrom(error) ?? 'unknown network error'}`)
+
+    // A service call names one device, and a service on a group reaches every
+    // member. Read the target here, first, so the guard sees the same instance
+    // the call reaches and the caller cannot skip it.
+    if (isServiceCall(input.method, input.path)) {
+      const entityId = readServiceTarget(input.body)
+      assertSingleTarget(entityId, await send(`/api/states/${encodeURIComponent(entityId)}`, 'GET'))
     }
 
-    if (!response.ok)
-      throw await toRequestError(response)
-
-    return await readBody(response)
+    return await send(input.path, input.method, input.body)
   })
 }

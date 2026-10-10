@@ -1,5 +1,3 @@
-import { domainOf } from './client'
-
 /**
  * The services a caller may ask Home Assistant to run.
  *
@@ -51,9 +49,6 @@ const allowedServices: Record<string, string[]> = {
   water_heater: ['set_operation_mode', 'set_temperature', 'turn_off', 'turn_on'],
 }
 
-/** One attribute Home Assistant adds to an entity that stands for several others. */
-const memberAttribute = 'entity_id'
-
 /**
  * Rejects a service that is not one this integration runs.
  *
@@ -69,23 +64,4 @@ export function assertServiceAllowed(domain: string, service: string): void {
     const list = allowed.join(', ')
     throw new Error(`Home Assistant service "${domain}.${service}" is not one this integration runs. The "${domain}" domain accepts: ${list}.`)
   }
-}
-
-/**
- * Reports whether an entity stands for a group of other entities.
- *
- * A group carries the members in its own attributes. A service call on the
- * group reaches every member, so a caller that checked one device would change
- * devices it never saw.
- *
- * A scene carries the same attribute, and it is the exception. A scene is one
- * device the user allows or blocks, and its effect is what the user allowed with
- * it, so the members of a scene are not a reason to refuse it.
- */
-export function isGroupEntity(entityId: string, attributes: Record<string, unknown>): boolean {
-  if (domainOf(entityId) === 'scene')
-    return false
-
-  const members = attributes[memberAttribute]
-  return Array.isArray(members) && members.length > 0
 }
