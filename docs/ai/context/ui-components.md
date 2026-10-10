@@ -79,6 +79,14 @@ Responsive screen component that calculates canvas dimensions based on breakpoin
 
 **Props**: None | **Slots**: `default({ width, height })`
 
+### SettingsCard
+
+Card container for module settings pages. It owns the width, radius, padding,
+stack gap, and background for both themes. Use it for a new module settings page
+instead of repeating the card classes inline.
+
+**Props**: None | **Slots**: `default`
+
 ### ScrollableArea
 
 Reka UI scroll area with shared light-mode and dark-mode scrollbar styles.
@@ -127,6 +135,7 @@ starts only on the handle, so action buttons and scrolling do not dismiss it.
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `title` | `string` | required | Visible and accessible title |
+| `hideTitle` | `boolean` | `false` | Hides the heading visually and preserves the accessible dialog name |
 | `minimumHeight` | `'content' \| 'half'` | `'content'` | Uses content height or at least half of the viewport height |
 
 Dismiss with the handle, overlay, or Escape. There is no close button.
@@ -137,6 +146,7 @@ Dismiss with the handle, overlay, or Escape. There is no close button.
 
 **Emits**: `afterClose()` after the dismissal animation;
 `closeAutoFocus(event)` to prevent focus restoration when another modal opens.
+`openAutoFocus(event)` lets the consumer set the initial focus target.
 
 Use for mobile action menus and settings panels. Desktop dialogs and panels
 that need snap points use their own surface.
@@ -257,6 +267,25 @@ Catches synchronous render/setup errors in descendants via `onErrorCaptured` and
 **Slots**: `default`, `fallback({ error, info, retry })`
 **Emits**: `error(err, instance, info)`, `retry()`
 **Exposed**: `retry()`, `hasError()`
+
+### DropdownMenu
+
+Shared dropdown-menu surface built on Reka UI. It owns the root, trigger,
+portal, content surface, and `AnimatedContent` lifecycle. Callers own the menu
+items and their business actions.
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `align` | `DropdownMenuContentProps['align']?` | `'start'` | Preferred content alignment before collision handling |
+| `contentClass` | `string \| string[]?` | — | Additional classes for the content surface |
+| `disabled` | `boolean?` | `false` | Disables the trigger |
+| `modal` | `boolean?` | `true` | A non-modal menu leaves the rest of the page interactive while it is open |
+| `side` | `DropdownMenuContentProps['side']?` | `'bottom'` | Preferred content side before collision handling |
+| `sideOffset` | `number?` | `6` | Offset between the trigger and content |
+| `variant` | `'blurry' \| 'default'?` | `'default'` | Selects a translucent or opaque content surface |
+
+**Models**: `open` (`boolean`, default `false`). Bind it to open the menu from code, for example after a hover delay.
+**Slots**: `trigger` (one interactive element), `default` (Reka dropdown-menu items).
 
 ### DoubleCheckButton
 

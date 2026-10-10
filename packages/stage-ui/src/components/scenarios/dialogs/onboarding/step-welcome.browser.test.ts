@@ -7,6 +7,7 @@ import { createI18n } from 'vue-i18n'
 
 import StepWelcome from './step-welcome.vue'
 
+import { AIRI_FLUX_URL, AIRI_TERMS_URL } from '../../../../constants/public-links'
 import { useAuthStore } from '../../../../stores/auth'
 
 afterEach(() => vi.unstubAllEnvs())
@@ -89,5 +90,14 @@ describe('desktop onboarding sign-in', () => {
     await screen.getByRole('button', { name: 'Sign in' }).click()
 
     await expect.poll(() => useAuthStore(pinia).needsLogin).toBe(true)
+  })
+})
+
+describe('onboarding public links', () => {
+  it('links to public pricing and terms without requiring sign-in', async () => {
+    const screen = await renderWelcomeStep(true)
+
+    await expect.element(screen.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', AIRI_FLUX_URL)
+    await expect.element(screen.getByRole('link', { name: 'Terms of Service' })).toHaveAttribute('href', AIRI_TERMS_URL)
   })
 })

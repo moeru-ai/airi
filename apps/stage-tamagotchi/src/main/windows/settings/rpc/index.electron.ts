@@ -3,7 +3,8 @@ import type { BrowserWindow } from 'electron'
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { GodotStageManager } from '../../../services/airi/godot-stage'
-import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { IOTraceRecordingService } from '../../../services/airi/io-trace-recording'
+import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../../services/electron/global-shortcut'
 import type { DevtoolsWindowManager } from '../../devtools'
@@ -23,6 +24,7 @@ import {
 } from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
+import { registerIOTraceRecording } from '../../../services/airi/io-trace-recording/register'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createWidgetsService } from '../../../services/airi/widgets'
 import { createAutoUpdaterService } from '../../../services/electron'
@@ -37,10 +39,11 @@ export async function setupSettingsWindowInvokes(params: {
   getMainWindow?: () => BrowserWindow | undefined
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   i18n: I18n
   globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
+  ioTraceRecording: IOTraceRecordingService
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -53,9 +56,11 @@ export async function setupSettingsWindowInvokes(params: {
 
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.settingsWindow })
   createAutoUpdaterService({ context, window: params.settingsWindow, service: params.autoUpdater })
-  createMcpServersService({ context, manager: params.mcpStdioManager })
+  createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.settingsWindow })
   createAuthService({ context, window: params.settingsWindow })
+  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
+  params.settingsWindow.once('closed', stopIOTraceRecording)
 
   // Register the global shortcut service for the settings window.
   params.globalShortcut.registerWindow({ context, window: params.settingsWindow })

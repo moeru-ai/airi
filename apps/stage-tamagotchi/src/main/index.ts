@@ -1,24 +1,25 @@
 import type { BrowserWindow } from 'electron'
 
 import type { FileLoggerHandle } from './app/file-logger'
+import type { SettingsWindowManager } from './windows/settings'
 
 import process, { env, platform } from 'node:process'
 
-import { dirname } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import messages from '@proj-airi/i18n/locales'
 
-import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { Format, LogLevel, setGlobalFormat, setGlobalHookPostLog, setGlobalLogLevel, useLogg } from '@guiiai/logg'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { hasSelectedScreenCaptureSource, initScreenCaptureForMain } from '@proj-airi/electron-screen-capture/main'
-import { app, ipcMain, session } from 'electron'
+import { app, ipcMain, protocol, session } from 'electron'
 import { noop } from 'es-toolkit'
 import { createLoggLogger, injeca, lifecycle } from 'injeca'
 import { isLinux } from 'std-env'
 
-import icon from '../../resources/icon.png?asset'
+import devIcon from '../../resources/icon-dev.png?asset'
 
 import { openDebugger, setupDebugger } from './app/debugger'
 import { nullFileLoggerHandle, setupFileLogger } from './app/file-logger'
@@ -26,20 +27,26 @@ import { resolveIsWayland } from './app/ozone'
 import { installSingleInstanceGuard } from './app/single-instance'
 import { createArtistryConfig } from './configs/artistry'
 import { createGlobalAppConfig } from './configs/global'
+import { createIOTraceRecordingConfig } from './configs/io-trace-recording'
 import { emitAppBeforeQuit, emitAppWindowAllClosed } from './libs/bootkit/lifecycle'
-import { setElectronMainDirname } from './libs/electron/location'
+import { getElectronMainDirname, setElectronMainDirname } from './libs/electron/location'
 import { createI18n } from './libs/i18n'
 import { setupAppleSpeechTranscriptionService } from './services/airi/apple-speech-transcription'
+import { setupAppleVisionService } from './services/airi/apple-vision'
 import { setupServerChannel } from './services/airi/channel-server'
 import { setupComputerUse } from './services/airi/computer-use'
 import { setupGodotStageManager } from './services/airi/godot-stage'
+import { setupHomeAssistant } from './services/airi/home-assistant'
 import { setupBuiltInServer } from './services/airi/http-server'
-import { setupMcpStdioManager } from './services/airi/mcp-servers'
+import { IOTraceRecordingService } from './services/airi/io-trace-recording'
+import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { setupSherpawModelAssetsProtocol } from './services/electron/bundled-sherpaw-assets'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
+import { setupSherpawModelAssets } from './services/electron/sherpaw-model-assets'
 import { setupTray } from './tray'
 import { setupAboutWindowReusable } from './windows/about'
 import { setupBeatSync } from './windows/beat-sync'
@@ -62,6 +69,13 @@ import { setupWidgetsWindowManager } from './windows/widgets'
 ipcMain.setMaxListeners(100)
 
 setElectronMainDirname(dirname(fileURLToPath(import.meta.url)))
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'airi-model',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
+}, {
+  scheme: 'airi-sherpaw',
+  privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true },
+}])
 setGlobalFormat(Format.Pretty)
 setGlobalLogLevel(LogLevel.Log)
 setupDebugger()
@@ -131,12 +145,16 @@ if (isLinux) {
   app.commandLine.appendSwitch('enable-features', enabledFeatures.join(','))
 }
 
-app.dock?.setIcon(icon)
+// Packaged builds use the bundle icon (`build/icon.icon` or `build/icon.icns`).
+// Dev runs use the Electron default icon, so replace it with a marked dev icon.
+if (is.dev)
+  app.dock?.setIcon(devIcon)
 electronApp.setAppUserModelId('ai.moeru.airi')
 
 // Track the real user-facing AIRI window because the process also owns hidden utility windows.
 // The second-instance handler should restore the main UI instead of accidentally surfacing internals.
 let userFacingMainWindow: BrowserWindow | undefined
+let settingsWindowManager: SettingsWindowManager | undefined
 let extensionManagementWebContentsId: number | undefined
 const shouldStartMainProcess = installSingleInstanceGuard({ app, getWindow: () => userFacingMainWindow })
 
@@ -152,6 +170,8 @@ app.whenReady().then(async () => {
     return
   }
 
+  setupSherpawModelAssetsProtocol(resolve(getElectronMainDirname(), '..', 'renderer'))
+  setupSherpawModelAssets(createContext(ipcMain).context)
   setupPermissionHandlers(session.defaultSession, hasSelectedScreenCaptureSource)
 
   // Initialize file logger and register the hook
@@ -168,6 +188,7 @@ app.whenReady().then(async () => {
 
   const appConfig = injeca.provide('configs:app', () => createGlobalAppConfig())
   const artistryConfig = injeca.provide('configs:artistry', () => createArtistryConfig())
+  const ioTraceRecordingConfig = injeca.provide('configs:io-trace-recording', () => createIOTraceRecordingConfig())
   const electronApp = injeca.provide('host:electron:app', () => app)
   const autoUpdater = injeca.provide('services:auto-updater', {
     dependsOn: { appConfig },
@@ -177,7 +198,7 @@ app.whenReady().then(async () => {
       setStoredUpdateLane: (lane) => {
         const currentConfig = dependsOn.appConfig.get()
         dependsOn.appConfig.update({
-          language: currentConfig?.language ?? 'en',
+          ...currentConfig,
           updateChannel: lane,
         })
       },
@@ -209,8 +230,34 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => setupAppleSpeechTranscriptionService(dependsOn),
   })
 
-  const mcpStdioManager = injeca.provide('modules:mcp-stdio-manager', {
-    build: async () => setupMcpStdioManager(),
+  const appleVision = injeca.provide('modules:apple-vision', {
+    dependsOn: { lifecycle },
+    build: ({ dependsOn }) => setupAppleVisionService(dependsOn),
+  })
+
+  const mcpManager = injeca.provide('modules:mcp-manager', {
+    build: async () => setupMcpManager(),
+  })
+
+  const ioTraceRecording = injeca.provide('services:io-trace-recording', {
+    dependsOn: { config: ioTraceRecordingConfig, lifecycle },
+    build: ({ dependsOn }) => {
+      const service = new IOTraceRecordingService({
+        directory: join(app.getPath('userData'), 'io-traces'),
+        getStoredEnabled: () => dependsOn.config.get()?.enabled ?? false,
+        setStoredEnabled: enabled => dependsOn.config.update({ enabled }),
+      })
+      dependsOn.lifecycle.appHooks.onStart(async () => {
+        try {
+          await service.restore()
+        }
+        catch (error) {
+          log.withError(error).error('Failed to restore IO trace recording')
+        }
+      })
+      dependsOn.lifecycle.appHooks.onStop(() => service.dispose())
+      return service
+    },
   })
 
   const widgetsManager = injeca.provide('windows:widgets', {
@@ -253,10 +300,16 @@ app.whenReady().then(async () => {
   })
 
   const chatWindow = injeca.provide('windows:chat', {
-    dependsOn: { widgetsManager, serverChannel, mcpStdioManager, i18n },
+    dependsOn: { widgetsManager, serverChannel, mcpManager, i18n },
     build: ({ dependsOn }) => setupChatWindowManager({
       ...dependsOn,
       getMainWindow: () => userFacingMainWindow,
+      // NOTICE:
+      // Chat cannot depend on Settings in injeca, because Settings depends on
+      // Spotlight and Spotlight depends on Chat. Settings is built before any
+      // window accepts input, so Chat resolves it lazily.
+      // Removal condition: Settings no longer depends on Spotlight.
+      openSettingsWindow: async (route) => { await settingsWindowManager?.openWindow(route) },
     }),
   })
 
@@ -271,9 +324,9 @@ app.whenReady().then(async () => {
   })
 
   const settingsWindow = injeca.provide('windows:settings', {
-    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpStdioManager, i18n, globalShortcut, spotlightWindow },
-    build: async ({ dependsOn }) =>
-      setupSettingsWindowReusableFunc({
+    dependsOn: { widgetsManager, beatSync, autoUpdater, devtoolsWindow: devtoolsMarkdownStressWindow, serverChannel, godotStageManager, mcpManager, i18n, globalShortcut, spotlightWindow, ioTraceRecording },
+    build: async ({ dependsOn }) => {
+      settingsWindowManager = setupSettingsWindowReusableFunc({
         ...dependsOn,
         getMainWindow: () => userFacingMainWindow,
         onWindowCreated: (window) => {
@@ -285,11 +338,13 @@ app.whenReady().then(async () => {
             }
           })
         },
-      }),
+      })
+      return settingsWindowManager
+    },
   })
 
   const mainWindow = injeca.provide('windows:main', {
-    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpStdioManager, i18n, onboardingWindowManager, appleSpeechTranscription },
+    dependsOn: { editorWindow, settingsWindow, chatWindow, widgetsManager, noticeWindow, beatSync, autoUpdater, serverChannel, godotStageManager, mcpManager, i18n, onboardingWindowManager, inlayWindow, appleSpeechTranscription, appleVision, ioTraceRecording },
     build: async ({ dependsOn }) => setupMainWindow({
       ...dependsOn,
       onWindowCreated: (window) => {
@@ -304,14 +359,14 @@ app.whenReady().then(async () => {
   })
 
   const tray = injeca.provide('app:tray', {
-    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, inlayWindow, i18n },
+    dependsOn: { mainWindow, settingsWindow, captionWindow, widgetsWindow: widgetsManager, serverChannel, beatSyncBgWindow: beatSync, aboutWindow, inlayWindow, i18n, appConfig },
     build: async ({ dependsOn }) => setupTray(dependsOn),
   })
 
   // Desktop grounding overlay — gated by AIRI_DESKTOP_OVERLAY=1
   if (isDesktopOverlayEnabled()) {
     const desktopOverlay = injeca.provide('windows:desktop-overlay', {
-      dependsOn: { mcpStdioManager, serverChannel, i18n },
+      dependsOn: { mcpManager, serverChannel, i18n },
       build: async ({ dependsOn }) => setupDesktopOverlayWindow(dependsOn),
     })
 
@@ -325,10 +380,11 @@ app.whenReady().then(async () => {
   }
 
   injeca.invoke({
-    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpStdioManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
+    dependsOn: { mainWindow, tray, serverChannel, airiHttpServer, godotStageManager, pluginHost, mcpManager, onboardingWindow: onboardingWindowManager, widgetsWindow: widgetsManager, spotlightWindow, artistryConfig },
     callback: async (deps) => {
       const { context } = createContext(ipcMain)
       setupComputerUse(context)
+      setupHomeAssistant(context)
       await setupArtistryBridge({
         widgetsManager: deps.widgetsWindow,
         context,
@@ -337,7 +393,7 @@ app.whenReady().then(async () => {
     },
   })
 
-  injeca.start().catch(err => console.error(err))
+  injeca.start().catch(err => log.withError(err).error('Failed to start injeca'))
 
   // Extra
   openDebugger()

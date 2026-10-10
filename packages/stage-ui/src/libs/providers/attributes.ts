@@ -46,6 +46,7 @@ const providerAttributesById = {
   'anthropic': paidCloud,
   'app-local-audio-speech': freeLocal,
   'app-local-audio-transcription': freeLocal,
+  'apple-vision': freeLocal,
   'atlascloud': paidCloud,
   'azure-ai-foundry': paidCloud,
   'azure-openai': paidCloud,

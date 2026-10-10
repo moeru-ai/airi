@@ -12,6 +12,23 @@ auth/OIDC routes.
 - Redis cache, configuration KV, and cross-instance Pub/Sub.
 - Local verification of Auth-issued OIDC JWTs through public JWKS.
 
+## LLM request content
+
+Chat Completions and Responses retain diagnostic input, output, and error content
+in PostgreSQL. Migration `0029_llm_request_content.sql` adds nullable JSONB columns
+to request and attempt tracking. Apply it before deploying the Go Admin reader.
+
+Content keeps text, tool calls, and reasoning. Inline media is replaced with
+metadata; remote media is not fetched. Each payload is bounded to 8 MiB, with
+explicit partial and truncated states. SSE output stores received data events
+in order. It does not prove client delivery. Error-body capture stops after five
+seconds and retains partial content if the upstream stalls or disconnects.
+
+Use the authenticated Admin request detail to inspect content. List queries and
+owner-facing DTOs do not expose it. Historical requests are not backfilled.
+Content follows diagnostic retention; this feature adds no cleanup scheduler.
+It is not billing evidence. See the [content ADR](../../docs/ai/adr/2026-09-27-llm-request-content.md).
+
 ## Redis cache
 
 `src/libs/redis/cache.ts` provides stateless functions for string snapshots.
@@ -25,6 +42,29 @@ Flux TTL. Flux services use its read, write, and invalidation functions.
 ConfigKV shares the write function while retaining its existing read policy.
 Keys use domain names: `config:{key}`, `stripe:prices`, and `user:{userId}:flux`.
 The cache functions do not add a key prefix.
+
+## Flux usage
+
+`flux_usage` records one confirmed micro-Flux fee for each `(userId, source.type, source.id)`. Rows are append-only.
+`flux_transaction` records integer balance changes only. `user_flux` stores integer Flux and outstanding micro-Flux.
+One Flux equals 1,000,000 micro-Flux.
+LLM and TTS fees share one pool. Outstanding fees do not expire.
+`BillingService.postFluxUsage({ userId, source: { type, id }, amountMicroFlux, detail? })` accepts confirmed amounts.
+The accounting core has no model, provider, turn, attempt, or pricing dependency.
+A service puts its own evidence in `detail`. A new service needs a new `source.type` and no new table.
+A fee posts once. A replay with the same amount returns the first result. A replay with another amount fails.
+A pooled debit can include earlier fees from other services.
+Use `flux_usage` for service spend reports. Do not attribute a pooled debit to one service.
+Admission reads PostgreSQL. The display cache contains both wallet fields and expires after 60 seconds.
+Credits settle affordable outstanding fees. Admin balance changes preserve outstanding fees.
+The ledger must always satisfy: sum of fees = debited Flux x 1,000,000 + outstanding micro-Flux.
+
+`GET /api/v1/flux/usage` returns paginated fees from `flux_usage`. Wallet history returns integer balance changes.
+
+Old Redis TTS character counters are not migrated. The old meter already forgave a residual of less than one Flux.
+Stop old API writers before the new version starts. Mixed old and new writers are unsupported.
+
+See [the Flux usage ADR](../../docs/ai/adr/2026-10-04-flux-usage.md) for invariants and migration policy.
 
 ## Object storage
 
@@ -180,18 +220,57 @@ The Responses operation lives in `operations/responses/index.ts`. Its request co
 Web search adds no separate Flux debit. The hosted service absorbs the upstream search-call fee.
 Search content tokens in the returned usage follow the existing token rate.
 
-A completed result uses `usage.input_tokens` and `usage.output_tokens` with the existing Flux pricing policy.
-When usage is absent, the existing per-request rate applies. Failed, incomplete, cancelled, malformed,
-and truncated streams incur no debit. Each request has one settlement ID, so duplicate terminal events cannot charge twice.
+A completed result settles normalized cost. Missing cost or incomplete output stays pending without an immediate debit.
+Each request ID owns one settlement, so duplicate terminal events cannot charge twice.
 A client disconnect cancels the upstream reader. A delivered terminal event authorizes settlement. The gateway closes the stream after that settlement attempt.
 
 Before release, configure a Responses-capable upstream and verify authenticated requests and Flux settlement in the target environment.
 The architecture and test scope are in [the hosted Responses ADR](../../docs/ai/adr/2026-09-15-hosted-responses.md).
 
+### LLM cost settlement
+
+Hosted Chat Completions and Responses always use normalized-cost settlement.
+`LLM_COST_BILLING` contains required price configuration, not an opt-in flag.
+For example, `{ "openrouter": { "fluxPerUsd": 1000, "multiplier": 1.5 } }` charges three Flux for 0.002 USD.
+This example is not a production sale-price recommendation. No default sale price is supplied.
+
+`LLM_MINIMUM_BALANCE` is the minimum callable balance. It defaults to five Flux.
+It is not a fixed request charge or a maximum-cost reservation.
+`FLUX_PER_REQUEST` and `FLUX_PER_1K_TOKENS` are no longer read by hosted LLM billing.
+Confirmed service fees enter the shared micro-Flux accumulator.
+
+Before any network dispatch, each eligible upstream must have a supported cost adapter and complete pricing.
+Missing configuration rejects the request with `LLM_BILLING_UNAVAILABLE`; alias fallback cannot hide this error.
+Only the OpenRouter adapter is implemented. Other gateways cannot serve hosted LLM traffic until they have an explicit adapter and prices.
+
+Missing or invalid returned cost, BYOK fees, and incomplete output post no fee. There is no token-rate estimate.
+Each request posts `ceil(costUsd * fluxPerUsd * multiplier * 1,000,000)` micro-Flux with source `llm:{requestId}`.
+An explicit zero cost posts at zero. Fractional fees accumulate across services before integer wallet settlement.
+Zero fees do not create debit ledger rows. Underfunded settlements increment the insufficient-balance metric once, not on replay.
+`flux_usage.detail` keeps the price snapshot, cost source, provider, model, and generation ID.
+The request log and attempts keep the provider evidence. A request with a log and no `flux_usage` row is unbilled.
+Reconcile unbilled requests by joining the request log with `flux_usage` on the request ID.
+The request log no longer stores a Flux amount. Read the fee from `flux_usage` by request ID.
+The `airi.billing.flux.consumed` metric and the `airi.billing.flux_consumed` span attribute report the fee in Flux, not the integer debit.
+Migration 0030 drops the `llm_request_settlement` archive and `llm_request_log.flux_consumed`.
+Export the historical settlements before this migration runs.
+There is no automatic reconciliation worker in this release.
+
+A future model-price-table adapter is a supported pricing mode, not a fallback.
+It must validate model rates before dispatch and produce standardized USD cost with a versioned rate snapshot and measured usage.
+This release does not implement that adapter.
+
+Request tracking #2673 is merged. Billing #2644 adds only migration 0027.
+Apply `0026_llm_request_tracking.sql` before `0027_llm_cost_settlement.sql`.
+Configure supported provider prices before deploying the billing change. Missing prices stop LLM calls.
+These migrations replace unpublished PR drafts and must not be applied over an already-applied earlier draft.
+
+See the [billing ADR](../../docs/ai/adr/2026-09-23-provider-cost-billing.md) for accounting ownership and verification boundaries.
+
 ### LLM request tracking
 
 Tracking extends the existing request log and records each local upstream dispatch in `llm_request_attempt`.
-It applies to cost, token and per-request pricing. Existing billing behavior stays unchanged. Tracking has no settlement-table dependency.
+Tracking has no settlement-table dependency. Its diagnostic Flux summary is not the authoritative bill.
 Apply `0026_llm_request_tracking.sql` before deploying.
 
 | Fields | Meaning |
@@ -221,8 +300,7 @@ The [request tracking ADR](../../docs/ai/adr/2026-09-27-llm-request-tracking.md)
 
 The server registry in `src/schemas/generation-protocol.ts` owns supported protocol IDs and create paths.
 Configuration, upstream routing, and gateway operations use its inferred types.
-Gateway and Langfuse names follow `<protocol>.create`: `chat-completions.create` and `responses.create`.
-This changes the old Chat trace name `chat.completion`; update saved trace filters that use it.
+Gateway operation names follow `<protocol>.create`: `chat-completions.create` and `responses.create`.
 HTTP paths and client protocol values do not change.
 
 Wire adapters live in `src/services/adapters/llm/`. Each adapter owns request headers, serialization, and provider capabilities.

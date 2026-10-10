@@ -7,8 +7,6 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { mockDB } from '../../libs/mock-db'
 import { createTestRedis } from '../../libs/tests/redis'
-import { createConfigKVService } from '../../services/adapters/config-kv'
-import { createConfigKVStore } from '../../services/adapters/config-kv/store'
 import { createBillingService } from '../../services/domain/billing/billing-service'
 import { createPaymentService } from '../../services/domain/payment'
 import { createWebhookOperation } from './operations/webhook'
@@ -37,7 +35,7 @@ describe('pR #2335 payment release', () => {
     await db.delete(schema.paymentOrder)
     await db.delete(schema.paymentCustomer)
     const redis = createTestRedis()
-    payment = createPaymentService(db, createBillingService(db, redis, createConfigKVService(createConfigKVStore(db, redis))))
+    payment = createPaymentService(db, createBillingService(db, redis))
     webhook = createWebhookOperation(stripe, secret, payment, null, null)
   })
 

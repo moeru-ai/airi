@@ -24,8 +24,10 @@ import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 
 
 import {
   createBeatSyncController,
+  createLive2DHeadTracker,
   createLive2DMotionSpring,
   disableLive2DSdkBreath,
+  live2DCanvasRectToParent,
   useExpressionController,
   useLive2DMotionManagerUpdate,
   useMotionUpdatePluginAutoEyeBlink,
@@ -242,6 +244,9 @@ const screenAmbientLightStrength = toRef(() => props.screenAmbientLightStrength)
 const screenAmbientLightSquint = toRef(() => props.screenAmbientLightSquint)
 
 // --- Expression controller
+// Chooses which drawables stand in for the head once per model, so it is reset
+// whenever the model is replaced.
+const headTracker = createLive2DHeadTracker()
 const internalModelRef = shallowRef<PixiLive2DInternalModel>()
 const expressionController = useExpressionController({
   internalModel: internalModelRef,
@@ -312,6 +317,7 @@ async function performModelLoad() {
       console.warn('Error removing old model:', error)
     }
     model.value = undefined
+    headTracker.reset()
   }
   const pendingModel = {
     id: props.modelId,
@@ -333,6 +339,12 @@ async function performModelLoad() {
 
     const live2DModel = new Live2DModel<PixiLive2DInternalModel>()
     await Live2DFactory.setupLive2DModel(live2DModel, { url: pendingModel.src, id: pendingModel.id }, { autoInteract: false })
+    // The unmount hook ran while the model was loading, so it had no model to destroy.
+    if (isUnmounted) {
+      live2DModel.destroy()
+      return
+    }
+
     availableMotions.value.forEach((motion) => {
       if (motion.motionName in Emotion) {
         motionMap.value[motion.fileName] = motion.motionName
@@ -471,7 +483,7 @@ async function performModelLoad() {
       const selectedMotionIndex = localStorage.getItem('selected-runtime-motion-index')
 
       if (selectedMotionGroup !== null && selectedMotionIndex && live2dIdleAnimationEnabled.value) {
-        // Restart the selected runtime motion immediately for seamless looping
+        // Restart the selected runtime motion at once, so the loop has no gap
         console.info('Motion finished, restarting runtime motion:', selectedMotionGroup, selectedMotionIndex)
         // Use requestAnimationFrame to restart on the next frame for smooth transition
         requestAnimationFrame(() => {
@@ -911,10 +923,53 @@ onUnmounted(() => {
     model.value.filters = []
   screenAmbientLightFilter.value.destroy()
   dropShadowFilter.value.destroy()
+
+  // The model registers on the global `Ticker.shared` when it is built, and only
+  // `destroy()` removes it. Without this, each stage remount leaves the old model
+  // updating every frame and holding its Cubism memory. This component unmounts
+  // before the canvas, so the stage still exists here.
+  if (model.value) {
+    pixiApp.value?.stage?.removeChild(model.value)
+    model.value.destroy()
+    model.value = undefined
+  }
 })
 
 function listMotionGroups() {
   return availableMotions.value
+}
+
+/**
+ * The head's box in the space the stage draws in, or `undefined` while no model
+ * is loaded.
+ *
+ * The model owns where its head is; a consumer that draws beside the character
+ * reads this rather than reaching into the internal model itself.
+ */
+function headAnchor() {
+  const current = model.value
+  if (!current)
+    return undefined
+
+  // Read the internal model off the instance rather than `internalModelRef`,
+  // which the expression controller owns: it holds a value only while Live2D
+  // expressions are enabled, and is cleared when they are turned off.
+  const internalModel = current.internalModel
+
+  // Pixi refreshes a local transform while it renders. A caller running ahead of
+  // the render would otherwise place against the previous scale and position,
+  // which is visible on the frame a resize or a fit lands on.
+  current.transform.updateLocalTransform()
+
+  const headRect = headTracker.bounds(internalModel)
+  if (!headRect)
+    return undefined
+
+  return live2DCanvasRectToParent(
+    headRect,
+    internalModel.localTransform,
+    current.transform.localTransform,
+  )
 }
 
 defineExpose({
@@ -923,6 +978,7 @@ defineExpose({
   modelNormalizeParams,
   initialModelHeight,
   initialModelWidth,
+  headAnchor,
 })
 
 import.meta.hot?.dispose(() => {

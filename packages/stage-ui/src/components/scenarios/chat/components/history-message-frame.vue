@@ -11,7 +11,10 @@ const props = withDefaults(defineProps<{
   scrollContainer?: HTMLElement | null
   variant?: 'desktop' | 'mobile'
   replyEnabled?: boolean
+  /** `true` fades the message out and then hides it, without changing the layout. A hidden message takes no pointer. */
+  expired?: boolean
 }>(), {
+  expired: false,
   replyEnabled: false,
   scrollContainer: null,
   variant: 'desktop',
@@ -23,9 +26,23 @@ const emit = defineEmits<{
 
 const messageRef = useTemplateRef<HTMLDivElement>('message')
 const scrollTarget = computed(() => props.scrollContainer)
+// NOTICE:
+// Messages start visible. Combining opacity-0 with opacity-100 leaves the
+// cascade and CSS transition stuck at 0 in Godot CEF software OSR, so the
+// conversation paints empty while the composer still works.
+// Source: Kirie chat window CDP screenshot, 2026-09-20.
+// Remove this initial value if CEF flushes opacity transitions while hidden.
 const isVisible = useElementVisibility(messageRef, {
-  initialValue: false,
+  initialValue: true,
   scrollTarget,
+})
+
+// An expired message stays mounted, so its place in the layout never changes.
+const visibilityClass = computed(() => {
+  if (props.expired)
+    return 'invisible opacity-0'
+
+  return isVisible.value ? 'chat-message-item-visible opacity-100' : 'opacity-0'
 })
 
 const { trigger: triggerHaptic } = useWebHaptics()
@@ -47,8 +64,9 @@ function getReplyIconStyle(swipe: SwipeableSlotProps) {
     ref="message"
     :class="[
       'chat-message-item relative',
-      'opacity-0 transition-opacity duration-200 ease-out motion-reduce:transition-none',
-      isVisible ? 'chat-message-item-visible opacity-100' : '',
+      // Visibility follows the fade, so an expired message hides only after it faded out.
+      'transition-[opacity,visibility] duration-200 ease-out motion-reduce:transition-none',
+      visibilityClass,
       variant === 'mobile' ? 'pb-1' : 'pb-2',
     ]"
   >

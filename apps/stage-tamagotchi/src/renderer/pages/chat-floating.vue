@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import type { ChatFloatingState } from '../../shared/eventa'
 
-import { getElectronEventaContext, useElectronEventaInvoke } from '@proj-airi/electron-vueuse'
+import { getElectronEventaContext, useElectronEventaInvoke, useElectronMouseInElement } from '@proj-airi/electron-vueuse'
 import { ChatSessionsDrawer } from '@proj-airi/stage-ui/components'
 import { useAiriCardStore } from '@proj-airi/stage-ui/stores/modules/airi-card'
+import { useEventListener, useLocalStorage } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import ChatDanmakuFeedMenu from '../components/chat-window/chat-danmaku-feed-menu.vue'
 import ChatSpeechMuteButton from '../components/chat-window/chat-speech-mute-button.vue'
 import ChatWindowStyleMenu from '../components/chat-window/chat-window-style-menu.vue'
 import InteractiveArea from '../components/InteractiveArea.vue'
@@ -22,6 +24,8 @@ import {
 } from '../../shared/eventa'
 import { useChatDraftHandover } from '../composables/use-chat-draft-handover'
 import { dismissOverlays, useChatFloatingClickThrough } from '../composables/use-chat-floating-click-through'
+import { useDanmakuFeedExpiry } from '../composables/use-danmaku-feed-expiry'
+import { useControlsIslandStore } from '../stores/controls-island'
 
 const { activeCard } = storeToRefs(useAiriCardStore())
 const sessionsDrawerOpen = shallowRef(false)
@@ -49,9 +53,31 @@ onMounted(async () => {
 })
 
 useChatDraftHandover(interactiveArea)
-const { hitTest } = useChatFloatingClickThrough({ pinned: () => state.value.pinned })
 
-const freePlacement = computed(() => state.value.placement === 'free')
+// `free` and `danmaku` both stay where the user drags them.
+const freePlacement = computed(() => state.value.placement !== 'attached')
+const danmaku = computed(() => state.value.placement === 'danmaku')
+// The danmaku feed starts with its composer folded, because it is mostly read.
+const composerFolded = useLocalStorage('chat-window/danmaku/composer-folded', true)
+// Fade on hover, which the main window's controls island switches, turns the
+// folded danmaku feed passive: the history only follows new messages, and it
+// fades out and passes clicks through under the cursor. The header and the
+// composer tab stay in control, and an unfolded composer pauses all of this.
+const { fadeOnHoverEnabled } = storeToRefs(useControlsIslandStore())
+const passiveFeed = computed(() => danmaku.value && fadeOnHoverEnabled.value && composerFolded.value)
+// The cursor comes from the main process, because a click-through window
+// gets no mouse events.
+const { isOutside: cursorOutsideHistory } = useElectronMouseInElement(computed(() => interactiveArea.value?.historyLayer))
+// The folded danmaku feed hides read messages. They come back while the
+// cursor is over the feed, like notifications, and while the composer is
+// unfolded, so the history stays in reach. A passive feed fades out under
+// the cursor instead, so there the cursor does not bring them back.
+const expireMessages = computed(() => composerFolded.value && (passiveFeed.value || cursorOutsideHistory.value))
+const expiredBefore = useDanmakuFeedExpiry(danmaku, expireMessages)
+const { hitTest } = useChatFloatingClickThrough({
+  pinned: () => state.value.pinned,
+  passiveArea: () => passiveFeed.value ? interactiveArea.value?.historyLayer : undefined,
+})
 // The content stays mounted while it is hidden, so a fold or a move to the
 // other side keeps the unsent draft, attachments and reply target.
 const contentShown = computed(() => !state.value.folded && !state.value.relocating)
@@ -77,6 +103,9 @@ interface WindowDelta {
  * moves to the pressed element even when the window lags behind the pointer.
  */
 interface HeldPointer {
+  /** The pressed grip or handle, which holds the pointer capture. */
+  element: HTMLElement
+  pointerId: number
   pressX: number
   pressY: number
   /** Window position when the press started. */
@@ -91,8 +120,11 @@ interface HeldPointer {
 let heldPointer: HeldPointer | undefined
 
 function holdPointer(event: PointerEvent) {
-  (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  const element = event.currentTarget as HTMLElement
+  element.setPointerCapture(event.pointerId)
   heldPointer = {
+    element,
+    pointerId: event.pointerId,
     pressX: event.screenX,
     pressY: event.screenY,
     windowX: window.screenX,
@@ -104,17 +136,18 @@ function holdPointer(event: PointerEvent) {
 
 /** Sends the pointer movement since the last step to the main process, which resizes the window. */
 function resizeWithHeldPointer(event: PointerEvent) {
-  if (!heldPointer)
+  const held = pointerStillHeld(event)
+  if (!held)
     return
 
   // Whole pixels only; the rounding remainder carries into the next step.
-  const deltaX = Math.round(event.screenX - heldPointer.pressX) - heldPointer.resizedX
-  const deltaY = Math.round(event.screenY - heldPointer.pressY) - heldPointer.resizedY
+  const deltaX = Math.round(event.screenX - held.pressX) - held.resizedX
+  const deltaY = Math.round(event.screenY - held.pressY) - held.resizedY
   if (deltaX === 0 && deltaY === 0)
     return
 
-  heldPointer.resizedX += deltaX
-  heldPointer.resizedY += deltaY
+  held.resizedX += deltaX
+  held.resizedY += deltaY
   void resizeBy({ deltaX, deltaY })
 }
 
@@ -125,19 +158,40 @@ function resizeWithHeldPointer(event: PointerEvent) {
  * display.
  */
 function moveWithHeldPointer(event: PointerEvent) {
-  if (!heldPointer)
+  const held = pointerStillHeld(event)
+  if (!held)
     return
 
   void moveTo({
-    x: Math.round(heldPointer.windowX + event.screenX - heldPointer.pressX),
-    y: Math.round(heldPointer.windowY + event.screenY - heldPointer.pressY),
+    x: Math.round(held.windowX + event.screenX - held.pressX),
+    y: Math.round(held.windowY + event.screenY - held.pressY),
   })
 }
 
-// Capture ends on release, cancel or removal of the element alike.
+// Capture ends on release, cancel or removal of the element alike. A hold
+// that ends without them gives the capture back here.
 function releasePointer() {
+  if (heldPointer?.element.hasPointerCapture(heldPointer.pointerId))
+    heldPointer.element.releasePointerCapture(heldPointer.pointerId)
   heldPointer = undefined
 }
+
+/**
+ * The held press, or `undefined` once the buttons are up.
+ *
+ * A release can miss this window, for example while another window takes the
+ * pointer. The grip would then stay held, and the mouse moves that reach this
+ * window while the main window is dragged would resize the chat. A move with
+ * no button down ends the hold instead.
+ */
+function pointerStillHeld(event: PointerEvent) {
+  if (heldPointer && event.buttons === 0)
+    releasePointer()
+  return heldPointer
+}
+
+// A window that loses focus has no press left in it.
+useEventListener(window, 'blur', releasePointer)
 
 /** Keyboard step for the resize grip and the drag handle, in screen pixels. */
 const keyboardStep = 16
@@ -194,7 +248,8 @@ function moveByKeyboard(delta: WindowDelta) {
               @lostpointercapture="releasePointer"
               @keydown="handleArrowKey($event, resizeBy)"
             >
-              <div :class="[characterOnLeft ? 'i-solar:arrow-right-up-linear' : 'i-solar:arrow-left-up-linear', 'size-4']" />
+              <!-- The two-headed arrow matches the resize cursor of the grip corner. -->
+              <div :class="[characterOnLeft ? 'i-lucide:move-diagonal' : 'i-lucide:move-diagonal-2', 'size-4']" />
             </button>
           </div>
 
@@ -229,15 +284,11 @@ function moveByKeyboard(delta: WindowDelta) {
               <span class="truncate text-sm font-medium">{{ activeCard?.name || 'AIRI' }}</span>
             </button>
             <ChatSpeechMuteButton :class="['shrink-0 rounded-full!']" />
+            <ChatDanmakuFeedMenu v-if="danmaku" :class="['shrink-0 rounded-full!']" />
             <ChatWindowStyleMenu :class="['shrink-0 rounded-full!']" />
           </div>
 
-          <!--
-            A free chat can sit far from the character and its chat button, so
-            it folds from here too. An attached chat sits beside that button.
-          -->
           <div
-            v-if="freePlacement"
             :class="[
               'shrink-0 rounded-full p-0.5 shadow-md',
               'bg-white ring-1 ring-neutral-200 dark:bg-neutral-900 dark:ring-neutral-800',
@@ -249,14 +300,20 @@ function moveByKeyboard(delta: WindowDelta) {
               :class="['size-8 rounded-full', 'flex items-center justify-center outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-300 transition-colors text-neutral-400 hover:bg-neutral-200 hover:text-primary-500 dark:text-neutral-500 dark:hover:bg-neutral-800 dark:hover:text-primary-400']"
               @click="foldChat()"
             >
-              <!-- A free chat folds into its bottom-right corner, so the arrow points there. -->
-              <div class="i-solar:minimize-square-3-linear size-4 -scale-x-100" />
+              <div class="i-lucide:minimize-2 size-4" />
             </button>
           </div>
         </div>
 
         <div :class="['relative min-h-0 flex-1']">
-          <InteractiveArea ref="interactive-area" floating />
+          <InteractiveArea
+            ref="interactive-area"
+            v-model:composer-folded="composerFolded"
+            floating
+            :composer-foldable="danmaku"
+            :passive="passiveFeed"
+            :expired-before="expiredBefore"
+          />
         </div>
       </div>
     </Transition>

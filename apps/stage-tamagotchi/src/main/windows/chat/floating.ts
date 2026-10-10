@@ -1,6 +1,6 @@
 import type { createContext } from '@moeru/eventa/adapters/electron/main'
 import type { ResizeDirection } from '@proj-airi/electron-eventa'
-import type { Point } from 'electron'
+import type { Point, Rectangle } from 'electron'
 
 import type { ChatFloatingPlacement, ChatFloatingState } from '../../../shared/eventa'
 import type { AttachedChatLayout } from './floating-placement'
@@ -27,6 +27,7 @@ import {
 } from '../../../shared/eventa'
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager'
+import { showWindowOnAllWorkspaces } from '../shared/app-icon'
 import { protectPrivilegedWindowNavigation, resizeBoundsByDelta, transparentWindowConfig } from '../shared/window'
 import { attachedChatOffset, chooseAttachedChatLayout, keepChatOnDisplay, preferredAttachedChatLayout, wholePixels } from './floating-placement'
 
@@ -39,7 +40,7 @@ const minimumSize = { width: 300, height: 260 }
 interface FloatingChatBounds {
   width: number
   height: number
-  /** Position in `free` placement. Attached placement derives it from the main window. */
+  /** Position in `free` and `danmaku` placement. Attached placement derives it from the main window. */
   x?: number
   y?: number
 }
@@ -110,6 +111,30 @@ export function setupFloatingChatWindow(params: {
   let pinned = false
   let slide: ReturnType<typeof animate> | undefined
   let detachFromMain: (() => void) | undefined
+  /**
+   * The size the chat is meant to have. A new window takes the saved size, and
+   * then only the resize grip changes it.
+   */
+  let size = { width: minimumSize.width, height: minimumSize.height }
+
+  /** The chat's position with the size it is meant to have. */
+  function boundsOf(target: BrowserWindow): Rectangle {
+    const { x, y } = target.getBounds()
+    return { x, y, ...size }
+  }
+
+  /** Puts the chat at `x`, `y` in the size it is meant to have. */
+  function placeAt(target: BrowserWindow, x: number, y: number) {
+    // NOTICE:
+    // Above 100% scaling on Windows, a non-resizable window changes size a
+    // little on each move. Moves that reuse `getBounds()` or `setPosition` add
+    // these up, so a drag made the chat wide. Moves set `size` instead.
+    // Source: https://github.com/electron/electron/issues/13043
+    // Removal: Electron keeps the size of a moved non-resizable window.
+    const current = target.getBounds()
+    if (current.x !== x || current.y !== y || current.width !== size.width || current.height !== size.height)
+      target.setBounds({ x, y, ...size })
+  }
 
   function currentState(): ChatFloatingState {
     const placement = params.getPlacement()
@@ -135,14 +160,10 @@ export function setupFloatingChatWindow(params: {
 
   function moveToLayout(main: BrowserWindow, target: BrowserWindow) {
     const mainBounds = main.getBounds()
-    const bounds = target.getBounds()
-    const offset = attachedChatOffset(mainBounds, bounds, screen.getDisplayMatching(mainBounds).workArea, layout)
-    const x = mainBounds.x + offset.x
-    const y = mainBounds.y + offset.y
+    const offset = attachedChatOffset(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, layout)
     // A child window has already moved with the main window, so this is
     // usually a no-op during a drag.
-    if (bounds.x !== x || bounds.y !== y)
-      target.setPosition(x, y)
+    placeAt(target, mainBounds.x + offset.x, mainBounds.y + offset.y)
   }
 
   function stopSlide() {
@@ -158,7 +179,7 @@ export function setupFloatingChatWindow(params: {
   function slideToLayout(main: BrowserWindow, target: BrowserWindow) {
     stopSlide()
     const mainBounds = main.getBounds()
-    const bounds = target.getBounds()
+    const bounds = boundsOf(target)
     const offset = { x: bounds.x - mainBounds.x, y: bounds.y - mainBounds.y }
     const to = attachedChatOffset(mainBounds, bounds, screen.getDisplayMatching(mainBounds).workArea, layout)
 
@@ -171,7 +192,7 @@ export function setupFloatingChatWindow(params: {
         if (target.isDestroyed() || main.isDestroyed())
           return
         const current = main.getBounds()
-        target.setPosition(wholePixels(current.x + offset.x), wholePixels(current.y + offset.y))
+        placeAt(target, wholePixels(current.x + offset.x), wholePixels(current.y + offset.y))
       },
       onComplete: () => {
         slide = undefined
@@ -183,7 +204,7 @@ export function setupFloatingChatWindow(params: {
     relocating = false
     const mainBounds = main.getBounds()
     // The main window may have moved on while the content folded.
-    layout = chooseAttachedChatLayout(mainBounds, target.getBounds(), screen.getDisplayMatching(mainBounds).workArea, layout)
+    layout = chooseAttachedChatLayout(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, layout)
     moveToLayout(main, target)
     emitState()
   }
@@ -193,7 +214,7 @@ export function setupFloatingChatWindow(params: {
       return
 
     const mainBounds = main.getBounds()
-    const next = chooseAttachedChatLayout(mainBounds, target.getBounds(), screen.getDisplayMatching(mainBounds).workArea, layout)
+    const next = chooseAttachedChatLayout(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, layout)
     const sideChanged = next.side !== layout.side
     const anchorChanged = next.anchor !== layout.anchor
 
@@ -230,6 +251,14 @@ export function setupFloatingChatWindow(params: {
       moveToLayout(main, target)
   }
 
+  /** Keeps the chat's pin equal to the main window's. Returns the function that stops it. */
+  function followMainPin(main: BrowserWindow, target: BrowserWindow) {
+    const follow = (_: Electron.Event, isAlwaysOnTop: boolean) => target.setAlwaysOnTop(isAlwaysOnTop)
+    target.setAlwaysOnTop(main.isAlwaysOnTop())
+    main.on('always-on-top-changed', follow)
+    return () => main.off('always-on-top-changed', follow)
+  }
+
   /**
    * Keeps an attached chat beside the main window.
    *
@@ -258,7 +287,6 @@ export function setupFloatingChatWindow(params: {
       if (!folded)
         target.showInactive()
     }
-    const followAlwaysOnTop = (_: Electron.Event, isAlwaysOnTop: boolean) => target.setAlwaysOnTop(isAlwaysOnTop)
     const linkToMain = () => target.setParentWindow(main)
     // Leaving the parent does not restore the chat's own window level.
     const unlinkFromMain = () => {
@@ -267,9 +295,9 @@ export function setupFloatingChatWindow(params: {
     }
 
     const mainBounds = main.getBounds()
-    layout = chooseAttachedChatLayout(mainBounds, target.getBounds(), screen.getDisplayMatching(mainBounds).workArea, preferredAttachedChatLayout)
+    layout = chooseAttachedChatLayout(mainBounds, boundsOf(target), screen.getDisplayMatching(mainBounds).workArea, preferredAttachedChatLayout)
     moveToLayout(main, target)
-    target.setAlwaysOnTop(main.isAlwaysOnTop())
+    const stopFollowingPin = followMainPin(main, target)
     // NOTICE:
     // Only macOS moves a child window with its parent during a drag, so only
     // macOS links the chat. With this link, the attached chat on Windows
@@ -289,7 +317,6 @@ export function setupFloatingChatWindow(params: {
     target.on('restore', follow)
     main.on('hide', hideWithMain)
     main.on('show', showWithMain)
-    main.on('always-on-top-changed', followAlwaysOnTop)
 
     detachFromMain = () => {
       stopSlide()
@@ -297,7 +324,7 @@ export function setupFloatingChatWindow(params: {
       main.off('resize', follow)
       main.off('hide', hideWithMain)
       main.off('show', showWithMain)
-      main.off('always-on-top-changed', followAlwaysOnTop)
+      stopFollowingPin()
       if (!target.isDestroyed())
         target.off('restore', follow)
       if (linksToMain && !target.isDestroyed()) {
@@ -314,10 +341,14 @@ export function setupFloatingChatWindow(params: {
 
     // The chat pins with Electron's default level, never the shared
     // `setWindowAlwaysOnTop`: that level also covers the input method
-    // candidates, and the chat takes text. An attached chat takes the main
-    // window's pin state in attachToMain.
-    if (params.getPlacement() === 'attached')
+    // candidates, and the chat takes text. An attached or danmaku chat takes
+    // the main window's pin state.
+    const placement = params.getPlacement()
+    const main = params.getMainWindow()
+    if (placement === 'attached')
       attachToMain(target)
+    else if (placement === 'danmaku' && main && !main.isDestroyed())
+      detachFromMain = followMainPin(main, target)
     else
       target.setAlwaysOnTop(params.getPinned())
 
@@ -325,18 +356,18 @@ export function setupFloatingChatWindow(params: {
   }
 
   function moveTo(target: BrowserWindow, position: Point) {
-    if (params.getPlacement() !== 'free')
+    if (params.getPlacement() === 'attached')
       return
 
-    const { width, height } = target.getBounds()
-    target.setBounds(keepChatOnDisplay({ ...position, width, height }, screen.getAllDisplays()))
+    const placed = keepChatOnDisplay({ ...position, ...size }, screen.getAllDisplays())
+    placeAt(target, placed.x, placed.y)
   }
 
   function persistBounds(target: BrowserWindow) {
-    const bounds = target.getBounds()
+    const bounds = boundsOf(target)
     // Attached placement derives the position from the main window, so only
-    // free placement owns one worth keeping.
-    const position = params.getPlacement() === 'free' ? { x: bounds.x, y: bounds.y } : {}
+    // the other placements own one worth keeping.
+    const position = params.getPlacement() !== 'attached' ? { x: bounds.x, y: bounds.y } : {}
     params.saveBounds({ width: bounds.width, height: bounds.height, ...position })
   }
 
@@ -345,9 +376,10 @@ export function setupFloatingChatWindow(params: {
     const attachedTo = params.getPlacement() === 'attached' && main && !main.isDestroyed() ? main : undefined
 
     // The layout stays during a resize, so the chat never jumps to the other
-    // side under the cursor. A free chat has its grip at the top-left.
+    // side under the cursor. A chat that is not attached has its grip at the
+    // top-left.
     stopSlide()
-    const resized = resizeBoundsByDelta(target.getBounds(), {
+    const resized = resizeBoundsByDelta(boundsOf(target), {
       ...delta,
       direction: attachedTo ? gripDirection(layout) : 'nw',
       minWidth: minimumSize.width,
@@ -355,7 +387,9 @@ export function setupFloatingChatWindow(params: {
     })
     // The chat stops growing at the edges of the work area, so the grip stays
     // in reach.
-    target.setBounds(keepChatOnDisplay(resized, screen.getAllDisplays()))
+    const placed = keepChatOnDisplay(resized, screen.getAllDisplays())
+    size = { width: placed.width, height: placed.height }
+    placeAt(target, placed.x, placed.y)
     if (attachedTo)
       moveToLayout(attachedTo, target)
 
@@ -364,6 +398,7 @@ export function setupFloatingChatWindow(params: {
 
   async function createWindow() {
     const saved = params.getBounds()
+    size = { width: saved.width, height: saved.height }
     const target = new BrowserWindow({
       title: 'Chat',
       width: saved.width,
@@ -381,10 +416,10 @@ export function setupFloatingChatWindow(params: {
     })
 
     // The saved position may be on a display that is gone or smaller now.
-    if (params.getPlacement() === 'free' && saved.x != null && saved.y != null)
+    if (params.getPlacement() !== 'attached' && saved.x != null && saved.y != null)
       target.setBounds(keepChatOnDisplay({ x: saved.x, y: saved.y, width: saved.width, height: saved.height }, screen.getAllDisplays()))
 
-    target.setVisibleOnAllWorkspaces(true)
+    showWindowOnAllWorkspaces(target)
     if (isMacOS) {
       target.setFullScreenable(false)
       target.setWindowButtonVisibility(false)
@@ -398,10 +433,10 @@ export function setupFloatingChatWindow(params: {
     const { context: targetContext } = createElectronContext(ipcMain, target, { onlySameWindow: true })
     context = targetContext
     // Every platform reports `move`; `moved` is only on macOS and Windows.
-    // Only a free chat owns its position; an attached one follows the main
-    // window, and the grip saves its size.
+    // Only a chat that is not attached owns its position. An attached one
+    // follows the main window, and the grip saves its size.
     const persistMove = debounce(() => {
-      if (!target.isDestroyed() && params.getPlacement() === 'free')
+      if (!target.isDestroyed() && params.getPlacement() !== 'attached')
         persistBounds(target)
     }, 300)
     target.on('move', persistMove)

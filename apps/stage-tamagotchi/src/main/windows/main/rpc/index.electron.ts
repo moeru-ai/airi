@@ -3,7 +3,8 @@ import type { BrowserWindow } from 'electron'
 import type { I18n } from '../../../libs/i18n'
 import type { ServerChannel } from '../../../services/airi/channel-server'
 import type { GodotStageManager } from '../../../services/airi/godot-stage'
-import type { McpStdioManager } from '../../../services/airi/mcp-servers'
+import type { IOTraceRecordingService } from '../../../services/airi/io-trace-recording'
+import type { McpManager } from '../../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../../services/electron/auto-updater'
 import type { ChatWindowManager } from '../../chat'
 import type { EditorWindowManager } from '../../editor'
@@ -22,12 +23,14 @@ import {
   electronGetChatButtonState,
   electronOpenChat,
   electronOpenEditor,
+  electronOpenInlay,
   electronOpenMainDevtools,
   electronOpenSettings,
   noticeWindowEventa,
 } from '../../../../shared/eventa'
 import { createAuthService } from '../../../services/airi/auth'
 import { createGodotStageService } from '../../../services/airi/godot-stage'
+import { registerIOTraceRecording } from '../../../services/airi/io-trace-recording/register'
 import { createMcpServersService } from '../../../services/airi/mcp-servers'
 import { createOnboardingService } from '../../../services/airi/onboarding'
 import { createWidgetsService } from '../../../services/airi/widgets'
@@ -45,9 +48,11 @@ export async function setupMainWindowElectronInvokes(params: {
   autoUpdater: AutoUpdater
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   i18n: I18n
   onboardingWindowManager: OnboardingWindowManager
+  ioTraceRecording: IOTraceRecordingService
+  inlayWindow: () => Promise<BrowserWindow>
 }) {
   // TODO: once we refactored eventa to support window-namespaced contexts,
   // we can remove the setMaxListeners call below since eventa will be able to dispatch and
@@ -59,14 +64,22 @@ export async function setupMainWindowElectronInvokes(params: {
   await setupBaseWindowElectronInvokes({ context, window: params.window, serverChannel: params.serverChannel, i18n: params.i18n })
   createWidgetsService({ context, widgetsManager: params.widgetsManager, window: params.window })
   createAutoUpdaterService({ context, window: params.window, service: params.autoUpdater })
-  createMcpServersService({ context, manager: params.mcpStdioManager })
+  createMcpServersService({ context, manager: params.mcpManager })
   createGodotStageService({ context, manager: params.godotStageManager, window: params.window })
   createOnboardingService({ context, onboardingWindowManager: params.onboardingWindowManager, mainWindow: params.window })
   createAuthService({ context, window: params.window })
+  const stopIOTraceRecording = registerIOTraceRecording(context, params.ioTraceRecording)
+  params.window.once('closed', stopIOTraceRecording)
 
   defineInvokeHandler(context, electronCenterMainWindow, () => centerWindowOnDisplay(params.window))
   defineInvokeHandler(context, electronOpenMainDevtools, () => params.window.webContents.openDevTools({ mode: 'detach' }))
   defineInvokeHandler(context, electronOpenEditor, () => params.editorWindow.openWindow())
+  // Speech opens the inlay without focus, so the user can keep working in another app while speaking.
+  defineInvokeHandler(context, electronOpenInlay, async () => {
+    const inlay = await params.inlayWindow()
+    if (!inlay.isDestroyed() && !inlay.isVisible())
+      inlay.showInactive()
+  })
   defineInvokeHandler(context, electronOpenSettings, payload => params.settingsWindow.openWindow(payload?.route))
   defineInvokeHandler(context, electronOpenChat, () => params.chatWindow.toggle())
   defineInvokeHandler(context, electronGetChatButtonState, () => params.chatWindow.getButtonState())

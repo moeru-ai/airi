@@ -109,17 +109,43 @@ function hasAssistantOutput(message: StreamingAssistantMessage) {
 }
 
 /**
- * Options accepted by the chat orchestrator runtime for one user send.
+ * Attachments belong to one user message. Media capture and storage stay outside chat orchestration.
+ *
+ * `data` holds base64 bytes. `url` holds a reference that the application stores in the message as it is,
+ * such as an asset URL, and resolves before provider rendering.
  */
+export type ChatAttachment
+  = ({ type: 'image' } & ({ data: string, mimeType: string, url?: never } | { url: string, mimeType?: string, data?: never }))
+    | ({
+      type: 'audio'
+      mimeType: 'audio/wav' | 'audio/mpeg'
+      /** Speech recognized while the recording was captured. Text-only models receive it instead of the audio. */
+      transcript?: string
+    } & ({ data: string, url?: never } | { url: string, data?: never }))
+
+/** Options accepted by the chat orchestrator runtime for one user send. */
 export interface ChatOrchestratorSendOptions {
+  /** Identity captured with chatProvider. Omission selects the active provider when the request is enqueued. */
+  providerId?: string
+  /** Model capabilities captured before the request enters its session queue. */
+  supportsAudioInput?: boolean
+  supportsVisionInput?: boolean
+  /** Request-owned character instructions, captured before waiting in the session queue. */
+  systemPromptSupplement?: string
+  /** Eligible catalog for this request. Omission disables stickers. The queue copies entries before waiting. */
+  stickers?: readonly { id: string, description: string }[]
+  /** Stable user-message identity. Retries acknowledge the existing message without generating another reply. */
+  messageId?: string
+  /** Cancellation belongs to this request, including queued work and provider generation. */
+  signal?: AbortSignal
   /** Provider model identifier used for the outbound LLM request. */
   model: string
   /** Concrete chat provider implementation selected by the caller. */
   chatProvider: GenerationProvider
   /** Provider-specific request options, currently used for headers. */
   providerConfig?: Record<string, unknown>
-  /** Image attachments appended to the user message content parts. */
-  attachments?: { type: 'image', data: string, mimeType: string }[]
+  /** Attachments appended to the user message content parts. */
+  attachments?: ChatAttachment[]
   /** Tool definitions passed through to the LLM stream port. */
   tools?: StreamOptions['tools']
   /** Serializable tool names stored with the user message for later requests. */
@@ -135,6 +161,7 @@ export interface ChatOrchestratorSendOptions {
 }
 
 interface QueuedSend {
+  accepted: ReturnType<typeof Promise.withResolvers<{ sessionId: string, messageId: string }>>
   /** Keep provider identity paired with the client captured at enqueue time. */
   providerId: string
   sendingMessage: string
@@ -170,6 +197,8 @@ export interface QueuedSendSnapshot {
  * Session operations required by the core chat orchestrator runtime.
  */
 export interface ChatOrchestratorSessionPort {
+  /** Resolves after durable storage. A repeated identity does not append or change an existing user message. */
+  commitUserMessage: (sessionId: string, message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }) => Promise<{ status: 'inserted' | 'existing', messageId: string }>
   /** Ensures a session exists before messages are appended. */
   ensureSession: (sessionId: string) => void
   /** Returns chronological chat history for a session. */
@@ -221,6 +250,8 @@ export interface ChatOrchestratorPromptProjection {
  * Reactive state mirrored by UI facades.
  */
 export interface ChatOrchestratorRuntimeState {
+  /** Active replies keyed by their owning sessions, including background generation. */
+  activeTurns: readonly { sessionId: string, turnId: string, message: StreamingAssistantMessage }[]
   /** Whether the runtime currently owns an active send. */
   sending: boolean
   /** Session that owns the active send; undefined while the queue is idle. */
@@ -272,7 +303,7 @@ export interface ChatOrchestratorRuntimeDeps {
   /** Called whenever writable runtime state changes. */
   onStateChange?: (state: ChatOrchestratorRuntimeState) => void
   /** Called after a runtime-owned send completes or fails and `sending` has been cleared. */
-  onSendSettled?: (event: { sessionId: string }) => void
+  onSendSettled?: (event: { sessionId: string, turnId: string, status: 'finished' | 'cancelled' | 'failed' }) => void
   /** Called when a send starts and the first assistant placeholder is created. */
   onTrackFirstMessage?: () => void
   /** Called for attempts made before the conversation has its first assistant response. */
@@ -362,16 +393,19 @@ export interface ChatOrchestratorRuntimeDeps {
   /** Called after the assistant message has been finalized into session history. */
   onAssistantMessageAppended?: (event: {
     sessionId: string
+    roundId: string
     message: StreamingAssistantMessage
     messageText: string
   }) => void
   /** Called after user turn persistence, before provider prompt composition. */
   onUserTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
   /** Called after assistant streaming and hook finalization. */
   onAssistantTurnReady?: (event: {
+    sessionId: string
     messageText: string
     sessionMessages: ChatHistoryItem[]
   }) => void
@@ -381,6 +415,13 @@ export interface ChatOrchestratorRuntimeDeps {
  * Platform-agnostic chat orchestrator runtime API.
  */
 export interface ChatOrchestratorRuntime {
+  /** Cancels only the named turn. A different active turn in the same session remains open. */
+  cancelTurn: (turn: { sessionId: string, turnId: string }) => void
+  /** Exposes persistence acknowledgment separately from assistant generation completion. */
+  submit: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => {
+    accepted: Promise<{ sessionId: string, messageId: string }>
+    done: Promise<void>
+  }
   /** Enqueues a user send for the target session, preserving FIFO order. */
   ingest: (sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) => Promise<void>
   /** Rejects queued sends that have not started yet. */
@@ -401,6 +442,21 @@ function defaultCreateId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
 }
 
+/** Releases the request owner on abort even when an external provider does not settle. Late provider output remains signal-guarded. */
+async function waitForProvider(work: Promise<unknown>, signal: AbortSignal) {
+  const cancelled = Promise.withResolvers<never>()
+  const abort = () => cancelled.reject(signal.reason)
+  signal.addEventListener('abort', abort, { once: true })
+  if (signal.aborted)
+    abort()
+  try {
+    await Promise.race([work, cancelled.promise])
+  }
+  finally {
+    signal.removeEventListener('abort', abort)
+  }
+}
+
 /**
  * Creates the core chat orchestrator runtime used behind UI facades.
  *
@@ -418,7 +474,12 @@ function defaultCreateId() {
 export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps): ChatOrchestratorRuntime {
   // A queued send owns one controller until performSend settles. Session reset
   // aborts that transport as well as rejecting queued work for the same session.
-  const activeSends = new Map<string, AbortController>()
+  const activeSends = new Map<string, {
+    controller: AbortController
+    turnId?: string
+    message?: StreamingAssistantMessage
+  }>()
+  const sendQueues = new Map<string, ReturnType<typeof createQueue<QueuedSend>>>()
   const hooks = createChatHooks()
   const now = deps.now ?? (() => Date.now())
   const monotonicNow = deps.monotonicNow ?? (() => globalThis.performance?.now?.() ?? Date.now())
@@ -432,6 +493,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
   function emitStateChange() {
     deps.onStateChange?.({
+      activeTurns: [...activeSends].flatMap(([sessionId, active]) => active.turnId && active.message
+        ? [{ sessionId, turnId: active.turnId, message: active.message }]
+        : []),
       sending,
       activeSendSessionId,
       activeStreamingMessage,
@@ -457,6 +521,10 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function beginStream(sessionId: string, message: StreamingAssistantMessage) {
+    const active = activeSends.get(sessionId)
+    if (!active)
+      return
+    active.message = cloneStreamingMessage(message)
     sending = true
     activeSendSessionId = sessionId
     activeStreamingMessage = cloneStreamingMessage(message)
@@ -467,10 +535,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   function updateStream(sessionId: string, message: StreamingAssistantMessage) {
+    const active = activeSends.get(sessionId)
+    if (!active)
+      return
+    active.message = cloneStreamingMessage(message)
     if (sessionId === activeSendSessionId) {
-      activeStreamingMessage = cloneStreamingMessage(message)
-      emitStateChange()
+      activeStreamingMessage = active.message
     }
+    emitStateChange()
 
     if (isForegroundSession(sessionId))
       deps.foregroundStream.patch(cloneStreamingMessage(message))
@@ -518,6 +590,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     sessionId: string,
     abortSignal: AbortSignal,
     activeProvider: string,
+    accepted: QueuedSend['accepted'],
   ) {
     if (!sendingMessage && !options.attachments?.length)
       return
@@ -546,8 +619,9 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     // with deterministic id factories keep the same durable message ids.
     const streamContextMessageId = createId()
     const assistantMessageId = createId()
-    const roundId = createId()
+    const roundId = options.messageId ?? createId()
     const streamingMessageContext: ChatStreamEventContext = {
+      sessionId,
       turnId: roundId,
       message: {
         role: 'user',
@@ -583,6 +657,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       createdAt: now(),
       id: assistantMessageId,
     }
+    activeSends.get(sessionId)!.turnId = roundId
     beginStream(sessionId, buildingMessage)
     const hasVoice = options.input?.type === 'input:voice'
       || options.input?.type === 'input:text:voice'
@@ -611,6 +686,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     const roundStartedAt = monotonicNow()
     let assistantStored = false
     let generationCompleted = false
+    let failed = false
 
     try {
       await hooks.emitBeforeMessageComposedHooks(sendingMessage, streamingMessageContext)
@@ -619,11 +695,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (options.attachments) {
         for (const attachment of options.attachments) {
+          if (attachment.type === 'audio') {
+            contentParts.push({ type: 'input_audio', input_audio: { data: attachment.url ?? attachment.data, format: attachment.mimeType === 'audio/wav' ? 'wav' : 'mp3' } })
+          }
           if (attachment.type === 'image') {
             contentParts.push({
               type: 'image_url',
               image_url: {
-                url: `data:${attachment.mimeType};base64,${attachment.data}`,
+                url: attachment.url ?? `data:${attachment.mimeType};base64,${attachment.data}`,
               },
             })
           }
@@ -631,6 +710,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       }
 
       const finalContent = contentParts.length > 1 ? contentParts : sendingMessage
+      // Transcripts follow audio part order, which is the cache key that text-only projection reads.
+      const audioTranscripts = options.attachments?.filter(attachment => attachment.type === 'audio').map(attachment => attachment.transcript ?? '')
       if (!streamingMessageContext.input) {
         streamingMessageContext.input = {
           type: 'input:text',
@@ -659,8 +740,14 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         id: roundId,
         ...(replyToMessageId ? { replyToMessageId } : {}),
         ...(options.toolReferences?.length ? { tools: options.toolReferences } : {}),
+        ...(audioTranscripts?.some(Boolean) ? { audioTranscripts } : {}),
       }
-      deps.session.appendSessionMessage(sessionId, userMessage)
+      const receipt = await deps.session.commitUserMessage(sessionId, userMessage)
+      accepted.resolve({ sessionId, messageId: receipt.messageId })
+      if (receipt.status === 'existing' || shouldAbort()) {
+        resetForegroundStream(sessionId)
+        return
+      }
 
       // Cloud sync v1: only the raw text part round-trips; image attachments
       // and other non-text parts stay local.
@@ -677,12 +764,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       const sessionMessagesForSend = deps.session.getSessionMessages(sessionId)
       deps.onUserTurnReady?.({
+        sessionId,
         messageText: sendingMessage,
         sessionMessages: sessionMessagesForSend,
       })
 
-      const categorizer = createStreamingCategorizer(deps.getActiveProvider())
+      const categorizer = createStreamingCategorizer(activeProvider)
       let streamPosition = 0
+      const stickers = options.stickers
+      let stickerEmitted = false
 
       const parser = useLlmmarkerParser({
         onLiteral: async (literal) => {
@@ -698,6 +788,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
             buildingMessage.content += speechOnly
 
             await hooks.emitTokenLiteralHooks(speechOnly, streamingMessageContext)
+            if (shouldAbort())
+              return
 
             const lastSlice = buildingMessage.slices.at(-1)
             if (lastSlice?.type === 'text') {
@@ -716,13 +808,29 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
           if (shouldAbort())
             return
 
+          if (/^<\|STICKER\b/.test(special)) {
+            // Text-based reasoning can contain markers too. Only visible speech can select an image.
+            if (!categorizer.filterToSpeech(special, streamPosition))
+              return
+            const id = /^<\|STICKER ([a-z0-9-]+)\|>$/.exec(special)?.[1]
+            if (!stickerEmitted && id && stickers?.some(sticker => sticker.id === id)) {
+              buildingMessage.slices.push({ type: 'sticker', stickerId: id })
+              stickerEmitted = true
+              updateStream(sessionId, buildingMessage)
+            }
+            // Sticker markers are UI data, including invalid IDs. Speech and plugins must not execute them.
+            return
+          }
+
           await hooks.emitTokenSpecialHooks(special, streamingMessageContext)
         },
         onEnd: async (fullText) => {
-          if (isStaleGeneration())
+          if (shouldAbort())
             return
 
-          const finalCategorization = categorizeResponse(fullText, deps.getActiveProvider())
+          // Strip only sticker markers, including the escaped form accepted by the parser.
+          const speechText = fullText.replace(/<(?:\||\{'\|'\})STICKER\b[\s\S]*?(?:(?:\||\{'\|'\})>|$)/g, '')
+          const finalCategorization = categorizeResponse(speechText, activeProvider)
 
           const reasoningContentField = buildingMessage.categorization?.reasoning?.trim()
           buildingMessage.categorization = {
@@ -756,7 +864,16 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       })
 
       const context = buildContext(sessionMessagesForSend)
-      const systemPromptSupplement = deps.getSystemPromptSupplement?.()?.trim()
+      const stickerPrompt = stickers?.length
+        ? [
+            'You can send one optional sticker per reply with a marker from this catalog.',
+            'Use stickers when the user requests one or when a lighthearted response fits. Avoid them in serious conversations.',
+            'Keep your text complete. Never invent sticker IDs or image URLs.',
+            'Choose the ID whose name and emotion tags best fit the conversation.',
+            ...stickers.map(sticker => `<|STICKER ${sticker.id}|>: ${sticker.description}`),
+          ].join('\n')
+        : ''
+      const systemPromptSupplement = [options.systemPromptSupplement?.trim(), stickerPrompt].filter(Boolean).join('\n\n')
       if (systemPromptSupplement) {
         const systemMessage = context.turns.find(turn => turn.type === 'system' && turn.authority === 'system')
         if (systemMessage?.type === 'system')
@@ -807,13 +924,15 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       deps.onLlmRequestStarted?.({
         ...correlation,
         model: options.model,
-        provider: deps.getActiveProvider() || 'unknown',
+        provider: activeProvider || 'unknown',
         hasVoice,
       })
 
-      await deps.llm.stream(options.model, options.chatProvider, context, {
+      await waitForProvider(deps.llm.stream(options.model, options.chatProvider, context, {
         headers,
         providerId: activeProvider,
+        supportsAudioInput: options.supportsAudioInput,
+        supportsVisionInput: options.supportsVisionInput,
         abortSignal,
         onGeneratedTurn: (turn) => { generatedTurn = structuredClone(turn) },
         requestCorrelation: {
@@ -911,7 +1030,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
               throw event.error ?? new Error('Stream error')
           }
         },
-      })
+      }), abortSignal)
 
       // Session generation is the lifecycle correlation key. Re-check it
       // after every awaited completion boundary so deleting a session while a
@@ -938,10 +1057,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
 
       if (!shouldAbort() && (buildingMessage.slices.length > 0 || generatedTurn?.rounds.length)) {
         const finalAssistant = buildingMessage
+        finalAssistant.completedAt = now()
         deps.session.appendSessionMessage(sessionId, finalAssistant)
         assistantStored = true
         deps.onAssistantMessageAppended?.({
           sessionId,
+          roundId,
           message: finalAssistant,
           messageText: fullText,
         })
@@ -971,6 +1092,7 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
       if (shouldAbort())
         return
       deps.onAssistantTurnReady?.({
+        sessionId,
         messageText: fullText,
         sessionMessages: sessionMessagesForSend,
       })
@@ -1000,11 +1122,12 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
     catch (error) {
       if (shouldAbort())
         return
+      failed = true
 
       if (!assistantStored && !generationCompleted && hasAssistantOutput(buildingMessage)) {
         // Keep received output local, but do not run completion hooks or cloud
         // sync for an assistant turn that never reached a terminal event.
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
       }
       resetForegroundStream(sessionId)
 
@@ -1035,77 +1158,112 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         && abortSignal.aborted
         && !isStaleGeneration()
         && hasAssistantOutput(buildingMessage)) {
-        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true })
+        deps.session.appendSessionMessage(sessionId, { ...cloneStreamingMessage(buildingMessage), interrupted: true, completedAt: now() })
         resetForegroundStream(sessionId)
       }
-      setSending(false)
-      deps.onSendSettled?.({ sessionId })
+      activeSends.delete(sessionId)
+      sending = activeSends.size > 0
+      if (activeSendSessionId === sessionId) {
+        activeSendSessionId = activeSends.keys().next().value
+        activeStreamingMessage = activeSendSessionId ? activeSends.get(activeSendSessionId)?.message : undefined
+      }
+      emitStateChange()
+      deps.onSendSettled?.({ sessionId, turnId: roundId, status: shouldAbort() ? 'cancelled' : failed ? 'failed' : 'finished' })
     }
   }
 
-  const sendQueue = createQueue<QueuedSend>({
-    handlers: [
-      async ({ data }) => {
-        const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
+  /** Each session owns its FIFO. A blocked provider cannot prevent another session from starting. */
+  function queueFor(sessionId: string) {
+    const existing = sendQueues.get(sessionId)
+    if (existing)
+      return existing
+    const sendQueue = createQueue<QueuedSend>({
+      handlers: [
+        async ({ data }) => {
+          const { sendingMessage, options, generation, deferred, sessionId, cancelled, providerId } = data
 
-        if (cancelled)
-          return
+          if (cancelled)
+            return
 
-        if (deps.session.getSessionGeneration(sessionId) !== generation) {
-          deferred.reject(new Error('Chat session was reset before send could start'))
-          return
-        }
+          if (deps.session.getSessionGeneration(sessionId) !== generation) {
+            const error = new Error('Chat session was reset before send could start')
+            data.accepted.reject(error)
+            deferred.reject(error)
+            return
+          }
 
-        const controller = new AbortController()
-        activeSends.set(sessionId, controller)
-        try {
-          await performSend(sendingMessage, options, generation, sessionId, controller.signal, providerId)
-          deferred.resolve()
-        }
-        catch (error) {
-          deferred.reject(error)
-        }
-        finally {
-          activeSends.delete(sessionId)
-        }
-      },
-    ],
-  })
+          const controller = new AbortController()
+          activeSends.set(sessionId, { controller })
+          try {
+            await performSend(sendingMessage, options, generation, sessionId, options.signal ? AbortSignal.any([controller.signal, options.signal]) : controller.signal, providerId, data.accepted)
+            deferred.resolve()
+          }
+          catch (error) {
+            data.accepted.reject(error)
+            deferred.reject(error)
+          }
+          finally {
+            data.accepted.reject(new Error('Chat request ended before persistence'))
+            activeSends.delete(sessionId)
+          }
+        },
+      ],
+    })
 
-  sendQueue.on('enqueue', (queuedSend) => {
-    pendingQueuedSends.push(queuedSend)
-    emitStateChange()
-  })
+    sendQueue.on('enqueue', (queuedSend) => {
+      pendingQueuedSends.push(queuedSend)
+      emitStateChange()
+    })
 
-  sendQueue.on('dequeue', (queuedSend) => {
-    pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
-    emitStateChange()
-  })
+    sendQueue.on('dequeue', (queuedSend) => {
+      pendingQueuedSends = pendingQueuedSends.filter(item => item !== queuedSend)
+      emitStateChange()
+    })
 
-  function ingest(
+    sendQueue.on('drain', () => {
+      if (sendQueues.get(sessionId) === sendQueue)
+        sendQueues.delete(sessionId)
+    })
+    sendQueues.set(sessionId, sendQueue)
+    return sendQueue
+  }
+
+  function submit(
     sendingMessage: string,
     options: ChatOrchestratorSendOptions,
     targetSessionId?: string,
   ) {
-    const sessionId = targetSessionId || deps.getActiveSessionId()
+    const sessionId = targetSessionId ?? deps.getActiveSessionId()
     const generation = deps.session.getSessionGeneration(sessionId)
-
-    return new Promise<void>((resolve, reject) => {
-      sendQueue.enqueue({
-        providerId: deps.getActiveProvider?.() ?? '',
-        sendingMessage,
-        options,
-        generation,
-        sessionId,
-        deferred: { resolve, reject },
-      })
+    const accepted = Promise.withResolvers<{ sessionId: string, messageId: string }>()
+    const deferred = Promise.withResolvers<void>()
+    // Callers can await either boundary first. Failures remain visible on both original promises.
+    void accepted.promise.catch(() => {})
+    void deferred.promise.catch(() => {})
+    queueFor(sessionId).enqueue({
+      providerId: options.providerId ?? deps.getActiveProvider?.() ?? '',
+      sendingMessage,
+      options: {
+        ...options,
+        systemPromptSupplement: options.systemPromptSupplement ?? deps.getSystemPromptSupplement?.(),
+        stickers: options.stickers?.map(({ id, description }) => ({ id, description })),
+      },
+      generation,
+      sessionId,
+      accepted,
+      deferred,
     })
+    return { accepted: accepted.promise, done: deferred.promise }
+  }
+
+  function ingest(sendingMessage: string, options: ChatOrchestratorSendOptions, targetSessionId?: string) {
+    return submit(sendingMessage, options, targetSessionId).done
   }
 
   function cancelPendingSends(sessionId?: string) {
-    for (const [activeSessionId, controller] of activeSends) {
+    for (const [activeSessionId, active] of activeSends) {
       if (!sessionId || sessionId === activeSessionId)
-        controller.abort(new Error('Chat session send was cancelled'))
+        active.controller.abort(new Error('Chat session send was cancelled'))
     }
 
     for (const queued of pendingQueuedSends) {
@@ -1113,12 +1271,29 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
         continue
 
       queued.cancelled = true
-      queued.deferred.reject(new Error('Chat session was reset before send could start'))
+      const error = new Error('Chat session was reset before send could start')
+      queued.accepted.reject(error)
+      queued.deferred.reject(error)
     }
 
     pendingQueuedSends = sessionId
       ? pendingQueuedSends.filter(item => item.sessionId !== sessionId)
       : []
+    emitStateChange()
+  }
+
+  function cancelTurn(turn: { sessionId: string, turnId: string }) {
+    if (activeSends.get(turn.sessionId)?.turnId === turn.turnId)
+      activeSends.get(turn.sessionId)?.controller.abort(new Error('Chat turn was cancelled'))
+    for (const queued of pendingQueuedSends) {
+      if (queued.sessionId !== turn.sessionId || queued.options.messageId !== turn.turnId)
+        continue
+      queued.cancelled = true
+      const error = new Error('Chat turn was cancelled before it started')
+      queued.accepted.reject(error)
+      queued.deferred.reject(error)
+    }
+    pendingQueuedSends = pendingQueuedSends.filter(queued => !queued.cancelled)
     emitStateChange()
   }
 
@@ -1134,6 +1309,8 @@ export function createChatOrchestratorRuntime(deps: ChatOrchestratorRuntimeDeps)
   }
 
   return {
+    cancelTurn,
+    submit,
     ingest,
     cancelPendingSends,
     getPendingQueuedSendSnapshot,

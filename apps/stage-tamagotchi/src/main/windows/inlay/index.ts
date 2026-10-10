@@ -3,15 +3,15 @@ import type { ServerChannel } from '../../services/airi/channel-server'
 
 import { join, resolve } from 'node:path'
 
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, screen } from 'electron'
 import { isMacOS } from 'std-env'
 
 import icon from '../../../../resources/icon.png?asset'
 
 import { baseUrl, getElectronMainDirname, load, withHashRoute } from '../../libs/electron/location'
 import { createReusableWindow } from '../../libs/electron/window-manager/reusable'
-import { currentDisplayBounds, mapForBreakpoints, resolutionBreakpoints, widthFrom } from '../shared/display'
-import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig } from '../shared/window'
+import { protectPrivilegedWindowNavigation, spotlightLikeWindowConfig, transparentWindowConfig } from '../shared/window'
+import { INLAY_WINDOW_HEIGHT, inlayWindowBounds } from './bounds'
 import { setupInlayWindowInvokes } from './rpc/index.electron'
 
 export function setupInlayWindowReusable(params: {
@@ -20,56 +20,39 @@ export function setupInlayWindowReusable(params: {
 }) {
   return createReusableWindow(async () => {
     const window = new BrowserWindow({
+      ...transparentWindowConfig(),
+      ...spotlightLikeWindowConfig(),
+      // transparentWindowConfig removes the shadow. The inlay is a native vibrancy panel, so it keeps the system shadow.
+      hasShadow: true,
       title: 'Inlay',
       width: 450,
-      height: 150,
+      height: INLAY_WINDOW_HEIGHT,
       show: false,
+      resizable: false,
+      maximizable: false,
+      minimizable: false,
+      skipTaskbar: true,
       icon,
       webPreferences: {
         preload: join(getElectronMainDirname(), '../preload/index.mjs'),
         sandbox: false,
       },
-      ...spotlightLikeWindowConfig(),
     })
 
     if (isMacOS) {
       window.setWindowButtonVisibility(false)
+      window.setHiddenInMissionControl(true)
     }
 
-    const displayBounds = currentDisplayBounds(window)
-    const width = mapForBreakpoints(
-      displayBounds.width,
-      {
-        '720p': widthFrom(displayBounds, { percentage: 1, max: { percentage: 0.5 } }),
-        '1080p': widthFrom(displayBounds, { percentage: 1, max: { percentage: 0.33 } }),
-        '2k': widthFrom(displayBounds, { percentage: 0.25, max: { actual: 710 } }),
-        '4k': widthFrom(displayBounds, { percentage: 0.2, max: { actual: 768 } }),
-      },
-      { breakpoints: resolutionBreakpoints },
-    )
-    const height = width / 4
+    // Only a new window gets the default position. Hiding keeps the window, so a dragged position lasts until the app quits.
+    window.setBounds(inlayWindowBounds(screen.getDisplayMatching(window.getBounds()).workArea))
 
-    window.setBounds({
-      width,
-      height: width / 4,
-      x: displayBounds.x + (displayBounds.width - width) / 2, // Center horizontally
-      y: mapForBreakpoints(
-        displayBounds.height,
-        {
-          sm: displayBounds.height / 4 * 3 - height, // Bottom quarter, minus window height
-          md: displayBounds.height / 5 * 4 - height, // Center vertically
-          lg: displayBounds.height / 6 * 5 - height, // Top quarter, minus half window height
-        },
-      ),
-    })
-
-    window.on('ready-to-show', () => window.show())
     protectPrivilegedWindowNavigation(window)
 
     await setupInlayWindowInvokes({ inlayWindow: window, serverChannel: params.serverChannel, i18n: params.i18n })
 
     await load(window, withHashRoute(baseUrl(resolve(getElectronMainDirname(), '..', 'renderer')), '/inlay', {
-      query: { 'synced-leader': 'false' },
+      query: { 'stage-runtime': 'minimal', 'synced-leader': 'false' },
     }))
 
     return window

@@ -3,6 +3,11 @@ operations:
   load-models-status:
     loading: Loading
     ready: Ready
+'resource-island':
+  loading: Preparing resources...
+  ready: Resources ready
+  preparing: Preparing model files
+  failed: Model download failed
 docs:
   theme:
     navbar:
@@ -40,10 +45,22 @@ docs:
     legacy: Classic window
     floating-attached: Floating, beside the character
     floating-free: Floating, anywhere on screen
+    floating-danmaku: Floating, message feed
     pinned: Keep on top
   resize: Drag to resize the chat
   move: Drag to move the chat
   fold: Hide chat
+  composer:
+    show: Show the message box
+    hide: Hide the message box
+  danmaku-feed:
+    title: Message timing
+    hide-read: Hide read messages
+    hide-read-description: Messages leave once read. Spoken replies leave when the speech ends.
+    reading-speed: Reading speed
+    reading-speed-value: '{count} characters/s'
+    minimum-time: Minimum time
+    minimum-time-value: '{count} s'
 
 widgets:
   close: Close widget
@@ -54,7 +71,7 @@ widgets:
   waiting: Waiting for widget data for "{id}"…
 
 inlay:
-  close: Close
+  hide: Hide
 
 notice:
   'fade-on-hover':

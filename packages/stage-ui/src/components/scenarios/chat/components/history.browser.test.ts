@@ -2,7 +2,8 @@ import type { ChatHistoryItem } from '../../../../types/chat'
 
 import en from '@proj-airi/i18n/locales/en'
 
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createPinia, disposePinia, setActivePinia } from 'pinia'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-vue'
 import { nextTick } from 'vue'
 import { createI18n } from 'vue-i18n'
@@ -127,6 +128,14 @@ function dispatchTouchEvent(
   }))
 }
 
+// A user message reads voice message snapshots from a store.
+let pinia: ReturnType<typeof createPinia>
+beforeEach(() => {
+  pinia = createPinia()
+  setActivePinia(pinia)
+})
+afterEach(() => disposePinia(pinia))
+
 describe('chat history', () => {
   beforeEach(() => {
     triggerHaptic.mockClear()
@@ -163,6 +172,41 @@ describe('chat history', () => {
       expect(replyBubble?.textContent).toContain('Replying to AIRI')
       expect(replyBubble?.textContent).toContain('Earlier answer')
     })
+  })
+
+  // ROOT CAUSE:
+  //
+  // ChatHistoryMessageFrame always applied opacity-0, then added opacity-100
+  // when IntersectionObserver reported visibility. UnoCSS kept both utilities
+  // on the same node. In Kirie CEF software OSR the opacity transition never
+  // flushed, so computed opacity stayed 0 and the conversation looked empty
+  // after a successful send.
+  //
+  // Visible messages now start opaque and never keep both opacity utilities.
+  it('paints on-screen desktop messages without an opacity-0 class', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'Hello from the chat window' }],
+        style: 'height: 240px; width: 320px;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await vi.waitFor(() => {
+      expect(screen.container.querySelector('.chat-message-item')).not.toBeNull()
+    })
+
+    const item = screen.container.querySelector<HTMLElement>('.chat-message-item')
+    expect(item).not.toBeNull()
+    if (!item)
+      throw new Error('Expected a rendered chat message.')
+
+    expect(item.classList.contains('opacity-0')).toBe(false)
+    expect(item.classList.contains('opacity-100')).toBe(true)
+    expect(getComputedStyle(item).opacity).toBe('1')
+    expect(item.textContent).toContain('Hello from the chat window')
   })
 
   // ROOT CAUSE:
@@ -324,7 +368,9 @@ describe('chat history', () => {
       expect(visibleMessages.length).toBeGreaterThan(0)
       expect(hiddenMessages.length).toBeGreaterThan(0)
       expect(visibleMessages[0].classList.contains('opacity-100')).toBe(true)
-      expect(visibleMessages[0].classList.contains('transition-opacity')).toBe(true)
+      expect(visibleMessages[0].classList.contains('opacity-0')).toBe(false)
+      expect(visibleMessages[0].classList.contains('transition-[opacity,visibility]')).toBe(true)
+      expect(getComputedStyle(visibleMessages[0]).opacity).toBe('1')
       expect(hiddenMessages[0].classList.contains('opacity-0')).toBe(true)
     })
 
@@ -429,6 +475,157 @@ describe('chat history', () => {
         key: getChatHistoryItemKey(messages[1], 1),
       },
     ]])
+  })
+
+  it('hides expired messages in place, and keeps the indices of the rest', async () => {
+    const messages: ChatHistoryItem[] = [
+      { role: 'user', content: 'first question' },
+      { role: 'user', content: 'hello' },
+      { role: 'error', content: 'Remote sent 400 response' },
+    ]
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        expiredBefore: 0,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    await expect.element(screen.getByText('first question')).toBeInTheDocument()
+    const expiredItem = screen.getByText('first question').element().closest('.chat-message-item')
+
+    const expiredTop = expiredItem?.getBoundingClientRect().top
+    await screen.rerender({ expiredBefore: 1 })
+    expect(expiredItem?.classList.contains('invisible')).toBe(true)
+    expect(expiredItem?.classList.contains('opacity-0')).toBe(true)
+    expect(expiredItem?.isConnected).toBe(true)
+    expect(expiredItem?.getBoundingClientRect().top).toBe(expiredTop)
+
+    await screen.getByRole('button', { name: 'Retry' }).click()
+    expect(screen.emitted('retryMessage')).toEqual([[
+      {
+        message: messages[2],
+        index: 2,
+        key: getChatHistoryItemKey(messages[2], 2),
+      },
+    ]])
+
+    await screen.rerender({ expiredBefore: 0 })
+    expect(expiredItem?.classList.contains('invisible')).toBe(false)
+    expect(expiredItem?.classList.contains('opacity-100')).toBe(true)
+  })
+
+  it('hides the time label of an expired message with it', async () => {
+    const createdAt = new Date('2026-10-05T12:00:00Z').getTime()
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ id: 'user-1', role: 'user', content: 'first question', createdAt }] satisfies ChatHistoryItem[],
+        expiredBefore: 0,
+        style: 'height: 480px; width: 480px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await expect.element(screen.getByText('first question')).toBeInTheDocument()
+    const label = screen.container.querySelector('time')?.closest('.w-full')
+    expect(label).not.toBeNull()
+
+    await screen.rerender({ expiredBefore: 1 })
+    expect(label?.classList.contains('invisible')).toBe(true)
+  })
+
+  // Hidden messages keep their space, so a feed that stayed scrolled up to
+  // them would show only empty space.
+  it('returns to the newest message when more messages hide', async () => {
+    const messages: ChatHistoryItem[] = Array.from({ length: 60 }, (_, index) => ({
+      id: `user-${index}`,
+      role: 'user',
+      content: `Message ${index} `.repeat(index % 6 + 1),
+      createdAt: index,
+    }))
+
+    const screen = await render(ChatHistory, {
+      props: {
+        messages,
+        expiredBefore: 0,
+        style: 'height: 240px; width: 320px; overflow-y: auto;',
+      },
+      global: {
+        plugins: [createEnglishI18n()],
+      },
+    })
+
+    const history = screen.container.querySelector<HTMLElement>('.chat-history-list')
+    if (!history)
+      throw new Error('Expected a chat history viewport.')
+
+    const atTail = () => history.scrollTop + history.clientHeight >= history.scrollHeight - 24
+    // The history opens at the newest message, then the reader scrolls up.
+    await vi.waitFor(() => {
+      expect(history.scrollHeight).toBeGreaterThan(history.clientHeight)
+      expect(atTail()).toBe(true)
+    })
+    history.dispatchEvent(new WheelEvent('wheel', { deltaY: -1000 }))
+    history.scrollTop = 0
+    history.dispatchEvent(new Event('scroll'))
+    // The list aligns to the tail in an animation frame, so two frames show
+    // that the reader's position holds.
+    await new Promise(requestAnimationFrame)
+    await new Promise(requestAnimationFrame)
+    expect(history.scrollTop).toBe(0)
+
+    await screen.rerender({ expiredBefore: 55 })
+
+    await vi.waitFor(() => {
+      expect(atTail()).toBe(true)
+      expect(screen.container.textContent).toContain('Message 59')
+    })
+  })
+
+  it('keeps short error formatting', async () => {
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'error', content: '**Retry this request**' }],
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.querySelector('strong')?.textContent).toBe('Retry this request'))
+    expect(screen.container.querySelector('button[aria-expanded]')).toBeNull()
+  })
+
+  // ROOT CAUSE:
+  //
+  // A provider can place a full response body inside one chat error message.
+  // The error item rendered that body immediately and filled the mobile Stage.
+  // Keep a short summary visible and reveal the complete message on request.
+  it('keeps a long provider error compact until the user opens its details', async () => {
+    const responseBody = JSON.stringify({ error: { message: 'Invalid schema for configure_wake_words', metadata: 'x'.repeat(1200) } })
+    const content = `Remote sent 400 response: ${responseBody}`
+    const screen = await render(ChatHistory, {
+      props: {
+        messages: [{ role: 'user', content: 'Set a wake word' }, { role: 'error', content }],
+        variant: 'mobile',
+        style: 'height: 480px; width: 320px; overflow-y: auto;',
+      },
+      global: { plugins: [createEnglishI18n()] },
+    })
+
+    await vi.waitFor(() => expect(screen.container.textContent).toContain('Remote sent 400 response'))
+    expect(screen.container.textContent).toContain('Remote sent 400 response')
+    expect(screen.container.textContent).not.toContain('Invalid schema for configure_wake_words')
+
+    const disclosure = screen.getByRole('button', { name: 'Show details' })
+    await expect.element(disclosure).toHaveAttribute('aria-expanded', 'false')
+    await disclosure.click()
+    await expect.element(screen.getByRole('button', { name: 'Hide details' })).toHaveAttribute('aria-expanded', 'true')
+
+    expect(screen.container.textContent).toContain('Invalid schema for configure_wake_words')
+    expect(screen.container.querySelector('pre')?.textContent).toBe(content)
   })
 
   it('emits retry-message for an error after partial assistant output', async () => {

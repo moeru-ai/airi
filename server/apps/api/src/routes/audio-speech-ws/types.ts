@@ -1,7 +1,6 @@
+import type { GenAiMetrics } from '../../otel'
 import type { ConfigKVService } from '../../services/adapters/config-kv'
-import type { FluxMeter } from '../../services/domain/billing/flux-meter'
-import type { FluxService } from '../../services/domain/flux'
-import type { RequestLogService } from '../../services/domain/request-log'
+import type { SpeechBilling } from '../../services/domain/billing/speech-billing'
 import type { EnvelopeCrypto } from '../../utils/envelope-crypto'
 
 /**
@@ -13,9 +12,8 @@ export interface AudioSpeechWsHandlersOptions {
   /** Decrypts the selected upstream API key before the websocket handshake. */
   envelopeCrypto: EnvelopeCrypto
   /** Reads the user's current Flux balance for pre-flight and final billing. */
-  fluxService: FluxService
   /** Applies pre-flight affordability checks and final streaming TTS billing. */
-  ttsMeter: FluxMeter
-  /** Persists request accounting after a stream finishes. */
-  requestLogService: RequestLogService
+  speechBilling: SpeechBilling
+  /** Records session duration and time to first audio. */
+  genAi?: GenAiMetrics | null
 }

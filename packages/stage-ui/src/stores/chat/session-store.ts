@@ -4,7 +4,7 @@ import type {} from 'pinia-plugin-synced'
 import type { ChatSendOutboxEntry } from '../../database/repos/chat-sessions.repo'
 import type { ChatWsClient, CloudChatMapper } from '../../libs/chat-sync'
 import type { ChatHistoryItem } from '../../types/chat'
-import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex } from '../../types/chat-session'
+import type { ChatSessionMeta, ChatSessionRecord, ChatSessionsExport, ChatSessionsIndex, StoredVoiceInterruption } from '../../types/chat-session'
 
 import { errorMessageFrom } from '@moeru/std'
 import { cloneDeep } from 'es-toolkit'
@@ -14,6 +14,7 @@ import { computed, ref, watch } from 'vue'
 
 import { chatSessionsRepo } from '../../database/repos/chat-sessions.repo'
 import { authedFetch } from '../../libs/auth-fetch'
+import { chatAssetIdsOf, inlineChatAssets } from '../../libs/chat-assets'
 import {
   applyCreateActions,
   createChatWsClient,
@@ -63,7 +64,8 @@ const useChatSessionSelectionStore = defineStore('chat-session-selection', () =>
 
 export const useChatSessionStore = defineStore('chat-session', () => {
   const { userId, token: authToken } = storeToRefs(useAuthStore())
-  const { activeCardId, systemPrompt } = storeToRefs(useAiriCardStore())
+  const cards = useAiriCardStore()
+  const { activeCardId, systemPrompt } = storeToRefs(cards)
 
   const chatSessionSelection = useChatSessionSelectionStore()
   // The selected conversation belongs to one window. Expose it through the
@@ -84,6 +86,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   const initializing = ref(false)
   let initializePromise: Promise<void> | null = null
   let ensureActivePromise: Promise<string> | null = null
+  const characterSessionRequests = new Map<string, Promise<string>>()
   // Bumped by `clearInMemoryState` (user swap / teardown). The
   // `ensureActiveSessionForCharacter` IIFE captures this at call time and
   // bails after every await once it changes, so a stale hydrate from the
@@ -289,7 +292,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       const messages = snapshotMessages(ensureSessionMessageIds(sessionId))
       const now = Date.now()
       const updatedMeta = {
-        ...meta,
+        ...cloneDeep(meta),
         updatedAt: now,
       }
 
@@ -313,7 +316,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   }
 
   function persistSessionMessages(sessionId: string) {
-    void persistSession(sessionId)
+    return persistSession(sessionId)
   }
 
   function replaceSessionMessages(sessionId: string, next: ChatHistoryItem[], options?: { persist?: boolean }) {
@@ -335,12 +338,57 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     ])
   }
 
+  /** Acknowledge a user message only after storage succeeds. Retries use its stable identity. */
+  async function commitUserMessage(sessionId: string, message: Extract<ChatHistoryItem, { role: 'user' }> & { id: string }) {
+    if (!sessionMetas.value[sessionId])
+      throw new Error('Cannot commit a message to an unknown session')
+    const generation = getSessionGeneration(sessionId)
+    const messages = ensureSessionMessageIds(sessionId)
+    const existing = messages.find(item => item.id === message.id)
+    if (existing && existing.role !== 'user')
+      throw new Error('Message identity belongs to another message type')
+    if (!existing)
+      replaceSessionMessages(sessionId, [...messages, message], { persist: false })
+    try {
+      await persistSession(sessionId)
+      if (getSessionGeneration(sessionId) !== generation || !sessionMetas.value[sessionId]
+        || !sessionMessages.value[sessionId]?.some(item => item.id === message.id)) {
+        throw new Error('Chat session changed before message persistence completed')
+      }
+    }
+    catch (error) {
+      if (!existing) {
+        const current = sessionMessages.value[sessionId]
+        if (current)
+          replaceSessionMessages(sessionId, current.filter(item => item.id !== message.id), { persist: false })
+      }
+      throw error
+    }
+    return { status: existing ? 'existing' as const : 'inserted' as const, messageId: message.id }
+  }
+
+  /** Persists a control event under its turn's session. Retries retain the original event identity. */
+  async function recordInterruption(event: StoredVoiceInterruption) {
+    const sessionId = event.turn.sessionId
+    if (!await loadSession(sessionId))
+      throw new Error('Cannot record interruption for an unknown session')
+    const generation = getSessionGeneration(sessionId)
+    const meta = sessionMetas.value[sessionId]
+    if (!meta.controlEvents?.some(record => record.eventId === event.eventId))
+      meta.controlEvents = [...(meta.controlEvents ?? []), event]
+    await persistSession(sessionId)
+    if (generation !== getSessionGeneration(sessionId) || !sessionMetas.value[sessionId])
+      throw new Error('Session changed before interruption persistence completed')
+    return { status: 'queued' as const }
+  }
+
   /** Removes one message by stable id or by its current history index. */
   async function deleteMessage(payload: DeleteChatMessagePayload): Promise<void> {
     if (!await loadSession(payload.sessionId))
       throw new Error('Failed to load the target chat session')
 
-    const nextMessages = getSessionMessages(payload.sessionId).filter((message, messageIndex) => {
+    const currentMessages = getSessionMessages(payload.sessionId)
+    const nextMessages = currentMessages.filter((message, messageIndex) => {
       if (payload.messageId)
         return message.id !== payload.messageId
       if (payload.index !== undefined)
@@ -349,6 +397,18 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     })
 
     setSessionMessages(payload.sessionId, nextMessages)
+    await releaseRemovedAssets(payload.sessionId, currentMessages, nextMessages)
+  }
+
+  /**
+   * Releases the images and recordings that `previous` referenced and `next` no longer does.
+   * The release queues after the save of `next`, so a stored message never references a deleted asset.
+   */
+  async function releaseRemovedAssets(sessionId: string, previous: readonly ChatHistoryItem[], next: readonly ChatHistoryItem[]) {
+    const kept = chatAssetIdsOf(next)
+    const removed = [...chatAssetIdsOf(previous)].filter(id => !kept.has(id))
+    if (removed.length)
+      await enqueuePersist(() => chatSessionsRepo.releaseAssets(sessionId, removed))
   }
 
   /**
@@ -486,7 +546,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
       updatedAt: now,
     }
 
-    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessage()]
+    const initialMessages = options?.messages?.length ? cloneDeep(options.messages) : [generateInitialMessageFromPrompt(cards.getSystemPrompt(characterId))]
 
     sessionMetas.value[sessionId] = meta
     replaceSessionMessages(sessionId, initialMessages, { persist: false })
@@ -1091,6 +1151,35 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     return sessionId
   }
 
+  /** Wake routing resolves a character's conversation without navigating any window or draft. */
+  async function ensureCharacterSession(characterId: string): Promise<string> {
+    if (!ready.value || !index.value || index.value.userId !== getCurrentUserId())
+      throw new Error('Chat sessions are not ready')
+    if (!cards.getCard(characterId))
+      throw new Error('The requested character is unavailable')
+    const epoch = ensureActiveEpoch
+    const key = JSON.stringify([epoch, characterId])
+    const existing = characterSessionRequests.get(key)
+    if (existing)
+      return existing
+    const pending = (async () => {
+      const sessionId = getCharacterIndex(characterId)?.activeSessionId ?? await createSession(characterId, { setActive: false })
+      if (!await loadSession(sessionId))
+        throw new Error('Failed to load the character session')
+      if (epoch !== ensureActiveEpoch)
+        throw new Error('Account changed during character routing')
+      return sessionId
+    })()
+    characterSessionRequests.set(key, pending)
+    try {
+      return await pending
+    }
+    finally {
+      if (characterSessionRequests.get(key) === pending)
+        characterSessionRequests.delete(key)
+    }
+  }
+
   /**
    * Refresh the reactive `outboxPendingCount` from IDB. Called after every
    * enqueue / dequeue / drain so UI banners stay in sync with reality.
@@ -1414,7 +1503,10 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   function cleanupMessages(sessionId = activeSessionId.value) {
     ensureGeneration(sessionId)
     sessionGenerations.value[sessionId] += 1
-    setSessionMessages(sessionId, [generateInitialMessage()])
+    const previous = sessionMessages.value[sessionId] ?? []
+    const next = [generateInitialMessage()]
+    setSessionMessages(sessionId, next)
+    void releaseRemovedAssets(sessionId, previous, next)
   }
 
   function getAllSessions() {
@@ -1502,15 +1594,16 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     const sessions: Record<string, ChatSessionRecord> = {}
     for (const character of Object.values(index.value.characters)) {
       for (const sessionId of Object.keys(character.sessions)) {
+        // An export leaves the device, so it carries the bytes of each image and recording in place of asset references.
         const stored = await chatSessionsRepo.getSession(sessionId)
         if (stored) {
-          sessions[sessionId] = stored
+          sessions[sessionId] = { ...stored, messages: await inlineChatAssets(stored.messages) }
           continue
         }
         const meta = sessionMetas.value[sessionId]
         const messages = sessionMessages.value[sessionId]
         if (meta && messages)
-          sessions[sessionId] = { meta, messages }
+          sessions[sessionId] = { meta, messages: await inlineChatAssets(messages) }
       }
     }
 
@@ -1631,6 +1724,8 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     deleteMessage,
     setSessionMessages,
     appendSessionMessage,
+    commitUserMessage,
+    recordInterruption,
     persistSessionMessages,
     getSessionMessages,
     getSessionMessagesIfLoaded,
@@ -1651,6 +1746,7 @@ export const useChatSessionStore = defineStore('chat-session', () => {
     deleteSession,
     activateCurrentUser,
     ensureCurrentSession,
+    ensureCharacterSession,
 
     cloudSyncReady,
     outboxPendingCount,
@@ -1660,10 +1756,13 @@ export const useChatSessionStore = defineStore('chat-session', () => {
   synced: {
     actions: [
       'activateCurrentUser',
+      'commitUserMessage',
+      'recordInterruption',
       'createSession',
       'deleteMessage',
       'deleteSession',
       'ensureCurrentSession',
+      'ensureCharacterSession',
       'exportSessions',
       'forkSession',
       'importSessions',

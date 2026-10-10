@@ -1,7 +1,8 @@
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
 import type { GodotStageManager } from '../../services/airi/godot-stage'
-import type { McpStdioManager } from '../../services/airi/mcp-servers'
+import type { IOTraceRecordingService } from '../../services/airi/io-trace-recording'
+import type { McpManager } from '../../services/airi/mcp-servers'
 import type { AutoUpdater } from '../../services/electron/auto-updater'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { DevtoolsWindowManager } from '../devtools'
@@ -34,10 +35,11 @@ export function setupSettingsWindowReusableFunc(params: {
   onWindowCreated?: (window: BrowserWindow) => void
   serverChannel: ServerChannel
   godotStageManager: GodotStageManager
-  mcpStdioManager: McpStdioManager
+  mcpManager: McpManager
   i18n: I18n
   globalShortcut: GlobalShortcutService
   spotlightWindow: SpotlightWindowManager
+  ioTraceRecording: IOTraceRecordingService
 }): SettingsWindowManager {
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
   const defaultRoute = '/settings'
@@ -72,10 +74,11 @@ export function setupSettingsWindowReusableFunc(params: {
       getMainWindow: params.getMainWindow,
       serverChannel: params.serverChannel,
       godotStageManager: params.godotStageManager,
-      mcpStdioManager: params.mcpStdioManager,
+      mcpManager: params.mcpManager,
       i18n: params.i18n,
       globalShortcut: params.globalShortcut,
       spotlightWindow: params.spotlightWindow,
+      ioTraceRecording: params.ioTraceRecording,
     })
 
     await load(window, withHashRoute(rendererBase, currentRoute, {

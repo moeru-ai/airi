@@ -115,6 +115,7 @@ Use pnpm workspace filters to limit a command to one workspace. Replace `<packag
 - Keep a structured `README.md` in each `packages/` and `apps/` entry. It tells what the entry does, how to use it, when to use it, and when not to use it.
 - Put all translations in `packages/i18n`. By default, edit only the English source locale and your own locale.
 - Do not edit other locales unless the user asks. Crowdin manages them, and the next Crowdin sync can replace local edits.
+- Do not use English text as a placeholder in other locales. Add only the locales you implement.
 - When you add a nested `AGENTS.md`, add a `CLAUDE.md` next to it that contains only `@AGENTS.md`. The root `CLAUDE.md` stops Claude Code from reading a nested `AGENTS.md` without this file.
 
 ## Writing
@@ -141,13 +142,16 @@ Skills are in `.agents/skills/<name>/SKILL.md`. Read the listed file before you 
 
 | Task | Read |
 | --- | --- |
+| Design, change, or review UI appearance and interaction | [AIRI Design Guide](DESIGN.md) |
 | Write, refactor, or review TypeScript or Vue code | [`enforce-rules-for-typescript`](.agents/skills/enforce-rules-for-typescript/SKILL.md) |
 | Write or debug tests, reproduce a bug, add mocks, or fix test import boundaries | [`enforce-rules-for-vitest`](.agents/skills/enforce-rules-for-vitest/SKILL.md) |
 | Change UnoCSS, Vue styles, UI components, animations, icons, or color mode | [`enforce-rules-for-unocss`](.agents/skills/enforce-rules-for-unocss/SKILL.md) |
 | Add `synced` to a Pinia store, or change a synced store | [`enforce-rules-for-pinia-synced`](.agents/skills/enforce-rules-for-pinia-synced/SKILL.md) |
 | Write or change a string that users see, or a glossary term | [`packages/i18n/AGENTS.md`](packages/i18n/AGENTS.md) |
+| Review pending Crowdin translations, or find why approved translations did not reach the repository | [`enforce-rules-for-i18n`](.agents/skills/enforce-rules-for-i18n/SKILL.md) |
 | Work under `server/` | [`server/AGENTS.md`](server/AGENTS.md). For `server/apps/api`, also read [`server/apps/api/AGENTS.md`](server/apps/api/AGENTS.md). |
 | Write documentation, code comments, commit messages, or PR and issue text | [`simple-english`](.agents/skills/simple-english/SKILL.md) |
+| Analyze why a chat, speech, or audio turn was slow or failed, using saved IO traces | [`analyze-io-traces`](.agents/skills/analyze-io-traces/SKILL.md) |
 | Create or prepare a pull request | [`create-pr`](.agents/skills/create-pr/SKILL.md) |
 | Upload a local file through a file input or a file chooser in a web or Electron app | [`use-agent-browser-with-input-file`](.agents/skills/use-agent-browser-with-input-file/SKILL.md) and [`agent-browser`](.agents/skills/agent-browser/SKILL.md). For Electron, also read [`agent-browser-electron`](.agents/skills/agent-browser-electron/SKILL.md). |
 | Test Live2D, VRM, or MMD import and rendering in stage-web, stage-tamagotchi, or stage-pocket | [`use-agent-browser-for-airi`](.agents/skills/use-agent-browser-for-airi/SKILL.md) |

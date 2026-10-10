@@ -49,6 +49,30 @@ function findObjectSchema(schema: JsonSchema | undefined, predicate: (schema: Js
 }
 
 describe('agents/spark-command/tools', () => {
+  // https://github.com/moeru-ai/airi/issues/2705
+  it('emits explicit destination variants without a nested union wrapper (Issue #2705)', async () => {
+    // ROOT CAUSE:
+    //
+    // A nullable union generates anyOf: [{ anyOf: [...] }, { type: 'null' }].
+    // The reported provider rejects the untyped wrapper as an object without
+    // properties. Put null inside the union so each variant has an explicit type.
+    const tools = await createSparkCommandTool({ sendSparkCommand: () => undefined })
+    const schema = tools[0].function.parameters as JsonSchema
+    const contexts = getArraySchema(schema.properties?.contexts as JsonSchema)
+    const contextItem = contexts?.items as JsonSchema
+    const destinations = contextItem.properties?.destinations as JsonSchema
+    const variants = destinations.anyOf?.filter(isJsonSchema)
+
+    expect(variants?.map(variant => variant.type)).toEqual(['array', 'object', 'object', 'null'])
+    for (const variant of variants ?? []) {
+      expect(variant.anyOf).toBeUndefined()
+      if (variant.type === 'object') {
+        expect(variant.properties).toBeDefined()
+        expect(variant.additionalProperties).toBe(false)
+      }
+    }
+  })
+
   it('emits a strict parameter schema', async () => {
     const tools = await createSparkCommandTool({
       sendSparkCommand: () => undefined,
@@ -246,9 +270,10 @@ describe('agents/spark-command/tools', () => {
     expect(result).toContain(command.commandId)
   })
 
-  it('reports a broadcast without crashing when the channel sender clears destinations', async () => {
-    // The real sendSparkCommand (stores/ai/chat-llm/llm.ts) deletes command.destinations to broadcast to every
-    // authenticated peer; the success message must not then call .join on undefined.
+  it('reports a broadcast without crashing when the channel sender omits destinations', async () => {
+    // The real sendSparkCommand (stores/ai/chat-llm/tool-resolver.ts) deletes command.destinations
+    // to broadcast to every authenticated peer; the success message must not then call .join on
+    // undefined.
     const sendSparkCommand = vi.fn((command: { destinations?: unknown }) => {
       delete command.destinations
     })

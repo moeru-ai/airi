@@ -16,6 +16,7 @@ import type {
   StageViewSnapshotPayload,
 } from '@proj-airi/stage-shared/godot-stage'
 import type { ServerChannelQrPayload } from '@proj-airi/stage-shared/server-channel-qr'
+import type { IOTraceRecordingState, SerializedIOSpan } from '@proj-airi/stage-shared/types/io-trace'
 import type {
   ThreeHitTestReadTracePayload,
   ThreeSceneRenderInfoTracePayload,
@@ -31,15 +32,22 @@ import type { Rectangle } from 'electron'
 
 import { defineEventa, defineInvokeEventa } from '@moeru/eventa'
 
-export const electronStartTrackMousePosition = defineInvokeEventa('eventa:invoke:electron:start-tracking-mouse-position')
 export const electronStartDraggingWindow = defineInvokeEventa('eventa:invoke:electron:start-dragging-window')
 
 export const electronOpenMainDevtools = defineInvokeEventa('eventa:invoke:electron:windows:main:devtools:open')
 export const electronCenterMainWindow = defineInvokeEventa<Rectangle>('eventa:invoke:electron:windows:main:center')
 export const electronOpenEditor = defineInvokeEventa<void>('eventa:invoke:electron:windows:editor:open')
 export const electronOpenSettings = defineInvokeEventa<void, { route?: string }>('eventa:invoke:electron:windows:settings:open')
+/** Shows the inlay without focus. The tray menu opens it with focus. */
+export const electronOpenInlay = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:open')
+export const electronInlayHide = defineInvokeEventa<void>('eventa:invoke:electron:windows:inlay:hide')
 export const electronSettingsNavigate = defineEventa<{ route: string }>('eventa:event:electron:windows:settings:navigate')
 export const electronOpenChat = defineInvokeEventa('eventa:invoke:electron:windows:chat:open')
+
+export const ioTraceRecordingChanged = defineEventa<IOTraceRecordingState>('eventa:event:electron:io-trace-recording:changed')
+export const ioTraceRecordingGet = defineInvokeEventa<IOTraceRecordingState>('eventa:invoke:electron:io-trace-recording:get')
+export const ioTraceRecordingSetEnabled = defineInvokeEventa<IOTraceRecordingState, { enabled: boolean }>('eventa:invoke:electron:io-trace-recording:set-enabled')
+export const ioTraceRecordingRecordSpan = defineInvokeEventa<void, SerializedIOSpan>('eventa:invoke:electron:io-trace-recording:record-span')
 
 /**
  * Which window the Controls Island chat button opens.
@@ -55,16 +63,19 @@ export type ChatWindowMode = 'legacy' | 'floating'
  *
  * - `attached`: beside the main window, moving with it.
  * - `free`: where the user drags it.
+ * - `danmaku`: where the user drags it, like `free`. The chat shows as a
+ *   message feed: the composer folds away, and with fade on hover the feed
+ *   only follows new messages and lets every click through.
  */
-export type ChatFloatingPlacement = 'attached' | 'free'
+export type ChatFloatingPlacement = 'attached' | 'free' | 'danmaku'
 
 /** Chat window choices that the main process persists for every chat renderer. */
 export interface ChatWindowPreferences {
   mode: ChatWindowMode
   placement: ChatFloatingPlacement
   /**
-   * Keeps a `free` floating chat above other windows. An `attached` chat
-   * ignores it and follows the main window's pin state instead.
+   * Keeps a `free` floating chat above other windows. An `attached` or
+   * `danmaku` chat ignores it and follows the main window's pin state instead.
    */
   pinned: boolean
 }
@@ -75,7 +86,7 @@ export interface ChatFloatingState {
   /**
    * The side of the main window that the chat sits on in `attached` placement.
    * The renderer folds toward the character on this side and puts the resize
-   * grip on the other. `left` in `free` placement.
+   * grip on the other. `left` in `free` and `danmaku` placement.
    */
   side: 'left' | 'right'
   /**
@@ -92,20 +103,21 @@ export interface ChatFloatingState {
    */
   relocating: boolean
   /**
-   * Whether the chat window stays above other windows: the main window's pin
-   * when attached, the chat's own pin when free. The renderer passes clicks
+   * Whether the chat window stays above other windows: the chat's own pin
+   * when free, the main window's pin otherwise. The renderer passes clicks
    * through only while it is `true`, like the main window.
    */
   pinned: boolean
 }
 
 /**
- * Unsent composer content that a chat mode switch carries from the window it
- * closes to the window it opens. Each renderer owns its composer, so the
- * content crosses through the main process.
+ * The conversation and the unsent composer content that a chat mode switch
+ * carries from the window it closes to the window it opens. Each renderer owns
+ * its composer and its selected conversation, so both cross through the main
+ * process. The content is empty when nothing was typed.
  */
 export interface ChatDraftHandover {
-  /** The chat session the content belongs to; another session discards it. */
+  /** The chat session that the closing window shows, and that the content belongs to. */
   sessionId: string
   text: string
   replyTarget?: ChatHistoryReplyPayload
@@ -347,29 +359,68 @@ export interface ElectronMcpStdioServerConfig {
   enabled?: boolean
 }
 
-export interface ElectronMcpStdioConfigFile {
-  mcpServers: Record<string, ElectronMcpStdioServerConfig>
+/**
+ * One remote MCP server that AIRI reaches over streamable HTTP.
+ *
+ * Use when:
+ * - A server runs outside this machine and AIRI talks to it by URL
+ *
+ * Expects:
+ * - `url` is an absolute `http` or `https` endpoint
+ * - `headers` carries whatever the server expects, usually an `Authorization` entry
+ */
+export interface ElectronMcpHttpServerConfig {
+  url: string
+  headers?: Record<string, string>
+  enabled?: boolean
 }
 
-export interface ElectronMcpStdioApplyResult {
+/**
+ * Configuration of one MCP server.
+ *
+ * The transport follows from the fields that are present: `command` starts a
+ * child process over stdio, `url` reaches a remote server over streamable HTTP.
+ */
+export type ElectronMcpServerConfig = ElectronMcpStdioServerConfig | ElectronMcpHttpServerConfig
+
+export interface ElectronMcpConfigFile {
+  mcpServers: Record<string, ElectronMcpServerConfig>
+}
+
+export interface ElectronMcpApplyResult {
   path: string
   started: Array<{ name: string }>
   failed: Array<{ name: string, error: string }>
   skipped: Array<{ name: string, reason: string }>
 }
 
-export interface ElectronMcpStdioServerRuntimeStatus {
-  name: string
-  state: 'running' | 'stopped' | 'error'
-  command: string
-  args: string[]
-  pid: number | null
-  lastError?: string
-}
+/**
+ * Runtime state of one MCP server, narrowed by the transport that carries it.
+ *
+ * A stdio server reports the process it spawned. An HTTP server reports the
+ * endpoint it talks to and has no process to report.
+ */
+export type ElectronMcpServerRuntimeStatus
+  = | {
+    name: string
+    state: 'running' | 'stopped' | 'error'
+    transport: 'stdio'
+    command: string
+    args: string[]
+    pid: number | null
+    lastError?: string
+  }
+  | {
+    name: string
+    state: 'running' | 'stopped' | 'error'
+    transport: 'http'
+    url: string
+    lastError?: string
+  }
 
-export interface ElectronMcpStdioRuntimeStatus {
+export interface ElectronMcpRuntimeStatus {
   path: string
-  servers: ElectronMcpStdioServerRuntimeStatus[]
+  servers: ElectronMcpServerRuntimeStatus[]
   updatedAt: number
 }
 
@@ -393,31 +444,31 @@ export interface ElectronMcpCallToolResult {
   isError?: boolean
 }
 
-export interface ElectronMcpStdioConfigText {
+export interface ElectronMcpConfigText {
   path: string
   text: string
 }
 
-export interface ElectronMcpStdioTestResult {
+export interface ElectronMcpTestResult {
   ok: boolean
   error?: string
   tools?: string[]
   durationMs: number
 }
 
-export interface ElectronMcpStdioTestPayload {
+export interface ElectronMcpTestPayload {
   name: string
-  config: ElectronMcpStdioServerConfig
+  config: ElectronMcpServerConfig
 }
 
 export const electronMcpOpenConfigFile = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:mcp:open-config-file')
-export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpStdioApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
-export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpStdioRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
+export const electronMcpApplyAndRestart = defineInvokeEventa<ElectronMcpApplyResult>('eventa:invoke:electron:mcp:apply-and-restart')
+export const electronMcpGetRuntimeStatus = defineInvokeEventa<ElectronMcpRuntimeStatus>('eventa:invoke:electron:mcp:get-runtime-status')
 export const electronMcpListTools = defineInvokeEventa<ElectronMcpToolDescriptor[]>('eventa:invoke:electron:mcp:list-tools')
 export const electronMcpCallTool = defineInvokeEventa<ElectronMcpCallToolResult, ElectronMcpCallToolPayload>('eventa:invoke:electron:mcp:call-tool')
-export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpStdioConfigText>('eventa:invoke:electron:mcp:read-config-text')
-export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpStdioConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
-export const electronMcpTestServer = defineInvokeEventa<ElectronMcpStdioTestResult, ElectronMcpStdioTestPayload>('eventa:invoke:electron:mcp:test-server')
+export const electronMcpReadConfigText = defineInvokeEventa<ElectronMcpConfigText>('eventa:invoke:electron:mcp:read-config-text')
+export const electronMcpWriteConfigText = defineInvokeEventa<ElectronMcpConfigText, { text: string }>('eventa:invoke:electron:mcp:write-config-text')
+export const electronMcpTestServer = defineInvokeEventa<ElectronMcpTestResult, ElectronMcpTestPayload>('eventa:invoke:electron:mcp:test-server')
 
 export const widgetsOpenWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:open')
 export const widgetsHideWindow = defineInvokeEventa<void, { id?: string }>('eventa:invoke:electron:windows:widgets:hide')
@@ -453,6 +504,10 @@ export const electronGetWindowLifecycleState = defineInvokeEventa<ElectronWindow
 export const electronWindowSetAlwaysOnTop = defineInvokeEventa<void, boolean>('eventa:invoke:electron:window:set-always-on-top')
 export const electronAppOpenUserDataFolder = defineInvokeEventa<{ path: string }>('eventa:invoke:electron:app:open-user-data-folder')
 export const electronAppQuit = defineInvokeEventa<void>('eventa:invoke:electron:app:quit')
+/** Whether the app runs on the Wayland Ozone backend, where Electron cannot read the cursor position reliably. */
+export const electronAppIsWayland = defineInvokeEventa<boolean>('eventa:invoke:electron:app:is-wayland')
+export const electronAppIconGet = defineInvokeEventa<boolean>('eventa:invoke:electron:app-icon:get')
+export const electronAppIconSet = defineInvokeEventa<boolean, boolean>('eventa:invoke:electron:app-icon:set')
 
 export type ElectronGodotStageState = 'stopped' | 'starting' | 'running' | 'stopping' | 'error'
 
@@ -582,7 +637,16 @@ export interface ElectronAuthTokens {
   expiresIn: number
 }
 export const electronAuthStartLogin = defineInvokeEventa<void>('eventa:invoke:electron:auth:start-login')
-export const electronAuthCallback = defineEventa<ElectronAuthTokens>('eventa:event:electron:auth:callback')
+/** Transient sign-in feedback shared with all windows; contains no credentials. */
+export interface ElectronAuthStatus {
+  attemptId: string
+  state: 'waiting' | 'confirming' | 'success' | 'error'
+  error?: string
+}
+export const electronAuthStatus = defineEventa<ElectronAuthStatus>('eventa:event:electron:auth:status')
+export const electronAuthGetStatus = defineInvokeEventa<ElectronAuthStatus | undefined>('eventa:invoke:electron:auth:get-status')
+export const electronAuthComplete = defineInvokeEventa<void, Pick<ElectronAuthStatus, 'attemptId' | 'error'>>('eventa:invoke:electron:auth:complete')
+export const electronAuthCallback = defineEventa<ElectronAuthTokens & { attemptId: string }>('eventa:event:electron:auth:callback')
 export const electronAuthCallbackError = defineEventa<{ error: string }>('eventa:event:electron:auth:callback-error')
 export const electronAuthLogout = defineInvokeEventa<void>('eventa:invoke:electron:auth:logout')
 

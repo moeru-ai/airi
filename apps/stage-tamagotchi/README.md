@@ -8,6 +8,13 @@ Shared character behavior belongs in `packages/stage-ui`. Use `stage-web` for br
 From the repository root, run `pnpm install`, then `pnpm dev:tamagotchi`.
 Run `pnpm -F @proj-airi/stage-tamagotchi build` to build the app.
 
+## Local model files
+
+Sherpaw downloads remote model files into the app user data directory. The main
+process serves installed files to the renderer through `airi-model`. The desktop
+release bundles X-ASR through `airi-sherpaw`. Sherpaw settings control
+remote downloads. The Resource Status Island shows transfer progress and errors.
+
 ## Computer use
 
 The desktop chat composer starts with **Use computer** on. Turn it off to send a request without desktop access.
@@ -18,8 +25,11 @@ Only the current selection grants access, including retries and tool reruns. His
 The selected request receives `computer_use` and `computer_use_read_image`.
 The first tool accepts AUV arguments, such as `["invoke", "window.list"]`.
 Use `["invoke", "--help"]` and command-specific help to discover supported operations.
-The image tool returns screenshot bytes as model image content. It accepts only PNG and JPEG artifacts inside the app's computer-use store.
-Use a model and provider that support tool calls and image tool results for visual tasks.
+The image tool returns a screenshot as model image content. It accepts only PNG and JPEG artifacts inside the app's computer-use store.
+Use a model and provider that support tool calls for visual tasks.
+With **Use the vision model for tool images** on, the vision model reads the screenshot first for a chat model whose provider does not report image input.
+The chat model then gets a text description. It has the visible text and layout, but no pixel positions.
+Use AUV commands such as `screen.findText` to get coordinates.
 
 Electron starts the matching AUV SDK and CLI 0.0.16 on demand, over a private Unix socket or Windows named pipe.
 It serializes commands across windows, stores artifacts under the app's user-data directory, and stops the daemon during app shutdown.

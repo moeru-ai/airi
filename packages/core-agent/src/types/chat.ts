@@ -20,7 +20,13 @@ export interface ChatSlicesToolCallResult {
   result?: string | CommonContentPart[]
 }
 
-export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult
+/** A local catalog ID. Renderers never treat this value as an image URL. */
+export interface ChatSlicesSticker {
+  type: 'sticker'
+  stickerId: string
+}
+
+export type ChatSlices = ChatSlicesText | ChatSlicesToolCall | ChatSlicesToolCallResult | ChatSlicesSticker
 
 export interface ChatAssistantMessage extends AssistantMessage {
   /** True when transport failure ended this locally preserved response before completion. */
@@ -72,12 +78,21 @@ export interface ContextMessage extends ContextUpdate<Record<string, unknown>, u
 export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
   context?: ContextMessage
   createdAt?: number
+  /**
+   * When an assistant message stopped receiving output: at its end, or when it
+   * was interrupted. `createdAt` of an assistant message is when it started.
+   * Windows that do not run the generation read it, for example to time how
+   * long a reply shows.
+   */
+  completedAt?: number
   id?: string
   /** Vision output stored by image order so later turns can reuse it without copying the image URL. */
   imageDescriptions?: Array<{
     description: string
     imageIndex: number
   }>
+  /** ASR results indexed by the audio parts in the original user message. */
+  audioTranscripts?: string[]
   /** Message that this message replies to in the same chat session. */
   replyToMessageId?: string
   /** Tools selected for this message. The runtime rebuilds executors from these names. */
@@ -85,6 +100,8 @@ export type ChatHistoryItem = (ChatMessage | ErrorMessage) & {
 }
 
 export interface ChatStreamEventContext {
+  /** Session ownership travels with the event across concurrent turns and renderer transports. */
+  sessionId: string
   /** Stable correlation id shared by every hook emitted for one user turn. */
   turnId: string
   message: ChatHistoryItem
@@ -104,4 +121,4 @@ export type ChatStreamEvent
     | { type: 'assistant-end', message: string, sessionId: string, context: ChatStreamEventContext }
     | { type: 'assistant-message', message: ChatAssistantMessage, sessionId: string, messageText: string, context: ChatStreamEventContext }
 
-export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, id?: string }
+export type StreamingAssistantMessage = ChatAssistantMessage & { context?: ContextMessage } & { createdAt?: number, completedAt?: number, id?: string }

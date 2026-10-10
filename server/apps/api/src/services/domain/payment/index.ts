@@ -186,7 +186,7 @@ export function createPaymentService(db: Database, billing: BillingService) {
     })
 
     if (result.applied) {
-      await billing.syncFluxCache(result.userId, result.balanceAfter, {
+      await billing.syncFluxCache(result.userId, {
         amount: result.fluxAmount,
         source: 'payment.pack',
       })
@@ -247,7 +247,7 @@ export function createPaymentService(db: Database, billing: BillingService) {
     })
 
     if (result.applied) {
-      await billing.syncFluxCache(result.userId, result.balanceAfter, {
+      await billing.syncFluxCache(result.userId, {
         amount: result.fluxAmount,
         source: 'payment.pack',
       })

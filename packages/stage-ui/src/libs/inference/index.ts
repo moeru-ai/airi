@@ -1,10 +1,3 @@
-// Cache utilities
-export {
-  clearModelCache,
-  formatBytes,
-  getModelCacheSize,
-  isModelCached,
-} from './cache-utils'
 // Constants
 export {
   MAX_RESTARTS,
@@ -19,6 +12,7 @@ export {
   getLoadQueue,
   MODEL_VRAM_ESTIMATES,
 } from './coordinator'
+export { formatBytes } from './format-bytes'
 // Resource management
 export {
   createGPUResourceCoordinator,
@@ -33,10 +27,10 @@ export {
   createLoadQueue,
   LOAD_PRIORITY,
 } from './load-queue'
-
 export type {
   LoadQueue,
 } from './load-queue'
+
 export {
   classifyError,
   createRequestId,
@@ -55,6 +49,12 @@ export type {
   WorkerInboundMessage,
   WorkerOutboundMessage,
 } from './protocol'
+// Cache utilities
+export {
+  clearModelCache,
+  getModelCacheSize,
+  isModelCached,
+} from './transformers-cache'
 export {
   createInferenceWorkerManager,
 } from './worker-manager'

@@ -1,0 +1,117 @@
+import type { SherpawModel } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import type { Plugin } from 'vite'
+
+import { rm } from 'node:fs/promises'
+import { join, resolve } from 'node:path'
+import { env } from 'node:process'
+
+import { defaultSherpawModelEndpoint, sherpawModelArtifactUrl, sherpawModelPath } from '@proj-airi/provider-inference/sherpaw-transcription/models'
+import { Download } from '@proj-airi/unplugin-fetch/vite'
+import { normalizePath } from 'vite'
+
+/** Selects models for this application. Downloads remain in a separate cache. */
+export interface SherpawOptions {
+  /** Models exposed to the runtime. Remote models load lazily when first used. */
+  models: readonly SherpawModel[]
+  /** Models served from the download cache during development. @default [] */
+  developmentModels?: readonly SherpawModel[]
+  /** Models copied into the application build. @default [] */
+  bundledModels?: readonly SherpawModel[]
+  /** Shared download cache, resolved against the Vite root. @default '.cache' */
+  cacheDir?: string
+  /**
+   * Base URL that serves the model artifacts.
+   *
+   * @default process.env.HF_ENDPOINT, or 'https://huggingface.co'
+   */
+  endpoint?: string
+}
+
+/**
+ * Resolves the base URL for model artifacts.
+ *
+ * `HF_ENDPOINT` is the variable `huggingface_hub` reads, so a mirror that other
+ * tooling already uses applies to these downloads without extra configuration.
+ * A host that downloads remote models outside Vite, such as the Electron main
+ * process, calls this function to use the same endpoint as the plugin.
+ *
+ * @example
+ * resolveModelEndpoint('https://hf-mirror.com')
+ * // => 'https://hf-mirror.com'
+ */
+export function resolveModelEndpoint(endpoint?: string) {
+  return endpoint?.trim() || env.HF_ENDPOINT?.trim() || defaultSherpawModelEndpoint
+}
+
+/**
+ * Exposes pinned remote model URLs and optionally bundles selected models.
+ * Build imports let URL-rewriting plugins upload the files and remove local deployment copies.
+ * Development downloads only `developmentModels` before Vite starts.
+ */
+export function Sherpaw(options: SherpawOptions): Plugin {
+  const moduleId = '@proj-airi/vite-plugin-sherpaw/assets'
+  const resolvedModuleId = `\0${moduleId}`
+  // configResolved prepares the imports before Vite loads the runtime asset catalogue.
+  let assetModule: string
+
+  return {
+    name: 'airi-sherpaw-models',
+    enforce: 'pre',
+    apply: (_config, environment) => !environment.isPreview,
+    async configResolved(config) {
+      const localModels = config.command === 'serve'
+        ? options.developmentModels ?? []
+        : options.bundledModels ?? []
+
+      const endpoint = resolveModelEndpoint(options.endpoint)
+      const cacheDirectory = resolve(config.root, options.cacheDir ?? '.cache')
+      if (config.publicDir)
+        await rm(join(config.publicDir, 'sherpaw'), { recursive: true, force: true })
+
+      const imports: string[] = []
+      const entries = new Map(options.models.map(model => [model.id, `${JSON.stringify(model.id)}: { data: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.data', endpoint))}, metadata: ${JSON.stringify(sherpawModelArtifactUrl(model, 'preload.js.metadata', endpoint))}, source: 'remote' }`]))
+
+      for (const [index, model] of localModels.entries()) {
+        if (!entries.has(model.id))
+          throw new Error(`Local Sherpaw model "${model.id}" must also be listed in models.`)
+
+        const outputPath = sherpawModelPath(model)
+        const downloads = (['preload.data', 'preload.js.metadata'] as const).map(filename => Download(
+          sherpawModelArtifactUrl(model, filename, endpoint),
+          filename,
+          outputPath,
+          { cacheDir: cacheDirectory, parentDir: cacheDirectory },
+        ))
+
+        // Separate Vite configResolved hooks run concurrently. Await downloads here
+        // before Vite resolves the generated asset imports.
+        await Promise.all(downloads.map(async (plugin) => {
+          const hook = plugin.configResolved
+          if (typeof hook === 'function')
+            await hook.call(this, config)
+          else if (hook)
+            await hook.handler.call(this, config)
+        }))
+
+        // URL imports participate in Vite's renderBuiltUrl hook. no-inline keeps
+        // the small metadata file on the same upload path as its model data.
+        const directory = normalizePath(join(cacheDirectory, outputPath))
+
+        imports.push(`import data${index} from ${JSON.stringify(`${directory}/preload.data?url&no-inline`)}`)
+        imports.push(`import metadata${index} from ${JSON.stringify(`${directory}/preload.js.metadata?url&no-inline`)}`)
+
+        entries.set(model.id, `${JSON.stringify(model.id)}: { data: data${index}, metadata: metadata${index}, source: 'bundled' }`)
+      }
+
+      assetModule = `${imports.join('\n')}\nexport const assets = { ${[...entries.values()].join(',')} }`
+    },
+    resolveId(id) {
+      if (id === moduleId)
+        return resolvedModuleId
+    },
+    load(id) {
+      if (id === resolvedModuleId)
+        return assetModule
+    },
+  }
+}

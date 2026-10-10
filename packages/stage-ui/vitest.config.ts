@@ -6,6 +6,7 @@ import Info from 'unplugin-info/vite'
 import VueRouter from 'vue-router/vite'
 
 import { playwright } from '@vitest/browser-playwright'
+import { mergeConfigs } from 'unocss'
 import { loadEnv } from 'vite'
 import { defineConfig } from 'vitest/config'
 
@@ -16,16 +17,25 @@ export default defineConfig({
   // Shared settings pages import these optional UI dependencies through the
   // component barrel. Bundle them before a browser test starts to avoid HMR.
   optimizeDeps: {
-    include: ['embla-carousel-vue', 'html2canvas', 'node-vibrant/browser'],
+    include: [
+      '@moeru/std',
+      '@vueuse/core',
+      'embla-carousel-vue',
+      'html2canvas',
+      'node-vibrant/browser',
+      'reka-ui',
+      'vaul-vue',
+      'vue',
+      'vue-i18n',
+    ],
   },
   plugins: [
     Info(),
     // Use the app's route-block transform when browser tests mount shared pages.
     VueRouter({ routesFolder: [], dts: false }),
     Vue(),
-    UnoCSS({
+    UnoCSS(mergeConfigs([sharedUnoConfig(), {
       // Browser tests use product styles, not Histoire's hover-preview variants.
-      ...sharedUnoConfig(),
       configFile: false,
       // Vitest loads components after the stylesheet. Scan their source before
       // the initial CSS response instead of relying on Vite's HMR updates.
@@ -35,7 +45,7 @@ export default defineConfig({
           `${import.meta.dirname}/../ui/src/**/*.vue`,
         ],
       },
-    }),
+    }])),
   ],
   test: {
     env: loadEnv('test', cwd(), ''),
@@ -61,7 +71,7 @@ export default defineConfig({
           browser: {
             enabled: true,
             headless: true,
-            provider: playwright(),
+            provider: playwright({ launchOptions: { args: ['--autoplay-policy=no-user-gesture-required', '--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'] } }),
             instances: [
               { browser: 'chromium' },
             ],

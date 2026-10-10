@@ -2,6 +2,80 @@
 
 Shared core for stage
 
+## Experimental features
+
+Register flags in `libs/feature-flags.ts`. Read their state through `useFeatureFlagsStore().isEnabled(key)`.
+Set `availability` to `local` or `cloud`. Local flags expose device switches without Cloud access.
+Cloud decides whether each granted Cloud flag allows account opt-in or uses direct control. Client registrations do not duplicate this mode.
+`cloud-opt-in` flags expose switches only after Cloud grants access to a verified account. They start disabled and retain choices per account on this device.
+`cloud-controlled` flags follow Cloud grants directly and never expose a switch.
+Missing Cloud grants disable Cloud features. Refresh failures and account changes clear grants, not local choices.
+`useCloudFetch()` in `composables/cloud.ts` shares the Cloud origin and authenticated fetch boundary. The store reads `GET /v1/feature-flags`.
+Set `VITE_CLOUD_URL` for a custom Cloud origin. Deploy its migration and API before the client.
+Keep authorization checks on the server.
+
+## Message times
+
+Chat history shows a centered timestamp before the first dated message and after five minutes without a message.
+Timestamps use stored message times, the interface locale, and the device timezone. Messages without valid timestamps have no separator.
+Today's separators show only the time. Yesterday and the day before use relative labels.
+Older separators show the month and day. Dates outside the current year also show the year.
+Click a separator to toggle its full date and time. Relative labels refresh every minute while the history is open.
+`date-fns` handles calendar comparisons and localized formatting through `intlFormat` and `intlFormatDistance`.
+The session list displays and sorts by the latest valid user or assistant message timestamp.
+Sessions without dated conversation messages use their creation time. Loading messages updates the list from the stored history.
+Saving or synchronizing a session does not change its displayed activity time unless its messages change.
+
+## Startup progress
+
+`useStartupResourcesStore` records each resource as queued, loading, ready, failed, or skipped.
+The apps register the complete resource list before work starts. Their startup flows report each module's result through the store.
+The app roots reset the store before registration. This also stops an old load from updating a new registration after hot reload.
+`StartupOverlay` reads the store and shows splash, progress, or an error with a retry action.
+`useStartupResourceTimeout` fails a resource that stays loading past its deadline. Web and Pocket apply it to character model loading.
+The optional Mods server connects outside the tracked startup work. Its connection does not block onboarding.
+Each app's HTML shows the first splash before Vue mounts. CSS hides it when Vue renders into `#app`.
+The home page reports when its character model is ready or fails. A failed model keeps the overlay visible.
+If the model fails, the user can retry the app or continue without a character.
+The overlay emits `finished` when all resources are ready. Apps open onboarding at that point.
+
+## Voice integration
+
+The audio host owns one VoiceController and one shared microphone input.
+Other windows send Eventa commands and render snapshots. They do not create competing capture or playback runtimes.
+Consumers subscribe to the microphone input with their own abort signal. The last subscriber to leave releases the device.
+
+- `useVoiceStore` owns application routing, drafts, responses, and host command registration.
+- `useVoiceController` binds public controller state to Vue and moves the controller to the input of the selected device.
+- `useVoiceInput` maps hold and release controls to host commands.
+- `VoiceInputButton` is the voice control of desktop and web composers. Click it to start, and click again to stop. Hover or right-click it for the mode, Auto send, the microphone, and continuous listening. Its status bar shows the waveform and time, and keeps a voice message that waits to be sent. Dictation writes its live transcript into the composer text and creates no voice draft.
+- `VoiceComposer` is the touch voice control of mobile composers. Hold it to record, slide left to cancel, and slide up to lock. A voice message is sent on release.
+- `useVoiceMessagesStore` owns voice message recordings and their attachment submission.
+- Hearing selects providers and converts captured PCM to each provider's upload format. It does not open the microphone.
+- Speech preserves existing chunked synthesis and bidirectional provider output.
+- `createVoiceRephrasePlugin` rewrites final transcripts with a chat model through a checked transcript patch. The raw text stays in the transcript history. Each segment gets its own rewrite, so segment boundaries stay for later speaker labels. A reply with another segment count leaves the text unchanged.
+
+The host snapshot carries the corrected transcript segments of the active input. `VoiceDrafts` shows them as the continuation of the draft, in one paragraph. The paragraph is read-only while speech is transcribed, and becomes the editable draft when the speech settles. Final text uses the body color. Pending text uses the theme color at a lower opacity, and the newest pending segment uses full opacity.
+A draft that the host is sending stays hidden. Drafts of other conversations show as named chips. `VoiceDrafts` emits `presence`, so a host window such as the desktop inlay can hide itself after a send or a discard.
+Rephrasing is off by default. A failure or a 10-second timeout submits the provider text.
+
+A recording is sent only when its control asks for it with `finish` and `send: true`, or with an explicit `send`. A failed send keeps the recording and its message identity, so the control can send it again or discard it.
+While a control records or dictates, the host publishes the microphone level on `voiceInputLevel`.
+Native audio requires declared model support and Chat Completions. Other models transcribe the recording with the configured Hearing provider.
+Local history keeps the audio and cached transcription. Audio turns remain local because cloud text records cannot preserve their media.
+
+### External wake-word adapters
+
+`useWakeWordsStore` validates pronunciations against a supplied model vocabulary and preserves them in exported character cards.
+Its device-local catalog pauses unresolved pronunciation conflicts. `chooseOwner` activates the selected character's copy.
+`setWords` returns conflicts for tools or settings to present. It does not invent a model or a keyword-management UI.
+
+An external KWS adapter supplies `detectWakeWord` to `voice.startListening`.
+After catalog matching, it calls `voice.resolveWakeTarget(characterId, signal)` to select a session without navigating the chat window.
+The detector remains active during playback. A supplied `acceptSpeech` classifier can reject playback echo before admission.
+The default policy allows barge-in when the browser reports echo cancellation. Without that support, automatic admission waits for playback to end.
+Model selection, acoustic echo classification, and enrollment remain external integrations.
+
 ## Chat sampling
 
 In **Settings → Modules → Consciousness**, custom temperature and Top P are off
@@ -20,15 +94,24 @@ Previews own their Object URLs. Session changes discard pending image reads.
 Failed sends restore the draft through the shared composer.
 
 Choose a provider and model in **Settings → Modules → Vision** and enable
-**Use the vision model for chat images** for a text-only chat model.
-The vision model describes images before the selected chat model replies.
+**Use the vision model for chat images**. The vision model describes images before
+the selected chat model replies. This flow runs when the chat provider does not
+report image input for the selected model. Most providers do not report it.
 Local history keeps the images. Provider prompts replace images with descriptions,
-including images from earlier turns and retries. Earlier images can require another
-vision request on later turns. Cloud history currently stores only message text.
+including images from earlier turns and retries. Cloud history currently stores only message text.
+A failed read of an image in the current turn fails the send. The leader keeps a
+failed read of an earlier image in memory for its session and vision selection,
+so later turns do not read that image again.
 
-Disable this option to send images directly to a chat model that supports them.
+**Use the vision model for tool images** applies the same flow to images that tools
+return, such as `computer_use_read_image` screenshots and MCP image content. The
+vision model reads each image when the tool runs, and a tool rerun reads it too.
+While the vision model reads tool images, provider prompts replace stored tool
+images with a short note. Stored history keeps the images.
+
+Disable these options to send images directly to a chat model that supports them.
 Without a configured vision model, images also go directly to the chat model.
-Use this flow for chat attachments, not periodic screen capture.
+Use this flow for chat attachments and tool images, not periodic screen capture.
 
 ## Character-card module settings
 
@@ -45,7 +128,8 @@ save cards from watchers: authentication and remote snapshots also trigger them.
 The synchronization leader owns these commands; followers receive snapshots.
 
 Models inherit only within the same provider. Voices also require the same
-model. A different provider without a model stays unconfigured rather than
+model. Selecting a vision provider on the vision page stores the catalog default
+model of that provider on the active card. A different provider without a model stays unconfigured rather than
 receiving an unrelated model id. The editor requires a model for an explicit
 chat or vision provider unless that model can be inherited safely.
 
@@ -96,3 +180,77 @@ compare gesture presentation, not conversation storage behavior.
 
 1. If a story is bound to a specific component, it can be placed beside the component in the `src` folder. e.g., `MyComponent.story.vue`
 2. If a story is not bound to a specific component, then it should be placed in the `stories` folder. e.g., `MyStory.story.vue`
+
+## Local Hearing with Sherpaw
+
+Select **Sherpaw** in Hearing settings. Choose a language to see models that support it, then choose a model.
+For a new Sherpaw configuration, the interface language sets the filter and selects a compatible model.
+Chinese and English start with X-ASR on desktop and Paraformer on mobile Web or Stage Pocket.
+An existing model selection stays in place. Choosing a language switches to a compatible model when needed.
+The model detects one of its supported languages. Changing the model saves
+the Provider configuration and replaces its runtime.
+Each speech session currently owns a Worker, released when the session ends or is cancelled.
+
+Hosts must enable `@proj-airi/vite-plugin-sherpaw` to expose model assets.
+`provider-inference` owns recognition and Worker cleanup. `stage-ui` supplies model URLs, local asset fetching, the Worker URL, and the Hearing view.
+The Provider is unavailable when the host does not include models.
+Use this Provider for local streaming recognition without API credentials.
+It requires Workers and WebAssembly. Web and Pocket store selected remote models in OPFS.
+Desktop development stores selected models in the app user data directory.
+Desktop releases bundle X-ASR and store other models in the user data directory.
+Sherpaw settings show download state and let users install or remove remote models.
+Use a remote Provider when model download size or local memory makes that unsuitable.
+The existing VAD pipeline has separate model and runtime downloads.
+
+`libs/inference/transformers-cache` manages the browser cache used by Transformers
+and Kokoro. Sherpaw file pairs use the shared model asset repository.
+
+### Compact Stage status
+
+`HearingStatus` shows the shared, always-on microphone session. Place it above a
+mobile composer or at the bottom of a desktop Stage. It reads local request
+activity, microphone amplitude, the last transcript, and device or provider
+errors.
+
+`StatusCapsule` owns the capsule surface and expandable details. Its indicator
+slot receives business content: Hearing owns the audio bars, while sign-in owns
+its waiting and result icons. The shell has no request or microphone state. Its details
+stay inside its layout bounds so Electron can include them in mouse hit testing.
+`HearingStatus` uses the details slot to match chat error cards without adding
+microphone failures to chat history.
+The component supports reduced motion. Desktop users can enable Streamer mode in
+General settings to hide these overlays without stopping microphone input or sign-in.
+Streamer mode is off by default.
+
+## Chat stickers
+
+Open **Settings → Modules → Stickers**, then enable stickers. This preference is off by default and applies to this device.
+Select a frequency: 25%, 50%, 75%, or 100%. The default is 50% when enabled.
+The percentage controls reply eligibility. It does not force an image or guarantee an exact observed ratio.
+The model selects one catalog ID from the image names and emotion tags. No separate emotion classifier runs.
+Each prepared or queued request retains its catalog, provider, prompt, and eligibility.
+No extra provider, API request, character card, or memory module is required.
+
+### Manage the library
+
+Import a PNG, JPG, WebP, or GIF image. Files must decode successfully and remain within 2 MB and 4096 × 4096 pixels.
+Preview the image, enter a name with 1–80 characters, and select at least one emotion tag.
+Each image can use several tags. Bundled and imported images use the same catalog format.
+Edit any image's name or tags. Imported images also support replacement.
+Deletion removes the entry from future catalogs. It does not remove images from existing or already prepared replies.
+Unknown saved IDs display a translated placeholder and never become image URLs.
+
+IndexedDB stores metadata and immutable image versions on this device.
+Replacement creates a new image ID. Chat slices retain the ID selected when their request was prepared.
+Deleted entries retain their images. Archived images use storage until the application's site data is cleared.
+Web Locks serialize edits across renderer windows. BroadcastChannel signals refresh the local snapshots without transferring image bytes.
+The toggle and frequency follow existing same-origin storage events. Reset restores these preferences without clearing the library.
+Cloud chat sync transfers text only. Neither imported images nor sticker slices transfer to another device.
+Runtime generation does not require an image service or image-generation model.
+
+### Bundled artwork
+
+The default pack contains twelve generated chibi reactions of AIRI's official blue-haired Live2D character.
+See [artwork provenance](src/assets/stickers/README.md) for references, exact prompts, and inspection notes.
+These are static assets. No runtime image-generation dependency is included.
+The four development-only Fluent Emoji images are removed. No old-ID migration is included.

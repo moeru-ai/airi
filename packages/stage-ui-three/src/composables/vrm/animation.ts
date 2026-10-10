@@ -47,17 +47,19 @@ export async function clipFromVRMAnimation(vrm?: VRMCore, animation?: VRMAnimati
   return createVRMAnimationClip(animation, vrm)
 }
 
-// Set initial positions for animation
+/**
+ * Shifts a clip's position tracks to start at the current normalized hips position.
+ * Call before playback, with the rig in its rest pose. This mutates the clip and preserves relative motion between frames.
+ */
 export function reAnchorRootPositionTrack(clip: AnimationClip, _vrm: VRMCore) {
-// Get the hips node to re-anchor the root position track
   const hipNode = _vrm.humanoid?.getNormalizedBoneNode('hips')
   if (!hipNode) {
     console.warn('No hips node found in VRM model.')
     return
   }
-  hipNode.updateMatrixWorld(true)
-  const defaultHipPos = new Vector3()
-  hipNode.getWorldPosition(defaultHipPos)
+  // Tracks animate local positions. A world-space anchor bakes parent transforms into the clip,
+  // and the animation mixer applies those transforms again during playback.
+  const defaultHipPos = hipNode.position.clone()
 
   // Calculate the offset from the hips node to the hips's first frame position
   const hipsTrack = clip.tracks.find(track =>
