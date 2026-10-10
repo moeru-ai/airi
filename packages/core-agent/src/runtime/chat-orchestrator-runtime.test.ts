@@ -170,6 +170,74 @@ function createHarness(getActiveProvider = () => 'mock-provider') {
 }
 
 describe('createChatOrchestratorRuntime', () => {
+  // https://github.com/moeru-ai/airi/issues/2899
+  // ROOT CAUSE:
+  //
+  // The marker parser can emit whitespace as a separate literal.
+  // The speechOnly.trim() check discarded it before history, slices, and hooks received it.
+  //
+  // We keep every non-empty speech literal so delta boundaries do not remove whitespace.
+  it.each([
+    ['spaces', 'Hello world again'],
+    ['paragraph breaks', 'First paragraph\n\nSecond paragraph'],
+    ['indentation', 'Example:\n\t  code line\nDone'],
+    ['leading and trailing spaces', '  Hello world  '],
+  ])('preserves %s across stream delta boundaries (Issue #2899)', async (_name, text) => {
+    for (const deltas of [[text], Array.from(text)]) {
+      const harness = createHarness()
+      const literals: string[] = []
+      harness.runtime.hooks.onTokenLiteral(async (literal) => {
+        literals.push(literal)
+      })
+      harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+        for (const delta of deltas)
+          await options?.onStreamEvent?.({ type: 'text-delta', text: delta })
+        await options?.onStreamEvent?.({ type: 'finish' })
+      })
+
+      await harness.runtime.ingest('return formatted text', {
+        model: 'gpt-test',
+        chatProvider: provider,
+      })
+
+      const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+      expect(saved?.content).toBe(text)
+      expect(saved?.role === 'assistant' && saved.slices.filter(slice => slice.type === 'text').map(slice => slice.text).join('')).toBe(text)
+      expect(literals.join('')).toBe(text)
+    }
+  })
+
+  it.each([
+    ['reasoning and a marker', ['<think>analysis</think>', 'Visible reply<|ACT|>'], 'Visible reply', ['<|ACT|>']],
+    ['reasoning only', ['<think>analysis</think>'], undefined, []],
+    ['empty output', [''], undefined, []],
+  ])('keeps %s separate from speech literals', async (_name, deltas, expected, expectedSpecials) => {
+    const harness = createHarness()
+    const literals: string[] = []
+    const specials: string[] = []
+    harness.runtime.hooks.onTokenLiteral(async (literal) => {
+      literals.push(literal)
+    })
+    harness.runtime.hooks.onTokenSpecial(async (special) => {
+      specials.push(special)
+    })
+    harness.stream.mockImplementationOnce(async (_model, _chatProvider, _messages, options) => {
+      for (const text of deltas)
+        await options?.onStreamEvent?.({ type: 'text-delta', text })
+      await options?.onStreamEvent?.({ type: 'finish' })
+    })
+
+    await harness.runtime.ingest('return reply', {
+      model: 'gpt-test',
+      chatProvider: provider,
+    })
+
+    const saved = harness.sessionMessages['session-1'].findLast(message => message.role === 'assistant')
+    expect(saved?.content).toBe(expected)
+    expect(literals.join('')).toBe(expected ?? '')
+    expect(specials).toEqual(expectedSpecials)
+  })
+
   it('admits a replacement turn when the cancelled provider ignores abort', async () => {
     const harness = createHarness()
     const held = Promise.withResolvers<void>()
