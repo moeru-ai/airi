@@ -1008,13 +1008,11 @@ pages:
         airi-agree: '赞同'
         airi-disagree: 拒绝
     home-assistant:
-      title: Home Assistant
       description: 让 AIRI 读取和控制你的 Home Assistant 设备。
       enable: 启用 Home Assistant
       enable-description: 允许 AIRI 读取和控制你的设备
       base-url:
         label: 地址
-        placeholder: http://homeassistant.local:8123
         description: 你的 Home Assistant 实例地址。
       token:
         label: 长期访问令牌
@@ -1028,8 +1026,8 @@ pages:
       status:
         saved: 已保存。
         testing: 正在测试连接……
-        reachable: 已连接。Home Assistant 报告了 {count} 个实体。
-        failed: 无法连接。{message}
+        reachable: '已连接。Home Assistant 报告了 {count} 个实体。'
+        failed: '无法连接。{message}'
     web-search:
       title: 网络搜索
       description: 让 AIRI 联网搜索最新信息
@@ -1091,7 +1089,6 @@ pages:
         headers:
           label: 请求头
           description: 每次请求都会带上的请求头，比如授权令牌。
-          key-placeholder: Authorization
           value-placeholder: Bearer 令牌
         command:
           label: 命令
