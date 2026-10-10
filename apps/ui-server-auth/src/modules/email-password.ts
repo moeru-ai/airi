@@ -9,9 +9,12 @@
  * see that module for HTTP-level expectations (credentials, error parsing).
  */
 
+import type { InferOutput } from 'valibot'
+
 import type { AuthFetchBase } from './auth-fetch'
 
 import { errorMessageFrom } from '@moeru/std'
+import { boolean, object, optional, parse } from 'valibot'
 
 import { postAuthJSON } from './auth-fetch'
 
@@ -19,19 +22,13 @@ interface CheckEmailArgs extends AuthFetchBase {
   email: string
 }
 
-/**
- * Result of the email-first identifier probe.
- *
- * Drives whether the unified UI shows the password field (existing
- * credential user), the create-account fields (new email), or steers the
- * user toward a social provider (existing social-only user).
- */
-export interface CheckEmailResult {
-  /** A user row matches this email (case-insensitive). */
-  exists: boolean
-  /** That user has a `credential` account, i.e. can sign in via password. */
-  hasPassword: boolean
-}
+/** The discovery response selects a form without granting an authenticated session. */
+const CheckEmailResultSchema = object({
+  exists: boolean(),
+  hasPassword: boolean(),
+  // Supported policy: absent status is unknown during independent API and UI deployments.
+  emailVerified: optional(boolean()),
+})
 
 interface EmailSignInArgs extends AuthFetchBase {
   email: string
@@ -90,19 +87,14 @@ interface SignUpResult {
  * - `email` is the raw user input; the server normalizes (trim + lowercase).
  *
  * Returns:
- * - {@link CheckEmailResult} indicating existence and whether a credential
- *   account is attached. UI uses these to pick the second step.
+ * - Account existence, credential presence, and verification state for navigation.
  */
-export async function checkEmail(args: CheckEmailArgs): Promise<CheckEmailResult> {
+export async function checkEmail(args: CheckEmailArgs): Promise<InferOutput<typeof CheckEmailResultSchema>> {
   return postAuthJSON(
     args,
     '/check-email',
     { email: args.email },
-    (data) => {
-      const exists = Boolean((data as { exists?: unknown })?.exists)
-      const hasPassword = Boolean((data as { hasPassword?: unknown })?.hasPassword)
-      return { exists, hasPassword }
-    },
+    data => parse(CheckEmailResultSchema, data),
   )
 }
 
