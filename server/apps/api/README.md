@@ -157,8 +157,7 @@ Flux balance stays self-managed. In-App Currency is not used.
 
 ## Subscriptions
 
-Go (`airi_go`, 2000 Capacitor Flux) and Plus (`airi_plus`, 5000 Capacitor Flux)
-are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
+Go (`airi_go`) and Plus (`airi_plus`) are sold through RevenueCat on every store. Apple, Google, Stripe, and Test
 Store all enter through the single RevenueCat webhook. `store` is only a
 field, so new channels need no server changes.
 
