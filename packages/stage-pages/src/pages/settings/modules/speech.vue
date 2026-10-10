@@ -49,6 +49,7 @@ const {
   activeProviderModelError,
   modelSearchQuery,
   speechProviderError,
+  voiceCatalogStatus,
   ssmlEnabled,
   availableVoices,
 } = storeToRefs(speechStore)
@@ -83,12 +84,23 @@ const configurationSource = computed(() => {
 const configurationVoiceName = computed(() => availableVoices.value[selection.value.provider]?.find(voice => voice.id === selection.value.voice_id)?.name || selection.value.voice_id)
 
 /** Tracks this renderer's command wait without publishing UI state to other windows. */
-async function configureSpeech(intent?: Partial<SpeechSelection>) {
+async function configureSpeech(intent?: Partial<SpeechSelection>, reloadCatalogs = false) {
   const request = ++configurationRequest
   const characterId = airiCardStore.activeCardId
   configurationPending.value = true
   configurationError.value = ''
   try {
+    if (reloadCatalogs) {
+      const provider = activeSpeechProvider.value
+      // Retry failed discovery without changing the user's configuration intent.
+      if (providersStore.modelLoadError[provider])
+        await providersStore.fetchModelsForProvider(provider)
+      if (request !== configurationRequest || characterId !== airiCardStore.activeCardId || provider !== activeSpeechProvider.value)
+        return
+      await speechStore.loadVoicesForProvider(provider, activeSpeechModel.value || undefined)
+      if (request !== configurationRequest || characterId !== airiCardStore.activeCardId || provider !== activeSpeechProvider.value)
+        return
+    }
     return await airiCardStore.configureSpeechSelection(characterId, intent)
   }
   catch (error) {
@@ -202,19 +214,25 @@ const displayedModelsLoading = computed(() => {
     || false
 })
 
+// A complete committed choice does not require another catalog request to be usable.
+// Catalog errors still appear beside the fields, but cannot invalidate that choice.
+const configurationFailure = computed(() => configurationError.value
+  || providersStore.modelLoadError[selection.value.provider]
+  || voiceCatalogStatus.value[selection.value.provider]?.error
+  || '')
 const configurationState = computed(() => {
   const committed = getSpeechSelectionState(selection.value)
   if (committed === 'muted')
     return 'muted'
   if (configurationPending.value)
     return 'loading'
-  if (configurationError.value)
-    return 'error'
-  if (committed !== 'ready' && (displayedModelsLoading.value || isLoadingSpeechProviderVoices.value))
+  if (committed === 'ready' && providerStore.configuredProviders[selection.value.provider])
+    return 'ready'
+  if (displayedModelsLoading.value || voiceCatalogStatus.value[selection.value.provider]?.loading)
     return 'loading'
-  if (!providerStore.configuredProviders[selection.value.provider])
-    return 'incomplete'
-  return committed
+  if (configurationFailure.value)
+    return 'error'
+  return 'incomplete'
 })
 
 const displayedModelError = computed(() => {
@@ -574,6 +592,11 @@ watch(activeSpeechVoiceId, (voiceId) => {
   customVoiceName.value = voiceId
 }, { immediate: true })
 
+// Remote commits also replace the configuration that a local error described.
+watch([() => airiCardStore.activeCardId, activeSpeechProvider, activeSpeechModel, activeSpeechVoiceId], () => {
+  configurationError.value = ''
+}, { flush: 'sync' })
+
 watch(() => airiCardStore.activeCardId, async () => {
   await configureSpeech()
 })
@@ -602,7 +625,7 @@ async function handleDeleteProvider(providerId: string) {
       <Button
         v-if="configurationState === 'error' || configurationState === 'incomplete'"
         size="sm"
-        @click="configureSpeech()"
+        @click="configureSpeech(undefined, true)"
       >
         {{ t('settings.pages.modules.speech.configuration.retry') }}
       </Button>
@@ -612,7 +635,7 @@ async function handleDeleteProvider(providerId: string) {
       · {{ t(`settings.pages.modules.speech.configuration.source.${configurationSource}`) }}
     </p>
     <p v-else-if="configurationState === 'error'" :class="['text-sm text-red-600 dark:text-red-300']">
-      {{ configurationError }}
+      {{ configurationFailure }}
     </p>
     <p v-if="configurationState !== 'ready'" :class="['text-sm text-neutral-600 dark:text-neutral-400']">
       {{ t('settings.pages.modules.speech.configuration.text-chat-available') }}

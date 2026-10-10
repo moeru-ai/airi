@@ -401,3 +401,76 @@ it('captures the session character for output and skips synthesis when incomplet
     await context.close()
   }
 })
+
+// https://github.com/moeru-ai/airi/issues/2861#issuecomment-6095004263
+// ROOT CAUSE: Retrying configuration did not reload third-party voice catalogs.
+// Reload failed catalogs without selecting a third-party voice.
+it('retries a failed third-party voice catalog without selecting a voice (Issue #2861)', async () => {
+  localStorage.clear()
+  let available = false
+  let voiceRequests = 0
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (url.includes('voices')) {
+      voiceRequests++
+      if (!available)
+        return new Response('Third-party voices unavailable', { status: 503 })
+    }
+    return Response.json({ voices: [{ voice_id: 'suggested', name: 'Suggested' }], data: [] })
+  }))
+  const namespace = crypto.randomUUID()
+  const leader = mountRenderer(namespace)
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  await useProviderConfigStore(leader.pinia).ensureProvider('elevenlabs', 'elevenlabs', { apiKey: 'fixture' })
+  await useProviderStore(leader.pinia).forceProviderConfigured('elevenlabs')
+  const cards = useAiriCardStore(leader.pinia)
+  await cards.initialize()
+  await cards.updateActiveCardSpeech({ provider: 'elevenlabs', model: 'eleven_multilingual_v2', voice_id: '' })
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await expect.poll(() => follower.speech.speechProviderError).toBeTruthy()
+  await expect.poll(() => follower.container.querySelector('[data-speech-state="error"]')).not.toBeNull()
+  const beforeRetry = voiceRequests
+  available = true
+  follower.container.querySelector<HTMLButtonElement>('[role="status"] button')!.click()
+  await expect.poll(() => voiceRequests).toBeGreaterThan(beforeRetry)
+  await expect.poll(() => follower.container.textContent).toContain('Suggested')
+  await expect.poll(() => follower.container.querySelector('[data-speech-state="incomplete"]')).not.toBeNull()
+  expect(cards.getModules('default').speech.voice_id).toBe('')
+})
+
+// https://github.com/moeru-ai/airi/issues/2861#issuecomment-6095004263
+// ROOT CAUSE: A local error hid a later committed selection from another window.
+// Report readiness from the current configuration and discard obsolete errors.
+it('clears an old error after another window completes configuration (Issue #2861)', async () => {
+  localStorage.clear()
+  let available = false
+  vi.stubGlobal('fetch', vi.fn<typeof fetch>(async (input) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (url.includes('voices') && !available)
+      return new Response('Voice service unavailable', { status: 503 })
+    return Response.json({
+      models: [{ id: 'voice-pack', name: 'Voice pack' }],
+      default: 'voice-pack',
+      data: [],
+      voices: [{ id: 'voice-a', name: 'Voice A', languages: [{ code: 'en', title: 'English' }] }],
+      recommended: { en: 'voice-a' },
+    })
+  }))
+  const namespace = crypto.randomUUID()
+  const leader = mountRenderer(namespace)
+  await expect.poll(() => leader.runtime.isLeader()).toBe(true)
+  authenticate(leader.pinia)
+  const provider = 'official-provider-speech'
+  await useProviderConfigStore(leader.pinia).ensureProvider(provider, provider, {})
+  await useProviderStore(leader.pinia).forceProviderConfigured(provider)
+  const follower = mountRenderer(namespace, SpeechSettings)
+  await expect.poll(() => follower.container.querySelector('input[value="official-provider-speech"]')).not.toBeNull()
+  follower.container.querySelector<HTMLInputElement>('input[value="official-provider-speech"]')!.click()
+  await expect.poll(() => follower.container.querySelector('[data-speech-state="error"]')?.textContent).toContain('Voice service unavailable')
+  available = true
+  const cards = useAiriCardStore(leader.pinia)
+  await cards.configureSpeechSelection(cards.activeCardId)
+  await expect.poll(() => useAiriCardStore(follower.pinia).getModules('default').speech.voice_id).toBe('voice-a')
+  await expect.poll(() => follower.container.querySelector('[data-speech-state="ready"]')).not.toBeNull()
+  expect(follower.container.querySelector('[role="status"]')?.textContent).not.toContain('Voice service unavailable')
+})
