@@ -1173,12 +1173,14 @@ pages:
     packagesError: 暂时无法获取可用的 Capacitor，可以之后再试试吗？
     preferenceError: 偏好保存失败，请稍后再试。
     noCapacitor: 尚未装配 Capacitor
-    remaining: 剩余 {percent}%
+    available: 可选的 Capacitor
+    remaining: 剩余 {percent}
     rechargesAt: '{date} 充满'
     renewsAt: '{date} 续订'
     expiresAt: '{date} 到期'
     perMonth: / 月
     currentPackage: 当前
+    install: 装配
     upgrade: 升级
     downgrade: 降级
     manageSubscription: 管理订阅

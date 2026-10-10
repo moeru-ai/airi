@@ -1233,12 +1233,14 @@ pages:
     packagesError: Failed to load Capacitors. Please try again later.
     preferenceError: Failed to save preference. Please try again later.
     noCapacitor: No Capacitor
-    remaining: '{percent}% left'
+    available: Capacitors
+    remaining: '{percent} left'
     rechargesAt: Recharges {date}
     renewsAt: Renews {date}
     expiresAt: Expires {date}
     perMonth: / month
     currentPackage: Current
+    install: Install
     upgrade: Upgrade
     downgrade: Downgrade
     manageSubscription: Manage subscription
