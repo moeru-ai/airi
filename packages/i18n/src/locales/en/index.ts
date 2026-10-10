@@ -1,4 +1,5 @@
 import base from './base.yaml'
+import companionGames from './companion-games.yaml'
 import docs from './docs'
 import server from './server'
 import settings from './settings.yaml'
@@ -7,6 +8,7 @@ import tamagotchi from './tamagotchi'
 
 export default {
   base,
+  companionGames,
   docs,
   server,
   settings,

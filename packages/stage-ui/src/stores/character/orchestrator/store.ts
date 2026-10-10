@@ -7,6 +7,7 @@ import { ref } from 'vue'
 
 import { useCharacterNotebookStore, useCharacterStore } from '../'
 import { useAiriRuntimePrompt } from '../../../composables/use-airi-runtime-prompt'
+import { useVrmMotionPrompt } from '../../../features/motions/vrm/prompt'
 import { useLLM } from '../../ai/chat-llm/llm'
 import { useModsServerChannelStore } from '../../mods/api/channel-server'
 import { useConsciousnessStore } from '../../modules/consciousness'
@@ -20,7 +21,7 @@ export const useCharacterOrchestratorStore = defineStore('character-orchestrator
   const characterStore = useCharacterStore()
   const notebookStore = useCharacterNotebookStore()
   const { systemPrompt } = storeToRefs(characterStore)
-  const runtimePrompt = useAiriRuntimePrompt()
+  const runtimePrompt = useAiriRuntimePrompt(useVrmMotionPrompt())
   const modsServerChannelStore = useModsServerChannelStore()
 
   const processing = ref(false)

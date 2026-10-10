@@ -18,6 +18,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 // From stage-ui-three package
 import { onMounted, onUnmounted, shallowRef, toRefs, watch } from 'vue'
 
+import { OrbitPivotTransition } from '../../composables/orbit-pivot'
 import { useThreeCamera } from '../../stores/camera'
 
 /*
@@ -41,6 +42,9 @@ const emit = defineEmits<{
     newCameraDistance: number
   }): void
   (e: 'orbitControlsReady'): void
+  (e: 'orbitControlsPivotChanged', active: boolean): void
+  (e: 'orbitControlsInteractionChanged', active: boolean): void
+  (e: 'orbitControlsTransitionChanged', active: boolean): void
 }>()
 
 const {
@@ -55,6 +59,41 @@ const { camera: cameraTres, renderer } = useTres()
 const controls = shallowRef<OrbitControls>()
 const camera = shallowRef<PerspectiveCamera | null>(null)
 let disposeControlsChange: (() => void) | undefined
+const pivotTransition = new OrbitPivotTransition()
+let pivotFrame = 0
+let pivotFrameAt = 0
+
+function cancelPivotTransition() {
+  cancelAnimationFrame(pivotFrame)
+  pivotFrame = 0
+  pivotTransition.cancel()
+  emit('orbitControlsTransitionChanged', false)
+}
+
+function shiftTarget(target: Vec3, restoreShared = false) {
+  if (!camera.value || !controls.value || !controlEnable.value)
+    return
+  cancelPivotTransition()
+  pivotTransition.startAt(camera.value, controls.value.target, new Vector3(target.x, target.y, target.z), matchMedia('(prefers-reduced-motion: reduce)').matches, restoreShared)
+  emit('orbitControlsPivotChanged', true)
+  emit('orbitControlsTransitionChanged', true)
+  pivotFrameAt = performance.now()
+  const frame = (now: number) => {
+    if (!camera.value || !controls.value)
+      return
+    const active = pivotTransition.update(camera.value, controls.value.target, (now - pivotFrameAt) / 1000)
+    pivotFrameAt = now
+    controls.value.update()
+    if (!active && !pivotTransition.isInspectionActive) {
+      emit('orbitControlsPivotChanged', false)
+      controls.value.dispatchEvent({ type: 'change' })
+    }
+    if (!active)
+      emit('orbitControlsTransitionChanged', false)
+    pivotFrame = active ? requestAnimationFrame(frame) : 0
+  }
+  pivotFrame = requestAnimationFrame(frame)
+}
 
 const { cameraPosition, cameraFOV, cameraDistance } = useThreeCamera()
 
@@ -97,7 +136,7 @@ function registerInfoFlow() {
   }, { immediate: true, deep: true })
   // Get camera position => update position
   watch(cameraPosition, (newPosition) => {
-    if (!camera.value || !controls.value)
+    if (pivotTransition.isInspectionActive || !camera.value || !controls.value)
       return
     camera.value.position.set(
       newPosition.x,
@@ -109,6 +148,9 @@ function registerInfoFlow() {
   }, { immediate: true, deep: true })
   // Get camera target => update target (actually the model center)
   watch(cameraTarget, (newTarget) => {
+    cancelPivotTransition()
+    pivotTransition.clear()
+    emit('orbitControlsPivotChanged', false)
     if (!controls.value)
       return
     controls.value.target.set(newTarget.x, newTarget.y, newTarget.z)
@@ -124,7 +166,7 @@ function registerInfoFlow() {
   }, { immediate: true })
   // Get camera distance => update camera distance
   watch(cameraDistance, (newDistance) => {
-    if (!camera.value || !controls.value)
+    if (pivotTransition.isInspectionActive || !camera.value || !controls.value)
       return
     const newPosition = new Vector3()
     const target = controls.value.target
@@ -139,6 +181,8 @@ function registerInfoFlow() {
     controls.value.update()
   })
   watch(controlEnable, (newEnable) => {
+    if (!newEnable)
+      cancelPivotTransition()
     if (!camera.value || !controls.value)
       return
     controls.value.enableRotate = newEnable
@@ -151,7 +195,7 @@ function registerInfoFlow() {
   */
   // send camera update info
   const onChange = () => {
-    if (!controlEnable.value || !camera.value || !controls.value)
+    if (pivotTransition.isInspectionActive || !controlEnable.value || !camera.value || !controls.value)
       return
 
     emit(
@@ -172,6 +216,13 @@ function registerInfoFlow() {
   disposeControlsChange = () => controls.value?.removeEventListener('change', onChange)
 }
 
+function onControlStart() {
+  emit('orbitControlsInteractionChanged', true)
+}
+function onControlEnd() {
+  emit('orbitControlsInteractionChanged', false)
+}
+
 onMounted(async () => {
   // wait until camera is not undefined
   await until(() => cameraTres.value && renderer.domElement).toBeTruthy()
@@ -187,6 +238,10 @@ onMounted(async () => {
   camera.value = cameraTres.value as PerspectiveCamera
   // Obtain orbitControl instance
   controls.value = new OrbitControls(camera.value, renderer.domElement)
+  controls.value.addEventListener('start', onControlStart)
+  controls.value.addEventListener('end', onControlEnd)
+  renderer.domElement.addEventListener('pointerdown', cancelPivotTransition)
+  renderer.domElement.addEventListener('wheel', cancelPivotTransition, { passive: true })
   controls.value.enablePan = false
   controls.value.enableZoom = false
   controls.value.enableRotate = false
@@ -209,14 +264,21 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  cancelPivotTransition()
+  renderer.domElement?.removeEventListener('pointerdown', cancelPivotTransition)
+  renderer.domElement?.removeEventListener('wheel', cancelPivotTransition)
   disposeControlsChange?.()
   disposeControlsChange = undefined
+  controls.value?.removeEventListener('start', onControlStart)
+  controls.value?.removeEventListener('end', onControlEnd)
   controls.value?.dispose()
   controls.value = undefined
   camera.value = null
 })
 
 defineExpose({
+  shiftTarget,
+  cancelPivotTransition,
   controls,
   getDistance: () => controls.value?.getDistance(),
   update: () => controls.value?.update(),

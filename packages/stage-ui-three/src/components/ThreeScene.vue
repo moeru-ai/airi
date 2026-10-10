@@ -10,14 +10,14 @@
 import type { VRM } from '@pixiv/three-vrm'
 import type { PresenceBubblePalette, PresenceBubbleState } from '@proj-airi/stage-shared'
 import type { TresContext } from '@tresjs/core'
-import type { DirectionalLight, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
+import type { DirectionalLight, Group, SphericalHarmonics3, Texture, WebGLRenderer, WebGLRenderTarget } from 'three'
 
 import type { VrmInteractionTarget } from '../composables/vrm/interaction'
 import type { SceneBootstrap, ScenePhase, Vec3 } from '../stores/model-store'
 import type { VrmLifecycleReason } from '../trace'
 
 import { coverRect, presenceBubbleIdle } from '@proj-airi/stage-shared'
-import { Screen } from '@proj-airi/ui'
+import { OverlayButton, Screen } from '@proj-airi/ui'
 import { TresCanvas } from '@tresjs/core'
 import { EffectComposerPmndrs, HueSaturationPmndrs } from '@tresjs/post-processing'
 import { defaultWindow, useElementBounding, useEventListener, useResizeObserver } from '@vueuse/core'
@@ -40,6 +40,8 @@ import { computed, nextTick, onMounted, onUnmounted, provide, ref, shallowRef, u
 import PresenceBubble from './presence-bubble.vue'
 
 // From stage-ui-three package
+import { SceneMotionFraming } from '../companion/scene-motion-framing'
+import { pickModelOrbitPivot } from '../composables/orbit-pivot'
 import { useRenderTargetRegionAtClientPoint } from '../composables/render-target'
 import { getVrmInteractionTargetFromObjectName, isClickLikePointerGesture } from '../composables/vrm/interaction'
 // pinia store
@@ -90,9 +92,13 @@ const props = withDefaults(defineProps<{
    * | stage-tamagotchi | `true` | The transparent desktop stage has no mobile view-control overlay. |
    */
   enableOrbitControls?: boolean
+  /** Localized reset label supplied by the app shell. */
+  orbitPivotResetLabel?: string
   showAxes?: boolean
   idleAnimation?: string
   paused?: boolean
+  automaticMotionFraming?: boolean
+  motionRevision?: number
 }>(), {
   presence: () => presenceBubbleIdle,
   enableOrbitControls: true,
@@ -105,6 +111,7 @@ const emit = defineEmits<{
   (e: 'loadModelProgress', value: number): void
   (e: 'error', value: unknown): void
   (e: 'vrmInteract', value: VrmInteractionTarget): void
+  (e: 'manipulationChange', active: boolean): void
 }>()
 /**
  * Colours for the presence bubble, read from elements carrying the project's own
@@ -185,6 +192,7 @@ const {
 
   cameraPosition,
   cameraDistance,
+  cameraFOV,
 
   directionalLightPosition,
   directionalLightTarget,
@@ -216,6 +224,23 @@ const vrmFrameRuntimeHook = shallowRef<VrmFrameRuntimeHook>()
 
 const camera = shallowRef(new PerspectiveCamera())
 const controlsRef = shallowRef<InstanceType<typeof OrbitControls>>()
+const pointerManipulation = ref(false)
+const orbitManipulation = ref(false)
+const pivotTransitionActive = ref(false)
+const manipulationActive = computed(() => pointerManipulation.value || orbitManipulation.value || pivotTransitionActive.value)
+let framing: SceneMotionFraming | undefined
+let framingRoot: Group | undefined
+let framingModelId = ''
+let cameraRevision = 0
+const framingAnchor = new Vector3()
+let automaticCameraPosition: Vector3 | undefined
+
+watch(manipulationActive, (active) => {
+  emit('manipulationChange', active)
+  if (!active)
+    cameraRevision++
+}, { flush: 'sync' })
+
 const tresContextRef = shallowRef<TresContext>()
 
 const backgroundTexture = shallowRef<Texture>()
@@ -315,6 +340,8 @@ useResizeObserver(() => tresContextRef.value?.renderer.instance.domElement, ([en
 
   const { width, height } = entry.contentRect
   if (width > 0 && height > 0 && (width !== rendererWidth || height !== rendererHeight)) {
+    framing?.reset({ restore: true })
+    cameraRevision++
     rendererWidth = width
     rendererHeight = height
 
@@ -509,11 +536,20 @@ const { readRenderTargetRegionAtClientPoint, disposeRenderTarget } = useRenderTa
   * - Sub components emit info => update pinia store
 */
 // === OrbitControls ===
+watch([cameraPosition, cameraDistance, cameraFOV, modelOffset, modelRotationY], () => {
+  cameraRevision++
+}, { deep: true, flush: 'post' })
+
 // Get camera update => update camera info in pinia
 function onOrbitControlsCameraChanged(value: {
   newCameraPosition: Vec3
   newCameraDistance: number
 }) {
+  // Programmatic OrbitControls updates cannot persist an automatic framing offset as the user's saved camera.
+  if (!manipulationActive.value && automaticCameraPosition
+    && automaticCameraPosition.distanceToSquared(toVector3(value.newCameraPosition)) < 1e-12) {
+    return
+  }
   const posChanged = Math.abs(cameraPosition.value.x - value.newCameraPosition.x) > 1e-6
     || Math.abs(cameraPosition.value.y - value.newCameraPosition.y) > 1e-6
     || Math.abs(cameraPosition.value.z - value.newCameraPosition.z) > 1e-6
@@ -531,8 +567,54 @@ const isCompletingBinding = ref(false)
 //  === VRMModel ===
 const canvasReady = ref(false)
 const modelPhase = ref<ModelPhase>(props.modelSrc ? 'loading' : 'no-model')
+const loadedModelIdentity = shallowRef<ModelLoadIdentity>()
+
+function onVrmFrame(root: Group) {
+  if (!props.automaticMotionFraming || props.paused || !controlsReady.value || modelPhase.value !== 'ready')
+    return
+  if (root !== framingRoot) {
+    framing?.reset({ restore: true })
+    framingRoot = root
+    framingModelId = crypto.randomUUID()
+    framing = undefined
+  }
+  const snapshot = modelRef.value?.getMotionController()?.snapshot
+  const motionActive = !!snapshot && (snapshot.loadingId !== undefined || snapshot.activeId !== snapshot.idleId)
+  // Preserve an intentional idle close-up until an actual motion needs more room.
+  if (!motionActive && !framing)
+    return
+  framing ??= new SceneMotionFraming(framingModelId, { maxZoomOut: 2.5 })
+  const target = controlsRef.value?.controls?.target
+  if (target)
+    framingAnchor.copy(target)
+  else
+    framingAnchor.set(modelOrigin.value.x, modelOrigin.value.y, modelOrigin.value.z)
+  const result = framing.tick({
+    modelId: framingModelId,
+    cameraRevision,
+    motionRevision: props.motionRevision ?? 0,
+    manualControl: manipulationActive.value,
+    nowMs: performance.now(),
+    root,
+    camera: camera.value,
+    anchorWorld: framingAnchor,
+    motionActive,
+  })
+  automaticCameraPosition = result.status === 'applied' && result.factor > 1
+    ? camera.value.position.clone()
+    : undefined
+}
+
+function resetMotionFraming() {
+  framing?.reset({ restore: true })
+  framing = undefined
+  framingRoot = undefined
+  automaticCameraPosition = undefined
+  cameraRevision++
+}
 
 function beginSceneBindingCycle(reason: SceneTraceTransactionReason) {
+  resetMotionFraming()
   latestSceneTransactionReason.value = reason
   invalidateBindingRevision()
   resetSceneBindingTransactions()
@@ -656,6 +738,7 @@ const controlEnable = computed(() => {
     && !sceneMutationLocked.value
 })
 function onVRMModelLoadStart(reason: VrmLifecycleReason) {
+  loadedModelIdentity.value = undefined
   modelPhase.value = 'loading'
   pendingSceneBootstrap.value = undefined
   beginSceneBindingCycle(toSceneLoadTransactionReason(reason))
@@ -669,6 +752,7 @@ function onVRMSceneBootstrap(value: SceneBootstrap) {
 function onVRMModelLoaded(value: string) {
   activeModelSrc.value = value
   const completedModel = loadingModelIdentity.value
+  loadedModelIdentity.value = completedModel?.modelSrc === value ? completedModel : undefined
   pendingCommittedModelIdentity.value = completedModel?.modelSrc === value
     ? completedModel
     : undefined
@@ -678,6 +762,7 @@ function onVRMModelLoaded(value: string) {
   void completeSceneBinding(bindingRevision.value)
 }
 function onVRMModelError(error: unknown) {
+  loadedModelIdentity.value = undefined
   invalidateBindingRevision()
   pendingSceneBootstrap.value = undefined
   modelPhase.value = props.modelSrc ? 'error' : 'no-model'
@@ -708,6 +793,7 @@ function onTresReady(context: TresContext) {
   canvasReady.value = true
   context.renderer.instance.domElement.addEventListener('pointerdown', onCanvasPointerDown)
   context.renderer.instance.domElement.addEventListener('pointerup', onCanvasPointerUp)
+  context.renderer.instance.domElement.addEventListener('pointermove', onCanvasPointerMove)
   context.renderer.instance.domElement.addEventListener('pointercancel', onCanvasPointerCancel)
   emitSceneSubtreeTrace('tresCanvasRef', 'attached')
   setScenePhaseWithTrace(resolveScenePhaseAfterBinding(), 'tres:ready')
@@ -734,26 +820,53 @@ function onTresRender() {
 
 const pickingRaycaster = new Raycaster()
 const pickingMouse = new Vector2()
-let activePointer: { id: number, x: number, y: number } | undefined
+let activePointer: { id: number, x: number, y: number, button: number, dragged: boolean } | undefined
+const customOrbitPivot = ref(false)
+
+function resetOrbitPivot() {
+  controlsRef.value?.shiftTarget(modelOrigin.value, true)
+}
+
+function onCanvasPointerMove(event: PointerEvent) {
+  if (activePointer?.id === event.pointerId && !isClickLikePointerGesture(activePointer, { x: event.clientX, y: event.clientY }))
+    activePointer.dragged = true
+}
 
 function onCanvasPointerDown(event: PointerEvent) {
-  if (!event.isPrimary || event.button !== 0)
+  if (!event.isPrimary || (event.button !== 0 && event.button !== 1))
     return
-  activePointer = { id: event.pointerId, x: event.clientX, y: event.clientY }
+  pointerManipulation.value = true
+  activePointer = { id: event.pointerId, x: event.clientX, y: event.clientY, button: event.button, dragged: false }
 }
 
 function onCanvasPointerCancel(event: PointerEvent) {
-  if (activePointer?.id === event.pointerId)
+  if (activePointer?.id === event.pointerId) {
     activePointer = undefined
+    pointerManipulation.value = false
+  }
 }
 
 function onCanvasPointerUp(event: PointerEvent) {
   const pointer = activePointer
   activePointer = undefined
+  pointerManipulation.value = false
   if (!pointer || pointer.id !== event.pointerId || !event.isPrimary)
     return
-  if (!isClickLikePointerGesture(pointer, { x: event.clientX, y: event.clientY }))
+  if (pointer.dragged || !isClickLikePointerGesture(pointer, { x: event.clientX, y: event.clientY }))
     return
+  if (pointer.button === 1) {
+    if (!controlEnable.value)
+      return
+    const canvas = tresContextRef.value?.renderer.instance.domElement
+    const model = modelRef.value?.scene
+    if (!canvas || !model)
+      return
+    const point = pickModelOrbitPivot(model, camera.value, { x: event.clientX, y: event.clientY }, canvas.getBoundingClientRect())
+    if (point) {
+      controlsRef.value?.shiftTarget(point)
+    }
+    return
+  }
   handleCanvasInteraction(event)
 }
 
@@ -779,6 +892,15 @@ function handleCanvasInteraction(event: PointerEvent) {
     emit('vrmInteract', target)
 }
 
+useEventListener(defaultWindow, 'pointerup', () => {
+  pointerManipulation.value = false
+})
+useEventListener(defaultWindow, 'blur', () => {
+  activePointer = undefined
+  pointerManipulation.value = false
+  orbitManipulation.value = false
+})
+
 onMounted(() => {
   if (envSelect.value === 'skyBox') {
     skyBoxEnvRef.value?.reload(skyBoxSrc.value)
@@ -786,10 +908,13 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  resetMotionFraming()
+  emit('manipulationChange', false)
   const canvas = tresContextRef.value?.renderer.instance.domElement
   if (canvas) {
     canvas.removeEventListener('pointerdown', onCanvasPointerDown)
     canvas.removeEventListener('pointerup', onCanvasPointerUp)
+    canvas.removeEventListener('pointermove', onCanvasPointerMove)
     canvas.removeEventListener('pointercancel', onCanvasPointerCancel)
   }
   activePointer = undefined
@@ -821,6 +946,9 @@ function applyVrmFrameRuntimeHook() {
 }
 
 watch(() => props.modelSrc, (modelSrc) => {
+  resetMotionFraming()
+  controlsRef.value?.cancelPivotTransition()
+  customOrbitPivot.value = false
   requestedModelIdentity.value = modelSrc
     ? { modelId: props.modelId, modelSrc }
     : undefined
@@ -830,6 +958,7 @@ watch(() => props.modelSrc, (modelSrc) => {
   modelPhase.value = modelSrc ? 'loading' : 'no-model'
 
   if (!modelSrc) {
+    loadedModelIdentity.value = undefined
     invalidateBindingRevision()
     activeModelSrc.value = undefined
     pendingSceneBootstrap.value = undefined
@@ -848,6 +977,8 @@ watch(modelRef, (next, prev) => {
     applyVrmFrameRuntimeHook()
 
   if (prev && !next) {
+    loadedModelIdentity.value = undefined
+    resetMotionFraming()
     emitSceneSubtreeTrace('modelRef', 'detached')
     modelPhase.value = props.modelSrc ? 'loading' : 'no-model'
     setScenePhaseWithTrace(props.modelSrc ? 'loading' : 'no-model', 'model-ref:detached')
@@ -981,6 +1112,9 @@ watch(directionalLightRotation, (newRotation) => {
 }, { deep: true })
 
 defineExpose({
+  resetOrbitPivot,
+  getLoadedModelId: () => modelPhase.value === 'ready' ? loadedModelIdentity.value?.modelId : undefined,
+  getMotionController: () => modelRef.value?.getMotionController(),
   setExpression: (expression: string, intensity = 1) => {
     modelRef.value?.setExpression(expression, intensity)
   },
@@ -1041,6 +1175,9 @@ defineExpose({
         :camera-target="modelOrigin"
         @orbit-controls-camera-changed="onOrbitControlsCameraChanged"
         @orbit-controls-ready="onOrbitControlsReady"
+        @orbit-controls-pivot-changed="customOrbitPivot = $event"
+        @orbit-controls-interaction-changed="orbitManipulation = $event"
+        @orbit-controls-transition-changed="pivotTransitionActive = $event"
       />
       <SkyBox
         v-if="envSelect === 'skyBox'"
@@ -1099,6 +1236,7 @@ defineExpose({
         @scene-bootstrap="onVRMSceneBootstrap"
         @error="onVRMModelError"
         @loaded="onVRMModelLoaded"
+        @frame="onVrmFrame"
       >
         <PresenceBubble
           :head-anchor="() => modelRef?.headAnchor()"
@@ -1108,5 +1246,15 @@ defineExpose({
       </VRMModel>
       <TresAxesHelper v-if="props.showAxes" :size="1" />
     </TresCanvas>
+    <OverlayButton
+      v-if="customOrbitPivot && orbitPivotResetLabel && enableOrbitControls"
+      :class="['absolute bottom-3 right-3', 'z-10']"
+      :aria-label="orbitPivotResetLabel"
+      :title="orbitPivotResetLabel"
+      @click.stop="resetOrbitPivot"
+    >
+      <span :class="['i-solar:restart-bold-duotone h-4 w-4']" />
+      {{ orbitPivotResetLabel }}
+    </OverlayButton>
   </Screen>
 </template>

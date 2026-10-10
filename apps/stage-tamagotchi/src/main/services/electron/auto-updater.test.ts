@@ -125,6 +125,7 @@ describe('setupAutoUpdater', () => {
     isDevState.value = false
     stdEnvState.isWindows = false
     delete process.env.UPDATE_SERVER_URL
+    delete process.env.AIRI_RELEASE_REPOSITORY
     delete process.env.AIRI_UPDATE_CHANNEL
     mockGitHubReleasesFetch()
   })
@@ -146,6 +147,17 @@ describe('setupAutoUpdater', () => {
       url: 'https://github.com/moeru-ai/airi/releases/download/v0.9.0-beta.6',
     })
     expect(updaterState.instance.channel).toBe(expectedChannelByArch)
+  })
+
+  it('keeps fork checks and downloads on the configured release repository', async () => {
+    process.env.AIRI_RELEASE_REPOSITORY = 'le-firehawk/airi'
+    const fetchSpy = mockGitHubReleasesFetch()
+    const { setupAutoUpdater } = await import('./auto-updater')
+    const service = setupAutoUpdater()
+    await service.checkForUpdates()
+    expect(fetchSpy).toHaveBeenCalledWith('https://api.github.com/repos/le-firehawk/airi/releases?per_page=100', expect.any(Object))
+    expect(updaterState.instance.setFeedURL).toHaveBeenCalledWith({ provider: 'generic', url: 'https://github.com/le-firehawk/airi/releases/download/v0.9.0-beta.6' })
+    expect(updaterState.instance.autoDownload).toBe(false)
   })
 
   it('ignores UPDATE_SERVER_URL in non-dev runtime', async () => {

@@ -1,0 +1,214 @@
+name: VRM Motion Linux Candidate
+
+# A release-branch push is an intentional publication request. Feature pushes only build artifacts.
+on:
+  push:
+    branches:
+      - le-firehawk/feat/vrm-motion-library
+      - le-firehawk/release/vrm-motion-v*
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vrm-motion-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'le-firehawk/airi'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      VITE_ENABLE_ANALYTICS: 'false'
+      AIRI_RELEASE_REPOSITORY: le-firehawk/airi
+      SHERPAW_BUNDLE_MODELS: 'true'
+      NODE_OPTIONS: --max-old-space-size=6144 --no-experimental-webstorage
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Free build space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@26.7.0
+          cache: true
+          install: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: '4.7.1'
+          use-dotnet: true
+          include-templates: true
+      - name: Install desktop smoke runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 libatspi2.0-0 libdrm2 libgbm1 libasound2t64
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build shared packages
+        run: pnpm run build:packages
+      - name: Check repository lint
+        run: pnpm lint
+      - name: Check repository types
+        run: pnpm run typecheck --concurrency=2
+      - name: Test Three runtime and pivot
+        run: pnpm -F @proj-airi/stage-ui-three exec vitest run
+      - name: Test desktop foundations and update routing
+        run: pnpm -F @proj-airi/stage-tamagotchi exec vitest run --project node
+      - name: Test imports, games, and prompts
+        run: pnpm -F @proj-airi/stage-ui exec vitest run --project node src/features/motions/vrm src/features/companion-games src/composables/use-airi-runtime-prompt.test.ts
+      - name: Install browser test runtime
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Test motion library and games in the browser
+        run: pnpm -F @proj-airi/stage-ui exec vitest run --project browser src/features/motions/vrm src/features/companion-games src/components/scenarios/companion-games
+      - name: Test desktop browser behavior
+        run: pnpm -F @proj-airi/stage-tamagotchi exec vitest run --project browser
+      - name: Export Linux stage sidecar
+        working-directory: engines/stage-tamagotchi-godot
+        run: |
+          mkdir -p out/linux
+          godot --headless --export-release "Linux x64" out/linux/godot-stage
+      - name: Build desktop app
+        run: pnpm -F @proj-airi/stage-tamagotchi build
+      - name: Verify the built Linux window renders
+        env:
+          # Match the existing hosted-runner smoke. This does not change packaged app settings.
+          ELECTRON_DISABLE_SANDBOX: '1'
+          SMOKE_EXPECT_OZONE_PLATFORM: x11
+          SMOKE_REPORT_DIR: ${{ github.workspace }}/motion-smoke
+        run: xvfb-run --auto-servernum --server-args="-screen 0 1920x1080x24 -nolisten tcp" pnpm -F @proj-airi/stage-tamagotchi run smoke:linux-window-render
+      - name: Upload window smoke report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: vrm-motion-window-smoke-${{ github.sha }}
+          path: |
+            motion-smoke/*
+            !motion-smoke/stage-user-data/**
+          if-no-files-found: warn
+      - name: Resolve candidate version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == le-firehawk/release/vrm-motion-v* ]]; then
+            TAG="${GITHUB_REF_NAME#le-firehawk/release/vrm-motion-}"
+            [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|nightly|canary)(\.[a-zA-Z0-9-]+)*$ ]] || exit 1
+            VERSION="${TAG#v}"
+          else
+            TAG=""
+            VERSION="0.12.0-beta.6.motion.0.dev.${GITHUB_RUN_NUMBER}"
+          fi
+          pnpm -F @proj-airi/stage-tamagotchi exec node --input-type=module -e '
+            import semver from "semver"
+            if (!semver.valid(process.argv[1])) process.exit(1)
+          ' "$VERSION"
+          echo "MOTION_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "MOTION_TAG=$TAG" >> "$GITHUB_ENV"
+      - name: Package Linux amd64 DEB
+        run: >-
+          pnpm -F @proj-airi/stage-tamagotchi exec electron-builder build
+          --linux deb --x64 --publish never
+          -c.extraMetadata.version="$MOTION_VERSION"
+          -c.linux.publish.owner=le-firehawk
+          -c.linux.publish.repo=airi
+          -c.linux.publish.channel=latest-x64
+      - name: Verify and fingerprint package
+        shell: bash
+        run: |
+          mkdir -p motion-release
+          shopt -s nullglob
+          packages=(apps/stage-tamagotchi/dist/*.deb)
+          [[ "${#packages[@]}" == 1 ]] || exit 1
+          [[ "$(dpkg-deb -f "${packages[0]}" Architecture)" == amd64 ]] || exit 1
+          dpkg-deb --info "${packages[0]}"
+          cp "${packages[0]}" motion-release/
+          # Check the emitted feed and embedded routing before either artifact can reach a release.
+          pnpm exec node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict'
+          import { createHash } from 'node:crypto'
+          import { createReadStream } from 'node:fs'
+          import { readFile, readdir, stat } from 'node:fs/promises'
+          import { parse } from 'yaml'
+
+          const dir = 'apps/stage-tamagotchi/dist'
+          const packages = (await readdir(dir)).filter(name => name.endsWith('.deb'))
+          assert.equal(packages.length, 1)
+          const name = packages[0]
+          const packagePath = `${dir}/${name}`
+          const manifest = parse(await readFile(`${dir}/latest-x64-linux.yml`, 'utf8'))
+          assert.equal(manifest.version, process.env.MOTION_VERSION)
+          assert.equal(manifest.files.length, 1)
+          assert.equal(manifest.files[0].url, name)
+          assert.equal(manifest.files[0].size, (await stat(packagePath)).size)
+          const digest = createHash('sha512')
+          for await (const chunk of createReadStream(packagePath)) digest.update(chunk)
+          const sha512 = digest.digest('base64')
+          assert.equal(manifest.files[0].sha512, sha512)
+          if (manifest.path !== undefined) assert.equal(manifest.path, name)
+          if (manifest.sha512 !== undefined) assert.equal(manifest.sha512, sha512)
+          const resources = `${dir}/linux-unpacked/resources`
+          const updater = parse(await readFile(`${resources}/app-update.yml`, 'utf8'))
+          assert.equal(updater.provider, 'github')
+          assert.equal(updater.owner, 'le-firehawk')
+          assert.equal(updater.repo, 'airi')
+          assert.equal(updater.channel, 'latest-x64')
+          assert.equal((await readFile(`${resources}/package-type`, 'utf8')).trim(), 'deb')
+          NODE
+          cp apps/stage-tamagotchi/dist/latest-x64-linux.yml motion-release/
+          (cd motion-release && sha256sum -- *.deb *.yml > SHA256SUMS)
+          jq -n --arg commit "$GITHUB_SHA" --arg tag "$MOTION_TAG" --arg version "$MOTION_VERSION" \
+            '{commit: $commit, tag: $tag, version: $version, architecture: "amd64"}' > motion-release/source.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: vrm-motion-linux-amd64-${{ github.sha }}
+          path: motion-release/
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.repository == 'le-firehawk/airi' && startsWith(github.ref_name, 'le-firehawk/release/vrm-motion-v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@v5
+        with:
+          name: vrm-motion-linux-amd64-${{ github.sha }}
+          path: motion-release
+      - name: Publish exact tested commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME#le-firehawk/release/vrm-motion-}"
+          [[ "$(jq -r .commit motion-release/source.json)" == "$GITHUB_SHA" ]] || exit 1
+          [[ "$(jq -r .tag motion-release/source.json)" == "$TAG" ]] || exit 1
+          [[ "$(jq -r .version motion-release/source.json)" == "${TAG#v}" ]] || exit 1
+          [[ "$(jq -r .architecture motion-release/source.json)" == amd64 ]] || exit 1
+          (cd motion-release && sha256sum --check SHA256SUMS)
+          # Existing releases are immutable here. A rerun never replaces a published package.
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release already exists. Verify it before choosing another version."
+            exit 1
+          fi
+          MATCHES="$(gh api "repos/$GH_REPO/git/matching-refs/tags/$TAG")"
+          if jq -e --arg ref "refs/tags/$TAG" '.[] | select(.ref == $ref)' <<< "$MATCHES" >/dev/null; then
+            [[ "$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)" == "$GITHUB_SHA" ]] || exit 1
+          else
+            gh api --method POST "repos/$GH_REPO/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA"
+          fi
+          [[ "$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)" == "$GITHUB_SHA" ]] || exit 1
+          gh release create "$TAG" motion-release/*.deb motion-release/*.yml motion-release/SHA256SUMS motion-release/source.json \
+            --target "$GITHUB_SHA" --verify-tag --prerelease --latest=false \
+            --title "AIRI VRM Motion Library $TAG" \
+            --notes-file docs/ai/vrm-motion-release.md
+          [[ "$(gh api "repos/$GH_REPO/commits/$TAG" --jq .sha)" == "$GITHUB_SHA" ]] || exit 1

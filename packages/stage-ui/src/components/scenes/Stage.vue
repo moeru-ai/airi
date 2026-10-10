@@ -21,18 +21,21 @@ import { ThreeScene } from '@proj-airi/stage-ui-three'
 import { animations } from '@proj-airi/stage-ui-three/assets/vrm'
 import { createQueue } from '@proj-airi/stream-kit'
 import { Callout } from '@proj-airi/ui'
-import { useBroadcastChannel } from '@vueuse/core'
+import { useBroadcastChannel, usePreferredReducedMotion } from '@vueuse/core'
 // import { createTransformers } from '@xsai-transformers/embed'
 // import embedWorkerURL from '@xsai-transformers/embed/worker?worker&url'
 // import { embed } from '@xsai/embed'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import StageRenderError from './stage-render-error.vue'
 
 import { useDuckDb } from '../../composables/use-duck-db'
 import { Emotion, EMOTION_EmotionMotionName_value, EMOTION_VRMExpressionName_value, EmotionThinkMotionName } from '../../constants/emotions'
 import { live2dMotionMagicProfiles, useLive2DMotionMagic, useLive2DMotionMagicSettings } from '../../features/motions/live2d'
+import { useVrmMotionHost } from '../../features/motions/vrm/host'
+import { interactionMotion } from '../../features/motions/vrm/interaction-motion'
 import { getSpeechBusContext, speechOutputGetPlaybackState, speechOutputPlaybackStateChangedEvent } from '../../services/speech/bus'
 import { useLlmStreamingControlStore } from '../../stores/ai/chat-llm/streaming-control'
 import { useAudioContext, useSpeakingStore } from '../../stores/audio'
@@ -50,12 +53,17 @@ const props = withDefaults(defineProps<{
   cursorPosition?: { x: number, y: number }
   enableOrbitControls?: boolean
   paused?: boolean
+  notificationReactions?: boolean
+  doNotDisturb?: boolean
 }>(), {
   enableOrbitControls: true,
   paused: false,
 })
 
 const emit = defineEmits<{ error: [error: Error] }>()
+
+const { t } = useI18n()
+
 const componentState = defineModel<'pending' | 'loading' | 'mounted'>('state', { default: 'pending' })
 
 const { getDb } = useDuckDb()
@@ -133,6 +141,19 @@ const {
   spineMaxFps,
   spineRenderScale,
 } = storeToRefs(settingsStore)
+const vrmManipulationActive = ref(false)
+const preferredReducedMotion = usePreferredReducedMotion()
+const vrmMotionHost = useVrmMotionHost({
+  modelId: stageModelSelected,
+  loadedModelId: () => vrmViewerRef.value?.getLoadedModelId(),
+  controller: () => componentState.value === 'mounted' ? vrmViewerRef.value?.getMotionController() : undefined,
+  companion: true,
+  manipulationActive: vrmManipulationActive,
+  paused: () => props.paused,
+  notificationsEnabled: () => props.notificationReactions,
+  doNotDisturb: () => props.doNotDisturb,
+  reducedMotion: () => preferredReducedMotion.value === 'reduce',
+})
 const { mouthOpenSize, nowSpeaking } = storeToRefs(useSpeakingStore())
 /** `voicing` of `SpeechOutputPlaybackState` in the speech bus. The voice output below keeps it. */
 const speechVoicing = shallowRef(false)
@@ -168,6 +189,15 @@ function onVRMInteract(target: VrmInteractionTarget) {
     return
   lastVrmInteractionAt.set(target, now)
   vrmViewerRef.value?.setExpression(getVrmInteractionExpression(target), 1)
+  const motion = interactionMotion(target)
+  if (motion && preferredReducedMotion.value !== 'reduce') {
+    const modelId = stageModelSelected.value
+    // OrbitControls releases its pointer ownership later in this same pointerup dispatch.
+    void nextTick(() => {
+      if (stageModelSelected.value === modelId && !vrmManipulationActive.value)
+        void vrmMotionHost.interact(motion)
+    })
+  }
 }
 
 const { onBeforeMessageComposed, onBeforeSend, onTokenLiteral, onTokenSpecial, onStreamEnd, onAssistantResponseEnd } = useChatStore()
@@ -323,6 +353,8 @@ chatHookCleanups.push(streamingControl.onSignal(async (signal) => {
       currentMotion.value = { group: act.motion }
       return
     }
+    if (act.motion && stageModelRenderer.value === 'vrm')
+      vrmMotionHost.act(act.motion)
     if (act.emotion) {
       const emotion = toStageEmotionPayload(act.emotion)
       if (!emotion)
@@ -623,6 +655,8 @@ onUnmounted(() => {
 
 defineExpose({
   canvasElement,
+  notify: vrmMotionHost.notify,
+  acknowledgeNotifications: vrmMotionHost.acknowledgeNotifications,
   /**
    * The frame already carries the scene: every renderer paints it into the canvas it
    * draws to, so what comes back is the whole picture.
@@ -665,6 +699,9 @@ defineExpose({
         v-if="stageModelRenderer === 'vrm' && showStage"
         ref="vrmViewerRef"
         v-model:state="componentState"
+        :motion-revision="vrmMotionHost.motionRevision.value"
+        :automatic-motion-framing="true"
+        :orbit-pivot-reset-label="t('settings.vrm.orbit-pivot.reset')"
         :presence="presenceBubble"
         :background-url="activeBackgroundUrl"
         min-w="50% <lg:full" h-full w-full flex-1
@@ -679,6 +716,7 @@ defineExpose({
         :current-audio-source="currentAudioSource"
         @error="reportStageRenderError"
         @vrm-interact="onVRMInteract"
+        @manipulation-change="vrmManipulationActive = $event"
       />
       <SpineScene
         v-if="stageModelRenderer === 'spine' && showStage"

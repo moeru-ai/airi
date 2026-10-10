@@ -7,6 +7,8 @@ import { onMounted, shallowRef } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { toast } from 'vue-sonner'
 
+import DesktopCompanionSettings from '../../../components/desktop-companion-settings.vue'
+
 import { electron, electronAppIconGet, electronAppIconSet } from '../../../../shared/eventa'
 
 const { t } = useI18n()
@@ -39,6 +41,7 @@ async function updateHidden(hidden: boolean) {
 <template>
   <SettingsGeneralFields>
     <template #additional-fields>
+      <DesktopCompanionSettings />
       <FieldCheckbox
         v-if="hideAppIcon !== undefined"
         :model-value="hideAppIcon"

@@ -4,17 +4,18 @@ import type { globalAppConfigSchema } from '../../configs/global'
 import type { Config } from '../../libs/electron/persistence'
 import type { I18n } from '../../libs/i18n'
 import type { ServerChannel } from '../../services/airi/channel-server'
+import type { DesktopNotificationCenter } from '../../services/electron/desktop-notifications'
 import type { GlobalShortcutService } from '../../services/electron/global-shortcut'
 import type { ChatWindowManager } from '../chat'
 
+import { randomUUID } from 'node:crypto'
 import { join, resolve } from 'node:path'
 
 import { useLogg } from '@guiiai/logg'
 import { defineInvokeHandler } from '@moeru/eventa'
 import { createContext } from '@moeru/eventa/adapters/electron/main'
 import { ShortcutFailureReasons } from '@proj-airi/stage-shared/global-shortcut'
-import { BrowserWindow, ipcMain, Notification, screen } from 'electron'
-import { isMacOS } from 'std-env'
+import { BrowserWindow, ipcMain, screen } from 'electron'
 
 import icon from '../../../../resources/icon.png?asset'
 
@@ -58,15 +59,10 @@ export function setupSpotlightWindowManager(params: {
   chatWindow: ChatWindowManager
   globalShortcut: GlobalShortcutService
   appConfig: Config<typeof globalAppConfigSchema>
+  desktopCompanion: DesktopNotificationCenter
 }): SpotlightWindowManager {
   const log = useLogg('spotlight-window').useGlobalConfig()
   const rendererBase = baseUrl(resolve(getElectronMainDirname(), '..', 'renderer'))
-
-  // NOTICE:
-  // Electron may GC a `Notification` once the constructor scope returns, which
-  // silently drops its `click` handler before the user interacts. Hold a strong
-  // reference until the notification is dismissed (`click` / `close`) or fails.
-  const resultNotifications = new Set<Notification>()
 
   async function openChatWindowFromNotification() {
     try {
@@ -75,24 +71,6 @@ export function setupSpotlightWindowManager(params: {
     catch (error) {
       log.withError(error).warn('Failed to open Chat window from Spotlight notification')
     }
-  }
-
-  function showNotification(body: string, onClick?: () => void) {
-    const notification = new Notification({
-      title: 'AIRI',
-      body,
-      ...(onClick && !isMacOS ? { timeoutType: 'never' as const } : {}),
-    })
-    resultNotifications.add(notification)
-    const release = () => resultNotifications.delete(notification)
-
-    notification.once('close', release)
-    notification.once('failed', release)
-    notification.once('click', () => {
-      release()
-      onClick?.()
-    })
-    notification.show()
   }
 
   const reusable = createReusableWindow(async () => {
@@ -135,7 +113,13 @@ export function setupSpotlightWindowManager(params: {
       if (!payload || !isFromSpotlightWindow(options?.raw.ipcMainEvent.sender.id))
         return
 
-      showNotification(payload.body, () => void openChatWindowFromNotification())
+      params.desktopCompanion.publish({
+        id: randomUUID(),
+        source: 'spotlight',
+        body: payload.body.slice(0, 4000),
+        priority: 'normal',
+        coalesceKey: 'spotlight-result',
+      }, () => void openChatWindowFromNotification())
     })
 
     await load(window, withHashRoute(rendererBase, '/spotlight', {

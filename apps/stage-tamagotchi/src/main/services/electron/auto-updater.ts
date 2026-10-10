@@ -30,15 +30,14 @@ import {
   electronSetUpdaterPreferences,
 
 } from '../../../shared/eventa'
+import { releaseRepositoryEndpoints } from '../../../shared/release-repository'
 import { MockAutoUpdater } from './mock-auto-updater'
 
 function getReleaseChannelName() {
   return process.arch === 'arm64' ? 'latest-arm64' : 'latest-x64'
 }
 
-const GITHUB_RELEASES_API_URL = 'https://api.github.com/repos/moeru-ai/airi/releases?per_page=100'
-const GITHUB_RELEASES_ATOM_URL = 'https://github.com/moeru-ai/airi/releases.atom'
-const GITHUB_RELEASE_DOWNLOAD_BASE_URL = 'https://github.com/moeru-ai/airi/releases/download'
+const releaseEndpoints = releaseRepositoryEndpoints(process.env.AIRI_RELEASE_REPOSITORY)
 const UPDATE_CHANNEL_ENV_KEY = 'AIRI_UPDATE_CHANNEL'
 
 function getCacheRoot() {
@@ -189,11 +188,11 @@ function selectLatestTagForLane(releases: GitHubReleaseRecord[], lane: UpdateLan
  * and
  * `<entry><id>tag:github.com,2008:Repository/963495975/v0.9.0-alpha.36</id></entry>`
  *
- * We intentionally scan for `/moeru-ai/airi/releases/tag/` so we only consume actual release tag links.
+ * The build-time repository limits tag parsing to its own release links.
  */
 function extractReleaseTagsFromAtom(atom: string) {
   const tags: string[] = []
-  const marker = '/moeru-ai/airi/releases/tag/'
+  const marker = releaseEndpoints.tagMarker
   let offset = 0
 
   while (offset < atom.length) {
@@ -407,7 +406,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
 
   async function resolveGitHubReleaseTagForLane(lane: UpdateLane) {
     try {
-      const response = await fetch(GITHUB_RELEASES_API_URL, {
+      const response = await fetch(releaseEndpoints.api, {
         headers: {
           accept: 'application/vnd.github+json',
         },
@@ -428,7 +427,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       log.withError(error).warn('GitHub releases API lookup failed, trying releases.atom fallback')
     }
 
-    const atomResponse = await fetch(GITHUB_RELEASES_ATOM_URL)
+    const atomResponse = await fetch(releaseEndpoints.atom)
     if (!atomResponse.ok)
       throw new Error(`Failed to fetch GitHub releases atom (${atomResponse.status} ${atomResponse.statusText})`)
 
@@ -455,7 +454,7 @@ export function setupAutoUpdater(options: AutoUpdaterOptions = {}): AutoUpdater 
       const preferredLane = getPreferredUpdateLane({ version: appVersion, storedLane: storedPreferredLane })
       const tag = await resolveGitHubReleaseTagForLane(preferredLane)
       resolvedReleaseTag = tag
-      applyGenericFeedOverride(`${GITHUB_RELEASE_DOWNLOAD_BASE_URL}/${tag}`, `github-release-lane:${preferredLane}`)
+      applyGenericFeedOverride(`${releaseEndpoints.download}/${tag}`, `github-release-lane:${preferredLane}`)
     })()
 
     try {

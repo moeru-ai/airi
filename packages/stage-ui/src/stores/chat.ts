@@ -23,6 +23,7 @@ import { useAiriRuntimePrompt } from '../composables/use-airi-runtime-prompt'
 import { activeTurnSpan, startSpan } from '../composables/use-io-tracer'
 import { useChatVision } from '../composables/vision/use-chat-vision'
 import { useVisionInference } from '../composables/vision/use-vision-inference'
+import { useVrmMotionPrompt } from '../features/motions/vrm/prompt'
 import { extractMessageText, isCloudSyncableMessage } from '../libs/chat-sync'
 import { createChatAnalyticsHooks, getProviderMode } from '../libs/product-signals/events/chat'
 import {
@@ -204,7 +205,7 @@ const UNREADABLE_EARLIER_IMAGE = 'The user attached an image here earlier. The v
 
 export const useChatStore = defineStore('chat', () => {
   const { t } = useI18n()
-  const runtimePrompt = useAiriRuntimePrompt()
+  const runtimePrompt = useAiriRuntimePrompt(useVrmMotionPrompt())
   const authStore = useAuthStore()
   const llmStore = useLLM()
   const llmToolsStore = useLlmToolsStore()

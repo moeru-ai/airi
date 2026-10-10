@@ -549,3 +549,52 @@ screen-capture:
       step-1: Open "System Preferences", select "Privacy & Security" from the sidebar.
       step-2: In the "Screen & System Audio Recording" and "System Audio Recording Only" sections, turn on the switches for AIRI.
       step-2-note: If AIRI is not listed, please add it manually by clicking the "+" button and selecting AIRI from the Applications folder.
+
+desktop-companion:
+  title: Desktop companion
+  border:
+    title: Pulsing resize border
+    description: Show a pulsing border near the window edges. Turning it off keeps the resize controls available.
+  notifications:
+    title: Desktop notifications
+    description: Show native notifications for AIRI events. Other applications are not monitored.
+  previews:
+    title: Notification previews
+    description: Store and show message text in AIRI history and native banners. Turning this off erases stored previews.
+  dnd:
+    title: Do not disturb
+    description: Keep unread events without native banners or priority reaction requests. This setting does not change system DND.
+  reactions:
+    title: Priority reactions
+    description: Prepare short wave requests for high-priority events. Animation playback is not connected yet.
+  private-message: AIRI has a new update.
+  unread: '{count} unread'
+  occurrences: '{count} events'
+  archived-unread: '{count} older unread groups. Mark all read to reset this count.'
+  test: Send a test notification
+  test-body: This is an AIRI desktop notification test.
+  mark-read: Mark read
+  mark-all-read: Mark all read
+  clear: Clear history
+  close: Close
+  retry: Retry
+  save-error: Failed to save the desktop companion change.
+  load-error: Desktop companion state is unavailable. Saved data was not overwritten.
+  native-unavailable: Native notifications are unavailable. AIRI still keeps the unread history.
+  backend: 'Desktop backend: {backend} ({detection} detection)'
+  display: 'Display {id}: {width} × {height} DIP at ({x}, {y}), scale {scale}'
+  cursor:
+    electron-screen: Cursor tracking uses Electron desktop coordinates across connected displays.
+    window-local: Cursor tracking uses pointer events inside the AIRI window and returns to neutral when they become stale.
+  wayland-limit: Native Wayland does not expose global cursor coordinates or window positioning through Electron. The explicit XWayland launch option uses --ozone-platform=x11.
+  source:
+    spotlight: Spotlight
+    assistant: Assistant reply
+    system: AIRI
+    test: Test
+  delivery:
+    pending: Native notification requested
+    shown: Native notification reported shown
+    suppressed: Native banner suppressed
+    unavailable: Native notifications unavailable
+    failed: Native notification failed

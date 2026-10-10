@@ -1,0 +1,104 @@
+title: Play together
+subtitle: Six small games, right here in AIRI.
+privacy: Play stays inside this window. Session scores stay in memory and clear when you leave.
+controls:
+  avatar: Avatar gestures
+  avatar_hint: Optional avatar motions. Turning this on or off pauses active play. Resume when you are ready.
+  start: Start game
+  restart: Restart with this seed
+  pause: Pause
+  resume: Resume
+  stop: Stop game
+  next: Next round
+  step: Advance one step
+  replay: Show the sequence again
+  seed: Replay seed
+  slow: Slow pace
+  targets: Large targets
+  reduced: Static, step-by-step play
+  reduced_system: Your system requests reduced motion. Timelines advance only when you press the step button.
+  pointer: Pointer control
+  left: Move left
+  right: Move right
+  up: Move up
+  down: Move down
+  angle: Throw angle
+  power: Throw strength
+  throw: Throw paper
+status:
+  idle: Choose a game, then press Start game.
+  playing: Game in progress
+  paused: Paused. Press Resume when you are ready.
+  finished: Session complete
+  score: 'Score: {score}'
+  round: 'Round {round}'
+  win: You won this round.
+  loss: AIRI won this round.
+  draw: This round is a draw.
+  correct: You got it!
+  incorrect: Try the next round.
+  hit: In the basket!
+  miss: Just missed. Try another throw.
+  final: 'Final score: {score}'
+  rival: 'AIRI: {score}'
+  step_hint: Press Advance one step to move the timeline. Your choices have no timer.
+  pause_user: You paused the game.
+  pause_focus: The window lost focus or became hidden.
+  pause_resize: The playfield changed size.
+  pause_pointer: The pointer left the playfield.
+  pause_ownership: Another companion interaction took priority.
+playfield: Game playfield
+keyboard: Focus the playfield to use the arrow keys. Escape pauses. The buttons below work with Tab and Enter.
+selection: Choose a game
+paper-toss:
+  title: Paper toss
+  description: Three throws. Aim for the basket and find your arc.
+  help: Drag upward from the paper ball and release inside the playfield, or set the angle and strength below.
+  basket: Basket
+  paper: Paper ball
+  aim: Set your angle and strength, then throw.
+  flight: Paper in flight
+catch-stars:
+  title: Catch the stars
+  description: Move your tray under twelve falling stars.
+  help: Move inside the playfield, use the arrow keys, or press the movement buttons. Each caught star earns one point.
+  coordinates: 'Next star: {star}% from the left. Your tray: {tray}% from the left.'
+  tray: Your tray
+  remaining: '{count} stars left'
+rock-paper-scissors:
+  title: Rock paper scissors
+  description: First to two wins. AIRI chooses before you do.
+  help: Choose a hand sign. AIRI reveals its committed choice after the countdown. Nine rounds end a tied session.
+  choose: Choose your hand sign.
+  countdown: 'Reveal in {count}'
+  result: 'You chose {player}. AIRI chose {opponent}.'
+  history: Round history
+  rock: Rock
+  paper: Paper
+  scissors: Scissors
+copy-gesture:
+  title: Copy the gesture
+  description: Watch three poses, then repeat them in order.
+  help: Repeat the sequence with the pose buttons. Each round adds one pose. Replay as often as you like.
+  cue: 'Pose {index} of {count}: {gesture}'
+  repeat: 'Your turn: {count} of {total} poses repeated'
+  wave: Wave
+  point: Point
+  bow: Bow
+hidden-star:
+  title: Find the hidden star
+  description: Follow the star through three cup swaps.
+  help: Remember the cup with the star. Track each swap, then choose a position. The swap list gives a text alternative.
+  cup: 'Cup at position {position}'
+  star: 'The star is at position {position}.'
+  choose: Choose the position that holds the star.
+  shuffle: Watch the cups change positions.
+  swaps: Cup swaps
+  swap: 'Swap positions {first} and {second}'
+follow-me:
+  title: Follow me
+  description: Follow six markers at your own pace.
+  help: Use the movement buttons, or enable pointer control and follow each numbered target. Leaving the playfield pauses pointer-controlled play.
+  target: 'Target {index} of {total}'
+  coordinates: 'Your marker: {x}% from the left, {y}% from the top. Target: {targetX}% from the left, {targetY}% from the top.'
+  marker: Your marker

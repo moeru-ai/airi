@@ -1,4 +1,6 @@
-import { computed } from 'vue'
+import type { MaybeRefOrGetter } from 'vue'
+
+import { computed, toValue } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { EMOTION_EmotionMotionName_value, EMOTION_VALUES } from '../constants/emotions'
@@ -10,7 +12,7 @@ const RUNTIME_PROMPT_KEYS = [
 ]
 
 /** Returns the localized emotion and emoji prompt for each model request. */
-export function useAiriRuntimePrompt() {
+export function useAiriRuntimePrompt(supplement?: MaybeRefOrGetter<string>) {
   const { locale, t, te } = useI18n()
 
   return computed(() => {
@@ -24,6 +26,7 @@ export function useAiriRuntimePrompt() {
         .join('\n'),
       t('base.prompt.suffix'),
       t('base.prompt.emoji'),
-    ].join('\n\n')
+      supplement ? toValue(supplement) : '',
+    ].filter(Boolean).join('\n\n')
   })
 }

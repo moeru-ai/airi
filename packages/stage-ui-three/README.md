@@ -100,3 +100,13 @@ The trace bus is intentionally local to `stage-ui-three`. Desktop apps can bridg
 - Do not use the `trace` submodule for Live2D or non-Three runtime telemetry.
 - Do not route renderer-to-main control flow through the `trace` submodule; keep control IPC in app-level contracts.
 - Do not use the VRM instance cache as a general shared asset cache across apps or windows.
+
+## Motion Library
+
+`@proj-airi/stage-ui-three/motions` exposes a lazy catalog and a per-avatar motion controller.
+It supports body-only VRMA playback, bounded circular movement, finite queues, crossfades, and cancellation.
+See [the motion runtime](./src/motions/README.md) and [the application guide](../../docs/ai/vrm-motion-library.md).
+
+Middle-clicking visible model geometry sets the orbit center in the shared scene.
+Camera recentering preserves angle and distance. Middle-drag retains zoom behavior.
+The app shell supplies the localized reset label through `orbitPivotResetLabel`.

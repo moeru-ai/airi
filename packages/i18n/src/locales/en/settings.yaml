@@ -182,6 +182,60 @@ live2d:
     scale: Scale
     x: X
     'y': 'Y'
+  orbit-pivot:
+    reset: Reset orbit center
+    hint: Middle-click the model to center rotation on that point. Middle-drag still zooms.
+  motions:
+    title: Motion Library
+    description: Play body motions, import VRMA files, and choose an idle for each avatar. Speech and facial expressions stay independent.
+    names:
+      natural-idle: Natural idle
+      relaxed-idle: Relaxed arms idle
+      bow: Bow
+      dance: Dance
+      run-circle: Run in a circle
+      wave: Wave
+      nod: Nod
+      shake-head: Shake head
+      celebrate: Celebrate
+      stretch: Stretch
+      present: Present
+    default-idle: Default idle
+    idle: Idle motion
+    idle-description: This choice is saved for this avatar. Select Default idle to restore AIRI's original motion.
+    ai-enabled: Let the assistant play motions
+    ai-selected: Allow this motion in chat
+    ai-selection-description: Select up to 32 motions for the assistant. The full library stays available for manual playback.
+    ai-limit: Select no more than 32 chat motions.
+    search: Search motions
+    select: Motion
+    previous: Previous
+    next: Next
+    results: '{count} motions · Page {page}'
+    loop: Repeat motion
+    speed: Playback speed
+    duration: Maximum duration in seconds
+    play: Play
+    queue: Add to queue
+    stop: Stop and return to idle
+    remove: Remove imported motion
+    confirm-remove: Remove this motion from the local library?
+    cancel: Cancel
+    import: Import VRMA files
+    import-description: Choose self-contained .vrma files up to 16 MB each. Files stay on this device. Import only motions you have permission to use.
+    choose-files: Choose VRMA files
+    imported: 'Imported {count} motions.'
+    requested: Motion requested. Open the VRM stage or preview to play it.
+    accepted: Motion accepted.
+    rejected: Motion unavailable or queue full.
+    error: Motion error
+    errors:
+      format: Choose a valid binary VRMA animation file.
+      size: The animation exceeds the file size or decoded motion complexity limit.
+      external: This animation references external files. Export a self-contained VRMA file.
+      animation: No valid body animation was found. The maximum clip length is 10 minutes.
+      missing: The animation file is no longer in the local library.
+      interpolation: Only linear keyframes are supported. Export this animation with linear keyframes.
   switch-to-vrm:
     title: Switch to 3D Avatar?
     change-to-vrm: Click here to switch to the 3D avatar setting (VRM)

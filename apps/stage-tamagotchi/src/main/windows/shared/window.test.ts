@@ -23,6 +23,8 @@ vi.mock('std-env', () => ({
   },
 }))
 
+vi.mock('../../services/electron/desktop-companion', () => ({ createDesktopCompanionService: vi.fn() }))
+
 vi.mock('../../services/electron', () => ({
   createAppService: vi.fn(),
   createPowerMonitorService: vi.fn(),

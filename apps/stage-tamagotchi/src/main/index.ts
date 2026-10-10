@@ -43,6 +43,7 @@ import { setupMcpManager } from './services/airi/mcp-servers'
 import { setupExtensionHost } from './services/airi/plugins'
 import { setupArtistryBridge } from './services/airi/widgets/artistry-bridge'
 import { setupAutoUpdater } from './services/electron/auto-updater'
+import { setupDesktopCompanion } from './services/electron/desktop-companion'
 import { setupGlobalShortcutService } from './services/electron/global-shortcut'
 import { setupPermissionHandlers } from './services/electron/media-permissions'
 import { setupSherpawModelAssetsProtocol } from './services/electron/sherpaw-model-assets'
@@ -207,6 +208,11 @@ app.whenReady().then(async () => {
     build: ({ dependsOn }) => createI18n({ messages, locale: dependsOn.appConfig.get()?.language, fallbackLocale: 'en' }),
   })
 
+  const desktopCompanion = injeca.provide('services:desktop-companion', {
+    dependsOn: { i18n },
+    build: ({ dependsOn }) => setupDesktopCompanion(dependsOn.i18n),
+  })
+
   const serverChannel = injeca.provide('modules:channel-server', {
     dependsOn: { app: electronApp, lifecycle },
     build: async ({ dependsOn }) => setupServerChannel(dependsOn),
@@ -309,7 +315,7 @@ app.whenReady().then(async () => {
   })
 
   const spotlightWindow = injeca.provide('windows:spotlight', {
-    dependsOn: { serverChannel, i18n, chatWindow, globalShortcut, appConfig },
+    dependsOn: { serverChannel, i18n, chatWindow, globalShortcut, appConfig, desktopCompanion },
     build: ({ dependsOn }) => setupSpotlightWindowManager(dependsOn),
   })
 

@@ -1,14 +1,11 @@
 <script setup lang="ts">
 import type { ModelSettingsRuntimeSnapshot } from '@proj-airi/stage-ui/components/scenarios/settings/model-settings/runtime'
 
-import { errorMessageFrom } from '@moeru/std'
 import { electron } from '@proj-airi/electron-eventa'
 import {
+  getElectronEventaContext,
   useElectronEventaInvoke,
-  useElectronMouseAroundWindowBorder,
   useElectronMouseInElement,
-  useElectronMouseInWindow,
-  useElectronRelativeMouse,
 } from '@proj-airi/electron-vueuse'
 import { useExpressionStore } from '@proj-airi/stage-ui-live2d/stores/expression-store'
 import { useModelStore, useThreeSceneIsTransparentAtPoint } from '@proj-airi/stage-ui-three'
@@ -27,19 +24,26 @@ import { storeToRefs } from 'pinia'
 import { computed, onMounted, onUnmounted, ref, shallowRef, toRef, watch } from 'vue'
 import { toast } from 'vue-sonner'
 
+import NotificationCenter from '../components/notification-center.vue'
 import AuthStatusIsland from '../components/stage-islands/auth-status-island.vue'
 import ControlsIslandRoot from '../components/stage-islands/controls-island/controls-island-root.vue'
 import ControlsIsland from '../components/stage-islands/controls-island/index.vue'
 import ResourceStatusIsland from '../components/stage-islands/resource-status-island/index.vue'
 
-import { electronAppIsWayland, electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
+import { electronOpenInlay, electronOpenOnboarding } from '../../shared/eventa'
+import { desktopReactionRequested } from '../../shared/eventa/desktop-companion'
 import { useModelSettingsRuntimeOwner } from '../composables/model-settings-runtime-owner'
+import { useDesktopCursor } from '../composables/use-desktop-cursor'
 import { useScreenAmbientLight } from '../composables/use-screen-ambient-light'
 import { stageOpaqueAttribute } from '../composables/use-stage-painted-mask'
 import { useControlsIslandStore } from '../stores/controls-island'
+import { useDesktopCompanionStore } from '../stores/desktop-companion'
 import { useStageWindowLifecycleStore } from '../stores/stage-window-lifecycle'
+import { desktopWaveIntent } from '../utils/desktop-wave-intent'
 import { resolveFadeOnHoverInteraction } from '../utils/fade-on-hover'
 import { shouldSampleStageTransparency } from '../utils/stage-three-transparency'
+
+const desktopCompanion = useDesktopCompanionStore()
 
 const hearingStatusElement = ref<HTMLElement>()
 const authStatusElement = ref<HTMLElement>()
@@ -47,7 +51,21 @@ const { isOutside: outsideHearingStatus } = useElectronMouseInElement(hearingSta
 const { isOutside: outsideAuthStatus } = useElectronMouseInElement(authStatusElement)
 const controlsIslandRef = ref<InstanceType<typeof ControlsIsland>>()
 const controlsIslandInteractionActive = shallowRef(false)
+const notificationInteractionActive = shallowRef(false)
 const widgetStageRef = ref<InstanceType<typeof WidgetStage>>()
+// Only live main-stage intents enter motion ownership. Inbox hydration cannot replay a wave.
+const stopDesktopReactions = getElectronEventaContext().on(desktopReactionRequested, ({ body }) => {
+  const intent = desktopWaveIntent(body, desktopCompanion.snapshot)
+  if (intent)
+    widgetStageRef.value?.notify(intent)
+})
+onUnmounted(stopDesktopReactions)
+watch(() => desktopCompanion.snapshot, (snapshot, previous) => {
+  const unread = new Set(snapshot.notifications.filter(record => !record.read).map(record => record.id))
+  const acknowledged = previous.notifications.filter(record => !record.read && !unread.has(record.id)).map(record => record.id)
+  if (acknowledged.length)
+    widgetStageRef.value?.acknowledgeNotifications(acknowledged)
+}, { flush: 'sync' })
 // The stage canvas alpha tells the sampler which pixels of the window AIRI
 // paints, so it can read the desktop showing through behind the character.
 useScreenAmbientLight({ stageCanvas: () => widgetStageRef.value?.canvasElement() })
@@ -62,12 +80,11 @@ const shouldFadeOnCursorWithin = ref(false)
 const onboardingStore = useOnboardingStore()
 const openOnboarding = useElectronEventaInvoke(electronOpenOnboarding)
 
-const { isOutside: isOutsideWindow } = useElectronMouseInWindow()
 // The island already pairs its cursor signal with a DOM one and owns that decision, so
 // read its answer rather than mounting a second set of listeners over the same element.
 const isOutside = computed(() => controlsIslandRef.value?.isOutside ?? true)
 const isOutsideFor250Ms = refDebounced(isOutside, 250)
-const { x: relativeMouseX, y: relativeMouseY } = useElectronRelativeMouse()
+const { x: relativeMouseX, y: relativeMouseY, hasFreshSample, isOutsideWindow, isAroundWindowBorder } = useDesktopCursor()
 // NOTICE: In real-world use cases of Fade on Hover feature, the cursor may move around the edge of the
 // model rapidly, causing flickering effects when checking pixel transparency strictly.
 // Here we use render-target pixel sampling to keep detection aligned with the actual render output.
@@ -162,22 +179,15 @@ const isTransparentForMouseEvents = computed(() => {
   return isTransparentByPixelsExact.value
 })
 
-const { isNearAnyBorder: isAroundWindowBorder } = useElectronMouseAroundWindowBorder({ threshold: 10 })
 const isAroundWindowBorderFor250Ms = refDebounced(isAroundWindowBorder, 250)
 
-// The controls Island hides while the cursor is away from the window. The edge
-// band counts as the window, because a resize holds the cursor there. On
-// Wayland the cursor signal can stick outside (#2521), so the Island stays.
-const isWayland = ref(true)
-// A failed probe keeps `true`, so the Island stays shown as before this feature.
-useElectronEventaInvoke(electronAppIsWayland)()
-  .then(value => isWayland.value = value)
-  .catch(error => console.warn('[Main Page] Failed to detect Wayland; the controls Island stays shown:', errorMessageFrom(error)))
-const cursorAwayFromWindow = computed(() => !isWayland.value && isOutsideWindow.value && !isAroundWindowBorder.value)
+// Missing global coordinates keep the controls visible and disable pixel-based click-through.
+const globalCursorUnavailable = computed(() => desktopCompanion.capabilities?.globalCursor !== 'available')
+const cursorAwayFromWindow = computed(() => hasFreshSample.value && !globalCursorUnavailable.value && isOutsideWindow.value && !isAroundWindowBorder.value)
 
 const setIgnoreMouseEvents = useElectronEventaInvoke(electron.window.setIgnoreMouseEvents)
 
-const controlsOverlayActive = computed(() => controlsIslandRef.value?.overlayActive ?? false)
+const controlsOverlayActive = computed(() => notificationInteractionActive.value || (controlsIslandRef.value?.overlayActive ?? false))
 
 const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() => {
   const hasModel = !!stageModelSelectedUrl.value
@@ -291,7 +301,7 @@ const modelSettingsRuntimeSnapshot = computed<ModelSettingsRuntimeSnapshot>(() =
  * - {@link setIgnoreMouseEvents}
  */
 function handleFadeOnHoverInteractionChange() {
-  if (stagePaused.value) {
+  if (stagePaused.value || !hasFreshSample.value) {
     isIgnoringMouseEvents.value = false
     shouldFadeOnCursorWithin.value = false
     setIgnoreMouseEvents([false, { forward: true }])
@@ -328,7 +338,7 @@ function handleFadeOnHoverInteractionChange() {
       // Linux. A click-through window there never gets pointer events back,
       // so the controls menu can never open. Keep the window interactive.
       // Removal: reliable Wayland cursor reporting or Linux `forward` support.
-      clickThroughAvailable: !isWayland.value,
+      clickThroughAvailable: !globalCursorUnavailable.value,
       enabled: fadeOnHoverEnabled.value,
       transparentForFade: isTransparent.value,
       transparentForPointer: isTransparentForMouseEvents.value,
@@ -341,7 +351,7 @@ function handleFadeOnHoverInteractionChange() {
 }
 
 watch(
-  [outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, isWayland],
+  [hasFreshSample, outsideHearingStatus, outsideAuthStatus, isOutside, isOutsideFor250Ms, isPointerOverStageCanvas, isAroundWindowBorder, isAroundWindowBorderFor250Ms, isOutsideWindow, isTransparent, isTransparentForMouseEvents, controlsOverlayActive, fadeOnHoverEnabled, alwaysOnTop, stagePaused, globalCursorUnavailable],
   handleFadeOnHoverInteractionChange,
   { immediate: true },
 )
@@ -412,6 +422,11 @@ const cursorPosition = computed(() => ({
     <div v-show="!settingsStore.streamerMode" ref="authStatusElement" :class="['absolute left-1/2 top-3 z-40 w-fit -translate-x-1/2']">
       <AuthStatusIsland />
     </div>
+    <NotificationCenter
+      v-if="!settingsStore.streamerMode"
+      :[stageOpaqueAttribute]="true"
+      @interaction-change="notificationInteractionActive = $event"
+    />
     <!-- Stage is always in DOM so TresCanvas can measure dimensions -->
     <div
       :class="[
@@ -445,6 +460,8 @@ const cursorPosition = computed(() => ({
           flex-1
           :cursor-position="cursorPosition"
           :paused="stagePaused"
+          :notification-reactions="desktopCompanion.ready && desktopCompanion.preferences.priorityReactions"
+          :do-not-disturb="desktopCompanion.preferences.doNotDisturb"
         />
         <HoloCoupon />
         <ControlsIslandRoot :frozen="controlsIslandInteractionActive">
@@ -514,6 +531,7 @@ const cursorPosition = computed(() => ({
     </div>
   </Transition>
   <Transition
+    v-if="desktopCompanion.ready && desktopCompanion.preferences.pulsingBorder"
     enter-active-class="transition-opacity duration-250 ease-in-out"
     enter-from-class="opacity-50"
     enter-to-class="opacity-100"
@@ -521,11 +539,11 @@ const cursorPosition = computed(() => ({
     leave-from-class="opacity-100"
     leave-to-class="opacity-50"
   >
-    <div v-if="(isAroundWindowBorder || isAroundWindowBorderFor250Ms) && !isLoading" class="pointer-events-none absolute left-0 top-0 z-999 h-full w-full">
+    <div v-if="(isAroundWindowBorder || isAroundWindowBorderFor250Ms) && !isLoading" :class="['pointer-events-none absolute left-0 top-0 z-999 h-full w-full']">
       <div
         :class="[
           'b-primary/50',
-          'h-full w-full animate-flash animate-duration-3s animate-count-infinite b-4 rounded-2xl',
+          'h-full w-full animate-flash animate-duration-3s animate-count-infinite motion-reduce:animate-none b-4 rounded-2xl',
         ]"
       />
     </div>

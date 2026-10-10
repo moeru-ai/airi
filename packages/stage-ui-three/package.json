@@ -17,6 +17,8 @@
   "exports": {
     "./assets/vrm": "./src/assets/vrm/index.ts",
     "./composables/vrm": "./src/composables/vrm/index.ts",
+    "./companion": "./src/companion/index.ts",
+    "./motions": "./src/motions/index.ts",
     "./trace": "./src/trace/index.ts",
     "./utils/vrm-preview": "./src/utils/vrm-preview.ts",
     ".": "./src/index.ts"
@@ -41,6 +43,7 @@
     "pinia": "catalog:",
     "postprocessing": "catalog:",
     "three": "catalog:",
+    "valibot": "catalog:",
     "vue": "catalog:"
   },
   "devDependencies": {

@@ -9,7 +9,9 @@ import { ThreeScene, useModelStore } from '@proj-airi/stage-ui-three'
 import { useMouse } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
+import { useVrmMotionHost } from '../../../../features/motions/vrm/host'
 import { useSettings } from '../../../../stores/settings'
 import {
   createEmptyModelSettingsRuntimeSnapshot,
@@ -28,10 +30,12 @@ const emit = defineEmits<{
   (e: 'runtimeSnapshotChanged', value: ModelSettingsRuntimeSnapshot): void
 }>()
 
+const { t } = useI18n()
+
 const settingsStore = useSettings()
 const modelStore = useModelStore()
 const live2dSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
-const vrmSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
+const vrmSceneRef = ref<InstanceType<typeof ThreeScene>>()
 const spineSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const tachieSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
 const mmdSceneRef = ref<{ canvasElement: () => HTMLCanvasElement | undefined }>()
@@ -40,6 +44,14 @@ const spineComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const tachieComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const mmdComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
 const vrmPreviewStageInstanceId = `model-settings-preview-stage:${Math.random().toString(36).slice(2, 10)}`
+const vrmComponentState = ref<'pending' | 'loading' | 'mounted'>('pending')
+const vrmManipulationActive = ref(false)
+const vrmMotionHost = useVrmMotionHost({
+  modelId: () => settingsStore.stageModelSelected,
+  loadedModelId: () => vrmSceneRef.value?.getLoadedModelId(),
+  controller: () => vrmComponentState.value === 'mounted' ? vrmSceneRef.value?.getMotionController() : undefined,
+  manipulationActive: vrmManipulationActive,
+})
 
 const {
   stageModelSelected,
@@ -217,7 +229,17 @@ const cursorPosition = computed(() => ({
   </template>
   <template v-if="stageModelRenderer === 'vrm'">
     <div :class="vrmSceneClassList">
-      <ThreeScene ref="vrmSceneRef" :cursor-position="cursorPosition" :model-id="stageModelSelected" :model-src="stageModelSelectedUrl" />
+      <ThreeScene
+        ref="vrmSceneRef"
+        v-model:state="vrmComponentState"
+        :automatic-motion-framing="true"
+        :motion-revision="vrmMotionHost.motionRevision.value"
+        :orbit-pivot-reset-label="t('settings.vrm.orbit-pivot.reset')"
+        :cursor-position="cursorPosition"
+        :model-id="stageModelSelected"
+        :model-src="stageModelSelectedUrl"
+        @manipulation-change="vrmManipulationActive = $event"
+      />
     </div>
   </template>
   <template v-if="stageModelRenderer === 'spine'">

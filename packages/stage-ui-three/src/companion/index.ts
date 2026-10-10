@@ -1,0 +1,6 @@
+export { combineMotionEnvelopes, MotionFramingController, solvePerspectiveFraming, transformMotionEnvelope } from './motion-framing'
+export type { FramingLens, FramingRequest, FramingSolution, MotionFramingFrame, MotionFramingOptions, MotionFramingResult } from './motion-framing'
+export { notificationMotionOwner, NotificationWaveQueue } from './notification-wave-queue'
+export type { NotificationWaveAcceptance, NotificationWaveContext, NotificationWaveDecision, NotificationWaveIntent, NotificationWaveLease, NotificationWaveOptions } from './notification-wave-queue'
+export { SceneMotionFraming } from './scene-motion-framing'
+export type { SceneMotionFramingOptions, SceneMotionFramingResult, SceneMotionFramingTick } from './scene-motion-framing'

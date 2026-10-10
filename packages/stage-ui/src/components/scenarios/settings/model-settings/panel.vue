@@ -14,6 +14,7 @@ import { storeToRefs } from 'pinia'
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import MotionLibrary from '../../../../features/motions/vrm/motion-library.vue'
 import Godot from './godot.vue'
 import Live2D from './live2d.vue'
 import MMD from './mmd.vue'
@@ -121,6 +122,7 @@ async function handleModelPick(selectedModel: DisplayModel | undefined) {
         :runtime-snapshot="runtimeSnapshot"
         @extract-colors-from-model="emit('extractColorsFromModel')"
       />
+      <MotionLibrary v-if="effectiveRenderer === 'vrm'" :disabled="runtimeSnapshot.controlsLocked" />
       <Spine
         v-if="effectiveRenderer === 'spine'"
         :allow-extract-colors="allowExtractColors"

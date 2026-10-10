@@ -28,6 +28,7 @@
     "./constants": "./src/constants/index.ts",
     "./directives/*": "./src/directives/*.ts",
     "./features/devtools/motion/live2d": "./src/features/devtools/motion/live2d/index.ts",
+    "./features/motions/vrm/game-port": "./src/features/motions/vrm/game-port.ts",
     "./features/motions/live2d": "./src/features/motions/live2d/index.ts",
     "./libs/inference/adapters/*": "./src/libs/inference/adapters/*.ts",
     "./libs/inference": "./src/libs/inference/index.ts",

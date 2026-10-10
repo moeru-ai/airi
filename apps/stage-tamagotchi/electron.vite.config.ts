@@ -19,12 +19,18 @@ import { DownloadLive2DSDK } from '@proj-airi/unplugin-live2d-sdk'
 import { Sherpaw } from '@proj-airi/vite-plugin-sherpaw'
 import { defineConfig } from 'electron-vite'
 
+import { resolveReleaseRepository } from './src/shared/release-repository'
+
 const stageUIAssetsRoot = resolve(join(import.meta.dirname, '..', '..', 'packages', 'stage-ui', 'src', 'assets'))
 const sharedCacheDir = resolve(join(import.meta.dirname, '..', '..', '.cache'))
 const sherpawModels = [paraformerBilingualZhEn, zipformerMultilingual, xAsrBilingualZhEnInt8]
 
 export default defineConfig({
   main: {
+    define: {
+      // Compile the release source into the app, rather than trusting a runtime environment override.
+      'process.env.AIRI_RELEASE_REPOSITORY': JSON.stringify(resolveReleaseRepository(env.AIRI_RELEASE_REPOSITORY)),
+    },
     build: {
       externalizeDeps: {
         include: [

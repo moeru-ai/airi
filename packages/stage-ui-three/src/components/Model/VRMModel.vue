@@ -8,7 +8,7 @@
 
 import type { VRM } from '@pixiv/three-vrm'
 import type {
-  Group,
+  AnimationMixer,
   Material,
   Object3D,
   PerspectiveCamera,
@@ -34,8 +34,8 @@ import { VRMUtils } from '@pixiv/three-vrm'
 import { useLoop, useTresContext } from '@tresjs/core'
 import { until } from '@vueuse/core'
 import {
-  AnimationMixer,
   Box3,
+  Group,
   MathUtils,
   Mesh,
   MeshPhysicalMaterial,
@@ -78,6 +78,7 @@ import { useVRMEmote } from '../../composables/vrm/expression'
 import { createVrmInteractionColliders } from '../../composables/vrm/interaction'
 import { resolveInternalVrmHooks } from '../../composables/vrm/internal-hooks'
 import { useVRMLipSync } from '../../composables/vrm/lip-sync'
+import { MotionController } from '../../motions'
 import {
   createThreeRendererMemorySnapshot,
   createVrmSceneSummarySnapshot,
@@ -151,6 +152,7 @@ const emit = defineEmits<{
 
   (e: 'error', value: unknown): void
   (e: 'loaded', value: string): void
+  (e: 'frame', root: Group): void
 }>()
 
 const {
@@ -192,6 +194,7 @@ const raycaster = new Raycaster()
 
 // Animation related ref
 const vrmAnimationMixer = ref<AnimationMixer>()
+const motionController = shallowRef<MotionController>()
 const { onBeforeRender, stop, start } = useLoop()
 
 const vrmHooks: readonly VrmHook[] = resolveInternalVrmHooks()
@@ -303,7 +306,7 @@ function getManagedVrmScopeKey() {
 }
 
 function getActiveManagedVrmInstance() {
-  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !vrmEmote.value)
+  if (!modelSrc.value || !vrm.value || !vrmGroup.value || !vrmAnimationMixer.value || !motionController.value || !vrmEmote.value)
     return undefined
 
   return createManagedVrmInstance({
@@ -311,12 +314,14 @@ function getActiveManagedVrmInstance() {
     group: vrmGroup.value,
     interactionColliders: interactionColliders.value!,
     mixer: vrmAnimationMixer.value,
+    motions: motionController.value,
     vrm: vrm.value,
   })
 }
 
 function clearActiveManagedVrmRefs() {
   vrmAnimationMixer.value = undefined
+  motionController.value = undefined
   vrmEmote.value = undefined
   vrm.value = undefined
   vrmGroup.value = undefined
@@ -339,6 +344,7 @@ function applyManagedVrmInstance(instance: ManagedVrmInstance) {
   vrm.value = instance.vrm
   vrmGroup.value = instance.group
   vrmAnimationMixer.value = instance.mixer
+  motionController.value = instance.motions
   vrmEmote.value = instance.emote
   interactionColliders.value = instance.interactionColliders
 }
@@ -348,7 +354,7 @@ function destroyManagedVrmInstance(instance?: ManagedVrmInstance) {
     return
 
   instance.emote.dispose()
-  instance.mixer.stopAllAction()
+  instance.motions.dispose()
   instance.interactionColliders.dispose()
   disposeDetachedVrm(instance.vrm, instance.group)
 }
@@ -460,7 +466,7 @@ function bindManagedVrmInstanceRenderLoop() {
     const tracingEnabled = traceStart > 0
 
     const animationMixerMs = measureFrameStep(tracingEnabled, () => {
-      vrmAnimationMixer.value?.update(delta)
+      motionController.value?.update(delta)
     })
     const activeVrm = vrm.value
     const activeVrmGroup = vrmGroup.value
@@ -519,6 +525,9 @@ function bindManagedVrmInstanceRenderLoop() {
     const springBoneMs = measureFrameStep(tracingEnabled, () => {
       activeVrm?.springBoneManager?.update(delta)
     })
+
+    if (activeVrmGroup)
+      emit('frame', activeVrmGroup)
 
     if (traceStart > 0) {
       stageThreeRuntimeTraceContext.emit(stageThreeTraceVrmUpdateFrameEvent, {
@@ -589,8 +598,10 @@ function componentCleanUp(
   disposeBeforeRenderLoop?.()
   disposeBeforeRenderLoop = undefined
 
-  if (activeInstance)
+  if (activeInstance) {
+    activeInstance.motions.reset()
     detachVrmGroup(activeInstance.group)
+  }
 
   if (shouldDestroyResources) {
     destroyManagedVrmInstanceWithHooks(activeInstance, reason)
@@ -714,6 +725,7 @@ async function loadModel() {
   let nextVrm: VRM | undefined
   let nextVrmGroup: Group | undefined
   let nextVrmAnimationMixer: AnimationMixer | undefined
+  let nextMotionController: MotionController | undefined
   let nextVrmEmote: ReturnType<typeof useVRMEmote> | undefined
   let didCommitLoad = false
 
@@ -755,6 +767,7 @@ async function loadModel() {
         nextVrm = reusableInstance.vrm
         nextVrmGroup = reusableInstance.group
         nextVrmAnimationMixer = reusableInstance.mixer
+        nextMotionController = reusableInstance.motions
         nextVrmEmote = reusableInstance.emote
 
         runVrmLoadHooks({
@@ -837,9 +850,13 @@ async function loadModel() {
     // Re-anchor the root position track to the model origin
     reAnchorRootPositionTrack(clip, _vrm)
 
-    // play animation
-    nextVrmAnimationMixer = new AnimationMixer(_vrm.scene)
-    nextVrmAnimationMixer.clipAction(clip).play()
+    // Motion travel is isolated from the saved model transform and camera settings.
+    const movementRoot = new Group()
+    movementRoot.name = 'airi-motion-root'
+    _vrmGroup.add(movementRoot)
+    movementRoot.add(_vrm.scene)
+    nextMotionController = new MotionController(_vrm, clip, movementRoot)
+    nextVrmAnimationMixer = nextMotionController.mixer
 
     nextVrmEmote = useVRMEmote(_vrm)
 
@@ -914,6 +931,7 @@ async function loadModel() {
       group: _vrmGroup,
       interactionColliders: nextInteractionColliders,
       mixer: nextVrmAnimationMixer,
+      motions: nextMotionController,
       vrm: _vrm,
     }), currentLoadReason)
     didCommitLoad = true
@@ -941,7 +959,7 @@ async function loadModel() {
       }
 
       nextVrmEmote?.dispose()
-      nextVrmAnimationMixer?.stopAllAction()
+      nextMotionController?.dispose()
       disposeDetachedVrm(nextVrm, nextVrmGroup)
     }
     if (!isLoadRequestCurrent(requestId))
@@ -1102,6 +1120,7 @@ function headAnchor() {
 }
 
 defineExpose({
+  getMotionController: () => motionController.value,
   headAnchor,
   getInteractionColliders: () => interactionColliders.value?.colliders ?? [],
   setExpression(expression: string, intensity = 1) {
